@@ -90,6 +90,7 @@ function loadHeroVideo(){
   f.src = 'https://player.vimeo.com/video/' + heroId + '?background=1&autoplay=1&loop=1&muted=1&dnt=1';
   f.allow = 'autoplay; fullscreen';
   f.title = 'Viven showreel';
+  f.loading = 'lazy';
   heroBg.insertBefore(f, heroBg.querySelector('.grain'));
 }
 var idle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 250); };
@@ -101,7 +102,7 @@ var modal = document.getElementById('video-modal');
 var mount = document.getElementById('video-mount');
 function openVideo(id, title){
   if(!id || !modal) return false;
-  mount.innerHTML = '<iframe src="https://player.vimeo.com/video/' + id + '?autoplay=1&dnt=1&title=0&byline=0&portrait=0" allow="autoplay; fullscreen; picture-in-picture" title="' + (title || 'Viven video') + '"></iframe>';
+  mount.innerHTML = '<iframe src="https://player.vimeo.com/video/' + id + '?autoplay=1&dnt=1&title=0&byline=0&portrait=0" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" title="' + (title || 'Viven video') + '"></iframe>';
   modal.classList.add('open');
   modal.setAttribute('aria-hidden','false');
   document.body.style.overflow = 'hidden';
@@ -144,16 +145,24 @@ document.querySelectorAll('.case .top').forEach(function(top){
 function loadVimeoThumb(tile){
   var id = (tile.dataset.vimeo || '').trim();
   var thumb = tile.querySelector('.wt-thumb');
-  if(!id || !thumb || thumb.style.backgroundImage) return;
+  if(!id || !thumb || thumb.style.backgroundImage || thumb.querySelector('img')) return;
   var cb = 'vmb_' + id + '_' + Math.floor(Math.random() * 1e6);
   window[cb] = function(data){
-    if(data && data.thumbnail_url){
-      thumb.style.backgroundImage = "url('" + data.thumbnail_url + "')";
+    if(data && data.thumbnail_url && !thumb.querySelector('img')){
+      var img = document.createElement('img');
+      img.src = data.thumbnail_url;
+      img.width = data.thumbnail_width || 800;
+      img.height = data.thumbnail_height || 450;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = tile.dataset.label || 'Viven video';
+      thumb.appendChild(img);
     }
     try{ delete window[cb]; }catch(e){}
   };
   var s = document.createElement('script');
   s.src = 'https://vimeo.com/api/oembed.json?url=https://vimeo.com/' + id + '&width=800&callback=' + cb;
+  s.async = true;
   s.onerror = function(){ try{ delete window[cb]; }catch(e){} };
   document.head.appendChild(s);
 }
@@ -187,6 +196,7 @@ if(hsMount){
     if(hsLoaded) return; hsLoaded = true;
     var s = document.createElement('script');
     s.src = 'https://js.hsforms.net/forms/embed/v2.js';
+    s.async = true;
     s.charset = 'utf-8';
     s.onload = function(){
       if(window.hbspt){
