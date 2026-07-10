@@ -56,6 +56,35 @@
   .bar-row .val{text-align:right;color:var(--text);font-weight:600;font-size:12.5px;white-space:nowrap}
   .bar-row .val small{color:var(--muted-2);font-weight:400}
 
+  /* chart with conversion dots */
+  .chart .col .dot{position:absolute;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:#ff9ec9;box-shadow:0 0 0 2px var(--navy-800);z-index:3}
+  .chart-legend{display:flex;gap:18px;margin-top:10px;font-size:11.5px;color:var(--muted-2)}
+  .chart-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .chart-legend .s{background:var(--acid)}
+  .chart-legend .c{border-radius:50%;background:#ff9ec9}
+
+  /* insight banner */
+  .insights{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+  .insight{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--navy-700),var(--navy-800));padding:18px 20px}
+  .insight .t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .insight .v{font-family:'Space Grotesk';font-weight:700;font-size:19px;color:var(--text);line-height:1.25}
+  .insight .v em{color:var(--acid);font-style:normal}
+  .insight .d{color:var(--muted);font-size:12.5px;margin-top:6px}
+  @media(max-width:980px){.insights{grid-template-columns:1fr}}
+
+  /* performance table (canales / páginas que traen leads) */
+  .perf{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+  .perf th{text-align:left;color:var(--muted-2);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--line-strong)}
+  .perf th.num,.perf td.num{text-align:right}
+  .perf td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .perf tr:last-child td{border-bottom:0}
+  .perf .rate-cell{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+  .perf .rate-bar{width:56px;height:7px;border-radius:100px;background:rgba(255,255,255,.06);overflow:hidden;flex-shrink:0}
+  .perf .rate-bar i{display:block;height:100%;background:var(--acid);border-radius:100px}
+  .perf .rate-num{font-weight:700;color:var(--text);min-width:42px;text-align:right}
+  .perf .lead-n{font-weight:700;color:var(--acid)}
+  .perf .lead-n.zero{color:var(--muted-2);font-weight:400}
+
   /* tables */
   table.dt{width:100%;border-collapse:collapse;font-size:13.5px;min-width:820px}
   .dt th{text-align:left;color:var(--muted-2);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--line-strong)}
@@ -178,38 +207,42 @@
   <!-- ============ TAB: ANALYTICS ============ -->
   <div id="tab-analytics" hidden>
     <div class="kpis">
-      <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="l">Sesiones</div></div>
+      <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="l">Sesiones (visitantes)</div></div>
       <div class="kpi"><div class="n" id="ka-views">–</div><div class="l">Páginas vistas</div></div>
       <div class="kpi"><div class="n" id="ka-time">–</div><div class="l">Tiempo medio en página</div></div>
-      <div class="kpi"><div class="n" id="ka-conv">–</div><div class="l">Conversiones (thank-you)</div></div>
+      <div class="kpi"><div class="n" id="ka-conv">–</div><div class="l">Leads (conversiones)</div></div>
       <div class="kpi"><div class="n" id="ka-rate">–</div><div class="l">Tasa de conversión</div></div>
     </div>
 
+    <!-- Titulares automáticos: qué está funcionando -->
+    <div class="insights" id="insights"></div>
+
     <div class="panel">
-      <h2>Sesiones por día <span class="count">(últimos 30 días)</span></h2>
+      <h2>Tráfico y leads por día <span class="count">(últimos 30 días)</span></h2>
       <div class="chart" id="daily-chart"></div>
       <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
+      <div class="chart-legend"><span><i class="s"></i>Sesiones</span><span><i class="c"></i>Leads</span></div>
     </div>
 
     <div class="grid-2">
       <div class="panel">
-        <h2>Canales <span class="count">(sesiones)</span></h2>
-        <div class="bars" id="bars-channel"></div>
+        <h2>¿Qué canales traen leads? <span class="count">(sesiones → leads)</span></h2>
+        <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Canal</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-channel"></tbody></table></div>
       </div>
       <div class="panel">
-        <h2>Páginas de entrada <span class="count">(top 10)</span></h2>
-        <div class="bars" id="bars-landing"></div>
+        <h2>¿Qué páginas convierten? <span class="count">(entrada → leads)</span></h2>
+        <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-landing"></tbody></table></div>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Páginas más vistas <span class="count">(visitas · tiempo medio)</span></h2>
+      <h2>Páginas más vistas <span class="count">(visitas · cuánto se quedan)</span></h2>
       <div class="bars" id="bars-pages"></div>
     </div>
 
     <div class="grid-2">
       <div class="panel">
-        <h2>Dispositivos</h2>
+        <h2>Dispositivos <span class="count">(páginas vistas)</span></h2>
         <div class="bars" id="bars-device"></div>
       </div>
       <div class="panel">
@@ -218,7 +251,7 @@
       </div>
     </div>
 
-    <p class="muted-note">Video stats: <span id="ka-videos">–</span> registros. (El tracking de videos se conecta en una próxima etapa.)</p>
+    <p class="muted-note">Video stats: <span id="ka-videos">–</span> registros. (El tracking de qué % de cada video se mira se conecta en una próxima etapa.)</p>
   </div>
 </div>
 
@@ -320,7 +353,7 @@
     }
     allLeads = leadsQ.data || [];
     renderLeads();
-    renderAnalytics(viewsQ.data || []);
+    renderAnalytics(viewsQ.data || [], allLeads);
     $('ka-videos').textContent = videosQ.count ?? 0;
     $('updated-at').textContent = 'Últimos 30 días · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
   }
@@ -363,7 +396,7 @@
       const d = new Date(r.created_at);
       const date = d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) +
         '<span class="sub">' + d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' }) + '</span>';
-      const contact = '<strong>' + esc(r.name) + '</strong><span class="sub"><a href="mailto:' + esc(r.email) + '" style="color:var(--muted)">' + esc(r.email) + '</a></span>';
+      const contact = '<strong>' + esc(r.name || '—') + '</strong><span class="sub">' + esc(r.email) + '</span>';
       const ch = (r.channel ? '<span class="badge b-' + esc(r.channel) + '">' + esc(r.channel) + '</span>' : '—') +
         (r.landing_path ? '<span class="sub">' + esc(r.landing_path) + '</span>' : '');
       const ads = r.gclid
@@ -587,48 +620,84 @@
     ).join('') || '<p class="muted-note">Sin datos todavía.</p>';
   }
 
-  function renderAnalytics(rows){
-    /* fuera las sesiones de prueba */
+  /* tabla de rendimiento: canal/página → sesiones, leads y % de conversión */
+  function perfTable(el, list){
+    const withRate = list.map((r) => ({ ...r, rate: r.sessions ? (r.leads / r.sessions * 100) : 0 }))
+      .sort((a, b) => (b.leads - a.leads) || (b.sessions - a.sessions));
+    const maxRate = Math.max(1, ...withRate.map((r) => r.rate));
+    el.innerHTML = withRate.slice(0, 8).map((r) =>
+      '<tr>' +
+        '<td>' + (r.badge ? '<span class="badge b-' + esc(r.key) + '">' + esc(r.label) + '</span>' : '<span title="' + esc(r.label) + '">' + esc(r.label) + '</span>') + '</td>' +
+        '<td class="num">' + r.sessions + '</td>' +
+        '<td class="num"><span class="lead-n' + (r.leads ? '' : ' zero') + '">' + r.leads + '</span></td>' +
+        '<td class="num"><span class="rate-cell"><span class="rate-bar"><i style="width:' + Math.round((r.rate / maxRate) * 100) + '%"></i></span><span class="rate-num">' + (r.sessions ? r.rate.toFixed(1) + '%' : '—') + '</span></span></td>' +
+      '</tr>'
+    ).join('') || '<tr><td colspan="4" class="muted-note" style="padding:14px">Sin datos todavía.</td></tr>';
+  }
+
+  function renderAnalytics(rows, leads){
+    /* fuera las sesiones/leads de prueba */
     const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
     const entries = real.filter((r) => r.is_entry);
     const sessions = new Set(real.map((r) => r.session_id));
+    const periodStart = Date.now() - DAYS * 864e5;
+    const periodLeads = (leads || []).filter((l) =>
+      new Date(l.created_at).getTime() >= periodStart && !/^claude-/.test(l.session_id || ''));
 
-    /* KPIs */
+    /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     $('ka-views').textContent = real.length;
     $('ka-sessions').textContent = sessions.size;
     const durs = real.filter((r) => r.duration > 0);
     const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
     $('ka-time').textContent = fmtTime(avg);
-    const convSessions = new Set(real.filter((r) => THANKS.test(r.path)).map((r) => r.session_id));
-    $('ka-conv').textContent = convSessions.size;
-    $('ka-rate').textContent = sessions.size ? (convSessions.size / sessions.size * 100).toFixed(1) + '%' : '—';
+    $('ka-conv').textContent = periodLeads.length;
+    $('ka-rate').textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
 
-    /* sesiones por día (30 columnas) */
+    /* tráfico + leads por día */
     const days = [];
     for (let i = DAYS - 1; i >= 0; i--) {
       const d = new Date(Date.now() - i * 864e5);
-      days.push({ key: d.toISOString().slice(0, 10), label: d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), set: new Set() });
+      days.push({ key: d.toISOString().slice(0, 10), label: d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), set: new Set(), leads: 0 });
     }
     const dayMap = new Map(days.map((d) => [d.key, d]));
-    real.forEach((r) => {
-      const k = r.created_at.slice(0, 10);
-      if (dayMap.has(k)) dayMap.get(k).set.add(r.session_id);
-    });
+    real.forEach((r) => { const d = dayMap.get(r.created_at.slice(0, 10)); if (d) d.set.add(r.session_id); });
+    periodLeads.forEach((l) => { const d = dayMap.get(l.created_at.slice(0, 10)); if (d) d.leads++; });
     const peak = Math.max(1, ...days.map((d) => d.set.size));
-    $('daily-chart').innerHTML = days.map((d) =>
-      '<div class="col"><div class="tip">' + d.label + ': ' + d.set.size + ' sesiones</div>' +
-      '<div class="fill" style="height:' + Math.round((d.set.size / peak) * 100) + '%"></div></div>'
-    ).join('');
+    $('daily-chart').innerHTML = days.map((d) => {
+      const h = Math.round((d.set.size / peak) * 100);
+      const dot = d.leads ? '<div class="dot" style="bottom:calc(' + h + '% + 3px)"></div>' : '';
+      return '<div class="col"><div class="tip">' + d.label + ': ' + d.set.size + ' sesiones · ' + d.leads + ' leads</div>' +
+        dot + '<div class="fill" style="height:' + h + '%"></div></div>';
+    }).join('');
     $('chart-from').textContent = days[0].label;
     $('chart-to').textContent = days[days.length - 1].label;
 
-    /* canales / entradas / dispositivos / idiomas */
-    bars($('bars-channel'), countBy(entries, 'channel'), 8);
-    bars($('bars-landing'), countBy(entries, 'path'), 10);
+    /* rendimiento por CANAL: sesiones vs leads */
+    const chSessions = new Map();
+    entries.forEach((e) => { const k = e.channel || 'direct'; chSessions.set(k, (chSessions.get(k) || 0) + 1); });
+    const chLeads = new Map();
+    periodLeads.forEach((l) => { const k = l.channel || 'direct'; chLeads.set(k, (chLeads.get(k) || 0) + 1); });
+    const chKeys = new Set([...chSessions.keys(), ...chLeads.keys()]);
+    const channelPerf = [...chKeys].map((k) => ({ key: k, label: k, badge: true, sessions: chSessions.get(k) || 0, leads: chLeads.get(k) || 0 }));
+    perfTable($('perf-channel'), channelPerf);
+
+    /* rendimiento por PÁGINA DE ENTRADA */
+    const lpSessions = new Map();
+    entries.forEach((e) => { const k = e.path || '/'; lpSessions.set(k, (lpSessions.get(k) || 0) + 1); });
+    const lpLeads = new Map();
+    periodLeads.forEach((l) => { const k = l.landing_path || '(sin dato)'; lpLeads.set(k, (lpLeads.get(k) || 0) + 1); });
+    const lpKeys = new Set([...lpSessions.keys(), ...lpLeads.keys()]);
+    const landingPerf = [...lpKeys].map((k) => ({ key: k, label: k, sessions: lpSessions.get(k) || 0, leads: lpLeads.get(k) || 0 }));
+    perfTable($('perf-landing'), landingPerf);
+
+    /* titulares automáticos */
+    renderInsights(channelPerf, landingPerf, entries, periodLeads, sessions.size);
+
+    /* dispositivos / idiomas */
     bars($('bars-device'), countBy(real, 'device'), 3);
     bars($('bars-lang'), countBy(entries, 'lang'), 8);
 
-    /* top páginas con tiempo medio */
+    /* top páginas por engagement (visitas + tiempo) */
     const byPath = new Map();
     real.forEach((r) => {
       const p = byPath.get(r.path) || { views: 0, dur: 0, durN: 0 };
@@ -641,6 +710,43 @@
       .sort((a, b) => b[1] - a[1]);
     bars($('bars-pages'), pages, 15, (v, t) => v + ' <small>· ' + fmtTime(t) + '</small>');
   }
+
+  function renderInsights(channelPerf, landingPerf, entries, periodLeads, sessionCount){
+    const cards = [];
+    /* 1 — mejor canal para leads */
+    const chLeaders = channelPerf.filter((c) => c.leads > 0).sort((a, b) => b.leads - a.leads);
+    if (chLeaders.length) {
+      const c = chLeaders[0];
+      cards.push({ t: '🏆 Canal que más convierte', v: '<em>' + esc(c.label) + '</em>',
+        d: c.leads + ' lead' + (c.leads > 1 ? 's' : '') + ' · ' + (c.sessions ? (c.leads / c.sessions * 100).toFixed(1) + '% de sus sesiones' : '') });
+    } else {
+      const top = [...channelPerf].sort((a, b) => b.sessions - a.sessions)[0];
+      cards.push({ t: '📡 Mayor fuente de tráfico', v: top ? '<em>' + esc(top.label) + '</em>' : '—',
+        d: top ? top.sessions + ' sesiones · aún sin leads atribuidos' : 'Sin tráfico todavía' });
+    }
+    /* 2 — página que más convierte */
+    const lpLeaders = landingPerf.filter((p) => p.leads > 0).sort((a, b) => b.leads - a.leads);
+    if (lpLeaders.length) {
+      const p = lpLeaders[0];
+      cards.push({ t: '🎯 Página que más convierte', v: '<em>' + esc(p.label) + '</em>',
+        d: p.leads + ' lead' + (p.leads > 1 ? 's' : '') + ' desde esta entrada' });
+    } else {
+      cards.push({ t: '🎯 Página que más convierte', v: '<em>—</em>', d: 'Aún sin leads. Comparte el sitio o lanza una campaña.' });
+    }
+    /* 3 — oportunidad: página con mucho tráfico y 0 leads */
+    const opp = [...landingPerf].filter((p) => p.leads === 0 && p.sessions >= 3).sort((a, b) => b.sessions - a.sessions)[0];
+    if (opp) {
+      cards.push({ t: '⚠️ Oportunidad a revisar', v: '<em>' + esc(opp.label) + '</em>',
+        d: opp.sessions + ' sesiones y 0 leads — ¿mejorar el CTA o el mensaje?' });
+    } else {
+      cards.push({ t: '📈 Conversión global', v: '<em>' + (sessionCount ? (periodLeads.length / sessionCount * 100).toFixed(1) + '%' : '—') + '</em>',
+        d: periodLeads.length + ' leads de ' + sessionCount + ' sesiones (30 días)' });
+    }
+    $('insights').innerHTML = cards.map((c) =>
+      '<div class="insight"><div class="t">' + c.t + '</div><div class="v">' + c.v + '</div><div class="d">' + esc0html(c.d) + '</div></div>'
+    ).join('');
+  }
+  const esc0html = (s) => String(s ?? '');
 
   /* ---------- Sesión persistente ---------- */
   supabase.auth.getSession().then(({ data }) => {
