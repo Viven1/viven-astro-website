@@ -162,8 +162,9 @@ if(showreelBtn) showreelBtn.addEventListener('click', function(e){
   if(!openVideo(heroId || showreelBtn.dataset.vimeo, 'Viven showreel')) location.hash = '#work';
 });
 
-/* Work tiles + case study tops → modal */
+/* Work tiles → modal. Los tiles <a> (case study) navegan por href, no abren modal. */
 document.querySelectorAll('.work-tile').forEach(function(tile){
+  if(tile.tagName === 'A') return;                 // case study tile: es un link, dejarlo pasar
   var id = (tile.dataset.vimeo || '').trim();
   if(!id){ tile.style.display = 'none'; return; }
   tile.addEventListener('click', function(){ openVideo(id, tile.dataset.label || 'Viven', (tile.dataset.hash || '').trim()); });

@@ -1,7 +1,19 @@
 ---
 import videos from '../data/videos.json';
+import projects from '../data/projects.json';
 import { pick } from '../i18n.js';
 const { cat = '', lang = 'en', limit = 0, feature = false, perClient = 2, seed = '' } = Astro.props;
+
+// Clientes con case study en este idioma → sus tiles abren la página completa en vez del modal.
+// Match por cliente (no por id de video exacto) para que sea consistente en los 3 idiomas.
+const caseByClient = new Map();
+for (const pr of projects) {
+  const key = (pr.client || '').trim().toLowerCase();
+  if (pr.lang === lang && key && !caseByClient.has(key)) caseByClient.set(key, pr.slug);
+}
+const caseFor = (v) => caseByClient.get((v.client || '').trim().toLowerCase());
+const CS_LABEL = { en: 'Case study', de: 'Case Study', es: 'Caso de éxito' };
+const csLabel = CS_LABEL[lang] || CS_LABEL.en;
 
 const CATLABEL = {
   brand:     { en: 'Brand video', de: 'Markenfilm', es: 'Video de marca' },
@@ -64,15 +76,30 @@ if (limit) list = list.slice(0, limit);
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
 <div class="work-grid">
-  {list.map((v, i) => (
-    <button class={'work-tile reveal' + (feature && i === 0 ? ' wt-feature' : '')} type="button"
-      data-vimeo={v.id} data-hash={v.hash || ''} data-label={v.title} data-cat={v.cat}>
-      <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>
-      <span class="wt-play" set:html={play} />
+  {list.map((v, i) => {
+    const feat = feature && i === 0 ? ' wt-feature' : '';
+    const csSlug = caseFor(v);
+    const thumb = <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>;
+    const meta = (
       <span class="wt-meta">
         <span class="wt-title">{displayTitle(v)}</span>
         <span class="wt-cat">{pick(CATLABEL[v.cat], lang)}</span>
       </span>
-    </button>
-  ))}
+    );
+    return csSlug ? (
+      <a class={'work-tile reveal wt-case' + feat} href={'/' + csSlug + '/'} data-cat={v.cat} aria-label={displayTitle(v) + ' — ' + csLabel}>
+        {thumb}
+        <span class="wt-badge">{csLabel}</span>
+        <span class="wt-play" set:html={play} />
+        {meta}
+      </a>
+    ) : (
+      <button class={'work-tile reveal' + feat} type="button"
+        data-vimeo={v.id} data-hash={v.hash || ''} data-label={v.title} data-cat={v.cat}>
+        {thumb}
+        <span class="wt-play" set:html={play} />
+        {meta}
+      </button>
+    );
+  })}
 </div>
