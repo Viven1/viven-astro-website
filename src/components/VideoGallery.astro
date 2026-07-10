@@ -2,7 +2,7 @@
 import videos from '../data/videos.json';
 import projects from '../data/projects.json';
 import { pick } from '../i18n.js';
-const { cat = '', lang = 'en', limit = 0, feature = false, perClient = 2, seed = '' } = Astro.props;
+const { cat = '', lang = 'en', limit = 0, feature = false, perClient = 2, seed = '', caseFirst = false } = Astro.props;
 
 // Clientes con case study en este idioma → sus tiles abren la página completa en vez del modal.
 // Match por cliente (no por id de video exacto) para que sea consistente en los 3 idiomas.
@@ -14,6 +14,26 @@ for (const pr of projects) {
 const caseFor = (v) => caseByClient.get((v.client || '').trim().toLowerCase());
 const CS_LABEL = { en: 'Case study', de: 'Case Study', es: 'Caso de éxito' };
 const csLabel = CS_LABEL[lang] || CS_LABEL.en;
+
+// service (idioma de la página) → categoría del filtro
+const serviceCat = (s) => {
+  const x = (s || '').toLowerCase();
+  if (/employer/.test(x)) return 'employer';
+  if (/produkt|product|producto/.test(x)) return 'product';
+  if (/social/.test(x)) return 'social';
+  if (/explain|explicativo|erklär|how.?to|tutorial/.test(x)) return 'howto';
+  if (/marca|brand|marken/.test(x)) return 'brand';
+  return 'corporate';
+};
+// Un tile por case study (deduplicado por cliente) para la grilla de proyectos
+const csProjects = [];
+if (caseFirst) {
+  const seen = new Set();
+  for (const pr of projects) {
+    const key = (pr.client || '').trim().toLowerCase();
+    if (pr.lang === lang && key && !seen.has(key) && pr.stills && pr.stills.length) { seen.add(key); csProjects.push(pr); }
+  }
+}
 
 const CATLABEL = {
   brand:     { en: 'Brand video', de: 'Markenfilm', es: 'Video de marca' },
@@ -38,7 +58,9 @@ const displayTitle = (v) => v.client || showreelName(v.title) || (junkTitle(v.ti
 
 // --- balanceo: diversidad de marcas, destacados/nuevos/importantes primero ---
 // fuera videos sin cliente Y con título de archivo (ruido de showreels internos)
-const pool = videos.filter((v) => v.thumb && (!cat || v.cat === cat) && (v.client || !junkTitle(v.title)));
+// en la grilla de proyectos, los clientes con case study aparecen SOLO como su tile de case study
+const pool = videos.filter((v) => v.thumb && (!cat || v.cat === cat) && (v.client || !junkTitle(v.title))
+  && !(caseFirst && caseByClient.has((v.client || '').trim().toLowerCase())));
 const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
 for (const v of pool) {
   const key = v.client || ('__' + v.id);
@@ -73,11 +95,29 @@ if (seed && list.length) {
 }
 if (limit) list = list.slice(0, limit);
 
+// case studies primero (ordenados por relevancia de marca)
+csProjects.sort((a, b) => rank(a.client) - rank(b.client));
+
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
 <div class="work-grid">
-  {list.map((v, i) => {
+  {csProjects.map((pr, i) => {
     const feat = feature && i === 0 ? ' wt-feature' : '';
+    const c = serviceCat(pr.service);
+    return (
+      <a class={'work-tile reveal wt-case' + feat} href={'/' + pr.slug + '/'} data-cat={c} data-case="1" aria-label={pr.client + ' — ' + csLabel}>
+        <span class="wt-thumb"><img src={pr.stills[0]} width="1280" height="720" loading="lazy" decoding="async" alt={pr.headline} /></span>
+        <span class="wt-badge">{csLabel}</span>
+        <span class="wt-play" set:html={play} />
+        <span class="wt-meta">
+          <span class="wt-title">{pr.client}</span>
+          <span class="wt-cat">{pick(CATLABEL[c], lang)}</span>
+        </span>
+      </a>
+    );
+  })}
+  {list.map((v, i) => {
+    const feat = feature && !caseFirst && i === 0 ? ' wt-feature' : '';
     const csSlug = caseFor(v);
     const thumb = <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>;
     const meta = (

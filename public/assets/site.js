@@ -216,7 +216,9 @@ if(filterBar){
       btn.classList.add('active');
       var f = btn.dataset.filter;
       document.querySelectorAll('.work-tile').forEach(function(tile){
-        var show = f === 'all' || (tile.dataset.cat || '').split(' ').indexOf(f) !== -1;
+        var show = f === 'all' ? true
+                 : f === 'case' ? tile.classList.contains('wt-case')
+                 : (tile.dataset.cat || '').split(' ').indexOf(f) !== -1;
         tile.style.display = show ? '' : 'none';
         if(show) loadVimeoThumb(tile);
       });
