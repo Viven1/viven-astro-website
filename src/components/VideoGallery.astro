@@ -1,7 +1,7 @@
 ---
 import videos from '../data/videos.json';
 import { pick } from '../i18n.js';
-const { cat = '', lang = 'en', limit = 0, feature = false, perClient = 2 } = Astro.props;
+const { cat = '', lang = 'en', limit = 0, feature = false, perClient = 2, seed = '' } = Astro.props;
 
 const CATLABEL = {
   brand:     { en: 'Brand video', de: 'Markenfilm', es: 'Video de marca' },
@@ -50,6 +50,14 @@ while (added) {
   added = false;
   for (const [, arr] of capped) { if (arr[round]) { list.push(arr[round]); added = true; } }
   round++;
+}
+/* seed opcional (ej. slug del blog): rota la lista para que cada post muestre
+   un tramo distinto → diversidad de marcas a lo largo del blog, no siempre las mismas */
+if (seed && list.length) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const off = h % list.length;
+  list = list.slice(off).concat(list.slice(0, off));
 }
 if (limit) list = list.slice(0, limit);
 

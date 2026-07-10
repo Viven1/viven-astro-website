@@ -356,49 +356,51 @@ document.querySelectorAll('a[href^="tel:"], a[href^="mailto:"]').forEach(functio
 });
 
 /* ---------- Testimonial slider (auto-rota, pausa al interactuar, respeta reduced-motion) ---------- */
+/* Slider por transform (NO scroll nativo ni scroll-snap: eso rompía la medición
+   de LCP en Lighthouse). Auto-rota solo cuando está visible. */
 document.querySelectorAll('.review-slider').forEach(function(slider){
   var track = slider.querySelector('.review-track');
   var slides = track.children;
   if(slides.length < 2) return;
   var dotsWrap = slider.parentElement.querySelector('.review-dots');
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var i = 0, dots = [];
 
-  /* dots */
-  var dots = [];
+  function perView(){ return Math.max(1, Math.round(slider.clientWidth / slides[0].getBoundingClientRect().width)); }
+  function maxIdx(){ return Math.max(0, slides.length - perView()); }
+  function apply(){
+    var step = slides[0].getBoundingClientRect().width + 22;
+    track.style.transform = 'translateX(' + (-i * step) + 'px)';
+    dots.forEach(function(dot, x){ dot.classList.toggle('active', x === i); });
+  }
+  function goTo(n){ var m = maxIdx(); i = n < 0 ? m : (n > m ? 0 : n); apply(); }
+  function next(){ goTo(i >= maxIdx() ? 0 : i + 1); }
+
   if(dotsWrap){
-    for(var d = 0; d < slides.length; d++){
+    for(var d = 0; d <= maxIdx(); d++){
       var b = document.createElement('button');
-      b.type = 'button';
-      b.setAttribute('aria-label', 'Review ' + (d + 1));
+      b.type = 'button'; b.setAttribute('aria-label', 'Review ' + (d + 1));
       (function(idx){ b.addEventListener('click', function(){ goTo(idx); rearm(); }); })(d);
       dotsWrap.appendChild(b); dots.push(b);
     }
   }
-  function stepW(){ return slides[0].getBoundingClientRect().width + 22; }
-  function current(){ return Math.round(track.scrollLeft / stepW()); }
-  function updateDots(){
-    var c = current();
-    dots.forEach(function(dot, i){ dot.classList.toggle('active', i === c); });
-  }
-  function goTo(i){ track.scrollTo({ left: i * stepW(), behavior: 'smooth' }); }
-  function next(){
-    var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 6;
-    if(atEnd) track.scrollTo({ left: 0, behavior: 'smooth' });
-    else track.scrollBy({ left: stepW(), behavior: 'smooth' });
-  }
 
   var delay = parseInt(slider.dataset.autoplay, 10) || 5000;
-  var timer = null;
-  function play(){ if(reduced || timer) return; timer = setInterval(next, delay); }
+  var timer = null, visible = false;
+  function play(){ if(reduced || timer || !visible) return; timer = setInterval(next, delay); }
   function stop(){ if(timer){ clearInterval(timer); timer = null; } }
   function rearm(){ stop(); setTimeout(play, delay); }
 
-  track.addEventListener('scroll', function(){ updateDots(); }, { passive: true });
   slider.addEventListener('pointerenter', stop);
   slider.addEventListener('pointerleave', play);
-  slider.addEventListener('touchstart', function(){ stop(); rearm(); }, { passive: true });
-  updateDots();
-  play();
+  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ if(i > maxIdx()) i = maxIdx(); apply(); }, 150); }, { passive: true });
+  apply();
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es){
+      visible = es[0].isIntersecting;
+      if(visible) play(); else stop();
+    }, { threshold: 0.25 }).observe(slider);
+  } else { visible = true; play(); }
 });
 
 /* ---------- Year ---------- */
