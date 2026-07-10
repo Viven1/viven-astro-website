@@ -19,6 +19,8 @@ const lead = project.body[0] || '';
 const rest = project.body.slice(1);
 const poster = project.stills[0];
 const galleryStills = project.stills.slice(1);
+const conn = { en: 'for', de: 'für', es: 'para' }[lang] || 'for';
+const serviceH2 = project.service && project.client ? project.service + ' ' + conn + ' ' + project.client : '';
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
 <article>
@@ -50,6 +52,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
   {rest.length > 0 && (
     <section class="sec" style="padding-top:0">
       <div class="wrap prose cs-body">
+        {serviceH2 && <h2 class="cs-body-h">{serviceH2}</h2>}
         {rest.map((para) => <p>{para}</p>)}
       </div>
     </section>
