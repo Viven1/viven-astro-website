@@ -188,42 +188,86 @@ if(filterBar){
   });
 }
 
-/* ---------- HubSpot form (lazy: loads when section nears viewport) ---------- */
-var hsMount = document.querySelector('.hs-form-mount');
-if(hsMount){
-  var hsLoaded = false;
-  var loadHS = function(){
-    if(hsLoaded) return; hsLoaded = true;
-    var s = document.createElement('script');
-    s.src = 'https://js.hsforms.net/forms/embed/v2.js';
-    s.async = true;
-    s.charset = 'utf-8';
-    s.onload = function(){
-      if(window.hbspt){
-        window.hbspt.forms.create({
-          portalId: hsMount.dataset.portal || '4084680',
-          formId: hsMount.dataset.form || '994b80e1-84c2-42de-a5a1-ea2145608d76',
-          region: hsMount.dataset.region || 'na1',
-          target: '.hs-form-mount'
-        });
-      }
+/* ---------- Lead form propio (guarda en Supabase → tabla leads) ---------- */
+function renderLeadForm(mount){
+  mount.innerHTML =
+    '<form class="lead-form" novalidate>' +
+      '<div class="field">' +
+        '<label data-en=\'Name <span class="req">*</span>\' data-de=\'Name <span class="req">*</span>\' data-es=\'Nombre <span class="req">*</span>\'>Name <span class="req">*</span></label>' +
+        '<input type="text" name="name" required maxlength="120" autocomplete="name" />' +
+      '</div>' +
+      '<div class="field">' +
+        '<label data-en=\'Work email <span class="req">*</span>\' data-de=\'Gesch&auml;ftliche E-Mail <span class="req">*</span>\' data-es=\'Email de trabajo <span class="req">*</span>\'>Work email <span class="req">*</span></label>' +
+        '<input type="email" name="email" required maxlength="200" autocomplete="email" />' +
+      '</div>' +
+      '<div class="field">' +
+        '<label data-en="What are you working on?" data-de="Woran arbeiten Sie?" data-es="&iquest;En qu&eacute; est&aacute;s trabajando?">What are you working on?</label>' +
+        '<textarea name="message" maxlength="4000" rows="4"></textarea>' +
+      '</div>' +
+      /* honeypot: los bots lo completan, los humanos no lo ven */
+      '<div class="hp-field" aria-hidden="true"><label>Website</label><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>' +
+      '<button type="submit" data-en="Send message" data-de="Nachricht senden" data-es="Enviar mensaje">Send message</button>' +
+      '<p class="form-error" data-en="Something went wrong — please email us at info@viven.ch" data-de="Etwas ist schiefgelaufen — bitte schreiben Sie uns an info@viven.ch" data-es="Algo sali&oacute; mal — escr&iacute;benos a info@viven.ch">Something went wrong — please email us at info@viven.ch</p>' +
+    '</form>' +
+    '<div class="form-ok">' +
+      '<div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg></div>' +
+      '<h3 data-en="Message sent!" data-de="Nachricht gesendet!" data-es="&iexcl;Mensaje enviado!">Message sent!</h3>' +
+      '<p data-en="We&#39;ll reply within one business day." data-de="Wir antworten innerhalb eines Werktags." data-es="Respondemos en un d&iacute;a h&aacute;bil.">We&#39;ll reply within one business day.</p>' +
+    '</div>';
+
+  var form = mount.querySelector('.lead-form');
+  var okBox = mount.querySelector('.form-ok');
+  var renderedAt = Date.now();
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    form.classList.remove('has-error');
+    var name = form.name.value.trim();
+    var email = form.email.value.trim();
+    if(!name || !email || !form.email.checkValidity()){ form.reportValidity(); return; }
+    /* anti-spam: honeypot lleno o envío en <3s = bot → éxito falso, sin guardar */
+    if(form.website.value || (Date.now() - renderedAt) < 3000){
+      form.style.display = 'none'; okBox.classList.add('show');
+      return;
+    }
+    var btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    var extra = window.vivenAttribution ? window.vivenAttribution() : null;
+    var row = {
+      name: name,
+      email: email,
+      message: form.message.value.trim() || null
     };
-    document.head.appendChild(s);
-  };
-  var hsIO = new IntersectionObserver(function(es){
-    es.forEach(function(e){ if(e.isIntersecting){ loadHS(); hsIO.disconnect(); } });
-  },{rootMargin:'500px'});
-  hsIO.observe(hsMount);
+    if(extra){
+      row.session_id = extra.session_id;
+      row.lang = extra.lang;
+      if(extra.attrib){
+        row.channel = extra.attrib.channel;
+        row.gclid = extra.attrib.gclid;
+        row.utm_source = extra.attrib.utm_source;
+        row.utm_campaign = extra.attrib.utm_campaign;
+        row.landing_path = extra.attrib.landing_path;
+      }
+    }
+    sbInsert('leads', row).then(function(r){
+      if(r && r.ok){
+        /* conversión → thank-you page en el idioma del visitante
+           (ahí se dispara el evento de Google Ads / GA4) */
+        var dest = {en: '/thank-you/', de: '/danke/', es: '/gracias/'};
+        window.location.href = dest[document.documentElement.lang] || dest.en;
+      }else{
+        btn.disabled = false;
+        form.classList.add('has-error');
+      }
+    });
+  });
 }
+document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadForm(m); });
+/* el idioma ya se aplicó al cargar — re-aplicar sobre el formulario recién montado */
+if(document.querySelector('.lead-form')) setLang(document.documentElement.lang || 'en');
 
 /* ---------- Lead conversion tracking (GA4, consent-gated: no-ops until gtag exists) ---------- */
 function track(name, params){ if(typeof window.gtag === 'function') window.gtag('event', name, params || {}); }
-/* HubSpot form submit → generate_lead */
-window.addEventListener('message', function(e){
-  if(e.data && e.data.type === 'hsFormCallback' && e.data.eventName === 'onFormSubmitted'){
-    track('generate_lead', {method: 'hubspot_form', form_id: e.data.id || ''});
-  }
-});
 /* Meeting booking click → book_call */
 document.querySelectorAll('a.book-call').forEach(function(a){
   a.addEventListener('click', function(){ track('book_call', {method: 'hubspot_meetings'}); });
@@ -275,6 +319,14 @@ if(consent === null){
     try{ localStorage.setItem('viven-cookie','declined'); }catch(e){}
     bar.remove();
   };
+}
+
+/* ---------- Conversión: llegada a una thank-you page ----------
+   Aquí es donde Google Ads / GA4 registran el lead. El evento solo
+   dispara si hay consentimiento de cookies (gtag existe). En Supabase
+   la conversión se cuenta SIEMPRE (pageview de /thank-you|/danke|/gracias). */
+if(/^\/(thank-you|danke|gracias)\/?$/.test(location.pathname)){
+  track('generate_lead', {method: 'lead_form', page: location.pathname});
 }
 
 /* ---------- First-party analytics → Supabase (tabla pageviews) ----------

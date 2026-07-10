@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Viven — Dashboard</title>
+<!-- Página privada: fuera de buscadores y del sitemap -->
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#0f1826" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style>
+  .dash-wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+  .dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:36px}
+  .dash-head h1{font-size:clamp(26px,4vw,38px)}
+  .dash-head h1 span{color:var(--acid)}
+  .dash-sub{color:var(--muted);font-size:14px;margin-top:6px}
+  .login-card{max-width:420px;margin:12vh auto 0;border:1px solid var(--line-strong);border-radius:20px;background:var(--navy-800);padding:40px}
+  .login-card h1{font-size:26px;margin-bottom:6px}
+  .login-card p{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:36px}
+  .kpi{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--navy-700),var(--navy-800));padding:22px}
+  .kpi .n{font-family:'Space Grotesk';font-weight:700;font-size:34px;color:var(--acid);line-height:1.1}
+  .kpi .l{color:var(--muted);font-size:13px;margin-top:6px}
+  .panel{border:1px solid var(--line);border-radius:var(--radius);background:var(--navy-800);padding:26px;margin-bottom:24px;overflow-x:auto}
+  .panel h2{font-size:19px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+  .panel h2 .count{font-size:12px;color:var(--muted);font-weight:500}
+  table.dt{width:100%;border-collapse:collapse;font-size:13.5px;min-width:760px}
+  .dt th{text-align:left;color:var(--muted-2);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--line-strong)}
+  .dt td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--text);vertical-align:top}
+  .dt td .sub{color:var(--muted-2);font-size:12px;display:block}
+  .dt .msg{max-width:280px;color:var(--muted);font-size:13px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:600}
+  .b-paid_search{background:rgba(66,133,244,.18);color:#8ab4f8}
+  .b-paid_social{background:rgba(24,119,242,.18);color:#7ba9e8}
+  .b-organic{background:rgba(52,168,83,.18);color:#81c995}
+  .b-ai{background:rgba(221,249,143,.16);color:var(--acid)}
+  .b-social{background:rgba(255,110,180,.16);color:#ff9ec9}
+  .b-referral{background:rgba(255,190,90,.16);color:#ffd28a}
+  .b-email{background:rgba(160,110,255,.18);color:#c4a7ff}
+  .b-direct,.badge{background:rgba(255,255,255,.08);color:var(--muted)}
+  .gclid-dot{color:var(--acid);font-weight:700}
+  select.status{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:12.5px;padding:5px 8px;cursor:pointer}
+  .bars{display:grid;gap:10px}
+  .bar-row{display:grid;grid-template-columns:130px 1fr 46px;align-items:center;gap:12px;font-size:13px}
+  .bar-row .lbl{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-row .track{height:10px;border-radius:100px;background:rgba(255,255,255,.05);overflow:hidden}
+  .bar-row .fill{height:100%;border-radius:100px;background:var(--acid);min-width:2px}
+  .bar-row .val{text-align:right;color:var(--text);font-weight:600;font-size:12.5px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .muted-note{color:var(--muted-2);font-size:13px}
+  .refresh{font-size:13px}
+  [hidden]{display:none!important}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-view" class="dash-wrap" hidden>
+  <div class="login-card">
+    <h1>Viven <span style="color:var(--acid)">Dashboard</span></h1>
+    <p>Acceso privado. Inicia sesión con tu usuario de Supabase.</p>
+    <form id="login-form" class="lead-form">
+      <div class="field"><label>Email</label><input type="email" name="email" required autocomplete="username" /></div>
+      <div class="field"><label>Contraseña</label><input type="password" name="password" required autocomplete="current-password" /></div>
+      <button type="submit">Entrar</button>
+      <p class="form-error" id="login-error">Login incorrecto — revisa email y contraseña.</p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div id="dash-view" class="dash-wrap" hidden>
+  <div class="dash-head">
+    <div>
+      <h1>Viven <span>Dashboard</span></h1>
+      <p class="dash-sub" id="dash-period">Últimos 30 días</p>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost refresh" id="refresh-btn" type="button">↻ Actualizar</button>
+      <button class="btn btn-ghost refresh" id="logout-btn" type="button">Salir</button>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n" id="k-leads">–</div><div class="l">Leads totales</div></div>
+    <div class="kpi"><div class="n" id="k-sessions">–</div><div class="l">Sesiones (30d)</div></div>
+    <div class="kpi"><div class="n" id="k-views">–</div><div class="l">Páginas vistas (30d)</div></div>
+    <div class="kpi"><div class="n" id="k-channel">–</div><div class="l">Canal principal (30d)</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Leads <span class="count" id="leads-count"></span></h2>
+    <table class="dt">
+      <thead><tr><th>Fecha</th><th>Contacto</th><th>Mensaje</th><th>Canal</th><th>Idioma</th><th>Google Ads</th><th>Estado</th></tr></thead>
+      <tbody id="leads-body"></tbody>
+    </table>
+    <p class="muted-note" id="leads-empty" hidden>Todavía no hay leads. Envía el formulario del sitio para testear.</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Tráfico por canal <span class="count">(sesiones, 30d)</span></h2>
+      <div class="bars" id="bars-channel"></div>
+    </div>
+    <div class="panel">
+      <h2>Páginas de entrada <span class="count">(top 10, 30d)</span></h2>
+      <div class="bars" id="bars-landing"></div>
+    </div>
+    <div class="panel">
+      <h2>Dispositivos <span class="count">(30d)</span></h2>
+      <div class="bars" id="bars-device"></div>
+    </div>
+    <div class="panel">
+      <h2>Idiomas del navegador <span class="count">(sesiones, 30d)</span></h2>
+      <div class="bars" id="bars-lang"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Páginas más vistas <span class="count">(top 15, 30d)</span></h2>
+    <div class="bars" id="bars-pages"></div>
+  </div>
+
+  <p class="muted-note">Video stats: <span id="k-videos">–</span> registros. (El tracking de videos se conecta en una próxima etapa.)</p>
+</div>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  /* misma URL + publishable key que usa el sitio (públicas por diseño);
+     los datos solo se pueden LEER tras login gracias a las policies RLS */
+  const supabase = createClient(
+    'https://lumoevaotokgqnpybkyf.supabase.co',
+    'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca'
+  );
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
+
+  function show(view){
+    $('login-view').hidden = view !== 'login';
+    $('dash-view').hidden = view !== 'dash';
+  }
+
+  /* ---------- Login ---------- */
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    f.classList.remove('has-error');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: f.email.value.trim(),
+      password: f.password.value
+    });
+    if (error) { f.classList.add('has-error'); return; }
+    show('dash');
+    loadAll();
+  });
+  $('logout-btn').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    show('login');
+  });
+  $('refresh-btn').addEventListener('click', loadAll);
+
+  /* ---------- Data ---------- */
+  const DAYS = 30;
+  const since = () => new Date(Date.now() - DAYS * 864e5).toISOString();
+
+  async function loadAll(){
+    const [leadsQ, viewsQ, videosQ] = await Promise.all([
+      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('pageviews').select('created_at,path,device,session_id,channel,referrer,lang,is_entry')
+        .gte('created_at', since()).order('created_at', { ascending: false }).limit(10000),
+      supabase.from('video_stats').select('id', { count: 'exact', head: true })
+    ]);
+    if (leadsQ.error || viewsQ.error) {
+      alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
+      return;
+    }
+    renderLeads(leadsQ.data || []);
+    renderTraffic(viewsQ.data || []);
+    $('k-videos').textContent = videosQ.count ?? 0;
+  }
+
+  /* ---------- Leads ---------- */
+  function renderLeads(rows){
+    $('k-leads').textContent = rows.length;
+    $('leads-count').textContent = rows.length ? '(' + rows.length + ')' : '';
+    $('leads-empty').hidden = rows.length > 0;
+    $('leads-body').innerHTML = rows.map((r) => {
+      const d = new Date(r.created_at);
+      const date = d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) +
+        ' <span class="sub">' + d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' }) + '</span>';
+      const contact = '<strong>' + esc(r.name) + '</strong><span class="sub">' + esc(r.email) + '</span>';
+      const ch = r.channel ? '<span class="badge b-' + esc(r.channel) + '">' + esc(r.channel) + '</span>' : '—';
+      const ads = r.gclid
+        ? '<span class="gclid-dot" title="' + esc(r.gclid) + '">✓ GCLID</span>' +
+          (r.utm_campaign ? '<span class="sub">' + esc(r.utm_campaign) + '</span>' : '')
+        : '—';
+      const opts = STATUSES.map((s) => '<option value="' + s + '"' + (r.status === s ? ' selected' : '') + '>' + s + '</option>').join('');
+      return '<tr data-id="' + r.id + '">' +
+        '<td>' + date + '</td>' +
+        '<td>' + contact + '</td>' +
+        '<td class="msg" title="' + esc(r.message) + '">' + esc((r.message || '—').slice(0, 140)) + '</td>' +
+        '<td>' + ch + (r.landing_path ? '<span class="sub">' + esc(r.landing_path) + '</span>' : '') + '</td>' +
+        '<td>' + esc(r.lang || '—').toUpperCase() + '</td>' +
+        '<td>' + ads + '</td>' +
+        '<td><select class="status">' + opts + '</select></td>' +
+      '</tr>';
+    }).join('');
+    /* cambio de estado → update en Supabase */
+    document.querySelectorAll('#leads-body select.status').forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        const id = sel.closest('tr').dataset.id;
+        const { error } = await supabase.from('leads').update({ status: sel.value }).eq('id', id);
+        sel.style.borderColor = error ? '#ff9a9a' : 'var(--acid)';
+        setTimeout(() => { sel.style.borderColor = ''; }, 1200);
+      });
+    });
+  }
+
+  /* ---------- Traffic ---------- */
+  function countBy(rows, key){
+    const m = new Map();
+    rows.forEach((r) => {
+      const k = r[key] || '(sin dato)';
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }
+  function bars(el, entries, max){
+    const top = entries.slice(0, max || 10);
+    const peak = top.length ? top[0][1] : 1;
+    el.innerHTML = top.map(([k, v]) =>
+      '<div class="bar-row"><span class="lbl" title="' + esc(k) + '">' + esc(k) + '</span>' +
+      '<span class="track"><span class="fill" style="width:' + Math.max(2, Math.round((v / peak) * 100)) + '%"></span></span>' +
+      '<span class="val">' + v + '</span></div>'
+    ).join('') || '<p class="muted-note">Sin datos todavía.</p>';
+  }
+
+  function renderTraffic(rows){
+    /* filtrar mis propias pruebas */
+    const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
+    const entries = real.filter((r) => r.is_entry);
+    const sessions = new Set(real.map((r) => r.session_id));
+    $('k-views').textContent = real.length;
+    $('k-sessions').textContent = sessions.size;
+    const byChannel = countBy(entries, 'channel');
+    $('k-channel').textContent = byChannel.length ? byChannel[0][0] : '—';
+    bars($('bars-channel'), byChannel, 8);
+    bars($('bars-landing'), countBy(entries, 'path'), 10);
+    bars($('bars-device'), countBy(real, 'device'), 3);
+    bars($('bars-lang'), countBy(entries, 'lang'), 8);
+    bars($('bars-pages'), countBy(real, 'path'), 15);
+  }
+
+  /* ---------- Sesión persistente ---------- */
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session) { show('dash'); loadAll(); }
+    else show('login');
+  });
+</script>
+
+</body>
+</html>
