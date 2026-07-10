@@ -267,6 +267,7 @@
     <div class="draft-head">
       <h4>✍️ <span>Borrador de respuesta</span> (editable — generado según lo que pide)</h4>
       <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost small" id="lm-ai" type="button" title="Sugerencia personalizada con IA">✨ IA</button>
         <button class="btn btn-ghost small" id="lm-copy" type="button">📋 Copiar</button>
         <a class="btn btn-primary small" id="lm-mailto" href="#">✉️ Abrir en tu correo</a>
       </div>
@@ -356,6 +357,39 @@
     renderAnalytics(viewsQ.data || [], allLeads);
     $('ka-videos').textContent = videosQ.count ?? 0;
     $('updated-at').textContent = 'Últimos 30 días · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+    subscribeRealtime();
+  }
+
+  /* ---------- Realtime: leads nuevos aparecen solos (gratis, sin polling) ---------- */
+  let rtSubscribed = false;
+  function subscribeRealtime(){
+    if (rtSubscribed) return;
+    rtSubscribed = true;
+    supabase.channel('leads-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+        const r = payload.new;
+        if (allLeads.some((l) => l.id === r.id)) return;
+        allLeads.unshift(r);
+        renderLeads();
+        toast('🎬 Nuevo lead: ' + (r.name || r.email));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
+        const i = allLeads.findIndex((l) => l.id === payload.new.id);
+        if (i > -1) { allLeads[i] = payload.new; renderLeads(); }
+      })
+      .subscribe();
+  }
+  function toast(msg){
+    let t = document.getElementById('dash-toast');
+    if (!t) {
+      t = document.createElement('div'); t.id = 'dash-toast';
+      t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--acid);color:#142033;font-weight:700;font-family:Space Grotesk;padding:14px 20px;border-radius:12px;box-shadow:0 12px 40px -10px rgba(0,0,0,.6);transition:.3s;opacity:0;transform:translateY(10px)';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'none'; });
+    clearTimeout(t._h);
+    t._h = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; }, 6000);
   }
 
   /* ---------- LEADS ---------- */
@@ -534,6 +568,9 @@
       ['Campaña (UTM)', r.utm_campaign || '—'],
       ['Fuente (UTM)', r.utm_source || '—'],
       ['GCLID (Google Ads)', r.gclid || '—'],
+      ['Próximo follow-up', r.next_follow_up_at
+        ? new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (r.follow_up_count ? ' · #' + (r.follow_up_count + 1) : '')
+        : (r.status === 'contacted' || r.status === 'contactado' ? 'programando…' : '—')],
       ['Sesión', r.session_id ? r.session_id.slice(0, 13) + '…' : '—']
     ];
     $('lm-details').innerHTML = fields.map(([k, v]) =>
@@ -575,6 +612,26 @@
       $('lm-copy').textContent = '✓ Copiado';
     }
     setTimeout(() => { $('lm-copy').textContent = '📋 Copiar'; }, 1600);
+  });
+
+  /* ✨ Sugerencia con IA (Edge Function ai-suggest → Claude). Reemplaza el borrador. */
+  $('lm-ai').addEventListener('click', async () => {
+    if (!currentLead) return;
+    const btn = $('lm-ai'), prev = btn.textContent;
+    btn.disabled = true; btn.textContent = '✨ Pensando…';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-suggest', {
+        body: { lead: currentLead, lang: currentLead.lang || 'es' }
+      });
+      if (error || !data || !data.suggestion) throw new Error(error?.message || 'sin respuesta');
+      $('lm-draft').value = data.suggestion;
+      updateMailto();
+      $('lm-status-note').textContent = '✨ Borrador generado con IA — revisalo antes de enviar.';
+    } catch (e) {
+      $('lm-status-note').textContent = 'No se pudo generar con IA (¿deployaste la función ai-suggest?): ' + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = prev;
+    }
   });
 
   $('lm-delete').addEventListener('click', async () => {
