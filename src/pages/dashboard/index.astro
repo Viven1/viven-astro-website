@@ -187,6 +187,13 @@
       <div class="kpi"><div class="n" id="kl-new">–</div><div class="l">Sin contactar</div></div>
       <div class="kpi"><div class="n" id="kl-ads">–</div><div class="l">Desde Google Ads (GCLID)</div></div>
     </div>
+    <div class="kpis">
+      <div class="kpi"><div class="n" id="kl-contacted">–</div><div class="l">Contactados</div></div>
+      <div class="kpi"><div class="n" id="kl-won">–</div><div class="l">Ganados</div></div>
+      <div class="kpi"><div class="n" id="kl-lost">–</div><div class="l">Perdidos</div></div>
+      <div class="kpi"><div class="n" id="kl-convrate">–</div><div class="l">Tasa de conversión</div></div>
+      <div class="kpi"><div class="n" id="kl-followup">–</div><div class="l">Follow-ups esta semana</div></div>
+    </div>
     <div class="panel">
       <div class="toolbar">
         <input type="search" id="lead-search" placeholder="Buscar por nombre, email o mensaje…" />
@@ -423,6 +430,20 @@
     $('kl-week').textContent = allLeads.filter((r) => new Date(r.created_at) > week).length;
     $('kl-new').textContent = allLeads.filter((r) => isNew(r.status)).length;
     $('kl-ads').textContent = allLeads.filter((r) => r.gclid).length;
+
+    /* estado del pipeline + follow-ups */
+    const isS = (r, ...v) => v.includes(r.status);
+    const contacted = allLeads.filter((r) => isS(r, 'contacted', 'contactado')).length;
+    const won = allLeads.filter((r) => isS(r, 'won', 'cerrado')).length;
+    const lost = allLeads.filter((r) => isS(r, 'lost', 'perdido')).length;
+    const total = allLeads.length;
+    const in7 = Date.now() + 7 * 864e5;
+    const followWeek = allLeads.filter((r) => r.next_follow_up_at && new Date(r.next_follow_up_at).getTime() <= in7).length;
+    $('kl-contacted').textContent = contacted;
+    $('kl-won').textContent = won;
+    $('kl-lost').textContent = lost;
+    $('kl-convrate').innerHTML = total ? (won / total * 100).toFixed(1) + '<small>%</small>' : '–';
+    $('kl-followup').textContent = followWeek;
 
     const rows = filteredLeads();
     $('leads-empty').hidden = rows.length > 0;
