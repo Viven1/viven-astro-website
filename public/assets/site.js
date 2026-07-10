@@ -185,6 +185,13 @@ document.querySelectorAll('.work-tile').forEach(function(tile){
   if(!id){ tile.style.display = 'none'; return; }
   tile.addEventListener('click', function(){ openVideo(id, tile.dataset.label || 'Viven', (tile.dataset.hash || '').trim()); });
 });
+/* Grilla de proyectos: orden aleatorio de los videos (los case studies quedan primero) en cada
+   carga → la página siempre parece nueva. Corre mientras los tiles están invisibles (reveal), sin flash. */
+document.querySelectorAll('.work-grid[data-shuffle]').forEach(function(grid){
+  var vids = [].slice.call(grid.querySelectorAll('.work-tile:not(.wt-case)'));
+  for(var i = vids.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = vids[i]; vids[i] = vids[j]; vids[j] = t; }
+  vids.forEach(function(el){ grid.appendChild(el); });
+});
 document.querySelectorAll('.case .top').forEach(function(top){
   var id = (top.dataset.vimeo || '').trim();
   if(!id) return;

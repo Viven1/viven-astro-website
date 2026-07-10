@@ -59,7 +59,9 @@ const displayTitle = (v) => v.client || showreelName(v.title) || (junkTitle(v.ti
 // --- balanceo: diversidad de marcas, destacados/nuevos/importantes primero ---
 // fuera videos sin cliente Y con título de archivo (ruido de showreels internos)
 // en la grilla de proyectos, los clientes con case study aparecen SOLO como su tile de case study
-const pool = videos.filter((v) => v.thumb && (!cat || v.cat === cat) && (v.client || !junkTitle(v.title))
+// cat puede ser múltiple por video (separado por espacios) → un video puede salir en varias páginas de servicio
+const hasCat = (v, c) => (v.cat || '').split(' ').indexOf(c) !== -1;
+const pool = videos.filter((v) => v.thumb && (!cat || hasCat(v, cat)) && (v.client || !junkTitle(v.title))
   && !(caseFirst && caseByClient.has((v.client || '').trim().toLowerCase())));
 const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
 for (const v of pool) {
@@ -100,7 +102,7 @@ csProjects.sort((a, b) => rank(a.client) - rank(b.client));
 
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
-<div class="work-grid">
+<div class="work-grid" data-shuffle={caseFirst ? '1' : undefined}>
   {csProjects.map((pr, i) => {
     const feat = feature && i === 0 ? ' wt-feature' : '';
     const c = serviceCat(pr.service);
@@ -123,7 +125,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
     const meta = (
       <span class="wt-meta">
         <span class="wt-title">{displayTitle(v)}</span>
-        <span class="wt-cat">{pick(CATLABEL[v.cat], lang)}</span>
+        <span class="wt-cat">{pick(CATLABEL[(v.cat || '').split(' ')[0]], lang)}</span>
       </span>
     );
     return csSlug ? (
