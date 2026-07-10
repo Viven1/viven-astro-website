@@ -446,7 +446,7 @@
 
   function buildDraft(r){
     const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
-    const first = esc0((r.name || '').trim().split(/\s+/)[0] || '');
+    const first = esc0(r.first_name || (r.name || '').trim().split(/\s+/)[0] || '');
     const proof = PROOF[lang][detectTopic(r.message)];
     if (lang === 'de') return 'Guten Tag ' + first + '\n\n' +
       'Vielen Dank für Ihre Anfrage — gerne helfen wir weiter.\n\n' +
@@ -556,7 +556,7 @@
 
   /* ---------- Export CSV ---------- */
   $('export-csv').addEventListener('click', () => {
-    const cols = ['created_at','name','email','message','status','channel','gclid','utm_source','utm_campaign','landing_path','lang','session_id'];
+    const cols = ['created_at','first_name','last_name','email','message','status','channel','gclid','utm_source','utm_campaign','landing_path','lang','session_id'];
     const csvCell = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
     const csv = [cols.join(',')].concat(
       filteredLeads().map((r) => cols.map((c) => csvCell(r[c])).join(','))

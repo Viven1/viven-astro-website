@@ -192,9 +192,15 @@ if(filterBar){
 function renderLeadForm(mount){
   mount.innerHTML =
     '<form class="lead-form" novalidate>' +
-      '<div class="field">' +
-        '<label data-en=\'Name <span class="req">*</span>\' data-de=\'Name <span class="req">*</span>\' data-es=\'Nombre <span class="req">*</span>\'>Name <span class="req">*</span></label>' +
-        '<input type="text" name="name" required maxlength="120" autocomplete="name" />' +
+      '<div class="row2">' +
+        '<div class="field">' +
+          '<label data-en=\'First name <span class="req">*</span>\' data-de=\'Vorname <span class="req">*</span>\' data-es=\'Nombre <span class="req">*</span>\'>First name <span class="req">*</span></label>' +
+          '<input type="text" name="first_name" required maxlength="80" autocomplete="given-name" />' +
+        '</div>' +
+        '<div class="field">' +
+          '<label data-en=\'Last name <span class="req">*</span>\' data-de=\'Nachname <span class="req">*</span>\' data-es=\'Apellido <span class="req">*</span>\'>Last name <span class="req">*</span></label>' +
+          '<input type="text" name="last_name" required maxlength="80" autocomplete="family-name" />' +
+        '</div>' +
       '</div>' +
       '<div class="field">' +
         '<label data-en=\'Work email <span class="req">*</span>\' data-de=\'Gesch&auml;ftliche E-Mail <span class="req">*</span>\' data-es=\'Email de trabajo <span class="req">*</span>\'>Work email <span class="req">*</span></label>' +
@@ -218,8 +224,9 @@ function renderLeadForm(mount){
   var form = mount.querySelector('.lead-form');
   var okBox = mount.querySelector('.form-ok');
   var renderedAt = Date.now();
-  /* ojo: form.name devuelve el atributo del <form>, NO el input llamado "name" */
-  var fName = form.querySelector('[name="name"]');
+  /* ojo: form.name devuelve el atributo del <form>, NO un input llamado "name" */
+  var fFirst = form.querySelector('[name="first_name"]');
+  var fLast = form.querySelector('[name="last_name"]');
   var fEmail = form.querySelector('[name="email"]');
   var fMsg = form.querySelector('[name="message"]');
   var fHp = form.querySelector('[name="website"]');
@@ -227,9 +234,10 @@ function renderLeadForm(mount){
   form.addEventListener('submit', function(e){
     e.preventDefault();
     form.classList.remove('has-error');
-    var name = fName.value.trim();
+    var first = fFirst.value.trim();
+    var last = fLast.value.trim();
     var email = fEmail.value.trim();
-    if(!name || !email || !fEmail.checkValidity()){ form.reportValidity(); return; }
+    if(!first || !last || !email || !fEmail.checkValidity()){ form.reportValidity(); return; }
     /* anti-spam: honeypot lleno o envío en <3s = bot → éxito falso, sin guardar */
     if(fHp.value || (Date.now() - renderedAt) < 3000){
       form.style.display = 'none'; okBox.classList.add('show');
@@ -239,7 +247,9 @@ function renderLeadForm(mount){
     btn.disabled = true;
     var extra = window.vivenAttribution ? window.vivenAttribution() : null;
     var row = {
-      name: name,
+      name: first + ' ' + last,   /* nombre completo (compatibilidad) */
+      first_name: first,
+      last_name: last,
       email: email,
       message: fMsg.value.trim() || null
     };
