@@ -298,6 +298,7 @@ function sbInsert(table, row){
 (function(){
   /* no registrar visitas en desarrollo local */
   if(/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;
+
   /* session_id único por pestaña */
   var sid;
   try{
@@ -309,14 +310,95 @@ function sbInsert(table, row){
       sessionStorage.setItem('viven-session', sid);
     }
   }catch(e){ sid = 'no-storage'; }
+
+  /* ---- Atribución de origen: se calcula UNA vez al entrar (ahí está el
+     referrer/UTM) y se hereda en el resto de la sesión ---- */
+  function computeAttribution(){
+    var q = new URLSearchParams(location.search);
+    var utm = {
+      source:   q.get('utm_source'),
+      medium:   (q.get('utm_medium') || '').toLowerCase(),
+      campaign: q.get('utm_campaign'),
+      term:     q.get('utm_term'),
+      content:  q.get('utm_content')
+    };
+    var gclid = q.get('gclid') || q.get('gbraid') || q.get('wbraid'); /* variantes iOS de Google Ads */
+    var fbclid = q.get('fbclid');
+    var refHost = '';
+    try{
+      if(document.referrer) refHost = new URL(document.referrer).hostname.replace(/^www\./,'');
+    }catch(e){}
+    var own = refHost === location.hostname.replace(/^www\./,'');
+
+    var AI     = /chatgpt\.com|chat\.openai\.com|perplexity\.ai|claude\.ai|anthropic\.com|gemini\.google\.com|copilot\.microsoft\.com|you\.com|poe\.com|mistral\.ai|deepseek\.com/i;
+    var SEARCH = /(^|\.)google\.[a-z.]+$|(^|\.)bing\.com$|duckduckgo\.com|ecosia\.org|(^|\.)yahoo\.[a-z.]+$|yandex\.|startpage\.com|qwant\.com/i;
+    var SOCIAL = /linkedin\.com|lnkd\.in|instagram\.com|facebook\.com|(^|\.)fb\.com|l\.facebook|t\.co$|(^|\.)x\.com$|twitter\.com|youtube\.com|youtu\.be|tiktok\.com|pinterest\./i;
+
+    var channel;
+    if(gclid || utm.source === 'google' && /cpc|ppc|paid|sem/.test(utm.medium)) channel = 'paid_search';
+    else if(/cpc|ppc|paid|sem|display/.test(utm.medium)) channel = 'paid_search';
+    else if(fbclid || /paid.?social/.test(utm.medium)) channel = 'paid_social';
+    else if(utm.medium === 'email' || utm.source === 'newsletter') channel = 'email';
+    else if(AI.test(refHost)) channel = 'ai';
+    else if(SEARCH.test(refHost)) channel = 'organic';
+    else if(SOCIAL.test(refHost)) channel = 'social';
+    else if(refHost && !own) channel = 'referral';
+    else channel = 'direct';
+
+    return {
+      channel: channel,
+      referrer: own ? null : (refHost || null),
+      utm_source: utm.source, utm_medium: utm.medium || null,
+      utm_campaign: utm.campaign, utm_term: utm.term, utm_content: utm.content,
+      gclid: gclid, fbclid: fbclid,
+      landing_path: location.pathname
+    };
+  }
+
+  var attrib = null, isEntry = false;
+  try{
+    var saved = sessionStorage.getItem('viven-attrib');
+    if(saved){ attrib = JSON.parse(saved); }
+    else{
+      attrib = computeAttribution();
+      isEntry = true;
+      sessionStorage.setItem('viven-attrib', JSON.stringify(attrib));
+    }
+  }catch(e){ attrib = computeAttribution(); isEntry = true; }
+
   /* dispositivo por ancho de pantalla (mismos cortes que el CSS) */
   var w = window.innerWidth;
   var device = w <= 680 ? 'mobile' : (w <= 1024 ? 'tablet' : 'desktop');
+
   sbInsert('pageviews', {
     path: location.pathname,
     device: device,
-    session_id: sid
+    session_id: sid,
+    referrer: attrib.referrer,
+    channel: attrib.channel,
+    utm_source: attrib.utm_source,
+    utm_medium: attrib.utm_medium,
+    utm_campaign: attrib.utm_campaign,
+    utm_term: attrib.utm_term,
+    utm_content: attrib.utm_content,
+    gclid: attrib.gclid,
+    fbclid: attrib.fbclid,
+    lang: (navigator.language || null),
+    is_entry: isEntry
   });
+
+  /* la atribución queda disponible para el futuro insert de leads
+     (formulario) — así cada lead nace con su gclid/canal/idioma.
+     lang = idioma en que la persona está leyendo el sitio AHORA
+     (selector EN/DE/ES), no el del navegador → es el idioma correcto
+     para newsletters y email automations */
+  window.vivenAttribution = function(){
+    var siteLang = document.documentElement.lang;
+    if(['en','de','es'].indexOf(siteLang) === -1){
+      try{ siteLang = localStorage.getItem('viven-lang') || 'en'; }catch(e){ siteLang = 'en'; }
+    }
+    return { session_id: sid, lang: siteLang, attrib: attrib };
+  };
 })();
 
 })();
