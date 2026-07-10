@@ -101,9 +101,9 @@ function heroVideoAllowed(){
   if(c.saveData) return false;                                   /* Data Saver activo */
   if(c.effectiveType && !/(^|\s)4g/.test(c.effectiveType)) return false; /* 2g/3g → no */
   if(navigator.deviceMemory && navigator.deviceMemory < 4) return false; /* poca RAM → no */
-  if(desktop) return true;
-  /* mobile: exige señal de conexión buena (no solo "no mala") */
-  return c.effectiveType ? c.effectiveType === '4g' : false;     /* sin API → póster */
+  /* Llegamos acá solo si NO hay señal de conexión mala (ni saveData, ni 2g/3g, ni poca RAM).
+     Permitimos el video en desktop y mobile. iOS Safari no tiene Network API → igual carga. */
+  return true;
 }
 function loadHeroVideo(){
   if(!heroId || heroBg.querySelector('.hero-video')) return;
@@ -126,7 +126,7 @@ function loadHeroVideo(){
   function go(){
     if(done) return; done = true;
     evs.forEach(function(e){ window.removeEventListener(e, go); });
-    (window.requestIdleCallback || function(cb){ setTimeout(cb, 1); })(loadHeroVideo);
+    (window.requestIdleCallback || function(cb){ setTimeout(cb, 1); })(loadHeroVideo, { timeout: 1200 });
   }
   evs.forEach(function(e){ window.addEventListener(e, go, { once: true, passive: true }); });
 })();
