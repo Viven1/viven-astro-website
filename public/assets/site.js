@@ -218,15 +218,20 @@ function renderLeadForm(mount){
   var form = mount.querySelector('.lead-form');
   var okBox = mount.querySelector('.form-ok');
   var renderedAt = Date.now();
+  /* ojo: form.name devuelve el atributo del <form>, NO el input llamado "name" */
+  var fName = form.querySelector('[name="name"]');
+  var fEmail = form.querySelector('[name="email"]');
+  var fMsg = form.querySelector('[name="message"]');
+  var fHp = form.querySelector('[name="website"]');
 
   form.addEventListener('submit', function(e){
     e.preventDefault();
     form.classList.remove('has-error');
-    var name = form.name.value.trim();
-    var email = form.email.value.trim();
-    if(!name || !email || !form.email.checkValidity()){ form.reportValidity(); return; }
+    var name = fName.value.trim();
+    var email = fEmail.value.trim();
+    if(!name || !email || !fEmail.checkValidity()){ form.reportValidity(); return; }
     /* anti-spam: honeypot lleno o envío en <3s = bot → éxito falso, sin guardar */
-    if(form.website.value || (Date.now() - renderedAt) < 3000){
+    if(fHp.value || (Date.now() - renderedAt) < 3000){
       form.style.display = 'none'; okBox.classList.add('show');
       return;
     }
@@ -236,7 +241,7 @@ function renderLeadForm(mount){
     var row = {
       name: name,
       email: email,
-      message: form.message.value.trim() || null
+      message: fMsg.value.trim() || null
     };
     if(extra){
       row.session_id = extra.session_id;
@@ -422,7 +427,12 @@ function sbInsert(table, row){
   var w = window.innerWidth;
   var device = w <= 680 ? 'mobile' : (w <= 1024 ? 'tablet' : 'desktop');
 
+  /* UUID propio de esta pageview → permite reportar el tiempo en página */
+  var pvId = null;
+  try{ if(window.crypto && crypto.randomUUID) pvId = crypto.randomUUID(); }catch(e){}
+
   sbInsert('pageviews', {
+    pv_id: pvId,
     path: location.pathname,
     device: device,
     session_id: sid,
@@ -438,6 +448,30 @@ function sbInsert(table, row){
     lang: (navigator.language || null),
     is_entry: isEntry
   });
+
+  /* ---- Tiempo en página: se reporta al ocultar/cerrar la pestaña ---- */
+  var t0 = Date.now();
+  var lastSent = 0;
+  function sendDuration(){
+    if(!pvId) return;
+    var secs = Math.round((Date.now() - t0) / 1000);
+    if(secs < 3 || secs <= lastSent) return;  /* rebotes de <3s no aportan */
+    lastSent = secs;
+    fetch(SB_URL + '/rest/v1/rpc/update_duration', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ pv: pvId, secs: secs }),
+      keepalive: true
+    }).catch(function(){});
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden') sendDuration();
+  });
+  window.addEventListener('pagehide', sendDuration);
 
   /* la atribución queda disponible para el futuro insert de leads
      (formulario) — así cada lead nace con su gclid/canal/idioma.

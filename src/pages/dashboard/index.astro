@@ -10,27 +10,60 @@
 <meta name="theme-color" content="#0f1826" />
 <link rel="stylesheet" href="/assets/site.css" />
 <style>
-  .dash-wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
-  .dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:36px}
-  .dash-head h1{font-size:clamp(26px,4vw,38px)}
+  .dash-wrap{max-width:1220px;margin:0 auto;padding:32px 24px 80px}
+  .dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+  .dash-head h1{font-size:clamp(24px,3.4vw,32px)}
   .dash-head h1 span{color:var(--acid)}
-  .dash-sub{color:var(--muted);font-size:14px;margin-top:6px}
+  .dash-sub{color:var(--muted-2);font-size:13px;margin-top:4px}
   .login-card{max-width:420px;margin:12vh auto 0;border:1px solid var(--line-strong);border-radius:20px;background:var(--navy-800);padding:40px}
   .login-card h1{font-size:26px;margin-bottom:6px}
   .login-card p{color:var(--muted);font-size:14px;margin-bottom:24px}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:36px}
-  .kpi{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--navy-700),var(--navy-800));padding:22px}
-  .kpi .n{font-family:'Space Grotesk';font-weight:700;font-size:34px;color:var(--acid);line-height:1.1}
-  .kpi .l{color:var(--muted);font-size:13px;margin-top:6px}
-  .panel{border:1px solid var(--line);border-radius:var(--radius);background:var(--navy-800);padding:26px;margin-bottom:24px;overflow-x:auto}
-  .panel h2{font-size:19px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
-  .panel h2 .count{font-size:12px;color:var(--muted);font-weight:500}
-  table.dt{width:100%;border-collapse:collapse;font-size:13.5px;min-width:760px}
+
+  /* tabs */
+  .tabs{display:flex;gap:8px;margin-bottom:28px;border-bottom:1px solid var(--line);padding-bottom:0}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-family:'Space Grotesk';font-size:16px;font-weight:600;padding:12px 18px;cursor:pointer;transition:.25s;display:inline-flex;align-items:center;gap:8px}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--acid);border-bottom-color:var(--acid)}
+  .tab .pill{background:rgba(221,249,143,.14);color:var(--acid);border-radius:100px;font-size:11.5px;padding:2px 9px;font-family:'Inter'}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+  .kpis.four{grid-template-columns:repeat(4,1fr)}
+  .kpi{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--navy-700),var(--navy-800));padding:20px}
+  .kpi .n{font-family:'Space Grotesk';font-weight:700;font-size:30px;color:var(--acid);line-height:1.1;white-space:nowrap}
+  .kpi .n small{font-size:16px;color:var(--muted)}
+  .kpi .l{color:var(--muted);font-size:12.5px;margin-top:6px}
+
+  .panel{border:1px solid var(--line);border-radius:var(--radius);background:var(--navy-800);padding:24px;margin-bottom:22px;overflow-x:auto}
+  .panel h2{font-size:17px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  .panel h2 .count{font-size:12px;color:var(--muted-2);font-weight:500}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+
+  /* daily chart */
+  .chart{display:flex;align-items:flex-end;gap:3px;height:120px;padding-top:8px}
+  .chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative;border-radius:4px 4px 0 0;background:rgba(255,255,255,.03)}
+  .chart .col .fill{background:var(--acid);opacity:.85;border-radius:4px 4px 0 0;min-height:2px;transition:.3s}
+  .chart .col:hover .fill{opacity:1}
+  .chart .col .tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;padding:5px 9px;font-size:11px;color:var(--text);white-space:nowrap;z-index:5}
+  .chart .col:hover .tip{display:block}
+  .chart-labels{display:flex;justify-content:space-between;color:var(--muted-2);font-size:11px;margin-top:8px}
+
+  /* bar rows */
+  .bars{display:grid;gap:9px}
+  .bar-row{display:grid;grid-template-columns:minmax(90px,160px) 1fr 88px;align-items:center;gap:12px;font-size:13px}
+  .bar-row .lbl{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-row .track{height:9px;border-radius:100px;background:rgba(255,255,255,.05);overflow:hidden}
+  .bar-row .fill{height:100%;border-radius:100px;background:var(--acid);min-width:2px}
+  .bar-row .val{text-align:right;color:var(--text);font-weight:600;font-size:12.5px;white-space:nowrap}
+  .bar-row .val small{color:var(--muted-2);font-weight:400}
+
+  /* tables */
+  table.dt{width:100%;border-collapse:collapse;font-size:13.5px;min-width:820px}
   .dt th{text-align:left;color:var(--muted-2);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--line-strong)}
-  .dt td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--text);vertical-align:top}
-  .dt td .sub{color:var(--muted-2);font-size:12px;display:block}
-  .dt .msg{max-width:280px;color:var(--muted);font-size:13px}
-  .badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:600}
+  .dt td{padding:11px 12px;border-bottom:1px solid var(--line);color:var(--text);vertical-align:top}
+  .dt tr:hover td{background:rgba(255,255,255,.02)}
+  .dt td .sub{color:var(--muted-2);font-size:12px;display:block;margin-top:2px}
+  .dt .msg{max-width:260px;color:var(--muted);font-size:13px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:600;background:rgba(255,255,255,.08);color:var(--muted)}
   .b-paid_search{background:rgba(66,133,244,.18);color:#8ab4f8}
   .b-paid_social{background:rgba(24,119,242,.18);color:#7ba9e8}
   .b-organic{background:rgba(52,168,83,.18);color:#81c995}
@@ -38,20 +71,21 @@
   .b-social{background:rgba(255,110,180,.16);color:#ff9ec9}
   .b-referral{background:rgba(255,190,90,.16);color:#ffd28a}
   .b-email{background:rgba(160,110,255,.18);color:#c4a7ff}
-  .b-direct,.badge{background:rgba(255,255,255,.08);color:var(--muted)}
-  .gclid-dot{color:var(--acid);font-weight:700}
-  select.status{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:12.5px;padding:5px 8px;cursor:pointer}
-  .bars{display:grid;gap:10px}
-  .bar-row{display:grid;grid-template-columns:130px 1fr 46px;align-items:center;gap:12px;font-size:13px}
-  .bar-row .lbl{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar-row .track{height:10px;border-radius:100px;background:rgba(255,255,255,.05);overflow:hidden}
-  .bar-row .fill{height:100%;border-radius:100px;background:var(--acid);min-width:2px}
-  .bar-row .val{text-align:right;color:var(--text);font-weight:600;font-size:12.5px}
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .gclid-dot{color:var(--acid);font-weight:700;font-size:12.5px}
+  select.status{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:12.5px;padding:6px 9px;cursor:pointer}
+
+  /* toolbar */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+  .toolbar input[type="search"]{flex:1;min-width:180px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:100px;padding:9px 18px;color:var(--text);font-family:inherit;font-size:13.5px}
+  .toolbar input[type="search"]:focus{outline:none;border-color:var(--acid)}
+  .toolbar .fpill{background:transparent;border:1px solid var(--line-strong);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:100px;cursor:pointer;transition:.25s}
+  .toolbar .fpill:hover{border-color:var(--acid);color:var(--acid)}
+  .toolbar .fpill.active{background:var(--acid);border-color:var(--acid);color:#142033}
+
   .muted-note{color:var(--muted-2);font-size:13px}
-  .refresh{font-size:13px}
+  .btn.small{padding:9px 18px;font-size:13px}
   [hidden]{display:none!important}
-  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}}
+  @media(max-width:980px){.kpis,.kpis.four{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -60,12 +94,12 @@
 <div id="login-view" class="dash-wrap" hidden>
   <div class="login-card">
     <h1>Viven <span style="color:var(--acid)">Dashboard</span></h1>
-    <p>Acceso privado. Inicia sesión con tu usuario de Supabase.</p>
+    <p>Acceso privado. Inicia sesión con tu usuario.</p>
     <form id="login-form" class="lead-form">
       <div class="field"><label>Email</label><input type="email" name="email" required autocomplete="username" /></div>
       <div class="field"><label>Contraseña</label><input type="password" name="password" required autocomplete="current-password" /></div>
       <button type="submit">Entrar</button>
-      <p class="form-error" id="login-error">Login incorrecto — revisa email y contraseña.</p>
+      <p class="form-error">Login incorrecto — revisa email y contraseña.</p>
     </form>
   </div>
 </div>
@@ -75,55 +109,89 @@
   <div class="dash-head">
     <div>
       <h1>Viven <span>Dashboard</span></h1>
-      <p class="dash-sub" id="dash-period">Últimos 30 días</p>
+      <p class="dash-sub" id="updated-at">Últimos 30 días</p>
     </div>
     <div style="display:flex;gap:10px">
-      <button class="btn btn-ghost refresh" id="refresh-btn" type="button">↻ Actualizar</button>
-      <button class="btn btn-ghost refresh" id="logout-btn" type="button">Salir</button>
+      <button class="btn btn-ghost small" id="refresh-btn" type="button">↻ Actualizar</button>
+      <button class="btn btn-ghost small" id="logout-btn" type="button">Salir</button>
     </div>
   </div>
 
-  <div class="kpis">
-    <div class="kpi"><div class="n" id="k-leads">–</div><div class="l">Leads totales</div></div>
-    <div class="kpi"><div class="n" id="k-sessions">–</div><div class="l">Sesiones (30d)</div></div>
-    <div class="kpi"><div class="n" id="k-views">–</div><div class="l">Páginas vistas (30d)</div></div>
-    <div class="kpi"><div class="n" id="k-channel">–</div><div class="l">Canal principal (30d)</div></div>
+  <div class="tabs">
+    <button class="tab active" data-tab="leads" type="button">📥 Leads <span class="pill" id="tab-leads-count">0</span></button>
+    <button class="tab" data-tab="analytics" type="button">📊 Analytics</button>
   </div>
 
-  <div class="panel">
-    <h2>Leads <span class="count" id="leads-count"></span></h2>
-    <table class="dt">
-      <thead><tr><th>Fecha</th><th>Contacto</th><th>Mensaje</th><th>Canal</th><th>Idioma</th><th>Google Ads</th><th>Estado</th></tr></thead>
-      <tbody id="leads-body"></tbody>
-    </table>
-    <p class="muted-note" id="leads-empty" hidden>Todavía no hay leads. Envía el formulario del sitio para testear.</p>
-  </div>
-
-  <div class="grid-2">
-    <div class="panel">
-      <h2>Tráfico por canal <span class="count">(sesiones, 30d)</span></h2>
-      <div class="bars" id="bars-channel"></div>
+  <!-- ============ TAB: LEADS ============ -->
+  <div id="tab-leads">
+    <div class="kpis four">
+      <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Leads totales</div></div>
+      <div class="kpi"><div class="n" id="kl-week">–</div><div class="l">Últimos 7 días</div></div>
+      <div class="kpi"><div class="n" id="kl-new">–</div><div class="l">Sin contactar</div></div>
+      <div class="kpi"><div class="n" id="kl-ads">–</div><div class="l">Desde Google Ads (GCLID)</div></div>
     </div>
     <div class="panel">
-      <h2>Páginas de entrada <span class="count">(top 10, 30d)</span></h2>
-      <div class="bars" id="bars-landing"></div>
-    </div>
-    <div class="panel">
-      <h2>Dispositivos <span class="count">(30d)</span></h2>
-      <div class="bars" id="bars-device"></div>
-    </div>
-    <div class="panel">
-      <h2>Idiomas del navegador <span class="count">(sesiones, 30d)</span></h2>
-      <div class="bars" id="bars-lang"></div>
+      <div class="toolbar">
+        <input type="search" id="lead-search" placeholder="Buscar por nombre, email o mensaje…" />
+        <button class="fpill active" data-status="all" type="button">Todos</button>
+        <button class="fpill" data-status="new" type="button">Nuevos</button>
+        <button class="fpill" data-status="contacted" type="button">Contactados</button>
+        <button class="fpill" data-status="won" type="button">Ganados</button>
+        <button class="btn btn-primary small" id="export-csv" type="button">⬇ Export CSV</button>
+      </div>
+      <table class="dt">
+        <thead><tr><th>Fecha</th><th>Contacto</th><th>Mensaje</th><th>Origen</th><th>Idioma</th><th>Google Ads</th><th>Estado</th></tr></thead>
+        <tbody id="leads-body"></tbody>
+      </table>
+      <p class="muted-note" id="leads-empty" hidden>No hay leads que coincidan. Envía el formulario del sitio para testear.</p>
     </div>
   </div>
 
-  <div class="panel">
-    <h2>Páginas más vistas <span class="count">(top 15, 30d)</span></h2>
-    <div class="bars" id="bars-pages"></div>
-  </div>
+  <!-- ============ TAB: ANALYTICS ============ -->
+  <div id="tab-analytics" hidden>
+    <div class="kpis">
+      <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="l">Sesiones</div></div>
+      <div class="kpi"><div class="n" id="ka-views">–</div><div class="l">Páginas vistas</div></div>
+      <div class="kpi"><div class="n" id="ka-time">–</div><div class="l">Tiempo medio en página</div></div>
+      <div class="kpi"><div class="n" id="ka-conv">–</div><div class="l">Conversiones (thank-you)</div></div>
+      <div class="kpi"><div class="n" id="ka-rate">–</div><div class="l">Tasa de conversión</div></div>
+    </div>
 
-  <p class="muted-note">Video stats: <span id="k-videos">–</span> registros. (El tracking de videos se conecta en una próxima etapa.)</p>
+    <div class="panel">
+      <h2>Sesiones por día <span class="count">(últimos 30 días)</span></h2>
+      <div class="chart" id="daily-chart"></div>
+      <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Canales <span class="count">(sesiones)</span></h2>
+        <div class="bars" id="bars-channel"></div>
+      </div>
+      <div class="panel">
+        <h2>Páginas de entrada <span class="count">(top 10)</span></h2>
+        <div class="bars" id="bars-landing"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Páginas más vistas <span class="count">(visitas · tiempo medio)</span></h2>
+      <div class="bars" id="bars-pages"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Dispositivos</h2>
+        <div class="bars" id="bars-device"></div>
+      </div>
+      <div class="panel">
+        <h2>Idiomas del navegador <span class="count">(sesiones)</span></h2>
+        <div class="bars" id="bars-lang"></div>
+      </div>
+    </div>
+
+    <p class="muted-note">Video stats: <span id="ka-videos">–</span> registros. (El tracking de videos se conecta en una próxima etapa.)</p>
+  </div>
 </div>
 
 <script>
@@ -138,12 +206,28 @@
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtTime = (secs) => {
+    if (!secs || secs <= 0) return '—';
+    const m = Math.floor(secs / 60), s = Math.round(secs % 60);
+    return m ? m + 'm ' + (s < 10 ? '0' : '') + s + 's' : s + 's';
+  };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
+  const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
+  let allLeads = [], statusFilter = 'all', searchTerm = '';
 
   function show(view){
     $('login-view').hidden = view !== 'login';
     $('dash-view').hidden = view !== 'dash';
   }
+
+  /* ---------- Tabs ---------- */
+  document.querySelectorAll('.tab').forEach((t) => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === t));
+      $('tab-leads').hidden = t.dataset.tab !== 'leads';
+      $('tab-analytics').hidden = t.dataset.tab !== 'analytics';
+    });
+  });
 
   /* ---------- Login ---------- */
   $('login-form').addEventListener('submit', async (e) => {
@@ -170,31 +254,64 @@
 
   async function loadAll(){
     const [leadsQ, viewsQ, videosQ] = await Promise.all([
-      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('pageviews').select('created_at,path,device,session_id,channel,referrer,lang,is_entry')
-        .gte('created_at', since()).order('created_at', { ascending: false }).limit(10000),
+      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(1000),
+      supabase.from('pageviews')
+        .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
+        .gte('created_at', since()).limit(20000),
       supabase.from('video_stats').select('id', { count: 'exact', head: true })
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
       return;
     }
-    renderLeads(leadsQ.data || []);
-    renderTraffic(viewsQ.data || []);
-    $('k-videos').textContent = videosQ.count ?? 0;
+    allLeads = leadsQ.data || [];
+    renderLeads();
+    renderAnalytics(viewsQ.data || []);
+    $('ka-videos').textContent = videosQ.count ?? 0;
+    $('updated-at').textContent = 'Últimos 30 días · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
   }
 
-  /* ---------- Leads ---------- */
-  function renderLeads(rows){
-    $('k-leads').textContent = rows.length;
-    $('leads-count').textContent = rows.length ? '(' + rows.length + ')' : '';
+  /* ---------- LEADS ---------- */
+  const isNew = (s) => s === 'new' || s === 'nuevo';
+  $('lead-search').addEventListener('input', (e) => { searchTerm = e.target.value.toLowerCase(); renderLeads(); });
+  document.querySelectorAll('.toolbar .fpill').forEach((p) => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.toolbar .fpill').forEach((x) => x.classList.toggle('active', x === p));
+      statusFilter = p.dataset.status;
+      renderLeads();
+    });
+  });
+
+  function filteredLeads(){
+    return allLeads.filter((r) => {
+      if (statusFilter === 'new' && !isNew(r.status)) return false;
+      if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
+      if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
+      if (searchTerm) {
+        const hay = ((r.name || '') + ' ' + (r.email || '') + ' ' + (r.message || '')).toLowerCase();
+        if (hay.indexOf(searchTerm) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderLeads(){
+    const week = Date.now() - 7 * 864e5;
+    $('kl-total').textContent = allLeads.length;
+    $('tab-leads-count').textContent = allLeads.filter((r) => isNew(r.status)).length;
+    $('kl-week').textContent = allLeads.filter((r) => new Date(r.created_at) > week).length;
+    $('kl-new').textContent = allLeads.filter((r) => isNew(r.status)).length;
+    $('kl-ads').textContent = allLeads.filter((r) => r.gclid).length;
+
+    const rows = filteredLeads();
     $('leads-empty').hidden = rows.length > 0;
     $('leads-body').innerHTML = rows.map((r) => {
       const d = new Date(r.created_at);
       const date = d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) +
-        ' <span class="sub">' + d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' }) + '</span>';
-      const contact = '<strong>' + esc(r.name) + '</strong><span class="sub">' + esc(r.email) + '</span>';
-      const ch = r.channel ? '<span class="badge b-' + esc(r.channel) + '">' + esc(r.channel) + '</span>' : '—';
+        '<span class="sub">' + d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' }) + '</span>';
+      const contact = '<strong>' + esc(r.name) + '</strong><span class="sub"><a href="mailto:' + esc(r.email) + '" style="color:var(--muted)">' + esc(r.email) + '</a></span>';
+      const ch = (r.channel ? '<span class="badge b-' + esc(r.channel) + '">' + esc(r.channel) + '</span>' : '—') +
+        (r.landing_path ? '<span class="sub">' + esc(r.landing_path) + '</span>' : '');
       const ads = r.gclid
         ? '<span class="gclid-dot" title="' + esc(r.gclid) + '">✓ GCLID</span>' +
           (r.utm_campaign ? '<span class="sub">' + esc(r.utm_campaign) + '</span>' : '')
@@ -203,25 +320,42 @@
       return '<tr data-id="' + r.id + '">' +
         '<td>' + date + '</td>' +
         '<td>' + contact + '</td>' +
-        '<td class="msg" title="' + esc(r.message) + '">' + esc((r.message || '—').slice(0, 140)) + '</td>' +
-        '<td>' + ch + (r.landing_path ? '<span class="sub">' + esc(r.landing_path) + '</span>' : '') + '</td>' +
+        '<td class="msg" title="' + esc(r.message) + '">' + esc((r.message || '—').slice(0, 120)) + '</td>' +
+        '<td>' + ch + '</td>' +
         '<td>' + esc(r.lang || '—').toUpperCase() + '</td>' +
         '<td>' + ads + '</td>' +
         '<td><select class="status">' + opts + '</select></td>' +
       '</tr>';
     }).join('');
-    /* cambio de estado → update en Supabase */
+
     document.querySelectorAll('#leads-body select.status').forEach((sel) => {
       sel.addEventListener('change', async () => {
         const id = sel.closest('tr').dataset.id;
         const { error } = await supabase.from('leads').update({ status: sel.value }).eq('id', id);
         sel.style.borderColor = error ? '#ff9a9a' : 'var(--acid)';
         setTimeout(() => { sel.style.borderColor = ''; }, 1200);
+        const lead = allLeads.find((l) => String(l.id) === id);
+        if (lead && !error) lead.status = sel.value;
+        renderLeads();
       });
     });
   }
 
-  /* ---------- Traffic ---------- */
+  /* ---------- Export CSV ---------- */
+  $('export-csv').addEventListener('click', () => {
+    const cols = ['created_at','name','email','message','status','channel','gclid','utm_source','utm_campaign','landing_path','lang','session_id'];
+    const csvCell = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const csv = [cols.join(',')].concat(
+      filteredLeads().map((r) => cols.map((c) => csvCell(r[c])).join(','))
+    ).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'viven-leads-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  /* ---------- ANALYTICS ---------- */
   function countBy(rows, key){
     const m = new Map();
     rows.forEach((r) => {
@@ -230,30 +364,69 @@
     });
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }
-  function bars(el, entries, max){
+  function bars(el, entries, max, valFmt){
     const top = entries.slice(0, max || 10);
     const peak = top.length ? top[0][1] : 1;
-    el.innerHTML = top.map(([k, v]) =>
+    el.innerHTML = top.map(([k, v, extra]) =>
       '<div class="bar-row"><span class="lbl" title="' + esc(k) + '">' + esc(k) + '</span>' +
       '<span class="track"><span class="fill" style="width:' + Math.max(2, Math.round((v / peak) * 100)) + '%"></span></span>' +
-      '<span class="val">' + v + '</span></div>'
+      '<span class="val">' + (valFmt ? valFmt(v, extra) : v) + '</span></div>'
     ).join('') || '<p class="muted-note">Sin datos todavía.</p>';
   }
 
-  function renderTraffic(rows){
-    /* filtrar mis propias pruebas */
+  function renderAnalytics(rows){
+    /* fuera las sesiones de prueba */
     const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
     const entries = real.filter((r) => r.is_entry);
     const sessions = new Set(real.map((r) => r.session_id));
-    $('k-views').textContent = real.length;
-    $('k-sessions').textContent = sessions.size;
-    const byChannel = countBy(entries, 'channel');
-    $('k-channel').textContent = byChannel.length ? byChannel[0][0] : '—';
-    bars($('bars-channel'), byChannel, 8);
+
+    /* KPIs */
+    $('ka-views').textContent = real.length;
+    $('ka-sessions').textContent = sessions.size;
+    const durs = real.filter((r) => r.duration > 0);
+    const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
+    $('ka-time').textContent = fmtTime(avg);
+    const convSessions = new Set(real.filter((r) => THANKS.test(r.path)).map((r) => r.session_id));
+    $('ka-conv').textContent = convSessions.size;
+    $('ka-rate').textContent = sessions.size ? (convSessions.size / sessions.size * 100).toFixed(1) + '%' : '—';
+
+    /* sesiones por día (30 columnas) */
+    const days = [];
+    for (let i = DAYS - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 864e5);
+      days.push({ key: d.toISOString().slice(0, 10), label: d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), set: new Set() });
+    }
+    const dayMap = new Map(days.map((d) => [d.key, d]));
+    real.forEach((r) => {
+      const k = r.created_at.slice(0, 10);
+      if (dayMap.has(k)) dayMap.get(k).set.add(r.session_id);
+    });
+    const peak = Math.max(1, ...days.map((d) => d.set.size));
+    $('daily-chart').innerHTML = days.map((d) =>
+      '<div class="col"><div class="tip">' + d.label + ': ' + d.set.size + ' sesiones</div>' +
+      '<div class="fill" style="height:' + Math.round((d.set.size / peak) * 100) + '%"></div></div>'
+    ).join('');
+    $('chart-from').textContent = days[0].label;
+    $('chart-to').textContent = days[days.length - 1].label;
+
+    /* canales / entradas / dispositivos / idiomas */
+    bars($('bars-channel'), countBy(entries, 'channel'), 8);
     bars($('bars-landing'), countBy(entries, 'path'), 10);
     bars($('bars-device'), countBy(real, 'device'), 3);
     bars($('bars-lang'), countBy(entries, 'lang'), 8);
-    bars($('bars-pages'), countBy(real, 'path'), 15);
+
+    /* top páginas con tiempo medio */
+    const byPath = new Map();
+    real.forEach((r) => {
+      const p = byPath.get(r.path) || { views: 0, dur: 0, durN: 0 };
+      p.views++;
+      if (r.duration > 0) { p.dur += r.duration; p.durN++; }
+      byPath.set(r.path, p);
+    });
+    const pages = [...byPath.entries()]
+      .map(([k, p]) => [k, p.views, p.durN ? p.dur / p.durN : 0])
+      .sort((a, b) => b[1] - a[1]);
+    bars($('bars-pages'), pages, 15, (v, t) => v + ' <small>· ' + fmtTime(t) + '</small>');
   }
 
   /* ---------- Sesión persistente ---------- */

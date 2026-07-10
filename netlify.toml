@@ -11,8 +11,9 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# Shared CSS/JS: cache 1 hour in browser, revalidate in background on the CDN
+# Shared CSS/JS: revalidate on every load (etag 304 = fast) so a deploy
+# never sirve un site.js viejo con HTML nuevo
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=3600, stale-while-revalidate=86400"
+    Cache-Control = "public, max-age=0, must-revalidate"
