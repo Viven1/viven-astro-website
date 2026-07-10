@@ -42,11 +42,27 @@ document.querySelectorAll('a[href^="#"]').forEach(function(a){
   });
 });
 
-/* ---------- Reveal on scroll ---------- */
-var revealIO = new IntersectionObserver(function(entries){
-  entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); revealIO.unobserve(e.target); } });
-},{threshold:.12, rootMargin:'0px 0px -40px 0px'});
-document.querySelectorAll('.reveal').forEach(function(el){ revealIO.observe(el); });
+/* ---------- Reveal on scroll (con fallback: nunca dejar contenido invisible) ---------- */
+var revealEls = [].slice.call(document.querySelectorAll('.reveal'));
+function revealInView(){
+  var h = window.innerHeight || document.documentElement.clientHeight;
+  revealEls = revealEls.filter(function(el){
+    var r = el.getBoundingClientRect();
+    if(r.top < h - 40 && r.bottom > -80){ el.classList.add('in'); return false; }
+    return true;
+  });
+}
+if('IntersectionObserver' in window){
+  var revealIO = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); revealIO.unobserve(e.target); } });
+  },{threshold:.12, rootMargin:'0px 0px -40px 0px'});
+  revealEls.forEach(function(el){ revealIO.observe(el); });
+}
+/* Fallback por si el IntersectionObserver no dispara (algunos entornos/navegadores):
+   revela lo que ya está en viewport en carga y a medida que se scrollea. */
+revealInView();
+window.addEventListener('scroll', revealInView, {passive:true});
+window.addEventListener('resize', revealInView, {passive:true});
 
 /* ---------- Language (EN / DE / ES) ---------- */
 var LANGS = ['en','de','es'];
