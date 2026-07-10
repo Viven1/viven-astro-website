@@ -177,6 +177,17 @@
   .ai-insight .txt h4{font-size:15px;margin:0 0 3px;color:var(--text);font-family:'Space Grotesk'}
   .ai-insight .txt p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.5}
   .ai-loading{color:var(--muted);font-size:14px;padding:10px 0}
+
+  /* ---------- Gráfico SVG (real) ---------- */
+  #daily-chart{height:auto!important;display:block;padding-top:4px}
+  .gsvg{width:100%;height:auto;display:block;overflow:visible}
+  .g-grid{stroke:rgba(255,255,255,.07);stroke-width:1}
+  .g-yl{fill:var(--muted-2);font-size:11px;text-anchor:end;font-family:'Inter'}
+  .g-xl{fill:var(--muted-2);font-size:11px;font-family:'Inter'}
+  .g-line{fill:none;stroke:var(--acid);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+  .g-lead{fill:#ff9ec9;stroke:var(--navy-800);stroke-width:2;transition:.2s}
+  .gsvg circle:hover{opacity:.8}
+  .chart-labels{display:none}
 </style>
 </head>
 <body>
@@ -830,15 +841,27 @@
     const dayMap = new Map(days.map((d) => [d.key, d]));
     real.forEach((r) => { const d = dayMap.get(r.created_at.slice(0, 10)); if (d) d.set.add(r.session_id); });
     periodLeads.forEach((l) => { const d = dayMap.get(l.created_at.slice(0, 10)); if (d) d.leads++; });
-    const peak = Math.max(1, ...days.map((d) => d.set.size));
-    $('daily-chart').innerHTML = days.map((d) => {
-      const h = Math.round((d.set.size / peak) * 100);
-      const dot = d.leads ? '<div class="dot" style="bottom:calc(' + h + '% + 3px)"></div>' : '';
-      return '<div class="col"><div class="tip">' + d.label + ': ' + d.set.size + ' sesiones · ' + d.leads + ' leads</div>' +
-        dot + '<div class="fill" style="height:' + h + '%"></div></div>';
+    /* gráfico SVG real: área + línea de sesiones, puntos de leads */
+    const n = days.length, W = 1000, H = 260, padL = 42, padR = 14, padT = 16, padB = 28;
+    const pw = W - padL - padR, ph = H - padT - padB, baseY = padT + ph;
+    const maxS = Math.max(1, ...days.map((d) => d.set.size));
+    const X = (i) => padL + (n <= 1 ? pw / 2 : (i / (n - 1)) * pw);
+    const Y = (v) => padT + (1 - v / maxS) * ph;
+    const pts = days.map((d, i) => [X(i), Y(d.set.size)]);
+    const linePath = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const areaPath = 'M' + X(0).toFixed(1) + ' ' + baseY + ' ' + pts.map((p) => 'L' + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' L' + X(n - 1).toFixed(1) + ' ' + baseY + ' Z';
+    const grid = [0, 0.5, 1].map((t) => {
+      const v = Math.round(maxS * t), y = Y(v);
+      return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" class="g-grid"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y + 4).toFixed(1) + '" class="g-yl">' + v + '</text>';
     }).join('');
-    $('chart-from').textContent = days[0].label;
-    $('chart-to').textContent = days[days.length - 1].label;
+    const leadDots = days.map((d, i) => d.leads ? '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="' + (3 + Math.min(4, d.leads)) + '" class="g-lead"><title>' + d.label + ': ' + d.leads + ' leads</title></circle>' : '').join('');
+    const hover = days.map((d, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="11" fill="transparent"><title>' + d.label + ' — ' + d.set.size + ' sesiones · ' + d.leads + ' leads</title></circle>').join('');
+    const step = Math.max(1, Math.ceil(n / 7));
+    const xls = days.map((d, i) => ((i % step === 0) || i === n - 1) ? '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" class="g-xl" text-anchor="middle">' + d.label + '</text>' : '').join('');
+    $('daily-chart').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gsvg">' +
+      '<defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ddf98f" stop-opacity=".28"/><stop offset="1" stop-color="#ddf98f" stop-opacity="0"/></linearGradient></defs>' +
+      grid + '<path d="' + areaPath + '" fill="url(#gfill)"/><path d="' + linePath + '" class="g-line"/>' + leadDots + hover + xls + '</svg>';
 
     /* rendimiento por CANAL: sesiones vs leads */
     const chSessions = new Map();
