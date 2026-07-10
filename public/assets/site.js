@@ -277,4 +277,46 @@ if(consent === null){
   };
 }
 
+/* ---------- First-party analytics → Supabase (tabla pageviews) ----------
+   Usa la API REST con fetch (0 KB de librerías). La key es la "publishable"
+   de Supabase: es pública por diseño y RLS solo permite INSERT. */
+var SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
+var SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+function sbInsert(table, row){
+  return fetch(SB_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(row),
+    keepalive: true
+  }).catch(function(){});
+}
+(function(){
+  /* no registrar visitas en desarrollo local */
+  if(/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;
+  /* session_id único por pestaña */
+  var sid;
+  try{
+    sid = sessionStorage.getItem('viven-session');
+    if(!sid){
+      sid = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : Date.now() + '-' + Math.random().toString(36).slice(2);
+      sessionStorage.setItem('viven-session', sid);
+    }
+  }catch(e){ sid = 'no-storage'; }
+  /* dispositivo por ancho de pantalla (mismos cortes que el CSS) */
+  var w = window.innerWidth;
+  var device = w <= 680 ? 'mobile' : (w <= 1024 ? 'tablet' : 'desktop');
+  sbInsert('pageviews', {
+    path: location.pathname,
+    device: device,
+    session_id: sid
+  });
+})();
+
 })();
