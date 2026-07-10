@@ -1,0 +1,32 @@
+---
+import videos from '../data/videos.json';
+import { pick } from '../i18n.js';
+const { cat = '', lang = 'en', limit = 0, feature = false } = Astro.props;
+
+const CATLABEL = {
+  brand:     { en: 'Brand video', de: 'Markenfilm', es: 'Video de marca' },
+  product:   { en: 'Product video', de: 'Produktvideo', es: 'Video de producto' },
+  employer:  { en: 'Employer branding', de: 'Employer Branding', es: 'Employer branding' },
+  howto:     { en: 'How-to video', de: 'How-To-Video', es: 'Video tutorial' },
+  social:    { en: 'Social media', de: 'Social Media', es: 'Redes sociales' },
+  corporate: { en: 'Corporate', de: 'Corporate', es: 'Corporativo' },
+};
+
+// solo videos con still (thumbnail) accesible; filtrados por categoría si se pide
+let list = videos.filter((v) => v.thumb && (!cat || v.cat === cat));
+if (limit) list = list.slice(0, limit);
+const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+---
+<div class="work-grid">
+  {list.map((v, i) => (
+    <button class={'work-tile reveal' + (feature && i === 0 ? ' wt-feature' : '')} type="button"
+      data-vimeo={v.id} data-hash={v.hash || ''} data-label={v.title} data-cat={v.cat}>
+      <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>
+      <span class="wt-play" set:html={play} />
+      <span class="wt-meta">
+        <span class="wt-title">{v.client || v.title}</span>
+        <span class="wt-cat">{pick(CATLABEL[v.cat], lang)}</span>
+      </span>
+    </button>
+  ))}
+</div>

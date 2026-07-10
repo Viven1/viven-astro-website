@@ -1,0 +1,65 @@
+---
+import { T, pick, localePath, LANGS } from '../i18n.js';
+const { lang, slug = '', active = '', activeSub = '', switchSlug = null } = Astro.props;
+const p = (s) => localePath(lang, s);
+const langSlug = switchSlug != null ? switchSlug : slug;
+const t = (k) => pick(T[k], lang);
+const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>';
+const services = [
+  ['brand', 'services/brand-video'],
+  ['product', 'services/product-video'],
+  ['employer', 'services/employer-branding'],
+  ['howto', 'services/how-to-video'],
+  ['social', 'services/social-media-video'],
+  ['corporate', 'services/corporate-video'],
+];
+---
+<header class="site" id="header">
+  <div class="wrap nav">
+    <a href={p('')} class="logo" aria-label="Viven — Home"><svg class="logo-mark"><use href="#viven-logo"/></svg></a>
+    <nav class="nav-links" aria-label="Main">
+      <div class="nav-item">
+        <a href={p('services')} class={active === 'services' ? 'active' : ''}>{t('services')} <Fragment set:html={chev} /></a>
+        <div class="dropdown">
+          <div class="dropdown-inner">
+            {services.map(([k, s]) => (
+              <a href={p(s)} class={activeSub === k ? 'active' : ''}>{t(k)}</a>
+            ))}
+            <a href={p('services')}>{t('allServices')}</a>
+          </div>
+        </div>
+      </div>
+      <a href={p('projects')} class={active === 'projects' ? 'active' : ''}>{t('projects')}</a>
+      <a href={p("blog")} class={active === 'blog' ? 'active' : ''}>{t('blog')}</a>
+      <a href={p('why-viven')} class={active === 'why' ? 'active' : ''}>{t('why')}</a>
+      <a href={p('faq')} class={active === 'faq' ? 'active' : ''}>{t('faq')}</a>
+      <a href={p('contact')} class={active === 'contact' ? 'active' : ''}>{t('contact')}</a>
+    </nav>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language">
+        {LANGS.map((l) => (
+          <a href={localePath(l, langSlug)} class={'lang-link' + (l === lang ? ' active' : '')} hreflang={l}>{l.toUpperCase()}</a>
+        ))}
+      </div>
+      <a href={p('contact')} class="btn btn-primary">{t('cta')}</a>
+      <button class="menu-btn" id="menu-btn" aria-label={t('menu')} aria-expanded="false" aria-controls="mobile-menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="mobile-menu" id="mobile-menu" aria-label="Mobile">
+  <a href={p('')} class={active === 'home' ? 'active' : ''}>{t('home')}</a>
+  <a href={p('services')} class={active === 'services' ? 'active' : ''}>{t('services')}</a>
+  {services.map(([k, s]) => (<a href={p(s)} class={'sub' + (activeSub === k ? ' active' : '')}>{t(k)}</a>))}
+  <a href={p('projects')} class={active === 'projects' ? 'active' : ''}>{t('projects')}</a>
+  <a href={p("blog")} class={active === 'blog' ? 'active' : ''}>{t('blog')}</a>
+  <a href={p('why-viven')} class={active === 'why' ? 'active' : ''}>{t('why')}</a>
+  <a href={p('faq')} class={active === 'faq' ? 'active' : ''}>{t('faq')}</a>
+  <a href={p('contact')} class={active === 'contact' ? 'active' : ''}>{t('contact')}</a>
+  <div class="lang" role="group" aria-label="Language" style="margin-top:24px;align-self:flex-start">
+    {LANGS.map((l) => (<a href={localePath(l, langSlug)} class={'lang-link' + (l === lang ? ' active' : '')} hreflang={l}>{l.toUpperCase()}</a>))}
+  </div>
+  <a href={p('contact')} class="btn btn-primary">{t('cta')}</a>
+</nav>

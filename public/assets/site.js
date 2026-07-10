@@ -69,22 +69,45 @@ function setLang(lang){
   if(d && d.getAttribute('data-' + lang)) d.setAttribute('content', d.getAttribute('data-' + lang));
   try{ localStorage.setItem('viven-lang', lang); }catch(e){}
 }
-document.querySelectorAll('.lang button').forEach(function(b){
-  b.addEventListener('click', function(){ setLang(b.dataset.lang); });
-});
-var urlLang = new URLSearchParams(window.location.search).get('lang');
-var saved = null;
-try{ saved = localStorage.getItem('viven-lang'); }catch(e){}
-var nav = (navigator.language || '').toLowerCase();
-var browserLang = nav.indexOf('de') === 0 ? 'de' : (nav.indexOf('es') === 0 ? 'es' : 'en');
-setLang(LANGS.indexOf(urlLang) !== -1 ? urlLang : (saved || browserLang));
+/* Páginas nuevas (/en/ /de/ /es/): el idioma lo fija la URL vía <html lang data-fixed-lang>.
+   Solo aplicamos el idioma al contenido con data-* y NO hacemos switching client-side
+   (el selector son enlaces que navegan a la otra URL). */
+if(document.documentElement.hasAttribute('data-fixed-lang')){
+  var fixed = (document.documentElement.lang || 'en').slice(0,2);
+  setLang(LANGS.indexOf(fixed) !== -1 ? fixed : 'en');
+  try{ localStorage.setItem('viven-lang', fixed); }catch(e){}   /* recordar para el redirect de "/" */
+} else {
+  /* Páginas viejas (blog, etc.): selector client-side + ?lang / localStorage / navegador */
+  document.querySelectorAll('.lang button').forEach(function(b){
+    b.addEventListener('click', function(){ setLang(b.dataset.lang); });
+  });
+  var urlLang = new URLSearchParams(window.location.search).get('lang');
+  var saved = null;
+  try{ saved = localStorage.getItem('viven-lang'); }catch(e){}
+  var nav = (navigator.language || '').toLowerCase();
+  var browserLang = nav.indexOf('de') === 0 ? 'de' : (nav.indexOf('es') === 0 ? 'es' : 'en');
+  setLang(LANGS.indexOf(urlLang) !== -1 ? urlLang : (saved || browserLang));
+}
 
-/* ---------- Vimeo: hero background (desktop-only, deferred for LCP) ---------- */
+/* ---------- Vimeo: hero background (deferred for LCP) ---------- */
 var heroBg = document.querySelector('.hero-bg');
 var heroId = heroBg && (heroBg.dataset.vimeo || '').trim();
+/* ¿vale la pena autoplay del video pesado? En desktop siempre; en mobile SOLO
+   con buena conexión y sin ahorro de datos (si no, se queda el póster ligero). */
+function heroVideoAllowed(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  var desktop = window.matchMedia('(min-width: 768px)').matches;
+  var c = navigator.connection || {};
+  if(c.saveData) return false;                                   /* Data Saver activo */
+  if(c.effectiveType && !/(^|\s)4g/.test(c.effectiveType)) return false; /* 2g/3g → no */
+  if(navigator.deviceMemory && navigator.deviceMemory < 4) return false; /* poca RAM → no */
+  if(desktop) return true;
+  /* mobile: exige señal de conexión buena (no solo "no mala") */
+  return c.effectiveType ? c.effectiveType === '4g' : false;     /* sin API → póster */
+}
 function loadHeroVideo(){
   if(!heroId || heroBg.querySelector('.hero-video')) return;
-  if(!window.matchMedia('(min-width: 768px)').matches) return;
+  if(!heroVideoAllowed()) return;
   var f = document.createElement('iframe');
   f.className = 'hero-video';
   f.src = 'https://player.vimeo.com/video/' + heroId + '?background=1&autoplay=1&loop=1&muted=1&dnt=1';
@@ -100,9 +123,10 @@ else window.addEventListener('load', function(){ idle(loadHeroVideo); });
 /* ---------- Video modal (shared) ---------- */
 var modal = document.getElementById('video-modal');
 var mount = document.getElementById('video-mount');
-function openVideo(id, title){
+function openVideo(id, title, hash){
   if(!id || !modal) return false;
-  mount.innerHTML = '<iframe src="https://player.vimeo.com/video/' + id + '?autoplay=1&dnt=1&title=0&byline=0&portrait=0" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" title="' + (title || 'Viven video') + '"></iframe>';
+  var h = hash ? 'h=' + hash + '&' : '';   /* videos privados de Vimeo necesitan el token */
+  mount.innerHTML = '<iframe src="https://player.vimeo.com/video/' + id + '?' + h + 'autoplay=1&dnt=1&title=0&byline=0&portrait=0" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" title="' + (title || 'Viven video') + '"></iframe>';
   modal.classList.add('open');
   modal.setAttribute('aria-hidden','false');
   document.body.style.overflow = 'hidden';
@@ -131,7 +155,7 @@ if(showreelBtn) showreelBtn.addEventListener('click', function(e){
 document.querySelectorAll('.work-tile').forEach(function(tile){
   var id = (tile.dataset.vimeo || '').trim();
   if(!id){ tile.style.display = 'none'; return; }
-  tile.addEventListener('click', function(){ openVideo(id, tile.dataset.label || 'Viven'); });
+  tile.addEventListener('click', function(){ openVideo(id, tile.dataset.label || 'Viven', (tile.dataset.hash || '').trim()); });
 });
 document.querySelectorAll('.case .top').forEach(function(top){
   var id = (top.dataset.vimeo || '').trim();
@@ -264,6 +288,11 @@ function renderLeadForm(mount){
         row.landing_path = extra.attrib.landing_path;
       }
     }
+    /* Además de Supabase, mandamos a HubSpot (CRM + automations) vía su
+       API pública de submissions — sin cargar el widget pesado. Best-effort:
+       si HubSpot falla, el lead igual queda en nuestro dashboard. */
+    hubspotSubmit(first, last, email, fMsg.value.trim());
+
     sbInsert('leads', row).then(function(r){
       if(r && r.ok){
         /* conversión → thank-you page en el idioma del visitante
@@ -276,6 +305,27 @@ function renderLeadForm(mount){
       }
     });
   });
+}
+/* Envío a HubSpot (Forms Submissions API, pública, sin auth ni widget).
+   Los nombres de campo deben coincidir con el form de HubSpot (firstname/lastname/email/message). */
+function hubspotSubmit(first, last, email, message){
+  try{
+    var hutk = (document.cookie.match(/hubspotutk=([^;]+)/) || [])[1];
+    var body = {
+      fields: [
+        { name: 'firstname', value: first },
+        { name: 'lastname', value: last },
+        { name: 'email', value: email },
+        { name: 'message', value: message || '' }
+      ],
+      context: { pageUri: location.href, pageName: document.title }
+    };
+    if(hutk) body.context.hutk = hutk;
+    fetch('https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), keepalive: true
+    }).catch(function(){});
+  }catch(e){}
 }
 document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadForm(m); });
 /* el idioma ya se aplicó al cargar — re-aplicar sobre el formulario recién montado */

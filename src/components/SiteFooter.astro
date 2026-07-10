@@ -1,0 +1,60 @@
+---
+import { T, pick, localePath } from '../i18n.js';
+const { lang } = Astro.props;
+const p = (s) => localePath(lang, s);
+const t = (k) => pick(T[k], lang);
+const services = [
+  ['brand', 'services/brand-video'],
+  ['product', 'services/product-video'],
+  ['employer', 'services/employer-branding'],
+  ['howto', 'services/how-to-video'],
+  ['socialMediaShort', 'services/social-media-video'],
+  ['corporate', 'services/corporate-video'],
+];
+---
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div class="brand">
+        <a href={p('')} class="logo" aria-label="Viven"><svg class="logo-mark"><use href="#viven-logo"/></svg></a>
+        <p>{t('footerTag')}</p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h3>{t('services')}</h3>
+          {services.map(([k, s]) => (<a href={p(s)}>{t(k)}</a>))}
+        </div>
+        <div class="foot-col">
+          <h3>{t('company')}</h3>
+          <a href={p('why-viven')}>{t('why')}</a>
+          <a href={p('projects')}>{t('projects')}</a>
+          <a href={p("blog")}>{t('blog')}</a>
+          <a href={p('faq')}>{t('faq')}</a>
+          <a href={p('contact')}>{t('contact')}</a>
+        </div>
+        <div class="foot-col">
+          <h3>{t('contact')}</h3>
+          <a href="mailto:info@viven.ch">info@viven.ch</a>
+          <a href="tel:+41435083381">+41 43 508 33 81</a>
+          <a href="https://maps.google.com/?q=Zeughausstrasse+31,+8004+Z%C3%BCrich" target="_blank" rel="noopener">Zeughausstrasse 31, 8004 Zürich</a>
+        </div>
+        <div class="foot-col">
+          <h3>{t('follow')}</h3>
+          <a href="https://www.linkedin.com/company/viven-ag" target="_blank" rel="noopener">LinkedIn</a>
+          <a href="https://www.instagram.com/viven.ag" target="_blank" rel="noopener">Instagram</a>
+          <a href="https://www.facebook.com/VIVENAG" target="_blank" rel="noopener">Facebook</a>
+          <a href="https://x.com/vivenag/" target="_blank" rel="noopener">X</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> Viven AG. <span>{t('rights')}</span></span>
+      <span>
+        <a href={p('impressum')}>Impressum</a> ·
+        <a href={p('privacy-policy')}>{t('privacy')}</a> ·
+        <a href={p('terms')}>{t('terms')}</a>
+      </span>
+      <span>{t('madeIn')}</span>
+    </div>
+  </div>
+</footer>

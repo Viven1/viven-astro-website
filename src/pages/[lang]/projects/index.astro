@@ -1,0 +1,74 @@
+---
+import Base from '../../../layouts/Base.astro';
+import VideoGallery from '../../../components/VideoGallery.astro';
+import { langPaths, localePath } from '../../../i18n.js';
+export const getStaticPaths = langPaths;
+const { lang } = Astro.params;
+const p = (s) => localePath(lang, s);
+const title = {"en":"Projects — Video Production Portfolio Zurich | Viven","de":"Projekte — Videoproduktion Portfolio Zürich | Viven","es":"Proyectos — Portafolio de producción de video Zúrich | Viven"};
+const description = {"en":"Viven's video production portfolio: brand, product, employer-branding, how-to and social films for UBS, Siemens, Porsche, ON and FIFA — produced in Zurich.","de":"Das Portfolio der Viven Videoproduktion: Marken-, Produkt-, Employer-Branding-, How-To- und Social-Filme für UBS, Siemens, Porsche, ON und FIFA — produziert in Zürich.","es":"El portafolio de Viven: films de marca, producto, employer branding, tutoriales y social para UBS, Siemens, Porsche, ON y FIFA — producidos en Zúrich."};
+---
+<Base lang={lang} slug="projects" active="projects" title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"CollectionPage\",\"@id\":\"https://www.viven.ch/projects/#webpage\",\"url\":\"https://www.viven.ch/projects/\",\"name\":\"Projects — Viven video production portfolio\",\"description\":\"Brand, product, employer-branding, how-to, social and corporate films for 187 brands across 32 industries — produced by Viven in Zurich.\",\"about\":{\"@id\":\"https://www.viven.ch/#organization\"},\"isPartOf\":{\"@id\":\"https://www.viven.ch/#website\"},\"inLanguage\":[\"en\",\"de\",\"es\"]},{\"@type\":\"BreadcrumbList\",\"@id\":\"https://www.viven.ch/projects/#breadcrumbs\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Projects\",\"item\":\"https://www.viven.ch/projects/\"}]},{\"@type\":\"ItemList\",\"@id\":\"https://www.viven.ch/projects/#videos\",\"name\":\"Selected Viven projects\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"item\":{\"@type\":\"VideoObject\",\"name\":\"V-Zug — Combair V600\",\"description\":\"Product film for the V-Zug Combair V600 oven, produced by Viven.\",\"thumbnailUrl\":\"https://i.vimeocdn.com/video/1996950534-ab58c31114f162230baa21d656052dbd1f673936bd3e796469e75afa266991bb-d_960?region=us\",\"embedUrl\":\"https://player.vimeo.com/video/1068759296\"}},{\"@type\":\"ListItem\",\"position\":2,\"item\":{\"@type\":\"VideoObject\",\"name\":\"Siemens — The Circle\",\"description\":\"Brand film for Siemens at The Circle, Zurich, produced by Viven.\",\"embedUrl\":\"https://player.vimeo.com/video/502153490\"}},{\"@type\":\"ListItem\",\"position\":3,\"item\":{\"@type\":\"VideoObject\",\"name\":\"UBS — Apprenticeship\",\"description\":\"Employer-branding film for the UBS apprenticeship program, produced by Viven.\",\"embedUrl\":\"https://player.vimeo.com/video/412290258\"}}]}]}"}></script>
+<!-- ============ PAGE HERO ============ -->
+<section class="page-hero">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href={p("")} data-en="Home" data-de="Home" data-es="Inicio">Home</a>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span data-en="Projects" data-de="Projekte" data-es="Proyectos">Projects</span>
+    </nav>
+    <span class="eyebrow" data-en="Projects" data-de="Projekte" data-es="Proyectos">Projects</span>
+    <h1 data-en='Work that <span class="hl">moved the numbers.</span>'
+        data-de='Arbeiten, die <span class="hl">Zahlen bewegt haben.</span>'
+        data-es='Trabajo que <span class="hl">movió los números.</span>'>
+      Work that <span class="hl">moved the numbers.</span>
+    </h1>
+    <p class="lead"
+       data-en="Films for 187 brands across 32 industries — brand, product, employer branding, how-to, social and corporate. Filter by type and hit play."
+       data-de="Filme für 187 Marken aus 32 Branchen — Marke, Produkt, Employer Branding, How-To, Social und Corporate. Nach Typ filtern und Play drücken."
+       data-es="Films para 187 marcas de 32 industrias — marca, producto, employer branding, tutoriales, social y corporativo. Filtra por tipo y dale play.">
+      Films for 187 brands across 32 industries — brand, product, employer branding, how-to, social and corporate. Filter by type and hit play.
+    </p>
+  </div>
+</section>
+
+<!-- ============ WORK GRID ============ -->
+<section class="sec" id="work" style="padding-top:0">
+  <div class="wrap">
+    <div class="filters" role="group" aria-label="Filter projects">
+      <button type="button" class="active" data-filter="all" data-en="All" data-de="Alle" data-es="Todos">All</button>
+      <button type="button" data-filter="brand" data-en="Brand" data-de="Marke" data-es="Marca">Brand</button>
+      <button type="button" data-filter="product" data-en="Product" data-de="Produkt" data-es="Producto">Product</button>
+      <button type="button" data-filter="employer" data-en="Employer Branding" data-de="Employer Branding" data-es="Employer Branding">Employer Branding</button>
+      <button type="button" data-filter="howto" data-en="How-To" data-de="How-To" data-es="How-To">How-To</button>
+      <button type="button" data-filter="social" data-en="Social" data-de="Social" data-es="Social">Social</button>
+      <button type="button" data-filter="corporate" data-en="Corporate" data-de="Corporate" data-es="Corporativo">Corporate</button>
+    </div>
+    <VideoGallery lang={lang} feature={true} />
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit drei Konzeptideen, Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tres ideas de concepto, tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Full production, in-house" data-de="Komplette Produktion, alles aus einer Hand" data-es="Producción completa, in-house">Full production, in-house</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+</Base>
