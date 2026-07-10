@@ -84,6 +84,34 @@
 
   .muted-note{color:var(--muted-2);font-size:13px}
   .btn.small{padding:9px 18px;font-size:13px}
+  .dt tbody tr{cursor:pointer}
+
+  /* ---------- Lead detail modal ---------- */
+  .lead-modal{position:fixed;inset:0;z-index:300;display:none;align-items:flex-start;justify-content:center;padding:5vh 20px;overflow-y:auto}
+  .lead-modal.open{display:flex}
+  .lead-modal .backdrop{position:fixed;inset:0;background:rgba(9,15,26,.86);backdrop-filter:blur(8px)}
+  .lead-card{position:relative;z-index:2;width:min(760px,100%);background:var(--navy-800);border:1px solid var(--line-strong);border-radius:20px;padding:32px;animation:pop .35s var(--ease)}
+  @keyframes pop{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .lead-card .close{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--line-strong);color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;transition:.25s}
+  .lead-card .close:hover{background:var(--acid);color:#142033}
+  .lead-card h3{font-size:24px;margin-bottom:2px}
+  .lead-card .email-line{color:var(--muted);font-size:14px;margin-bottom:22px}
+  .lead-card .email-line a{color:var(--acid)}
+  .detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+  .detail{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .detail .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);margin-bottom:4px}
+  .detail .v{font-size:13.5px;color:var(--text);word-break:break-all}
+  .lead-msg{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px;white-space:pre-wrap}
+  .draft-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .draft-head h4{font-size:15px;display:flex;align-items:center;gap:8px}
+  .draft-head h4 span{color:var(--acid)}
+  .draft-box{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:12px;padding:16px;color:var(--text);font-family:inherit;font-size:13.5px;line-height:1.6;min-height:230px;resize:vertical}
+  .draft-box:focus{outline:none;border-color:var(--acid)}
+  .lead-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;justify-content:space-between}
+  .lead-actions .left{display:flex;gap:10px;flex-wrap:wrap}
+  .btn-danger{background:transparent;border:1px solid rgba(255,120,120,.4);color:#ff9a9a}
+  .btn-danger:hover{background:rgba(255,90,90,.12);border-color:#ff9a9a;transform:translateY(-2px)}
+  @media(max-width:680px){.detail-grid{grid-template-columns:1fr 1fr}}
   [hidden]{display:none!important}
   @media(max-width:980px){.kpis,.kpis.four{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}}
 </style>
@@ -191,6 +219,32 @@
     </div>
 
     <p class="muted-note">Video stats: <span id="ka-videos">–</span> registros. (El tracking de videos se conecta en una próxima etapa.)</p>
+  </div>
+</div>
+
+<!-- ============ LEAD DETAIL MODAL ============ -->
+<div class="lead-modal" id="lead-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="backdrop" data-close></div>
+  <div class="lead-card">
+    <button class="close" type="button" data-close aria-label="Cerrar">&times;</button>
+    <h3 id="lm-name"></h3>
+    <p class="email-line"><a id="lm-email" href="#"></a> · <span id="lm-date"></span></p>
+    <div class="detail-grid" id="lm-details"></div>
+    <div class="lead-msg" id="lm-message"></div>
+    <div class="draft-head">
+      <h4>✍️ <span>Borrador de respuesta</span> (editable — generado según lo que pide)</h4>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost small" id="lm-copy" type="button">📋 Copiar</button>
+        <a class="btn btn-primary small" id="lm-mailto" href="#">✉️ Abrir en tu correo</a>
+      </div>
+    </div>
+    <textarea class="draft-box" id="lm-draft"></textarea>
+    <div class="lead-actions">
+      <div class="left">
+        <span class="muted-note" id="lm-status-note"></span>
+      </div>
+      <button class="btn btn-danger small" id="lm-delete" type="button">🗑 Borrar lead</button>
+    </div>
   </div>
 </div>
 
@@ -329,6 +383,7 @@
     }).join('');
 
     document.querySelectorAll('#leads-body select.status').forEach((sel) => {
+      sel.addEventListener('click', (e) => e.stopPropagation());
       sel.addEventListener('change', async () => {
         const id = sel.closest('tr').dataset.id;
         const { error } = await supabase.from('leads').update({ status: sel.value }).eq('id', id);
@@ -339,7 +394,165 @@
         renderLeads();
       });
     });
+    /* click en la fila → detalle del lead */
+    document.querySelectorAll('#leads-body tr').forEach((tr) => {
+      tr.addEventListener('click', () => openLead(tr.dataset.id));
+    });
   }
+
+  /* ---------- Lead detail + draft de respuesta ---------- */
+  const modal = $('lead-modal');
+  let currentLead = null;
+
+  const TOPICS = [
+    { key: 'employer', re: /employer|recruit|talent|hiring|arbeitgeber|mitarbeiter|karriere|reclut|empleo|kultur|culture/i },
+    { key: 'product',  re: /product|produkt|producto|launch|lancierung|lanzamiento|e-?com/i },
+    { key: 'social',   re: /social|instagram|tiktok|linkedin|reels|shorts|redes/i },
+    { key: 'event',    re: /event|keynote|kongress|congress|messe|evento|aftermovie|confer/i },
+    { key: 'howto',    re: /tutorial|how.?to|explainer|erklär|explicativ|onboarding|schulung/i },
+    { key: 'brand',    re: /brand|marke|marca|campaign|kampagne|campaña|image|corporate/i }
+  ];
+  const detectTopic = (msg) => (TOPICS.find((t) => t.re.test(msg || '')) || {}).key || 'general';
+
+  const PROOF = {
+    en: {
+      employer: 'employer-branding films we made for UBS, Siemens and KPMG attract exactly the candidates our clients want',
+      product:  'product films we made for V-ZUG, ON and Franke turn features into desire — and clicks into buyers',
+      social:   'the social series we produce for brands like Philips are built to stop the scroll',
+      event:    'we cover keynotes and events for brands like UBS and PMI — with first highlights ready the next day',
+      howto:    'our explainer and tutorial films make complex products easy to say yes to',
+      brand:    'a brand film we made for Siemens tripled their website visits',
+      general:  'we’ve produced films for 187 brands across 32 industries — including UBS, Siemens, Porsche and ON'
+    },
+    de: {
+      employer: 'unsere Employer-Branding-Filme für UBS, Siemens und KPMG ziehen genau die richtigen Kandidaten an',
+      product:  'unsere Produktfilme für V-ZUG, ON und Franke verwandeln Features in Begehren — und Klicks in Käufer',
+      social:   'unsere Social-Serien für Marken wie Philips sind gebaut, um den Scroll zu stoppen',
+      event:    'wir begleiten Keynotes und Events für Marken wie UBS und PMI — erste Highlights schon am nächsten Tag',
+      howto:    'unsere Erklär- und Tutorial-Filme machen komplexe Produkte leicht verständlich',
+      brand:    'ein Markenfilm von uns hat Siemens 3× mehr Website-Besuche gebracht',
+      general:  'wir haben Filme für 187 Marken in 32 Branchen produziert — darunter UBS, Siemens, Porsche und ON'
+    },
+    es: {
+      employer: 'nuestros films de employer branding para UBS, Siemens y KPMG atraen exactamente a los candidatos correctos',
+      product:  'nuestros videos de producto para V-ZUG, ON y Franke convierten características en deseo — y clics en compradores',
+      social:   'las series de social que producimos para marcas como Philips están hechas para frenar el scroll',
+      event:    'cubrimos keynotes y eventos para marcas como UBS y PMI — con los primeros highlights al día siguiente',
+      howto:    'nuestros videos explicativos hacen fácil decir que sí a productos complejos',
+      brand:    'un film de marca nuestro le dio a Siemens 3× más visitas web',
+      general:  'hemos producido films para 187 marcas en 32 industrias — incluyendo UBS, Siemens, Porsche y ON'
+    }
+  };
+
+  function buildDraft(r){
+    const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
+    const first = esc0((r.name || '').trim().split(/\s+/)[0] || '');
+    const proof = PROOF[lang][detectTopic(r.message)];
+    if (lang === 'de') return 'Guten Tag ' + first + '\n\n' +
+      'Vielen Dank für Ihre Anfrage — gerne helfen wir weiter.\n\n' +
+      'Damit wir Ihnen einen konkreten Vorschlag machen können, drei kurze Fragen:\n' +
+      '• Was soll das Video bewirken (Launch, Leads, Recruiting …)?\n' +
+      '• Wo wird es laufen (Website, Social, Paid, Event)?\n' +
+      '• Ihr idealer Zeitrahmen?\n\n' +
+      'Zur Einordnung: ' + proof + '. Nach Ihrem Briefing erhalten Sie ein fixes Angebot mit Timing — der erste Entwurf ist in der Regel ca. zwei Wochen nach Start fertig.\n\n' +
+      'Hätten Sie diese Woche 15 Minuten für einen kurzen Call?\n\n' +
+      'Freundliche Grüsse\nSebastian Cepeda\nViven — viven.ch · +41 43 508 33 81';
+    if (lang === 'es') return 'Hola ' + first + ':\n\n' +
+      'Gracias por escribirnos — nos encantaría ayudarte.\n\n' +
+      'Para hacerte una propuesta concreta, tres preguntas rápidas:\n' +
+      '• ¿Qué debe lograr el video (lanzamiento, leads, contratación…)?\n' +
+      '• ¿Dónde va a correr (web, social, paid, evento)?\n' +
+      '• ¿Tu timeline ideal?\n\n' +
+      'Para que nos ubiques: ' + proof + '. Con tu brief te mandamos una propuesta con presupuesto fijo y tiempos — el primer borrador suele estar listo unas dos semanas después de arrancar.\n\n' +
+      '¿Tienes 15 minutos esta semana para una llamada corta?\n\n' +
+      'Saludos,\nSebastian Cepeda\nViven — viven.ch · +41 43 508 33 81';
+    return 'Hi ' + first + ',\n\n' +
+      'Thanks for reaching out — we’d love to help.\n\n' +
+      'To send you a concrete proposal, three quick questions:\n' +
+      '• What should the video achieve (launch, leads, hiring…)?\n' +
+      '• Where will it run (website, social, paid, event)?\n' +
+      '• Your ideal timeline?\n\n' +
+      'For context: ' + proof + '. Once we have your brief, you’ll get a fixed quote with timing — the first draft is typically ready about two weeks after we start.\n\n' +
+      'Would you have 15 minutes this week for a quick call?\n\n' +
+      'Best,\nSebastian Cepeda\nViven — viven.ch · +41 43 508 33 81';
+  }
+  /* nombre sin HTML para el draft (texto plano) */
+  const esc0 = (s) => String(s ?? '').replace(/[<>]/g, '');
+
+  const SUBJECTS = {
+    en: 'Your video project — Viven',
+    de: 'Ihr Videoprojekt — Viven',
+    es: 'Tu proyecto de video — Viven'
+  };
+
+  function openLead(id){
+    const r = allLeads.find((l) => String(l.id) === String(id));
+    if (!r) return;
+    currentLead = r;
+    $('lm-name').textContent = r.name || '(sin nombre)';
+    $('lm-email').textContent = r.email;
+    $('lm-email').href = 'mailto:' + r.email;
+    $('lm-date').textContent = new Date(r.created_at).toLocaleString('es-CH', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const fields = [
+      ['Canal', r.channel || '—'],
+      ['Idioma', (r.lang || '—').toUpperCase()],
+      ['Estado', r.status || '—'],
+      ['Página de entrada', r.landing_path || '—'],
+      ['Campaña (UTM)', r.utm_campaign || '—'],
+      ['Fuente (UTM)', r.utm_source || '—'],
+      ['GCLID (Google Ads)', r.gclid || '—'],
+      ['Sesión', r.session_id ? r.session_id.slice(0, 13) + '…' : '—']
+    ];
+    $('lm-details').innerHTML = fields.map(([k, v]) =>
+      '<div class="detail"><div class="k">' + k + '</div><div class="v">' + esc(v) + '</div></div>'
+    ).join('');
+    $('lm-message').textContent = r.message || '(sin mensaje)';
+    const draft = buildDraft(r);
+    $('lm-draft').value = draft;
+    updateMailto();
+    $('lm-status-note').textContent = 'El borrador usa el idioma del lead (' + (r.lang || 'en').toUpperCase() + ') y se adapta a su mensaje.';
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function updateMailto(){
+    if (!currentLead) return;
+    const lang = ['en', 'de', 'es'].includes(currentLead.lang) ? currentLead.lang : 'en';
+    $('lm-mailto').href = 'mailto:' + currentLead.email +
+      '?subject=' + encodeURIComponent(SUBJECTS[lang]) +
+      '&body=' + encodeURIComponent($('lm-draft').value);
+  }
+  $('lm-draft').addEventListener('input', updateMailto);
+  function closeLead(){
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    currentLead = null;
+  }
+  modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeLead));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) closeLead(); });
+
+  $('lm-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('lm-draft').value);
+      $('lm-copy').textContent = '✓ Copiado';
+    } catch (e) {
+      $('lm-draft').select();
+      document.execCommand('copy');
+      $('lm-copy').textContent = '✓ Copiado';
+    }
+    setTimeout(() => { $('lm-copy').textContent = '📋 Copiar'; }, 1600);
+  });
+
+  $('lm-delete').addEventListener('click', async () => {
+    if (!currentLead) return;
+    if (!confirm('¿Borrar definitivamente el lead de "' + (currentLead.name || currentLead.email) + '"? Esta acción no se puede deshacer.')) return;
+    const { error } = await supabase.from('leads').delete().eq('id', currentLead.id);
+    if (error) { alert('No se pudo borrar: ' + error.message); return; }
+    allLeads = allLeads.filter((l) => l.id !== currentLead.id);
+    closeLead();
+    renderLeads();
+  });
 
   /* ---------- Export CSV ---------- */
   $('export-csv').addEventListener('click', () => {

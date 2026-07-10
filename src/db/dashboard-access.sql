@@ -14,6 +14,7 @@
 -- limpiar versiones anteriores de estas policies (cualquier email)
 drop policy if exists "owner reads leads"       on public.leads;
 drop policy if exists "owner updates leads"     on public.leads;
+drop policy if exists "owner deletes leads"     on public.leads;
 drop policy if exists "owner reads pageviews"   on public.pageviews;
 drop policy if exists "owner reads video_stats" on public.video_stats;
 
@@ -27,6 +28,11 @@ create policy "owner updates leads" on public.leads
   for update to authenticated
   using ((auth.jwt() ->> 'email') = 'sebastian@viven.ch')
   with check ((auth.jwt() ->> 'email') = 'sebastian@viven.ch');
+
+-- borrar leads (spam, pruebas) — solo desde el dashboard
+create policy "owner deletes leads" on public.leads
+  for delete to authenticated
+  using ((auth.jwt() ->> 'email') = 'sebastian@viven.ch');
 
 -- lectura de analítica
 create policy "owner reads pageviews" on public.pageviews
