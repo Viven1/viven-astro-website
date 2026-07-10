@@ -116,9 +116,20 @@ function loadHeroVideo(){
   f.loading = 'lazy';
   heroBg.insertBefore(f, heroBg.querySelector('.grain'));
 }
-var idle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 250); };
-if(document.readyState === 'complete') idle(loadHeroVideo);
-else window.addEventListener('load', function(){ idle(loadHeroVideo); });
+/* Facade: cargamos el player de Vimeo (pesado + cookie de terceros) recién en la
+   primera interacción del visitante — instantáneo para cualquiera que haga scroll o
+   mueva el mouse, y sin penalizar el primer render ni la privacidad. */
+(function armHeroVideo(){
+  if(!heroBg || !heroId) return;
+  var done = false;
+  var evs = ['pointermove', 'scroll', 'touchstart', 'keydown', 'wheel', 'click'];
+  function go(){
+    if(done) return; done = true;
+    evs.forEach(function(e){ window.removeEventListener(e, go); });
+    (window.requestIdleCallback || function(cb){ setTimeout(cb, 1); })(loadHeroVideo);
+  }
+  evs.forEach(function(e){ window.addEventListener(e, go, { once: true, passive: true }); });
+})();
 
 /* ---------- Video modal (shared) ---------- */
 var modal = document.getElementById('video-modal');
@@ -219,20 +230,20 @@ function renderLeadForm(mount){
       '<div class="row2">' +
         '<div class="field">' +
           '<label data-en=\'First name <span class="req">*</span>\' data-de=\'Vorname <span class="req">*</span>\' data-es=\'Nombre <span class="req">*</span>\'>First name <span class="req">*</span></label>' +
-          '<input type="text" name="first_name" required maxlength="80" autocomplete="given-name" />' +
+          '<input type="text" name="first_name" required maxlength="80" autocomplete="given-name" aria-label="First name" />' +
         '</div>' +
         '<div class="field">' +
           '<label data-en=\'Last name <span class="req">*</span>\' data-de=\'Nachname <span class="req">*</span>\' data-es=\'Apellido <span class="req">*</span>\'>Last name <span class="req">*</span></label>' +
-          '<input type="text" name="last_name" required maxlength="80" autocomplete="family-name" />' +
+          '<input type="text" name="last_name" required maxlength="80" autocomplete="family-name" aria-label="Last name" />' +
         '</div>' +
       '</div>' +
       '<div class="field">' +
         '<label data-en=\'Work email <span class="req">*</span>\' data-de=\'Gesch&auml;ftliche E-Mail <span class="req">*</span>\' data-es=\'Email de trabajo <span class="req">*</span>\'>Work email <span class="req">*</span></label>' +
-        '<input type="email" name="email" required maxlength="200" autocomplete="email" />' +
+        '<input type="email" name="email" required maxlength="200" autocomplete="email" aria-label="Work email" />' +
       '</div>' +
       '<div class="field">' +
         '<label data-en="What are you working on?" data-de="Woran arbeiten Sie?" data-es="&iquest;En qu&eacute; est&aacute;s trabajando?">What are you working on?</label>' +
-        '<textarea name="message" maxlength="4000" rows="4"></textarea>' +
+        '<textarea name="message" maxlength="4000" rows="4" aria-label="Your message"></textarea>' +
       '</div>' +
       /* honeypot: los bots lo completan, los humanos no lo ven */
       '<div class="hp-field" aria-hidden="true"><label>Website</label><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>' +
@@ -342,6 +353,52 @@ document.querySelectorAll('a[href^="tel:"], a[href^="mailto:"]').forEach(functio
   a.addEventListener('click', function(){
     track('contact_click', {method: a.getAttribute('href').indexOf('tel:') === 0 ? 'phone' : 'email'});
   });
+});
+
+/* ---------- Testimonial slider (auto-rota, pausa al interactuar, respeta reduced-motion) ---------- */
+document.querySelectorAll('.review-slider').forEach(function(slider){
+  var track = slider.querySelector('.review-track');
+  var slides = track.children;
+  if(slides.length < 2) return;
+  var dotsWrap = slider.parentElement.querySelector('.review-dots');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* dots */
+  var dots = [];
+  if(dotsWrap){
+    for(var d = 0; d < slides.length; d++){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Review ' + (d + 1));
+      (function(idx){ b.addEventListener('click', function(){ goTo(idx); rearm(); }); })(d);
+      dotsWrap.appendChild(b); dots.push(b);
+    }
+  }
+  function stepW(){ return slides[0].getBoundingClientRect().width + 22; }
+  function current(){ return Math.round(track.scrollLeft / stepW()); }
+  function updateDots(){
+    var c = current();
+    dots.forEach(function(dot, i){ dot.classList.toggle('active', i === c); });
+  }
+  function goTo(i){ track.scrollTo({ left: i * stepW(), behavior: 'smooth' }); }
+  function next(){
+    var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 6;
+    if(atEnd) track.scrollTo({ left: 0, behavior: 'smooth' });
+    else track.scrollBy({ left: stepW(), behavior: 'smooth' });
+  }
+
+  var delay = parseInt(slider.dataset.autoplay, 10) || 5000;
+  var timer = null;
+  function play(){ if(reduced || timer) return; timer = setInterval(next, delay); }
+  function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+  function rearm(){ stop(); setTimeout(play, delay); }
+
+  track.addEventListener('scroll', function(){ updateDots(); }, { passive: true });
+  slider.addEventListener('pointerenter', stop);
+  slider.addEventListener('pointerleave', play);
+  slider.addEventListener('touchstart', function(){ stop(); rearm(); }, { passive: true });
+  updateDots();
+  play();
 });
 
 /* ---------- Year ---------- */

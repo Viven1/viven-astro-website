@@ -1,8 +1,9 @@
 ---
 import { T, pick, localePath, LANGS } from '../i18n.js';
-const { lang, slug = '', active = '', activeSub = '', switchSlug = null } = Astro.props;
+const { lang, slug = '', active = '', activeSub = '', switchSlug = null, langUrls = null } = Astro.props;
 const p = (s) => localePath(lang, s);
 const langSlug = switchSlug != null ? switchSlug : slug;
+const langHref = (l) => (langUrls && langUrls[l]) ? langUrls[l] : localePath(l, langSlug);
 const t = (k) => pick(T[k], lang);
 const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>';
 const services = [
@@ -38,7 +39,7 @@ const services = [
     <div class="nav-right">
       <div class="lang" role="group" aria-label="Language">
         {LANGS.map((l) => (
-          <a href={localePath(l, langSlug)} class={'lang-link' + (l === lang ? ' active' : '')} hreflang={l}>{l.toUpperCase()}</a>
+          <a href={langHref(l)} class={'lang-link' + (l === lang ? ' active' : '')} hreflang={l}>{l.toUpperCase()}</a>
         ))}
       </div>
       <a href={p('contact')} class="btn btn-primary">{t('cta')}</a>
@@ -59,7 +60,7 @@ const services = [
   <a href={p('faq')} class={active === 'faq' ? 'active' : ''}>{t('faq')}</a>
   <a href={p('contact')} class={active === 'contact' ? 'active' : ''}>{t('contact')}</a>
   <div class="lang" role="group" aria-label="Language" style="margin-top:24px;align-self:flex-start">
-    {LANGS.map((l) => (<a href={localePath(l, langSlug)} class={'lang-link' + (l === lang ? ' active' : '')} hreflang={l}>{l.toUpperCase()}</a>))}
+    {LANGS.map((l) => (<a href={langHref(l)} class={'lang-link' + (l === lang ? ' active' : '')} hreflang={l}>{l.toUpperCase()}</a>))}
   </div>
   <a href={p('contact')} class="btn btn-primary">{t('cta')}</a>
 </nav>

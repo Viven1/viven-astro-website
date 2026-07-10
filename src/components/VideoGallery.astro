@@ -1,7 +1,7 @@
 ---
 import videos from '../data/videos.json';
 import { pick } from '../i18n.js';
-const { cat = '', lang = 'en', limit = 0, feature = false } = Astro.props;
+const { cat = '', lang = 'en', limit = 0, feature = false, perClient = 2 } = Astro.props;
 
 const CATLABEL = {
   brand:     { en: 'Brand video', de: 'Markenfilm', es: 'Video de marca' },
@@ -12,9 +12,47 @@ const CATLABEL = {
   corporate: { en: 'Corporate', de: 'Corporate', es: 'Corporativo' },
 };
 
-// solo videos con still (thumbnail) accesible; filtrados por categoría si se pide
-let list = videos.filter((v) => v.thumb && (!cat || v.cat === cat));
+// clientes más relevantes primero
+const IMPORTANT = ['UBS','Siemens','Porsche','ON','FIFA','Philips','V-ZUG','Franke','Chanel','Swarovski','IBM','Julius Bär','KPMG','Sennheiser','Sigg','ABB','Sonova','Kanebo','SENSAI','Meteomatics','Capgemini','Büchi','Nile','TomFit','SV Group','PMI Science','Stadtspital','Carvolution','Calda Clinic','LEM'];
+const rank = (c) => { const i = IMPORTANT.indexOf(c); return i === -1 ? 999 : i; };
+const time = (d) => (d ? Date.parse(d) || 0 : 0);
+
+// título de archivo/interno (sin valor para mostrar)
+const junkTitle = (t) => !t || /VIVEN_|showreel|prores|_\d+$|\.mo?v|_16x9|multichannel|clean|nooutro/i.test(t);
+// nombre limpio de showreel: "VIVEN_Showreel-EmployerBranding_Full..." → "Showreel — Employer Branding"
+const SRMAP = { Prodcuts: 'Product', Products: 'Product', EmployerBranding: 'Employer Branding', SOME: 'Social Media', LandingPage: 'Brand', Image: 'Image', 'Best-Of': 'Best of', Events: 'Events', Testimonial: 'Testimonial', AboutUs: 'About us', People: 'People', Interviews: 'Interviews', Interview: 'Interview', StartUp: 'Start-up' };
+const showreelName = (t) => { const m = (t || '').match(/Showreel[-_]([A-Za-z-]+)/i); return m ? ('Showreel — ' + (SRMAP[m[1]] || m[1].replace(/-/g, ' '))) : null; };
+const displayTitle = (v) => v.client || showreelName(v.title) || (junkTitle(v.title) ? 'Viven' : v.title);
+
+// --- balanceo: diversidad de marcas, destacados/nuevos/importantes primero ---
+// fuera videos sin cliente Y con título de archivo (ruido de showreels internos)
+const pool = videos.filter((v) => v.thumb && (!cat || v.cat === cat) && (v.client || !junkTitle(v.title)));
+const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
+for (const v of pool) {
+  const key = v.client || ('__' + v.id);
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key).push(v);
+}
+for (const arr of groups.values()) {                       // dentro de cada marca: destacado, luego más nuevo
+  arr.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || time(b.date) - time(a.date));
+}
+const capped = [...groups.entries()].map(([k, arr]) => [k, arr.slice(0, perClient)]);
+capped.sort((A, B) => {                                     // ordenar marcas: destacada, importante, más nueva
+  const fa = A[1].some((x) => x.featured) ? 0 : 1, fb = B[1].some((x) => x.featured) ? 0 : 1;
+  if (fa !== fb) return fa - fb;
+  const ra = rank(A[0]), rb = rank(B[0]);
+  if (ra !== rb) return ra - rb;
+  return time(B[1][0].date) - time(A[1][0].date);
+});
+let list = [];                                             // round-robin: 1 de cada marca, luego el 2º de cada una
+let round = 0, added = true;
+while (added) {
+  added = false;
+  for (const [, arr] of capped) { if (arr[round]) { list.push(arr[round]); added = true; } }
+  round++;
+}
 if (limit) list = list.slice(0, limit);
+
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
 <div class="work-grid">
@@ -24,7 +62,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
       <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>
       <span class="wt-play" set:html={play} />
       <span class="wt-meta">
-        <span class="wt-title">{v.client || v.title}</span>
+        <span class="wt-title">{displayTitle(v)}</span>
         <span class="wt-cat">{pick(CATLABEL[v.cat], lang)}</span>
       </span>
     </button>

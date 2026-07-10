@@ -11,8 +11,20 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# Shared CSS/JS: revalidate on every load (etag 304 = fast) so a deploy
-# never sirve un site.js viejo con HTML nuevo
+# Assets con hash de Astro (/_astro/*): contenido inmutable → cachear 1 año
+[[headers]]
+  for = "/_astro/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Fuentes/imágenes estáticas: cache largo
+[[headers]]
+  for = "/favicon.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# CSS/JS compartido (no tiene hash): revalidar en cada load (etag 304 = rápido)
+# así un deploy nunca sirve un site.js viejo con HTML nuevo
 [[headers]]
   for = "/assets/*"
   [headers.values]

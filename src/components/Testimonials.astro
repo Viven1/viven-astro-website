@@ -1,0 +1,65 @@
+---
+import data from '../data/reviews.json';
+import { pick, SITE } from '../i18n.js';
+const { lang = 'en', cat = '' } = Astro.props;
+/* si se pasa una categoría (páginas de servicio), las reseñas relevantes van primero */
+let pool = data.reviews || [];
+if (cat) pool = [...pool.filter((r) => r.cat === cat), ...pool.filter((r) => r.cat !== cat)];
+const reviews = pool.slice(0, 12);
+const rating = data.rating || 5;
+const count = data.count || 0;
+
+const T = {
+  eyebrow: { en: 'Reviews', de: 'Bewertungen', es: 'Reseñas' },
+  h2: { en: 'Only 5-star reviews.', de: 'Nur 5-Sterne-Bewertungen.', es: 'Solo reseñas de 5 estrellas.' },
+  lead: {
+    en: `${rating.toFixed(1)} on Google across ${count}+ reviews.`,
+    de: `${rating.toFixed(1)} auf Google aus ${count}+ Bewertungen.`,
+    es: `${rating.toFixed(1)} en Google en ${count}+ reseñas.`,
+  },
+  readAll: { en: 'Read all on Google', de: 'Alle auf Google lesen', es: 'Ver todas en Google' },
+};
+const stars = (n) => '★'.repeat(Math.round(n || 5));
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': SITE + '/#organization',
+  aggregateRating: { '@type': 'AggregateRating', ratingValue: rating, reviewCount: count, bestRating: 5, worstRating: 1 },
+  review: reviews.map((r) => ({
+    '@type': 'Review',
+    author: { '@type': 'Person', name: r.name },
+    reviewRating: { '@type': 'Rating', ratingValue: r.rating || 5, bestRating: 5 },
+    reviewBody: r.text,
+  })),
+};
+---
+{reviews.length > 0 && (
+  <section class="sec" id="reviews" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head center">
+        <span class="eyebrow">{pick(T.eyebrow, lang)}</span>
+        <h2>{pick(T.h2, lang)}</h2>
+        <p><span style="color:var(--acid);letter-spacing:2px">★★★★★</span> {pick(T.lead, lang)}</p>
+      </div>
+      <div class="review-slider" data-autoplay="4800">
+        <div class="review-track">
+          {reviews.map((r) => (
+            <div class="testi review-slide">
+              <div class="starz">{stars(r.rating)}</div>
+              <p>{r.text}</p>
+              <div class="who"><strong>{r.name}</strong>{r.role || 'Google review'}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="review-dots" aria-hidden="true"></div>
+      {data.googleUrl && (
+        <div style="text-align:center;margin-top:40px">
+          <a href={data.googleUrl} class="btn btn-ghost" target="_blank" rel="noopener">{pick(T.readAll, lang)}</a>
+        </div>
+      )}
+    </div>
+    <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  </section>
+)}
