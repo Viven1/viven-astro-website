@@ -1,0 +1,35 @@
+---
+import projects from '../data/projects.json';
+const { lang = 'en' } = Astro.props;
+const list = projects.filter((p) => p.lang === lang && p.stills.length);
+const t = (o) => o[lang] || o.en;
+const T = {
+  eyebrow: { en: 'Case studies', de: 'Case Studies', es: 'Casos de éxito' },
+  h2: { en: 'Selected work, in depth.', de: 'Ausgewählte Arbeiten im Detail.', es: 'Trabajos seleccionados, en detalle.' },
+  lead: { en: 'The story behind some of our productions — concept, craft and delivery.', de: 'Die Geschichte hinter einigen Produktionen — Konzept, Handwerk und Auslieferung.', es: 'La historia detrás de algunas producciones — concepto, oficio y entrega.' },
+  read: { en: 'Read case study →', de: 'Case Study lesen →', es: 'Ver caso de éxito →' },
+};
+---
+{list.length > 0 && (
+  <section class="sec" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">{t(T.eyebrow)}</span>
+        <h2>{t(T.h2)}</h2>
+        <p>{t(T.lead)}</p>
+      </div>
+      <div class="blog-grid">
+        {list.map((pr) => (
+          <a href={'/' + pr.slug + '/'} class="blog-card reveal">
+            <div class="blog-card-img"><img src={pr.stills[0]} loading="lazy" decoding="async" width="480" height="270" alt={pr.headline} /></div>
+            <div class="blog-card-body">
+              {pr.client && <span class="wt-cat" style="margin-bottom:8px">{pr.client}</span>}
+              <h3>{pr.headline}</h3>
+              <span class="more">{t(T.read)}</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+)}

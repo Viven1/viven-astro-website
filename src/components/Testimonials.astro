@@ -1,10 +1,15 @@
 ---
 import data from '../data/reviews.json';
 import { pick, SITE } from '../i18n.js';
-const { lang = 'en', cat = '' } = Astro.props;
-/* si se pasa una categoría (páginas de servicio), las reseñas relevantes van primero */
+const { lang = 'en', cat = '', client = '' } = Astro.props;
+/* client (case study): la reseña de ESE cliente va primera. Si no, por categoría (servicios). */
 let pool = data.reviews || [];
-if (cat) pool = [...pool.filter((r) => r.cat === cat), ...pool.filter((r) => r.cat !== cat)];
+if (client) {
+  const m = (r) => (((r.company || '') + ' ' + r.text).toLowerCase().includes(client.toLowerCase()));
+  pool = [...pool.filter(m), ...pool.filter((r) => !m(r))];
+} else if (cat) {
+  pool = [...pool.filter((r) => r.cat === cat), ...pool.filter((r) => r.cat !== cat)];
+}
 const reviews = pool.slice(0, 12);
 const rating = data.rating || 5;
 const count = data.count || 0;
