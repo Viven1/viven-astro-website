@@ -57,13 +57,20 @@ Datos del lead:
         messages: [{ role: "user", content: prompt }],
       }),
     });
-    if (!res.ok) return new Response(await res.text(), { status: 502, headers: cors });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("ANTHROPIC_ERROR", res.status, errText);
+      return new Response(JSON.stringify({ error: `Anthropic ${res.status}: ${errText.slice(0, 300)}` }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
     const data = await res.json();
     const suggestion = (data.content?.[0]?.text ?? "").trim();
     return new Response(JSON.stringify({ suggestion }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: cors });
+    console.error("FUNCTION_ERROR", String(e));
+    return new Response(JSON.stringify({ error: String(e) }), { headers: { ...cors, "Content-Type": "application/json" } });
   }
 });

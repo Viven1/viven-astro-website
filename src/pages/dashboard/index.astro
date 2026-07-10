@@ -644,7 +644,7 @@
       const { data, error } = await supabase.functions.invoke('ai-suggest', {
         body: { lead: currentLead, lang: currentLead.lang || 'es' }
       });
-      if (error || !data || !data.suggestion) throw new Error(error?.message || 'sin respuesta');
+      if (error || !data || !data.suggestion) throw new Error(data?.error || error?.message || 'sin respuesta');
       $('lm-draft').value = data.suggestion;
       updateMailto();
       $('lm-status-note').textContent = '✨ Borrador generado con IA — revisalo antes de enviar.';
