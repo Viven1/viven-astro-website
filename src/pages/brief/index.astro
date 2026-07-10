@@ -1,0 +1,91 @@
+---
+// Página de intake / brief. El lead llega desde el email (?lead=<id>&lang=<en|de|es>).
+// Guarda en Supabase (tabla briefs) con la publishable key, igual que el form del sitio.
+const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
+const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your project brief — Viven</title>
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#0f1826" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style>
+  .brief-wrap{max-width:640px;margin:0 auto;padding:48px 22px 80px}
+  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);margin-bottom:28px;letter-spacing:-.02em}
+  .brief-logo span{color:var(--acid)}
+  .brief-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:34px}
+  .brief-card h1{font-size:clamp(24px,4vw,30px);margin-bottom:8px}
+  .brief-card .lead{color:var(--muted);font-size:15.5px;margin-bottom:26px}
+  .bf{margin-bottom:18px}
+  .bf label{display:block;font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:7px}
+  .bf input,.bf textarea,.bf select{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px}
+  .bf textarea{min-height:90px;resize:vertical}
+  .bf .hint{color:var(--muted-2);font-size:12.5px;margin-top:5px}
+  .brief-card button{width:100%;margin-top:8px;font-size:16px;padding:15px}
+  .brief-ok{text-align:center;padding:26px 0}
+  .brief-ok .big{font-size:40px}
+  .brief-alt{text-align:center;color:var(--muted);font-size:14px;margin-top:22px}
+  .brief-alt a{color:var(--acid)}
+</style>
+</head>
+<body>
+<div class="brief-wrap">
+  <div class="brief-logo">viven<span>.</span></div>
+  <div class="brief-card" id="brief-form-card">
+    <h1 data-en="Tell us about your project" data-de="Erzählen Sie uns von Ihrem Projekt" data-es="Contanos sobre tu proyecto">Tell us about your project</h1>
+    <p class="lead" data-en="Takes ~2 minutes. With this we send you a fixed quote and timing — first draft usually ready ~2 weeks after we start." data-de="Dauert ~2 Minuten. Damit senden wir Ihnen ein fixes Angebot mit Timing — erster Entwurf meist ~2 Wochen nach Start." data-es="Toma ~2 minutos. Con esto te mandamos una propuesta con presupuesto fijo y tiempos — primer borrador ~2 semanas después de arrancar.">Takes ~2 minutes.</p>
+    <form id="brief-form">
+      <div class="bf"><label data-en="Your name" data-de="Ihr Name" data-es="Tu nombre">Your name</label><input name="name" required /></div>
+      <div class="bf"><label data-en="Email" data-de="E-Mail" data-es="Email">Email</label><input type="email" name="email" required /></div>
+      <div class="bf"><label data-en="What should the video achieve?" data-de="Was soll das Video bewirken?" data-es="¿Qué debe lograr el video?">What should the video achieve?</label><input name="goal" placeholder="launch, leads, hiring, brand…" required /></div>
+      <div class="bf"><label data-en="Where will it run?" data-de="Wo wird es laufen?" data-es="¿Dónde va a correr?">Where will it run?</label><input name="distribution" placeholder="website, social, paid, event…" /></div>
+      <div class="bf"><label data-en="Ideal timeline / deadline" data-de="Zeitrahmen / Deadline" data-es="Timeline / deadline ideal">Ideal timeline / deadline</label><input name="timeline" placeholder="e.g. in 6 weeks, before Q4…" /></div>
+      <div class="bf"><label data-en="Rough budget (optional)" data-de="Budget (optional)" data-es="Presupuesto aprox. (opcional)">Rough budget (optional)</label>
+        <select name="budget"><option value="">—</option><option>&lt; CHF 5k</option><option>CHF 5–15k</option><option>CHF 15–40k</option><option>CHF 40k+</option></select></div>
+      <div class="bf"><label data-en="Anything else?" data-de="Sonst noch etwas?" data-es="¿Algo más?">Anything else?</label><textarea name="extra"></textarea></div>
+      <input type="text" name="company_url" style="position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <button class="btn btn-primary" type="submit" data-en="Send brief →" data-de="Briefing senden →" data-es="Enviar brief →">Send brief →</button>
+    </form>
+    <p class="brief-alt" data-en="Prefer to talk? " data-de="Lieber sprechen? " data-es="¿Preferís hablar? ">Prefer to talk? <a href="https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49" target="_blank" rel="noopener" data-en="Book a 15-min call →" data-de="15-Min-Call buchen →" data-es="Agendá 15 min →">Book a 15-min call →</a></p>
+  </div>
+  <div class="brief-card brief-ok" id="brief-ok" hidden>
+    <div class="big">✅</div>
+    <h1 data-en="Got it — thank you!" data-de="Erhalten — danke!" data-es="¡Recibido — gracias!">Got it — thank you!</h1>
+    <p class="lead" data-en="We'll come back within one business day with ideas, timing and a clear quote." data-de="Wir melden uns innert eines Werktags mit Ideen, Timing und einem klaren Angebot." data-es="Volvemos en un día hábil con ideas, tiempos y un presupuesto claro.">We'll come back within one business day.</p>
+  </div>
+</div>
+<script is:inline define:vars={{ SB_URL, SB_KEY }}>
+  var qs = new URLSearchParams(location.search);
+  var lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang') : 'en';
+  var leadId = qs.get('lead') || null;
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-' + lang + ']').forEach(function(el){ el.textContent = el.getAttribute('data-' + lang); });
+  var form = document.getElementById('brief-form');
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (form.company_url.value) return; // honeypot
+    var row = {
+      lead_id: leadId, lang: lang,
+      name: form.name.value.trim(), email: form.email.value.trim(),
+      goal: form.goal.value.trim(), distribution: form.distribution.value.trim(),
+      timeline: form.timeline.value.trim(), budget: form.budget.value,
+      extra: form.extra.value.trim() || null
+    };
+    var btn = form.querySelector('button'); btn.disabled = true;
+    fetch(SB_URL + '/rest/v1/briefs', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(row)
+    }).then(function(r){
+      if (r.ok) { document.getElementById('brief-form-card').hidden = true; document.getElementById('brief-ok').hidden = false; window.scrollTo(0,0); }
+      else { btn.disabled = false; alert('Error — try again or email info@viven.ch'); }
+    }).catch(function(){ btn.disabled = false; alert('Error — try again or email info@viven.ch'); });
+  });
+</script>
+</body>
+</html>
