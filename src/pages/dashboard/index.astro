@@ -1687,12 +1687,13 @@
     const setT = (id, x) => { const el = $(id); if (!el) return; el.textContent = x.t + ' vs sem. ant.'; el.className = 'hk-t ' + (x.muted ? 'muted' : (x.up ? 'up' : 'down')); };
 
     const leadsA = cnt(real, (l) => inA(l.created_at)), leadsB = cnt(real, (l) => inB(l.created_at));
-    const wonA = cnt(real, (l) => inA(l.won_at)), wonB = cnt(real, (l) => inB(l.won_at));
-    const revOf = (pred) => (offersList || []).filter((o) => o.status === 'won' && pred(o.updated_at)).reduce((a, o) => a + offerNet(o), 0);
+    const wonA = cnt(real, (l) => inA(l.won_at) && stageOf(l.status) === 'ganado'), wonB = cnt(real, (l) => inB(l.won_at) && stageOf(l.status) === 'ganado');
+    const activeOf = (offersList || []).filter((o) => !o.archived && !o.is_template);
+    const revOf = (pred) => activeOf.filter((o) => o.status === 'won' && pred(o.updated_at)).reduce((a, o) => a + offerNet(o), 0);
     const revA = revOf(inA), revB = revOf(inB);
     const sess = (pred) => new Set((lastViews || []).filter((v) => pred(v.created_at) && !/^claude-/.test(v.session_id || '')).map((v) => v.session_id)).size;
     const sessA = sess(inA), sessB = sess(inB);
-    const pipe = (offersList || []).filter((o) => o.status === 'sent').reduce((a, o) => a + offerNet(o), 0);
+    const pipe = activeOf.filter((o) => o.status === 'sent').reduce((a, o) => a + offerNet(o), 0);
     const won = real.filter((l) => stageOf(l.status) === 'ganado').length, lost = real.filter((l) => stageOf(l.status) === 'perdido').length;
 
     $('h-leads').textContent = leadsA; setT('h-leads-t', tr(leadsA, leadsB));
@@ -1791,12 +1792,13 @@
     } catch (e) { toast('No se pudo crear la persona: ' + e.message); return null; }
   }
   function cardHTML(r, st){
-    const ofs = offersForLead(r.id);
-    let total = ofs.reduce((a, o) => a + offerNet(o), 0);
+    const PRIO = { won: 0, sent: 1, draft: 2, lost: 3 };
+    const ofs = offersForLead(r.id).slice().sort((a, b) => (PRIO[a.status] ?? 9) - (PRIO[b.status] ?? 9));
+    let total = leadValue(r);
     let est = '';
-    if (!total && Number(r.deal_value)) { total = Number(r.deal_value); est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>'; }
+    if (!offersForLead(r.id).some((o) => o.status !== 'lost') && Number(r.deal_value)) est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>';
     const ost = ofs.length ? '<span class="pc-ost" style="color:' + (OF_COLOR[ofs[0].status] || '#8ab4ff') + '">' + (OF_ST[ofs[0].status] || '') + '</span>' : '';
-    // nombre del deal: título de la oferta ligada, o el de la persona
+    // nombre del deal: título de la oferta más relevante, o el de la persona
     const dealName = (ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)');
     const field = (k, v, cls) => v ? '<div class="pc-field"><span class="k">' + k + '</span><span class="v ' + (cls || '') + '">' + v + '</span></div>' : '';
     // empresa asociada con chip de logo
@@ -1820,8 +1822,15 @@
       '<div class="pc-foot"><div class="pc-tags">' + ch + ads + ost + '</div>' + ownerAvatar(r) + '</div>' +
     '</div>';
   }
-  // valor de un lead: sus ofertas ligadas, o el valor estimado del deal si aún no hay oferta
-  const leadValue = (l) => { const v = offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0); return v || Number(l.deal_value) || 0; };
+  // REGLA DE VALOR ÚNICA (misma en board, Personas, Home y forecast):
+  // ganadas si existen; si no, abiertas (borrador+enviada); las PERDIDAS nunca suman; fallback: valor estimado.
+  const leadValue = (l) => {
+    const ofs = offersForLead(l.id);
+    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0);
+    if (won) return won;
+    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0);
+    return open || Number(l.deal_value) || 0;
+  };
   const leadsValue = (leads) => leads.reduce((a, l) => a + leadValue(l), 0);
   const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
 
@@ -2891,7 +2900,7 @@
   function renderOffersList(){
     const box = $('of-list');
     $('of-empty').hidden = offersList.length > 0;
-    const pool = offersList.filter((o) => !o.is_template);   // templates fuera de KPIs y lista
+    const pool = offersList.filter((o) => !o.is_template && !o.archived);   // templates y archivadas fuera de los KPIs
     const open = pool.filter((o) => o.status === 'sent');
     const won = pool.filter((o) => o.status === 'won');
     const lost = pool.filter((o) => o.status === 'lost');
@@ -2924,8 +2933,8 @@
       if (unlinked.length) un.innerHTML = '⚠️ <b>' + unlinked.length + ' oferta' + (unlinked.length > 1 ? 's' : '') + ' sin persona ligada</b> (' + fmtM(unlinked.reduce((a, o) => a + offerNet(o), 0)) + ') — no aparecen en el pipeline. Abrilas y guardá: te propone crear la persona en un click.';
     }
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
-    const active = pool.filter((o) => !o.archived);
-    const archived = pool.filter((o) => o.archived);
+    const active = pool;   // pool ya excluye archivadas y templates
+    const archived = offersList.filter((o) => o.archived && !o.is_template);
     const cardHtml = (o) => {
       const net = offerNet(o), mp = offerMarginPct(o), b = badge[o.status] || badge.draft;
       const leadName = o.lead_id ? (allLeads.find((l) => String(l.id) === String(o.lead_id)) || {}).name : '';
