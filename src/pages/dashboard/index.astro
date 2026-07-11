@@ -189,6 +189,21 @@
   .gsvg circle:hover{opacity:.8}
   .chart-labels{display:none}
 
+  /* ===== Funnel ===== */
+  .funnel{display:grid;gap:10px;margin-top:6px}
+  .fn-row{display:grid;grid-template-columns:110px 1fr 120px;align-items:center;gap:14px}
+  .fn-label{font-size:13.5px;color:var(--text);font-weight:600}
+  .fn-bar-wrap{background:var(--navy-900);border-radius:8px;overflow:hidden}
+  .fn-bar{height:34px;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;min-width:34px;transition:width .4s ease}
+  .fn-n{font-weight:700;color:#10210a;font-size:14px}
+  .fn-meta{text-align:right;font-size:12.5px;color:var(--muted)}
+  .fn-meta b{display:block;color:var(--text);font-size:15px}
+  .fn-meta span{font-size:11.5px;color:var(--muted-2)}
+  .fn-foot{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .fn-foot b{color:var(--text)}
+  .fn-hint{color:var(--muted-2);font-size:11.5px}
+  @media(max-width:640px){.fn-row{grid-template-columns:80px 1fr 84px;gap:8px}}
+
   /* ===== Offer tool ===== */
   .of-bar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
   .of-list{display:grid;gap:10px;margin-top:16px}
@@ -329,6 +344,11 @@
     <div class="insights" id="insights"></div>
 
     <div class="panel">
+      <h2>Funnel de ventas <span class="count">(conversión y tiempo entre etapas)</span></h2>
+      <div class="funnel" id="funnel"></div>
+    </div>
+
+    <div class="panel">
       <h2>Tráfico y leads por día <span class="count">(últimos 30 días)</span></h2>
       <div class="chart" id="daily-chart"></div>
       <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
@@ -377,9 +397,14 @@
         <button class="btn btn-primary" id="of-new" type="button">➕ Nueva oferta</button>
       </div>
       <div class="kpis four" style="margin-top:16px">
-        <div class="kpi"><div class="n" id="of-k-count">–</div><div class="l">Ofertas</div></div>
-        <div class="kpi"><div class="n" id="of-k-open">–</div><div class="l">Enviadas (abiertas)</div></div>
-        <div class="kpi"><div class="n" id="of-k-value">–</div><div class="l">Valor pipeline (neto)</div></div>
+        <div class="kpi"><div class="n" id="of-k-open">–</div><div class="l">Enviadas (esperando)</div></div>
+        <div class="kpi"><div class="n" id="of-k-won">–</div><div class="l">Ganadas</div></div>
+        <div class="kpi"><div class="n" id="of-k-conv">–</div><div class="l">Conversión (ganadas/decididas)</div></div>
+        <div class="kpi"><div class="n" id="of-k-weeks">–</div><div class="l">Semanas para cerrar (prom.)</div></div>
+      </div>
+      <div class="kpis" style="margin-top:0">
+        <div class="kpi"><div class="n" id="of-k-count">–</div><div class="l">Ofertas totales</div></div>
+        <div class="kpi"><div class="n" id="of-k-value">–</div><div class="l">Valor ganado (neto)</div></div>
         <div class="kpi"><div class="n" id="of-k-margin">–</div><div class="l">Margen medio</div></div>
       </div>
       <div id="of-list" class="of-list"></div>
@@ -704,12 +729,16 @@
 
   /* ---------- Pipeline kanban (drag & drop entre etapas) ---------- */
   const STAGES = [
-    { key: 'nuevo',      label: 'Nuevo',      color: '#8ab4ff', match: ['new', 'nuevo', '', 'pending'] },
-    { key: 'contactado', label: 'Contactado', color: '#f0c060', match: ['contacted', 'contactado'] },
-    { key: 'propuesta',  label: 'Propuesta',  color: '#f0904e', match: ['proposal', 'propuesta', 'qualified'] },
-    { key: 'ganado',     label: 'Ganado',     color: '#7ed957', match: ['won', 'cerrado', 'ganado'] },
-    { key: 'perdido',    label: 'Perdido',    color: '#ff6b6b', match: ['lost', 'perdido'] },
+    { key: 'nuevo',      label: 'Nuevo',        color: '#8ab4ff', match: ['new', 'nuevo', '', 'pending'] },
+    { key: 'contactado', label: 'Contactado',   color: '#f0c060', match: ['contacted', 'contactado'] },
+    { key: 'videocall',  label: 'Video Call',   color: '#c58af9', match: ['videocall', 'video call booked', 'call', 'agendada', 'booked'] },
+    { key: 'propuesta',  label: 'Propuesta',    color: '#f0904e', match: ['proposal', 'propuesta', 'qualified'] },
+    { key: 'ganado',     label: 'Ganado',       color: '#7ed957', match: ['won', 'cerrado', 'ganado'] },
+    { key: 'perdido',    label: 'Perdido',      color: '#ff6b6b', match: ['lost', 'perdido'] },
   ];
+  // columna de timestamp por etapa (para el funnel: conversión y tiempos)
+  const STAGE_TS = { contactado: 'contacted_at', videocall: 'videocall_at', propuesta: 'proposal_at', ganado: 'won_at', perdido: 'lost_at' };
+  const STAGE_ORDER = ['nuevo', 'contactado', 'videocall', 'propuesta', 'ganado'];
   function stageOf(status){
     const s = (status || '').toLowerCase();
     for (const st of STAGES) if (st.match.includes(s)) return st.key;
@@ -766,9 +795,13 @@
         if (!lead || stageOf(lead.status) === stage) return;
         const prev = lead.status;
         lead.status = stage;               // optimista
+        // sella el hito de esta etapa (si aún no tiene) para medir tiempos y conversión
+        const patch = { status: stage };
+        const tsCol = STAGE_TS[stage];
+        if (tsCol && !lead[tsCol]) { const now = new Date().toISOString(); patch[tsCol] = now; lead[tsCol] = now; }
         renderLeads();
-        const { error } = await supabase.from('leads').update({ status: stage }).eq('id', id);
-        if (error) { lead.status = prev; renderLeads(); toast('No se pudo mover: ' + error.message); }
+        const { error } = await supabase.from('leads').update(patch).eq('id', id);
+        if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); }
       });
     });
   }
@@ -1051,6 +1084,40 @@
     ).join('') || '<tr><td colspan="4" class="muted-note" style="padding:14px">Sin datos todavía.</td></tr>';
   }
 
+  /* ---------- Funnel de ventas: conversión + tiempo entre etapas ---------- */
+  function renderFunnel(leads){
+    const set = (leads || []).filter((l) => !/^claude-/.test(l.session_id || ''));
+    const steps = [
+      { key: 'lead',       label: 'Leads',      ts: (l) => l.created_at },
+      { key: 'contactado', label: 'Contactado', ts: (l) => l.contacted_at },
+      { key: 'videocall',  label: 'Video Call', ts: (l) => l.videocall_at },
+      { key: 'propuesta',  label: 'Propuesta',  ts: (l) => l.proposal_at },
+      { key: 'ganado',     label: 'Ganado',     ts: (l) => l.won_at },
+    ];
+    const rows = steps.map((s) => ({ ...s, n: set.filter((l) => s.ts(l)).length, list: set.filter((l) => s.ts(l)) }));
+    const top = Math.max(1, rows[0].n);
+    const fmtDur = (d) => d >= 14 ? (d / 7).toFixed(1) + ' sem' : d.toFixed(1) + ' d';
+    let html = '';
+    rows.forEach((s, i) => {
+      const prev = i ? rows[i - 1].n : s.n;
+      const conv = i ? (prev ? Math.round(s.n / prev * 100) : 0) : 100;
+      let avg = '—';
+      if (i) {
+        const prevTs = rows[i - 1].ts;
+        const diffs = s.list.map((l) => { const a = Date.parse(s.ts(l)), b = Date.parse(prevTs(l)); return (a && b && a >= b) ? (a - b) / 864e5 : null; }).filter((x) => x != null);
+        if (diffs.length) avg = fmtDur(diffs.reduce((a, b) => a + b, 0) / diffs.length);
+      }
+      const color = (STAGES.find((x) => x.key === s.key) || {}).color || '#8ab4ff';
+      html += '<div class="fn-row"><div class="fn-label">' + s.label + '</div>' +
+        '<div class="fn-bar-wrap"><div class="fn-bar" style="width:' + Math.max(5, Math.round(s.n / top * 100)) + '%;background:' + color + '"><span class="fn-n">' + s.n + '</span></div></div>' +
+        '<div class="fn-meta">' + (i ? '<b>' + conv + '%</b><span>' + avg + '</span>' : '<b>100%</b><span>base</span>') + '</div></div>';
+    });
+    const won = rows[4].n, lost = set.filter((l) => l.lost_at).length, dec = won + lost;
+    html += '<div class="fn-foot">Perdidos <b>' + lost + '</b> · Cierre (ganado / decididos) <b>' + (dec ? Math.round(won / dec * 100) + '%' : '—') + '</b>' +
+      ' · <span class="fn-hint">los tiempos se miden arrastrando los leads por las etapas en orden</span></div>';
+    $('funnel').innerHTML = html;
+  }
+
   function renderAnalytics(rows, leads){
     /* fuera las sesiones/leads de prueba */
     const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
@@ -1058,6 +1125,7 @@
     const sessions = new Set(real.map((r) => r.session_id));
     const periodLeads = (leads || []).filter((l) =>
       inRange(l.created_at) && !/^claude-/.test(l.session_id || ''));
+    renderFunnel(periodLeads);
 
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     $('ka-views').textContent = real.length;
@@ -1260,10 +1328,18 @@
     const box = $('of-list');
     $('of-empty').hidden = offersList.length > 0;
     const open = offersList.filter((o) => o.status === 'sent');
+    const won = offersList.filter((o) => o.status === 'won');
+    const lost = offersList.filter((o) => o.status === 'lost');
+    const decided = won.length + lost.length;
     const margins = offersList.map(offerMarginPct).filter((m) => isFinite(m));
-    $('of-k-count').textContent = offersList.length;
+    // semanas para cerrar (ganadas): updated_at - created_at, aprox del cierre
+    const closeDurs = won.map((o) => (Date.parse(o.updated_at) - Date.parse(o.created_at)) / 6048e5).filter((d) => d >= 0);
     $('of-k-open').textContent = open.length;
-    $('of-k-value').textContent = fmtM(open.reduce((a, o) => a + offerNet(o), 0));
+    $('of-k-won').textContent = won.length;
+    $('of-k-conv').innerHTML = decided ? Math.round(won.length / decided * 100) + '<small>%</small>' : '–';
+    $('of-k-weeks').textContent = closeDurs.length ? (closeDurs.reduce((a, b) => a + b, 0) / closeDurs.length).toFixed(1) : '–';
+    $('of-k-count').textContent = offersList.length;
+    $('of-k-value').textContent = fmtM(won.reduce((a, o) => a + offerNet(o), 0));
     $('of-k-margin').textContent = margins.length ? Math.round(margins.reduce((a, b) => a + b, 0) / margins.length) + '%' : '–';
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
     box.innerHTML = offersList.map((o) => {
