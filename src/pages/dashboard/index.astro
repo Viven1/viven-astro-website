@@ -50,6 +50,8 @@
   .bell-panel{position:absolute;top:46px;right:0;width:360px;max-width:calc(100vw - 32px);max-height:min(70vh,520px);overflow:auto;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.5);z-index:120}
   .bell-h{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px;position:sticky;top:0;background:var(--navy-800)}
   .bell-x{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:14px}
+  .bell-pushbtn{background:transparent;border:1px solid var(--line-strong);border-radius:100px;color:var(--acid);cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;padding:4px 10px}
+  .bell-pushbtn:hover{border-color:var(--acid)}
   .bell-grp{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:var(--muted-2);padding:11px 15px 4px}
   .bell-grp.od{color:#ff8b5e}
   .bell-item{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);padding:10px 15px;cursor:pointer;color:inherit;font:inherit}
@@ -589,7 +591,7 @@
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
         <div class="bell-panel" id="bell-panel" hidden>
-          <div class="bell-h"><span>🔔 Tareas y avisos</span><button class="bell-x" id="bell-x" type="button" aria-label="Cerrar">✕</button></div>
+          <div class="bell-h"><span>🔔 Tareas y avisos</span><span style="display:flex;gap:8px;align-items:center"><button class="bell-pushbtn" id="bell-push" type="button" title="Recibir notificaciones en este dispositivo aunque la app esté cerrada">📲 Activar push</button><button class="bell-x" id="bell-x" type="button" aria-label="Cerrar">✕</button></span></div>
           <div id="bell-list"><p class="muted-note" style="padding:14px">Cargando…</p></div>
         </div>
       </div>
@@ -691,6 +693,7 @@
         <option value="prop">📄 Propuesta</option>
         <option value="note">📝 Nota</option>
         <option value="task">✅ Task</option>
+        <option value="stage">🔁 Cambio de etapa</option>
       </select>
       <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
     </div>
@@ -1444,6 +1447,8 @@
       $('bell-x').addEventListener('click', (e) => { e.stopPropagation(); $('bell-panel').hidden = true; });
       $('bell-panel').addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { $('bell-panel').hidden = true; });
+      $('bell-push').addEventListener('click', (e) => { e.stopPropagation(); enablePush(); });
+      refreshPushBtn();
     }
     try {
       const [tq, nq] = await Promise.all([
@@ -1493,6 +1498,38 @@
     list.querySelectorAll('.bell-item').forEach((b) => b.addEventListener('click', () => { $('bell-panel').hidden = true; gotoTab('leads'); openLead(b.dataset.lead); }));
   }
   function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
+
+  /* ================= WEB PUSH: notificaciones reales al celular ================= */
+  const VAPID_PUB = 'BPZuJFhqNy9HDHDi0MzPh_DklooKyOUHInq7rfyqKIWXWMe6yShB1xCiQSJfOWUzaMhFT4NMwv3B_rwVPal-hyg';
+  function b64ToU8(s){ const pad = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...b].map((c) => c.charCodeAt(0))); }
+  function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  async function refreshPushBtn(){
+    const btn = $('bell-push'); if (!btn) return;
+    if (!pushSupported()){ btn.textContent = '📲 Push no disponible'; btn.title = 'En iPhone: instalá la app (Compartir → Añadir a pantalla de inicio) y abrila desde el ícono'; return; }
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/dashboard/');
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (sub && Notification.permission === 'granted') btn.textContent = '📲 Push activado ✓';
+    } catch (e) {}
+  }
+  async function enablePush(){
+    if (!pushSupported()){ toast('Este navegador no soporta push. En iPhone: instalá la app (Compartir → Añadir a inicio) y abrila desde el ícono.'); return; }
+    try {
+      const reg = await navigator.serviceWorker.register('/dashboard-sw.js', { scope: '/dashboard/' });
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted'){ toast('Permiso de notificaciones denegado'); return; }
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUB) });
+      const j = sub.toJSON();
+      const { error } = await supabase.from('push_subscriptions').upsert(
+        { endpoint: sub.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_email: meEmail || null }, { onConflict: 'endpoint' });
+      if (error){ toast('No se pudo guardar (¿SQL 0015?): ' + error.message); return; }
+      $('bell-push').textContent = '📲 Push activado ✓';
+      toast('📲 Push activado — este dispositivo recibe leads, menciones y tasks');
+    } catch (e){ toast('No se pudo activar push: ' + (e.message || e)); }
+  }
+  function pushTo(to, title, body){
+    supabase.functions.invoke('push-send', { body: { to, title, body, url: '/dashboard/' } }).catch(() => {});
+  }
 
   /* ---------- LEADS ---------- */
   const isNew = (s) => s === 'new' || s === 'nuevo';
@@ -1648,6 +1685,7 @@
     const cand = [];
     const push = (ts, kind, label) => { const t = typeof ts === 'number' ? ts : Date.parse(ts || ''); if (t) cand.push({ t, kind, label }); };
     push(r.created_at, 'form', '📥 Lead creado');
+    push(r.last_stage_at, 'stage', '🔁 Etapa → ' + ((STAGES.find((s) => s.key === stageOf(r.status)) || {}).label || ''));
     push(r.contacted_at, 'email', '✉️ Email enviado');
     push(r.videocall_at, 'call', '📞 Video call');
     push(r.proposal_at, 'prop', '📄 Propuesta');
@@ -1795,12 +1833,17 @@
       if (lostReason === null) return false;   // canceló → no mover
     }
     lead.status = stage;               // optimista
-    const patch = { status: stage };
+    const nowIso = new Date().toISOString();
+    // last_stage_at se sella SIEMPRE (última actividad); los hitos del funnel solo la primera vez
+    const patch = { status: stage, last_stage_at: nowIso };
+    lead.last_stage_at = nowIso;
     const tsCol = STAGE_TS[stage];
-    if (tsCol && !lead[tsCol]) { const now = new Date().toISOString(); patch[tsCol] = now; lead[tsCol] = now; }
+    if (tsCol && !lead[tsCol]) { patch[tsCol] = nowIso; lead[tsCol] = nowIso; }
     if (stage === 'perdido') { patch.lost_reason = lostReason || null; lead.lost_reason = lostReason || null; }
     renderLeads();
-    const { error } = await supabase.from('leads').update(patch).eq('id', id);
+    let { error } = await supabase.from('leads').update(patch).eq('id', id);
+    // si falta la columna last_stage_at (SQL 0015 sin correr), guardar sin ella
+    if (error && /last_stage_at/.test(error.message || '')) { delete patch.last_stage_at; ({ error } = await supabase.from('leads').update(patch).eq('id', id)); }
     if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
     // Perdido: el motivo queda grabado en TODO — nota en el contacto + ofertas y propuestas ligadas
     if (stage === 'perdido') cascadeLost(lead, lostReason || null);
@@ -2145,6 +2188,7 @@
   }
   function notifyUser(to, subject, body){
     supabase.functions.invoke('notify-user', { body: { to, subject, body, lead_url: location.origin + '/dashboard/' } }).catch(() => {});
+    pushTo(to, subject, body);   // además del email, push al celular del destinatario
   }
   // edición inline de los datos del lead
   const edField = (label, id, val) => '<div class="ab-row"><span class="ab-k">' + label + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(val || '') + '"/></span></div>';
