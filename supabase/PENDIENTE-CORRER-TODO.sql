@@ -126,11 +126,17 @@ drop policy if exists bookings_no_anon on public.bookings;
 --     VACÍA por la corrida fallida, la recrea con los tipos correctos.
 -- ============================================================================
 
--- autocuración: si deals existe pero está VACÍA (corrida v1 fallida), recrearla
-do $$ begin
-  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'deals')
-     and not exists (select 1 from public.deals limit 1) then
-    execute 'drop table public.deals cascade';
+-- autocuración: si deals existe pero está VACÍA (corrida v1 fallida), recrearla.
+-- OJO: la referencia a public.deals va en EXECUTE (SQL dinámico) — si la tabla no
+-- existe, una referencia directa falla al PLANIFICAR aunque el IF dé falso.
+do $$
+declare has_rows boolean;
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'deals') then
+    execute 'select exists(select 1 from public.deals limit 1)' into has_rows;
+    if not has_rows then
+      execute 'drop table public.deals cascade';
+    end if;
   end if;
 end $$;
 
@@ -202,9 +208,6 @@ update public.lead_followups f set deal_id = d.id
 -- 0023: dirección legal en la ficha de EMPRESA (fuente para ofertas y propuestas)
 alter table public.companies add column if not exists address  text;
 alter table public.companies add column if not exists zip_city text;
-
--- limpieza: borrar el lead de diagnóstico del test del formulario
-delete from public.leads where email = 'diagtest@example.invalid';
 -- 0024: settings del booking (/book/) editables desde el dashboard — como HubSpot Meetings.
 -- Una sola fila (id=1). Las edge functions booking-slots/booking-create la leen con service role.
 create table if not exists public.booking_settings (
@@ -228,3 +231,6 @@ insert into public.booking_settings (id) values (1) on conflict (id) do nothing;
 alter table public.booking_settings enable row level security;
 drop policy if exists bkset_auth_all on public.booking_settings;
 create policy bkset_auth_all on public.booking_settings for all to authenticated using (true) with check (true);
+
+-- limpieza: borrar el lead de diagnóstico del test del formulario
+delete from public.leads where email = 'diagtest@example.invalid';

@@ -8,11 +8,17 @@
 --     VACÍA por la corrida fallida, la recrea con los tipos correctos.
 -- ============================================================================
 
--- autocuración: si deals existe pero está VACÍA (corrida v1 fallida), recrearla
-do $$ begin
-  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'deals')
-     and not exists (select 1 from public.deals limit 1) then
-    execute 'drop table public.deals cascade';
+-- autocuración: si deals existe pero está VACÍA (corrida v1 fallida), recrearla.
+-- OJO: la referencia a public.deals va en EXECUTE (SQL dinámico) — si la tabla no
+-- existe, una referencia directa falla al PLANIFICAR aunque el IF dé falso.
+do $$
+declare has_rows boolean;
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'deals') then
+    execute 'select exists(select 1 from public.deals limit 1)' into has_rows;
+    if not has_rows then
+      execute 'drop table public.deals cascade';
+    end if;
   end if;
 end $$;
 
