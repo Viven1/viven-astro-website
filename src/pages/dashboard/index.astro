@@ -171,8 +171,10 @@
   .lm-taskadd input,.lm-taskadd select,.lm-block textarea,.ed-inp{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px}
   .ed-hint{display:block;font-size:11px;color:var(--muted-2);margin-top:4px}
   .ed-hint b{color:var(--acid);font-weight:600}
-  .lm-taskadd-row{display:flex;gap:6px;margin-top:6px}
-  .lm-taskadd-row input{flex:0 0 118px}.lm-taskadd-row select{flex:1;min-width:0}
+  .lm-taskadd-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .lm-taskadd-row input[type=date]{flex:1 1 108px;min-width:0}
+  .lm-taskadd-row input[type=time]{flex:0 0 92px;min-width:0}
+  .lm-taskadd-row select{flex:1 1 100%;min-width:0}
   .lm-task{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
   .lm-task input[type=checkbox]{margin-top:2px;width:15px;height:15px;accent-color:var(--acid);flex:none}
   .lm-task.done .lm-task-txt>div:first-child{text-decoration:line-through;color:var(--muted-2)}
@@ -184,7 +186,12 @@
   .lm-noteadd{display:flex;gap:6px;margin-bottom:10px}.lm-noteadd select{flex:1;min-width:0}
   .lm-note{border-bottom:1px solid var(--line);padding:8px 0;font-size:13px}
   .lm-note-b{color:var(--text);white-space:pre-wrap;line-height:1.45}
-  .lm-note-m{color:var(--muted-2);font-size:11px;margin-top:4px}
+  .lm-note-m{color:var(--muted-2);font-size:11px;margin-top:4px;display:flex;flex-wrap:wrap;gap:2px;align-items:center}
+  .lm-note .lm-reply{border-bottom:0;border-left:2px solid var(--line-strong);margin:6px 0 0 8px;padding:6px 0 2px 10px}
+  .lm-reply-btn{background:transparent;border:0;color:var(--acid);cursor:pointer;font:inherit;font-size:11px;padding:0;font-weight:600}
+  .lm-reply-btn:hover{text-decoration:underline}
+  .lm-reply-box{margin-top:6px}
+  .lm-reply-ta{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;min-height:52px;resize:vertical;margin-bottom:6px}
   .lm-center .lm-block .lead-msg{background:none;border:0;padding:0;margin:0;color:var(--text)}
   .lm-center .lm-block .draft-box{background:var(--navy-800);min-height:200px;margin-top:2px}
   .lm-center .lm-block .draft-head{margin-bottom:8px}
@@ -1226,12 +1233,13 @@
       const mine = (t) => !meEmail || !t.assignee || String(t.assignee).toLowerCase() === meEmail; // sin asignar o para mí
       const t0 = startOfToday(), tEnd = new Date(t0.getTime() + 86400000);
       bellItems = [];
+      const nowTs = Date.now();
       tasks.filter(mine).forEach((t) => {
-        const due = t.due_date ? new Date(t.due_date + 'T00:00:00') : null;
+        const due = t.due_date ? new Date(t.due_date + 'T' + (t.due_time || '00:00') + ':00') : null;
         let bucket = 'later', overdue = false;
-        if (due) { if (due < t0) { bucket = 'overdue'; overdue = true; } else if (due < tEnd) bucket = 'today'; else bucket = 'later'; }
+        if (due) { if (t.due_time ? due.getTime() < nowTs : due < t0) { bucket = 'overdue'; overdue = true; } else if (due < tEnd) bucket = 'today'; else bucket = 'later'; }
         else bucket = 'nodate';
-        bellItems.push({ kind: 'task', id: t.id, lead_id: t.lead_id, title: t.title, due, bucket, overdue });
+        bellItems.push({ kind: 'task', id: t.id, lead_id: t.lead_id, title: t.title, due, time: t.due_time || '', bucket, overdue });
       });
       // notas donde me mencionaron a mí (últimas 24-72h no filtramos, mostramos como aviso)
       notes.filter((n) => meEmail && String(n.mention || '').toLowerCase() === meEmail).slice(0, 8).forEach((n) => {
@@ -1250,13 +1258,13 @@
     if (!bellItems.length) { list.innerHTML = '<div class="bell-empty">Nada pendiente 🎉<br>Las tareas que crees en un lead aparecen acá.</div>'; return; }
     const grouped = {};
     bellItems.forEach((i) => { (grouped[i.bucket] = grouped[i.bucket] || []).push(i); });
-    const fmtDue = (d) => d ? d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '';
+    const fmtDue = (i) => i.due ? (i.due.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (i.time ? ' ' + i.time : '')) : '';
     let html = '';
     Object.keys(grouped).sort((a, b) => (order[a] ?? 9) - (order[b] ?? 9)).forEach((b) => {
       const [lbl, od] = labels[b] || [b, false];
       html += '<div class="bell-grp' + (od ? ' od' : '') + '">' + lbl + ' (' + grouped[b].length + ')</div>';
       grouped[b].forEach((i) => {
-        html += '<button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i.due) + '</span>' : '') + '</span></button>';
+        html += '<button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span></button>';
       });
     });
     list.innerHTML = html;
@@ -1641,7 +1649,7 @@
         : '<p class="muted-note">Sin ofertas ligadas.</p>') + '</div>';
     $('lm-right').innerHTML = dealsBlock +
       '<div class="lm-block"><div class="lm-block-h">✅ Tasks</div>' +
-        '<div class="lm-taskadd"><input id="lm-task-t" placeholder="Nueva task…"/><div class="lm-taskadd-row"><input id="lm-task-d" type="date" title="Vence"/><select id="lm-task-a">' + teamOptions('', 'Responsable') + '</select><button class="btn btn-ghost xs" id="lm-task-add" type="button">+ Task</button></div></div>' +
+        '<div class="lm-taskadd"><input id="lm-task-t" placeholder="Nueva task…"/><div class="lm-taskadd-row"><input id="lm-task-d" type="date" title="Vence (fecha)"/><input id="lm-task-h" type="time" title="Hora (opcional)"/><select id="lm-task-a">' + teamOptions('', 'Responsable') + '</select><button class="btn btn-ghost xs" id="lm-task-add" type="button">+ Task</button></div></div>' +
         '<div id="lm-tasks"><p class="muted-note">Cargando…</p></div></div>' +
       '<div class="lm-block"><div class="lm-block-h">📝 Notas</div>' +
         '<textarea id="lm-note-b" placeholder="Agregar una nota… (contexto, objeción, próximo paso)"></textarea>' +
@@ -1671,6 +1679,8 @@
     { email: 'info@viven.ch', name: 'Info (buzón)' },
   ];
   const teamName = (e) => (TEAM.find((t) => t.email === e) || {}).name || e || '';
+  const teamEmailByName = (n) => (TEAM.find((t) => t.name === n) || {}).email || '';
+  const myEmail = () => (sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
   const teamOptions = (sel, ph) => '<option value="">' + (ph || '—') + '</option>' + TEAM.map((t) => '<option value="' + t.email + '"' + (t.email === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>').join('');
 
   // AI lead scoring (heurístico, instantáneo): intención + fit B2B + engagement + recencia
@@ -1714,12 +1724,14 @@
   function renderTasks(tasks){
     const box = $('lm-tasks'); if (!box) return;
     if (!tasks.length) { box.innerHTML = '<p class="muted-note">Sin tasks.</p>'; return; }
-    const today = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
     box.innerHTML = tasks.map((t) => {
-      const overdue = !t.done && t.due_date && t.due_date < today;
+      const dueTs = t.due_date ? new Date(t.due_date + 'T' + (t.due_time || '23:59') + ':00').getTime() : null;
+      const overdue = !t.done && dueTs && dueTs < now;
+      const dueTxt = t.due_date ? ('📅 ' + t.due_date + (t.due_time ? ' · 🕒 ' + t.due_time : '')) : '';
       return '<div class="lm-task' + (t.done ? ' done' : '') + '"><input type="checkbox" data-tid="' + t.id + '"' + (t.done ? ' checked' : '') + '/>' +
         '<div class="lm-task-txt"><div>' + esc(t.title) + '</div>' +
-        '<div class="lm-task-meta">' + (t.due_date ? '<span' + (overdue ? ' style="color:#ff8b8b"' : '') + '>📅 ' + t.due_date + '</span>' : '') + (t.assignee ? ' · ' + esc(teamName(t.assignee)) : '') + '</div></div>' +
+        '<div class="lm-task-meta">' + (dueTxt ? '<span' + (overdue ? ' style="color:#ff8b8b"' : '') + '>' + dueTxt + '</span>' : '') + (t.assignee ? ' · ' + esc(teamName(t.assignee)) : '') + '</div></div>' +
         '<button class="lm-x" data-del-task="' + t.id + '" type="button">✕</button></div>';
     }).join('');
     box.querySelectorAll('input[type=checkbox]').forEach((c) => c.addEventListener('change', () => toggleTask(c.dataset.tid, c.checked)));
@@ -1728,17 +1740,53 @@
   function renderNotes(notes){
     const box = $('lm-notes'); if (!box) return;
     if (!notes.length) { box.innerHTML = '<p class="muted-note">Sin notas.</p>'; return; }
-    box.innerHTML = notes.map((n) => '<div class="lm-note"><div class="lm-note-b">' + esc(n.body) + '</div>' +
-      '<div class="lm-note-m">' + esc(n.author || '') + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + (n.mention ? ' · avisó a ' + esc(teamName(n.mention)) : '') + '</div></div>').join('');
+    const fmtN = (d) => new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const byParent = {}; const roots = [];
+    notes.forEach((n) => { if (n.parent_id) (byParent[n.parent_id] = byParent[n.parent_id] || []).push(n); else roots.push(n); });
+    const noteHTML = (n, isReply) => {
+      const replies = (byParent[n.id] || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      return '<div class="lm-note' + (isReply ? ' lm-reply' : '') + '">' +
+        '<div class="lm-note-b">' + esc(n.body) + '</div>' +
+        '<div class="lm-note-m">' + esc(n.author || '') + ' · ' + fmtN(n.created_at) + (n.mention ? ' · avisó a ' + esc(teamName(n.mention)) : '') +
+          ' · <button class="lm-reply-btn" data-nid="' + n.id + '" data-author="' + esc(n.author || '') + '" type="button">↩ Responder</button></div>' +
+        '<div class="lm-reply-box" id="lm-reply-' + n.id + '" hidden></div>' +
+        replies.map((rp) => noteHTML(rp, true)).join('') +
+      '</div>';
+    };
+    box.innerHTML = roots.map((n) => noteHTML(n, false)).join('');
+    box.querySelectorAll('.lm-reply-btn').forEach((b) => b.addEventListener('click', () => openReply(b.dataset.nid, b.dataset.author)));
+  }
+  function openReply(nid, author){
+    const box = $('lm-reply-' + nid); if (!box) return;
+    if (!box.hidden) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = '<textarea class="lm-reply-ta" id="lm-reply-ta-' + nid + '" placeholder="Responder a ' + esc(author) + '…"></textarea><button class="btn btn-primary xs" id="lm-reply-send-' + nid + '" type="button">Responder</button>';
+    $('lm-reply-send-' + nid).addEventListener('click', () => addReply(nid, author));
+    $('lm-reply-ta-' + nid).focus();
+  }
+  async function addReply(parentId, parentAuthor){
+    const r = currentLead; if (!r) return;
+    const ta = $('lm-reply-ta-' + parentId); const body = ta ? ta.value.trim() : ''; if (!body) { toast('Escribí la respuesta'); return; }
+    const author = teamName(myEmail());
+    let mention = teamEmailByName(parentAuthor) || null;
+    if (mention === myEmail()) mention = null; // no me aviso a mí mismo
+    const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body, author, parent_id: Number(parentId), mention });
+    if (error) { toast('No se pudo (¿SQL 0012?): ' + error.message); return; }
+    loadTasksNotes(r);
+    if (mention && /@viven\.ch$/i.test(mention)) notifyUser(mention, '↩ Respuesta — ' + (r.name || r.email), author + ' respondió a tu nota en ' + (r.name || r.email) + ':\n\n"' + body + '"');
+    toast('Respuesta enviada' + (mention ? ' · avisado a ' + teamName(mention) : ''));
   }
   async function addTask(r){
     const title = $('lm-task-t').value.trim(); if (!title) { toast('Escribí la task'); return; }
-    const due = $('lm-task-d').value || null, assignee = $('lm-task-a').value || null;
-    const { error } = await supabase.from('lead_tasks').insert({ lead_id: String(r.id), title, due_date: due, assignee });
+    const due = $('lm-task-d').value || null, time = $('lm-task-h').value || null, assignee = $('lm-task-a').value || null;
+    const row = { lead_id: String(r.id), title, due_date: due, due_time: time, assignee };
+    let { error } = await supabase.from('lead_tasks').insert(row);
+    if (error && /due_time/.test(error.message || '')) { delete row.due_time; ({ error } = await supabase.from('lead_tasks').insert(row)); if (!error) toast('Task creada (corré el SQL 0012 para guardar la hora)'); }
     if (error) { toast('No se pudo (¿SQL 0010?): ' + error.message); return; }
-    $('lm-task-t').value = ''; $('lm-task-d').value = ''; $('lm-task-a').value = '';
+    $('lm-task-t').value = ''; $('lm-task-d').value = ''; $('lm-task-h').value = ''; $('lm-task-a').value = '';
     loadTasksNotes(r); loadBell();
-    if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron una task para el lead ' + (r.name || r.email) + ':\n\n"' + title + '"' + (due ? '\nVence: ' + due : ''));
+    const whenTxt = due ? ('\nVence: ' + due + (time ? ' ' + time : '')) : '';
+    if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron una task para el lead ' + (r.name || r.email) + ':\n\n"' + title + '"' + whenTxt);
     toast('Task creada' + (assignee ? ' · avisado a ' + teamName(assignee) : ''));
   }
   async function toggleTask(id, done){ await supabase.from('lead_tasks').update({ done, done_at: done ? new Date().toISOString() : null }).eq('id', id); if (currentLead) loadTasksNotes(currentLead); loadBell(); }
