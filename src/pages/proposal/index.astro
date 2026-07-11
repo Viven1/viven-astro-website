@@ -318,7 +318,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   }
 
   // ---- carga ----
-  let DEMO_MODE = qs.get('demo') === '1', PASS = '';
+  let DEMO_MODE = qs.get('demo') === '1', PREVIEW_MODE = qs.get('preview') === '1', PASS = '';
   function boot(data){
     content = data.content || data;
     content.accepted = data.accepted || null;
@@ -330,7 +330,20 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   }
   $('pp-jump-accept') && $('pp-jump-accept').addEventListener('click', () => { const s = document.getElementById('pp-accept-sec'); s && s.scrollIntoView({ behavior: 'smooth' }); });
 
-  if (DEMO_MODE) { boot({ content: DEMO }); }
+  if (PREVIEW_MODE) {
+    // vista previa desde el dashboard: contenido en localStorage, sin password ni backend
+    try {
+      const raw = localStorage.getItem('viven_prop_preview');
+      if (raw) { const d = JSON.parse(raw); boot({ content: d.content }); document.title = 'PREVIEW · ' + (d.title || 'Proposal');
+        const b = document.createElement('div'); b.textContent = '👁 VISTA PREVIA — así lo ve el cliente. El botón Accept no envía nada acá.';
+        b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99;background:#ddf98f;color:#10210a;font:600 13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;text-align:center;padding:9px'; document.body.appendChild(b);
+      }
+      else { $('pp-gate-sub').textContent = 'No hay preview cargada. Generá/editá una propuesta y apretá Vista previa.'; $('pp-gate-form').hidden = true; }
+    } catch (e) { $('pp-gate-sub').textContent = 'No se pudo cargar la preview.'; $('pp-gate-form').hidden = true; }
+    // en preview, el botón Accept no manda nada (solo muestra el estado)
+    DEMO_MODE = true;
+  }
+  else if (DEMO_MODE) { boot({ content: DEMO }); }
   else if (!slug) { $('pp-gate-sub').textContent = 'Missing proposal link.'; $('pp-gate-form').hidden = true; }
   else {
     $('pp-gate-form').addEventListener('submit', async (e) => {

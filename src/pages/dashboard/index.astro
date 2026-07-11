@@ -609,7 +609,8 @@
         <button class="btn btn-ghost small" id="pp-back" type="button">← Volver</button>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="pp-status-badge" id="pp-status-badge">Borrador</span>
-          <button class="btn btn-ghost small" id="pp-view" type="button" hidden>👁 Ver link</button>
+          <button class="btn btn-ghost small" id="pp-preview" type="button">👁 Vista previa</button>
+          <button class="btn btn-ghost small" id="pp-view" type="button" hidden>🔗 Ver link</button>
           <button class="btn btn-ghost small" id="pp-del" type="button">🗑 Borrar</button>
           <button class="btn btn-ghost small" id="pp-save" type="button">💾 Guardar</button>
           <button class="btn btn-primary small" id="pp-publish" type="button">🌐 Publicar</button>
@@ -2002,7 +2003,8 @@
 
   /* ================= PROPUESTAS (Qwilr-like) ================= */
   let ppList = [], ppCur = null, ppBuilt = false;
-  const PROP_BASE = 'https://www.viven.ch';
+  // el link usa el dominio donde está servido el dashboard (staging ahora, viven.ch cuando esté live)
+  const PROP_BASE = location.origin;
   const senderObj = (key) => key === 'sebastian'
     ? { name: 'Sebastian Cepeda', email: 'sebastian@viven.ch', phone: '+41 43 508 45 67', role: 'Founder | Executive Producer' }
     : { name: 'Sofia Treviño', email: 'sofia@viven.ch', phone: '+41 43 508 45 67', role: 'Producer' };
@@ -2127,6 +2129,14 @@
       videos: ppCur.videos, vat_rate: ppCur.vat_rate, sender: { name: s.name, email: s.email, phone: s.phone }
     };
   }
+  // vista previa: guarda el contenido actual en localStorage y abre /proposal/?preview=1 (sin publicar, sin password)
+  function previewProp(){
+    collectEditor();
+    if (!ppCur.title){ toast('Ponele un título primero'); return; }
+    try { localStorage.setItem('viven_prop_preview', JSON.stringify({ title: ppCur.title, client_name: ppCur.client_name, content: buildContent() })); }
+    catch (e) { toast('No se pudo abrir la preview: ' + e.message); return; }
+    window.open(location.origin + '/proposal/?preview=1', '_blank');
+  }
   async function saveProp(publish){
     collectEditor();
     if (!ppCur.title){ toast('Ponele un título a la propuesta'); return; }
@@ -2209,6 +2219,7 @@
   function bindProposals(){
     $('pp-new').addEventListener('click', newProp);
     $('pp-back').addEventListener('click', () => showPropEditor(false));
+    $('pp-preview').addEventListener('click', previewProp);
     $('pp-save').addEventListener('click', () => saveProp(false));
     $('pp-publish').addEventListener('click', () => saveProp(true));
     $('pp-del').addEventListener('click', delCurProp);
