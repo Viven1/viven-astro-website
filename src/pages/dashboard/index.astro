@@ -956,8 +956,18 @@
       });
       if (error) throw new Error(data?.error || error?.message || 'sin respuesta');
       // La IA devuelve SOLO la frase personalizada (proof). El resto lo arma buildDraft → las CTAs y el brief nunca se pierden.
-      const aiProof = (data && (data.proof || data.suggestion) || '').trim();
+      let aiProof = (data && data.proof || '').trim();
+      // Si vino un email entero (versión vieja de ai-suggest, con saludo/firma/CTA) NO lo insertamos como frase.
+      const looksLikeFullEmail = /\n|hola|guten tag|hi\b|saludos|grüsse|best,|\[tu nombre\]|agendá|book|brief/i.test(aiProof);
+      if (data && data.suggestion && !data.proof) {
+        throw new Error('La función ai-suggest está desactualizada. Redeployala: supabase functions deploy ai-suggest --no-verify-jwt');
+      }
       if (!aiProof) throw new Error(data?.error || 'sin respuesta');
+      if (looksLikeFullEmail || aiProof.length > 240) {
+        throw new Error('La IA devolvió un texto raro (no una frase corta). Probá de nuevo o redeployá ai-suggest.');
+      }
+      // limpiar comillas/punto final por las dudas
+      aiProof = aiProof.replace(/^["'«»]+|["'«».]+$/g, '').trim();
       $('lm-draft').value = buildDraft(currentLead, aiProof);
       updateMailto();
       $('lm-status-note').textContent = '✨ Frase personalizada con IA — las CTAs y el brief se mantienen. Revisalo antes de enviar.';
