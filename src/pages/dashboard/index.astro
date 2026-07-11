@@ -149,6 +149,23 @@
   .lm-deal-t{font-size:13px;font-weight:600}
   .lm-deal-b{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .lm-deal-b b{font-family:'Space Grotesk'}
+  .lm-score{border:1px solid;border-radius:999px;font-size:12px;font-weight:700;padding:2px 10px;white-space:nowrap;cursor:help}
+  .lm-taskadd{margin-bottom:10px}
+  .lm-taskadd input,.lm-taskadd select,.lm-block textarea,.ed-inp{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px}
+  .lm-taskadd-row{display:flex;gap:6px;margin-top:6px}
+  .lm-taskadd-row input{flex:0 0 118px}.lm-taskadd-row select{flex:1;min-width:0}
+  .lm-task{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .lm-task input[type=checkbox]{margin-top:2px;width:15px;height:15px;accent-color:var(--acid);flex:none}
+  .lm-task.done .lm-task-txt>div:first-child{text-decoration:line-through;color:var(--muted-2)}
+  .lm-task-txt{flex:1;min-width:0}
+  .lm-task-meta{color:var(--muted-2);font-size:11.5px;margin-top:2px}
+  .lm-x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:13px;padding:0 4px}
+  .lm-x:hover{color:#ff8b8b}
+  .lm-block textarea{min-height:64px;resize:vertical;margin-bottom:8px}
+  .lm-noteadd{display:flex;gap:6px;margin-bottom:10px}.lm-noteadd select{flex:1;min-width:0}
+  .lm-note{border-bottom:1px solid var(--line);padding:8px 0;font-size:13px}
+  .lm-note-b{color:var(--text);white-space:pre-wrap;line-height:1.45}
+  .lm-note-m{color:var(--muted-2);font-size:11px;margin-top:4px}
   .lm-center .lm-block .lead-msg{background:none;border:0;padding:0;margin:0;color:var(--text)}
   .lm-center .lm-block .draft-box{background:var(--navy-800);min-height:200px;margin-top:2px}
   .lm-center .lm-block .draft-head{margin-bottom:8px}
@@ -807,11 +824,12 @@
       <div class="lm-id">
         <div class="lm-avatar" id="lm-avatar"></div>
         <div class="lm-idtext">
-          <h3 id="lm-name"></h3>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 id="lm-name"></h3><span class="lm-score" id="lm-score" title=""></span></div>
           <div class="lm-sub"><a id="lm-email" href="#"></a> <span id="lm-company-line"></span></div>
         </div>
       </div>
       <div class="lm-quick">
+        <button class="lm-qbtn" id="lm-edit-btn" type="button" title="Editar datos">✏️ Editar</button>
         <a class="lm-qbtn" id="lm-mailto" href="#" title="Escribir desde tu correo">✉️ Email</a>
         <a class="lm-qbtn" id="lm-call" href="#" title="Llamar" hidden>📞 Llamar</a>
         <a class="lm-qbtn" id="lm-wa" href="#" target="_blank" rel="noopener" title="WhatsApp" hidden>💬 WhatsApp</a>
@@ -1439,13 +1457,26 @@
         row('Video call', fmtD(r.videocall_at)) + row('Propuesta', fmtD(r.proposal_at)) +
         row('Ganado', fmtD(r.won_at)) + row('Perdido', fmtD(r.lost_at)));
 
-    // columna derecha: ofertas ligadas (deals)
+    renderLeadScore(r);
+    // columna derecha: ofertas (deals) + tasks + notas
     const ofs = offersForLead(r.id);
-    $('lm-right').innerHTML = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></div>' +
+    const dealsBlock = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></div>' +
       (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
         return '<button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('')
-        : '<p class="muted-note">Sin ofertas. Creá una en Ofertas y ligala a este lead.</p>') + '</div>';
+        : '<p class="muted-note">Sin ofertas ligadas.</p>') + '</div>';
+    $('lm-right').innerHTML = dealsBlock +
+      '<div class="lm-block"><div class="lm-block-h">✅ Tasks</div>' +
+        '<div class="lm-taskadd"><input id="lm-task-t" placeholder="Nueva task…"/><div class="lm-taskadd-row"><input id="lm-task-d" type="date" title="Vence"/><select id="lm-task-a">' + teamOptions('', 'Responsable') + '</select><button class="btn btn-ghost xs" id="lm-task-add" type="button">+ Task</button></div></div>' +
+        '<div id="lm-tasks"><p class="muted-note">Cargando…</p></div></div>' +
+      '<div class="lm-block"><div class="lm-block-h">📝 Notas</div>' +
+        '<textarea id="lm-note-b" placeholder="Agregar una nota… (contexto, objeción, próximo paso)"></textarea>' +
+        '<div class="lm-noteadd"><select id="lm-note-m">' + teamOptions('', 'Avisar a…') + '</select><button class="btn btn-primary xs" id="lm-note-add" type="button">Guardar nota</button></div>' +
+        '<div id="lm-notes"><p class="muted-note">Cargando…</p></div></div>';
     $('lm-right').querySelectorAll('.lm-deal').forEach((d) => d.addEventListener('click', () => { closeLead(); gotoTab('offers'); openOffer(d.dataset.oid); }));
+    $('lm-task-add').addEventListener('click', () => addTask(r));
+    $('lm-note-add').addEventListener('click', () => addNote(r));
+    loadTasksNotes(r);
+
     $('lm-message').textContent = r.message || '(sin mensaje)';
     $('lm-sender').value = sender;
     const draft = buildDraft(r);
@@ -1457,6 +1488,126 @@
     document.body.style.overflow = 'hidden';
     loadJourney(r);
   }
+
+  /* ---------- Team, lead scoring, notas, tasks, edición ---------- */
+  const TEAM = [
+    { email: 'sofia@viven.ch', name: 'Sofia Treviño' },
+    { email: 'sebastian@viven.ch', name: 'Sebastian Cepeda' },
+    { email: 'info@viven.ch', name: 'Info (buzón)' },
+  ];
+  const teamName = (e) => (TEAM.find((t) => t.email === e) || {}).name || e || '';
+  const teamOptions = (sel, ph) => '<option value="">' + (ph || '—') + '</option>' + TEAM.map((t) => '<option value="' + t.email + '"' + (t.email === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>').join('');
+
+  // AI lead scoring (heurístico, instantáneo): intención + fit B2B + engagement + recencia
+  function leadScore(r){
+    let s = 0; const f = [];
+    const ch = (r.channel || '').toLowerCase();
+    if (r.gclid || /paid|cpc|ppc|sem/.test(ch)) { s += 28; f.push('+28 Google Ads (alta intención)'); }
+    else if (/organic|search/.test(ch)) { s += 14; f.push('+14 búsqueda orgánica'); }
+    else if (/direct/.test(ch)) { s += 10; f.push('+10 directo'); }
+    else if (/social|referr/.test(ch)) { s += 6; f.push('+6 social/referral'); }
+    const dom = (r.email || '').split('@')[1] || '';
+    if (dom && !/gmail|hotmail|outlook|yahoo|icloud|gmx|bluewin|proton/i.test(dom)) { s += 20; f.push('+20 email corporativo (B2B)'); }
+    if (r.company) { s += 8; f.push('+8 empresa cargada'); }
+    if (r.phone) { s += 10; f.push('+10 dejó teléfono'); }
+    const msg = (r.message || '');
+    if (msg.length > 120) { s += 8; f.push('+8 mensaje detallado'); }
+    if (/budget|presupuesto|urg|asap|deadline|invest|proyecto|project|quote|offert/i.test(msg)) { s += 12; f.push('+12 señales de compra en el mensaje'); }
+    if (new Date(r.created_at).getTime() >= Date.now() - 7 * 864e5) { s += 8; f.push('+8 nuevo (esta semana)'); }
+    if (r.videocall_at || r.proposal_at) { s += 10; f.push('+10 avanzó en el pipeline'); }
+    s = Math.min(100, s);
+    const tier = s >= 60 ? { t: 'Hot', c: '#ff8b5e' } : s >= 35 ? { t: 'Warm', c: '#f0c060' } : { t: 'Cold', c: '#8ab4ff' };
+    return { score: s, tier, factors: f };
+  }
+  function renderLeadScore(r){
+    const el = $('lm-score'); if (!el) return;
+    const { score, tier, factors } = leadScore(r);
+    el.textContent = '🔥 ' + tier.t + ' · ' + score;
+    el.style.color = tier.c; el.style.borderColor = tier.c;
+    el.title = 'AI lead score ' + score + '/100\n' + factors.join('\n');
+  }
+
+  async function loadTasksNotes(r){
+    try {
+      const [tq, nq] = await Promise.all([
+        supabase.from('lead_tasks').select('*').eq('lead_id', String(r.id)).order('done').order('due_date', { ascending: true, nullsFirst: false }).limit(50),
+        supabase.from('lead_notes').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(50)
+      ]);
+      renderTasks(tq.data || []); renderNotes(nq.data || []);
+    } catch (e) { $('lm-tasks').innerHTML = '<p class="muted-note">¿Corriste el SQL 0010?</p>'; $('lm-notes').innerHTML = ''; }
+  }
+  function renderTasks(tasks){
+    const box = $('lm-tasks'); if (!box) return;
+    if (!tasks.length) { box.innerHTML = '<p class="muted-note">Sin tasks.</p>'; return; }
+    const today = new Date().toISOString().slice(0, 10);
+    box.innerHTML = tasks.map((t) => {
+      const overdue = !t.done && t.due_date && t.due_date < today;
+      return '<div class="lm-task' + (t.done ? ' done' : '') + '"><input type="checkbox" data-tid="' + t.id + '"' + (t.done ? ' checked' : '') + '/>' +
+        '<div class="lm-task-txt"><div>' + esc(t.title) + '</div>' +
+        '<div class="lm-task-meta">' + (t.due_date ? '<span' + (overdue ? ' style="color:#ff8b8b"' : '') + '>📅 ' + t.due_date + '</span>' : '') + (t.assignee ? ' · ' + esc(teamName(t.assignee)) : '') + '</div></div>' +
+        '<button class="lm-x" data-del-task="' + t.id + '" type="button">✕</button></div>';
+    }).join('');
+    box.querySelectorAll('input[type=checkbox]').forEach((c) => c.addEventListener('change', () => toggleTask(c.dataset.tid, c.checked)));
+    box.querySelectorAll('[data-del-task]').forEach((b) => b.addEventListener('click', () => delTask(b.dataset.delTask)));
+  }
+  function renderNotes(notes){
+    const box = $('lm-notes'); if (!box) return;
+    if (!notes.length) { box.innerHTML = '<p class="muted-note">Sin notas.</p>'; return; }
+    box.innerHTML = notes.map((n) => '<div class="lm-note"><div class="lm-note-b">' + esc(n.body) + '</div>' +
+      '<div class="lm-note-m">' + esc(n.author || '') + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + (n.mention ? ' · avisó a ' + esc(teamName(n.mention)) : '') + '</div></div>').join('');
+  }
+  async function addTask(r){
+    const title = $('lm-task-t').value.trim(); if (!title) { toast('Escribí la task'); return; }
+    const due = $('lm-task-d').value || null, assignee = $('lm-task-a').value || null;
+    const { error } = await supabase.from('lead_tasks').insert({ lead_id: String(r.id), title, due_date: due, assignee });
+    if (error) { toast('No se pudo (¿SQL 0010?): ' + error.message); return; }
+    $('lm-task-t').value = ''; $('lm-task-d').value = ''; $('lm-task-a').value = '';
+    loadTasksNotes(r);
+    if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron una task para el lead ' + (r.name || r.email) + ':\n\n"' + title + '"' + (due ? '\nVence: ' + due : ''));
+    toast('Task creada' + (assignee ? ' · avisado a ' + teamName(assignee) : ''));
+  }
+  async function toggleTask(id, done){ await supabase.from('lead_tasks').update({ done, done_at: done ? new Date().toISOString() : null }).eq('id', id); if (currentLead) loadTasksNotes(currentLead); }
+  async function delTask(id){ await supabase.from('lead_tasks').delete().eq('id', id); if (currentLead) loadTasksNotes(currentLead); }
+  async function addNote(r){
+    const body = $('lm-note-b').value.trim(); if (!body) { toast('Escribí la nota'); return; }
+    const mention = $('lm-note-m').value || null;
+    const author = teamName(sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
+    const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body, mention, author });
+    if (error) { toast('No se pudo (¿SQL 0010?): ' + error.message); return; }
+    $('lm-note-b').value = ''; $('lm-note-m').value = '';
+    loadTasksNotes(r);
+    if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó en una nota del lead ' + (r.name || r.email) + ':\n\n"' + body + '"');
+    toast('Nota guardada' + (mention ? ' · avisado a ' + teamName(mention) : ''));
+  }
+  function notifyUser(to, subject, body){
+    supabase.functions.invoke('notify-user', { body: { to, subject, body, lead_url: location.origin + '/dashboard/' } }).catch(() => {});
+  }
+  // edición inline de los datos del lead
+  const edField = (label, id, val) => '<div class="ab-row"><span class="ab-k">' + label + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(val || '') + '"/></span></div>';
+  function startEditLead(){
+    const r = currentLead; if (!r) return;
+    const first = r.first_name || (r.name || '').trim().split(/\s+/)[0] || '';
+    const last = r.last_name || (r.name || '').trim().split(/\s+/).slice(1).join(' ') || '';
+    $('lm-about').innerHTML = '<div class="ab-sec"><div class="ab-h">✏️ Editar datos</div>' +
+      edField('Nombre', 'ed-first', first) + edField('Apellido', 'ed-last', last) +
+      edField('Email', 'ed-email', r.email) + edField('Teléfono', 'ed-phone', r.phone) + edField('Empresa', 'ed-company', r.company) +
+      '<div class="ab-row"><span class="ab-k">Idioma</span><span class="ab-v"><select class="ed-inp" id="ed-lang"><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></span></div>' +
+      '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary xs" id="ed-save" type="button">Guardar</button><button class="btn btn-ghost xs" id="ed-cancel" type="button">Cancelar</button></div></div>';
+    $('ed-lang').value = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
+    $('ed-save').addEventListener('click', saveEditLead);
+    $('ed-cancel').addEventListener('click', () => openLead(r.id));
+  }
+  async function saveEditLead(){
+    const r = currentLead; if (!r) return;
+    const first = $('ed-first').value.trim(), last = $('ed-last').value.trim();
+    const patch = { first_name: first || null, last_name: last || null, name: (first + ' ' + last).trim() || r.name, email: $('ed-email').value.trim() || r.email, phone: $('ed-phone').value.trim() || null, company: $('ed-company').value.trim() || null, lang: $('ed-lang').value };
+    const btn = $('ed-save'); btn.disabled = true; btn.textContent = 'Guardando…';
+    const { error } = await supabase.from('leads').update(patch).eq('id', r.id);
+    if (error) { btn.disabled = false; btn.textContent = 'Guardar'; toast('No se pudo guardar: ' + error.message); return; }
+    Object.assign(r, patch); const i = allLeads.findIndex((l) => l.id === r.id); if (i > -1) Object.assign(allLeads[i], patch);
+    toast('Datos guardados'); openLead(r.id); renderLeads();
+  }
+  $('lm-edit-btn') && $('lm-edit-btn').addEventListener('click', startEditLead);
   // Recorrido del lead: páginas visitadas + videos vistos (por session_id)
   async function loadJourney(r){
     const box = $('lm-journey');
