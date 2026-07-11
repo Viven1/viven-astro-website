@@ -301,9 +301,9 @@
   .pipe-col-head .bar{width:8px;height:8px;border-radius:2px;flex:none}
   .pipe-col-head .st{font-family:'Space Grotesk';font-weight:600;font-size:13.5px}
   .pipe-col-head .cnt{color:var(--muted);font-weight:600;font-size:13px}
-  .pipe-col-foot{border-top:1px solid var(--line);padding:9px 14px;font-size:12px}
-  .pipe-col-foot .tot{font-weight:700;font-family:'Space Grotesk'}
-  .pipe-col-foot .wt{color:var(--muted-2);font-size:11px;margin-top:2px}
+  .pipe-col-sums{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 14px 9px;border-bottom:1px solid var(--line)}
+  .pipe-col-sums .tot{font-weight:700;font-family:'Space Grotesk';font-size:15px;letter-spacing:-.01em}
+  .pipe-col-sums .wt{color:var(--muted-2);font-size:10.5px;white-space:nowrap}
   .pipe-col.drop{border-color:var(--acid);box-shadow:0 0 0 2px rgba(221,249,143,.2)}
   /* toggle de vista */
   .view-toggle{display:inline-flex;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;padding:2px;gap:2px}
@@ -916,7 +916,10 @@
       </div>
       <div class="kpis" style="margin-top:0">
         <div class="kpi"><div class="n" id="of-k-count">–</div><div class="l">Ofertas totales</div></div>
-        <div class="kpi"><div class="n" id="of-k-value">–</div><div class="l">Valor ganado (neto)</div></div>
+        <div class="kpi"><div class="n" id="of-k-gross">–</div><div class="l">Ganado bruto (con IVA)</div></div>
+        <div class="kpi"><div class="n" id="of-k-value">–</div><div class="l">Ganado neto</div></div>
+        <div class="kpi"><div class="n" id="of-k-cost">–</div><div class="l">Costos externos (a pagar)</div></div>
+        <div class="kpi"><div class="n" id="of-k-profit">–</div><div class="l">Ganancia real (neto − costos)</div></div>
         <div class="kpi"><div class="n" id="of-k-margin">–</div><div class="l">Margen medio</div></div>
       </div>
       <!-- Insights con IA sobre las ofertas -->
@@ -1824,8 +1827,8 @@
       const wt = Math.round(val * s.prob);
       return '<div class="pipe-col" data-stage="' + s.key + '">' +
         '<div class="pipe-col-head"><span class="bar" style="background:' + s.color + '"></span><span class="st">' + s.label + '</span><span class="cnt">' + n + '</span></div>' +
+        '<div class="pipe-col-sums"><span class="tot" style="color:' + s.color + '">' + fmtChf(val) + '</span><span class="wt">pond. ' + fmtChf(wt) + ' (' + Math.round(s.prob * 100) + '%)</span></div>' +
         '<div class="pipe-list">' + cards + '</div>' +
-        '<div class="pipe-col-foot"><div class="tot">' + fmtChf(val) + ' · Total</div><div class="wt">' + fmtChf(wt) + ' (' + Math.round(s.prob * 100) + '%) · Ponderado</div></div>' +
       '</div>';
     }).join('');
     bindPipeline();
@@ -2865,7 +2868,16 @@
     $('of-k-conv').innerHTML = decided ? Math.round(won.length / decided * 100) + '<small>%</small>' : '–';
     $('of-k-weeks').textContent = closeDurs.length ? (closeDurs.reduce((a, b) => a + b, 0) / closeDurs.length).toFixed(1) : '–';
     $('of-k-count').textContent = pool.length;
-    $('of-k-value').textContent = fmtM(won.reduce((a, o) => a + offerNet(o), 0));
+    // ganadas: bruto (lo que facturás), neto, costos externos (lo que debés) y ganancia real
+    const wonNet = won.reduce((a, o) => a + offerNet(o), 0);
+    const wonGross = won.reduce((a, o) => a + offerNet(o) * (1 + (o.vat_rate ?? 8.1) / 100), 0);
+    const wonCost = won.reduce((a, o) => a + offerCost(o), 0);
+    $('of-k-gross').textContent = fmtM(wonGross);
+    $('of-k-value').textContent = fmtM(wonNet);
+    $('of-k-cost').textContent = fmtM(wonCost);
+    $('of-k-cost').style.color = wonCost ? '#f0c060' : 'var(--text)';
+    $('of-k-profit').textContent = fmtM(wonNet - wonCost);
+    $('of-k-profit').style.color = (wonNet - wonCost) > 0 ? '#7ed957' : 'var(--text)';
     $('of-k-margin').textContent = margins.length ? Math.round(margins.reduce((a, b) => a + b, 0) / margins.length) + '%' : '–';
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
     const active = pool.filter((o) => !o.archived);
@@ -3216,7 +3228,7 @@
           '<div class="row gross"><span>Total</span><span>' + fmtM(net + vat) + '</span></div></div>' +
         (ofCur.terms ? '<div class="terms"><div class="th">Terms &amp; Conditions</div>' + esc(ofCur.terms) + '</div>' : '') +
         '<p class="small">Alle Preise in CHF. ' + esc(GTC_LINE) + '</p>' +
-        '<div class="foot"><div><b>VIVEN AG</b> · Kernstrasse 57, 8004 Zürich · info@viven.ch · +41 43 508 33 81 · viven.ch</div>' +
+        '<div class="foot"><div><b>VIVEN AG</b> · Zeughausstrasse 31, 8004 Zürich · info@viven.ch · +41 43 508 33 81 · viven.ch</div>' +
         '<div>Bank: Zürcher Kantonalbank · IBAN CH44 0070 0114 8071 0758 3 · BIC ZKBKCHZZ80A</div>' +
         '<div>VAT: CHE-266.556.186 MWST · CH-020.4.063.322-5</div></div>' +
       '</div></body></html>');
