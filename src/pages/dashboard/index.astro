@@ -173,7 +173,10 @@
   .lead-modal.open{display:flex}
   .lead-modal .backdrop{position:fixed;inset:0;background:rgba(9,15,26,.86);backdrop-filter:blur(8px)}
   .lead-card{position:relative;z-index:2;width:min(760px,100%);background:var(--navy-800);border:1px solid var(--line-strong);border-radius:20px;padding:32px;animation:pop .35s var(--ease)}
-  .lead-card-wide{width:min(1080px,100%);padding:24px 26px}
+  /* registro de contacto FULL SCREEN (como HubSpot): header/footer fijos,
+     columnas laterales quietas — solo la del MEDIO scrollea */
+  .lead-card-wide{width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;margin:0;padding:16px 26px 12px;display:flex;flex-direction:column;overflow:hidden;animation:none}
+  .lead-modal.open:has(.lead-card-wide){padding:0;overflow:hidden}
   /* header estilo HubSpot */
   .lm-top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}
   .lm-id{display:flex;align-items:center;gap:13px;min-width:0}
@@ -185,9 +188,11 @@
   .lm-qbtn{display:inline-flex;align-items:center;gap:6px;background:var(--navy-900);border:1px solid var(--line-strong);color:var(--text);border-radius:9px;font-size:13px;padding:8px 13px;cursor:pointer;text-decoration:none}
   .lm-qbtn:hover{border-color:var(--muted)}
   /* grid 3 columnas */
-  .lm-grid{display:grid;grid-template-columns:260px 1fr 250px;gap:18px;align-items:start}
-  .lm-left,.lm-right{min-width:0}
-  .lm-center{min-width:0;display:flex;flex-direction:column;gap:14px}
+  .lm-grid{display:grid;grid-template-columns:300px 1fr 320px;gap:20px;align-items:stretch;flex:1;min-height:0}
+  .lm-left,.lm-right{min-width:0;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
+  .lm-center{min-width:0;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding:0 6px 20px;scrollbar-width:thin;border-left:1px solid var(--line);border-right:1px solid var(--line);padding-left:20px;padding-right:20px}
+  .lm-top{flex:none}
+  .lead-card-wide .lead-actions{flex:none;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
   .ab-sec{margin-bottom:14px}
   .ab-sec .ab-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:700;margin-bottom:7px}
   .ab-row{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13px;line-height:1.4}
@@ -260,7 +265,10 @@
   .lm-center .lm-block .lead-msg{background:none;border:0;padding:0;margin:0;color:var(--text)}
   .lm-center .lm-block .draft-box{background:var(--navy-800);min-height:200px;margin-top:2px}
   .lm-center .lm-block .draft-head{margin-bottom:8px}
-  @media(max-width:900px){.lm-grid{grid-template-columns:1fr}}
+  @media(max-width:900px){
+    .lm-grid{grid-template-columns:1fr;overflow-y:auto;display:flex;flex-direction:column}
+    .lm-left,.lm-right,.lm-center{overflow:visible;border:0;padding-left:0;padding-right:0}
+  }
   @keyframes pop{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   .lead-card .close{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--line-strong);color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;transition:.25s}
   .lead-card .close:hover{background:var(--acid);color:#142033}
