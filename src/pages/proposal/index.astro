@@ -209,6 +209,14 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         '<ul class="t-inc">' + inc + '</ul>' +
         '<div class="t-pick">' + (i === selTier ? '✓ Selected' : 'Select this package') + '</div></div>';
     }).join('');
+    const videos = (c.videos || []).map((v) => {
+      const emb = embedUrl(v.url);
+      if (!emb) return '';
+      return '<figure class="pp-vid">' +
+        (v.label ? '<figcaption class="pp-vid-tag">' + esc(v.label) + '</figcaption>' : '') +
+        '<div class="pp-vid-frame"><iframe src="' + esc(emb) + '" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>' +
+        (v.title ? '<figcaption class="pp-vid-title">' + esc(v.title) + '</figcaption>' : '') + '</figure>';
+    }).join('');
     const addons = (c.addon_groups || []).map((g, gi) =>
       '<div class="pp-addg"><h3>' + esc(g.title) + '</h3>' +
       (g.items || []).map((it, ii) => {
@@ -239,6 +247,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           '<div class="pp-info"><div class="k">Delivery</div><div class="v">' + esc((c.overview || {}).delivery || 'TBD') + '</div></div>' +
         '</div></section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
+      (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
         '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
       '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +
