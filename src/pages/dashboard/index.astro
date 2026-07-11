@@ -456,11 +456,12 @@
         if (allLeads.some((l) => l.id === r.id)) return;
         allLeads.unshift(r);
         renderLeads();
+        renderAnalytics(lastViews, allLeads);
         toast('🎬 Nuevo lead: ' + (r.name || r.email));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const i = allLeads.findIndex((l) => l.id === payload.new.id);
-        if (i > -1) { allLeads[i] = payload.new; renderLeads(); }
+        if (i > -1) { allLeads[i] = payload.new; renderLeads(); renderAnalytics(lastViews, allLeads); }
       })
       .subscribe();
   }
