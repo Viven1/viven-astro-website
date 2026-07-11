@@ -1,15 +1,25 @@
 -- ============================================================================
--- 0022: DEALS como entidad propia (modelo HubSpot)
+-- 0022 (v2): DEALS como entidad propia (modelo HubSpot)
 -- La PERSONA (leads) ya no "es" el deal: un contacto puede tener VARIOS deals
 -- (proyectos), cada uno con su etapa en el pipeline. leads.status queda como
--- ESPEJO del deal más reciente (compatibilidad con follow-ups, listas y KPIs).
--- Backfill: 1 deal por persona existente, heredando etapa, hitos y valor.
+-- ESPEJO del deal más reciente. Backfill: 1 deal por persona existente.
+-- v2: leads.id es BIGINT (no uuid) — la v1 fallaba con "operator does not exist:
+--     uuid = bigint". Esta versión es autocurativa: si la tabla quedó creada
+--     VACÍA por la corrida fallida, la recrea con los tipos correctos.
 -- ============================================================================
+
+-- autocuración: si deals existe pero está VACÍA (corrida v1 fallida), recrearla
+do $$ begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'deals')
+     and not exists (select 1 from public.deals limit 1) then
+    execute 'drop table public.deals cascade';
+  end if;
+end $$;
 
 create table if not exists public.deals (
   id            uuid primary key default gen_random_uuid(),
   created_at    timestamptz not null default now(),
-  lead_id       uuid not null,
+  lead_id       bigint not null,               -- leads.id es bigint
   title         text,                          -- nombre del proyecto (ej. "Employer branding 2026")
   stage         text not null default 'nuevo', -- nuevo|contactado|videocall|propuesta|ganado|perdido
   deal_value    numeric,                       -- estimado manual (fallback si no hay ofertas)
@@ -32,6 +42,13 @@ alter table public.offers         add column if not exists deal_id uuid;
 alter table public.proposals      add column if not exists deal_id uuid;
 alter table public.lead_followups add column if not exists deal_id uuid;
 
+-- fix de 0021: bookings.lead_id era uuid pero leads.id es bigint (los inserts
+-- fallaban en silencio) + el dashboard necesita LEER bookings (Necesita atención)
+alter table public.bookings drop column if exists lead_id;
+alter table public.bookings add column if not exists lead_id bigint;
+drop policy if exists bookings_auth_read on public.bookings;
+create policy bookings_auth_read on public.bookings for select to authenticated using (true);
+
 -- ---------------------------------------------------------------------------
 -- BACKFILL (idempotente): 1 deal por lead que aún no tenga ninguno
 -- ---------------------------------------------------------------------------
@@ -52,15 +69,15 @@ select l.id,
 from public.leads l
 where not exists (select 1 from public.deals d where d.lead_id = l.id);
 
--- ligar lo existente a ese deal inicial (solo lo que no tenga deal todavía)
+-- ligar lo existente a ese deal inicial (comparación por texto: tipos mixtos)
 update public.offers o set deal_id = d.id
   from public.deals d
- where o.deal_id is null and o.lead_id is not null and d.lead_id = o.lead_id::uuid;
+ where o.deal_id is null and o.lead_id is not null and d.lead_id::text = o.lead_id::text;
 
 update public.proposals p set deal_id = d.id
   from public.deals d
- where p.deal_id is null and p.lead_id is not null and d.lead_id = p.lead_id::uuid;
+ where p.deal_id is null and p.lead_id is not null and d.lead_id::text = p.lead_id::text;
 
 update public.lead_followups f set deal_id = d.id
   from public.deals d
- where f.deal_id is null and f.lead_id is not null and d.lead_id = f.lead_id;
+ where f.deal_id is null and f.lead_id is not null and d.lead_id::text = f.lead_id::text;

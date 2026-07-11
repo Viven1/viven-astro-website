@@ -60,19 +60,23 @@ Deno.serve(async (req) => {
     const isBusy = (s: number, e: number) => busy.some((b) => Date.parse(b.start) < e && Date.parse(b.end) > s);
 
     // grilla de 15 min: Lu–Vi 09:00–17:30 Zúrich, min. now + 4 h
+    // all=1 → devuelve TODA la grilla con {t, free} (la página muestra los ocupados en gris)
+    const all = u.searchParams.get("all") === "1";
     const minStart = now + 4 * 3600e3;
     const slots: string[] = [];
+    const grid: { t: string; free: boolean }[] = [];
     for (let t = Math.ceil(minStart / 900e3) * 900e3; t < now + days * 864e5; t += 900e3) {
       const d = new Date(t);
       const z = zurich(d);
       if (["Sat", "Sun"].includes(z.wd)) continue;
       const mins = z.h * 60 + z.m;
       if (mins < 9 * 60 || mins + dur > 17 * 60 + 30) continue;
-      if (isBusy(t, t + dur * 60e3)) continue;
-      slots.push(d.toISOString());
-      if (slots.length >= 400) break;
+      if (dur === 30 && z.m % 30 !== 0) continue;      // con 30 min, grilla cada 30
+      const free = !isBusy(t, t + dur * 60e3);
+      if (all) { grid.push({ t: d.toISOString(), free }); if (grid.length >= 1500) break; }
+      else if (free) { slots.push(d.toISOString()); if (slots.length >= 400) break; }
     }
-    return json({ ok: true, dur, slots });
+    return json(all ? { ok: true, dur, grid } : { ok: true, dur, slots });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

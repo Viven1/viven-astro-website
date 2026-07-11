@@ -6,7 +6,7 @@
 <title>Viven — Dashboard</title>
 <!-- Página privada: fuera de buscadores y del sitemap -->
 <meta name="robots" content="noindex,nofollow" />
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="theme-color" content="#0f1826" />
 <!-- App móvil: instalable desde Safari → Compartir → "Añadir a pantalla de inicio" -->
 <link rel="manifest" href="/dashboard.webmanifest" />
@@ -498,6 +498,31 @@
   .of-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:18px 0}
   .of-meta.of-addr{margin-top:-8px}
   .en-sum{font-size:13px;line-height:1.6;color:var(--text);margin:4px 0 8px}
+  /* Personas estilo HubSpot: tabla protagonista, full width */
+  .hatt-calls{grid-column:1/-1;display:grid;gap:6px;margin-top:4px}
+  .hatt-call{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12.5px;flex-wrap:wrap}
+  .hatt-call .hc-when{color:var(--muted);white-space:nowrap}
+  .hatt-call .hc-who{background:none;border:0;color:var(--text);font-weight:600;font-size:12.5px;cursor:pointer;padding:0;font-family:inherit}
+  .hatt-call .hc-who[data-lead]:hover{color:var(--acid);text-decoration:underline}
+  .hatt-call .hc-dur{color:var(--muted-2);font-size:11.5px}
+  .hatt-call .hc-meet{margin-left:auto;color:var(--acid);font-weight:600;text-decoration:none;font-size:12px}
+  .ps-stats{font-size:13px;color:var(--muted);margin:2px 0 12px}
+  .ps-stats b{color:var(--text);font-variant-numeric:tabular-nums}
+  .ps-toolbar input[type="search"]{flex:1;min-width:220px}
+  .lead-table-hs{border:1px solid var(--line);border-radius:14px;overflow:auto;background:var(--navy-800)}
+  .lead-table-hs table{min-width:980px}
+  .lead-table-hs thead th{position:sticky;top:0;background:var(--navy-800);z-index:2;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-2);padding:12px 14px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+  .lead-table-hs tbody td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle;white-space:nowrap}
+  .lead-table-hs tbody tr{cursor:pointer}
+  .lead-table-hs tbody tr:hover td{background:color-mix(in srgb,var(--acid) 4%,transparent)}
+  .lt-person{display:flex;align-items:center;gap:10px}
+  .lt-av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#0b1220;flex:none}
+  .lt-sub{font-size:11.5px;color:var(--muted-2);margin-top:1px}
+  .lt-mail2 a{color:var(--muted);text-decoration:none}
+  .lt-mail2 a:hover{color:var(--acid);text-decoration:underline}
+  .lt-ph{color:var(--muted)}
+  .lt-pill{display:inline-block;border:1px solid;border-radius:100px;padding:3px 11px;font-size:12px;font-weight:600}
+  .lt-nd{font-size:11px;color:var(--muted-2)}
   .lm-dealrow{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px}
   .lm-dealrow-t{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;margin-bottom:7px}
   .lm-dealrow-t b{font-variant-numeric:tabular-nums}
@@ -646,7 +671,7 @@
       <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
       <div class="side-sec">Content</div>
       <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
-      <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🔎</span>SEO Strategy</button>
+      <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
       <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
     </aside>
     <div class="dash-main">
@@ -699,14 +724,9 @@
         <button class="btn btn-ghost small" id="psf-cancel" type="button">Cancelar</button>
       </div>
     </div>
-    <div class="kpis four">
-      <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Personas (histórico)</div></div>
-      <div class="kpi"><div class="n" id="kl-week">–</div><div class="l" id="kl-week-l">En el período</div></div>
-      <div class="kpi"><div class="n" id="kl-new">–</div><div class="l">Sin contactar</div></div>
-      <div class="kpi"><div class="n" id="kl-ads">–</div><div class="l">Desde Google Ads (GCLID)</div></div>
-    </div>
-    <div class="pipe-bar">
-      <input type="search" id="lead-search" placeholder="Buscar por nombre, email o mensaje…" />
+    <div class="ps-stats"><b id="kl-total">–</b> personas · <b id="kl-new">–</b> sin contactar · <b id="kl-week">–</b> <span id="kl-week-l" style="display:none">en el período</span>en el período · <b id="kl-ads">–</b> desde Ads</div>
+    <div class="pipe-bar ps-toolbar">
+      <input type="search" id="lead-search" placeholder="Buscar por nombre, email, empresa o mensaje…" />
       <select id="ps-stage" class="status" title="Filtrar por etapa">
         <option value="all">Todas las etapas</option>
         <option value="nuevo">Nuevo</option>
@@ -737,7 +757,21 @@
     <div class="of-bar" style="margin-bottom:12px">
       <div>
         <h2 style="margin:0">Deals</h2>
-        <p class="muted-note" style="margin:2px 0 0">Arrastrá una tarjeta para moverla de etapa. El valor viene de las ofertas ligadas.</p>
+        <p class="muted-note" style="margin:2px 0 0">Arrastrá una tarjeta para moverla de etapa. El valor viene de las ofertas ligadas. Una persona puede tener varios deals (proyectos).</p>
+      </div>
+      <button class="btn btn-primary small" id="dl-new-btn" type="button">➕ Nuevo deal</button>
+    </div>
+    <div class="panel crm-form" id="dl-form" hidden>
+      <h2 style="margin-top:0">➕ Nuevo deal (proyecto)</h2>
+      <div class="crm-grid">
+        <label>Persona *<select class="ed-inp" id="dlf-lead"></select></label>
+        <label>Nombre del proyecto *<input class="ed-inp" id="dlf-title" placeholder="p. ej. Employer branding 2026" /></label>
+        <label>Etapa<select class="ed-inp" id="dlf-stage"><option value="nuevo">Nuevo</option><option value="contactado">Contactado</option><option value="videocall">Video Call</option><option value="propuesta">Propuesta enviada</option></select></label>
+        <label>Valor estimado (CHF)<input class="ed-inp" id="dlf-value" type="number" min="0" step="100" placeholder="opcional" /></label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary small" id="dlf-save" type="button">Crear deal</button>
+        <button class="btn btn-ghost small" id="dlf-cancel" type="button">Cancelar</button>
       </div>
     </div>
     <!-- resumen compacto + board arriba de todo (como HubSpot) -->
@@ -1082,6 +1116,10 @@
         <div class="bf"><label>Título de la propuesta</label><input id="pp-title" placeholder="Empresa — Video promocional" /></div>
         <div class="bf"><label>Cliente (nombre)</label><input id="pp-cname" placeholder="Paula Fernandez" /></div>
         <div class="bf"><label>Cliente (email)</label><input id="pp-cemail" type="email" placeholder="paula@empresa.com" /></div>
+        <div class="bf"><label>Empresa</label><input id="pp-ccompany" placeholder="Empresa del cliente" /></div>
+        <div class="bf"><label>Dirección</label><input id="pp-caddr" placeholder="Calle y número" /></div>
+        <div class="bf"><label>CP y ciudad</label><input id="pp-czip" placeholder="p. ej. 8004 Zürich" /></div>
+        <div class="bf"><label>Teléfono</label><input id="pp-cphone" placeholder="+41 …" /></div>
         <div class="bf"><label>Ligar a lead</label><select id="pp-lead"></select></div>
         <div class="bf"><label>Idioma</label><select id="pp-lang"><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></div>
         <div class="bf"><label>Firma / remitente</label><select id="pp-sender"><option value="sofia">Sofia Treviño</option><option value="sebastian">Sebastian Cepeda</option></select></div>
@@ -1161,6 +1199,18 @@
     </div>
   </div>
 
+
+  <!-- ============ TAB: SEO (Google Search Console) ============ -->
+  <div id="tab-seo" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">Search Console</h2>
+        <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentra Google: clicks, impresiones y las búsquedas reales de los últimos 28 días.</p>
+      </div>
+      <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
+    </div>
+    <div id="seo-body"><p class="muted-note">Cargando…</p></div>
+  </div>
     </div><!-- /.dash-main -->
   </div><!-- /.dash-body -->
 
@@ -1283,7 +1333,7 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
@@ -1297,6 +1347,7 @@
     if (tab === 'offers') offersInit();
     if (tab === 'props') proposalsInit();
     if (tab === 'blog') blogInit();
+    if (tab === 'seo') seoInit();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
@@ -1437,7 +1488,7 @@
   const until = () => new Date(rangeEnd()).toISOString();
 
   async function loadAll(){
-    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ] = await Promise.all([
+    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ, bookQ] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
@@ -1449,7 +1500,8 @@
       supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000),
       supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
       supabase.from('proposals').select('lead_id,updated_at,status').limit(1000),
-      supabase.from('deals').select('*').order('created_at', { ascending: false })
+      supabase.from('deals').select('*').order('created_at', { ascending: false }),
+      supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8)
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
@@ -1461,6 +1513,7 @@
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
     // DEALS (SQL 0022): la entidad REAL del pipeline (varios proyectos por persona).
     // Sin la tabla → 1 deal sintético por persona (modo legado, mismo comportamiento).
+    upBookings = (bookQ && !bookQ.error) ? (bookQ.data || []) : [];
     dealsReal = !!(dealsQ && !dealsQ.error);
     dealsList = dealsReal ? (dealsQ.data || []) : [];
     const _withDeal = new Set(dealsList.map((d) => String(d.lead_id)));
@@ -1647,7 +1700,7 @@
       if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
       if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
       if (searchTerm) {
-        const hay = ((r.name || '') + ' ' + (r.email || '') + ' ' + (r.message || '')).toLowerCase();
+        const hay = ((r.name || '') + ' ' + (r.email || '') + ' ' + (r.message || '') + ' ' + (r.company || '') + ' ' + (companyName(leadDomain(r)) || '')).toLowerCase();
         if (hay.indexOf(searchTerm) === -1) return false;
       }
       return true;
@@ -1706,6 +1759,7 @@
     }));
   }
   $('ps-stage').addEventListener('change', (e) => { psStage = e.target.value; renderPeopleList(); });
+  $('seo-reload') && $('seo-reload').addEventListener('click', loadSeo);
   $('ps-act').addEventListener('change', (e) => { psAct = e.target.value; renderPeopleList(); });
 
   /* ---------- HOME: KPIs globales + tendencia vs semana anterior ---------- */
@@ -1743,8 +1797,20 @@
       att('#8ab4ff', '📥', 'Leads sin contactar', cnt(real, (l) => isNew(l.status)), 'leads') +
       att('#f0c060', '⏰', 'Follow-ups esta semana', cnt(real, (l) => l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() <= in7), 'leads') +
       att('#7ed957', '🧾', 'Ofertas esperando respuesta', (offersList || []).filter((o) => o.status === 'sent').length, 'offers') +
-      att('#c58af9', '🌐', 'Propuestas enviadas', (real.filter((l) => stageOf(l.status) === 'propuesta').length), 'props');
+      att('#c58af9', '🌐', 'Propuestas enviadas', (real.filter((l) => stageOf(l.status) === 'propuesta').length), 'props') +
+      att('#5ec7d1', '📅', 'Video calls agendadas', upBookings.length, 'deals') +
+      (upBookings.length ? '<div class="hatt-calls">' + upBookings.map((b) => {
+        const dt = new Date(b.start_at);
+        const when = dt.toLocaleDateString('es-CH', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + dt.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+        return '<div class="hatt-call">' +
+          '<span class="hc-when">📅 ' + esc(when) + '</span>' +
+          '<button class="hc-who" type="button"' + (b.lead_id ? ' data-lead="' + esc(String(b.lead_id)) + '"' : '') + '>' + esc(b.name || b.email) + '</button>' +
+          '<span class="hc-dur">' + (b.duration_m || 15) + ' min</span>' +
+          (b.meet_url ? '<a class="hc-meet" href="' + esc(b.meet_url) + '" target="_blank" rel="noopener">Meet ↗</a>' : '') +
+        '</div>';
+      }).join('') + '</div>' : '');
     $('home-att').querySelectorAll('.att').forEach((a) => a.addEventListener('click', () => gotoTab(a.dataset.tab)));
+    $('home-att').querySelectorAll('.hc-who[data-lead]').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.lead)));
   }
 
   /* ---------- Pipeline kanban (drag & drop entre etapas) ---------- */
@@ -1876,7 +1942,7 @@
      Un contacto puede tener varios proyectos; cada deal vive en el board con su
      etapa. leads.status queda como ESPEJO del deal más reciente (compat con
      follow-ups, Personas y KPIs). Sin SQL 0022 → deals sintéticos (legado). */
-  let dealsList = [], dealsReal = false;
+  let dealsList = [], dealsReal = false, upBookings = [];
   const synthDeal = (l) => ({ id: 'L' + l.id, synthetic: true, lead_id: l.id, title: null, stage: stageOf(l.status), deal_value: l.deal_value, lost_reason: l.lost_reason, archived: false, created_at: l.created_at, last_stage_at: l.last_stage_at, contacted_at: l.contacted_at, videocall_at: l.videocall_at, proposal_at: l.proposal_at, won_at: l.won_at, lost_at: l.lost_at });
   const leadById = (id) => (allLeads || []).find((l) => String(l.id) === String(id));
   const dealsForLead = (lid) => (dealsList || []).filter((d) => String(d.lead_id) === String(lid) && !d.archived);
@@ -2030,6 +2096,8 @@
     const rowVal = (r) => leadValue(r) || leadLostValue(r);
     const CMP = {
       name:    (a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || '')),
+      email:   (a, b) => String(a.email || '').localeCompare(String(b.email || '')),
+      company: (a, b) => String(companyName(leadDomain(a)) || a.company || '').localeCompare(String(companyName(leadDomain(b)) || b.company || '')),
       stage:   (a, b) => stageIdx(a) - stageIdx(b),
       value:   (a, b) => rowVal(a) - rowVal(b),
       channel: (a, b) => String(a.channel || '').localeCompare(String(b.channel || '')),
@@ -2037,20 +2105,30 @@
       created: (a, b) => new Date(a.created_at) - new Date(b.created_at)
     };
     const sorted = rows.slice().sort((a, b) => (CMP[psSort.k] || CMP.created)(a, b) * psSort.dir);
+    const AV_COLORS = ['#8ab4ff', '#c58af9', '#7ed957', '#f0c060', '#ff8b5e', '#5ec7d1', '#e08ac5'];
+    const avColor = (n) => { let h = 0; const x = String(n || '?'); for (let i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) >>> 0; return AV_COLORS[h % AV_COLORS.length]; };
     const body = sorted.map((r) => {
       const s = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
       const val = rowVal(r);
       const act = actMap.get(r.id);
-      return '<tr data-id="' + esc(r.id) + '"><td><div class="lt-name">' + esc(r.name || r.first_name || '(sin nombre)') + '</div><div class="lt-mail">' + esc(r.email || '') + '</div></td>' +
-        '<td><span class="lt-stage" style="color:' + s.color + '"><span class="dot" style="background:' + s.color + '"></span>' + s.label + '</span></td>' +
+      const nm = r.name || r.first_name || '(sin nombre)';
+      const ini = (nm[0] || '?').toUpperCase();
+      const dom = leadDomain(r);
+      const co = (dom && companyName(dom)) || r.company || '';
+      const nd = dealsForLead(r.id).length;
+      return '<tr data-id="' + esc(r.id) + '">' +
+        '<td><div class="lt-person"><span class="lt-av" style="background:' + avColor(nm) + '">' + esc(ini) + '</span><div><div class="lt-name">' + esc(nm) + '</div>' + (r.job_title ? '<div class="lt-sub">' + esc(r.job_title) + '</div>' : '') + '</div></div></td>' +
+        '<td class="lt-mail2">' + (r.email ? '<a href="mailto:' + esc(r.email) + '" onclick="event.stopPropagation()">' + esc(r.email) + '</a>' : '—') + '</td>' +
+        '<td class="lt-ph">' + esc(r.phone || '—') + '</td>' +
+        '<td>' + esc(co || '—') + '</td>' +
+        '<td><span class="lt-pill" style="color:' + s.color + ';background:color-mix(in srgb,' + s.color + ' 14%,transparent);border-color:color-mix(in srgb,' + s.color + ' 40%,transparent)">' + s.label + '</span>' + (nd > 1 ? ' <span class="lt-nd" title="' + nd + ' proyectos">×' + nd + '</span>' : '') + '</td>' +
         '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') + '</td>' +
         '<td class="lt-act">' + esc(actLabel(act)) + '</td>' +
-        '<td>' + esc(r.channel || '—') + (r.gclid ? ' · Ads' : '') + '</td>' +
         '<td class="lt-num">' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) + '</td></tr>';
     }).join('');
     const TH = (k, l) => '<th data-k="' + k + '" class="lt-sort' + (psSort.k === k ? ' on' : '') + '" title="Ordenar por ' + l.toLowerCase() + '">' + l + (psSort.k === k ? (psSort.dir === 1 ? ' ↑' : ' ↓') : '') + '</th>';
-    return '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
-      TH('name', 'Persona') + TH('stage', 'Etapa') + TH('value', 'Valor (ofertas)') + TH('activity', 'Última actividad') + TH('channel', 'Canal') + TH('created', 'Creado') +
+    return '<div class="lead-table-wrap lead-table-hs"><table class="lead-table"><thead><tr>' +
+      TH('name', 'Persona') + TH('email', 'Email') + '<th>Teléfono</th>' + TH('company', 'Empresa') + TH('stage', 'Etapa') + TH('value', 'Valor') + TH('activity', 'Última actividad') + TH('created', 'Creado') +
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id))); }
@@ -2403,6 +2481,42 @@
       else toast('🔎 Contacto enriquecido y guardado');
     } finally { btn.disabled = false; btn.textContent = prev; }
   }
+
+  /* ---------- SEO: Google Search Console (gsc-stats) ---------- */
+  let seoLoaded = false;
+  function seoInit(){ if (!seoLoaded) loadSeo(); }
+  async function loadSeo(){
+    seoLoaded = true;
+    const el = $('seo-body');
+    el.innerHTML = '<p class="muted-note">Consultando Search Console…</p>';
+    try {
+      const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: 28 } });
+      if (error || (data && data.error)) throw new Error((data && data.error) || error.message);
+      const t = data.totals || {};
+      const fmtN = (n) => (n || 0).toLocaleString('de-CH');
+      const rowsQ = (data.queries || []).map((q) => '<tr><td>' + esc(q.key) + '</td><td class="lt-num">' + fmtN(q.clicks) + '</td><td class="lt-num">' + fmtN(q.impressions) + '</td><td class="lt-num">' + (q.ctr * 100).toFixed(1) + '%</td><td class="lt-num">' + q.position.toFixed(1) + '</td></tr>').join('');
+      const rowsP = (data.pages || []).map((q) => '<tr><td style="white-space:normal;word-break:break-all">' + esc(q.key.replace(/^https?:\/\/[^/]+/, '')) + '</td><td class="lt-num">' + fmtN(q.clicks) + '</td><td class="lt-num">' + fmtN(q.impressions) + '</td><td class="lt-num">' + (q.ctr * 100).toFixed(1) + '%</td><td class="lt-num">' + q.position.toFixed(1) + '</td></tr>').join('');
+      const TBL = (title, rows) => '<div class="panel" style="margin-top:14px"><h2>' + title + '</h2><div class="lead-table-wrap"><table class="lead-table seo-table"><thead><tr><th>' + (title.indexOf('quer') > -1 || title.indexOf('úsq') > -1 ? 'Búsqueda' : 'Página') + '</th><th>Clicks</th><th>Impresiones</th><th>CTR</th><th>Posición</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="muted-note">Sin datos todavía</td></tr>') + '</tbody></table></div></div>';
+      el.innerHTML =
+        '<div class="kpis four">' +
+        '<div class="kpi"><div class="n">' + fmtN(t.clicks) + '</div><div class="l">Clicks (28 días)</div></div>' +
+        '<div class="kpi"><div class="n">' + fmtN(t.impressions) + '</div><div class="l">Impresiones</div></div>' +
+        '<div class="kpi"><div class="n">' + ((t.ctr || 0) * 100).toFixed(1) + '%</div><div class="l">CTR</div></div>' +
+        '<div class="kpi"><div class="n">' + (t.position || 0).toFixed(1) + '</div><div class="l">Posición media</div></div></div>' +
+        TBL('🔎 Top búsquedas', rowsQ) + TBL('📄 Top páginas', rowsP);
+    } catch (e) {
+      el.innerHTML = '<div class="panel"><h2>Conectar Search Console</h2>' +
+        '<p class="muted-note" style="line-height:1.7">No pude leer Search Console: <b>' + esc(e.message || e) + '</b><br><br>' +
+        'Setup (5 min, una vez):<br>' +
+        '1. Deployá la función: <code>supabase functions deploy gsc-stats --no-verify-jwt</code><br>' +
+        '2. El refresh token de Google necesita TAMBIÉN el scope de Search Console. En <b>developers.google.com/oauthplayground</b> repetí la autorización con estos DOS scopes a la vez:<br>' +
+        '<code>https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/webmasters.readonly</code><br>' +
+        '3. Actualizá el secret: <code>supabase secrets set GOOGLE_REFRESH_TOKEN=…</code> (el nuevo token sirve para el booking Y para esto)<br>' +
+        '4. La propiedad debe existir en Search Console con la cuenta autorizada (default: <code>sc-domain:viven.ch</code>; otra → <code>supabase secrets set GSC_SITE=…</code>)</p>' +
+        '<button class="btn btn-ghost small" onclick="loadSeo()" type="button">↻ Reintentar</button></div>';
+    }
+  }
+  window.loadSeo = loadSeo;
 
   /* ---------- Team, lead scoring, notas, tasks, edición ---------- */
   const TEAM = [
@@ -3481,12 +3595,29 @@
     }
     btn.disabled = false; btn.textContent = prev;
     if (res.error){ alert('No se pudo guardar: ' + res.error.message); return; }
+    if (res.data && res.data.id) ofCur.id = res.data.id;
+    // unir: completar la ficha de la EMPRESA con los datos de la oferta (solo campos vacíos)
+    try {
+      const lead0 = allLeads.find((l) => String(l.id) === String(ofCur.lead_id));
+      const dom0 = lead0 && leadDomain(lead0);
+      if (dom0) {
+        const co0 = coMeta[dom0] || {};
+        const cpatch = { domain: dom0 };
+        if (!co0.name && ofCur.client_company) cpatch.name = ofCur.client_company;
+        if (!co0.address && ofCur.client_address) cpatch.address = ofCur.client_address;
+        if (!co0.zip_city && ofCur.client_zip_city) cpatch.zip_city = ofCur.client_zip_city;
+        if (!co0.phone && ofCur.client_phone) cpatch.phone = ofCur.client_phone;
+        if (Object.keys(cpatch).length > 1) supabase.from('companies').upsert(cpatch, { onConflict: 'domain' }).select().single().then(({ data }) => { if (data) coMeta[dom0] = data; }, () => {});
+      }
+    } catch (e) { /* ficha de empresa: best-effort */ }
     // sync: oferta ganada → el deal (lead) pasa a Ganado automáticamente
     if (payload.status === 'won' && ofCur.lead_id){
       if (ofCur.deal_id) { const dd = (dealsList || []).find((x) => String(x.id) === String(ofCur.deal_id)); if (dd && stageOf(dd.stage) !== 'ganado') { await setDealStage(dd.id, 'ganado'); toast('🏆 Deal movido a Ganado'); } }
       else { const lead = allLeads.find((l) => String(l.id) === String(ofCur.lead_id)); if (lead && stageOf(lead.status) !== 'ganado') { await setLeadStage(lead.id, 'ganado'); toast('🏆 Deal movido a Ganado'); } }
     }
-    await offersLoad(); showEditor(false);
+    // GUARDAR = guardar (no perder datos) — te quedás en el editor; «← Volver» es el que sale
+    await offersLoad();
+    toast('💾 Oferta guardada');
   }
   async function deleteOffer(){
     if (!ofCur.id){ showEditor(false); return; }
@@ -3532,6 +3663,8 @@
       '.meta .k{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#8a94a8;font-weight:600;margin-bottom:4px}' +
       '.meta .v{font-family:"Space Grotesk";font-weight:600;font-size:16px}' +
       'h1{font-family:"Space Grotesk";font-size:23px;letter-spacing:-.02em;margin:0 0 22px}' +
+      '.hallo{font-family:"Space Grotesk";font-weight:600;font-size:14.5px;margin:0 0 6px}' +
+      '.intro-p{font-size:12.5px;color:#5b6472;margin:0 0 18px;line-height:1.65}' +
       'table{width:100%;border-collapse:collapse}' +
       'td,th{padding:9px 8px;border-bottom:1px solid #e8eaef;font-size:12.5px;vertical-align:top}' +
       'th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a94a8;font-weight:600}' +
@@ -3565,6 +3698,8 @@
           return '<div class="meta"><div><div class="k">Für</div><div class="v" style="font-size:13.5px;line-height:1.55;font-family:Inter,sans-serif;font-weight:500">' + block + '</div></div>';
         })() +
         '<div style="text-align:right"><div class="k">Gültig bis</div><div class="v">' + valid + '</div></div></div>' +
+        '<div class="hallo">' + esc(ofCur.client_contact ? 'Guten Tag ' + ofCur.client_contact.split(/\s+/)[0] : 'Guten Tag') + '</div>' +
+        '<p class="intro-p">Besten Dank für Ihre Anfrage und das entgegengebrachte Vertrauen. Gerne unterbreiten wir Ihnen die folgende Offerte:</p>' +
         '<h1>' + esc(ofCur.title || 'Video Produktion') + '</h1>' +
         '<table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
         '<div class="totcard"><div class="row"><span>Total netto</span><span>' + fmtM(net) + '</span></div>' +
@@ -3763,12 +3898,13 @@
     if (error) { toast('No se pudo (¿SQL 0019?): ' + error.message); return; }
     toast(p.archived ? 'Desarchivada' : '🗄 Archivada'); ppLoad();
   }
-  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, deal_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
+  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, deal_id: null, client: {}, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
   function fromRow(r){ const c = r.content || {}, ov = c.overview || {};
     return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lost_reason: r.lost_reason || null, lead_id: r.lead_id || null, deal_id: r.deal_id || null,
       title: r.title || c.title || '', client_name: r.client_name || '', client_email: r.client_email || '',
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
+      client: c.client || {},
       scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => g.items || []), videos: c.videos || [], terms: c.terms || DEFAULT_TERMS, testimonials: c.testimonials || pickReviews('general') };
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
@@ -3777,6 +3913,10 @@
 
   function fillPropEditor(){
     $('pp-title').value = ppCur.title; $('pp-cname').value = ppCur.client_name; $('pp-cemail').value = ppCur.client_email;
+    const cl0 = ppCur.client || {};
+    $('pp-ccompany').value = cl0.company || ''; $('pp-caddr').value = cl0.address || '';
+    $('pp-czip').value = cl0.zip_city || ''; $('pp-cphone').value = cl0.phone || '';
+    prefillPropClientBlock();
     $('pp-lead').innerHTML = leadOptions(ppCur.lead_id); $('pp-lang').value = ppCur.lang; $('pp-sender').value = ppCur.sender_key;
     ppPrevLeadId = ppCur.lead_id;   // para que al cambiar el lead, los campos sigan al nuevo
     $('pp-pass').value = ppCur.password; $('pp-vat').value = ppCur.vat_rate;
@@ -3867,6 +4007,7 @@
   }
   function collectEditor(){
     ppCur.title = $('pp-title').value.trim(); ppCur.client_name = $('pp-cname').value.trim(); ppCur.client_email = $('pp-cemail').value.trim();
+    ppCur.client = { company: $('pp-ccompany').value.trim() || null, address: $('pp-caddr').value.trim() || null, zip_city: $('pp-czip').value.trim() || null, phone: $('pp-cphone').value.trim() || null };
     ppCur.lead_id = $('pp-lead').value || null; ppCur.lang = $('pp-lang').value; ppCur.sender_key = $('pp-sender').value;
     ppCur.password = $('pp-pass').value.trim(); ppCur.vat_rate = parseFloat($('pp-vat').value) || 0;
     ppCur.intro = $('pp-intro').value; ppCur.objective = $('pp-objective').value;
@@ -3887,7 +4028,7 @@
   function buildContent(){
     const s = senderObj(ppCur.sender_key);
     return {
-      lang: ppCur.lang, title: ppCur.title, client_name: ppCur.client_name, sender_key: ppCur.sender_key,
+      lang: ppCur.lang, title: ppCur.title, client_name: ppCur.client_name, client: ppCur.client || {}, sender_key: ppCur.sender_key,
       intro: ppCur.intro, intro_sign: { name: s.name, role: s.role }, testimonials: ppCur.testimonials || DEFAULT_TESTIMONIALS,
       overview: { objective: ppCur.objective, outputs: ppCur.outputs, location: ppCur.location, timing: ppCur.timing, delivery: ppCur.delivery },
       scope: ppCur.scope, tiers: ppCur.tiers,
@@ -3986,6 +4127,18 @@
     if (lead.lang && ['en', 'de', 'es'].includes(lead.lang)) $('pp-lang').value = lead.lang;
     ppCur.lead_id = lead.id;
     ppPrevLeadId = lead.id;
+    prefillPropClientBlock();
+  }
+  // dirección del cliente en la PROPUESTA: completar vacíos desde el lead ligado y su empresa
+  function prefillPropClientBlock(){
+    const lead = (allLeads || []).find((l) => String(l.id) === String(ppCur.lead_id));
+    if (!lead) return;
+    const co = coMeta[leadDomain(lead)] || null;
+    const put = (id, v) => { const el = $(id); if (el && !el.value.trim() && v) el.value = v; };
+    put('pp-ccompany', lead.company || (co && co.name));
+    put('pp-caddr', co && co.address);
+    put('pp-czip', co && (co.zip_city || co.city));
+    put('pp-cphone', lead.phone || (co && co.phone));
   }
   async function generatePropAI(){
     const inquiry = $('pp-inquiry').value.trim();
@@ -4318,7 +4471,7 @@ ${body}
     const domain = coCur; if (!domain) return; const m = coMeta[domain] || {};
     const fld = (l, id, v) => '<div class="ab-row"><span class="ab-k">' + l + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(v || '') + '"/></span></div>';
     $('co-about').innerHTML = '<div class="ab-sec"><div class="ab-h">✏️ Editar empresa</div>' +
-      fld('Nombre', 'co-ed-name', m.name || companyName(domain)) + fld('Tipo', 'co-ed-type', m.type) + fld('Industria', 'co-ed-ind', m.industry) + fld('Web', 'co-ed-web', m.website) + fld('LinkedIn', 'co-ed-linkedin', m.linkedin) + fld('Ciudad', 'co-ed-city', m.city) + fld('Empleados', 'co-ed-emp', m.employees) + fld('Teléfono', 'co-ed-phone', m.phone) + fld('Owner', 'co-ed-owner', m.owner) +
+      fld('Nombre', 'co-ed-name', m.name || companyName(domain)) + fld('Tipo', 'co-ed-type', m.type) + fld('Industria', 'co-ed-ind', m.industry) + fld('Web', 'co-ed-web', m.website) + fld('LinkedIn', 'co-ed-linkedin', m.linkedin) + fld('Dirección', 'co-ed-addr', m.address) + fld('CP y ciudad', 'co-ed-zip', m.zip_city || m.city) + fld('Ciudad', 'co-ed-city', m.city) + fld('Empleados', 'co-ed-emp', m.employees) + fld('Teléfono', 'co-ed-phone', m.phone) + fld('Owner', 'co-ed-owner', m.owner) +
       '<div style="margin:6px 0"><span class="ab-k">Descripción / notas</span><textarea class="ed-inp" id="co-ed-notes" style="min-height:70px;margin-top:5px">' + esc(m.notes || '') + '</textarea></div>' +
       '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary xs" id="co-ed-save" type="button">Guardar</button><button class="btn btn-ghost xs" id="co-ed-cancel" type="button">Cancelar</button></div></div>';
     $('co-ed-save').addEventListener('click', saveCompanyMeta);
@@ -4327,8 +4480,10 @@ ${body}
   async function saveCompanyMeta(){
     const domain = coCur; if (!domain) return;
     const g = (id) => { const el = $(id); return el && el.value.trim() ? el.value.trim() : null; };
-    const patch = { domain, name: g('co-ed-name'), type: g('co-ed-type'), industry: g('co-ed-ind'), website: g('co-ed-web'), linkedin: g('co-ed-linkedin'), city: g('co-ed-city'), employees: g('co-ed-emp'), phone: g('co-ed-phone'), owner: g('co-ed-owner'), notes: g('co-ed-notes') };
-    const { data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single();
+    const patch = { domain, name: g('co-ed-name'), type: g('co-ed-type'), industry: g('co-ed-ind'), website: g('co-ed-web'), linkedin: g('co-ed-linkedin'), address: g('co-ed-addr'), zip_city: g('co-ed-zip'), city: g('co-ed-city'), employees: g('co-ed-emp'), phone: g('co-ed-phone'), owner: g('co-ed-owner'), notes: g('co-ed-notes') };
+    let { data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single();
+    // columnas nuevas sin migrar (SQL 0023) → sacar y reintentar
+    if (error && /address|zip_city/.test(error.message || '')) { delete patch.address; delete patch.zip_city; ({ data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single()); }
     if (error){ toast('No se pudo guardar (¿corriste el SQL 0011?): ' + error.message); return; }
     coMeta[domain] = data; toast('Empresa guardada'); renderCompaniesList(); renderCompanyDetail();
   }
@@ -4410,6 +4565,24 @@ ${body}
 
   /* ---- Personas: importar CSV ---- */
   $('ps-import').addEventListener('click', () => $('ps-csv').click());
+  // nuevo deal desde el board
+  $('dl-new-btn').addEventListener('click', () => {
+    const f = $('dl-form');
+    if (f.hidden) { $('dlf-lead').innerHTML = leadOptions(''); $('dlf-title').value = ''; $('dlf-value').value = ''; f.hidden = false; }
+    else f.hidden = true;
+  });
+  $('dlf-cancel').addEventListener('click', () => { $('dl-form').hidden = true; });
+  $('dlf-save').addEventListener('click', async () => {
+    const lid = $('dlf-lead').value, title = $('dlf-title').value.trim();
+    if (!lid) { toast('Elegí la persona'); return; }
+    if (!title) { toast('Ponele nombre al proyecto'); return; }
+    const d = await newDealForLead(lid, title, $('dlf-stage').value);
+    if (!d) return;
+    const v = parseFloat($('dlf-value').value);
+    if (v > 0) { d.deal_value = v; supabase.from('deals').update({ deal_value: v }).eq('id', d.id).then(() => renderLeads()); }
+    $('dl-form').hidden = true;
+    toast('🤝 Deal creado — ya está en el board');
+  });
   $('ps-csv').addEventListener('change', async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     const rows = parseCSV(await f.text());
