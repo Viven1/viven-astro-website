@@ -194,11 +194,14 @@ document.querySelectorAll('.work-tile').forEach(function(tile){
 /* Grilla de proyectos: orden aleatorio de los videos (los case studies quedan primero) en cada
    carga → la página siempre parece nueva. Corre mientras los tiles están invisibles (reveal), sin flash. */
 document.querySelectorAll('.work-grid[data-shuffle]').forEach(function(grid){
-  /* mezcla TODOS los tiles (incl. case studies) → orden nuevo en cada carga */
-  var tiles = [].slice.call(grid.querySelectorAll('.work-tile'));
+  /* mezcla los tiles → orden nuevo en cada carga. Los tiles con data-pin (los 3 case
+     studies REALES) quedan SIEMPRE primeros — son la puerta de entrada para clientes. */
+  var pinned = [].slice.call(grid.querySelectorAll('.work-tile[data-pin]'));
+  var tiles = [].slice.call(grid.querySelectorAll('.work-tile:not([data-pin])'));
   for(var i = tiles.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = tiles[i]; tiles[i] = tiles[j]; tiles[j] = t; }
-  tiles.forEach(function(el){ el.classList.remove('wt-feature'); grid.appendChild(el); });
-  if(tiles[0]) tiles[0].classList.add('wt-feature');  /* el destacado grande es random también */
+  pinned.concat(tiles).forEach(function(el){ el.classList.remove('wt-feature'); grid.appendChild(el); });
+  var first = pinned[0] || tiles[0];
+  if(first) first.classList.add('wt-feature');  /* el destacado grande = el 1er case real */
 });
 document.querySelectorAll('.case .top').forEach(function(top){
   var id = (top.dataset.vimeo || '').trim();
