@@ -225,6 +225,13 @@
   .tpl-chip .tpl-use:hover{color:var(--acid)}
   .tpl-chip .tpl-del{background:none;border:0;color:var(--muted-2);font-size:11px;padding:6px 10px 6px 4px;cursor:pointer}
   .tpl-chip .tpl-del:hover{color:#ff8b8b}
+  .fu-row{border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:9px;background:var(--navy-800)}
+  .fu-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+  .fu-top input[type="datetime-local"]{background:var(--navy-700);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:5px 8px}
+  .fu-subj{flex:1;min-width:160px;background:transparent;border:0;border-bottom:1px dashed var(--line-strong);color:var(--text);font-family:inherit;font-size:13.5px;font-weight:600;padding:3px 2px}
+  .fu-st{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:100px;padding:2px 9px;white-space:nowrap}
+  .fu-body{width:100%;background:var(--navy-700);border:1px solid var(--line);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.55;padding:9px 11px;min-height:84px;resize:vertical}
+  .fu-actions{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
   .of-terms-box{margin-top:18px}
   .of-terms-box .pp-sec-h{margin-bottom:8px}
   .lm-taskadd-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
@@ -1014,7 +1021,10 @@
           <h2 style="margin:0">Propuestas</h2>
           <p class="muted-note" style="margin:2px 0 0">Propuestas tipo Qwilr con password. El cliente entra, elige paquete y acepta. Se publican en viven.ch/proposal.</p>
         </div>
-        <button class="btn btn-primary" id="pp-new" type="button">➕ Nueva propuesta</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost small" id="pp-arch-toggle" type="button">🗄 Ver archivadas</button>
+          <button class="btn btn-primary" id="pp-new" type="button">➕ Nueva propuesta</button>
+        </div>
       </div>
       <div class="tpl-strip" id="pp-tpl-strip" hidden style="margin-top:14px"></div>
       <div id="pp-list" class="of-list" style="margin-top:16px"></div>
@@ -1191,6 +1201,14 @@
             </div>
           </div>
           <textarea class="draft-box" id="lm-draft"></textarea>
+        </div>
+        <div class="lm-block">
+          <div class="draft-head">
+            <div class="lm-block-h" style="margin:0">📬 Follow-ups automáticos <span class="count" id="lm-fu-n"></span></div>
+            <button class="btn btn-ghost small" id="lm-fu-gen" type="button" title="La IA arma 3 emails personalizados con fechas recomendadas — vos corregís y aprobás">✨ Generar secuencia</button>
+          </div>
+          <p class="muted-note" style="margin:0 0 10px">Se envían solos en la fecha elegida (desde info@viven.ch, reply-to tuyo). Se cancelan automáticamente si el deal avanza de etapa.</p>
+          <div id="lm-fu-list"><p class="muted-note">Cargando…</p></div>
         </div>
         <div class="lm-journey" id="lm-journey" hidden></div>
       </main>
@@ -1886,6 +1904,9 @@
     if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
     // Perdido: el motivo queda grabado en TODO — nota en el contacto + ofertas y propuestas ligadas
     if (stage === 'perdido') cascadeLost(lead, lostReason || null);
+    // el deal avanzó o cerró → cancelar follow-ups pendientes (además del guard del cron)
+    if (['videocall', 'propuesta', 'ganado', 'perdido'].includes(stage))
+      supabase.from('lead_followups').update({ status: 'canceled' }).eq('lead_id', String(id)).in('status', ['draft', 'approved']).then(() => { if (currentLead && String(currentLead.id) === String(id)) loadFollowups(currentLead); });
     return true;
   }
   // Registra la pérdida donde haga falta (best-effort: nada de esto bloquea el cambio de etapa)
@@ -2095,6 +2116,7 @@
     $('lm-task-add').addEventListener('click', () => addTask(r));
     $('lm-note-add').addEventListener('click', () => addNote(r));
     loadTasksNotes(r);
+    loadFollowups(r);
 
     $('lm-message').textContent = r.message || '(sin mensaje)';
     $('lm-sender').value = sender;
@@ -2238,6 +2260,62 @@
     if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó en una nota del lead ' + (r.name || r.email) + ':\n\n"' + body + '"', r.id);
     toast('Nota guardada' + (mention ? ' · avisado a ' + teamName(mention) : ''));
   }
+  /* ================= FOLLOW-UPS AUTOMÁTICOS AL CLIENTE ================= */
+  let fuList = [];
+  const FU_ST = { draft: ['Borrador', '#8ab4ff'], approved: ['Programado', '#7ed957'], sent: ['Enviado', '#9aa6bd'], canceled: ['Cancelado', '#ff6b6b'] };
+  async function loadFollowups(r){
+    const box = $('lm-fu-list'); if (!box) return;
+    try {
+      const { data, error } = await supabase.from('lead_followups').select('*').eq('lead_id', String(r.id)).order('send_at');
+      if (error) { box.innerHTML = '<p class="muted-note">¿Corriste el SQL 0019?</p>'; return; }
+      fuList = data || []; renderFollowups(r);
+    } catch (e) { box.innerHTML = '<p class="muted-note">¿Corriste el SQL 0019?</p>'; }
+  }
+  function fuLocal(iso){ const d = new Date(iso); const p2 = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()); }
+  function renderFollowups(r){
+    const box = $('lm-fu-list'); if (!box) return;
+    $('lm-fu-n').textContent = fuList.length ? '(' + fuList.filter((f) => f.status === 'approved').length + ' programados)' : '';
+    if (!fuList.length){ box.innerHTML = '<p class="muted-note">Sin secuencia todavía. Generala con ✨ — la IA propone 3 emails con fechas (día 2, 5 y 10) y vos corregís y aprobás.</p>'; return; }
+    box.innerHTML = fuList.map((f) => { const st = FU_ST[f.status] || FU_ST.draft; const locked = f.status === 'sent' || f.status === 'canceled';
+      return '<div class="fu-row" data-id="' + f.id + '">' +
+        '<div class="fu-top"><span class="fu-st" style="color:' + st[1] + ';border-color:' + st[1] + '">' + st[0] + '</span>' +
+        '<input class="fu-subj" value="' + esc(f.subject) + '"' + (locked ? ' disabled' : '') + '/>' +
+        '<input type="datetime-local" class="fu-when" value="' + fuLocal(f.send_at) + '"' + (locked ? ' disabled' : '') + ' title="Cuándo se envía"/></div>' +
+        '<textarea class="fu-body"' + (locked ? ' disabled' : '') + '>' + esc(f.body) + '</textarea>' +
+        (locked ? '' : '<div class="fu-actions">' +
+          (f.status === 'draft' ? '<button class="btn btn-primary xs" data-fu="approve" type="button">✓ Aprobar y programar</button>' : '<button class="btn btn-ghost xs" data-fu="unapprove" type="button">⏸ Pausar</button>') +
+          '<button class="btn btn-ghost xs" data-fu="save" type="button">💾 Guardar cambios</button>' +
+          '<button class="btn btn-ghost xs" data-fu="cancel" type="button" style="color:#ff8b8b">✕ Cancelar</button></div>') +
+      '</div>'; }).join('');
+    box.querySelectorAll('[data-fu]').forEach((b) => b.addEventListener('click', () => fuAction(b.closest('.fu-row'), b.dataset.fu, r)));
+  }
+  async function fuAction(row, act, r){
+    const id = row.dataset.id;
+    const patch = { subject: row.querySelector('.fu-subj').value.trim(), body: row.querySelector('.fu-body').value, send_at: new Date(row.querySelector('.fu-when').value).toISOString() };
+    if (act === 'approve') patch.status = 'approved';
+    if (act === 'unapprove') patch.status = 'draft';
+    if (act === 'cancel') { if (!confirm('¿Cancelar este follow-up?')) return; patch.status = 'canceled'; }
+    const { error } = await supabase.from('lead_followups').update(patch).eq('id', id);
+    if (error) { toast('No se pudo: ' + error.message); return; }
+    toast(act === 'approve' ? '✓ Programado — se manda solo en esa fecha' : act === 'cancel' ? 'Cancelado' : 'Guardado');
+    loadFollowups(r);
+  }
+  async function genFollowups(r){
+    const btn = $('lm-fu-gen'); btn.disabled = true; btn.textContent = '✨ Generando…';
+    try {
+      const offer = offersForLead(r.id)[0];
+      const { data, error } = await supabase.functions.invoke('ai-followups', { body: { lead: r, sender_name: teamName(myEmail()).split(/\s+/)[0], offer_title: offer ? offer.title : '' } });
+      if (error || data.error) throw new Error(error?.message || data.error);
+      const rows = (data.followups || []).map((f, i) => ({ lead_id: String(r.id), position: i + 1, subject: f.subject, body: f.body,
+        send_at: new Date(Date.now() + (Number(f.day) || (i + 1) * 3) * 864e5).toISOString(), status: 'draft', sender_key: sender }));
+      const res = await sbWriteRowsResilient('lead_followups', rows, null);
+      toast('✨ ' + res.rows.length + ' follow-ups generados — revisá, ajustá fechas y aprobá');
+      loadFollowups(r);
+    } catch (e) { toast('No se pudo generar (¿deployaste ai-followups?): ' + (e.message || e)); }
+    btn.disabled = false; btn.textContent = '✨ Generar secuencia';
+  }
+  $('lm-fu-gen') && $('lm-fu-gen').addEventListener('click', () => { if (currentLead) genFollowups(currentLead); });
+
   function notifyUser(to, subject, body, leadId){
     const url = leadId ? '/dashboard/?lead=' + leadId : '/dashboard/';
     supabase.functions.invoke('notify-user', { body: { to, subject, body, lead_url: location.origin + url } }).catch(() => {});
@@ -3300,7 +3378,7 @@
   }
   function renderPropList(){
     const box = $('pp-list');
-    const pool = ppList.filter((x) => !x.is_template);
+    const pool = ppList.filter((x) => !x.is_template && !!x.archived === ppShowArchived);
     renderTplStrip('pp-tpl-strip', ppList.filter((x) => x.is_template), usePropTemplate, delPropTemplate);
     $('pp-empty').hidden = pool.length > 0;
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], accepted: ['Aceptada', '#7ed957'] };
@@ -3312,6 +3390,7 @@
         '<div class="of-actions">' +
           (p.slug ? '<button class="of-act" data-act="link" data-id="' + p.id + '" type="button">🔗 Copiar link</button>' : '') +
           '<button class="of-act" data-act="dup" data-id="' + p.id + '" type="button">⧉ Duplicar</button>' +
+          '<button class="of-act" data-act="arch" data-id="' + p.id + '" type="button">' + (p.archived ? '↩ Desarchivar' : '🗄 Archivar') + '</button>' +
           '<button class="of-act danger" data-act="del" data-id="' + p.id + '" type="button">🗑 Borrar</button>' +
         '</div></div>';
     }).join('');
@@ -3319,7 +3398,14 @@
     box.querySelectorAll('.of-act').forEach((btn) => btn.addEventListener('click', (e) => {
       e.stopPropagation(); const id = btn.dataset.id, act = btn.dataset.act, p = ppList.find((x) => String(x.id) === String(id));
       if (act === 'link') copyPropLink(p); else if (act === 'dup') dupProp(p); else if (act === 'del') delPropById(id);
+      else if (act === 'arch') archProp(p);
     }));
+  }
+  let ppShowArchived = false;
+  async function archProp(p){
+    const { error } = await supabase.from('proposals').update({ archived: !p.archived }).eq('id', p.id);
+    if (error) { toast('No se pudo (¿SQL 0019?): ' + error.message); return; }
+    toast(p.archived ? 'Desarchivada' : '🗄 Archivada'); ppLoad();
   }
   function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
   function fromRow(r){ const c = r.content || {}, ov = c.overview || {};
@@ -3560,6 +3646,7 @@
     $('pp-preview').addEventListener('click', previewProp);
     $('pp-save').addEventListener('click', () => saveProp(false));
     $('pp-tpl-save').addEventListener('click', savePropAsTemplate);
+    $('pp-arch-toggle').addEventListener('click', () => { ppShowArchived = !ppShowArchived; $('pp-arch-toggle').textContent = ppShowArchived ? '← Volver a activas' : '🗄 Ver archivadas'; renderPropList(); });
     $('pp-publish').addEventListener('click', () => saveProp(true));
     $('pp-del').addEventListener('click', delCurProp);
     $('pp-ai').addEventListener('click', generatePropAI);
