@@ -7,22 +7,34 @@
 <!-- Página privada: fuera de buscadores y del sitemap -->
 <meta name="robots" content="noindex,nofollow" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
-<meta name="theme-color" content="#1a1b1e" />
+<meta name="theme-color" content="#0f1826" />
 <link rel="stylesheet" href="/assets/site.css" />
+<script is:inline>
+  // aplicar el tema guardado ANTES del primer render (sin flash)
+  try { var t = localStorage.getItem('viven_theme'); if (t === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}
+</script>
 <style is:global>
-  /* Paleta del dashboard: dark neutro (menos azul, más descansado para leer todo el día).
-     Solo aplica al dashboard — la web pública mantiene su navy de marca. */
-  :root{
-    --navy-900:#1a1b1e;   /* fondo principal */
-    --navy-800:#212328;   /* tarjetas / paneles */
-    --navy-700:#2a2c31;   /* elementos elevados */
-    --navy-600:#363940;   /* bordes fuertes / hover */
-    --line:rgba(255,255,255,.07);
-    --line-strong:rgba(255,255,255,.13);
-    --text:#eceef2;
-    --muted:#a2a7b2;
-    --muted-2:#868c98;
+  /* Tema del dashboard: dark = el navy de siempre (site.css). bright = gris claro
+     estilo Claude Code, más descansado de día. Se alterna con el botón ◐ y persiste. */
+  :root[data-theme="light"]{
+    --navy-900:#faf9f5;   /* fondo (gris cálido claro) */
+    --navy-800:#ffffff;   /* tarjetas / paneles */
+    --navy-700:#f0efea;   /* elementos elevados */
+    --navy-600:#e2e1db;   /* hover / bordes fuertes */
+    --line:rgba(20,25,35,.09);
+    --line-strong:rgba(20,25,35,.18);
+    --text:#1f2430;
+    --muted:#5b6472;
+    --muted-2:#8a919e;
+    --acid:#5f7a12;       /* verde marca oscurecido: legible sobre blanco */
+    --acid-dim:#4e650f;
   }
+  :root[data-theme="light"] body{background:var(--navy-900);color:var(--text)}
+  /* botones/pills con fondo acid: en claro usar el verde de marca real con texto oscuro */
+  :root[data-theme="light"] .btn-primary,
+  :root[data-theme="light"] .lead-form button[type="submit"],
+  :root[data-theme="light"] .toolbar .fpill.active,
+  :root[data-theme="light"] .vt-btn.active{background:#dff28b;border-color:#dff28b;color:#1c2508}
   .dash-wrap{max-width:1220px;margin:0 auto;padding:32px 24px 80px}
   .bell-wrap{position:relative}
   .bell-btn{position:relative;background:var(--navy-800);border:1px solid var(--line-strong);color:var(--text);width:38px;height:38px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
@@ -539,6 +551,7 @@
         <option value="365">1 año</option>
       </select>
       <input type="date" id="range-day" class="status" title="Un día puntual" />
+      <button class="bell-btn" id="theme-btn" type="button" title="Cambiar tema (oscuro/claro)" aria-label="Cambiar tema">◐</button>
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
         <div class="bell-panel" id="bell-panel" hidden>
@@ -1092,6 +1105,13 @@
     show('login');
   });
   $('refresh-btn').addEventListener('click', loadAll);
+  /* tema oscuro (navy) / claro (gris estilo Claude Code) */
+  $('theme-btn').addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    if (next === 'light') document.documentElement.dataset.theme = 'light';
+    else delete document.documentElement.dataset.theme;
+    try { localStorage.setItem('viven_theme', next); } catch (e) {}
+  });
   /* filtro global de período */
   $('range-sel').addEventListener('change', (e) => {
     rangeDays = parseInt(e.target.value, 10) || 30;
@@ -2775,6 +2795,7 @@
   function fillPropEditor(){
     $('pp-title').value = ppCur.title; $('pp-cname').value = ppCur.client_name; $('pp-cemail').value = ppCur.client_email;
     $('pp-lead').innerHTML = leadOptions(ppCur.lead_id); $('pp-lang').value = ppCur.lang; $('pp-sender').value = ppCur.sender_key;
+    ppPrevLeadId = ppCur.lead_id;   // para que al cambiar el lead, los campos sigan al nuevo
     $('pp-pass').value = ppCur.password; $('pp-vat').value = ppCur.vat_rate;
     $('pp-intro').value = ppCur.intro; $('pp-objective').value = ppCur.objective;
     $('pp-outputs').value = (ppCur.outputs || []).join('\n'); $('pp-loc').value = ppCur.location; $('pp-timing').value = ppCur.timing; $('pp-delivery').value = ppCur.delivery;
@@ -2905,13 +2926,27 @@
     const url = PROP_BASE + '/proposal/?id=' + encodeURIComponent(p.slug);
     navigator.clipboard.writeText('Propuesta Viven: ' + url + '\nAccess code: ' + (p.password || '')).then(() => toast('Link + password copiados 📋'));
   }
+  // Al cambiar el lead ligado, la consulta/cliente/email SIGUEN al lead nuevo
+  // (antes quedaban pegados al primero — mismo bug que tuvimos en ofertas).
+  // Si editaste el texto a mano, pide confirmación antes de pisarlo.
+  let ppPrevLeadId = null;
   async function ppLeadChange(){
     const lead = allLeads.find((l) => String(l.id) === String($('pp-lead').value));
     if (!lead) return;
-    if (!$('pp-inquiry').value.trim()) $('pp-inquiry').value = lead.message || '';
-    if (!$('pp-cname').value.trim() && lead.name) $('pp-cname').value = lead.name;
-    if (!$('pp-cemail').value.trim() && lead.email) $('pp-cemail').value = lead.email;
+    const prev = allLeads.find((l) => String(l.id) === String(ppPrevLeadId));
+    // consulta del cliente: reemplaza si está vacía o si sigue siendo la del lead anterior
+    const curI = $('pp-inquiry').value;
+    const untouchedI = !curI.trim() || (prev && curI === (prev.message || ''));
+    if (untouchedI || confirm('¿Reemplazar la consulta del cliente con el mensaje de "' + (lead.name || lead.email) + '"?'))
+      $('pp-inquiry').value = lead.message || '';
+    // nombre y email del cliente: siguen al lead salvo que los hayas escrito a mano
+    const curN = $('pp-cname').value;
+    if (!curN.trim() || (prev && (curN === (prev.name || '') || curN === clientNameFor(prev)))) $('pp-cname').value = clientNameFor(lead) || lead.name || '';
+    const curE = $('pp-cemail').value;
+    if (!curE.trim() || (prev && curE === (prev.email || ''))) $('pp-cemail').value = lead.email || '';
     if (lead.lang && ['en', 'de', 'es'].includes(lead.lang)) $('pp-lang').value = lead.lang;
+    ppCur.lead_id = lead.id;
+    ppPrevLeadId = lead.id;
   }
   async function generatePropAI(){
     const inquiry = $('pp-inquiry').value.trim();
