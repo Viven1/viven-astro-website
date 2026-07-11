@@ -17,14 +17,14 @@ const esc = (s: unknown) =>
   String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 
 // push al celular de todo el team (best-effort: sin VAPID/suscripciones, no molesta)
-async function pushBroadcast(title: string, body: string) {
+async function pushBroadcast(title: string, body: string, url = "/dashboard/") {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
   if (!pub || !priv) return;
   try {
     webpush.setVapidDetails("mailto:info@viven.ch", pub, priv);
     const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: subs } = await service.from("push_subscriptions").select("*");
-    const payload = JSON.stringify({ title, body, url: "/dashboard/" });
+    const payload = JSON.stringify({ title, body, url });
     for (const s of subs ?? []) {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
@@ -72,8 +72,8 @@ Deno.serve(async (req) => {
         html,
       }),
     });
-    // push al celular (además del email) — no bloquea la respuesta si falla
-    await pushBroadcast("🎬 Nuevo lead: " + name, (r.message || "").slice(0, 120) || (r.email || ""));
+    // push al celular (además del email) — abre el lead directo al tocarla
+    await pushBroadcast("🎬 Nuevo lead: " + name, (r.message || "").slice(0, 120) || (r.email || ""), r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
 
     if (!res.ok) return new Response(await res.text(), { status: 502 });
     return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });

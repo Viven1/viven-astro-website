@@ -18,7 +18,12 @@ self.addEventListener('notificationclick', function (e) {
   var url = (e.notification.data && e.notification.data.url) || '/dashboard/';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ws) {
     for (var i = 0; i < ws.length; i++) {
-      if (ws[i].url.indexOf('/dashboard') > -1 && 'focus' in ws[i]) return ws[i].focus();
+      var w = ws[i];
+      if (w.url.indexOf('/dashboard') > -1) {
+        // navegar la ventana existente al item (ej. /dashboard/?lead=12) y enfocarla
+        if ('navigate' in w) return w.navigate(url).then(function (c) { return (c || w).focus(); }).catch(function () { return w.focus(); });
+        if ('focus' in w) return w.focus();
+      }
     }
     return self.clients.openWindow(url);
   }));

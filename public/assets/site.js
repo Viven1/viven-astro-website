@@ -344,7 +344,8 @@ function renderLeadForm(mount){
       email: email,
       company: (fCompany && fCompany.value.trim()) || null,
       phone: (fPhone && fPhone.value.trim()) || null,
-      message: fMsg.value.trim() || null
+      message: fMsg.value.trim() || null,
+      form_path: location.pathname   /* en qué página convirtió (servicio > contact) */
     };
     if(extra){
       row.session_id = extra.session_id;
@@ -400,6 +401,22 @@ document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadFor
 /* el idioma ya se aplicó al cargar — re-aplicar sobre el formulario recién montado */
 if(document.querySelector('.lead-form')) setLang(document.documentElement.lang || 'en');
 
+/* CTA "Projekt starten": si la página YA tiene formulario, scrollear hasta él en vez
+   de ir a /contact — así la conversión ocurre en la página del servicio y sabemos
+   exactamente qué página convirtió (mejor atribución que "todos convierten en contact"). */
+(function(){
+  var mount = document.querySelector('.lead-form-mount');
+  if(!mount) return;
+  document.querySelectorAll('.sticky-cta a, header.site .btn-primary, .mobile-menu .btn-primary').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      mount.scrollIntoView({behavior: 'smooth', block: 'start'});
+      var f = mount.querySelector('input[name="first_name"]');
+      if(f) setTimeout(function(){ try{ f.focus({preventScroll: true}); }catch(_){ } }, 650);
+    });
+  });
+})();
+
 /* ---------- Lead conversion tracking (GA4, consent-gated: no-ops until gtag exists) ---------- */
 function track(name, params){ if(typeof window.gtag === 'function') window.gtag('event', name, params || {}); }
 /* Meeting booking click → book_call */
@@ -413,26 +430,23 @@ document.querySelectorAll('a[href^="tel:"], a[href^="mailto:"]').forEach(functio
   });
 });
 
-/* ---------- Testimonial slider (auto-rota, pausa al interactuar, respeta reduced-motion) ---------- */
-/* Slider por transform (NO scroll nativo ni scroll-snap: eso rompía la medición
-   de LCP en Lighthouse). Auto-rota solo cuando está visible. */
+/* ---------- Testimonial slider (scroll nativo: rueda, trackpad y dedo) ----------
+   Auto-rota solo cuando está visible y nadie interactúa; los dots siguen el scroll. */
 document.querySelectorAll('.review-slider').forEach(function(slider){
   var track = slider.querySelector('.review-track');
   var slides = track.children;
   if(slides.length < 2) return;
   var dotsWrap = slider.parentElement.querySelector('.review-dots');
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var i = 0, dots = [];
+  var dots = [];
 
+  function step(){ return slides[0].getBoundingClientRect().width + 22; }
   function perView(){ return Math.max(1, Math.round(slider.clientWidth / slides[0].getBoundingClientRect().width)); }
   function maxIdx(){ return Math.max(0, slides.length - perView()); }
-  function apply(){
-    var step = slides[0].getBoundingClientRect().width + 22;
-    track.style.transform = 'translateX(' + (-i * step) + 'px)';
-    dots.forEach(function(dot, x){ dot.classList.toggle('active', x === i); });
-  }
-  function goTo(n){ var m = maxIdx(); i = n < 0 ? m : (n > m ? 0 : n); apply(); }
-  function next(){ goTo(i >= maxIdx() ? 0 : i + 1); }
+  function cur(){ return Math.min(maxIdx(), Math.round(slider.scrollLeft / step())); }
+  function paint(){ var i = cur(); dots.forEach(function(dot, x){ dot.classList.toggle('active', x === i); }); }
+  function goTo(n){ var m = maxIdx(); n = n < 0 ? m : (n > m ? 0 : n); slider.scrollTo({left: n * step(), behavior: reduced ? 'auto' : 'smooth'}); }
+  function next(){ goTo(cur() >= maxIdx() ? 0 : cur() + 1); }
 
   if(dotsWrap){
     for(var d = 0; d <= maxIdx(); d++){
@@ -444,15 +458,17 @@ document.querySelectorAll('.review-slider').forEach(function(slider){
   }
 
   var delay = parseInt(slider.dataset.autoplay, 10) || 5000;
-  var timer = null, visible = false;
+  var timer = null, visible = false, hold = null;
   function play(){ if(reduced || timer || !visible) return; timer = setInterval(next, delay); }
   function stop(){ if(timer){ clearInterval(timer); timer = null; } }
-  function rearm(){ stop(); setTimeout(play, delay); }
+  function rearm(){ stop(); clearTimeout(hold); hold = setTimeout(play, delay); }
 
-  slider.addEventListener('pointerenter', stop);
-  slider.addEventListener('pointerleave', play);
-  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ if(i > maxIdx()) i = maxIdx(); apply(); }, 150); }, { passive: true });
-  apply();
+  slider.addEventListener('scroll', function(){ window.requestAnimationFrame(paint); }, { passive: true });
+  /* cualquier interacción (rueda, trackpad, dedo, click) pausa; retoma solo */
+  ['wheel', 'pointerdown', 'touchstart'].forEach(function(ev){
+    slider.addEventListener(ev, function(){ stop(); rearm(); }, { passive: true });
+  });
+  paint();
   if('IntersectionObserver' in window){
     new IntersectionObserver(function(es){
       visible = es[0].isIntersecting;

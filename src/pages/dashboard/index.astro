@@ -1244,7 +1244,7 @@
     if (error) { f.classList.add('has-error'); return; }
     meEmail = (f.email.value.trim() || '').toLowerCase();
     show('dash');
-    loadAll();
+    loadAll().then(openFromQuery);
   });
   $('logout-btn').addEventListener('click', async () => {
     await supabase.auth.signOut();
@@ -1473,15 +1473,21 @@
       notes.filter((n) => meEmail && String(n.mention || '').toLowerCase() === meEmail).slice(0, 8).forEach((n) => {
         bellItems.push({ kind: 'mention', id: n.id, lead_id: n.lead_id, title: (n.body || '').slice(0, 80), due: null, bucket: 'mention', overdue: false });
       });
+      // leads nuevos sin contactar (últimas 72h) — lo mismo que llega por push
+      const cutoff = Date.now() - 72 * 36e5;
+      (allLeads || []).filter((l) => isNew(l.status) && !/^claude-/.test(l.session_id || '') && Date.parse(l.created_at) > cutoff)
+        .slice(0, 8).forEach((l) => {
+          bellItems.push({ kind: 'lead', id: 'l' + l.id, lead_id: l.id, title: '🎬 Lead nuevo: ' + (l.name || l.email || ''), due: null, bucket: 'newlead', overdue: false });
+        });
       renderBell();
     } catch (e) { /* si no corrió el SQL 0010, la campana queda vacía */ renderBell(); }
   }
   function renderBell(){
     const badge = $('bell-badge');
-    const urgent = bellItems.filter((i) => i.bucket === 'overdue' || i.bucket === 'today' || i.bucket === 'mention').length;
+    const urgent = bellItems.filter((i) => i.bucket === 'overdue' || i.bucket === 'today' || i.bucket === 'mention' || i.bucket === 'newlead').length;
     if (urgent > 0) { badge.hidden = false; badge.textContent = urgent > 99 ? '99+' : urgent; } else badge.hidden = true;
-    const order = { overdue: 0, today: 1, mention: 2, later: 3, nodate: 4 };
-    const labels = { overdue: ['⚠️ Vencidas', true], today: ['📅 Para hoy', false], mention: ['💬 Te mencionaron', false], later: ['🕒 Próximas', false], nodate: ['📌 Sin fecha', false] };
+    const order = { newlead: 0, overdue: 1, today: 2, mention: 3, later: 4, nodate: 5 };
+    const labels = { newlead: ['🎬 Leads nuevos', false], overdue: ['⚠️ Vencidas', true], today: ['📅 Para hoy', false], mention: ['💬 Te mencionaron', false], later: ['🕒 Próximas', false], nodate: ['📌 Sin fecha', false] };
     const list = $('bell-list');
     if (!bellItems.length) { list.innerHTML = '<div class="bell-empty">Nada pendiente 🎉<br>Las tareas que crees en un lead aparecen acá.</div>'; return; }
     const grouped = {};
@@ -1528,8 +1534,8 @@
       toast('📲 Push activado — este dispositivo recibe leads, menciones y tasks');
     } catch (e){ toast('No se pudo activar push: ' + (e.message || e)); }
   }
-  function pushTo(to, title, body){
-    supabase.functions.invoke('push-send', { body: { to, title, body, url: '/dashboard/' } }).catch(() => {});
+  function pushTo(to, title, body, url){
+    supabase.functions.invoke('push-send', { body: { to, title, body, url: url || '/dashboard/' } }).catch(() => {});
   }
 
   /* ---------- LEADS ---------- */
@@ -2005,7 +2011,8 @@
         (stageOf(r.status) === 'perdido' ? row('Motivo de pérdida', esc(r.lost_reason || '(sin especificar)'), true) : '')) +
       sec('Origen',
         row('Canal', esc(r.channel)) + row('Fuente (UTM)', esc(r.utm_source)) + row('Campaña (UTM)', esc(r.utm_campaign)) +
-        row('Google Ads (GCLID)', r.gclid ? 'sí' : '') + row('Página de entrada', esc(r.landing_path))) +
+        row('Google Ads (GCLID)', r.gclid ? 'sí' : '') + row('Página de entrada', esc(r.landing_path)) +
+        row('Convirtió en', esc(r.form_path))) +
       sec('Fechas',
         row('Creado', fmtD(r.created_at), true) + row('Contactado', fmtD(r.contacted_at)) +
         row('Video call', fmtD(r.videocall_at)) + row('Propuesta', fmtD(r.proposal_at)) +
@@ -2158,7 +2165,7 @@
     const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body, author, parent_id: Number(parentId), mention });
     if (error) { toast('No se pudo (¿SQL 0012?): ' + error.message); return; }
     loadTasksNotes(r);
-    if (mention && /@viven\.ch$/i.test(mention)) notifyUser(mention, '↩ Respuesta — ' + (r.name || r.email), author + ' respondió a tu nota en ' + (r.name || r.email) + ':\n\n"' + body + '"');
+    if (mention && /@viven\.ch$/i.test(mention)) notifyUser(mention, '↩ Respuesta — ' + (r.name || r.email), author + ' respondió a tu nota en ' + (r.name || r.email) + ':\n\n"' + body + '"', r.id);
     toast('Respuesta enviada' + (mention ? ' · avisado a ' + teamName(mention) : ''));
   }
   async function addTask(r){
@@ -2171,7 +2178,7 @@
     $('lm-task-t').value = ''; $('lm-task-d').value = ''; $('lm-task-h').value = ''; $('lm-task-a').value = '';
     loadTasksNotes(r); loadBell();
     const whenTxt = due ? ('\nVence: ' + due + (time ? ' ' + time : '')) : '';
-    if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron una task para el lead ' + (r.name || r.email) + ':\n\n"' + title + '"' + whenTxt);
+    if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron una task para el lead ' + (r.name || r.email) + ':\n\n"' + title + '"' + whenTxt, r.id);
     toast('Task creada' + (assignee ? ' · avisado a ' + teamName(assignee) : ''));
   }
   async function toggleTask(id, done){ await supabase.from('lead_tasks').update({ done, done_at: done ? new Date().toISOString() : null }).eq('id', id); if (currentLead) loadTasksNotes(currentLead); loadBell(); }
@@ -2184,12 +2191,13 @@
     if (error) { toast('No se pudo (¿SQL 0010?): ' + error.message); return; }
     $('lm-note-b').value = ''; $('lm-note-m').value = '';
     loadTasksNotes(r);
-    if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó en una nota del lead ' + (r.name || r.email) + ':\n\n"' + body + '"');
+    if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó en una nota del lead ' + (r.name || r.email) + ':\n\n"' + body + '"', r.id);
     toast('Nota guardada' + (mention ? ' · avisado a ' + teamName(mention) : ''));
   }
-  function notifyUser(to, subject, body){
-    supabase.functions.invoke('notify-user', { body: { to, subject, body, lead_url: location.origin + '/dashboard/' } }).catch(() => {});
-    pushTo(to, subject, body);   // además del email, push al celular del destinatario
+  function notifyUser(to, subject, body, leadId){
+    const url = leadId ? '/dashboard/?lead=' + leadId : '/dashboard/';
+    supabase.functions.invoke('notify-user', { body: { to, subject, body, lead_url: location.origin + url } }).catch(() => {});
+    pushTo(to, subject, body, url);   // además del email, push al celular — abre directo el lead
   }
   // edición inline de los datos del lead
   const edField = (label, id, val) => '<div class="ab-row"><span class="ab-k">' + label + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(val || '') + '"/></span></div>';
@@ -3855,8 +3863,17 @@ ${body}
   });
 
   /* ---------- Sesión persistente ---------- */
+  // si venimos de una notificación push (/dashboard/?lead=12), abrir ese lead directo
+  function openFromQuery(){
+    try {
+      const lid = new URLSearchParams(location.search).get('lead');
+      if (!lid) return;
+      history.replaceState({}, '', location.pathname);
+      gotoTab('leads'); openLead(lid);
+    } catch (e) {}
+  }
   supabase.auth.getSession().then(({ data }) => {
-    if (data.session) { meEmail = (data.session.user?.email || '').toLowerCase(); show('dash'); loadAll(); }
+    if (data.session) { meEmail = (data.session.user?.email || '').toLowerCase(); show('dash'); loadAll().then(openFromQuery); }
     else show('login');
   });
 </script>
