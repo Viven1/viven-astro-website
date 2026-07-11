@@ -317,6 +317,17 @@
     </div>
     <div class="pipeline" id="pipeline"></div>
     <p class="muted-note" id="leads-empty" hidden>No hay leads que coincidan. Envía el formulario del sitio para testear.</p>
+
+    <!-- Insights con IA sobre el pipeline/funnel de leads -->
+    <div class="panel ai-panel" style="margin-top:22px">
+      <div class="ai-head">
+        <h2>🧠 Insights con IA <span class="count">cómo mover más leads a ganados</span></h2>
+        <button class="btn btn-primary small" id="ai-leads-btn" type="button">✨ Generar</button>
+      </div>
+      <div class="ai-body" id="ai-leads-body">
+        <p class="muted-note">La IA analiza tu funnel (conversión y tiempos por etapa), canales y follow-ups, y te da 3–5 mejoras concretas para cerrar más.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ============ TAB: ANALYTICS ============ -->
@@ -406,6 +417,16 @@
         <div class="kpi"><div class="n" id="of-k-count">–</div><div class="l">Ofertas totales</div></div>
         <div class="kpi"><div class="n" id="of-k-value">–</div><div class="l">Valor ganado (neto)</div></div>
         <div class="kpi"><div class="n" id="of-k-margin">–</div><div class="l">Margen medio</div></div>
+      </div>
+      <!-- Insights con IA sobre las ofertas -->
+      <div class="panel ai-panel" style="margin:6px 0 16px">
+        <div class="ai-head">
+          <h2>🧠 Insights con IA <span class="count">cómo ganar más ofertas</span></h2>
+          <button class="btn btn-primary small" id="ai-offers-btn" type="button">✨ Generar</button>
+        </div>
+        <div class="ai-body" id="ai-offers-body">
+          <p class="muted-note">La IA analiza tu conversión de ofertas, semanas para cerrar, margen y valor ganado, y te sugiere cómo mejorar precio y cierre.</p>
+        </div>
       </div>
       <div id="of-list" class="of-list"></div>
       <p class="muted-note" id="of-empty" hidden>Todavía no hay ofertas. Creá la primera con "Nueva oferta".</p>
@@ -582,17 +603,15 @@
   });
 
   /* ---------- Insights con IA (Edge Function ai-insights → Claude) ---------- */
-  $('ai-insights-btn').addEventListener('click', async () => {
-    const btn = $('ai-insights-btn'), body = $('ai-insights-body');
-    if (!insightsData) { body.innerHTML = '<p class="muted-note">Todavía no hay datos de analytics. Abrí la pestaña Analytics primero.</p>'; return; }
+  // genérico: se usa en Analytics, Leads y Ofertas con distintos resúmenes
+  async function runInsights(btnId, bodyId, buildSummary, loadingMsg){
+    const btn = $(btnId), body = $(bodyId);
+    const summary = buildSummary();
+    if (!summary) { body.innerHTML = '<p class="muted-note">Todavía no hay datos suficientes.</p>'; return; }
     const prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Analizando…';
-    body.innerHTML = '<p class="ai-loading">La IA está analizando tu tráfico, canales y conversión…</p>';
+    body.innerHTML = '<p class="ai-loading">' + (loadingMsg || 'La IA está analizando tus datos…') + '</p>';
     try {
-      const pipeline = {};
-      STAGES.forEach((s) => pipeline[s.key] = allLeads.filter((l) => stageOf(l.status) === s.key).length);
-      const { data, error } = await supabase.functions.invoke('ai-insights', {
-        body: { summary: { ...insightsData, pipeline, leads_totales: allLeads.length }, lang: 'es' }
-      });
+      const { data, error } = await supabase.functions.invoke('ai-insights', { body: { summary, lang: 'es' } });
       if (error || !data || !Array.isArray(data.insights)) throw new Error(data?.error || error?.message || 'sin respuesta');
       body.innerHTML = data.insights.map((i) =>
         '<div class="ai-insight"><span class="ico">' + esc(i.icon || '💡') + '</span>' +
@@ -601,7 +620,63 @@
     } catch (e) {
       body.innerHTML = '<p class="muted-note">No se pudo generar (¿deployaste ai-insights y hay crédito en Anthropic?): ' + esc(e.message) + '</p>';
     } finally { btn.disabled = false; btn.textContent = prev; }
-  });
+  }
+
+  // resumen del funnel de leads (conversión + tiempos entre etapas)
+  function leadsSummary(){
+    const set = (allLeads || []).filter((l) => inRange(l.created_at) && !/^claude-/.test(l.session_id || ''));
+    if (!set.length) return null;
+    const steps = [
+      { k: 'leads', ts: (l) => l.created_at }, { k: 'contactado', ts: (l) => l.contacted_at },
+      { k: 'videocall', ts: (l) => l.videocall_at }, { k: 'propuesta', ts: (l) => l.proposal_at }, { k: 'ganado', ts: (l) => l.won_at },
+    ];
+    const counts = steps.map((s) => set.filter((l) => s.ts(l)).length);
+    const avgDays = (a, b) => { const ds = set.map((l) => { const x = Date.parse(b(l)), y = Date.parse(a(l)); return (x && y && x >= y) ? (x - y) / 864e5 : null; }).filter((v) => v != null); return ds.length ? +(ds.reduce((p, c) => p + c, 0) / ds.length).toFixed(1) : null; };
+    const chan = {}; set.forEach((l) => { const c = l.channel || 'direct'; chan[c] = (chan[c] || 0) + 1; });
+    const lost = set.filter((l) => l.lost_at).length;
+    return {
+      contexto: 'Funnel de leads de Viven (productora de video). Conversión y días promedio entre etapas.',
+      periodo: rangeLabel(),
+      leads: counts[0], contactados: counts[1], video_calls: counts[2], propuestas: counts[3], ganados: counts[4], perdidos: lost,
+      conv_lead_a_contactado_pct: counts[0] ? Math.round(counts[1] / counts[0] * 100) : 0,
+      conv_contactado_a_videocall_pct: counts[1] ? Math.round(counts[2] / counts[1] * 100) : 0,
+      conv_videocall_a_propuesta_pct: counts[2] ? Math.round(counts[3] / counts[2] * 100) : 0,
+      conv_propuesta_a_ganado_pct: counts[3] ? Math.round(counts[4] / counts[3] * 100) : 0,
+      cierre_ganado_sobre_decididos_pct: (counts[4] + lost) ? Math.round(counts[4] / (counts[4] + lost) * 100) : 0,
+      dias_lead_a_contactado: avgDays((l) => l.created_at, (l) => l.contacted_at),
+      dias_contactado_a_videocall: avgDays((l) => l.contacted_at, (l) => l.videocall_at),
+      dias_videocall_a_propuesta: avgDays((l) => l.videocall_at, (l) => l.proposal_at),
+      dias_propuesta_a_ganado: avgDays((l) => l.proposal_at, (l) => l.won_at),
+      canales: chan,
+      sin_contactar: set.filter((l) => isNew(l.status)).length,
+    };
+  }
+
+  // resumen de ofertas (conversión, semanas para cerrar, margen)
+  function offersSummary(){
+    if (!offersList || !offersList.length) return null;
+    const won = offersList.filter((o) => o.status === 'won'), lost = offersList.filter((o) => o.status === 'lost'), open = offersList.filter((o) => o.status === 'sent');
+    const dec = won.length + lost.length;
+    const margins = offersList.map(offerMarginPct).filter((m) => isFinite(m));
+    const closeW = won.map((o) => (Date.parse(o.updated_at) - Date.parse(o.created_at)) / 6048e5).filter((d) => d >= 0);
+    return {
+      contexto: 'Ofertas/presupuestos de Viven (productora de video). Precio al cliente vs costo interno.',
+      ofertas_totales: offersList.length, enviadas_esperando: open.length, ganadas: won.length, perdidas: lost.length,
+      conversion_ganadas_sobre_decididas_pct: dec ? Math.round(won.length / dec * 100) : 0,
+      semanas_promedio_para_cerrar: closeW.length ? +(closeW.reduce((a, b) => a + b, 0) / closeW.length).toFixed(1) : null,
+      valor_ganado_neto_chf: Math.round(won.reduce((a, o) => a + offerNet(o), 0)),
+      margen_medio_pct: margins.length ? Math.round(margins.reduce((a, b) => a + b, 0) / margins.length) : null,
+      ticket_medio_ganado_chf: won.length ? Math.round(won.reduce((a, o) => a + offerNet(o), 0) / won.length) : null,
+    };
+  }
+
+  $('ai-insights-btn').addEventListener('click', () => runInsights('ai-insights-btn', 'ai-insights-body',
+    () => insightsData ? { ...insightsData, ...leadsSummary(), contexto: 'Tráfico web + funnel de leads de Viven.' } : null,
+    'La IA está analizando tu tráfico, canales y conversión…'));
+  $('ai-leads-btn').addEventListener('click', () => runInsights('ai-leads-btn', 'ai-leads-body', leadsSummary,
+    'La IA está analizando tu funnel de leads…'));
+  $('ai-offers-btn').addEventListener('click', () => runInsights('ai-offers-btn', 'ai-offers-body', offersSummary,
+    'La IA está analizando tus ofertas…'));
 
   /* ---------- Data ---------- */
   /* ---------- Ventana de tiempo (filtro global) ---------- */
