@@ -1,57 +1,30 @@
-# ============================================================
-#  REDIRECTS 301 — sitio nuevo /en /de /es. Archivos reales se sirven antes.
-# ============================================================
+# Redirects Cloudflare Workers — ESTÁTICAS PRIMERO, wildcards AL FINAL.
+# ⚠️ El parser de wrangler cuenta como "dinámica" (límite 100) TODA regla que aparezca
+# después de la primera con *. No intercalar. El matching NO depende del orden del archivo.
 
-# ---------- Raíz → /en/ ----------
-# SIN '!' (force): Netlify sirve /index.html (que redirige por idioma en el cliente,
-# respetando la preferencia guardada) y en Cloudflare los redirects corren ANTES que
-# los archivos, así que el 301 aplica directo. El '!' rompe el deploy en Cloudflare.
 /                                                                /en/                         301
 /index.html                                                      /en/                         301
-
-# ---------- Case studies viejos (sitio anterior) → caso equivalente o service page ----------
-# los 3 case studies de texto largo mantienen su URL (ahora bajo /en/)
 /case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding   /en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding/   301
 /case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions      /en/case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions/      301
 /case-study-sv-group-bringing-it-operations-and-hospitality-together               /en/case-study-sv-group-bringing-it-operations-and-hospitality-together/               301
 /news                                                            /en/blog/                         301
-
-# ---------- Estructura anterior sin prefijo → /en/ ----------
-/services/brand-video/*                                          /en/services/brand-video/    301
 /services/brand-video                                            /en/services/brand-video/    301
-/services/product-video/*                                        /en/services/product-video/  301
 /services/product-video                                          /en/services/product-video/  301
-/services/employer-branding/*                                    /en/services/employer-branding/ 301
 /services/employer-branding                                      /en/services/employer-branding/ 301
-/services/how-to-video/*                                         /en/services/how-to-video/   301
 /services/how-to-video                                           /en/services/how-to-video/   301
-/services/social-media-video/*                                   /en/services/social-media-video/ 301
 /services/social-media-video                                     /en/services/social-media-video/ 301
-/services/corporate-video/*                                      /en/services/corporate-video/ 301
 /services/corporate-video                                        /en/services/corporate-video/ 301
 /services                                                        /en/services/                301
-# OJO: sin splat /projects/* — sombrearía las imágenes reales de /projects/<slug>/*.jpeg
 /projects/                                                       /en/projects/                301
 /projects                                                        /en/projects/                301
-/why-viven/*                                                     /en/why-viven/               301
 /why-viven                                                       /en/why-viven/               301
-/faq/*                                                           /en/faq/                     301
 /faq                                                             /en/faq/                     301
-/contact/*                                                       /en/contact/                 301
 /contact                                                         /en/contact/                 301
-/impressum/*                                                     /en/impressum/               301
 /impressum                                                       /en/impressum/               301
-/privacy-policy/*                                                /en/privacy-policy/          301
 /privacy-policy                                                  /en/privacy-policy/          301
-/terms/*                                                         /en/terms/                   301
 /terms                                                           /en/terms/                   301
-
-# ---------- Blog: estructura nueva-anterior (/blog/… , /blog/de/…) → /{lang}/blog/ ----------
-/blog/de/*                                                       /de/blog/:splat              301
 /blog/de                                                         /de/blog/                    301
 /blog                                                            /en/blog/                    301
-
-# ---------- Páginas principales localizadas (sitio viejo) ----------
 /en/our-process                                                  /en/why-viven/               301
 /de/unser-prozess                                                /de/why-viven/               301
 /es/nuestro-proceso                                              /es/why-viven/               301
@@ -72,20 +45,6 @@
 /en/clients                                                      /en/why-viven/               301
 /de/kontakt                                                      /de/contact/                 301
 /es/contacto                                                     /es/contact/                 301
-
-# ---------- Case studies / proyectos viejos → galería (no hay contenido real en /project/) ----------
-/de/project/*                                                    /de/projects/                301
-/en/project/*                                                    /en/projects/                301
-/es/project/*                                                    /es/projects/                301
-
-# ⚠️ ELIMINADOS los catch-all /en/* /de/* /es/* y los fallback /{lang}/blog/*:
-# en Cloudflare los redirects corren ANTES que los archivos (al revés de Netlify),
-# así que esos comodines secuestraban TODAS las páginas y posts reales.
-# URLs viejas no mapeadas → 404 con página branded (aceptable).
-
-# ---------- Blog EN viejo (/blog/<slug>) → /en/blog/<slug>/ — estáticas, sin catch-all ----------
-# (el catch-all /blog/* y /services/* se eliminaron: en Cloudflare el wildcard SIEMPRE
-#  le gana a la regla específica por orden lexicográfico; slugs desconocidos → 404 branded)
 /blog/boost-brand-growth-with-an-effective-video-marketing-strategy /en/blog/boost-brand-growth-with-an-effective-video-marketing-strategy/  301
 /blog/collaborating-with-swiss-filmmakers-what-you-need-to-know  /en/blog/collaborating-with-swiss-filmmakers-what-you-need-to-know/  301
 /blog/commercial-video-production-in-switzerland-elevate-your-brand /en/blog/commercial-video-production-in-switzerland-elevate-your-brand/  301
@@ -131,16 +90,12 @@
 /blog/why-swiss-film-production-companies-are-in-high-demand     /en/blog/why-swiss-film-production-companies-are-in-high-demand/  301
 /blog/why-viven-is-the-video-agency-of-choice-for-b2b-brands     /en/blog/why-viven-is-the-video-agency-of-choice-for-b2b-brands/  301
 /blog/zurich-the-heart-of-switzerlands-film-production-scene     /en/blog/zurich-the-heart-of-switzerlands-film-production-scene/  301
-
-# --- cobertura completa del sitemap viejo (auditoría jul 2026) ---
-# servicios EN
 /en/brand-videos-elevate-your-brand-with-impactful-storytelling   /en/services/brand-video/        301
 /en/product-videos-transform-the-way-you-present-your-products    /en/services/product-video/      301
 /en/how-to-tutorial-videos-turn-knowledge-into-action             /en/services/how-to-video/       301
 /en/social-media-videos-boost-engagement-reach-more-people-and-drive-results  /en/services/social-media-video/ 301
 /en/corporate-video-production                                    /en/services/corporate-video/    301
 /en/production-services-for-feature-films-tv-documentaries-commercials-and-corporate-content  /en/services/  301
-# servicios DE
 /de/markenvideos-hebe-deine-marke-mit-fesselndem-storytelling-hervor  /de/services/brand-video/    301
 /de/produktvideos-veraendere-wie-du-deine-produkte-praesentierst  /de/services/product-video/      301
 /de/how-to-und-tutorial-videos-verwandle-wissen-in-aktion         /de/services/how-to-video/       301
@@ -149,7 +104,6 @@
 /de/corporate-videos                                              /de/services/corporate-video/    301
 /de/produktionsdienstleistungen-fuer-spielfilme-tv-dokumentarfilme-werbespots  /de/services/       301
 /de/videoproduktions-dienstleistungen-fuer-unternehmen            /de/services/                    301
-# servicios ES
 /es/videos-de-marca-eleva-tu-marca-con-una-narracion-impactante   /es/services/brand-video/        301
 /es/videos-de-producto-transforma-la-forma-en-que-presentas-tus-productos  /es/services/product-video/ 301
 /es/videos-how-to-y-tutoriales-convierte-tu-conocimiento-en-accion  /es/services/how-to-video/     301
@@ -157,7 +111,6 @@
 /es/employer-branding-atrae-a-los-mejores-talentos-con-contenido-de-video-impactante  /es/services/employer-branding/ 301
 /es/video-corporativo                                             /es/services/corporate-video/    301
 /es/servicios-de-produccion-de-largometrajes-television-documentales-anuncios-y-contenidos-corporativos  /es/services/ 301
-# contacto / why / faq / listing / agencia
 /en/contact-viven-film-and-video-production                       /en/contact/                     301
 /de/kontaktiere-viven-die-film-und-videoproduktion                /de/contact/                     301
 /es/ponete-en-contacto-con-viven-productora-de-cine-y-video       /es/contact/                     301
@@ -178,21 +131,35 @@
 /es/clientes                                                      /es/projects/                    301
 /es/our-process                                                   /es/why-viven/                   301
 /en/corporate-content-academy                                     /en/blog/                        301
-# case studies DE/ES viejos → los case studies reales (EN)
 /de/case-study-meteomatics-komplexitaet-vereinfachen-mit-den-videos-von-viven-ag  /en/case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions/ 301
 /de/case-study-sv-group-it-betrieb-und-gastfreundschaft-perfekt-vereint  /en/case-study-sv-group-bringing-it-operations-and-hospitality-together/ 301
 /de/case-study-wie-viven-siemens-schweiz-dabei-half-sein-employer-branding-zu-staerken  /en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding/ 301
 /es/caso-de-exito-como-viven-ayudo-a-siemens-a-ampliar-su-marca-de-empleador  /en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding/ 301
 /es/caso-de-exito-sv-group-it-operaciones-y-hospitalidad-perfectamente-integrados  /en/case-study-sv-group-bringing-it-operations-and-hospitality-together/ 301
-# legales
 /en/terms-conditions                                              /en/terms/                       301
 /es/condiciones-generales-de-viven                                /es/terms/                       301
 /es/aviso-legal                                                   /es/impressum/                   301
 /de/datenschutzerklaerung                                         /de/privacy-policy/              301
-# thank-you / newsletter
 /en/thank-you                                                     /thank-you/                      301
 /en/thank-you-for-subscribing-to-our-newsletter                   /thank-you/                      301
 /de/thank-you-for-subscribing-to-our-newsletter                   /danke/                          301
 /es/gracias-por-suscribirte                                       /gracias/                        301
-# junk de HubSpot
 /de/-mab-6f78bb71-8357-4c1a-af0b-3acb6771bd33                     /de/                             301
+
+# --- reglas dinámicas (wildcards) — SIEMPRE al final ---
+/services/brand-video/*                                          /en/services/brand-video/    301
+/services/product-video/*                                        /en/services/product-video/  301
+/services/employer-branding/*                                    /en/services/employer-branding/ 301
+/services/how-to-video/*                                         /en/services/how-to-video/   301
+/services/social-media-video/*                                   /en/services/social-media-video/ 301
+/services/corporate-video/*                                      /en/services/corporate-video/ 301
+/why-viven/*                                                     /en/why-viven/               301
+/faq/*                                                           /en/faq/                     301
+/contact/*                                                       /en/contact/                 301
+/impressum/*                                                     /en/impressum/               301
+/privacy-policy/*                                                /en/privacy-policy/          301
+/terms/*                                                         /en/terms/                   301
+/blog/de/*                                                       /de/blog/:splat              301
+/de/project/*                                                    /de/projects/                301
+/en/project/*                                                    /en/projects/                301
+/es/project/*                                                    /es/projects/                301
