@@ -1,0 +1,44 @@
+---
+import Base from '../../layouts/Base.astro';
+import CaseStudy from '../../components/CaseStudy.astro';
+import projects from '../../data/projects.json';
+const project = projects.find((x) => x.slug === "de/porsche-auf-dem-weg-zur-elektromobilitaet-social-media-kampagne");
+const lang = "de";
+const SITE = "https://www.viven.ch";
+const title = {"de": "Porsche auf dem Weg zur Elektromobilität Social-Media-Kampagne | Viven"};
+const description = {"de": "Michael Lang erkundet die Vorteile der Elektromobilität mit dem Porsche Taycan Cross Turismo und präsentiert Innovation und Nachhaltigkeit in dieser fesselnde"};
+const ld = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'VideoObject',
+      name: project.headline,
+      description: description[lang],
+      thumbnailUrl: SITE + project.stills[0],
+      embedUrl: 'https://player.vimeo.com/video/' + project.vimeo,
+      uploadDate: "2021-09-01",
+      publisher: { '@id': SITE + '/#organization' },
+    },
+    {
+      '@type': 'CreativeWork',
+      name: project.headline,
+      about: project.client,
+      inLanguage: lang,
+      creator: { '@id': SITE + '/#organization' },
+      url: SITE + "/de/porsche-auf-dem-weg-zur-elektromobilitaet-social-media-kampagne/",
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE + '/' + lang + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Projects', item: SITE + '/' + lang + '/projects/' },
+        { '@type': 'ListItem', position: 3, name: project.headline, item: SITE + "/de/porsche-auf-dem-weg-zur-elektromobilitaet-social-media-kampagne/" },
+      ],
+    },
+  ],
+};
+---
+<Base lang={lang} slug="projects" active="projects" singleLang={true} switchSlug="projects" canonicalPath={"/de/porsche-auf-dem-weg-zur-elektromobilitaet-social-media-kampagne/"} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={JSON.stringify(ld)}></script>
+  <CaseStudy project={project} lang={lang} />
+</Base>

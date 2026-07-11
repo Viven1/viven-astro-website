@@ -1,0 +1,44 @@
+---
+import Base from '../../layouts/Base.astro';
+import CaseStudy from '../../components/CaseStudy.astro';
+import projects from '../../data/projects.json';
+const project = projects.find((x) => x.slug === "es/sigg-run-swiss-lanzamiento-de-producto");
+const lang = "es";
+const SITE = "https://www.viven.ch";
+const title = {"es": "SIGG - Run Swiss Lanzamiento de producto | Viven"};
+const description = {"es": "SIGG lanzó con éxito su última línea de ropa en China, haciendo hincapié en la herencia suiza mediante un marketing específico y una convincente campaña RUN S"};
+const ld = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'VideoObject',
+      name: project.headline,
+      description: description[lang],
+      thumbnailUrl: SITE + project.stills[0],
+      embedUrl: 'https://player.vimeo.com/video/' + project.vimeo,
+      uploadDate: "2018-10-01",
+      publisher: { '@id': SITE + '/#organization' },
+    },
+    {
+      '@type': 'CreativeWork',
+      name: project.headline,
+      about: project.client,
+      inLanguage: lang,
+      creator: { '@id': SITE + '/#organization' },
+      url: SITE + "/es/sigg-run-swiss-lanzamiento-de-producto/",
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE + '/' + lang + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Projects', item: SITE + '/' + lang + '/projects/' },
+        { '@type': 'ListItem', position: 3, name: project.headline, item: SITE + "/es/sigg-run-swiss-lanzamiento-de-producto/" },
+      ],
+    },
+  ],
+};
+---
+<Base lang={lang} slug="projects" active="projects" singleLang={true} switchSlug="projects" canonicalPath={"/es/sigg-run-swiss-lanzamiento-de-producto/"} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={JSON.stringify(ld)}></script>
+  <CaseStudy project={project} lang={lang} />
+</Base>

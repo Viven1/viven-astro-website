@@ -1,0 +1,44 @@
+---
+import Base from '../../layouts/Base.astro';
+import CaseStudy from '../../components/CaseStudy.astro';
+import projects from '../../data/projects.json';
+const project = projects.find((x) => x.slug === "es/meteomatica-campania-de-productos");
+const lang = "es";
+const SITE = "https://www.viven.ch";
+const title = {"es": "Meteomatics — Campaña de productos | Viven"};
+const description = {"es": "Descubra cómo Meteomatics aprovecha la innovadora tecnología de los drones y los datos meteorológicos precisos para mejorar sectores como la energía y la agri"};
+const ld = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'VideoObject',
+      name: project.headline,
+      description: description[lang],
+      thumbnailUrl: SITE + project.stills[0],
+      embedUrl: 'https://player.vimeo.com/video/' + project.vimeo,
+      uploadDate: "2022-12-01",
+      publisher: { '@id': SITE + '/#organization' },
+    },
+    {
+      '@type': 'CreativeWork',
+      name: project.headline,
+      about: project.client,
+      inLanguage: lang,
+      creator: { '@id': SITE + '/#organization' },
+      url: SITE + "/es/meteomatica-campania-de-productos/",
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE + '/' + lang + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Projects', item: SITE + '/' + lang + '/projects/' },
+        { '@type': 'ListItem', position: 3, name: project.headline, item: SITE + "/es/meteomatica-campania-de-productos/" },
+      ],
+    },
+  ],
+};
+---
+<Base lang={lang} slug="projects" active="projects" singleLang={true} switchSlug="projects" canonicalPath={"/es/meteomatica-campania-de-productos/"} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={JSON.stringify(ld)}></script>
+  <CaseStudy project={project} lang={lang} />
+</Base>

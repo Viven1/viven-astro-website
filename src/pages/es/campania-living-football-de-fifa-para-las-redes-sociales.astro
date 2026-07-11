@@ -1,0 +1,44 @@
+---
+import Base from '../../layouts/Base.astro';
+import CaseStudy from '../../components/CaseStudy.astro';
+import projects from '../../data/projects.json';
+const project = projects.find((x) => x.slug === "es/campania-living-football-de-fifa-para-las-redes-sociales");
+const lang = "es";
+const SITE = "https://www.viven.ch";
+const title = {"es": "Campaña Living Football de la FIFA en las redes sociales | Viven"};
+const description = {"es": "Descubra cómo la serie \"Living Football\" de la FIFA mostró iniciativas globales a través de una producción de alta calidad, ofreciendo 36 cautivadores episodi"};
+const ld = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'VideoObject',
+      name: project.headline,
+      description: description[lang],
+      thumbnailUrl: SITE + project.stills[0],
+      embedUrl: 'https://player.vimeo.com/video/' + project.vimeo,
+      uploadDate: "2022-10-01",
+      publisher: { '@id': SITE + '/#organization' },
+    },
+    {
+      '@type': 'CreativeWork',
+      name: project.headline,
+      about: project.client,
+      inLanguage: lang,
+      creator: { '@id': SITE + '/#organization' },
+      url: SITE + "/es/campania-living-football-de-fifa-para-las-redes-sociales/",
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE + '/' + lang + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Projects', item: SITE + '/' + lang + '/projects/' },
+        { '@type': 'ListItem', position: 3, name: project.headline, item: SITE + "/es/campania-living-football-de-fifa-para-las-redes-sociales/" },
+      ],
+    },
+  ],
+};
+---
+<Base lang={lang} slug="projects" active="projects" singleLang={true} switchSlug="projects" canonicalPath={"/es/campania-living-football-de-fifa-para-las-redes-sociales/"} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={JSON.stringify(ld)}></script>
+  <CaseStudy project={project} lang={lang} />
+</Base>

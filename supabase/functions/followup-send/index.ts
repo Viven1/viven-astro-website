@@ -38,8 +38,8 @@ Deno.serve(async (_req) => {
       const snd = SENDER(fu.sender_key || "sofia");
       // CTA según la etapa: sin call → botón de booking; oferta/propuesta enviada → link a la propuesta si existe
       const stage = String(lead.status || "").toLowerCase();
-      const BOOK_URL = "https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49";
       const SITE = "https://viven-astro-website.viven-ag.workers.dev"; // TODO al ir live: https://www.viven.ch
+      const BOOK_URL = SITE + "/book/";
       let cta = "";
       if (["new", "nuevo", "", "pending", "contacted", "contactado"].includes(stage)) {
         const label = lead.lang === "de" ? "📅 15-Min-Call buchen" : lead.lang === "es" ? "📅 Agendar un call de 15 min" : "📅 Book a 15-min call";

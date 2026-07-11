@@ -12,8 +12,6 @@ for (const pr of projects) {
   if (pr.lang === lang && key && !caseByClient.has(key)) caseByClient.set(key, pr.slug);
 }
 const caseFor = (v) => caseByClient.get((v.client || '').trim().toLowerCase());
-// videos que YA son el hero de un case study → no repetirlos como tile de video (evita el doble de TomFit)
-const caseVideoIds = new Set(projects.map((pr) => String(pr.vimeo || '')).filter(Boolean));
 const CS_LABEL = { en: 'Case study', de: 'Case Study', es: 'Caso de éxito' };
 const csLabel = CS_LABEL[lang] || CS_LABEL.en;
 
@@ -22,19 +20,18 @@ const csLabel = CS_LABEL[lang] || CS_LABEL.en;
 const serviceCat = (s) => {
   const x = (s || '').toLowerCase();
   if (/employer/.test(x)) return 'employer';
+  if (/feature film|spielfilm|largometraje/.test(x)) return 'corporate';
   if (/produkt|product|producto/.test(x)) return 'product';
   if (/social/.test(x)) return 'social';
   if (/explain|explicativo|erklär|how.?to|tutorial/.test(x)) return 'howto';
   if (/marca|brand|marken/.test(x)) return 'brand';
   return 'corporate';
 };
-// Un tile por case study (deduplicado por cliente) para la grilla de proyectos
+// Un tile por proyecto con página propia — TODOS los del idioma (puede haber varios por cliente)
 const csProjects = [];
 if (caseFirst) {
-  const seen = new Set();
   for (const pr of projects) {
-    const key = (pr.client || '').trim().toLowerCase();
-    if (pr.lang === lang && key && !seen.has(key) && pr.stills && pr.stills.length) { seen.add(key); csProjects.push(pr); }
+    if (pr.lang === lang && pr.stills && pr.stills.length) csProjects.push(pr);
   }
 }
 
@@ -48,7 +45,7 @@ const CATLABEL = {
 };
 
 // clientes más relevantes primero
-const IMPORTANT = ['UBS','Siemens','Porsche','ON','FIFA','Philips','V-ZUG','Franke','Chanel','Swarovski','IBM','Julius Bär','KPMG','Sennheiser','Sigg','ABB','Sonova','Kanebo','SENSAI','Meteomatics','Capgemini','Büchi','Nile','TomFit','SV Group','PMI Science','Stadtspital','Carvolution','Calda Clinic','LEM'];
+const IMPORTANT = ['UBS','Siemens','Porsche','ON','FIFA','Netflix','Philips','V-ZUG','Franke','Chanel','Swarovski','IBM','Julius Bär','KPMG','Sennheiser','Sigg','ABB','Sonova','Kanebo','SENSAI','Meteomatics','Capgemini','Büchi','Nile','TomFit','SV Group','PMI Science','Stadtspital','Carvolution','Calda Clinic','LEM'];
 const rank = (c) => { const i = IMPORTANT.indexOf(c); return i === -1 ? 999 : i; };
 const time = (d) => (d ? Date.parse(d) || 0 : 0);
 
@@ -69,8 +66,7 @@ const hasCat = (v, c) => (v.cat || '').split(' ').indexOf(c) !== -1;
 // Nota: NO ocultamos los videos de clientes con case study — son los mejores (UBS, Siemens…).
 // En la grilla de proyectos (caseFirst) aparecen como tiles reproducibles, además del tile de case study.
 const pool = videos.filter((v) => v.thumb && (!cat || hasCat(v, cat)) && (v.client || !junkTitle(v.title))
-  && !isTestimonial(v)
-  && !caseVideoIds.has(String(v.id)));
+  && !isTestimonial(v));
 const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
 for (const v of pool) {
   const key = v.client || ('__' + v.id);

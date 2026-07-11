@@ -496,6 +496,11 @@
   .of-card-margin{font-size:12px;margin-top:2px}
   .of-badge{border:1px solid;border-radius:999px;font-size:11px;font-weight:600;padding:3px 10px;white-space:nowrap}
   .of-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:18px 0}
+  .of-meta.of-addr{margin-top:-8px}
+  .en-sum{font-size:13px;line-height:1.6;color:var(--text);margin:4px 0 8px}
+  .en-hooks{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.7}
+  .en-news{font-size:13px;margin:4px 0}
+  #lm-enrich .ab-sec{margin-bottom:12px}
   .of-meta .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
   .of-meta input,.of-meta select{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px}
   .of-ai{background:color-mix(in srgb,var(--acid) 7%,var(--navy-800));border:1px solid color-mix(in srgb,var(--acid) 28%,var(--line));border-radius:14px;padding:14px 16px;margin-bottom:14px}
@@ -965,6 +970,15 @@
         <div class="bf"><label>Cliente</label><input id="of-client" placeholder="Nombre del cliente" /></div>
         <div class="bf"><label>Ligar a lead (opcional)</label><select id="of-lead"></select></div>
       </div>
+      <!-- dirección completa del cliente — sale en el PDF (requisito legal) -->
+      <div class="of-meta of-addr">
+        <div class="bf"><label>Empresa</label><input id="of-ccompany" placeholder="Empresa del cliente" /></div>
+        <div class="bf"><label>Persona de contacto</label><input id="of-cperson" placeholder="Nombre y apellido" /></div>
+        <div class="bf"><label>Dirección</label><input id="of-caddr" placeholder="Calle y número" /></div>
+        <div class="bf"><label>CP y ciudad</label><input id="of-czip" placeholder="p. ej. 8004 Zürich" /></div>
+        <div class="bf"><label>Teléfono</label><input id="of-cphone" placeholder="+41 …" /></div>
+        <div class="bf"><label>Email</label><input id="of-cemail" placeholder="cliente@empresa.ch" /></div>
+      </div>
 
       <!-- generar con IA desde la consulta del cliente -->
       <div class="of-ai">
@@ -1190,6 +1204,13 @@
         <div class="lm-block">
           <div class="lm-block-h">💬 Consulta del cliente</div>
           <div class="lead-msg" id="lm-message"></div>
+        </div>
+        <div class="lm-block">
+          <div class="draft-head">
+            <div class="lm-block-h" style="margin:0">🔎 Enriquecer con IA <span class="muted-note" id="lm-en-when" style="font-weight:400"></span></div>
+            <button class="btn btn-ghost small" id="lm-enrich-btn" type="button" title="Busca en la web info ACTUAL de la persona y su empresa: web, redes, noticias y ganchos para la venta">✨ Buscar info actual</button>
+          </div>
+          <div id="lm-enrich"><p class="muted-note">Sin datos todavía.</p></div>
         </div>
         <div class="lm-block">
           <div class="draft-head">
@@ -1720,7 +1741,7 @@
     { key: 'nuevo',      label: 'Nuevo',        color: '#8ab4ff', prob: 0.2,  match: ['new', 'nuevo', '', 'pending'] },
     { key: 'contactado', label: 'Contactado',   color: '#f0c060', prob: 0.4,  match: ['contacted', 'contactado'] },
     { key: 'videocall',  label: 'Video Call',   color: '#c58af9', prob: 0.6,  match: ['videocall', 'video call booked', 'call', 'agendada', 'booked'] },
-    { key: 'propuesta',  label: 'Propuesta',    color: '#f0904e', prob: 0.8,  match: ['proposal', 'propuesta', 'qualified'] },
+    { key: 'propuesta',  label: 'Propuesta enviada', color: '#f0904e', prob: 0.8,  match: ['proposal', 'propuesta', 'qualified'] },
     { key: 'ganado',     label: 'Ganado',       color: '#7ed957', prob: 1,    match: ['won', 'cerrado', 'ganado'] },
     { key: 'perdido',    label: 'Perdido',      color: '#ff6b6b', prob: 0,    match: ['lost', 'perdido'] },
   ];
@@ -1880,10 +1901,13 @@
     if (!rows.length) return '<p class="muted-note" style="padding:14px">Sin personas que coincidan con la búsqueda o el filtro.</p>';
     const stageIdx = (r) => STAGES.findIndex((s) => s.key === stageOf(r.status));
     const actMap = new Map(rows.map((r) => [r.id, lastActivity(r)]));
+    // valor VISIBLE en la tabla: lo que hay/hubo sobre la mesa — regla única primero,
+    // y si da 0 pero hay ofertas ligadas (ej. perdidas), mostrar ese valor igual.
+    const rowVal = (r) => leadValue(r) || leadLostValue(r);
     const CMP = {
       name:    (a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || '')),
       stage:   (a, b) => stageIdx(a) - stageIdx(b),
-      value:   (a, b) => leadsValue([a]) - leadsValue([b]),
+      value:   (a, b) => rowVal(a) - rowVal(b),
       channel: (a, b) => String(a.channel || '').localeCompare(String(b.channel || '')),
       activity: (a, b) => ((actMap.get(a.id) || {}).t || 0) - ((actMap.get(b.id) || {}).t || 0),
       created: (a, b) => new Date(a.created_at) - new Date(b.created_at)
@@ -1891,7 +1915,7 @@
     const sorted = rows.slice().sort((a, b) => (CMP[psSort.k] || CMP.created)(a, b) * psSort.dir);
     const body = sorted.map((r) => {
       const s = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
-      const val = leadsValue([r]);
+      const val = rowVal(r);
       const act = actMap.get(r.id);
       return '<tr data-id="' + esc(r.id) + '"><td><div class="lt-name">' + esc(r.name || r.first_name || '(sin nombre)') + '</div><div class="lt-mail">' + esc(r.email || '') + '</div></td>' +
         '<td><span class="lt-stage" style="color:' + s.color + '"><span class="dot" style="background:' + s.color + '"></span>' + s.label + '</span></td>' +
@@ -2029,8 +2053,8 @@
 
   /* quién firma/envía — configurable (Sofia o Sebastian). Se guarda en el navegador. */
   const SENDERS = {
-    sofia:     { name: 'Sofia Treviño',   book: 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49' },
-    sebastian: { name: 'Sebastian Cepeda', book: 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49' },
+    sofia:     { name: 'Sofia Treviño',   book: 'https://viven-astro-website.viven-ag.workers.dev/book/' },
+    sebastian: { name: 'Sebastian Cepeda', book: 'https://viven-astro-website.viven-ag.workers.dev/book/' },
   };
   let sender = localStorage.getItem('viven_sender') || 'sofia';
   const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en') + '&topic=' + detectTopic(r.message);
@@ -2175,6 +2199,7 @@
     loadFollowups(r);
 
     $('lm-message').textContent = r.message || '(sin mensaje)';
+    renderEnrichment(r);
     $('lm-sender').value = sender;
     const draft = buildDraft(r);
     $('lm-draft').value = draft;
@@ -2184,6 +2209,53 @@
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     loadJourney(r);
+  }
+
+  /* ---------- Enrich con IA: info actual de la persona + empresa (web search) ---------- */
+  function enrichHTML(e){
+    const link = (u, t) => u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t || u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]) + '</a>' : '';
+    const kv = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + v + '</span></div>' : '';
+    const redes = (arr) => (arr || []).filter((x) => x && x.url).map((x) => link(x.url, x.tipo)).join(' · ');
+    const per = e.persona || {}, em = e.empresa || {};
+    let h = '';
+    if (per.resumen || per.linkedin) h += '<div class="ab-sec"><div class="ab-h">👤 Persona</div>' +
+      (per.resumen ? '<p class="en-sum">' + esc(per.resumen) + '</p>' : '') +
+      kv('Cargo', esc(per.cargo || '')) + kv('Ubicación', esc(per.ubicacion || '')) +
+      kv('LinkedIn', link(per.linkedin)) + kv('Redes', redes(per.redes)) + '</div>';
+    if (em.resumen || em.web) h += '<div class="ab-sec"><div class="ab-h">🏢 ' + esc(em.nombre || 'Empresa') + '</div>' +
+      (em.resumen ? '<p class="en-sum">' + esc(em.resumen) + '</p>' : '') +
+      kv('Web', link(em.web)) + kv('Industria', esc(em.industria || '')) +
+      kv('Empleados', esc(em.empleados || '')) + kv('Ubicación', esc(em.ubicacion || '')) +
+      kv('Redes', redes(em.redes)) + '</div>';
+    if ((e.hooks || []).length) h += '<div class="ab-sec"><div class="ab-h">🎣 Ganchos para la venta</div><ul class="en-hooks">' +
+      e.hooks.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+    if ((em.noticias || []).length) h += '<div class="ab-sec"><div class="ab-h">📰 Noticias recientes</div>' +
+      em.noticias.map((n) => '<div class="en-news">' + (n.url ? '<a href="' + esc(n.url) + '" target="_blank" rel="noopener">' + esc(n.titulo) + '</a>' : esc(n.titulo)) + (n.fecha ? ' <span class="muted-note">· ' + esc(n.fecha) + '</span>' : '') + '</div>').join('') + '</div>';
+    if ((e.fuentes || []).length) h += '<p class="muted-note" style="margin-top:8px">Fuentes: ' + e.fuentes.slice(0, 5).map((u) => link(u)).join(' · ') + '</p>';
+    return h || '<p class="muted-note">La búsqueda no encontró nada útil.</p>';
+  }
+  function renderEnrichment(r){
+    $('lm-en-when').textContent = r.enriched_at ? '· actualizado ' + fmtDMY(r.enriched_at) : '';
+    $('lm-enrich').innerHTML = r.enrichment ? enrichHTML(r.enrichment) : '<p class="muted-note">Sin datos todavía — tocá «Buscar info actual» (busca en la web en vivo).</p>';
+  }
+  async function runEnrich(){
+    const r = currentLead; if (!r) return;
+    const btn = $('lm-enrich-btn'), prev = btn.textContent;
+    btn.disabled = true; btn.textContent = '🔎 Buscando en la web…';
+    try {
+      const dom = leadDomain(r);
+      const { data, error } = await supabase.functions.invoke('ai-enrich', { body: { lead: {
+        name: r.name, email: r.email, job_title: r.job_title, lang: r.lang,
+        company: r.company || (dom ? companyName(dom) : ''), domain: dom } } });
+      if (error || (data && data.error)) { toast('No se pudo: ' + ((data && data.error) || error.message)); return; }
+      r.enrichment = data.enrichment; r.enriched_at = new Date().toISOString();
+      const i = allLeads.findIndex((l) => l.id === r.id);
+      if (i > -1) { allLeads[i].enrichment = r.enrichment; allLeads[i].enriched_at = r.enriched_at; }
+      renderEnrichment(r);
+      const { stripped } = await updateLeadResilient(r.id, { enrichment: r.enrichment, enriched_at: r.enriched_at });
+      if (stripped && stripped.length) toast('⚠️ Corré el SQL 0021 para que quede guardado');
+      else toast('🔎 Contacto enriquecido y guardado');
+    } finally { btn.disabled = false; btn.textContent = prev; }
   }
 
   /* ---------- Team, lead scoring, notas, tasks, edición ---------- */
@@ -2541,6 +2613,7 @@
     toast('Propuesta creada con la oferta como opción — agregá 2 más o usá la IA');
   }
   modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeLead));
+  $('lm-enrich-btn').addEventListener('click', runEnrich);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) closeLead(); });
 
   $('lm-copy').addEventListener('click', async () => {
@@ -2683,7 +2756,7 @@
       { key: 'lead',       label: 'Leads',      ts: (l) => l.created_at },
       { key: 'contactado', label: 'Contactado', ts: (l) => l.contacted_at },
       { key: 'videocall',  label: 'Video Call', ts: (l) => l.videocall_at },
-      { key: 'propuesta',  label: 'Propuesta',  ts: (l) => l.proposal_at },
+      { key: 'propuesta',  label: 'Propuesta enviada', ts: (l) => l.proposal_at },
       { key: 'ganado',     label: 'Ganado',     ts: (l) => l.won_at },
     ];
     const rows = steps.map((s) => ({ ...s, n: set.filter((l) => s.ts(l)).length, list: set.filter((l) => s.ts(l)) }));
@@ -3061,7 +3134,14 @@
     $('of-vat').value = ofCur.vat_rate ?? 8.1;
     $('of-lead').innerHTML = leadOptions(ofCur.lead_id);
     $('of-inquiry').value = ''; $('of-ai-note').textContent = ''; inquiryFromLead = '';
-    $('of-terms').value = ofCur.terms ?? '';
+    $('of-terms').value = ofCur.terms || DEFAULT_TERMS;   // base: los terms reales de las ofertas A260xxx
+    $('of-ccompany').value = ofCur.client_company || '';
+    $('of-cperson').value = ofCur.client_contact || '';
+    $('of-caddr').value = ofCur.client_address || '';
+    $('of-czip').value = ofCur.client_zip_city || '';
+    $('of-cphone').value = ofCur.client_phone || '';
+    $('of-cemail').value = ofCur.client_email || '';
+    prefillClientBlock();
     showLostNote('of-lostr', ofCur.lost_reason || leadLostReason(ofCur.lead_id), ofCur.status === 'lost');
     prefillInquiry(false);
     renderRows();
@@ -3071,6 +3151,19 @@
     const el = $(id); if (!el) return;
     el.hidden = !(isLost || reason);
     el.textContent = '✕ Perdida' + (reason ? ' — motivo: ' + reason : ' (sin motivo registrado)');
+  }
+  // dirección del cliente: completar los campos VACÍOS desde el lead ligado (y su empresa)
+  function prefillClientBlock(){
+    const lead = (allLeads || []).find((l) => String(l.id) === String(ofCur.lead_id));
+    if (!lead) return;
+    const co = coMeta[leadDomain(lead)] || null;
+    const put = (id, v) => { const el = $(id); if (el && !el.value.trim() && v) el.value = v; };
+    put('of-ccompany', lead.company || (co && co.name));
+    put('of-cperson', lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' '));
+    put('of-cemail', lead.email);
+    put('of-cphone', lead.phone);
+    put('of-caddr', co && co.address);
+    put('of-czip', co && (co.zip_city || co.city));
   }
   // llena la consulta desde el lead ligado. force=true (cambio explícito de lead) reemplaza;
   // si vos editaste el texto a mano, pide confirmación antes de pisarlo.
@@ -3209,19 +3302,25 @@
     ofCur.vat_rate = parseFloat($('of-vat').value) || 0;
     ofCur.status = $('of-status').value;
     ofCur.terms = $('of-terms').value.trim() || null;
+    ofCur.client_company = $('of-ccompany').value.trim() || null;
+    ofCur.client_contact = $('of-cperson').value.trim() || null;
+    ofCur.client_address = $('of-caddr').value.trim() || null;
+    ofCur.client_zip_city = $('of-czip').value.trim() || null;
+    ofCur.client_phone = $('of-cphone').value.trim() || null;
+    ofCur.client_email = $('of-cemail').value.trim() || null;
     // sync pipeline: sin lead ligado, ofrecer crear la persona (si no, la oferta queda fuera del board)
     if (!ofCur.lead_id && ofCur.client){
       const lid = await ensureLeadFor(ofCur.client, undefined, ofCur.status);
       if (lid){ ofCur.lead_id = lid; $('of-lead').innerHTML = leadOptions(lid); }
     }
-    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms };
+    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms, client_company: ofCur.client_company || null, client_contact: ofCur.client_contact || null, client_address: ofCur.client_address || null, client_zip_city: ofCur.client_zip_city || null, client_phone: ofCur.client_phone || null, client_email: ofCur.client_email || null };
     const btn = $('of-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
     const doSave = (p) => ofCur.id
       ? supabase.from('offers').update(p).eq('id', ofCur.id).select().single()
       : supabase.from('offers').insert(p).select().single();
     let res = await doSave(payload);
     // columnas nuevas sin migrar (SQL 0014/0018): sacarlas y reintentar
-    for (let a = 0; a < 3 && res.error; a++) {
+    for (let a = 0; a < 8 && res.error; a++) {
       const m = /Could not find the '([^']+)' column/.exec(res.error.message || '');
       if (m && m[1] in payload) { delete payload[m[1]]; res = await doSave(payload); } else break;
     }
@@ -3303,7 +3402,13 @@
       '<div class="band"><div class="brand">' + VIVEN_MARK + '<div class="fp">Film<br>Production</div></div>' +
         '<div class="doc"><div class="t">Offerte</div><div class="d">' + today + '</div></div></div>' +
       '<div class="wrap">' +
-        '<div class="meta"><div><div class="k">Für</div><div class="v">' + esc(ofCur.client || '—') + '</div></div>' +
+        (() => {
+          // bloque legal del cliente: empresa, persona, dirección, CP, tel, email
+          const L = [ofCur.client_company, ofCur.client_contact, ofCur.client_address, ofCur.client_zip_city,
+                     [ofCur.client_phone, ofCur.client_email].filter(Boolean).join(' · ')].filter((x) => x && String(x).trim());
+          const block = L.length ? L.map((x) => esc(x)).join('<br>') : esc(ofCur.client || '—');
+          return '<div class="meta"><div><div class="k">Für</div><div class="v" style="font-size:13.5px;line-height:1.55;font-family:Inter,sans-serif;font-weight:500">' + block + '</div></div>';
+        })() +
         '<div style="text-align:right"><div class="k">Gültig bis</div><div class="v">' + valid + '</div></div></div>' +
         '<h1>' + esc(ofCur.title || 'Video Produktion') + '</h1>' +
         '<table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
@@ -3323,7 +3428,7 @@
   }
   // Enviar la oferta al cliente por EMAIL (la oferta va embebida en el mail, con
   // tabla de posiciones, totales y botón para agendar un call). Vía Resend (send-offer).
-  const BOOK_URL = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49';
+  const BOOK_URL = 'https://viven-astro-website.viven-ag.workers.dev/book/';   // TODO al ir live: https://www.viven.ch/book/
   function offerEmailHTML(note, lang){
     const vatRate = parseFloat($('of-vat').value) || 0;
     const net = offerNet(ofCur), vat = net * vatRate / 100;
@@ -3424,7 +3529,7 @@
       }
       showLostNote('of-lostr', ofCur.lost_reason || leadLostReason(ofCur.lead_id), ofCur.status === 'lost');
     });
-    $('of-lead').addEventListener('change', () => { ofCur.lead_id = $('of-lead').value || null; prefillInquiry(true); });
+    $('of-lead').addEventListener('change', () => { ofCur.lead_id = $('of-lead').value || null; prefillInquiry(true); prefillClientBlock(); });
     $('of-ai-gen').addEventListener('click', generateOfferAI);
     $('of-save').addEventListener('click', saveOffer);
     $('of-delete').addEventListener('click', deleteOffer);
@@ -3509,7 +3614,7 @@
       title: r.title || c.title || '', client_name: r.client_name || '', client_email: r.client_email || '',
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
-      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => g.items || []), videos: c.videos || [], terms: c.terms || '', testimonials: c.testimonials || pickReviews('general') };
+      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => g.items || []), videos: c.videos || [], terms: c.terms || DEFAULT_TERMS, testimonials: c.testimonials || pickReviews('general') };
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
   function openProp(id){ const src = ppList.find((p) => String(p.id) === String(id)); if (!src) return; ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); }

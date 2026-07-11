@@ -1,0 +1,214 @@
+---
+// Página pública de booking — reemplaza el meeting link de HubSpot.
+// Lee slots libres del Google Calendar de Viven (booking-slots) y crea el evento
+// con Google Meet + invitación (booking-create). Al bookear, el CRM mueve la
+// persona a "videocall" solo. Fallback: si la API no responde, link a HubSpot.
+const FN = 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1';
+const FALLBACK = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Book a call — Viven Film Production</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+<link rel="preload" href="/assets/fonts/sg-var.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/assets/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/assets/site.css" />
+<style>
+  body{background:var(--navy-900,#0b1220);min-height:100vh;margin:0}
+  .bk-wrap{max-width:980px;margin:0 auto;padding:34px 18px 60px}
+  .bk-card{display:grid;grid-template-columns:340px 1fr;background:var(--navy-800,#0f1826);border:1px solid var(--line,#22304a);border-radius:20px;overflow:hidden;min-height:560px}
+  .bk-side{background:linear-gradient(160deg,#101c30,#0c1524);padding:34px 30px;border-right:1px solid var(--line,#22304a)}
+  .bk-logo{font-family:'Space Grotesk';font-weight:800;font-size:26px;letter-spacing:-.02em;color:#ddf98f}
+  .bk-fp{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#9aa6bd;margin-top:2px}
+  .bk-side h1{font-family:'Space Grotesk';font-size:24px;letter-spacing:-.01em;color:#fff;margin:26px 0 10px}
+  .bk-side p{font-size:14px;line-height:1.65;color:#9aa6bd;margin:0 0 12px}
+  .bk-side .who{display:flex;align-items:center;gap:12px;margin-top:22px}
+  .bk-side .who .av{width:44px;height:44px;border-radius:50%;background:#ddf98f;color:#1c2508;display:grid;place-items:center;font-weight:800;font-family:'Space Grotesk'}
+  .bk-side .who b{color:#fff;font-size:14px;display:block}
+  .bk-side .who span{font-size:12px;color:#9aa6bd}
+  .bk-main{padding:30px 34px}
+  .bk-h{font-family:'Space Grotesk';font-size:16.5px;color:#fff;margin:0 0 12px}
+  .bk-durs{display:flex;gap:10px;margin-bottom:20px}
+  .bk-dur{border:1px solid var(--line,#22304a);background:transparent;color:#dfe6f3;border-radius:100px;padding:9px 20px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .bk-dur.on{background:#ddf98f;border-color:#ddf98f;color:#1c2508}
+  .bk-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px}
+  .bk-day{min-width:74px;border:1px solid var(--line,#22304a);background:transparent;border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;color:#dfe6f3}
+  .bk-day .dw{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#9aa6bd}
+  .bk-day .dn{font-family:'Space Grotesk';font-weight:700;font-size:19px;margin-top:2px}
+  .bk-day .dm{font-size:10.5px;color:#9aa6bd}
+  .bk-day.on{border-color:#ddf98f;background:rgba(221,249,143,.08)}
+  .bk-day.on .dn{color:#ddf98f}
+  .bk-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;max-height:300px;overflow-y:auto;padding-right:4px}
+  .bk-slot{border:1px solid var(--line,#22304a);background:transparent;color:#dfe6f3;border-radius:10px;padding:10px 4px;font-size:13.5px;font-weight:600;cursor:pointer;text-align:center}
+  .bk-slot:hover{border-color:#ddf98f}
+  .bk-tz{font-size:11.5px;color:#9aa6bd;margin:10px 0 0}
+  .bk-note{font-size:13px;color:#9aa6bd;line-height:1.6}
+  .bk-form label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9aa6bd;margin:14px 0 5px}
+  .bk-form input,.bk-form textarea{width:100%;box-sizing:border-box;background:#0b1424;border:1px solid var(--line,#22304a);border-radius:10px;color:#fff;padding:11px 12px;font-size:14px;font-family:Inter,sans-serif}
+  .bk-form textarea{min-height:74px;resize:vertical}
+  .bk-actions{display:flex;gap:10px;align-items:center;margin-top:20px;flex-wrap:wrap}
+  .bk-btn{border:0;background:#ddf98f;color:#1c2508;font-weight:700;font-size:14.5px;border-radius:100px;padding:13px 26px;cursor:pointer;font-family:Inter,sans-serif}
+  .bk-btn[disabled]{opacity:.55;cursor:wait}
+  .bk-ghost{background:transparent;border:1px solid var(--line,#22304a);color:#dfe6f3;border-radius:100px;padding:12px 22px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .bk-chosen{background:rgba(221,249,143,.08);border:1px solid rgba(221,249,143,.35);border-radius:12px;padding:12px 16px;font-size:14px;color:#fff;margin-bottom:6px}
+  .bk-ok{ text-align:center;padding:40px 10px}
+  .bk-ok .big{font-size:44px}
+  .bk-ok h2{font-family:'Space Grotesk';color:#fff;font-size:22px;margin:14px 0 8px}
+  .bk-ok p{color:#9aa6bd;font-size:14.5px;line-height:1.7;max-width:420px;margin:0 auto 10px}
+  .bk-err{color:#ff8f8f;font-size:13.5px;margin-top:10px}
+  @media(max-width:820px){.bk-card{grid-template-columns:1fr}.bk-side{border-right:0;border-bottom:1px solid var(--line,#22304a);padding:26px 22px}.bk-main{padding:22px 18px}}
+</style>
+</head>
+<body>
+<div class="bk-wrap">
+  <div class="bk-card">
+    <aside class="bk-side">
+      <div class="bk-logo">viven</div>
+      <div class="bk-fp">Film Production</div>
+      <h1 data-i="t">Book your free intro call</h1>
+      <p data-i="p">15 minutes to talk about your video project — goals, timing and budget. No obligation.</p>
+      <div class="who">
+        <div class="av">ST</div>
+        <div><b>Sofia Treviño</b><span data-i="role">Client Partner — Viven AG, Zürich</span></div>
+      </div>
+    </aside>
+    <main class="bk-main" id="bk-main">
+      <div id="bk-step1">
+        <div class="bk-h" data-i="dur">How long do you need?</div>
+        <div class="bk-durs">
+          <button class="bk-dur on" data-d="15" type="button">15 min</button>
+          <button class="bk-dur" data-d="30" type="button">30 min</button>
+        </div>
+        <div class="bk-h" data-i="when">Pick a time</div>
+        <div id="bk-days" class="bk-days"><span class="bk-note" data-i="loading">Loading available times…</span></div>
+        <div id="bk-slots" class="bk-slots"></div>
+        <p class="bk-tz" id="bk-tz"></p>
+        <p class="bk-err" id="bk-err" hidden></p>
+      </div>
+      <div id="bk-step2" hidden>
+        <div class="bk-chosen" id="bk-chosen"></div>
+        <div class="bk-form">
+          <label data-i="name">Your name *</label><input id="bk-name" autocomplete="name" />
+          <label>Email *</label><input id="bk-email" type="email" autocomplete="email" />
+          <label data-i="phone">Phone (optional)</label><input id="bk-phone" type="tel" autocomplete="tel" />
+          <label data-i="msg">What's the project about? (optional)</label><textarea id="bk-msg"></textarea>
+        </div>
+        <div class="bk-actions">
+          <button class="bk-ghost" id="bk-back" type="button" data-i="back">← Back</button>
+          <button class="bk-btn" id="bk-confirm" type="button" data-i="confirm">Confirm booking</button>
+        </div>
+        <p class="bk-err" id="bk-err2" hidden></p>
+      </div>
+      <div id="bk-ok" class="bk-ok" hidden>
+        <div class="big">🎉</div>
+        <h2 data-i="okt">You're booked!</h2>
+        <p id="bk-ok-when"></p>
+        <p data-i="okp">The calendar invite with the Google Meet link is on its way to your inbox.</p>
+        <p data-i="okb">One more thing: fill in the 2-minute project brief so we can make the most of the call.</p>
+        <div class="bk-actions" style="justify-content:center">
+          <a class="bk-btn" href="/brief/" data-i="brief">→ Fill in the brief</a>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline define:vars={{ FN, FALLBACK }}>
+  const qs = new URLSearchParams(location.search);
+  const lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang')
+    : (navigator.language || 'en').slice(0,2) === 'de' ? 'de'
+    : (navigator.language || 'en').slice(0,2) === 'es' ? 'es' : 'en';
+  const L = {
+    en: {},
+    de: { t:'Buchen Sie Ihren kostenlosen Kennenlern-Call', p:'15 Minuten über Ihr Videoprojekt — Ziele, Timing und Budget. Unverbindlich.', role:'Client Partner — Viven AG, Zürich', dur:'Wie lange brauchen Sie?', when:'Zeit wählen', loading:'Verfügbare Zeiten werden geladen…', name:'Ihr Name *', phone:'Telefon (optional)', msg:'Worum geht es im Projekt? (optional)', back:'← Zurück', confirm:'Termin bestätigen', okt:'Gebucht!', okp:'Die Kalender-Einladung mit dem Google-Meet-Link ist unterwegs in Ihre Inbox.', okb:'Noch etwas: Füllen Sie das 2-Minuten-Briefing aus, damit wir das Maximum aus dem Call holen.', brief:'→ Briefing ausfüllen', taken:'Dieser Slot wurde gerade gebucht — bitte einen anderen wählen.', err:'Buchung fehlgeschlagen — bitte erneut versuchen.', need:'Bitte Name und gültige Email angeben.', fb:'Der Kalender ist gerade nicht erreichbar. Buchen Sie hier:', fbBtn:'📅 Call buchen (Backup-Link)' },
+    es: { t:'Reservá tu llamada gratis', p:'15 minutos para hablar de tu proyecto de video — objetivos, tiempos y presupuesto. Sin compromiso.', role:'Client Partner — Viven AG, Zúrich', dur:'¿Cuánto tiempo necesitás?', when:'Elegí un horario', loading:'Cargando horarios disponibles…', name:'Tu nombre *', phone:'Teléfono (opcional)', msg:'¿De qué va el proyecto? (opcional)', back:'← Volver', confirm:'Confirmar reserva', okt:'¡Reservado!', okp:'La invitación de calendario con el link de Google Meet va en camino a tu inbox.', okb:'Una cosa más: completá el brief de 2 minutos así aprovechamos la llamada al máximo.', brief:'→ Completar el brief', taken:'Ese horario se acaba de ocupar — elegí otro.', err:'No se pudo reservar — probá de nuevo.', need:'Poné tu nombre y un email válido.', fb:'El calendario no responde en este momento. Reservá por acá:', fbBtn:'📅 Agendar (link de respaldo)' },
+  }[lang] || {};
+  const EN = { taken:'That slot was just taken — please pick another.', err:'Booking failed — please try again.', need:'Please enter your name and a valid email.', fb:'The calendar is unreachable right now. Book here instead:', fbBtn:'📅 Book a call (backup link)' };
+  const t = (k) => L[k] || EN[k] || null;
+  document.querySelectorAll('[data-i]').forEach((el) => { const v = L[el.dataset.i]; if (v) el.textContent = v; });
+  if (lang === 'de') document.title = 'Call buchen — Viven Film Production';
+  if (lang === 'es') document.title = 'Reservar una llamada — Viven Film Production';
+
+  const $ = (id) => document.getElementById(id);
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  $('bk-tz').textContent = '🌍 ' + tz;
+  let dur = 15, slots = [], day = null, chosen = null;
+
+  const dayKey = (iso) => new Date(iso).toLocaleDateString('en-CA');
+  const fmtTime = (iso) => new Date(iso).toLocaleTimeString(lang === 'en' ? 'en-GB' : lang, { hour: '2-digit', minute: '2-digit' });
+  const fmtDay = (iso, o) => new Date(iso).toLocaleDateString(lang === 'en' ? 'en-GB' : lang, o);
+
+  async function load(){
+    $('bk-err').hidden = true;
+    $('bk-days').innerHTML = '<span class="bk-note">' + (L.loading || 'Loading available times…') + '</span>';
+    $('bk-slots').innerHTML = '';
+    try {
+      const r = await fetch(FN + '/booking-slots?dur=' + dur + '&days=14');
+      const d = await r.json();
+      if (!d.ok || !Array.isArray(d.slots)) throw new Error(d.error || 'no slots');
+      slots = d.slots;
+      const days = [...new Set(slots.map(dayKey))];
+      if (!days.length) { $('bk-days').innerHTML = '<span class="bk-note">—</span>'; return; }
+      day = days[0];
+      $('bk-days').innerHTML = days.map((k) => {
+        const iso = slots.find((s) => dayKey(s) === k);
+        return '<button class="bk-day' + (k === day ? ' on' : '') + '" data-k="' + k + '" type="button">' +
+          '<div class="dw">' + fmtDay(iso, { weekday: 'short' }) + '</div>' +
+          '<div class="dn">' + new Date(iso).getDate() + '</div>' +
+          '<div class="dm">' + fmtDay(iso, { month: 'short' }) + '</div></button>';
+      }).join('');
+      document.querySelectorAll('.bk-day').forEach((b) => b.addEventListener('click', () => {
+        day = b.dataset.k;
+        document.querySelectorAll('.bk-day').forEach((x) => x.classList.toggle('on', x === b));
+        renderSlots();
+      }));
+      renderSlots();
+    } catch (e) {
+      // fallback: API caída o sin configurar → link de respaldo (HubSpot)
+      $('bk-days').innerHTML = '';
+      $('bk-err').hidden = false;
+      $('bk-err').innerHTML = t('fb') + '<br><br><a class="bk-btn" style="text-decoration:none;display:inline-block" href="' + FALLBACK + '">' + t('fbBtn') + '</a>';
+    }
+  }
+  function renderSlots(){
+    $('bk-slots').innerHTML = slots.filter((s) => dayKey(s) === day).map((s) =>
+      '<button class="bk-slot" data-s="' + s + '" type="button">' + fmtTime(s) + '</button>').join('');
+    document.querySelectorAll('.bk-slot').forEach((b) => b.addEventListener('click', () => {
+      chosen = b.dataset.s;
+      $('bk-chosen').textContent = '📅 ' + fmtDay(chosen, { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + fmtTime(chosen) + ' (' + dur + ' min · ' + tz + ')';
+      $('bk-step1').hidden = true; $('bk-step2').hidden = false;
+      $('bk-name').focus();
+    }));
+  }
+  document.querySelectorAll('.bk-dur').forEach((b) => b.addEventListener('click', () => {
+    dur = parseInt(b.dataset.d);
+    document.querySelectorAll('.bk-dur').forEach((x) => x.classList.toggle('on', x === b));
+    load();
+  }));
+  $('bk-back').addEventListener('click', () => { $('bk-step2').hidden = true; $('bk-step1').hidden = false; });
+  $('bk-confirm').addEventListener('click', async () => {
+    const name = $('bk-name').value.trim(), email = $('bk-email').value.trim();
+    const err = $('bk-err2'); err.hidden = true;
+    if (!name || !/.+@.+\..+/.test(email)) { err.textContent = t('need'); err.hidden = false; return; }
+    const btn = $('bk-confirm'); btn.disabled = true;
+    try {
+      const r = await fetch(FN + '/booking-create', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone: $('bk-phone').value.trim(), message: $('bk-msg').value.trim(), start: chosen, dur, lang }),
+      });
+      const d = await r.json();
+      if (r.status === 409) { err.textContent = t('taken'); err.hidden = false; $('bk-step2').hidden = true; $('bk-step1').hidden = false; load(); return; }
+      if (!d.ok) throw new Error(d.error || 'error');
+      $('bk-step2').hidden = true; $('bk-ok').hidden = false;
+      $('bk-ok-when').textContent = '📅 ' + fmtDay(d.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + fmtTime(d.start) + ' (' + d.duration + ' min)';
+    } catch (e) {
+      err.textContent = t('err') + ' — ' + e.message; err.hidden = false;
+    } finally { btn.disabled = false; }
+  });
+  load();
+</script>
+</body>
+</html>
