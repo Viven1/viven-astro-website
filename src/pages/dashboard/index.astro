@@ -293,6 +293,7 @@
   .lead-table .lt-stage{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600}
   .lead-table .lt-stage .dot{width:8px;height:8px;border-radius:50%}
   .lead-table .lt-val{font-family:'Space Grotesk';font-weight:700;white-space:nowrap}
+  .lead-table .lt-act{color:var(--muted);font-size:12.5px;white-space:nowrap}
   .lead-table .lt-num{text-align:right;white-space:nowrap;color:var(--muted)}
   .lead-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
   .pipe-list{display:flex;flex-direction:column;gap:9px;overflow-y:auto;min-height:50px;padding:11px}
@@ -648,6 +649,16 @@
         <option value="propuesta">Propuesta</option>
         <option value="ganado">Ganado</option>
         <option value="perdido">Perdido</option>
+      </select>
+      <select id="ps-act" class="status" title="Filtrar por última actividad">
+        <option value="all">Cualquier actividad</option>
+        <option value="web">🌐 Visitó la web</option>
+        <option value="email">✉️ Email enviado</option>
+        <option value="call">📞 Video call</option>
+        <option value="offer">🧾 Oferta</option>
+        <option value="prop">📄 Propuesta</option>
+        <option value="note">📝 Nota</option>
+        <option value="task">✅ Task</option>
       </select>
       <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
     </div>
@@ -1136,6 +1147,8 @@
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
   let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
+  // última actividad por lead (notas/tasks/propuestas/web) — se llena en loadAll
+  let actNotes = {}, actTasks = {}, actProps = {}, actWeb = {};
 
   function show(view){
     $('login-view').hidden = view !== 'login';
@@ -1288,14 +1301,18 @@
   const until = () => new Date(rangeEnd()).toISOString();
 
   async function loadAll(){
-    const [leadsQ, viewsQ, videosQ, offersQ, coQ] = await Promise.all([
+    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
         .gte('created_at', since()).lte('created_at', until()).limit(20000),
       supabase.from('video_plays').select('video_id,label').gte('created_at', since()).lte('created_at', until()).limit(20000),
       supabase.from('offers').select('*').order('updated_at', { ascending: false }),
-      supabase.from('companies').select('*')
+      supabase.from('companies').select('*'),
+      // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
+      supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000),
+      supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
+      supabase.from('proposals').select('lead_id,updated_at').limit(1000)
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
@@ -1307,6 +1324,12 @@
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
     // companies: best-effort (si no corrió el SQL 0011, coMeta queda vacío)
     coMeta = {}; if (coQ && !coQ.error) (coQ.data || []).forEach((c) => { if (c.domain) coMeta[c.domain] = c; });
+    // última actividad: mapa lead_id → timestamp más reciente por tipo
+    const maxTo = (map, key, iso) => { const t = Date.parse(iso); if (t && (!map[key] || t > map[key])) map[key] = t; };
+    actNotes = {}; if (notesQ && !notesQ.error) (notesQ.data || []).forEach((n) => maxTo(actNotes, String(n.lead_id), n.created_at));
+    actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
+    actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
+    actWeb = {}; (viewsQ.data || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
     renderLeads();
     renderAnalytics(lastViews, allLeads);
     renderHome();
@@ -1481,6 +1504,7 @@
     const cont = $('leads-list'); if (!cont) return;
     let rows = filteredLeads();
     if (psStage !== 'all') rows = rows.filter((r) => stageOf(r.status) === psStage);
+    if (psAct !== 'all') rows = rows.filter((r) => (lastActivity(r) || {}).kind === psAct);
     cont.innerHTML = leadsListHTML(rows);
     cont.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id)));
     cont.querySelectorAll('.lead-table th[data-k]').forEach((th) => th.addEventListener('click', () => {
@@ -1491,6 +1515,7 @@
     }));
   }
   $('ps-stage').addEventListener('change', (e) => { psStage = e.target.value; renderPeopleList(); });
+  $('ps-act').addEventListener('change', (e) => { psAct = e.target.value; renderPeopleList(); });
 
   /* ---------- HOME: KPIs globales + tendencia vs semana anterior ---------- */
   function renderHome(){
@@ -1561,6 +1586,26 @@
   const offersForLead = (id) => (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(id) && !o.archived);
   // motivo de pérdida heredado del contacto (si el lead está perdido y la oferta/propuesta no tiene el suyo)
   const leadLostReason = (lead_id) => { const l = (allLeads || []).find((x) => String(x.id) === String(lead_id)); return (l && stageOf(l.status) === 'perdido' && l.lost_reason) || null; };
+  // Última actividad con el cliente (como HubSpot): lo más reciente entre visitar la web,
+  // email enviado (contactado), video call, oferta, propuesta, nota o task.
+  function lastActivity(r){
+    const cand = [];
+    const push = (ts, kind, label) => { const t = typeof ts === 'number' ? ts : Date.parse(ts || ''); if (t) cand.push({ t, kind, label }); };
+    push(r.created_at, 'form', '📥 Lead creado');
+    push(r.contacted_at, 'email', '✉️ Email enviado');
+    push(r.videocall_at, 'call', '📞 Video call');
+    push(r.proposal_at, 'prop', '📄 Propuesta');
+    push(r.won_at, 'won', '🏆 Ganado');
+    push(r.lost_at, 'lost', '✕ Perdido');
+    offersForLead(r.id).forEach((o) => push(o.updated_at, 'offer', '🧾 Oferta'));
+    push(actProps[String(r.id)], 'prop', '📄 Propuesta');
+    push(actNotes[String(r.id)], 'note', '📝 Nota');
+    push(actTasks[String(r.id)], 'task', '✅ Task');
+    if (r.session_id && actWeb[r.session_id]) push(actWeb[r.session_id], 'web', '🌐 Visitó la web');
+    if (!cand.length) return null;
+    return cand.sort((a, b) => b.t - a.t)[0];
+  }
+  const actLabel = (a) => a ? a.label + ' · ' + timeAgo(new Date(a.t).toISOString()) : '—';
   const OF_COLOR = { draft: '#8ab4ff', sent: '#f0c060', won: '#7ed957', lost: '#ff6b6b' };
   const OWN_COLOR = { 'sofia@viven.ch': '#ddf98f', 'sebastian@viven.ch': '#8ab4ff', 'info@viven.ch': '#f0c060' };
   function ownerAvatar(r){
@@ -1581,10 +1626,11 @@
     let coField = '';
     if (dom) { const cn = companyName(dom); coField = '<div class="pc-field"><span class="k">Empresa:</span><span class="v"><span class="pc-co" style="background:' + coColor(cn) + '">' + esc(cn.slice(0, 2).toUpperCase()) + '</span>' + esc(cn) + '</span></div>'; }
     const ownerF = r.owner ? field('Owner:', esc(teamName(r.owner))) : '';
-    // última actividad / próximo paso
-    let act = '';
-    if (st.key === 'contactado' && r.next_follow_up_at) act = '<div class="pc-act">⏰ Follow-up: ' + fmtDMY(r.next_follow_up_at) + '</div>';
-    else if (st.key === 'perdido' && r.lost_reason) act = '<div class="pc-lost">✕ ' + esc(r.lost_reason) + '</div>';
+    // última actividad real con el cliente (web, email, oferta, nota…) + próximo paso
+    const la = lastActivity(r);
+    let act = la ? '<div class="pc-act">' + esc(actLabel(la)) + '</div>' : '';
+    if (st.key === 'contactado' && r.next_follow_up_at) act += '<div class="pc-act">⏰ Follow-up: ' + fmtDMY(r.next_follow_up_at) + '</div>';
+    else if (st.key === 'perdido' && r.lost_reason) act += '<div class="pc-lost">✕ ' + esc(r.lost_reason) + '</div>';
     const ch = r.channel ? '<span class="pc-badge">' + esc(r.channel) + '</span>' : '';
     const ads = r.gclid ? '<span class="pc-ads">Ads</span>' : '';
     return '<div class="pipe-card" draggable="true" data-id="' + r.id + '" style="--stage:' + st.color + '">' +
@@ -1634,30 +1680,34 @@
     bindPipeline();
   }
   // orden de la tabla de Personas: click en el encabezado alterna ↑/↓
-  let psSort = { k: 'created', dir: -1 }, psStage = 'all';
+  let psSort = { k: 'created', dir: -1 }, psStage = 'all', psAct = 'all';
   function leadsListHTML(rows){
     if (!rows.length) return '<p class="muted-note" style="padding:14px">Sin personas que coincidan con la búsqueda o el filtro.</p>';
     const stageIdx = (r) => STAGES.findIndex((s) => s.key === stageOf(r.status));
+    const actMap = new Map(rows.map((r) => [r.id, lastActivity(r)]));
     const CMP = {
       name:    (a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || '')),
       stage:   (a, b) => stageIdx(a) - stageIdx(b),
       value:   (a, b) => leadsValue([a]) - leadsValue([b]),
       channel: (a, b) => String(a.channel || '').localeCompare(String(b.channel || '')),
+      activity: (a, b) => ((actMap.get(a.id) || {}).t || 0) - ((actMap.get(b.id) || {}).t || 0),
       created: (a, b) => new Date(a.created_at) - new Date(b.created_at)
     };
     const sorted = rows.slice().sort((a, b) => (CMP[psSort.k] || CMP.created)(a, b) * psSort.dir);
     const body = sorted.map((r) => {
       const s = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
       const val = leadsValue([r]);
+      const act = actMap.get(r.id);
       return '<tr data-id="' + esc(r.id) + '"><td><div class="lt-name">' + esc(r.name || r.first_name || '(sin nombre)') + '</div><div class="lt-mail">' + esc(r.email || '') + '</div></td>' +
         '<td><span class="lt-stage" style="color:' + s.color + '"><span class="dot" style="background:' + s.color + '"></span>' + s.label + '</span></td>' +
         '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') + '</td>' +
+        '<td class="lt-act">' + esc(actLabel(act)) + '</td>' +
         '<td>' + esc(r.channel || '—') + (r.gclid ? ' · Ads' : '') + '</td>' +
         '<td class="lt-num">' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) + '</td></tr>';
     }).join('');
     const TH = (k, l) => '<th data-k="' + k + '" class="lt-sort' + (psSort.k === k ? ' on' : '') + '" title="Ordenar por ' + l.toLowerCase() + '">' + l + (psSort.k === k ? (psSort.dir === 1 ? ' ↑' : ' ↓') : '') + '</th>';
     return '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
-      TH('name', 'Persona') + TH('stage', 'Etapa') + TH('value', 'Valor (ofertas)') + TH('channel', 'Canal') + TH('created', 'Creado') +
+      TH('name', 'Persona') + TH('stage', 'Etapa') + TH('value', 'Valor (ofertas)') + TH('activity', 'Última actividad') + TH('channel', 'Canal') + TH('created', 'Creado') +
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id))); }
@@ -1850,6 +1900,7 @@
       sec('Estado y seguimiento',
         row('Etapa', '<select id="lm-stage-sel" class="lm-stage-sel" style="color:' + (st.color || 'var(--text)') + ';border-color:' + (st.color || 'var(--line-strong)') + '">' +
           STAGES.map((s) => '<option value="' + s.key + '"' + (s.key === stageOf(r.status) ? ' selected' : '') + '>' + s.label + '</option>').join('') + '</select>', true) +
+        row('Última actividad', esc(actLabel(lastActivity(r))), true) +
         row('Próximo follow-up', nextF, true) +
         (stageOf(r.status) === 'perdido' ? row('Motivo de pérdida', esc(r.lost_reason || '(sin especificar)'), true) : '')) +
       sec('Origen',
