@@ -204,6 +204,8 @@
   .lm-conv:hover{text-decoration:underline}
   .lm-mk{display:flex;gap:8px;margin-top:10px}
   .lm-mk .btn{flex:1;justify-content:center}
+  .lm-dealval{width:100%;margin-top:8px;background:transparent;border:1px dashed var(--line-strong);border-radius:9px;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:8px;cursor:pointer}
+  .lm-dealval:hover{border-color:var(--acid);color:var(--acid)}
   .lm-deal-t{font-size:13px;font-weight:600}
   .lm-deal-b{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .lm-deal-b b{font-family:'Space Grotesk'}
@@ -213,6 +215,9 @@
   .ed-hint{display:block;font-size:11px;color:var(--muted-2);margin-top:4px}
   .ed-hint b{color:var(--acid);font-weight:600}
   .lost-note{background:color-mix(in srgb,#ff6b6b 12%,transparent);border:1px solid color-mix(in srgb,#ff6b6b 40%,transparent);color:#ff8b8b;border-radius:10px;font-size:13px;padding:9px 13px;margin:10px 0 4px}
+  .of-composer{position:fixed;inset:0;z-index:400;background:rgba(9,15,26,.8);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto}
+  .ofc-card{background:var(--navy-800);border:1px solid var(--line-strong);border-radius:16px;padding:22px 24px;max-width:560px;width:100%}
+  .ofc-l{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:700;margin:12px 0 5px}
   .lm-taskadd-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
   .lm-taskadd-row input[type=date]{flex:1 1 108px;min-width:0}
   .lm-taskadd-row input[type=time]{flex:0 0 92px;min-width:0}
@@ -1505,6 +1510,8 @@
     list.querySelectorAll('.bell-item').forEach((b) => b.addEventListener('click', () => { $('bell-panel').hidden = true; gotoTab('leads'); openLead(b.dataset.lead); }));
   }
   function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
+  // re-evaluar cada 4 min: cuando una task cruza su hora, el badge salta solo
+  setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadBell(); }, 240000);
 
   /* ================= WEB PUSH: notificaciones reales al celular ================= */
   const VAPID_PUB = 'BPZuJFhqNy9HDHDi0MzPh_DklooKyOUHInq7rfyqKIWXWMe6yShB1xCiQSJfOWUzaMhFT4NMwv3B_rwVPal-hyg';
@@ -1717,7 +1724,9 @@
   const fmtDMY = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   function cardHTML(r, st){
     const ofs = offersForLead(r.id);
-    const total = ofs.reduce((a, o) => a + offerNet(o), 0);
+    let total = ofs.reduce((a, o) => a + offerNet(o), 0);
+    let est = '';
+    if (!total && Number(r.deal_value)) { total = Number(r.deal_value); est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>'; }
     const ost = ofs.length ? '<span class="pc-ost" style="color:' + (OF_COLOR[ofs[0].status] || '#8ab4ff') + '">' + (OF_ST[ofs[0].status] || '') + '</span>' : '';
     // nombre del deal: título de la oferta ligada, o el de la persona
     const dealName = (ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)');
@@ -1736,15 +1745,16 @@
     const ads = r.gclid ? '<span class="pc-ads">Ads</span>' : '';
     return '<div class="pipe-card" draggable="true" data-id="' + r.id + '" style="--stage:' + st.color + '">' +
       '<div class="pc-name">' + esc(dealName) + '</div>' +
-      field('Importe:', total ? fmtChf(total) : '—', 'amt') +
+      field('Importe:', total ? fmtChf(total) + est : '—', 'amt') +
       coField + ownerF +
       field('Creado:', fmtDMY(r.created_at)) +
       act +
       '<div class="pc-foot"><div class="pc-tags">' + ch + ads + ost + '</div>' + ownerAvatar(r) + '</div>' +
     '</div>';
   }
-  // valor total de las ofertas (no archivadas) ligadas a un conjunto de leads
-  const leadsValue = (leads) => leads.reduce((a, l) => a + offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0), 0);
+  // valor de un lead: sus ofertas ligadas, o el valor estimado del deal si aún no hay oferta
+  const leadValue = (l) => { const v = offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0); return v || Number(l.deal_value) || 0; };
+  const leadsValue = (leads) => leads.reduce((a, l) => a + leadValue(l), 0);
   const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
 
   function renderPipeline(){
@@ -2035,6 +2045,7 @@
           '<button class="lm-conv" data-conv="' + o.id + '" type="button" title="Convertir esta oferta en una propuesta (queda como una de las opciones)">→ Propuesta</button></div>'; }).join('')
         : '<p class="muted-note">Sin ofertas ligadas todavía.</p>') +
       '<div class="lm-mk"><button class="btn btn-ghost xs" id="lm-mk-offer" type="button">➕ Hacer oferta</button><button class="btn btn-primary xs" id="lm-mk-prop" type="button">🌐 Hacer propuesta</button></div>' +
+      '<button class="lm-dealval" id="lm-mk-deal" type="button">🤝 ' + (Number(r.deal_value) ? 'Valor estimado: ' + fmtChf(Number(r.deal_value)) + ' — cambiar' : 'Poner valor estimado del deal') + '</button>' +
       '</div>';
     $('lm-right').innerHTML = dealsBlock +
       '<div class="lm-block"><div class="lm-block-h">✅ Tasks</div>' +
@@ -2047,6 +2058,17 @@
     $('lm-right').querySelectorAll('.lm-deal').forEach((d) => d.addEventListener('click', () => { closeLead(); gotoTab('offers'); openOffer(d.dataset.oid); }));
     $('lm-right').querySelectorAll('.lm-conv').forEach((c) => c.addEventListener('click', () => offerToProp(c.dataset.conv, r)));
     $('lm-mk-offer').addEventListener('click', () => makeOfferForLead(r));
+    $('lm-mk-deal').addEventListener('click', async () => {
+      const v = prompt('Valor estimado del deal en CHF (vacío para quitar):', r.deal_value || '');
+      if (v === null) return;
+      const val = v.trim() === '' ? null : Math.round(parseFloat(v.replace(/[^0-9.]/g, ''))) || null;
+      const { error, stripped } = await updateLeadResilient(r.id, { deal_value: val });
+      if (error) { toast('No se pudo guardar: ' + error.message); return; }
+      if (stripped.length) { toast('Corré el SQL 0017 para guardar el valor estimado'); return; }
+      r.deal_value = val; const i = allLeads.findIndex((l) => l.id === r.id); if (i > -1) allLeads[i].deal_value = val;
+      toast(val ? '🤝 Deal estimado en ' + fmtChf(val) + ' — ya se ve en el board' : 'Valor estimado quitado');
+      renderLeads(); openLead(r.id);
+    });
     $('lm-mk-prop').addEventListener('click', () => makePropForLead(r));
     $('lm-task-add').addEventListener('click', () => addTask(r));
     $('lm-note-add').addEventListener('click', () => addNote(r));
@@ -3041,8 +3063,14 @@
       '.small{font-size:10.5px;color:#8a94a8;margin-top:26px;line-height:1.6}' +
       '.foot{margin-top:34px;border-top:1px solid #e8eaef;padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:#8a94a8}' +
       '.foot b{color:#1a2230;font-weight:600}' +
-      '@media print{.wrap{padding:28px 40px}}' +
+      '.topbar{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border-bottom:1px solid #e8eaef;padding:10px 16px}' +
+      '.topbar button{font-family:Inter,sans-serif;font-size:13.5px;font-weight:600;border-radius:100px;padding:9px 16px;cursor:pointer;border:1px solid #d5d9e2;background:#fff;color:#1a2230}' +
+      '.topbar button.pr{background:#ddf98f;border-color:#ddf98f;color:#1c2508}' +
+      '@media print{.wrap{padding:28px 40px}.topbar{display:none}}' +
       '</style></head><body>' +
+      // barra de acciones (no sale en el PDF): volver + imprimir/guardar — clave en la app móvil
+      '<div class="topbar"><button onclick="window.close();history.length>1&&history.back()">← Volver</button>' +
+      '<button class="pr" onclick="window.print()">🖨 Imprimir / Guardar PDF</button></div>' +
       '<div class="band"><div class="brand">' + VIVEN_MARK + '<div class="fp">Film<br>Production</div></div>' +
         '<div class="doc"><div class="t">Offerte</div><div class="d">' + today + '</div></div></div>' +
       '<div class="wrap">' +
@@ -3056,28 +3084,93 @@
         '<p class="small">Alle Preise in CHF. Offerte gültig 30 Tage. Zwei Korrekturschleifen inklusive. Reise- und Spesenkosten nach Aufwand, sofern nicht anders vermerkt.</p>' +
         '<div class="foot"><span><b>VIVEN AG</b> · Film Production</span><span>viven.ch · info@viven.ch · Zürich</span></div>' +
       '</div></body></html>');
-    w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
+    w.document.close(); w.focus();
+    // auto-print solo en desktop/navegador; en la app (standalone) el diálogo trababa la vista
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (!standalone) setTimeout(() => w.print(), 600);
   }
-  // Enviar la oferta al cliente: abre el mail con una nota lista (editable) en su idioma.
-  // El PDF se guarda con 🖨 y se adjunta en el mail (mailto no permite adjuntar solo).
+  // Enviar la oferta al cliente por EMAIL (la oferta va embebida en el mail, con
+  // tabla de posiciones, totales y botón para agendar un call). Vía Resend (send-offer).
+  const BOOK_URL = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49';
+  function offerEmailHTML(note, lang){
+    const vatRate = parseFloat($('of-vat').value) || 0;
+    const net = offerNet(ofCur), vat = net * vatRate / 100;
+    const L = {
+      de: { pos: 'Position', qty: 'Menge', tot: 'Total', net: 'Total netto', vatL: 'MwSt ' + vatRate + '%', gross: 'Total', valid: 'Offerte gültig 30 Tage · Alle Preise in CHF', book: '📅 15-Min-Call buchen' },
+      en: { pos: 'Item', qty: 'Qty', tot: 'Total', net: 'Subtotal', vatL: 'VAT ' + vatRate + '%', gross: 'Total', valid: 'Offer valid 30 days · All prices in CHF', book: '📅 Book a 15-min call' },
+      es: { pos: 'Concepto', qty: 'Cant.', tot: 'Total', net: 'Subtotal', vatL: 'IVA ' + vatRate + '%', gross: 'Total', valid: 'Oferta válida 30 días · Precios en CHF', book: '📅 Agendar un call de 15 min' }
+    }[lang];
+    let rows = '';
+    PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
+      rows += '<tr><td colspan="3" style="padding:12px 10px 5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#4e650f;font-weight:700;background:#f3f7e8">' + esc(ph) + '</td></tr>';
+      ofCur.items.forEach((it) => {
+        if (phaseOf(it) !== ph) return;
+        const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
+        rows += '<tr><td style="padding:8px 10px;border-bottom:1px solid #e8eaef;font-size:13px">' + esc(it.name || '') + '</td>' +
+          '<td style="padding:8px 10px;border-bottom:1px solid #e8eaef;font-size:13px;text-align:center;white-space:nowrap">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td>' +
+          '<td style="padding:8px 10px;border-bottom:1px solid #e8eaef;font-size:13px;text-align:right;white-space:nowrap">' + fmtM(t) + '</td></tr>';
+      });
+    });
+    return '<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:640px;margin:0 auto;color:#1a2230">' +
+      '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:26px 28px">' +
+        '<span style="font-size:24px;font-weight:800;letter-spacing:-.02em;color:#ddf98f">viven</span>' +
+        '<span style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#9aa6bd;margin-left:10px">Film Production</span>' +
+        '<div style="color:#f4f6fb;font-size:19px;font-weight:700;margin-top:14px">' + esc(ofCur.title || 'Offerte') + '</div></div>' +
+      '<div style="border:1px solid #e8eaef;border-top:0;border-radius:0 0 14px 14px;padding:24px 28px">' +
+        '<div style="font-size:14.5px;line-height:1.65;white-space:pre-wrap;margin-bottom:20px">' + esc(note) + '</div>' +
+        '<table style="width:100%;border-collapse:collapse">' + rows + '</table>' +
+        '<table style="width:100%;margin-top:14px"><tr><td></td><td style="width:260px">' +
+          '<div style="background:#0f1826;border-radius:12px;padding:14px 18px;color:#f4f6fb;font-size:13px;line-height:2">' +
+          '<div>' + L.net + ' <span style="float:right">' + fmtM(net) + '</span></div>' +
+          '<div>' + L.vatL + ' <span style="float:right">' + fmtM(vat) + '</span></div>' +
+          '<div style="border-top:1px solid rgba(255,255,255,.2);margin-top:5px;padding-top:6px;font-weight:800;font-size:15px;color:#ddf98f">' + L.gross + ' <span style="float:right">' + fmtM(net + vat) + '</span></div></div></td></tr></table>' +
+        '<div style="text-align:center;margin:26px 0 6px"><a href="' + BOOK_URL + '" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">' + L.book + '</a></div>' +
+        '<p style="font-size:11px;color:#8a94a8;text-align:center;margin-top:16px">' + L.valid + '<br><b style="color:#1a2230">VIVEN AG</b> · viven.ch · info@viven.ch · Zürich</p>' +
+      '</div></div>';
+  }
   function sendOfferEmail(){
     const title = $('of-title').value.trim() || ofCur.title || 'Offerte';
+    ofCur.title = title;
     const client = $('of-client').value.trim() || ofCur.client || '';
     const lead = allLeads.find((l) => String(l.id) === String($('of-lead').value));
-    const to = lead ? lead.email : '';
     const lang = (lead && ['en', 'de', 'es'].includes(lead.lang)) ? lead.lang : 'de';
     const first = lead ? (lead.first_name || (lead.name || '').trim().split(/\s+/)[0] || '') : '';
     const vatRate = parseFloat($('of-vat').value) || 0;
     const gross = fmtM(offerNet(ofCur) * (1 + vatRate / 100));
     const me = teamName(myEmail()).split(/\s+/)[0];
-    const SUBJ = { de: 'Ihre Offerte — ', en: 'Your offer — ', es: 'Tu oferta — ' };
-    const BODY = {
-      de: 'Hallo ' + (first || client) + ',\n\nvielen Dank für Ihr Interesse! Im Anhang finden Sie unsere Offerte «' + title + '» (Total ' + gross + ' inkl. MwSt).\n\nGerne besprechen wir Details oder passen die Offerte an — ein kurzer Call genügt.\n\nHerzliche Grüsse\n' + me + '\nVIVEN AG · viven.ch',
-      en: 'Hi ' + (first || client) + ',\n\nThanks for your interest! Attached you\'ll find our offer "' + title + '" (total ' + gross + ' incl. VAT).\n\nHappy to walk you through it or adjust anything — a quick call is all it takes.\n\nBest,\n' + me + '\nVIVEN AG · viven.ch',
-      es: 'Hola ' + (first || client) + ':\n\n¡Gracias por tu interés! Adjunto encontrás nuestra oferta «' + title + '» (total ' + gross + ' IVA incl.).\n\nCon gusto la repasamos juntos o ajustamos lo que haga falta — con una llamada corta alcanza.\n\nSaludos,\n' + me + '\nVIVEN AG · viven.ch'
+    const top3 = ofCur.items.slice(0, 3).map((it) => it.name).filter(Boolean).join(', ');
+    const SUBJ = { de: 'Ihre Offerte von VIVEN — ' + title, en: 'Your offer from VIVEN — ' + title, es: 'Tu oferta de VIVEN — ' + title };
+    const NOTE = {
+      de: 'Hallo ' + (first || client) + '\n\nVielen Dank für Ihr Vertrauen — hier ist unsere Offerte für «' + title + '».\n\nDarin enthalten: ' + (top3 || 'alle Details unten') + '. Das Total liegt bei ' + gross + ' inkl. MwSt.\n\nWir haben Filme für UBS, Siemens, Porsche und ON produziert — und bringen dieselbe Qualität in Ihr Projekt.\n\nFragen oder Anpassungen? Buchen Sie direkt einen kurzen Call (Button unten) oder antworten Sie einfach auf dieses Mail.\n\nHerzliche Grüsse\n' + me + ' · VIVEN AG',
+      en: 'Hi ' + (first || client) + '\n\nThank you for your trust — here is our offer for "' + title + '".\n\nIt includes: ' + (top3 || 'full details below') + '. The total comes to ' + gross + ' incl. VAT.\n\nWe\'ve produced films for UBS, Siemens, Porsche and ON — and we bring that same quality to your project.\n\nQuestions or adjustments? Book a quick call below, or simply reply to this email.\n\nBest,\n' + me + ' · VIVEN AG',
+      es: 'Hola ' + (first || client) + ':\n\nGracias por tu confianza — acá está nuestra oferta para «' + title + '».\n\nIncluye: ' + (top3 || 'todos los detalles abajo') + '. El total es ' + gross + ' IVA incl.\n\nHemos producido videos para UBS, Siemens, Porsche y ON — y llevamos esa misma calidad a tu proyecto.\n\n¿Dudas o ajustes? Agendá un call corto abajo, o respondé este mail.\n\nSaludos,\n' + me + ' · VIVEN AG'
     };
-    location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(SUBJ[lang] + title) + '&body=' + encodeURIComponent(BODY[lang]);
-    toast('💡 Guardá el PDF con 🖨 y adjuntalo al email antes de enviar');
+    // compositor liviano
+    let ov = $('of-composer');
+    if (!ov){ ov = document.createElement('div'); ov.id = 'of-composer'; document.body.appendChild(ov); }
+    ov.className = 'of-composer';
+    ov.innerHTML = '<div class="ofc-card"><h3 style="margin:0 0 12px">✉️ Enviar oferta al cliente</h3>' +
+      '<label class="ofc-l">Para</label><input class="ed-inp" id="ofc-to" value="' + esc(lead ? lead.email : '') + '" placeholder="email del cliente"/>' +
+      '<label class="ofc-l">Asunto</label><input class="ed-inp" id="ofc-subj" value="' + esc(SUBJ[lang]) + '"/>' +
+      '<label class="ofc-l">Nota (arriba de la oferta — editala a gusto)</label><textarea class="ed-inp" id="ofc-note" style="min-height:170px">' + esc(NOTE[lang]) + '</textarea>' +
+      '<p class="muted-note" style="margin:8px 0 0">El email lleva la oferta completa embebida (posiciones + totales) y el botón para agendar un call. Se envía desde info@viven.ch.</p>' +
+      '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-primary small" id="ofc-send" type="button">📨 Enviar email</button>' +
+      '<button class="btn btn-ghost small" id="ofc-cancel" type="button">Cancelar</button></div></div>';
+    ov.querySelector('#ofc-cancel').addEventListener('click', () => ov.remove());
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('#ofc-send').addEventListener('click', async () => {
+      const to = ov.querySelector('#ofc-to').value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)){ toast('Poné un email válido'); return; }
+      const btn = ov.querySelector('#ofc-send'); btn.disabled = true; btn.textContent = 'Enviando…';
+      const note = ov.querySelector('#ofc-note').value;
+      const { data, error } = await supabase.functions.invoke('send-offer', { body: {
+        to, subject: ov.querySelector('#ofc-subj').value.trim(), html: offerEmailHTML(note, lang), text: note, reply_to: myEmail() } });
+      btn.disabled = false; btn.textContent = '📨 Enviar email';
+      if (error || (data && data.error)){ toast('No se pudo enviar (¿deployaste send-offer?): ' + (error?.message || data.error)); return; }
+      ov.remove(); toast('📨 Oferta enviada a ' + to);
+      // marcarla como enviada
+      if (ofCur.status === 'draft'){ ofCur.status = 'sent'; $('of-status').value = 'sent'; }
+    });
   }
 
   function bindOffers(){
