@@ -215,6 +215,9 @@
   .of-table input,.of-table select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:13.5px;padding:7px 9px;width:100%}
   .of-table input.w{width:92px;text-align:right}
   .of-table td.num input.w{margin-left:auto;display:block}
+  .of-table tr.of-phase td{background:var(--navy-900);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--acid);padding:10px;border-bottom:1px solid var(--line)}
+  .of-table tr.of-sub td{font-weight:600;color:var(--muted);font-size:12.5px;border-bottom:2px solid var(--line);padding-bottom:10px}
+  .of-table tr.of-sub td.num{color:var(--text)}
   .of-del{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px}
   .of-del:hover{color:#ff8b8b;background:rgba(255,107,107,.1)}
   .of-summary{margin:18px 0 8px;margin-left:auto;max-width:420px;background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
@@ -1164,6 +1167,12 @@
   /* =================== OFFER TOOL (Kostenkalkulation) =================== */
   /* Rate card con tarifas reales de Viven (Moco). price = precio al cliente, cost = costo externo (freelancer/rental). */
   const RATECARD = {
+    'Development': [
+      { name: 'Concept / Treatment', unit: 'Fix', price: 800, cost: 0 },
+      { name: 'Scriptwriting', unit: 'Fix', price: 600, cost: 0 },
+      { name: 'Storyboard', unit: 'Fix', price: 500, cost: 0 },
+      { name: 'Casting', unit: 'Std', price: 120, cost: 0 },
+    ],
     'Pre-Production': [
       { name: 'Producer', unit: 'Std', price: 120, cost: 0 },
       { name: '1st AC', unit: 'Std', price: 60, cost: 0 },
@@ -1188,8 +1197,13 @@
       { name: 'Music license', unit: 'Stk', price: 60, cost: 60 },
       { name: 'Additional Correction Round', unit: 'Tag', price: 950, cost: 550 },
     ],
+    'Delivery': [
+      { name: 'Master exports / Formate', unit: 'Fix', price: 200, cost: 0 },
+      { name: 'Untertitel / Subtitles', unit: 'Sprache', price: 120, cost: 0 },
+      { name: 'Social cutdowns (15s/9:16)', unit: 'Stk', price: 250, cost: 0 },
+    ],
   };
-  const PHASES = Object.keys(RATECARD);
+  const PHASES = Object.keys(RATECARD);   // Development · Pre-Production · Production · Post-Production · Delivery
   const fmtM = (n) => 'CHF ' + (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   let offersList = [], ofCur = null, offersBuilt = false;
@@ -1264,23 +1278,39 @@
     renderRows();
   }
 
+  const phaseOf = (it) => it.phase || 'Production';
+  function phaseSubtotal(ph){
+    let net = 0, cost = 0;
+    ofCur.items.forEach((it) => { if (phaseOf(it) === ph){ const q = Number(it.qty) || 0; net += q * (Number(it.price) || 0); cost += q * (Number(it.cost) || 0); } });
+    return { net, cost };
+  }
+  function rowHTML(it, i){
+    const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
+    const margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
+    return '<tr data-i="' + i + '">' +
+      '<td><input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></td>' +
+      '<td><select class="ofi" data-f="phase">' + PHASES.map((p) => '<option' + (p === phaseOf(it) ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></td>' +
+      '<td class="num"><input class="ofi w" data-f="qty" type="number" step="0.25" value="' + (it.qty ?? 1) + '"/></td>' +
+      '<td><input class="ofi w" data-f="unit" value="' + esc(it.unit || '') + '"/></td>' +
+      '<td class="num"><input class="ofi w" data-f="price" type="number" step="10" value="' + (it.price ?? 0) + '"/></td>' +
+      '<td class="num"><input class="ofi w" data-f="cost" type="number" step="10" value="' + (it.cost ?? 0) + '"/></td>' +
+      '<td class="num">' + fmtM(total) + '</td>' +
+      '<td class="num" style="color:' + (margin >= 0 ? '#7ed957' : '#ff8b8b') + '">' + fmtM(margin) + '</td>' +
+      '<td><button class="of-del" type="button" data-i="' + i + '">✕</button></td></tr>';
+  }
   function renderRows(){
     const tb = $('of-rows');
-    tb.innerHTML = ofCur.items.map((it, i) => {
-      const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
-      const margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
-      return '<tr data-i="' + i + '">' +
-        '<td><input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></td>' +
-        '<td><select class="ofi" data-f="phase">' + PHASES.map((p) => '<option' + (p === it.phase ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></td>' +
-        '<td class="num"><input class="ofi w" data-f="qty" type="number" step="0.25" value="' + (it.qty ?? 1) + '"/></td>' +
-        '<td><input class="ofi w" data-f="unit" value="' + esc(it.unit || '') + '"/></td>' +
-        '<td class="num"><input class="ofi w" data-f="price" type="number" step="10" value="' + (it.price ?? 0) + '"/></td>' +
-        '<td class="num"><input class="ofi w" data-f="cost" type="number" step="10" value="' + (it.cost ?? 0) + '"/></td>' +
-        '<td class="num">' + fmtM(total) + '</td>' +
-        '<td class="num" style="color:' + (margin >= 0 ? '#7ed957' : '#ff8b8b') + '">' + fmtM(margin) + '</td>' +
-        '<td><button class="of-del" type="button" data-i="' + i + '">✕</button></td></tr>';
-    }).join('');
+    let html = '';
+    // agrupado por fase, en el orden del catálogo, con subtotal por fase
+    PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
+      html += '<tr class="of-phase"><td colspan="9">' + esc(ph) + '</td></tr>';
+      ofCur.items.forEach((it, i) => { if (phaseOf(it) === ph) html += rowHTML(it, i); });
+      const s = phaseSubtotal(ph);
+      html += '<tr class="of-sub" data-phase="' + esc(ph) + '"><td colspan="6">Subtotal ' + esc(ph) + '</td><td class="num">' + fmtM(s.net) + '</td><td class="num">' + fmtM(s.net - s.cost) + '</td><td></td></tr>';
+    });
+    tb.innerHTML = html;
     tb.querySelectorAll('.ofi').forEach((inp) => inp.addEventListener('input', onRowInput));
+    tb.querySelectorAll('.ofi[data-f="phase"]').forEach((s) => s.addEventListener('change', renderRows));
     tb.querySelectorAll('.of-del').forEach((b) => b.addEventListener('click', () => { ofCur.items.splice(+b.dataset.i, 1); renderRows(); }));
     recalc();
   }
@@ -1294,6 +1324,10 @@
       tr.children[6].textContent = fmtM(total);
       tr.children[7].textContent = fmtM(margin);
       tr.children[7].style.color = margin >= 0 ? '#7ed957' : '#ff8b8b';
+      // actualizar el subtotal de la fase en vivo (sin re-render, para no perder el foco)
+      const s = phaseSubtotal(phaseOf(it));
+      const sub = $('of-rows').querySelector('.of-sub[data-phase="' + phaseOf(it) + '"]');
+      if (sub){ sub.children[1].textContent = fmtM(s.net); sub.children[2].textContent = fmtM(s.net - s.cost); }
       recalc();
     }
   }
@@ -1338,20 +1372,28 @@
   }
   function printOffer(){
     const net = offerNet(ofCur), vat = net * (parseFloat($('of-vat').value) || 0) / 100;
-    const rows = ofCur.items.map((it) => {
-      const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
-      return '<tr><td>' + esc(it.name || '') + '</td><td style="text-align:center">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td><td style="text-align:right">' + fmtM(it.price) + '</td><td style="text-align:right">' + fmtM(t) + '</td></tr>';
-    }).join('');
+    // agrupado por fase, con subtotal por fase (versión cliente: sin costo interno)
+    let rows = '';
+    PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
+      rows += '<tr class="ph"><td colspan="4">' + esc(ph) + '</td></tr>';
+      ofCur.items.forEach((it) => {
+        if (phaseOf(it) !== ph) return;
+        const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
+        rows += '<tr><td>' + esc(it.name || '') + '</td><td style="text-align:center">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td><td style="text-align:right">' + fmtM(it.price) + '</td><td style="text-align:right">' + fmtM(t) + '</td></tr>';
+      });
+      const s = phaseSubtotal(ph);
+      rows += '<tr class="sub"><td colspan="3">Zwischensumme ' + esc(ph) + '</td><td style="text-align:right">' + fmtM(s.net) + '</td></tr>';
+    });
     const w = window.open('', '_blank');
     if (!w){ alert('Permití las ventanas emergentes para imprimir/guardar como PDF.'); return; }
-    w.document.write('<html><head><title>' + esc(ofCur.title || 'Offerte') + '</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:44px;color:#111;max-width:760px;margin:auto}h1{font-size:22px;margin:0 0 4px}.sub{color:#666;margin:0 0 24px}table{width:100%;border-collapse:collapse}td,th{padding:9px 8px;border-bottom:1px solid #e2e2e2;font-size:14px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}.tot{margin-top:22px;text-align:right;font-size:14px;line-height:1.9}.tot b{font-size:19px}</style></head><body><h1>' + esc(ofCur.title || 'Offerte') + '</h1><p class="sub">' + esc(ofCur.client || '') + '</p><table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table><div class="tot">Total netto: ' + fmtM(net) + '<br>MwSt ' + (parseFloat($('of-vat').value) || 0) + '%: ' + fmtM(vat) + '<br><b>Total brutto: ' + fmtM(net + vat) + '</b></div></body></html>');
+    w.document.write('<html><head><title>' + esc(ofCur.title || 'Offerte') + '</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:44px;color:#111;max-width:760px;margin:auto}h1{font-size:22px;margin:0 0 4px}.sub{color:#666;margin:0 0 24px}table{width:100%;border-collapse:collapse}td,th{padding:9px 8px;border-bottom:1px solid #e2e2e2;font-size:14px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}tr.ph td{background:#f4f6f2;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#3a5a1e;padding-top:14px}tr.sub td{font-weight:600;color:#555;border-bottom:2px solid #ccc}.tot{margin-top:22px;text-align:right;font-size:14px;line-height:1.9}.tot b{font-size:19px}</style></head><body><h1>' + esc(ofCur.title || 'Offerte') + '</h1><p class="sub">' + esc(ofCur.client || '') + '</p><table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table><div class="tot">Total netto: ' + fmtM(net) + '<br>MwSt ' + (parseFloat($('of-vat').value) || 0) + '%: ' + fmtM(vat) + '<br><b>Total brutto: ' + fmtM(net + vat) + '</b></div></body></html>');
     w.document.close(); w.focus(); setTimeout(() => w.print(), 350);
   }
 
   function bindOffers(){
     $('of-new').addEventListener('click', newOffer);
     $('of-back').addEventListener('click', () => showEditor(false));
-    $('of-add-blank').addEventListener('click', () => { ofCur.items.push({ name: '', phase: PHASES[1], qty: 1, unit: 'Tag', price: 0, cost: 0 }); renderRows(); });
+    $('of-add-blank').addEventListener('click', () => { ofCur.items.push({ name: '', phase: 'Production', qty: 1, unit: 'Tag', price: 0, cost: 0 }); renderRows(); });
     $('of-add-preset').addEventListener('click', () => {
       const [ph, idx] = $('of-preset').value.split('::'); const p = RATECARD[ph][+idx];
       ofCur.items.push({ name: p.name, phase: ph, qty: 1, unit: p.unit, price: p.price, cost: p.cost }); renderRows();
