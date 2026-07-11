@@ -36,6 +36,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .pp-muted{color:var(--muted)}
   .pp-sign{margin-top:18px;font-size:14.5px;color:var(--muted)}
   .pp-sign b{color:var(--text);display:block;font-size:15px}
+  .pp-gbadge{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:14px;padding:16px 20px;margin:6px 0 10px}
+  .pp-gbadge .g-stars{color:#f0c060;font-size:19px;letter-spacing:2px}
+  .pp-gbadge .g-txt{font-size:15px;color:var(--muted)}
+  .pp-gbadge .g-txt b{color:var(--text)}
+  .pp-gbadge a{margin-left:auto;color:var(--acid);font-size:13.5px;font-weight:600;text-decoration:none}
+  .pp-gbadge a:hover{text-decoration:underline}
   .pp-quote{border-left:3px solid var(--acid);padding:6px 0 6px 20px;margin:26px 0;font-size:17px;line-height:1.6;font-style:italic;color:var(--text)}
   .pp-quote .pp-cite{font-style:normal;font-size:13.5px;color:var(--muted);margin-top:10px}
   .pp-quote .pp-cite b{color:var(--text);font-style:normal}
@@ -218,8 +224,13 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     const sender = c.sender || {};
     const outputs = (c.overview && c.overview.outputs || []).map((o) => '<li>' + esc(o) + '</li>').join('');
     const scope = (c.scope || []).map((s) => '<div><div class="s-t">' + esc(s.title) + '</div><div class="s-x">' + esc(s.text) + '</div></div>').join('');
-    const quotes = (c.testimonials || []).map((q) =>
-      '<div class="pp-quote">“' + esc(q.quote) + '”<div class="pp-cite"><b>' + esc(q.name) + '</b> — ' + esc(q.role) + (q.company ? ', ' + esc(q.company) : '') + '</div></div>').join('');
+    const quoteHTML = (q) =>
+      '<div class="pp-quote">“' + esc(q.quote) + '”<div class="pp-cite"><b>' + esc(q.name) + '</b> — ' + esc(q.role) + (q.company ? ', ' + esc(q.company) : '') + '</div></div>';
+    const quotes = (c.testimonials || []).map(quoteHTML).join('');
+    const quotesRest = (c.testimonials || []).slice(1).map(quoteHTML).join('');
+    // prueba social justo antes del precio: rating de Google + reseñas restantes
+    const gbadge = '<div class="pp-gbadge"><span class="g-stars">★★★★★</span><span class="g-txt"><b>5.0</b> on <b>Google Reviews</b></span>' +
+      '<a href="https://www.google.com/search?q=VIVEN+AG+Z%C3%BCrich+Google+reviews" target="_blank" rel="noopener">See our reviews ↗</a></div>';
     const tiers = (c.tiers || []).map((t, i) => {
       const inc = (t.includes || []).map((x) => '<li>' + esc(x) + '</li>').join('');
       const off = Number(t.discount_pct) > 0;
@@ -270,6 +281,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         '</div></section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
       (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
+      '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge + quotesRest + '</section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
         '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
       '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +

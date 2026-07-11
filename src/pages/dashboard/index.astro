@@ -923,7 +923,8 @@
             <option value="won">Ganada</option>
             <option value="lost">Perdida</option>
           </select>
-          <button class="btn btn-ghost small" id="of-print" type="button">🖨 Imprimir / PDF</button>
+          <button class="btn btn-ghost small" id="of-print" type="button">🖨 PDF</button>
+          <button class="btn btn-ghost small" id="of-send" type="button">✉️ Enviar</button>
           <button class="btn btn-ghost small" id="of-delete" type="button">🗑 Borrar</button>
           <button class="btn btn-primary small" id="of-save" type="button">💾 Guardar</button>
         </div>
@@ -1059,7 +1060,7 @@
       <div class="pp-sec-h">Add-ons <button class="btn btn-ghost xs" id="pp-addon-add" type="button">+ add-on</button></div>
       <div id="pp-addons-list"></div>
 
-      <div class="pp-sec-h">Videos por URL <span class="count">(Vimeo / YouTube — testimonials, case studies, portfolio)</span> <button class="btn btn-ghost xs" id="pp-video-add" type="button">+ video</button></div>
+      <div class="pp-sec-h">Videos por URL <span class="count">(Vimeo / YouTube — testimonials, case studies, portfolio)</span> <button class="btn btn-ghost xs" id="pp-video-suggest" type="button" title="Elige 2 videos del portfolio según el tipo de proyecto + 1 video testimonial">🎬 Sugerir según proyecto</button> <button class="btn btn-ghost xs" id="pp-video-add" type="button">+ video</button></div>
       <div id="pp-videos-list"></div>
     </div>
   </div>
@@ -2983,8 +2984,11 @@
     if (error){ alert('No se pudo borrar: ' + error.message); return; }
     await offersLoad(); showEditor(false);
   }
+  // wordmark "viven" (solo la marca, versión compacta para el PDF)
+  const VIVEN_MARK = '<svg viewBox="125 126 1000 288" style="height:30px;width:auto" fill="#ddf98f" xmlns="http://www.w3.org/2000/svg"><path d="M756.66,346.9l114.7-80.57c-37.87-83.92-102.57-60.93-102.57-60.93l-71.71,57.88v65.56c0,38.77,25.21,75.91,62.34,80.84h68.27l35.95-40.9-107,.1C756.66,371,756.7,346.56,756.66,346.9Zm.06-108.77s55.51-13.37,55.51,34.2l-55.51,39C757,310.8,756.72,238.13,756.72,238.13Z"/><path d="M270.4,255.39l-32.57,61.44L179,197.28l-54.41,44.41,22.58,22.58,74.76,149.91,106.6-198H237.09ZM431.78,125.83H372.19v49.22h59.59Zm1,71.45-82.54,67.36,22.95,22.95v78.47l-32.57,38.86H465.37l-32.58-38.86Zm704.72,207.64-32.58-38.86V286.85c0-43.67-29.24-84-71.06-89.57l-50.34,41.08L962.06,195.8l-57.37,47,22.58,22.95V366.06L894.7,404.92h124.73l-32.57-38.86V248.73h11.85a46.75,46.75,0,0,1,46.63,47V404.92ZM621.28,255.39l-32.57,61.44L529.86,197.28l-54.41,44.41L498,264.27,572.8,414.18l106.6-198H588Z"/></svg>';
   function printOffer(){
-    const net = offerNet(ofCur), vat = net * (parseFloat($('of-vat').value) || 0) / 100;
+    const vatRate = parseFloat($('of-vat').value) || 0;
+    const net = offerNet(ofCur), vat = net * vatRate / 100;
     // agrupado por fase, con subtotal por fase (versión cliente: sin costo interno)
     let rows = '';
     PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
@@ -2992,15 +2996,80 @@
       ofCur.items.forEach((it) => {
         if (phaseOf(it) !== ph) return;
         const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
-        rows += '<tr><td>' + esc(it.name || '') + '</td><td style="text-align:center">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td><td style="text-align:right">' + fmtM(it.price) + '</td><td style="text-align:right">' + fmtM(t) + '</td></tr>';
+        rows += '<tr><td>' + esc(it.name || '') + '</td><td class="c">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td><td class="r">' + fmtM(it.price) + '</td><td class="r">' + fmtM(t) + '</td></tr>';
       });
       const s = phaseSubtotal(ph);
-      rows += '<tr class="sub"><td colspan="3">Zwischensumme ' + esc(ph) + '</td><td style="text-align:right">' + fmtM(s.net) + '</td></tr>';
+      rows += '<tr class="sub"><td colspan="3">Zwischensumme ' + esc(ph) + '</td><td class="r">' + fmtM(s.net) + '</td></tr>';
     });
+    const today = new Date().toLocaleDateString('de-CH', { day: '2-digit', month: 'long', year: 'numeric' });
+    const valid = new Date(Date.now() + 30 * 864e5).toLocaleDateString('de-CH', { day: '2-digit', month: 'long', year: 'numeric' });
     const w = window.open('', '_blank');
     if (!w){ alert('Permití las ventanas emergentes para imprimir/guardar como PDF.'); return; }
-    w.document.write('<html><head><title>' + esc(ofCur.title || 'Offerte') + '</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:44px;color:#111;max-width:760px;margin:auto}h1{font-size:22px;margin:0 0 4px}.sub{color:#666;margin:0 0 24px}table{width:100%;border-collapse:collapse}td,th{padding:9px 8px;border-bottom:1px solid #e2e2e2;font-size:14px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}tr.ph td{background:#f4f6f2;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#3a5a1e;padding-top:14px}tr.sub td{font-weight:600;color:#555;border-bottom:2px solid #ccc}.tot{margin-top:22px;text-align:right;font-size:14px;line-height:1.9}.tot b{font-size:19px}</style></head><body><h1>' + esc(ofCur.title || 'Offerte') + '</h1><p class="sub">' + esc(ofCur.client || '') + '</p><table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table><div class="tot">Total netto: ' + fmtM(net) + '<br>MwSt ' + (parseFloat($('of-vat').value) || 0) + '%: ' + fmtM(vat) + '<br><b>Total brutto: ' + fmtM(net + vat) + '</b></div></body></html>');
-    w.document.close(); w.focus(); setTimeout(() => w.print(), 350);
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(ofCur.title || 'Offerte') + '</title>' +
+      '<style>' +
+      '@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap");' +
+      '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}' +
+      'body{font-family:Inter,-apple-system,Arial,sans-serif;margin:0;color:#1a2230;background:#fff}' +
+      '.band{background:#0f1826;color:#f4f6fb;padding:34px 48px;display:flex;justify-content:space-between;align-items:center}' +
+      '.band .brand{display:flex;align-items:center;gap:12px}' +
+      '.band .fp{font-size:8.5px;line-height:1.25;letter-spacing:.14em;text-transform:uppercase;color:#9aa6bd}' +
+      '.band .doc{text-align:right}' +
+      '.band .doc .t{font-family:"Space Grotesk";font-weight:700;font-size:21px;letter-spacing:-.01em}' +
+      '.band .doc .d{font-size:11.5px;color:#9aa6bd;margin-top:3px}' +
+      '.wrap{max-width:780px;margin:0 auto;padding:36px 48px 28px}' +
+      '.meta{display:flex;justify-content:space-between;gap:24px;margin-bottom:26px}' +
+      '.meta .k{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#8a94a8;font-weight:600;margin-bottom:4px}' +
+      '.meta .v{font-family:"Space Grotesk";font-weight:600;font-size:16px}' +
+      'h1{font-family:"Space Grotesk";font-size:23px;letter-spacing:-.02em;margin:0 0 22px}' +
+      'table{width:100%;border-collapse:collapse}' +
+      'td,th{padding:9px 8px;border-bottom:1px solid #e8eaef;font-size:12.5px;vertical-align:top}' +
+      'th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a94a8;font-weight:600}' +
+      'td.c{text-align:center;white-space:nowrap}td.r{text-align:right;white-space:nowrap}' +
+      'tr.ph td{background:#f3f7e8;font-family:"Space Grotesk";font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#4e650f;border-bottom:0;border-radius:6px}' +
+      'tr.sub td{font-weight:600;color:#5b6472;border-bottom:2px solid #d5d9e2;font-size:12px}' +
+      '.totcard{margin:26px 0 0 auto;width:300px;background:#0f1826;color:#f4f6fb;border-radius:14px;padding:18px 22px;font-size:13px;line-height:2}' +
+      '.totcard .row{display:flex;justify-content:space-between}' +
+      '.totcard .gross{border-top:1px solid rgba(255,255,255,.18);margin-top:6px;padding-top:8px;font-family:"Space Grotesk";font-weight:700;font-size:17px;color:#ddf98f}' +
+      '.small{font-size:10.5px;color:#8a94a8;margin-top:26px;line-height:1.6}' +
+      '.foot{margin-top:34px;border-top:1px solid #e8eaef;padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:#8a94a8}' +
+      '.foot b{color:#1a2230;font-weight:600}' +
+      '@media print{.wrap{padding:28px 40px}}' +
+      '</style></head><body>' +
+      '<div class="band"><div class="brand">' + VIVEN_MARK + '<div class="fp">Film<br>Production</div></div>' +
+        '<div class="doc"><div class="t">Offerte</div><div class="d">' + today + '</div></div></div>' +
+      '<div class="wrap">' +
+        '<div class="meta"><div><div class="k">Für</div><div class="v">' + esc(ofCur.client || '—') + '</div></div>' +
+        '<div style="text-align:right"><div class="k">Gültig bis</div><div class="v">' + valid + '</div></div></div>' +
+        '<h1>' + esc(ofCur.title || 'Video Produktion') + '</h1>' +
+        '<table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<div class="totcard"><div class="row"><span>Total netto</span><span>' + fmtM(net) + '</span></div>' +
+          '<div class="row"><span>MwSt ' + vatRate + '%</span><span>' + fmtM(vat) + '</span></div>' +
+          '<div class="row gross"><span>Total</span><span>' + fmtM(net + vat) + '</span></div></div>' +
+        '<p class="small">Alle Preise in CHF. Offerte gültig 30 Tage. Zwei Korrekturschleifen inklusive. Reise- und Spesenkosten nach Aufwand, sofern nicht anders vermerkt.</p>' +
+        '<div class="foot"><span><b>VIVEN AG</b> · Film Production</span><span>viven.ch · info@viven.ch · Zürich</span></div>' +
+      '</div></body></html>');
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
+  }
+  // Enviar la oferta al cliente: abre el mail con una nota lista (editable) en su idioma.
+  // El PDF se guarda con 🖨 y se adjunta en el mail (mailto no permite adjuntar solo).
+  function sendOfferEmail(){
+    const title = $('of-title').value.trim() || ofCur.title || 'Offerte';
+    const client = $('of-client').value.trim() || ofCur.client || '';
+    const lead = allLeads.find((l) => String(l.id) === String($('of-lead').value));
+    const to = lead ? lead.email : '';
+    const lang = (lead && ['en', 'de', 'es'].includes(lead.lang)) ? lead.lang : 'de';
+    const first = lead ? (lead.first_name || (lead.name || '').trim().split(/\s+/)[0] || '') : '';
+    const vatRate = parseFloat($('of-vat').value) || 0;
+    const gross = fmtM(offerNet(ofCur) * (1 + vatRate / 100));
+    const me = teamName(myEmail()).split(/\s+/)[0];
+    const SUBJ = { de: 'Ihre Offerte — ', en: 'Your offer — ', es: 'Tu oferta — ' };
+    const BODY = {
+      de: 'Hallo ' + (first || client) + ',\n\nvielen Dank für Ihr Interesse! Im Anhang finden Sie unsere Offerte «' + title + '» (Total ' + gross + ' inkl. MwSt).\n\nGerne besprechen wir Details oder passen die Offerte an — ein kurzer Call genügt.\n\nHerzliche Grüsse\n' + me + '\nVIVEN AG · viven.ch',
+      en: 'Hi ' + (first || client) + ',\n\nThanks for your interest! Attached you\'ll find our offer "' + title + '" (total ' + gross + ' incl. VAT).\n\nHappy to walk you through it or adjust anything — a quick call is all it takes.\n\nBest,\n' + me + '\nVIVEN AG · viven.ch',
+      es: 'Hola ' + (first || client) + ':\n\n¡Gracias por tu interés! Adjunto encontrás nuestra oferta «' + title + '» (total ' + gross + ' IVA incl.).\n\nCon gusto la repasamos juntos o ajustamos lo que haga falta — con una llamada corta alcanza.\n\nSaludos,\n' + me + '\nVIVEN AG · viven.ch'
+    };
+    location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(SUBJ[lang] + title) + '&body=' + encodeURIComponent(BODY[lang]);
+    toast('💡 Guardá el PDF con 🖨 y adjuntalo al email antes de enviar');
   }
 
   function bindOffers(){
@@ -3026,6 +3095,7 @@
     $('of-save').addEventListener('click', saveOffer);
     $('of-delete').addEventListener('click', deleteOffer);
     $('of-print').addEventListener('click', printOffer);
+    $('of-send').addEventListener('click', sendOfferEmail);
   }
 
   /* ================= PROPUESTAS (Qwilr-like) ================= */
@@ -3101,6 +3171,9 @@
     $('pp-scope-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.scope.splice(+b.dataset.i, 1); renderScopeRows(); }));
   }
   function renderTierRows(){
+    // select "usar oferta": alinear un paquete con una oferta ya creada (Lite/Starter/Pro a mano)
+    const offerOpts = '<option value="">⟵ usar oferta…</option>' + (offersList || []).filter((o) => !o.archived)
+      .map((o) => '<option value="' + o.id + '">' + esc((o.title || '(sin título)') + ' · ' + fmtM(offerNet(o))) + '</option>').join('');
     $('pp-tiers-list').innerHTML = (ppCur.tiers || []).map((t, i) => {
       const net = tierNet(t), cost = tierCostSum(t), mp = net ? Math.round((net - cost) / net * 100) : 0;
       return '<div class="pp-row pp-tier-row"><div class="rowtop"><input class="t-name grow" placeholder="Nombre paquete" value="' + esc(t.name || '') + '"/>' +
@@ -3108,10 +3181,24 @@
         '<div class="rowtop tnums"><label class="rec"><input type="checkbox" class="t-rec"' + (t.recommended ? ' checked' : '') + '/> recomendado</label>' +
         '<input class="t-price" type="number" placeholder="Precio" value="' + (t.price || 0) + '"/>' +
         '<input class="t-disc" type="number" placeholder="% OFF" value="' + (t.discount_pct || 0) + '"/>' +
+        '<select class="t-from" data-i="' + i + '" title="Copiar nombre, precio y posiciones de una oferta existente">' + offerOpts + '</select>' +
         '<span class="pp-tier-margin">' + (cost ? 'margen ' + mp + '% · costo interno CHF ' + cost.toLocaleString('de-CH') : 'sin costo interno cargado') + '</span></div>' +
         '<textarea class="t-inc" placeholder="Qué incluye (uno por línea)">' + esc((t.includes || []).join('\n')) + '</textarea></div>';
-    }).join('') || '<p class="muted-note">Sin paquetes. Generá con IA o agregá uno.</p>';
+    }).join('') || '<p class="muted-note">Sin paquetes. Generá con IA, agregá uno, o alineá ofertas existentes con "usar oferta".</p>';
     $('pp-tiers-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.tiers.splice(+b.dataset.i, 1); renderTierRows(); }));
+    $('pp-tiers-list').querySelectorAll('.t-from').forEach((s) => s.addEventListener('change', () => {
+      const o = (offersList || []).find((x) => String(x.id) === String(s.value));
+      if (!o) return;
+      collectEditor();
+      const items = Array.isArray(o.items) ? o.items : [];
+      const t = ppCur.tiers[+s.dataset.i]; if (!t) return;
+      t.name = o.title || t.name || 'Opción';
+      t.price = Math.round(items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0));
+      t.items = items;
+      t.includes = items.map((it) => it.name).filter(Boolean);
+      renderTierRows();
+      toast('Paquete alineado con la oferta «' + (o.title || '') + '»');
+    }));
   }
   function renderAddonRows(){
     $('pp-addons-list').innerHTML = (ppCur.addons || []).map((a, i) =>
@@ -3119,6 +3206,29 @@
       '<input class="a-price" type="number" placeholder="CHF" value="' + (a.price || 0) + '" style="width:110px"/><button class="rm" type="button" data-i="' + i + '">✕</button></div>' +
       '<input class="a-note grow" placeholder="Nota (opcional)" value="' + esc(a.note || '') + '" style="width:100%"/></div>').join('');
     $('pp-addons-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.addons.splice(+b.dataset.i, 1); renderAddonRows(); }));
+  }
+  // portfolio curado por tipo de proyecto (IDs de Vimeo reales de la web)
+  const VIDEO_SUGGEST = {
+    brand:    [{ id: 502153490, t: 'Siemens — The Circle' }, { id: 639435034, t: 'Porsche — Der lange Weg' }],
+    employer: [{ id: 412290258, t: 'UBS — Apprenticeship' }, { id: 854285834, t: 'KPMG — Consultepreneur' }],
+    social:   [{ id: 412290258, t: 'UBS — Apprenticeship (Social)' }, { id: 828322230, t: 'Siemens — Working Students' }],
+    product:  [{ id: 1068759356, t: 'ON — Product Launch' }, { id: 1068759296, t: 'V-ZUG — Combair V600' }],
+    howto:    [{ id: 1026464530, t: 'V-ZUG — How-to' }, { id: 772421307, t: 'Meteomatics — EP01 ETH' }],
+    event:    [{ id: 757649241, t: 'FIFA — Living Football' }, { id: 861150876, t: 'SV Group — Innovation Film' }],
+    general:  [{ id: 1068759409, t: 'UBS — Corporate' }, { id: 861150876, t: 'SV Group — Innovation Film' }]
+  };
+  const TESTI_VIDEO = { id: 866299843, t: 'Client testimonials — why work with Viven' };
+  // según el tipo de proyecto (detectado de la consulta/título): 2 del portfolio + 1 testimonial
+  function suggestVideos(){
+    collectEditor();
+    const topic = detectTopic(($('pp-inquiry').value || '') + ' ' + ($('pp-title').value || ''));
+    const picks = VIDEO_SUGGEST[topic] || VIDEO_SUGGEST.general;
+    const have = new Set((ppCur.videos || []).map((v) => v.url));
+    picks.forEach((p) => { const url = 'https://vimeo.com/' + p.id; if (!have.has(url)) ppCur.videos.push({ url, title: p.t, label: 'Portfolio' }); });
+    const tUrl = 'https://vimeo.com/' + TESTI_VIDEO.id;
+    if (!have.has(tUrl)) ppCur.videos.push({ url: tUrl, title: TESTI_VIDEO.t, label: 'Testimonial' });
+    renderVideoRows();
+    toast('🎬 Videos sugeridos (' + topic + ') + video testimonial — editá lo que quieras');
   }
   function renderVideoRows(){
     const kinds = ['', 'Testimonial', 'Case study', 'Portfolio'];
@@ -3273,6 +3383,7 @@
     $('pp-tier-add').addEventListener('click', () => { collectEditor(); ppCur.tiers.push({ name: '', subtitle: '', price: 0, discount_pct: 0, recommended: false, includes: [], items: [] }); renderTierRows(); });
     $('pp-addon-add').addEventListener('click', () => { collectEditor(); ppCur.addons.push({ name: '', note: '', price: 0 }); renderAddonRows(); });
     $('pp-video-add').addEventListener('click', () => { collectEditor(); ppCur.videos.push({ url: '', title: '', label: '' }); renderVideoRows(); });
+    $('pp-video-suggest').addEventListener('click', suggestVideos);
   }
 
   /* ================= BLOG SEO con IA ================= */
