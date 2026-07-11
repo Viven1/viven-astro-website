@@ -511,17 +511,20 @@
     $('kl-ads').textContent = allLeads.filter((r) => r.gclid).length;
 
     /* estado del pipeline + follow-ups */
-    const isS = (r, ...v) => v.includes(r.status);
-    const contacted = allLeads.filter((r) => isS(r, 'contacted', 'contactado')).length;
-    const won = allLeads.filter((r) => isS(r, 'won', 'cerrado')).length;
-    const lost = allLeads.filter((r) => isS(r, 'lost', 'perdido')).length;
-    const total = allLeads.length;
+    /* usa la MISMA clasificación que el pipeline (stageOf) — si no, un lead arrastrado
+       a "Ganado" queda con status 'ganado' y el KPI won ('won'/'cerrado') no lo contaba */
+    const byStage = (k) => allLeads.filter((r) => stageOf(r.status) === k).length;
+    const contacted = byStage('contactado');
+    const won = byStage('ganado');
+    const lost = byStage('perdido');
+    const decided = won + lost;
     const in7 = Date.now() + 7 * 864e5;
     const followWeek = allLeads.filter((r) => r.next_follow_up_at && new Date(r.next_follow_up_at).getTime() <= in7).length;
     $('kl-contacted').textContent = contacted;
     $('kl-won').textContent = won;
     $('kl-lost').textContent = lost;
-    $('kl-convrate').innerHTML = total ? (won / total * 100).toFixed(1) + '<small>%</small>' : '–';
+    /* conversión = ganados sobre los ya decididos (ganado+perdido); más honesto que sobre el total */
+    $('kl-convrate').innerHTML = decided ? (won / decided * 100).toFixed(0) + '<small>%</small>' : '–';
     $('kl-followup').textContent = followWeek;
 
     renderPipeline();
@@ -648,7 +651,7 @@
     sebastian: { name: 'Sebastian Cepeda', book: 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49' },
   };
   let sender = localStorage.getItem('viven_sender') || 'sofia';
-  const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en');
+  const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en') + '&topic=' + detectTopic(r.message);
 
   function buildDraft(r){
     const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';

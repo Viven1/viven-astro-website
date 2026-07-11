@@ -1,5 +1,7 @@
 ---
-// Página de intake / brief. El lead llega desde el email (?lead=<id>&lang=<en|de|es>).
+// Página de intake / brief — multiple choice. El lead llega desde el email
+// (?lead=<id>&lang=<en|de|es>&topic=<employer|product|social|event|howto|brand|general>).
+// Se adapta al idioma del lead y pre-selecciona el objetivo según el tema del email.
 // Guarda en Supabase (tabla briefs) con la publishable key, igual que el form del sitio.
 const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
 const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
@@ -15,76 +17,208 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <meta name="theme-color" content="#0f1826" />
 <link rel="stylesheet" href="/assets/site.css" />
 <style>
-  .brief-wrap{max-width:640px;margin:0 auto;padding:48px 22px 80px}
-  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);margin-bottom:28px;letter-spacing:-.02em}
+  .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px}
+  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);margin-bottom:26px;letter-spacing:-.02em}
   .brief-logo span{color:var(--acid)}
-  .brief-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:34px}
-  .brief-card h1{font-size:clamp(24px,4vw,30px);margin-bottom:8px}
-  .brief-card .lead{color:var(--muted);font-size:15.5px;margin-bottom:26px}
-  .bf{margin-bottom:18px}
+  .brief-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:32px}
+  .brief-card h1{font-size:clamp(23px,4vw,30px);line-height:1.15;margin-bottom:8px}
+  .brief-card .lead{color:var(--muted);font-size:15.5px;margin-bottom:8px}
+  /* barra de progreso */
+  .bprog{height:5px;border-radius:6px;background:var(--navy-900);overflow:hidden;margin:18px 0 26px}
+  .bprog i{display:block;height:100%;background:var(--acid);width:0;transition:width .35s ease}
+  /* preguntas */
+  .q{margin-bottom:26px}
+  .q > .qh{font-size:15.5px;font-weight:600;color:var(--text);margin-bottom:4px}
+  .q > .qs{font-size:12.5px;color:var(--muted-2);margin-bottom:12px}
+  .opts{display:grid;gap:9px}
+  .opts.two{grid-template-columns:1fr 1fr}
+  .opt{display:flex;align-items:center;gap:11px;text-align:left;width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:13px;color:var(--text);font-family:inherit;font-size:14.5px;padding:13px 15px;cursor:pointer;transition:border-color .15s,background .15s,transform .05s}
+  .opt:hover{border-color:var(--muted)}
+  .opt:active{transform:scale(.99)}
+  .opt .em{font-size:19px;line-height:1;flex:none}
+  .opt.sel{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 12%,var(--navy-900))}
+  .opt .tick{margin-left:auto;color:var(--acid);font-weight:700;opacity:0;transition:opacity .15s;flex:none}
+  .opt.sel .tick{opacity:1}
+  @media(max-width:520px){.opts.two{grid-template-columns:1fr}}
+  /* inputs finales */
+  .bf{margin-bottom:16px}
   .bf label{display:block;font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:7px}
-  .bf input,.bf textarea,.bf select{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px}
-  .bf textarea{min-height:90px;resize:vertical}
-  .bf .hint{color:var(--muted-2);font-size:12.5px;margin-top:5px}
-  .brief-card button{width:100%;margin-top:8px;font-size:16px;padding:15px}
+  .bf input,.bf textarea{width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:12px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px}
+  .bf textarea{min-height:80px;resize:vertical}
+  .brief-card button.submit{width:100%;margin-top:6px;font-size:16px;padding:15px}
   .brief-ok{text-align:center;padding:26px 0}
-  .brief-ok .big{font-size:40px}
+  .brief-ok .big{font-size:44px}
   .brief-alt{text-align:center;color:var(--muted);font-size:14px;margin-top:22px}
   .brief-alt a{color:var(--acid)}
+  .berr{color:#ff8b8b;font-size:13.5px;margin-top:10px;text-align:center;display:none}
 </style>
 </head>
 <body>
 <div class="brief-wrap">
   <div class="brief-logo">viven<span>.</span></div>
+
   <div class="brief-card" id="brief-form-card">
-    <h1 data-en="Tell us about your project" data-de="Erzählen Sie uns von Ihrem Projekt" data-es="Contanos sobre tu proyecto">Tell us about your project</h1>
-    <p class="lead" data-en="Takes ~2 minutes. With this we send you a fixed quote and timing — first draft usually ready ~2 weeks after we start." data-de="Dauert ~2 Minuten. Damit senden wir Ihnen ein fixes Angebot mit Timing — erster Entwurf meist ~2 Wochen nach Start." data-es="Toma ~2 minutos. Con esto te mandamos una propuesta con presupuesto fijo y tiempos — primer borrador ~2 semanas después de arrancar.">Takes ~2 minutes.</p>
+    <h1 id="bh-title" data-en="Tell us about your project" data-de="Erzählen Sie uns von Ihrem Projekt" data-es="Contanos sobre tu proyecto">Tell us about your project</h1>
+    <p class="lead" data-en="A few taps — no typing needed. With this we send you a fixed quote and timing." data-de="Ein paar Klicks — kein Tippen nötig. Damit senden wir Ihnen ein fixes Angebot mit Timing." data-es="Unos clics — casi sin escribir. Con esto te mandamos una propuesta con presupuesto fijo y tiempos.">A few taps — no typing needed.</p>
+    <div class="bprog"><i id="bprog-bar"></i></div>
+
     <form id="brief-form">
-      <div class="bf"><label data-en="Your name" data-de="Ihr Name" data-es="Tu nombre">Your name</label><input name="name" required /></div>
-      <div class="bf"><label data-en="Email" data-de="E-Mail" data-es="Email">Email</label><input type="email" name="email" required /></div>
-      <div class="bf"><label data-en="What should the video achieve?" data-de="Was soll das Video bewirken?" data-es="¿Qué debe lograr el video?">What should the video achieve?</label><input name="goal" placeholder="launch, leads, hiring, brand…" required /></div>
-      <div class="bf"><label data-en="Where will it run?" data-de="Wo wird es laufen?" data-es="¿Dónde va a correr?">Where will it run?</label><input name="distribution" placeholder="website, social, paid, event…" /></div>
-      <div class="bf"><label data-en="Ideal timeline / deadline" data-de="Zeitrahmen / Deadline" data-es="Timeline / deadline ideal">Ideal timeline / deadline</label><input name="timeline" placeholder="e.g. in 6 weeks, before Q4…" /></div>
-      <div class="bf"><label data-en="Rough budget (optional)" data-de="Budget (optional)" data-es="Presupuesto aprox. (opcional)">Rough budget (optional)</label>
-        <select name="budget"><option value="">—</option><option>&lt; CHF 5k</option><option>CHF 5–15k</option><option>CHF 15–40k</option><option>CHF 40k+</option></select></div>
-      <div class="bf"><label data-en="Anything else?" data-de="Sonst noch etwas?" data-es="¿Algo más?">Anything else?</label><textarea name="extra"></textarea></div>
+      <!-- Q1: objetivo (single) -->
+      <div class="q" data-key="goal" data-multi="0">
+        <div class="qh" data-en="What should the video achieve?" data-de="Was soll das Video bewirken?" data-es="¿Qué debe lograr el video?">What should the video achieve?</div>
+        <div class="qs" data-en="Pick the main goal" data-de="Wählen Sie das Hauptziel" data-es="Elegí el objetivo principal">Pick the main goal</div>
+        <div class="opts">
+          <button type="button" class="opt" data-val="product" data-topic="product"><span class="em">🚀</span><span data-en="Launch a product / service" data-de="Produkt / Dienstleistung lancieren" data-es="Lanzar un producto / servicio">Launch a product / service</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="leads"><span class="em">📈</span><span data-en="Generate leads / sales" data-de="Leads / Verkäufe generieren" data-es="Generar leads / ventas">Generate leads / sales</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="employer" data-topic="employer"><span class="em">👥</span><span data-en="Attract talent (employer branding)" data-de="Talente gewinnen (Employer Branding)" data-es="Atraer talento (employer branding)">Attract talent</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="brand" data-topic="brand"><span class="em">🎬</span><span data-en="Build the brand / image" data-de="Marke / Image stärken" data-es="Construir marca / imagen">Build the brand</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="explain" data-topic="howto"><span class="em">💡</span><span data-en="Explain a product / how-to" data-de="Produkt erklären / How-to" data-es="Explicar un producto / how-to">Explain a product</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="social" data-topic="social"><span class="em">📱</span><span data-en="Content for social media" data-de="Content für Social Media" data-es="Contenido para redes">Content for social</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2: distribución (multi) -->
+      <div class="q" data-key="distribution" data-multi="1">
+        <div class="qh" data-en="Where will it run?" data-de="Wo wird es laufen?" data-es="¿Dónde va a correr?">Where will it run?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varias">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Website"><span class="em">🌐</span><span data-en="Website" data-de="Website" data-es="Web">Website</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Social"><span class="em">📱</span><span data-en="Social media" data-de="Social Media" data-es="Redes sociales">Social media</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Paid ads"><span class="em">🎯</span><span data-en="Paid ads" data-de="Paid Ads" data-es="Ads pagas">Paid ads</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Event"><span class="em">🎪</span><span data-en="Event / trade show" data-de="Event / Messe" data-es="Evento / feria">Event</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Sales / email"><span class="em">✉️</span><span data-en="Sales / email" data-de="Vertrieb / E-Mail" data-es="Ventas / email">Sales / email</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="TV / cinema"><span class="em">📺</span><span data-en="TV / cinema" data-de="TV / Kino" data-es="TV / cine">TV / cinema</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q3: timing (single) -->
+      <div class="q" data-key="timeline" data-multi="0">
+        <div class="qh" data-en="When do you need it?" data-de="Bis wann brauchen Sie es?" data-es="¿Para cuándo lo necesitás?">When do you need it?</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="ASAP"><span class="em">⚡</span><span data-en="As soon as possible" data-de="So bald wie möglich" data-es="Lo antes posible">As soon as possible</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="~1 month"><span class="em">📅</span><span data-en="In about a month" data-de="In etwa einem Monat" data-es="En ~1 mes">In about a month</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="2–3 months"><span class="em">🗓️</span><span data-en="In 2–3 months" data-de="In 2–3 Monaten" data-es="En 2–3 meses">In 2–3 months</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Exploring"><span class="em">🔭</span><span data-en="Just exploring" data-de="Erst am Sondieren" data-es="Explorando / sin fecha">Just exploring</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q4: presupuesto (single) -->
+      <div class="q" data-key="budget" data-multi="0">
+        <div class="qh" data-en="Rough budget?" data-de="Ungefähres Budget?" data-es="¿Presupuesto aproximado?">Rough budget?</div>
+        <div class="qs" data-en="Helps us scope it right — no commitment" data-de="Hilft beim Zuschnitt — unverbindlich" data-es="Nos ayuda a dimensionar — sin compromiso">Helps us scope it right — no commitment</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="< CHF 5k"><span data-en="Under CHF 5k" data-de="Unter CHF 5k" data-es="Menos de CHF 5k">Under CHF 5k</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="CHF 5–15k"><span>CHF 5–15k</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="CHF 15–40k"><span>CHF 15–40k</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="CHF 40k+"><span>CHF 40k+</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Not sure yet"><span data-en="Not sure yet" data-de="Noch unklar" data-es="No sé aún">Not sure yet</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- datos -->
+      <div class="q">
+        <div class="qh" data-en="Where do we send the quote?" data-de="Wohin senden wir das Angebot?" data-es="¿A dónde te mandamos la propuesta?">Where do we send the quote?</div>
+        <div class="bf" style="margin-top:12px"><label data-en="Your name" data-de="Ihr Name" data-es="Tu nombre">Your name</label><input name="name" autocomplete="name" required /></div>
+        <div class="bf"><label data-en="Email" data-de="E-Mail" data-es="Email">Email</label><input type="email" name="email" autocomplete="email" required /></div>
+        <div class="bf"><label data-en="Anything else? (optional)" data-de="Sonst noch etwas? (optional)" data-es="¿Algo más? (opcional)">Anything else? (optional)</label><textarea name="extra"></textarea></div>
+      </div>
+
       <input type="text" name="company_url" style="position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true" />
-      <button class="btn btn-primary" type="submit" data-en="Send brief →" data-de="Briefing senden →" data-es="Enviar brief →">Send brief →</button>
+      <button class="btn btn-primary submit" type="submit" data-en="Send brief →" data-de="Briefing senden →" data-es="Enviar brief →">Send brief →</button>
+      <div class="berr" id="brief-err" data-en="Something went wrong — try again or email info@viven.ch" data-de="Etwas ist schiefgelaufen — bitte erneut versuchen oder info@viven.ch" data-es="Algo salió mal — probá de nuevo o escribí a info@viven.ch">Something went wrong.</div>
     </form>
+
     <p class="brief-alt" data-en="Prefer to talk? " data-de="Lieber sprechen? " data-es="¿Preferís hablar? ">Prefer to talk? <a href="https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49" target="_blank" rel="noopener" data-en="Book a 15-min call →" data-de="15-Min-Call buchen →" data-es="Agendá 15 min →">Book a 15-min call →</a></p>
   </div>
+
   <div class="brief-card brief-ok" id="brief-ok" hidden>
     <div class="big">✅</div>
     <h1 data-en="Got it — thank you!" data-de="Erhalten — danke!" data-es="¡Recibido — gracias!">Got it — thank you!</h1>
     <p class="lead" data-en="We'll come back within one business day with ideas, timing and a clear quote." data-de="Wir melden uns innert eines Werktags mit Ideen, Timing und einem klaren Angebot." data-es="Volvemos en un día hábil con ideas, tiempos y un presupuesto claro.">We'll come back within one business day.</p>
   </div>
 </div>
+
 <script is:inline define:vars={{ SB_URL, SB_KEY }}>
   var qs = new URLSearchParams(location.search);
   var lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang') : 'en';
   var leadId = qs.get('lead') || null;
+  var topic = qs.get('topic') || '';
   document.documentElement.lang = lang;
+
+  // aplicar idioma a todo lo que tenga data-<lang>
   document.querySelectorAll('[data-' + lang + ']').forEach(function(el){ el.textContent = el.getAttribute('data-' + lang); });
+
+  // pre-seleccionar el objetivo según el tema del email (data-topic en las opciones de goal)
+  if (topic) {
+    var pre = document.querySelector('.q[data-key="goal"] .opt[data-topic="' + topic + '"]');
+    if (pre) pre.classList.add('sel');
+  }
+
   var form = document.getElementById('brief-form');
+  var bar = document.getElementById('bprog-bar');
+  var errBox = document.getElementById('brief-err');
+
+  function updateProgress(){
+    var qBlocks = form.querySelectorAll('.q[data-key]');
+    var done = 0;
+    qBlocks.forEach(function(q){ if (q.querySelector('.opt.sel')) done++; });
+    // +1 por email válido
+    var total = qBlocks.length + 1;
+    if (form.email.value.trim() && /\S+@\S+\.\S+/.test(form.email.value)) done++;
+    bar.style.width = Math.round(done / total * 100) + '%';
+  }
+
+  // manejar clicks en las opciones (single o multi)
+  form.querySelectorAll('.q[data-key]').forEach(function(q){
+    var multi = q.getAttribute('data-multi') === '1';
+    q.querySelectorAll('.opt').forEach(function(opt){
+      opt.addEventListener('click', function(){
+        if (multi) {
+          opt.classList.toggle('sel');
+        } else {
+          q.querySelectorAll('.opt').forEach(function(o){ o.classList.remove('sel'); });
+          opt.classList.add('sel');
+        }
+        updateProgress();
+      });
+    });
+  });
+  form.email.addEventListener('input', updateProgress);
+  updateProgress();
+
+  function collect(q){
+    var vals = [];
+    q.querySelectorAll('.opt.sel').forEach(function(o){ vals.push(o.getAttribute('data-val')); });
+    return vals;
+  }
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if (form.company_url.value) return; // honeypot
+    errBox.style.display = 'none';
+
+    var goal = collect(form.querySelector('.q[data-key="goal"]'))[0] || '';
+    var distribution = collect(form.querySelector('.q[data-key="distribution"]')).join(', ');
+    var timeline = collect(form.querySelector('.q[data-key="timeline"]'))[0] || '';
+    var budget = collect(form.querySelector('.q[data-key="budget"]'))[0] || '';
+
     var row = {
       lead_id: leadId, lang: lang,
       name: form.name.value.trim(), email: form.email.value.trim(),
-      goal: form.goal.value.trim(), distribution: form.distribution.value.trim(),
-      timeline: form.timeline.value.trim(), budget: form.budget.value,
+      goal: goal, distribution: distribution || null,
+      timeline: timeline || null, budget: budget || null,
       extra: form.extra.value.trim() || null
     };
-    var btn = form.querySelector('button'); btn.disabled = true;
+
+    var btn = form.querySelector('button.submit'); btn.disabled = true;
     fetch(SB_URL + '/rest/v1/briefs', {
       method: 'POST',
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(row)
     }).then(function(r){
       if (r.ok) { document.getElementById('brief-form-card').hidden = true; document.getElementById('brief-ok').hidden = false; window.scrollTo(0,0); }
-      else { btn.disabled = false; alert('Error — try again or email info@viven.ch'); }
-    }).catch(function(){ btn.disabled = false; alert('Error — try again or email info@viven.ch'); });
+      else { btn.disabled = false; errBox.style.display = 'block'; }
+    }).catch(function(){ btn.disabled = false; errBox.style.display = 'block'; });
   });
 </script>
 </body>
