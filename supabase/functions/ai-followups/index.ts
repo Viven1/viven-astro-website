@@ -27,24 +27,43 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { lead = {}, sender_name = "Sofia", offer_title = "" } = await req.json();
+    const { lead = {}, sender_name = "Sofia", offer_title = "", stage = "contactado", offer_total = "" } = await req.json();
     const lang = ["en", "de", "es"].includes(lead.lang) ? lead.lang : "en";
     const language = lang === "de" ? "German (Swiss business style, Sie-Form)" : lang === "es" ? "Spanish" : "English";
 
-    const prompt = `You write follow-up emails for VIVEN AG, a video production company in Zürich (clients: UBS, Siemens, Porsche, ON, FIFA). A lead inquired but hasn't replied yet. Write a sequence of 3 SHORT follow-up emails in ${language} that build trust without being pushy.
+    // el OBJETIVO de la secuencia depende de la etapa del deal:
+    // sin respuesta → conseguir el video call · call agendado → mantener momentum · oferta/propuesta enviada → decisión
+    let goal: string;
+    if (stage === "propuesta" && offer_title) {
+      goal = `They received our offer "${offer_title}"${offer_total ? ` (${offer_total})` : ""} and haven't decided yet. GOAL: get a decision on the offer.
+- Email 1 (day 3): ask if they had a chance to review it, offer to walk them through it on a quick call, or adjust scope/budget if something doesn't fit.
+- Email 2 (day 7): add value — what similar clients did (e.g. Siemens got a 3× traffic lift), address the most common hesitation (scope flexibility, timing), remind the offer includes two correction rounds.
+- Email 3 (day 12): gentle deadline — the offer is valid 30 days and production slots fill up; ask if you should hold their slot or close the file for now.`;
+    } else if (stage === "videocall") {
+      goal = `They booked/had a video call with us. GOAL: keep momentum toward the offer.
+- Email 1 (day 1): thank them for the call, recap in one line what we understood, confirm the offer is on its way.
+- Email 2 (day 4): share one relevant client story matching their project type, ask if anything changed on their side.
+- Email 3 (day 8): check in — still the right timing? Offer a short call to refine details.`;
+    } else {
+      goal = `They inquired but haven't replied to our first response. GOAL: get a reply and book a 15-min video call (a booking button is added below your text automatically — mention they can book directly below).
+- Email 1 (day 2): gentle nudge, reference THEIR specific request, add ONE piece of value (e.g. "for Siemens we produced 120+ videos in 5 days, 3× traffic lift").
+- Email 2 (day 5): different angle — social proof (5.0 stars on Google, 47 reviews) or a relevant case study, ask ONE easy question.
+- Email 3 (day 10): polite "should I close the file?" breakup email, keeps door open.`;
+    }
+
+    const prompt = `You write follow-up emails for VIVEN AG, a video production company in Zürich (clients: UBS, Siemens, Porsche, ON, FIFA). Write a sequence of 3 SHORT follow-up emails in ${language} that build trust without being pushy.
 
 Lead context:
 - Name: ${lead.first_name || lead.name || "there"}
 - Their inquiry: "${(lead.message || "").slice(0, 400)}"
 - Page they converted on: ${lead.form_path || lead.landing_path || "website"}
-${offer_title ? `- We sent them an offer: "${offer_title}"` : ""}
+- Deal stage: ${stage}
+
+${goal}
 
 Rules:
-- Email 1 (day 2): gentle nudge, reference THEIR specific request, add ONE piece of value (e.g. relevant client result: "for Siemens we produced 120+ videos in 5 days, 3× traffic lift").
-- Email 2 (day 5): different angle — share social proof (5.0 stars on Google, 47 reviews) or a relevant case study idea, ask ONE easy question.
-- Email 3 (day 10): polite last touch — "should I close the file?" breakup email, keeps door open.
 - Each: max 90 words, personal tone, sign with "${sender_name} · VIVEN AG". No links, no placeholders like [name] — use their actual name.
-- Subjects: short, no clickbait, reference their project.
+- Subjects: short, no clickbait, reference their project${offer_title ? ` or the offer "${offer_title}"` : ""}.
 
 Respond ONLY with valid minified JSON:
 {"followups":[{"day":2,"subject":"...","body":"..."},{"day":5,"subject":"...","body":"..."},{"day":10,"subject":"...","body":"..."}]}`;

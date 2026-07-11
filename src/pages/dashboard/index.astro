@@ -2321,11 +2321,19 @@
     } catch (e) { box.innerHTML = '<p class="muted-note">¿Corriste el SQL 0019?</p>'; }
   }
   function fuLocal(iso){ const d = new Date(iso); const p2 = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()); }
+  function fuGoal(r){
+    const st = stageOf(r.status);
+    if (st === 'propuesta') return '🎯 Objetivo de la secuencia (etapa Propuesta): que decida sobre la oferta — el email lleva link a la propuesta si existe.';
+    if (st === 'videocall') return '🎯 Objetivo (etapa Video Call): mantener el momentum hasta la oferta.';
+    if (st === 'ganado' || st === 'perdido') return '✅ Deal cerrado — no se envían follow-ups.';
+    return '🎯 Objetivo (sin respuesta): conseguir respuesta y agendar el call — el email lleva el botón de booking.';
+  }
   function renderFollowups(r){
     const box = $('lm-fu-list'); if (!box) return;
     $('lm-fu-n').textContent = fuList.length ? '(' + fuList.filter((f) => f.status === 'approved').length + ' programados)' : '';
-    if (!fuList.length){ box.innerHTML = '<p class="muted-note">Sin secuencia todavía. Generala con ✨ — la IA propone 3 emails con fechas (día 2, 5 y 10) y vos corregís y aprobás.</p>'; return; }
-    box.innerHTML = fuList.map((f) => { const st = FU_ST[f.status] || FU_ST.draft; const locked = f.status === 'sent' || f.status === 'canceled';
+    const goal = '<p class="muted-note" style="margin:0 0 10px;color:var(--acid)">' + fuGoal(r) + '</p>';
+    if (!fuList.length){ box.innerHTML = goal + '<p class="muted-note">Sin secuencia todavía. Generala con ✨ — la IA la arma según la etapa y vos corregís, ajustás fechas y aprobás. Si la etapa cambia, la secuencia se cancela sola y generás la nueva.</p>'; return; }
+    box.innerHTML = goal + fuList.map((f) => { const st = FU_ST[f.status] || FU_ST.draft; const locked = f.status === 'sent' || f.status === 'canceled';
       return '<div class="fu-row" data-id="' + f.id + '">' +
         '<div class="fu-top"><span class="fu-st" style="color:' + st[1] + ';border-color:' + st[1] + '">' + st[0] + '</span>' +
         '<input class="fu-subj" value="' + esc(f.subject) + '"' + (locked ? ' disabled' : '') + '/>' +
@@ -2352,8 +2360,13 @@
   async function genFollowups(r){
     const btn = $('lm-fu-gen'); btn.disabled = true; btn.textContent = '✨ Generando…';
     try {
-      const offer = offersForLead(r.id)[0];
-      const { data, error } = await supabase.functions.invoke('ai-followups', { body: { lead: r, sender_name: teamName(myEmail()).split(/\s+/)[0], offer_title: offer ? offer.title : '' } });
+      const PRIO2 = { sent: 0, won: 1, draft: 2, lost: 3 };
+      const offer = offersForLead(r.id).slice().sort((a, b) => (PRIO2[a.status] ?? 9) - (PRIO2[b.status] ?? 9))[0];
+      const { data, error } = await supabase.functions.invoke('ai-followups', { body: {
+        lead: r, sender_name: teamName(myEmail()).split(/\s+/)[0],
+        stage: stageOf(r.status),
+        offer_title: (offer && offer.status !== 'lost') ? offer.title : '',
+        offer_total: (offer && offer.status !== 'lost') ? fmtM(offerNet(offer)) : '' } });
       if (error || data.error) throw new Error(error?.message || data.error);
       const rows = (data.followups || []).map((f, i) => ({ lead_id: String(r.id), position: i + 1, subject: f.subject, body: f.body,
         send_at: new Date(Date.now() + (Number(f.day) || (i + 1) * 3) * 864e5).toISOString(), status: 'draft', sender_key: sender }));

@@ -12,8 +12,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
-// etapas donde la secuencia ya no tiene sentido (el deal avanzó o cerró)
-const STOP_STAGES = ["videocall", "video call booked", "call", "booked", "proposal", "propuesta", "qualified", "won", "ganado", "cerrado", "lost", "perdido"];
+// solo se frena si el deal CERRÓ (ganado/perdido). Al avanzar de etapa, el dashboard
+// ya cancela la secuencia vieja — y la nueva (ej. decisión sobre la oferta) es válida.
+const STOP_STAGES = ["won", "ganado", "cerrado", "lost", "perdido"];
 const SENDER = (k: string) => k === "sebastian"
   ? { name: "Sebastian Cepeda", email: "sebastian@viven.ch" }
   : { name: "Sofia Treviño", email: "sofia@viven.ch" };
@@ -35,7 +36,32 @@ Deno.serve(async (_req) => {
         canceled++; continue;
       }
       const snd = SENDER(fu.sender_key || "sofia");
-      const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:15px;line-height:1.65;color:#1a2230;max-width:600px">${esc(fu.body).replace(/\n/g, "<br>")}</div>`;
+      // CTA según la etapa: sin call → botón de booking; oferta/propuesta enviada → link a la propuesta si existe
+      const stage = String(lead.status || "").toLowerCase();
+      const BOOK_URL = "https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49";
+      const SITE = "https://viven-astro-website.viven-ag.workers.dev"; // TODO al ir live: https://www.viven.ch
+      let cta = "";
+      if (["new", "nuevo", "", "pending", "contacted", "contactado"].includes(stage)) {
+        const label = lead.lang === "de" ? "📅 15-Min-Call buchen" : lead.lang === "es" ? "📅 Agendar un call de 15 min" : "📅 Book a 15-min call";
+        cta = `<div style="text-align:center;margin:26px 0 4px"><a href="${BOOK_URL}" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">${label}</a></div>`;
+      } else if (["proposal", "propuesta", "qualified"].includes(stage)) {
+        const { data: prop } = await service.from("proposals").select("slug,password,status").eq("lead_id", String(fu.lead_id)).eq("is_template", false).not("slug", "is", null).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        if (prop?.slug) {
+          const label = lead.lang === "de" ? "→ Ihre Offerte ansehen" : lead.lang === "es" ? "→ Ver tu propuesta" : "→ View your proposal";
+          cta = `<div style="text-align:center;margin:26px 0 4px"><a href="${SITE}/proposal/?id=${encodeURIComponent(prop.slug)}" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">${label}</a>${prop.password ? `<div style="font-size:11.5px;color:#8a94a8;margin-top:8px">Access code: <b style="color:#1a2230">${esc(prop.password)}</b></div>` : ""}</div>`;
+        }
+      }
+      // email con el diseño de marca (mismo estilo que el email de oferta)
+      const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230">
+        <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:22px 28px">
+          <span style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#ddf98f">viven</span>
+          <span style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#9aa6bd;margin-left:10px">Film Production</span>
+        </div>
+        <div style="border:1px solid #e8eaef;border-top:0;border-radius:0 0 14px 14px;padding:26px 28px">
+          <div style="font-size:15px;line-height:1.7;white-space:pre-wrap">${esc(fu.body)}</div>
+          ${cta}
+          <p style="font-size:11px;color:#8a94a8;text-align:center;margin:22px 0 0;border-top:1px solid #e8eaef;padding-top:14px"><b style="color:#1a2230">VIVEN AG</b> · Film Production · Zeughausstrasse 31, 8004 Zürich<br>viven.ch · ★★★★★ 5.0 on Google (47 reviews)</p>
+        </div></div>`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
