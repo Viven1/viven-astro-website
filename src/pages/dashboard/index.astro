@@ -218,6 +218,15 @@
   .of-composer{position:fixed;inset:0;z-index:400;background:rgba(9,15,26,.8);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow-y:auto}
   .ofc-card{background:var(--navy-800);border:1px solid var(--line-strong);border-radius:16px;padding:22px 24px;max-width:560px;width:100%}
   .ofc-l{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:700;margin:12px 0 5px}
+  .tpl-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;background:var(--navy-800);border:1px dashed var(--line-strong);border-radius:12px;padding:10px 14px}
+  .tpl-strip .tpl-l{font-size:11.5px;font-weight:700;color:var(--muted-2);text-transform:uppercase;letter-spacing:.05em}
+  .tpl-chip{display:inline-flex;align-items:center;background:var(--navy-700);border:1px solid var(--line);border-radius:100px;overflow:hidden}
+  .tpl-chip .tpl-use{background:none;border:0;color:var(--text);font:inherit;font-size:12.5px;font-weight:600;padding:6px 6px 6px 13px;cursor:pointer}
+  .tpl-chip .tpl-use:hover{color:var(--acid)}
+  .tpl-chip .tpl-del{background:none;border:0;color:var(--muted-2);font-size:11px;padding:6px 10px 6px 4px;cursor:pointer}
+  .tpl-chip .tpl-del:hover{color:#ff8b8b}
+  .of-terms-box{margin-top:18px}
+  .of-terms-box .pp-sec-h{margin-bottom:8px}
   .lm-taskadd-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
   .lm-taskadd-row input[type=date]{flex:1 1 108px;min-width:0}
   .lm-taskadd-row input[type=time]{flex:0 0 92px;min-width:0}
@@ -913,6 +922,7 @@
           <p class="muted-note">La IA analiza tu conversión de ofertas, semanas para cerrar, margen y valor ganado, y te sugiere cómo mejorar precio y cierre.</p>
         </div>
       </div>
+      <div class="tpl-strip" id="of-tpl-strip" hidden></div>
       <div id="of-list" class="of-list"></div>
       <p class="muted-note" id="of-empty" hidden>Todavía no hay ofertas. Creá la primera con "Nueva oferta".</p>
     </div>
@@ -930,6 +940,7 @@
           </select>
           <button class="btn btn-ghost small" id="of-print" type="button">🖨 PDF</button>
           <button class="btn btn-ghost small" id="of-send" type="button">✉️ Enviar</button>
+          <button class="btn btn-ghost small" id="of-tpl-save" type="button" title="Guardar esta oferta como template reutilizable">📋 Template</button>
           <button class="btn btn-ghost small" id="of-delete" type="button">🗑 Borrar</button>
           <button class="btn btn-primary small" id="of-save" type="button">💾 Guardar</button>
         </div>
@@ -985,6 +996,12 @@
         <div class="of-sum-row"><span>Margen</span><b id="of-marginpct" class="pos">0%</b></div>
         <div class="of-bep" id="of-bep"></div>
       </div>
+
+      <!-- términos y condiciones especiales (salen en el PDF y en el email) -->
+      <div class="of-terms-box">
+        <div class="pp-sec-h">Términos y condiciones especiales <span class="count">(pagos, cancelación, duración del shooting — editá a mano)</span></div>
+        <textarea id="of-terms" class="ed-inp" style="min-height:130px"></textarea>
+      </div>
     </div>
   </div>
 
@@ -999,6 +1016,7 @@
         </div>
         <button class="btn btn-primary" id="pp-new" type="button">➕ Nueva propuesta</button>
       </div>
+      <div class="tpl-strip" id="pp-tpl-strip" hidden style="margin-top:14px"></div>
       <div id="pp-list" class="of-list" style="margin-top:16px"></div>
       <p class="muted-note" id="pp-empty" hidden>Todavía no hay propuestas. Creá la primera con "Nueva propuesta".</p>
     </div>
@@ -1013,6 +1031,7 @@
           <button class="btn btn-ghost small" id="pp-view" type="button" hidden>🔗 Ver link</button>
           <button class="btn btn-ghost small" id="pp-del" type="button">🗑 Borrar</button>
           <button class="btn btn-ghost small" id="pp-save" type="button">💾 Guardar</button>
+          <button class="btn btn-ghost small" id="pp-tpl-save" type="button" title="Guardar esta propuesta como template reutilizable">📋 Template</button>
           <button class="btn btn-primary small" id="pp-publish" type="button">🌐 Publicar</button>
         </div>
       </div>
@@ -1064,6 +1083,9 @@
 
       <div class="pp-sec-h">Add-ons <button class="btn btn-ghost xs" id="pp-addon-add" type="button">+ add-on</button></div>
       <div id="pp-addons-list"></div>
+
+      <div class="pp-sec-h">Términos y condiciones especiales <span class="count">(pagos, cancelación — salen al final de la propuesta)</span></div>
+      <textarea id="pp-terms" class="pp-ta" style="min-height:110px"></textarea>
 
       <div class="pp-sec-h">Videos por URL <span class="count">(Vimeo / YouTube — testimonials, case studies, portfolio)</span> <button class="btn btn-ghost xs" id="pp-video-suggest" type="button" title="Elige 2 videos del portfolio según el tipo de proyecto + 1 video testimonial">🎬 Sugerir según proyecto</button> <button class="btn btn-ghost xs" id="pp-video-add" type="button">+ video</button></div>
       <div id="pp-videos-list"></div>
@@ -1690,7 +1712,7 @@
   }
   const OF_ST = { draft: 'Borrador', sent: 'Enviada', won: 'Ganada', lost: 'Perdida' };
   // ofertas (no archivadas) ligadas a un lead
-  const offersForLead = (id) => (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(id) && !o.archived);
+  const offersForLead = (id) => (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(id) && !o.archived && !o.is_template);
   // motivo de pérdida heredado del contacto (si el lead está perdido y la oferta/propuesta no tiene el suyo)
   const leadLostReason = (lead_id) => { const l = (allLeads || []).find((x) => String(x.id) === String(lead_id)); return (l && stageOf(l.status) === 'perdido' && l.lost_reason) || null; };
   // Última actividad con el cliente (como HubSpot): lo más reciente entre visitar la web,
@@ -2723,7 +2745,7 @@
 
   let offersList = [], ofCur = null, offersBuilt = false, inquiryFromLead = '', showArchived = false;
 
-  function offersInit(){ buildPresetSelect(); if (!offersBuilt){ offersBuilt = true; bindOffers(); } offersLoad(); }
+  function offersInit(){ buildPresetSelect(); if (!offersBuilt){ offersBuilt = true; bindOffers(); } showEditor(false); offersLoad(); }
 
   function buildPresetSelect(){
     const sel = $('of-preset');
@@ -2751,23 +2773,25 @@
   function renderOffersList(){
     const box = $('of-list');
     $('of-empty').hidden = offersList.length > 0;
-    const open = offersList.filter((o) => o.status === 'sent');
-    const won = offersList.filter((o) => o.status === 'won');
-    const lost = offersList.filter((o) => o.status === 'lost');
+    const pool = offersList.filter((o) => !o.is_template);   // templates fuera de KPIs y lista
+    const open = pool.filter((o) => o.status === 'sent');
+    const won = pool.filter((o) => o.status === 'won');
+    const lost = pool.filter((o) => o.status === 'lost');
     const decided = won.length + lost.length;
-    const margins = offersList.map(offerMarginPct).filter((m) => isFinite(m));
+    const margins = pool.map(offerMarginPct).filter((m) => isFinite(m));
+    renderTplStrip('of-tpl-strip', offersList.filter((o) => o.is_template), useOfferTemplate, delOfferTemplate);
     // semanas para cerrar (ganadas): updated_at - created_at, aprox del cierre
     const closeDurs = won.map((o) => (Date.parse(o.updated_at) - Date.parse(o.created_at)) / 6048e5).filter((d) => d >= 0);
     $('of-k-open').textContent = open.length;
     $('of-k-won').textContent = won.length;
     $('of-k-conv').innerHTML = decided ? Math.round(won.length / decided * 100) + '<small>%</small>' : '–';
     $('of-k-weeks').textContent = closeDurs.length ? (closeDurs.reduce((a, b) => a + b, 0) / closeDurs.length).toFixed(1) : '–';
-    $('of-k-count').textContent = offersList.length;
+    $('of-k-count').textContent = pool.length;
     $('of-k-value').textContent = fmtM(won.reduce((a, o) => a + offerNet(o), 0));
     $('of-k-margin').textContent = margins.length ? Math.round(margins.reduce((a, b) => a + b, 0) / margins.length) + '%' : '–';
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
-    const active = offersList.filter((o) => !o.archived);
-    const archived = offersList.filter((o) => o.archived);
+    const active = pool.filter((o) => !o.archived);
+    const archived = pool.filter((o) => o.archived);
     const cardHtml = (o) => {
       const net = offerNet(o), mp = offerMarginPct(o), b = badge[o.status] || badge.draft;
       const leadName = o.lead_id ? (allLeads.find((l) => String(l.id) === String(o.lead_id)) || {}).name : '';
@@ -2828,7 +2852,31 @@
 
   function showEditor(on){ $('of-editor').hidden = !on; $('of-list-view').hidden = on; }
 
-  function newOffer(){ ofCur = { title: '', client: '', lead_id: null, vat_rate: 8.1, status: 'draft', items: [] }; fillEditor(); showEditor(true); }
+  // strip de templates: chips con "usar" y borrar
+  function renderTplStrip(id, tpls, useFn, delFn){
+    const el = $(id); if (!el) return;
+    el.hidden = !tpls.length;
+    el.innerHTML = tpls.length ? '<span class="tpl-l">📋 Templates:</span>' + tpls.map((t) =>
+      '<span class="tpl-chip"><button class="tpl-use" data-id="' + t.id + '" type="button">' + esc((t.title || '(sin título)').replace(/^\[Template\]\s*/i, '')) + '</button><button class="tpl-del" data-id="' + t.id + '" type="button" title="Borrar template">✕</button></span>').join('') : '';
+    el.querySelectorAll('.tpl-use').forEach((b) => b.addEventListener('click', () => useFn(b.dataset.id)));
+    el.querySelectorAll('.tpl-del').forEach((b) => b.addEventListener('click', () => delFn(b.dataset.id)));
+  }
+  async function saveOfferAsTemplate(){
+    const title = $('of-title').value.trim() || ofCur.title || '(sin título)';
+    const row = { title: '[Template] ' + title.replace(/^\[Template\]\s*/i, ''), client: null, lead_id: null, vat_rate: parseFloat($('of-vat').value) || 8.1, status: 'draft', items: ofCur.items || [], terms: $('of-terms').value.trim() || null, is_template: true };
+    try { await sbWriteRowsResilient('offers', [row], null); toast('📋 Template guardado — lo tenés arriba de la lista'); offersLoad(); }
+    catch (e) { toast('No se pudo (¿SQL 0018?): ' + e.message); }
+  }
+  function useOfferTemplate(id){
+    const t = offersList.find((o) => String(o.id) === String(id)); if (!t) return;
+    ofCur = { title: (t.title || '').replace(/^\[Template\]\s*/i, ''), client: '', lead_id: null, vat_rate: t.vat_rate ?? 8.1, status: 'draft', items: JSON.parse(JSON.stringify(t.items || [])), terms: t.terms || DEFAULT_TERMS };
+    fillEditor(); showEditor(true); toast('Oferta creada desde el template — guardala cuando esté lista');
+  }
+  async function delOfferTemplate(id){
+    if (!confirm('¿Borrar este template?')) return;
+    await supabase.from('offers').delete().eq('id', id); offersLoad();
+  }
+  function newOffer(){ ofCur = { title: '', client: '', lead_id: null, vat_rate: 8.1, status: 'draft', items: [], terms: DEFAULT_TERMS }; fillEditor(); showEditor(true); }
   function openOffer(id){
     const src = offersList.find((o) => String(o.id) === String(id));
     if (!src) return;
@@ -2849,6 +2897,7 @@
     $('of-vat').value = ofCur.vat_rate ?? 8.1;
     $('of-lead').innerHTML = leadOptions(ofCur.lead_id);
     $('of-inquiry').value = ''; $('of-ai-note').textContent = ''; inquiryFromLead = '';
+    $('of-terms').value = ofCur.terms ?? '';
     showLostNote('of-lostr', ofCur.lost_reason || leadLostReason(ofCur.lead_id), ofCur.status === 'lost');
     prefillInquiry(false);
     renderRows();
@@ -2995,14 +3044,18 @@
     ofCur.lead_id = $('of-lead').value || null;
     ofCur.vat_rate = parseFloat($('of-vat').value) || 0;
     ofCur.status = $('of-status').value;
-    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null };
+    ofCur.terms = $('of-terms').value.trim() || null;
+    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms };
     const btn = $('of-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
     const doSave = (p) => ofCur.id
       ? supabase.from('offers').update(p).eq('id', ofCur.id).select().single()
       : supabase.from('offers').insert(p).select().single();
     let res = await doSave(payload);
-    // si falta la columna lost_reason (SQL 0014 sin correr), guardar sin ella
-    if (res.error && /lost_reason/.test(res.error.message || '')) { delete payload.lost_reason; res = await doSave(payload); }
+    // columnas nuevas sin migrar (SQL 0014/0018): sacarlas y reintentar
+    for (let a = 0; a < 3 && res.error; a++) {
+      const m = /Could not find the '([^']+)' column/.exec(res.error.message || '');
+      if (m && m[1] in payload) { delete payload[m[1]]; res = await doSave(payload); } else break;
+    }
     btn.disabled = false; btn.textContent = prev;
     if (res.error){ alert('No se pudo guardar: ' + res.error.message); return; }
     await offersLoad(); showEditor(false);
@@ -3061,7 +3114,9 @@
       '.totcard .row{display:flex;justify-content:space-between}' +
       '.totcard .gross{border-top:1px solid rgba(255,255,255,.18);margin-top:6px;padding-top:8px;font-family:"Space Grotesk";font-weight:700;font-size:17px;color:#ddf98f}' +
       '.small{font-size:10.5px;color:#8a94a8;margin-top:26px;line-height:1.6}' +
-      '.foot{margin-top:34px;border-top:1px solid #e8eaef;padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:#8a94a8}' +
+      '.terms{margin-top:26px;border-top:1px solid #e8eaef;padding-top:16px;font-size:11.5px;line-height:1.6;color:#3c4454;white-space:pre-wrap}' +
+      '.terms .th{font-family:"Space Grotesk";font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#1a2230;margin-bottom:8px}' +
+      '.foot{margin-top:30px;border-top:1px solid #e8eaef;padding-top:12px;font-size:9.5px;color:#8a94a8;line-height:1.7;text-align:center}' +
       '.foot b{color:#1a2230;font-weight:600}' +
       '.topbar{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border-bottom:1px solid #e8eaef;padding:10px 16px}' +
       '.topbar button{font-family:Inter,sans-serif;font-size:13.5px;font-weight:600;border-radius:100px;padding:9px 16px;cursor:pointer;border:1px solid #d5d9e2;background:#fff;color:#1a2230}' +
@@ -3081,8 +3136,11 @@
         '<div class="totcard"><div class="row"><span>Total netto</span><span>' + fmtM(net) + '</span></div>' +
           '<div class="row"><span>MwSt ' + vatRate + '%</span><span>' + fmtM(vat) + '</span></div>' +
           '<div class="row gross"><span>Total</span><span>' + fmtM(net + vat) + '</span></div></div>' +
-        '<p class="small">Alle Preise in CHF. Offerte gültig 30 Tage. Zwei Korrekturschleifen inklusive. Reise- und Spesenkosten nach Aufwand, sofern nicht anders vermerkt.</p>' +
-        '<div class="foot"><span><b>VIVEN AG</b> · Film Production</span><span>viven.ch · info@viven.ch · Zürich</span></div>' +
+        (ofCur.terms ? '<div class="terms"><div class="th">Terms &amp; Conditions</div>' + esc(ofCur.terms) + '</div>' : '') +
+        '<p class="small">Alle Preise in CHF. ' + esc(GTC_LINE) + '</p>' +
+        '<div class="foot"><div><b>VIVEN AG</b> · Kernstrasse 57, 8004 Zürich · info@viven.ch · +41 43 508 33 81 · viven.ch</div>' +
+        '<div>Bank: Zürcher Kantonalbank · IBAN CH44 0070 0114 8071 0758 3 · BIC ZKBKCHZZ80A</div>' +
+        '<div>VAT: CHE-266.556.186 MWST · CH-020.4.063.322-5</div></div>' +
       '</div></body></html>');
     w.document.close(); w.focus();
     // auto-print solo en desktop/navegador; en la app (standalone) el diálogo trababa la vista
@@ -3124,6 +3182,7 @@
           '<div>' + L.net + ' <span style="float:right">' + fmtM(net) + '</span></div>' +
           '<div>' + L.vatL + ' <span style="float:right">' + fmtM(vat) + '</span></div>' +
           '<div style="border-top:1px solid rgba(255,255,255,.2);margin-top:5px;padding-top:6px;font-weight:800;font-size:15px;color:#ddf98f">' + L.gross + ' <span style="float:right">' + fmtM(net + vat) + '</span></div></div></td></tr></table>' +
+        (ofCur.terms ? '<div style="margin-top:22px;border-top:1px solid #e8eaef;padding-top:14px;font-size:11.5px;line-height:1.6;color:#3c4454;white-space:pre-wrap">' + esc(ofCur.terms) + '</div>' : '') +
         '<div style="text-align:center;margin:26px 0 6px"><a href="' + BOOK_URL + '" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">' + L.book + '</a></div>' +
         '<p style="font-size:11px;color:#8a94a8;text-align:center;margin-top:16px">' + L.valid + '<br><b style="color:#1a2230">VIVEN AG</b> · viven.ch · info@viven.ch · Zürich</p>' +
       '</div></div>';
@@ -3197,6 +3256,7 @@
     $('of-delete').addEventListener('click', deleteOffer);
     $('of-print').addEventListener('click', printOffer);
     $('of-send').addEventListener('click', sendOfferEmail);
+    $('of-tpl-save').addEventListener('click', saveOfferAsTemplate);
   }
 
   /* ================= PROPUESTAS (Qwilr-like) ================= */
@@ -3214,16 +3274,37 @@
   const tierNet = (t) => (t.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
   const tierCostSum = (t) => (t.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.cost) || 0), 0);
 
-  function proposalsInit(){ if (!ppBuilt){ ppBuilt = true; bindProposals(); } ppLoad(); }
+  async function savePropAsTemplate(){
+    collectEditor();
+    const row = { slug: 'tpl-' + Math.random().toString(36).slice(2, 8), password: '', title: '[Template] ' + (ppCur.title || '(sin título)').replace(/^\[Template\]\s*/i, ''), client_name: null, client_email: null, lead_id: null, status: 'draft', content: buildContent(), is_template: true };
+    try { await sbWriteRowsResilient('proposals', [row], null); toast('📋 Template guardado — lo tenés arriba de la lista'); ppLoad(); }
+    catch (e) { toast('No se pudo (¿SQL 0018?): ' + e.message); }
+  }
+  function usePropTemplate(id){
+    const t = ppList.find((x) => String(x.id) === String(id)); if (!t) return;
+    ppCur = fromRow(t);
+    ppCur.id = null; ppCur.slug = null; ppCur.password = ''; ppCur.status = 'draft'; ppCur.lead_id = null;
+    ppCur.title = (ppCur.title || '').replace(/^\[Template\]\s*/i, ''); ppCur.client_name = ''; ppCur.client_email = '';
+    fillPropEditor(); showPropEditor(true); toast('Propuesta creada desde el template');
+  }
+  async function delPropTemplate(id){
+    if (!confirm('¿Borrar este template?')) return;
+    await supabase.from('proposals').delete().eq('id', id); ppLoad();
+  }
+  // al entrar al tab siempre se ve la LISTA (antes quedaba el editor abierto de antes)
+  function proposalsInit(){ if (!ppBuilt){ ppBuilt = true; bindProposals(); } showPropEditor(false); ppLoad(); }
   async function ppLoad(){
     const { data, error } = await supabase.from('proposals').select('*').order('updated_at', { ascending: false });
     if (error){ $('pp-empty').hidden = false; $('pp-empty').textContent = 'No se pudo cargar (¿corriste el SQL 0004_proposals?): ' + error.message; return; }
     ppList = data || []; renderPropList();
   }
   function renderPropList(){
-    const box = $('pp-list'); $('pp-empty').hidden = ppList.length > 0;
+    const box = $('pp-list');
+    const pool = ppList.filter((x) => !x.is_template);
+    renderTplStrip('pp-tpl-strip', ppList.filter((x) => x.is_template), usePropTemplate, delPropTemplate);
+    $('pp-empty').hidden = pool.length > 0;
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], accepted: ['Aceptada', '#7ed957'] };
-    box.innerHTML = ppList.map((p) => { const b = badge[p.status] || badge.draft;
+    box.innerHTML = pool.map((p) => { const b = badge[p.status] || badge.draft;
       return '<div class="of-card"><div class="of-card-open" data-id="' + p.id + '">' +
         '<div class="of-card-main"><div class="of-card-title">' + esc(p.title || '(sin título)') + '</div>' +
         '<div class="of-card-sub">' + esc(p.client_name || '—') + ' · ' + (p.views || 0) + ' vistas · ' + new Date(p.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
@@ -3240,13 +3321,13 @@
       if (act === 'link') copyPropLink(p); else if (act === 'dup') dupProp(p); else if (act === 'del') delPropById(id);
     }));
   }
-  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], testimonials: DEFAULT_TESTIMONIALS }; }
+  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
   function fromRow(r){ const c = r.content || {}, ov = c.overview || {};
     return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lost_reason: r.lost_reason || null, lead_id: r.lead_id || null,
       title: r.title || c.title || '', client_name: r.client_name || '', client_email: r.client_email || '',
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
-      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => g.items || []), videos: c.videos || [], testimonials: c.testimonials || DEFAULT_TESTIMONIALS };
+      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => g.items || []), videos: c.videos || [], terms: c.terms || '', testimonials: c.testimonials || pickReviews('general') };
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
   function openProp(id){ const src = ppList.find((p) => String(p.id) === String(id)); if (!src) return; ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); }
@@ -3258,6 +3339,7 @@
     ppPrevLeadId = ppCur.lead_id;   // para que al cambiar el lead, los campos sigan al nuevo
     $('pp-pass').value = ppCur.password; $('pp-vat').value = ppCur.vat_rate;
     $('pp-intro').value = ppCur.intro; $('pp-objective').value = ppCur.objective;
+    $('pp-terms').value = ppCur.terms ?? '';
     $('pp-outputs').value = (ppCur.outputs || []).join('\n'); $('pp-loc').value = ppCur.location; $('pp-timing').value = ppCur.timing; $('pp-delivery').value = ppCur.delivery;
     renderScopeRows(); renderTierRows(); renderAddonRows(); renderVideoRows();
     const badge = $('pp-status-badge'); badge.className = 'pp-status-badge ' + (ppCur.status || 'draft');
@@ -3328,8 +3410,9 @@
     picks.forEach((p) => { const url = 'https://vimeo.com/' + p.id; if (!have.has(url)) ppCur.videos.push({ url, title: p.t, label: 'Portfolio' }); });
     const tUrl = 'https://vimeo.com/' + TESTI_VIDEO.id;
     if (!have.has(tUrl)) ppCur.videos.push({ url: tUrl, title: TESTI_VIDEO.t, label: 'Testimonial' });
+    ppCur.testimonials = pickReviews(topic);   // reviews de Google acordes al proyecto
     renderVideoRows();
-    toast('🎬 Videos sugeridos (' + topic + ') + video testimonial — editá lo que quieras');
+    toast('🎬 Videos + reviews sugeridos (' + topic + ') — editá lo que quieras');
   }
   function renderVideoRows(){
     const kinds = ['', 'Testimonial', 'Case study', 'Portfolio'];
@@ -3347,6 +3430,7 @@
     ppCur.intro = $('pp-intro').value; ppCur.objective = $('pp-objective').value;
     ppCur.outputs = $('pp-outputs').value.split('\n').map((s) => s.trim()).filter(Boolean);
     ppCur.location = $('pp-loc').value; ppCur.timing = $('pp-timing').value; ppCur.delivery = $('pp-delivery').value;
+    ppCur.terms = $('pp-terms').value.trim();
     ppCur.scope = [...document.querySelectorAll('#pp-scope-list .pp-row')].map((r) => ({ title: r.querySelector('.s-title').value, text: r.querySelector('.s-text').value })).filter((s) => s.title || s.text);
     const oldT = ppCur.tiers || [];
     ppCur.tiers = [...document.querySelectorAll('#pp-tiers-list .pp-row')].map((r, i) => ({
@@ -3366,7 +3450,7 @@
       overview: { objective: ppCur.objective, outputs: ppCur.outputs, location: ppCur.location, timing: ppCur.timing, delivery: ppCur.delivery },
       scope: ppCur.scope, tiers: ppCur.tiers,
       addon_groups: (ppCur.addons && ppCur.addons.length) ? [{ title: 'Add-ons', items: ppCur.addons.map((a) => ({ name: a.name, note: a.note, price: a.price })) }] : [],
-      videos: ppCur.videos, vat_rate: ppCur.vat_rate, sender: { name: s.name, email: s.email, phone: s.phone }
+      videos: ppCur.videos, terms: ppCur.terms || '', vat_rate: ppCur.vat_rate, sender: { name: s.name, email: s.email, phone: s.phone }
     };
   }
   // vista previa: guarda el contenido actual en localStorage y abre /proposal/?preview=1 (sin publicar, sin password)
@@ -3475,6 +3559,7 @@
     $('pp-back').addEventListener('click', () => showPropEditor(false));
     $('pp-preview').addEventListener('click', previewProp);
     $('pp-save').addEventListener('click', () => saveProp(false));
+    $('pp-tpl-save').addEventListener('click', savePropAsTemplate);
     $('pp-publish').addEventListener('click', () => saveProp(true));
     $('pp-del').addEventListener('click', delCurProp);
     $('pp-ai').addEventListener('click', generatePropAI);
@@ -3689,6 +3774,29 @@ ${body}
   }
   function openCompany(domain){ coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false; renderCompanyDetail(); window.scrollTo(0, 0); }
   const OFBADGE = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
+  // términos por defecto (de las ofertas reales de Viven) — editables por oferta/propuesta
+  const DEFAULT_TERMS = 'Payment Terms\n50% in advance after confirmation, 50% after delivery.\n\nShooting Day Duration\nA shooting day is nine hours brutto and includes travel time, setup & shooting time, and one hour lunch. Overtime excluded.\n\nCancelation Terms\nOnce the project is approved, pre-production costs are due regardless of the cancelation date. If canceled less than 10 days before the shoot, the total production costs are due.';
+  const GTC_LINE = 'General Terms and Conditions: https://viven.ch/terms-and-conditions/';
+  // Google reviews reales (de reviews.json) — el pool rota según el tipo de proyecto
+  const GREVIEWS = [
+    { cat: 'corporate', name: 'Paula Fernandez', company: 'Corporate video', text: 'Working with Sofia and her team was a fantastic experience. We were on a very strict timeline, but they managed to deliver a high-quality corporate video in record time.' },
+    { cat: 'brand', name: 'Jesse Kim', company: 'Netflix original series', text: 'I couldn\'t complete my Netflix original series project well without the Viven AG team. Great team vibe, flexibility and great attitude.' },
+    { cat: 'corporate', name: 'Anne-Catherine Völkers', company: 'Capgemini Switzerland', text: 'We appreciated the professional, structured way of their work, their spontaneous availability and fast execution. We can for sure recommend Viven AG!' },
+    { cat: 'product', name: 'Manuela Kleiner', company: 'SENSAI Beauty', text: 'Their professionalism, reliability, expertise and the final result are all perfect. We have been working with Viven for several years.' },
+    { cat: 'howto', name: 'Thomas Stämpfli', company: 'TomFit', text: 'Viven consulted on and executed most professionally our explainer video. They delivered in time and in budget.' },
+    { cat: 'brand', name: 'Young Suh', company: 'Korean TV series', text: 'I brought my team of 70 to film a Korean TV series for 5 days, and Sebastian helped make it happen. He went above and beyond.' },
+    { cat: 'corporate', name: 'SV Group', company: 'Hospitality & catering', text: 'We are absolutely delighted with the results and would work with VIVEN again at any time.' },
+    { cat: 'product', name: 'Péter Fankhauser', company: 'Product launch', text: 'Super friendly, very flexible and professional team with excellent results for our product release video. I can highly recommend Viven!' },
+    { cat: 'employer', name: 'Alexander Stauch', company: 'Meteomatics AG', text: 'From the concept to the shooting days to the production of breathtaking videos, VIVEN offers an absolutely ingenious complete package.' },
+    { cat: 'brand', name: 'Gianluca Cesari', company: 'Sevensense Robotics', text: 'It was awesome working with VIVEN! Great collaboration, flexibility and outstanding results!' }
+  ];
+  // 3 reviews del tipo del proyecto (+ relleno de otras), en orden aleatorio → cada propuesta distinta
+  function pickReviews(topic){
+    const cat = { employer: 'employer', product: 'product', social: 'brand', event: 'corporate', howto: 'howto', brand: 'brand', general: 'corporate' }[topic] || 'corporate';
+    const match = GREVIEWS.filter((r) => r.cat === cat), rest = GREVIEWS.filter((r) => r.cat !== cat);
+    const shuffled = [...match.sort(() => Math.random() - 0.5), ...rest.sort(() => Math.random() - 0.5)].slice(0, 3);
+    return shuffled.map((r) => ({ quote: r.text, name: r.name, role: r.company, company: 'Google Review ★★★★★' }));
+  }
   function renderCompanyDetail(){
     const domain = coCur; const data = companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0, won: false };
     const m = coMeta[domain] || {};
