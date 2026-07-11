@@ -362,7 +362,7 @@ function renderLeadForm(mount){
        si HubSpot falla, el lead igual queda en nuestro dashboard. */
     hubspotSubmit(first, last, email, fMsg.value.trim());
 
-    sbInsert('leads', row).then(function(r){
+    sbInsertLead(row).then(function(r){
       if(r && r.ok){
         /* conversión → thank-you page en el idioma del visitante
            (ahí se dispara el evento de Google Ads / GA4) */
@@ -528,6 +528,37 @@ function sbInsert(table, row){
     body: JSON.stringify(row),
     keepalive: true
   }).catch(function(){});
+}
+/* Insert de lead a prueba de fallos: si a la tabla le falta una columna nueva
+   (p.ej. 'phone' antes de correr el SQL), la saca y reintenta — así NUNCA se
+   pierde un lead por un desajuste de esquema. Devuelve {ok:true|false}. */
+function sbInsertLead(row){
+  function attempt(r, depth){
+    return fetch(SB_URL + '/rest/v1/leads', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(r),
+      keepalive: true
+    }).then(function(res){
+      if(res.ok) return {ok:true};
+      if(depth >= 6) return {ok:false};
+      return res.text().then(function(t){
+        var m = /Could not find the '([^']+)' column|column "?([a-z_]+)"? of relation .* does not exist/i.exec(t || '');
+        var col = m && (m[1] || m[2]);
+        if(col && Object.prototype.hasOwnProperty.call(r, col)){
+          var copy = {}; for(var k in r){ if(k !== col) copy[k] = r[k]; }
+          return attempt(copy, depth + 1);
+        }
+        return {ok:false};
+      }).catch(function(){ return {ok:false}; });
+    }, function(){ return {ok:false}; });
+  }
+  return attempt(row, 0);
 }
 (function(){
   /* no registrar visitas en desarrollo local */
