@@ -11,7 +11,8 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 // Email humano al lead: sale desde info@viven.ch (buzón real y monitoreado → las respuestas caen ahí).
-const FROM = "Sofia Treviño · Viven <info@viven.ch>";
+// El nombre visible del remitente lo elige el dashboard (Sofia o Sebastian) y llega en fromName.
+const DEFAULT_FROM_NAME = "Sofia Treviño";
 const REPLY_TO = "info@viven.ch";
 
 const cors = {
@@ -35,8 +36,9 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { to, subject, body, lead_id, mark_contacted } = await req.json();
+    const { to, subject, body, lead_id, mark_contacted, fromName } = await req.json();
     if (!to || !subject || !body) return json({ error: "faltan campos (to, subject, body)" }, 400);
+    const FROM = `${(fromName || DEFAULT_FROM_NAME).replace(/[<>"]/g, "")} <info@viven.ch>`;
 
     const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#1a2230">${toHtml(body)}</div>`;
     const res = await fetch("https://api.resend.com/emails", {

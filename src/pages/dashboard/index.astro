@@ -321,7 +321,13 @@
     <div class="lead-msg" id="lm-message"></div>
     <div class="draft-head">
       <h4>✍️ <span>Borrador de respuesta</span> (editable — generado según lo que pide)</h4>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12.5px;color:var(--muted)">De:
+          <select id="lm-sender" class="status" style="margin-left:4px">
+            <option value="sofia">Sofia</option>
+            <option value="sebastian">Sebastian</option>
+          </select>
+        </label>
         <button class="btn btn-ghost small" id="lm-ai" type="button" title="Sugerencia personalizada con IA">✨ IA</button>
         <button class="btn btn-ghost small" id="lm-copy" type="button">📋 Copiar</button>
         <a class="btn btn-ghost small" id="lm-mailto" href="#">✉️ Mi correo</a>
@@ -634,14 +640,21 @@
     }
   };
 
-  const BOOK_URL = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49';
+  /* quién firma/envía — configurable (Sofia o Sebastian). Se guarda en el navegador. */
+  const SENDERS = {
+    sofia:     { name: 'Sofia Treviño',   book: 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49' },
+    sebastian: { name: 'Sebastian Cepeda', book: 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49' },
+  };
+  let sender = localStorage.getItem('viven_sender') || 'sofia';
   const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en');
-  const SIGN = 'Sofia Treviño\nViven — viven.ch · +41 43 508 33 81';
 
   function buildDraft(r){
     const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
     const first = esc0(r.first_name || (r.name || '').trim().split(/\s+/)[0] || '');
     const proof = PROOF[lang][detectTopic(r.message)];
+    const S = SENDERS[sender] || SENDERS.sofia;
+    const BOOK_URL = S.book;
+    const SIGN = S.name + '\nViven — viven.ch · +41 43 508 33 81';
     if (lang === 'de') return 'Guten Tag ' + first + '\n\n' +
       'Vielen Dank für Ihre Anfrage — gerne helfen wir weiter.\n\n' +
       'Zur Einordnung: ' + proof + '.\n\n' +
@@ -701,6 +714,7 @@
       '<div class="detail"><div class="k">' + k + '</div><div class="v">' + esc(v) + '</div></div>'
     ).join('');
     $('lm-message').textContent = r.message || '(sin mensaje)';
+    $('lm-sender').value = sender;
     const draft = buildDraft(r);
     $('lm-draft').value = draft;
     updateMailto();
@@ -748,7 +762,7 @@
     const btn = $('lm-send'), prev = btn.textContent; btn.disabled = true; btn.textContent = '📨 Enviando…';
     try {
       const { data, error } = await supabase.functions.invoke('send-outreach', {
-        body: { to: currentLead.email, subject: SUBJECTS[lang], body, lead_id: currentLead.id, mark_contacted: true }
+        body: { to: currentLead.email, subject: SUBJECTS[lang], body, lead_id: currentLead.id, mark_contacted: true, fromName: (SENDERS[sender] || SENDERS.sofia).name }
       });
       if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
       currentLead.status = 'contactado';
@@ -758,6 +772,13 @@
     } catch (e) {
       $('lm-status-note').textContent = 'No se pudo enviar (¿deployaste send-outreach?): ' + e.message;
     } finally { btn.disabled = false; btn.textContent = prev; }
+  });
+
+  /* Selector de remitente (Sofia / Sebastian): guarda la preferencia y regenera el borrador */
+  $('lm-sender').addEventListener('change', () => {
+    sender = $('lm-sender').value;
+    localStorage.setItem('viven_sender', sender);
+    if (currentLead) { $('lm-draft').value = buildDraft(currentLead); updateMailto(); }
   });
 
   /* ✨ Sugerencia con IA (Edge Function ai-suggest → Claude). Reemplaza el borrador. */
