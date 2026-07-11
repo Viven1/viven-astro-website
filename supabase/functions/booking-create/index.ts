@@ -86,11 +86,16 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     if (found) {
       leadId = found.id;
-      const done = ["won", "ganado", "lost", "perdido"].includes(String(found.status || "").toLowerCase());
-      if (!done) {
-        await service.from("leads").update({ status: "videocall", videocall_at: nowIso, last_stage_at: nowIso }).eq("id", found.id)
+      const st = String(found.status || "").toLowerCase();
+      // GANADO: no tocar la etapa (call de cliente existente, el deal no retrocede).
+      // PERDIDO: ¡reactivación! — volvió solo a agendar → de vuelta a Video call.
+      // Resto: avanza a Video call.
+      if (!["won", "ganado"].includes(st)) {
+        const reactivated = ["lost", "perdido"].includes(st);
+        await service.from("leads").update({ status: "videocall", videocall_at: nowIso, last_stage_at: nowIso, ...(reactivated ? { lost_reason: null } : {}) }).eq("id", found.id)
           .then((r) => r.error && service.from("leads").update({ status: "videocall" }).eq("id", found.id));
         await service.from("lead_followups").update({ status: "canceled" }).eq("lead_id", found.id).in("status", ["draft", "approved"]);
+        if (reactivated) await service.from("lead_notes").insert({ lead_id: String(found.id), author: "Booking", body: "🔄 Lead PERDIDO reactivado: agendó una call por su cuenta." }).then(() => {}, () => {});
       }
     } else {
       const { data: created } = await service.from("leads")
