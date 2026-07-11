@@ -203,6 +203,7 @@
   .lm-taskadd input,.lm-taskadd select,.lm-block textarea,.ed-inp{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px}
   .ed-hint{display:block;font-size:11px;color:var(--muted-2);margin-top:4px}
   .ed-hint b{color:var(--acid);font-weight:600}
+  .lost-note{background:color-mix(in srgb,#ff6b6b 12%,transparent);border:1px solid color-mix(in srgb,#ff6b6b 40%,transparent);color:#ff8b8b;border-radius:10px;font-size:13px;padding:9px 13px;margin:10px 0 4px}
   .lm-taskadd-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
   .lm-taskadd-row input[type=date]{flex:1 1 108px;min-width:0}
   .lm-taskadd-row input[type=time]{flex:0 0 92px;min-width:0}
@@ -415,6 +416,11 @@
   .post-preview li{margin-bottom:5px}
   .post-preview a{color:var(--acid);text-decoration:underline}
   .post-preview strong{color:var(--text)}
+  /* alta manual (personas / empresas) */
+  .crm-form{margin-top:14px}
+  .crm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+  .crm-grid label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--muted);font-weight:600}
+  .crm-grid label.wide{grid-column:1/-1}
   /* Companies: grid de tarjetas compactas */
   .co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:16px}
   .co-card{display:flex;flex-direction:column;gap:12px;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:13px;padding:15px 16px;cursor:pointer;color:var(--text);font-family:inherit;transition:border-color .15s,transform .12s,box-shadow .2s}
@@ -608,6 +614,28 @@
         <h2 style="margin:0">Personas</h2>
         <p class="muted-note" style="margin:2px 0 0">Contactos: la gente que escribió o con la que hablás. Cada persona está conectada a su empresa y a sus deals.</p>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost small" id="ps-import" type="button" title="CSV con columnas: nombre, apellido, email, teléfono, empresa, cargo, idioma">⬆ Importar CSV</button>
+        <button class="btn btn-primary small" id="ps-new-btn" type="button">➕ Nueva persona</button>
+      </div>
+    </div>
+    <input type="file" id="ps-csv" accept=".csv,text/csv" hidden />
+    <div class="panel crm-form" id="ps-form" hidden>
+      <h2 style="margin-top:0">➕ Nueva persona</h2>
+      <div class="crm-grid">
+        <label>Nombre *<input class="ed-inp" id="psf-first" /></label>
+        <label>Apellido<input class="ed-inp" id="psf-last" /></label>
+        <label>Email *<input class="ed-inp" id="psf-email" type="email" /></label>
+        <label>Teléfono<input class="ed-inp" id="psf-phone" /></label>
+        <label>Empresa<input class="ed-inp" id="psf-company" list="psf-co-list" placeholder="Conectar o crear…" autocomplete="off" /><datalist id="psf-co-list"></datalist></label>
+        <label>Cargo / rol<input class="ed-inp" id="psf-job" /></label>
+        <label>Idioma<select class="ed-inp" id="psf-lang"><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></label>
+        <label class="wide">Nota / contexto<textarea class="ed-inp" id="psf-msg" style="min-height:58px"></textarea></label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary small" id="psf-save" type="button">Guardar persona</button>
+        <button class="btn btn-ghost small" id="psf-cancel" type="button">Cancelar</button>
+      </div>
     </div>
     <div class="kpis four">
       <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Personas (histórico)</div></div>
@@ -668,6 +696,29 @@
         <div>
           <h2 style="margin:0">Companies</h2>
           <p class="muted-note" style="margin:2px 0 0">Empresas de tus contactos (agrupadas por dominio del email). Las personas están separadas pero conectadas a su empresa.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost small" id="co-import" type="button" title="CSV con columnas: nombre, dominio, web, industria, ciudad, empleados, teléfono, linkedin">⬆ Importar CSV</button>
+          <button class="btn btn-primary small" id="co-new-btn" type="button">➕ Nueva empresa</button>
+        </div>
+      </div>
+      <input type="file" id="co-csv" accept=".csv,text/csv" hidden />
+      <div class="panel crm-form" id="co-form" hidden>
+        <h2 style="margin-top:0">➕ Nueva empresa</h2>
+        <div class="crm-grid">
+          <label>Nombre *<input class="ed-inp" id="cof-name" /></label>
+          <label>Dominio / web<input class="ed-inp" id="cof-domain" placeholder="empresa.ch (o se deriva del nombre)" /></label>
+          <label>Industria<input class="ed-inp" id="cof-industry" /></label>
+          <label>Ciudad<input class="ed-inp" id="cof-city" /></label>
+          <label>Empleados<input class="ed-inp" id="cof-emp" /></label>
+          <label>Teléfono<input class="ed-inp" id="cof-phone" /></label>
+          <label>LinkedIn<input class="ed-inp" id="cof-linkedin" /></label>
+          <label>Owner<input class="ed-inp" id="cof-owner" /></label>
+          <label class="wide">Notas<textarea class="ed-inp" id="cof-notes" style="min-height:58px"></textarea></label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary small" id="cof-save" type="button">Guardar empresa</button>
+          <button class="btn btn-ghost small" id="cof-cancel" type="button">Cancelar</button>
         </div>
       </div>
       <div class="kpis four" style="margin-top:14px">
@@ -811,6 +862,7 @@
           <button class="btn btn-primary small" id="of-save" type="button">💾 Guardar</button>
         </div>
       </div>
+      <p class="lost-note" id="of-lostr" hidden></p>
 
       <div class="of-meta">
         <div class="bf"><label>Título de la oferta</label><input id="of-title" placeholder="p. ej. Chiral Nano AG — Promotional Video" /></div>
@@ -892,6 +944,7 @@
           <button class="btn btn-primary small" id="pp-publish" type="button">🌐 Publicar</button>
         </div>
       </div>
+      <p class="lost-note" id="pp-lostr" hidden></p>
 
       <div class="pp-linkbox" id="pp-linkbox" hidden>
         <div><span class="k">Link para el cliente</span><a id="pp-link" href="#" target="_blank" rel="noopener"></a></div>
@@ -1598,7 +1651,26 @@
     renderLeads();
     const { error } = await supabase.from('leads').update(patch).eq('id', id);
     if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
+    // Perdido: el motivo queda grabado en TODO — nota en el contacto + ofertas y propuestas ligadas
+    if (stage === 'perdido') cascadeLost(lead, lostReason || null);
     return true;
+  }
+  // Registra la pérdida donde haga falta (best-effort: nada de esto bloquea el cambio de etapa)
+  async function cascadeLost(lead, reason){
+    const rTxt = reason || 'sin especificar';
+    // 1) nota automática en el contacto → historial permanente aunque la etapa cambie después
+    supabase.from('lead_notes').insert({ lead_id: String(lead.id), author: teamName(myEmail()), body: '❌ Deal perdido — motivo: ' + rTxt })
+      .then(() => { if (currentLead && String(currentLead.id) === String(lead.id)) loadTasksNotes(lead); });
+    // 2) ofertas ligadas (no ganadas) → lost + motivo
+    const ofs = (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(lead.id) && o.status !== 'won');
+    for (const o of ofs) {
+      let { error } = await supabase.from('offers').update({ status: 'lost', lost_reason: reason }).eq('id', o.id);
+      if (error && /lost_reason/.test(error.message || '')) ({ error } = await supabase.from('offers').update({ status: 'lost' }).eq('id', o.id));
+      if (!error) { o.status = 'lost'; o.lost_reason = reason; }
+    }
+    if (ofs.length && typeof renderOffersList === 'function') try { renderOffersList(); } catch (e) {}
+    // 3) propuestas ligadas → guardar el motivo (sin tocar su status público)
+    supabase.from('proposals').update({ lost_reason: reason }).eq('lead_id', String(lead.id)).then(() => {});
   }
 
   /* ---------- Lead detail + draft de respuesta ---------- */
@@ -2445,6 +2517,8 @@
     if (error){ $('of-empty').hidden = false; $('of-empty').textContent = 'No se pudo cargar (¿corriste el SQL 0003_offers?): ' + error.message; return; }
     offersList = data || [];
     renderOffersList();
+    // el valor de las ofertas se ve también en Deals (board), Personas y Home → refrescarlos
+    try { renderLeads(); renderHome(); } catch (e) {}
   }
 
   function renderOffersList(){
@@ -2473,7 +2547,8 @@
       return '<div class="of-card' + (o.archived ? ' arch' : '') + '" data-id="' + o.id + '">' +
         '<div class="of-card-open" data-id="' + o.id + '">' +
           '<div class="of-card-main"><div class="of-card-title">' + esc(o.title || '(sin título)') + '</div>' +
-          '<div class="of-card-sub">' + esc(o.client || leadName || '—') + ' · ' + (o.items ? o.items.length : 0) + ' posiciones · ' + new Date(o.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
+          '<div class="of-card-sub">' + esc(o.client || leadName || '—') + ' · ' + (o.items ? o.items.length : 0) + ' posiciones · ' + new Date(o.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) +
+            (o.status === 'lost' && o.lost_reason ? ' · <span style="color:#ff8b8b">✕ ' + esc(o.lost_reason) + '</span>' : '') + '</div></div>' +
           '<div class="of-card-nums"><div class="of-card-net">' + fmtM(net) + '</div>' +
           '<div class="of-card-margin" style="color:' + (mp >= 50 ? '#7ed957' : mp >= 30 ? '#f0c060' : '#ff8b8b') + '">' + (isFinite(mp) ? Math.round(mp) + '% margen' : '') + '</div></div>' +
           '<span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></div>' +
@@ -2547,8 +2622,15 @@
     $('of-vat').value = ofCur.vat_rate ?? 8.1;
     $('of-lead').innerHTML = leadOptions(ofCur.lead_id);
     $('of-inquiry').value = ''; $('of-ai-note').textContent = ''; inquiryFromLead = '';
+    showLostNote('of-lostr', ofCur.lost_reason, ofCur.status === 'lost');
     prefillInquiry(false);
     renderRows();
+  }
+  // banner rojo con el motivo de pérdida (oferta/propuesta) — para aprender a largo plazo
+  function showLostNote(id, reason, isLost){
+    const el = $(id); if (!el) return;
+    el.hidden = !(isLost || reason);
+    el.textContent = '✕ Perdida' + (reason ? ' — motivo: ' + reason : ' (sin motivo registrado)');
   }
   // llena la consulta desde el lead ligado. force=true (cambio explícito de lead) reemplaza;
   // si vos editaste el texto a mano, pide confirmación antes de pisarlo.
@@ -2686,11 +2768,14 @@
     ofCur.lead_id = $('of-lead').value || null;
     ofCur.vat_rate = parseFloat($('of-vat').value) || 0;
     ofCur.status = $('of-status').value;
-    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items };
+    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null };
     const btn = $('of-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
-    const res = ofCur.id
-      ? await supabase.from('offers').update(payload).eq('id', ofCur.id).select().single()
-      : await supabase.from('offers').insert(payload).select().single();
+    const doSave = (p) => ofCur.id
+      ? supabase.from('offers').update(p).eq('id', ofCur.id).select().single()
+      : supabase.from('offers').insert(p).select().single();
+    let res = await doSave(payload);
+    // si falta la columna lost_reason (SQL 0014 sin correr), guardar sin ella
+    if (res.error && /lost_reason/.test(res.error.message || '')) { delete payload.lost_reason; res = await doSave(payload); }
     btn.disabled = false; btn.textContent = prev;
     if (res.error){ alert('No se pudo guardar: ' + res.error.message); return; }
     await offersLoad(); showEditor(false);
@@ -2731,7 +2816,15 @@
       ofCur.items.push({ name: p.name, phase: ph, qty: 1, unit: p.unit, price: p.price, cost: p.cost }); renderRows();
     });
     $('of-vat').addEventListener('input', () => { ofCur.vat_rate = parseFloat($('of-vat').value) || 0; recalc(); });
-    $('of-status').addEventListener('change', () => { ofCur.status = $('of-status').value; });
+    $('of-status').addEventListener('change', () => {
+      ofCur.status = $('of-status').value;
+      // al marcar Perdida a mano, registrar el motivo (queda grabado al guardar)
+      if (ofCur.status === 'lost') {
+        const rz = prompt('¿Por qué se perdió esta oferta? (opcional)', ofCur.lost_reason || '');
+        if (rz !== null) ofCur.lost_reason = rz || null;
+      }
+      showLostNote('of-lostr', ofCur.lost_reason, ofCur.status === 'lost');
+    });
     $('of-lead').addEventListener('change', () => { ofCur.lead_id = $('of-lead').value || null; prefillInquiry(true); });
     $('of-ai-gen').addEventListener('click', generateOfferAI);
     $('of-save').addEventListener('click', saveOffer);
@@ -2780,9 +2873,9 @@
       if (act === 'link') copyPropLink(p); else if (act === 'dup') dupProp(p); else if (act === 'del') delPropById(id);
     }));
   }
-  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lead_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], testimonials: DEFAULT_TESTIMONIALS }; }
+  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], testimonials: DEFAULT_TESTIMONIALS }; }
   function fromRow(r){ const c = r.content || {}, ov = c.overview || {};
-    return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lead_id: r.lead_id || null,
+    return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lost_reason: r.lost_reason || null, lead_id: r.lead_id || null,
       title: r.title || c.title || '', client_name: r.client_name || '', client_email: r.client_email || '',
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
@@ -2802,6 +2895,7 @@
     renderScopeRows(); renderTierRows(); renderAddonRows(); renderVideoRows();
     const badge = $('pp-status-badge'); badge.className = 'pp-status-badge ' + (ppCur.status || 'draft');
     badge.textContent = { draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada' }[ppCur.status] || 'Borrador';
+    showLostNote('pp-lostr', ppCur.lost_reason, false);
     updatePropLinkBox();
   }
   function renderScopeRows(){
@@ -3148,6 +3242,8 @@ ${body}
   function companiesData(){
     const map = new Map();
     (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '')).forEach((l) => { const d = leadDomain(l); if (!d) return; if (!map.has(d)) map.set(d, []); map.get(d).push(l); });
+    // empresas creadas a mano o importadas que todavía no tienen contactos
+    Object.keys(coMeta).forEach((d) => { if (!map.has(d)) map.set(d, []); });
     return [...map.entries()].map(([domain, contacts]) => ({
       domain, name: companyName(domain), contacts,
       value: contacts.reduce((a, l) => a + offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0), 0),
@@ -3262,6 +3358,191 @@ ${body}
     if (error){ toast('No se pudo guardar (¿corriste el SQL 0011?): ' + error.message); return; }
     coMeta[domain] = data; toast('Empresa guardada'); renderCompaniesList(); renderCompanyDetail();
   }
+
+  /* ================= CRM: alta manual + importar CSV (como HubSpot) ================= */
+  // escribe filas en chunks; si a la tabla le falta una columna, la saca de todas y reintenta
+  async function sbWriteRowsResilient(table, rows, conflict){
+    const stripped = new Set(); const out = [];
+    for (let i = 0; i < rows.length; i += 50){
+      const chunk = rows.slice(i, i + 50);
+      for (let a = 0; a < 8; a++){
+        const clean = chunk.map((r) => { const c = { ...r }; stripped.forEach((k) => delete c[k]); return c; });
+        const q = conflict ? supabase.from(table).upsert(clean, { onConflict: conflict }).select() : supabase.from(table).insert(clean).select();
+        const { data, error } = await q;
+        if (!error){ out.push(...(data || [])); break; }
+        const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+        if (m && !stripped.has(m[1])){ stripped.add(m[1]); continue; }
+        throw error;
+      }
+    }
+    return { rows: out, stripped: [...stripped] };
+  }
+  // CSV con comillas, comas o punto y coma (Excel suizo exporta con ';')
+  function parseCSV(text){
+    text = String(text || '').replace(/^\uFEFF/, '');
+    const nl = text.indexOf('\n');
+    const first = nl > -1 ? text.slice(0, nl) : text;
+    const delim = (first.match(/;/g) || []).length > (first.match(/,/g) || []).length ? ';' : ',';
+    const rows = []; let row = [], cur = '', inQ = false;
+    for (let i = 0; i < text.length; i++){
+      const ch = text[i];
+      if (inQ){ if (ch === '"'){ if (text[i + 1] === '"'){ cur += '"'; i++; } else inQ = false; } else cur += ch; }
+      else if (ch === '"') inQ = true;
+      else if (ch === delim){ row.push(cur); cur = ''; }
+      else if (ch === '\n'){ row.push(cur); cur = ''; if (row.some((c) => c.trim() !== '')) rows.push(row); row = []; }
+      else if (ch !== '\r') cur += ch;
+    }
+    row.push(cur); if (row.some((c) => c.trim() !== '')) rows.push(row);
+    return rows;
+  }
+  const normH = (h) => String(h || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const csvIx = (headers, keys) => { const H = headers.map(normH); for (const k of keys){ const i = H.indexOf(k); if (i > -1) return i; } return -1; };
+  const cleanDomain = (s) => String(s || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  const cell = (r, i) => i > -1 ? String(r[i] || '').trim() : '';
+
+  /* ---- Personas: alta manual ---- */
+  function openPsForm(){ $('psf-co-list').innerHTML = allCompanyNames().map((n) => '<option value="' + esc(n) + '"></option>').join(''); $('ps-form').hidden = false; $('psf-first').focus(); }
+  $('ps-new-btn').addEventListener('click', () => { $('ps-form').hidden ? openPsForm() : ($('ps-form').hidden = true); });
+  $('psf-cancel').addEventListener('click', () => { $('ps-form').hidden = true; });
+  $('psf-save').addEventListener('click', async () => {
+    const first = $('psf-first').value.trim(), email = $('psf-email').value.trim().toLowerCase();
+    if (!first || !email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('Nombre y email válido son obligatorios'); return; }
+    if ((allLeads || []).some((l) => String(l.email || '').toLowerCase() === email)){ toast('Ya existe una persona con ese email'); return; }
+    const last = $('psf-last').value.trim();
+    // empresa: conectar o crear (mismo criterio que en editar lead)
+    let company = null, company_domain = null;
+    const coText = $('psf-company').value.trim();
+    if (coText){
+      const res = resolveCompany(coText, email);
+      company = res.name; company_domain = res.domain;
+      if (!res.existing || !coMeta[res.domain]){
+        const { data: co } = await supabase.from('companies').upsert({ domain: res.domain, name: res.name }, { onConflict: 'domain' }).select().single();
+        if (co) coMeta[res.domain] = co;
+      }
+    }
+    const row = { name: (first + ' ' + last).trim(), first_name: first, last_name: last || null, email, phone: $('psf-phone').value.trim() || null,
+      company, company_domain, job_title: $('psf-job').value.trim() || null, lang: $('psf-lang').value, status: 'new', channel: 'manual', message: $('psf-msg').value.trim() || null };
+    try {
+      const res = await sbWriteRowsResilient('leads', [row], null);
+      const created = res.rows[0];
+      if (created && !allLeads.some((l) => l.id === created.id)) allLeads.unshift(created);
+      ['psf-first', 'psf-last', 'psf-email', 'psf-phone', 'psf-company', 'psf-job', 'psf-msg'].forEach((id) => { $(id).value = ''; });
+      $('ps-form').hidden = true;
+      renderLeads();
+      toast('✅ Persona creada' + (res.stripped.length ? ' (columnas sin guardar: ' + res.stripped.join(', ') + ' — corré el SQL)' : ''));
+      if (created) openLead(created.id);
+    } catch (err){ toast('No se pudo crear: ' + err.message); }
+  });
+
+  /* ---- Personas: importar CSV ---- */
+  $('ps-import').addEventListener('click', () => $('ps-csv').click());
+  $('ps-csv').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const rows = parseCSV(await f.text());
+    if (rows.length < 2){ toast('CSV vacío (necesita encabezado + filas)'); return; }
+    const H = rows[0];
+    const ix = {
+      first: csvIx(H, ['firstname', 'first', 'nombre', 'vorname']),
+      last: csvIx(H, ['lastname', 'last', 'apellido', 'apellidos', 'nachname', 'surname']),
+      name: csvIx(H, ['name', 'fullname', 'nombrecompleto']),
+      email: csvIx(H, ['email', 'emailaddress', 'correo', 'mail', 'emailadresse']),
+      phone: csvIx(H, ['phone', 'phonenumber', 'telefono', 'telefon', 'tel']),
+      company: csvIx(H, ['company', 'companyname', 'empresa', 'firma', 'unternehmen']),
+      job: csvIx(H, ['jobtitle', 'job', 'cargo', 'rol', 'position', 'puesto', 'funktion']),
+      lang: csvIx(H, ['lang', 'language', 'idioma', 'sprache']),
+      msg: csvIx(H, ['message', 'mensaje', 'nota', 'notas', 'notes', 'comentario'])
+    };
+    if (ix.email < 0){ toast('El CSV necesita una columna "email"'); return; }
+    const existing = new Set((allLeads || []).map((l) => String(l.email || '').toLowerCase()).filter(Boolean));
+    const seen = new Set(); const list = []; let skipped = 0;
+    rows.slice(1).forEach((r) => {
+      const email = cell(r, ix.email).toLowerCase();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || existing.has(email) || seen.has(email)){ skipped++; return; }
+      seen.add(email);
+      let first = cell(r, ix.first), last = cell(r, ix.last);
+      if (!first && ix.name > -1){ const parts = cell(r, ix.name).split(/\s+/); first = parts[0] || ''; last = parts.slice(1).join(' '); }
+      const company = cell(r, ix.company);
+      const dom = domainOf(email) || (company ? slugKey(company) : '');
+      const lg = cell(r, ix.lang).toLowerCase().slice(0, 2);
+      list.push({ name: (first + ' ' + last).trim() || email, first_name: first || null, last_name: last || null, email,
+        phone: cell(r, ix.phone) || null, company: company || null, company_domain: dom || null, job_title: cell(r, ix.job) || null,
+        lang: ['en', 'de', 'es'].includes(lg) ? lg : 'en', status: 'new', channel: 'import', message: cell(r, ix.msg) || null });
+    });
+    if (!list.length){ toast('Nada para importar (' + skipped + ' filas saltadas: sin email válido o ya existen)'); return; }
+    if (!confirm('¿Importar ' + list.length + ' personas' + (skipped ? ' (' + skipped + ' saltadas por duplicado/email inválido)' : '') + '?')) return;
+    try {
+      const res = await sbWriteRowsResilient('leads', list, null);
+      res.rows.forEach((r) => { if (!allLeads.some((l) => l.id === r.id)) allLeads.unshift(r); });
+      // crear las empresas nuevas que vinieron en el CSV
+      const cos = {};
+      list.forEach((p) => { if (p.company && p.company_domain && !coMeta[p.company_domain]) cos[p.company_domain] = { domain: p.company_domain, name: p.company }; });
+      const coRows = Object.values(cos);
+      if (coRows.length){ const { data } = await supabase.from('companies').upsert(coRows, { onConflict: 'domain' }).select(); (data || []).forEach((c) => { if (c.domain) coMeta[c.domain] = c; }); }
+      renderLeads();
+      toast('✅ ' + res.rows.length + ' personas importadas' + (skipped ? ' · ' + skipped + ' saltadas' : '') + (res.stripped.length ? ' · columnas sin guardar: ' + res.stripped.join(', ') : ''));
+    } catch (err){ toast('Error importando: ' + err.message); }
+  });
+
+  /* ---- Companies: alta manual ---- */
+  $('co-new-btn').addEventListener('click', () => { $('co-form').hidden = !$('co-form').hidden; if (!$('co-form').hidden) $('cof-name').focus(); });
+  $('cof-cancel').addEventListener('click', () => { $('co-form').hidden = true; });
+  $('cof-save').addEventListener('click', async () => {
+    const name = $('cof-name').value.trim();
+    if (!name){ toast('Poné el nombre de la empresa'); return; }
+    const domain = cleanDomain($('cof-domain').value) || slugKey(name);
+    const row = { domain, name, industry: $('cof-industry').value.trim() || null, website: $('cof-domain').value.trim() ? 'https://' + domain : null,
+      city: $('cof-city').value.trim() || null, employees: $('cof-emp').value.trim() || null, phone: $('cof-phone').value.trim() || null,
+      linkedin: $('cof-linkedin').value.trim() || null, owner: $('cof-owner').value.trim() || null, notes: $('cof-notes').value.trim() || null };
+    try {
+      const res = await sbWriteRowsResilient('companies', [row], 'domain');
+      const created = res.rows[0]; if (created && created.domain) coMeta[created.domain] = created;
+      ['cof-name', 'cof-domain', 'cof-industry', 'cof-city', 'cof-emp', 'cof-phone', 'cof-linkedin', 'cof-owner', 'cof-notes'].forEach((id) => { $(id).value = ''; });
+      $('co-form').hidden = true;
+      renderCompaniesList();
+      toast('✅ Empresa creada' + (res.stripped.length ? ' (columnas sin guardar: ' + res.stripped.join(', ') + ' — corré el SQL 0011)' : ''));
+      if (created && created.domain) openCompany(created.domain);
+    } catch (err){ toast('No se pudo crear: ' + err.message); }
+  });
+
+  /* ---- Companies: importar CSV ---- */
+  $('co-import').addEventListener('click', () => $('co-csv').click());
+  $('co-csv').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const rows = parseCSV(await f.text());
+    if (rows.length < 2){ toast('CSV vacío (necesita encabezado + filas)'); return; }
+    const H = rows[0];
+    const ix = {
+      name: csvIx(H, ['name', 'companyname', 'nombre', 'empresa', 'firma', 'company', 'unternehmen']),
+      domain: csvIx(H, ['domain', 'dominio']),
+      web: csvIx(H, ['website', 'web', 'url', 'sitioweb']),
+      industry: csvIx(H, ['industry', 'industria', 'branche', 'sector']),
+      phone: csvIx(H, ['phone', 'telefono', 'telefon', 'tel']),
+      city: csvIx(H, ['city', 'ciudad', 'ort', 'stadt']),
+      emp: csvIx(H, ['employees', 'empleados', 'mitarbeiter', 'size', 'numberofemployees']),
+      linkedin: csvIx(H, ['linkedin', 'linkedincompanypage', 'linkedinurl']),
+      notes: csvIx(H, ['notes', 'notas', 'descripcion', 'description', 'beschreibung'])
+    };
+    if (ix.name < 0){ toast('El CSV necesita una columna "nombre" o "name"'); return; }
+    const seen = new Set(); const list = []; let skipped = 0;
+    rows.slice(1).forEach((r) => {
+      const name = cell(r, ix.name); if (!name){ skipped++; return; }
+      const domain = cleanDomain(cell(r, ix.domain)) || cleanDomain(cell(r, ix.web)) || slugKey(name);
+      if (!domain || seen.has(domain)){ skipped++; return; }
+      seen.add(domain);
+      const web = cell(r, ix.web);
+      list.push({ domain, name, industry: cell(r, ix.industry) || null, website: web ? (web.startsWith('http') ? web : 'https://' + cleanDomain(web)) : null,
+        phone: cell(r, ix.phone) || null, city: cell(r, ix.city) || null, employees: cell(r, ix.emp) || null,
+        linkedin: cell(r, ix.linkedin) || null, notes: cell(r, ix.notes) || null });
+    });
+    if (!list.length){ toast('Nada para importar'); return; }
+    if (!confirm('¿Importar ' + list.length + ' empresas' + (skipped ? ' (' + skipped + ' saltadas)' : '') + '? Las que ya existan por dominio se actualizan.')) return;
+    try {
+      const res = await sbWriteRowsResilient('companies', list, 'domain');
+      res.rows.forEach((c) => { if (c.domain) coMeta[c.domain] = c; });
+      renderCompaniesList();
+      toast('✅ ' + res.rows.length + ' empresas importadas' + (res.stripped.length ? ' · columnas sin guardar: ' + res.stripped.join(', ') : ''));
+    } catch (err){ toast('Error importando: ' + err.message); }
+  });
 
   /* ---------- Sesión persistente ---------- */
   supabase.auth.getSession().then(({ data }) => {
