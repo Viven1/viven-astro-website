@@ -53,6 +53,10 @@ Deno.serve(async (req) => {
     const token = await googleToken();
     const calId = Deno.env.get("GCAL_ID") || "primary";
 
+    // lead existente (si hay) ANTES de crear el evento → el link al brief va ligado
+    const { data: preLead } = await service.from("leads").select("id").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const briefUrl = BRIEF_URL + "?lang=" + encodeURIComponent(lang) + (preLead?.id ? "&lead=" + preLead.id : "");
+
     // 1) revalidar que el slot siga libre (carrera entre dos clientes)
     const fb = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
       method: "POST",
@@ -64,9 +68,9 @@ Deno.serve(async (req) => {
 
     // 2) crear el evento con Meet + invitación al cliente (Google manda el email con calendario)
     const T = {
-      en: { title: "Viven — Intro call with", desc: "Looking forward to talking about your video project!\n\nTo make the most of the call, you can fill in the short project brief beforehand:\n" + BRIEF_URL },
-      de: { title: "Viven — Kennenlern-Call mit", desc: "Wir freuen uns auf das Gespräch über Ihr Videoprojekt!\n\nDamit wir das Maximum aus dem Call holen, füllen Sie vorab gern das kurze Projekt-Briefing aus:\n" + BRIEF_URL },
-      es: { title: "Viven — Llamada con", desc: "¡Ganas de hablar de tu proyecto de video!\n\nPara aprovechar la llamada al máximo, podés completar antes el brief corto del proyecto:\n" + BRIEF_URL },
+      en: { title: "Viven — Intro call with", desc: "Looking forward to talking about your video project!\n\nTo make the most of the call, you can fill in the short project brief beforehand:\n" + briefUrl },
+      de: { title: "Viven — Kennenlern-Call mit", desc: "Wir freuen uns auf das Gespräch über Ihr Videoprojekt!\n\nDamit wir das Maximum aus dem Call holen, füllen Sie vorab gern das kurze Projekt-Briefing aus:\n" + briefUrl },
+      es: { title: "Viven — Llamada con", desc: "¡Ganas de hablar de tu proyecto de video!\n\nPara aprovechar la llamada al máximo, podés completar antes el brief corto del proyecto:\n" + briefUrl },
     }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
     const ev = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?conferenceDataVersion=1&sendUpdates=all`, {
       method: "POST",
@@ -156,7 +160,7 @@ Deno.serve(async (req) => {
             <p style="font-size:15px;line-height:1.7;margin:0 0 6px">${E.p}</p>
             <div style="text-align:center;margin:24px 0 8px"><a href="${meet}" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">${E.join}</a></div>
             <p style="font-size:13.5px;line-height:1.7;color:#5b6472;margin:18px 0 6px">${E.bp}</p>
-            <div style="text-align:center;margin:8px 0 4px"><a href="${BRIEF_URL}?lang=${lang}" style="border:1px solid #d5d9e2;color:#1a2230;font-weight:600;font-size:13px;text-decoration:none;border-radius:100px;padding:10px 20px;display:inline-block">${E.brief}</a></div>
+            <div style="text-align:center;margin:8px 0 4px"><a href="${briefUrl}" style="border:1px solid #d5d9e2;color:#1a2230;font-weight:600;font-size:13px;text-decoration:none;border-radius:100px;padding:10px 20px;display:inline-block">${E.brief}</a></div>
             <p style="font-size:11px;color:#8a94a8;text-align:center;margin:22px 0 0;border-top:1px solid #e8eaef;padding-top:14px"><b style="color:#1a2230">VIVEN AG</b> · Film Production · Zeughausstrasse 31, 8004 Zürich<br>viven.ch · ★★★★★ 5.0 on Google (47 reviews)</p>
           </div></div>`;
         await fetch("https://api.resend.com/emails", {
@@ -180,7 +184,7 @@ Deno.serve(async (req) => {
     } catch (_e) { /* push opcional */ }
 
     const customMsg = ({ en: cfg.msg_en, de: cfg.msg_de, es: cfg.msg_es } as Record<string, unknown>)[lang] || null;
-    return json({ ok: true, meet_url: meet, start: new Date(startMs).toISOString(), duration, brief_url: BRIEF_URL, msg: customMsg });
+    return json({ ok: true, meet_url: meet, start: new Date(startMs).toISOString(), duration, brief_url: briefUrl, msg: customMsg });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);
