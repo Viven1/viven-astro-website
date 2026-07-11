@@ -63,9 +63,10 @@ const displayTitle = (v) => v.client || showreelName(v.title) || (junkTitle(v.ti
 // en la grilla de proyectos, los clientes con case study aparecen SOLO como su tile de case study
 // cat puede ser múltiple por video (separado por espacios) → un video puede salir en varias páginas de servicio
 const hasCat = (v, c) => (v.cat || '').split(' ').indexOf(c) !== -1;
+// Nota: NO ocultamos los videos de clientes con case study — son los mejores (UBS, Siemens…).
+// En la grilla de proyectos (caseFirst) aparecen como tiles reproducibles, además del tile de case study.
 const pool = videos.filter((v) => v.thumb && (!cat || hasCat(v, cat)) && (v.client || !junkTitle(v.title))
-  && !isTestimonial(v)
-  && !(caseFirst && caseByClient.has((v.client || '').trim().toLowerCase())));
+  && !isTestimonial(v));
 const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
 for (const v of pool) {
   const key = v.client || ('__' + v.id);
@@ -123,12 +124,17 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
   })}
   {list.map((v, i) => {
     const feat = feature && !caseFirst && i === 0 ? ' wt-feature' : '';
-    const csSlug = caseFor(v);
+    // en la grilla de proyectos los videos SIEMPRE se reproducen (el case study ya está como tile aparte)
+    const csSlug = caseFirst ? null : caseFor(v);
     const thumb = <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>;
+    const cats = (v.cat || '').split(' ').filter(Boolean);
+    // todas las etiquetas de categoría; el JS de filtros muestra la del filtro activo (la primera por defecto)
     const meta = (
       <span class="wt-meta">
         <span class="wt-title">{displayTitle(v)}</span>
-        <span class="wt-cat">{pick(CATLABEL[(v.cat || '').split(' ')[0]], lang)}</span>
+        <span class="wt-cat">{cats.map((c, idx) => (
+          <span class="cl" data-c={c} hidden={idx !== 0 ? true : undefined}>{pick(CATLABEL[c] || CATLABEL.corporate, lang)}</span>
+        ))}</span>
       </span>
     );
     return csSlug ? (

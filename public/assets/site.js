@@ -244,6 +244,16 @@ if(filterBar){
                  : (tile.dataset.cat || '').split(' ').indexOf(f) !== -1;
         tile.style.display = show ? '' : 'none';
         if(show) loadVimeoThumb(tile);
+        // el tag muestra la categoría del filtro activo (evita ver "Brand" cuando filtrás "Social")
+        var cat = tile.querySelector('.wt-cat');
+        if(cat){
+          var spans = cat.querySelectorAll('.cl');
+          if(spans.length){
+            var matched = false;
+            spans.forEach(function(s){ var m = (f !== 'all' && f !== 'case') && s.dataset.c === f; s.hidden = !m; if(m) matched = true; });
+            if(!matched){ spans.forEach(function(s, i){ s.hidden = i !== 0; }); }  // sin match → categoría primaria
+          }
+        }
       });
     });
   });
