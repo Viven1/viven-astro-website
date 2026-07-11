@@ -40,9 +40,14 @@ Deno.serve(async (req) => {
   try {
     const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en" } = await req.json();
     if (!name.trim() || !/.+@.+\..+/.test(email) || !start) return json({ error: "missing_fields" }, 400);
+    // settings del dashboard (booking_settings, SQL 0024) — con defaults si no existe
+    let cfg: Record<string, unknown> = { active: true, notice_hours: 4, horizon_days: 28, buffer_min: 0, durations: [15, 30], msg_en: null, msg_de: null, msg_es: null };
+    try { const { data: bs } = await service.from("booking_settings").select("*").eq("id", 1).maybeSingle(); if (bs) cfg = { ...cfg, ...bs }; } catch (_e) { /* defaults */ }
+    if (!cfg.active) return json({ error: "booking_off" }, 403);
     const startMs = Date.parse(start);
-    if (!startMs || startMs < Date.now() + 3.5 * 3600e3 || startMs > Date.now() + 31 * 864e5) return json({ error: "invalid_time" }, 400);
-    const duration = dur === 30 ? 30 : 15;
+    const noticeMs = (Number(cfg.notice_hours) - 0.5) * 3600e3;   // margen de medio slot
+    if (!startMs || startMs < Date.now() + noticeMs || startMs > Date.now() + (Number(cfg.horizon_days) + 3) * 864e5) return json({ error: "invalid_time" }, 400);
+    const duration = (cfg.durations as number[]).includes(Number(dur)) ? Number(dur) : (cfg.durations as number[])[0];
     const endMs = startMs + duration * 60e3;
 
     const token = await googleToken();
@@ -52,7 +57,7 @@ Deno.serve(async (req) => {
     const fb = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-      body: JSON.stringify({ timeMin: new Date(startMs).toISOString(), timeMax: new Date(endMs).toISOString(), items: [{ id: calId }] }),
+      body: JSON.stringify({ timeMin: new Date(startMs - (Number(cfg.buffer_min) || 0) * 60e3).toISOString(), timeMax: new Date(endMs + (Number(cfg.buffer_min) || 0) * 60e3).toISOString(), items: [{ id: calId }] }),
     });
     const busy = (await fb.json()).calendars?.[calId]?.busy ?? [];
     if (busy.length) return json({ error: "slot_taken" }, 409);
@@ -174,7 +179,8 @@ Deno.serve(async (req) => {
       }
     } catch (_e) { /* push opcional */ }
 
-    return json({ ok: true, meet_url: meet, start: new Date(startMs).toISOString(), duration, brief_url: BRIEF_URL });
+    const customMsg = ({ en: cfg.msg_en, de: cfg.msg_de, es: cfg.msg_es } as Record<string, unknown>)[lang] || null;
+    return json({ ok: true, meet_url: meet, start: new Date(startMs).toISOString(), duration, brief_url: BRIEF_URL, msg: customMsg });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

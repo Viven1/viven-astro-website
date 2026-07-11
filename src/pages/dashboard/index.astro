@@ -667,6 +667,7 @@
       <button class="side-item" data-tab="deals" type="button"><span class="si-ic">🤝</span>Deals</button>
       <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
       <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
+      <button class="side-item" data-tab="booking" type="button"><span class="si-ic">📅</span>Booking</button>
       <div class="side-sec">Analytics</div>
       <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
       <div class="side-sec">Content</div>
@@ -1200,6 +1201,51 @@
   </div>
 
 
+  <!-- ============ TAB: BOOKING (settings de /book/, como HubSpot Meetings) ============ -->
+  <div id="tab-booking" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">Booking — /book/</h2>
+        <p class="muted-note" style="margin:2px 0 0">La página pública donde los clientes agendan la video call. Los cambios rigen al instante (las funciones leen esto en cada pedido).</p>
+      </div>
+      <a class="btn btn-ghost small" href="/book/" target="_blank" rel="noopener">👁 Ver /book/</a>
+    </div>
+    <div class="panel" id="bk-set-panel">
+      <div class="crm-grid">
+        <label style="grid-column:1/-1;display:flex;align-items:center;gap:10px;font-weight:600"><input type="checkbox" id="bks-active" style="width:18px;height:18px"/> Booking ACTIVO <span class="muted-note" style="font-weight:400">(apagado → /book/ muestra el link de respaldo)</span></label>
+        <label>Desde (hora Zúrich)<input class="ed-inp" id="bks-start" type="time" value="09:00"/></label>
+        <label>Hasta (hora Zúrich)<input class="ed-inp" id="bks-end" type="time" value="17:30"/></label>
+        <label>Aviso mínimo (horas)<input class="ed-inp" id="bks-notice" type="number" min="0" max="72" value="4"/></label>
+        <label>Hasta cuántos días adelante<input class="ed-inp" id="bks-horizon" type="number" min="7" max="60" value="28"/></label>
+        <label>Buffer entre calls (min)<input class="ed-inp" id="bks-buffer" type="number" min="0" max="60" step="5" value="0" title="Colchón libre antes y después de cada call"/></label>
+        <label>Duraciones ofrecidas<span style="display:flex;gap:14px;padding:10px 2px">
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" class="bks-dur" value="15" checked/>15 min</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" class="bks-dur" value="30" checked/>30 min</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" class="bks-dur" value="45"/>45 min</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" class="bks-dur" value="60"/>60 min</label>
+        </span></label>
+        <label style="grid-column:1/-1">Días disponibles<span style="display:flex;gap:14px;flex-wrap:wrap;padding:10px 2px" id="bks-days">
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="1" checked/>Lu</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="2" checked/>Ma</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="3" checked/>Mi</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="4" checked/>Ju</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="5" checked/>Vi</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="6"/>Sa</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" value="7"/>Do</label>
+        </span></label>
+        <label>Anfitrión (nombre)<input class="ed-inp" id="bks-hname" value="Sebastian Cepeda"/></label>
+        <label>Anfitrión (rol)<input class="ed-inp" id="bks-hrole" value="Founder — Viven AG, Zürich"/></label>
+        <label class="wide">Mensaje post-booking EN (opcional, sale en la pantalla de éxito)<textarea class="ed-inp" id="bks-msg-en" style="min-height:48px" placeholder="ej: Looking forward! If you need to reschedule, just reply to the confirmation email."></textarea></label>
+        <label class="wide">Mensaje post-booking DE<textarea class="ed-inp" id="bks-msg-de" style="min-height:48px"></textarea></label>
+        <label class="wide">Mensaje post-booking ES<textarea class="ed-inp" id="bks-msg-es" style="min-height:48px"></textarea></label>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:14px">
+        <button class="btn btn-primary small" id="bks-save" type="button">💾 Guardar settings</button>
+        <span class="muted-note" id="bks-note"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ TAB: SEO (Google Search Console) ============ -->
   <div id="tab-seo" hidden>
     <div class="of-bar" style="margin-bottom:14px">
@@ -1333,7 +1379,7 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
@@ -1348,6 +1394,7 @@
     if (tab === 'props') proposalsInit();
     if (tab === 'blog') blogInit();
     if (tab === 'seo') seoInit();
+    if (tab === 'booking') bookingInit();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
@@ -2481,6 +2528,48 @@
       else toast('🔎 Contacto enriquecido y guardado');
     } finally { btn.disabled = false; btn.textContent = prev; }
   }
+
+  /* ---------- Booking settings (/book/) — SQL 0024 ---------- */
+  let bkSetLoaded = false;
+  const mins2time = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const time2mins = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  function bookingInit(){ if (!bkSetLoaded) loadBookingSet(); }
+  async function loadBookingSet(){
+    const { data, error } = await supabase.from('booking_settings').select('*').eq('id', 1).maybeSingle();
+    if (error) { $('bks-note').textContent = '⚠️ Corré el SQL 0024 para poder editar (mientras tanto rigen los defaults).'; return; }
+    bkSetLoaded = true;
+    const c = data || {};
+    $('bks-active').checked = c.active !== false;
+    $('bks-start').value = mins2time(c.work_start ?? 540);
+    $('bks-end').value = mins2time(c.work_end ?? 1050);
+    $('bks-notice').value = c.notice_hours ?? 4;
+    $('bks-horizon').value = c.horizon_days ?? 28;
+    $('bks-buffer').value = c.buffer_min ?? 0;
+    const durs = c.durations || [15, 30];
+    document.querySelectorAll('.bks-dur').forEach((x) => x.checked = durs.includes(+x.value));
+    const days = c.days || [1, 2, 3, 4, 5];
+    document.querySelectorAll('#bks-days input').forEach((x) => x.checked = days.includes(+x.value));
+    $('bks-hname').value = c.host_name || 'Sebastian Cepeda';
+    $('bks-hrole').value = c.host_role || 'Founder — Viven AG, Zürich';
+    $('bks-msg-en').value = c.msg_en || ''; $('bks-msg-de').value = c.msg_de || ''; $('bks-msg-es').value = c.msg_es || '';
+  }
+  async function saveBookingSet(){
+    const durations = [...document.querySelectorAll('.bks-dur:checked')].map((x) => +x.value);
+    const days = [...document.querySelectorAll('#bks-days input:checked')].map((x) => +x.value);
+    if (!durations.length) { toast('Elegí al menos una duración'); return; }
+    if (!days.length) { toast('Elegí al menos un día'); return; }
+    const row = { id: 1, updated_at: new Date().toISOString(), active: $('bks-active').checked,
+      work_start: time2mins($('bks-start').value), work_end: time2mins($('bks-end').value),
+      notice_hours: +$('bks-notice').value || 0, horizon_days: +$('bks-horizon').value || 28,
+      buffer_min: +$('bks-buffer').value || 0, durations, days,
+      host_name: $('bks-hname').value.trim(), host_role: $('bks-hrole').value.trim(),
+      msg_en: $('bks-msg-en').value.trim() || null, msg_de: $('bks-msg-de').value.trim() || null, msg_es: $('bks-msg-es').value.trim() || null };
+    if (row.work_end - Math.max(...durations) < row.work_start) { toast('El horario es demasiado corto para la duración más larga'); return; }
+    const { error } = await supabase.from('booking_settings').upsert(row);
+    if (error) { toast('No se pudo guardar (¿SQL 0024?): ' + error.message); return; }
+    toast('📅 Settings del booking guardados — rigen al instante');
+  }
+  $('bks-save') && $('bks-save').addEventListener('click', saveBookingSet);
 
   /* ---------- SEO: Google Search Console (gsc-stats) ---------- */
   let seoLoaded = false;

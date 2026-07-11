@@ -38,12 +38,23 @@ const zurich = (d: Date) => {
   return { wd: g("weekday"), h: parseInt(g("hour")), m: parseInt(g("minute")), ymd: `${g("year")}-${g("month")}-${g("day")}` };
 };
 
+import { createClient } from "jsr:@supabase/supabase-js@2";
+const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const DEFAULTS = { active: true, work_start: 540, work_end: 1050, days: [1, 2, 3, 4, 5], notice_hours: 4, horizon_days: 28, buffer_min: 0, durations: [15, 30], host_name: "Sebastian Cepeda", host_role: "Founder — Viven AG, Zürich", msg_en: null, msg_de: null, msg_es: null };
+export async function bookingSettings() {
+  try { const { data } = await service.from("booking_settings").select("*").eq("id", 1).maybeSingle(); return { ...DEFAULTS, ...(data || {}) }; }
+  catch (_e) { return DEFAULTS; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
+    const cfg = await bookingSettings();
+    const meta = { host: { name: cfg.host_name, role: cfg.host_role }, durations: cfg.durations, msgs: { en: cfg.msg_en, de: cfg.msg_de, es: cfg.msg_es } };
+    if (!cfg.active) return json({ ok: false, error: "booking_off", meta });
     const u = new URL(req.url);
-    const dur = Math.max(15, Math.min(60, parseInt(u.searchParams.get("dur") || "15")));
-    const days = Math.max(1, Math.min(30, parseInt(u.searchParams.get("days") || "14")));
+    const dur = cfg.durations.includes(parseInt(u.searchParams.get("dur") || "0")) ? parseInt(u.searchParams.get("dur")!) : cfg.durations[0];
+    const days = Math.max(1, Math.min(60, parseInt(u.searchParams.get("days") || String(cfg.horizon_days))));
     const now = Date.now();
     const timeMin = new Date(now).toISOString();
     const timeMax = new Date(now + days * 864e5).toISOString();
@@ -59,24 +70,27 @@ Deno.serve(async (req) => {
     const busy: { start: string; end: string }[] = (await fb.json()).calendars?.[calId]?.busy ?? [];
     const isBusy = (s: number, e: number) => busy.some((b) => Date.parse(b.start) < e && Date.parse(b.end) > s);
 
-    // grilla de 15 min: Lu–Vi 09:00–17:30 Zúrich, min. now + 4 h
+    // grilla según SETTINGS (hora Zúrich, días ISO, aviso mínimo, buffer)
     // all=1 → devuelve TODA la grilla con {t, free} (la página muestra los ocupados en gris)
     const all = u.searchParams.get("all") === "1";
-    const minStart = now + 4 * 3600e3;
+    const ISO: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+    const minStart = now + cfg.notice_hours * 3600e3;
+    const buf = (cfg.buffer_min || 0) * 60e3;
+    const step = dur >= 30 ? 30 : 15;                 // grilla cada 30 para calls de 30+
     const slots: string[] = [];
     const grid: { t: string; free: boolean }[] = [];
     for (let t = Math.ceil(minStart / 900e3) * 900e3; t < now + days * 864e5; t += 900e3) {
       const d = new Date(t);
       const z = zurich(d);
-      if (["Sat", "Sun"].includes(z.wd)) continue;
+      if (!cfg.days.includes(ISO[z.wd])) continue;
       const mins = z.h * 60 + z.m;
-      if (mins < 9 * 60 || mins + dur > 17 * 60 + 30) continue;
-      if (dur === 30 && z.m % 30 !== 0) continue;      // con 30 min, grilla cada 30
-      const free = !isBusy(t, t + dur * 60e3);
+      if (mins < cfg.work_start || mins + dur > cfg.work_end) continue;
+      if (mins % step !== 0) continue;
+      const free = !isBusy(t - buf, t + dur * 60e3 + buf);
       if (all) { grid.push({ t: d.toISOString(), free }); if (grid.length >= 1500) break; }
       else if (free) { slots.push(d.toISOString()); if (slots.length >= 400) break; }
     }
-    return json(all ? { ok: true, dur, grid } : { ok: true, dur, slots });
+    return json(all ? { ok: true, dur, grid, meta } : { ok: true, dur, slots, meta });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

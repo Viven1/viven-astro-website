@@ -171,6 +171,26 @@ const FALLBACK = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-
   if (lang === 'es') document.title = 'Reservar una llamada — Viven Film Production';
 
   const $ = (id) => document.getElementById(id);
+  // meta del servidor: anfitrión + duraciones configuradas en el dashboard
+  let metaApplied = false;
+  function applyMeta(m){
+    if (metaApplied || !m) return; metaApplied = true;
+    if (m.host && m.host.name){
+      const who = document.querySelector('.who');
+      if (who){
+        who.querySelector('.av').textContent = m.host.name.split(/\s+/).map(function(w){ return w[0]; }).slice(0, 2).join('').toUpperCase();
+        who.querySelector('b').textContent = m.host.name;
+        if (m.host.role) who.querySelector('span').textContent = m.host.role;
+      }
+    }
+    if (Array.isArray(m.durations) && m.durations.length){
+      const box = document.querySelector('.bk-durs');
+      box.innerHTML = m.durations.map(function(x, i){ return '<button class="bk-dur' + (i === 0 ? ' on' : '') + '" data-d="' + x + '" type="button">' + x + ' min</button>'; }).join('');
+      dur = m.durations[0];
+      box.querySelectorAll('.bk-dur').forEach(function(b){ b.addEventListener('click', function(){ dur = parseInt(b.dataset.d); box.querySelectorAll('.bk-dur').forEach(function(x){ x.classList.toggle('on', x === b); }); load(); }); });
+    }
+    if (m.msgs) window.__bkMsg = m.msgs;
+  }
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   $('bk-tz').textContent = '🌍 ' + tz;
   const LOC = lang === 'en' ? 'en-GB' : lang;
@@ -187,6 +207,8 @@ const FALLBACK = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-
     try {
       const r = await fetch(FN + '/booking-slots?dur=' + dur + '&days=28&all=1');
       const d = await r.json();
+      if (d && d.meta) applyMeta(d.meta);
+      if (d && d.error === 'booking_off') throw new Error('booking_off');
       if (!d.ok || (!Array.isArray(d.grid) && !Array.isArray(d.slots))) throw new Error(d.error || 'no grid');
       // compat: función sin all=1 deployada todavía → solo libres (sin grises)
       grid = Array.isArray(d.grid) ? d.grid : d.slots.map((t) => ({ t, free: true }));
@@ -271,6 +293,8 @@ const FALLBACK = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-
       if (!d.ok) throw new Error(d.error || 'error');
       $('bk-step2').hidden = true; $('bk-ok').hidden = false;
       $('bk-ok-when').textContent = '📅 ' + fmtDay(d.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + fmtTime(d.start) + ' (' + d.duration + ' min)';
+      const cm = d.msg || (window.__bkMsg && window.__bkMsg[lang]);
+      if (cm) { const p = document.createElement('p'); p.textContent = cm; p.style.cssText = 'color:#dfe6f3;font-size:14px'; $('bk-ok-when').after(p); }
       if (lang !== 'en') { const a = document.querySelector('#bk-ok a.bk-btn'); if (a) a.href = '/brief/?lang=' + lang; }
     } catch (e) {
       err.textContent = t('err') + ' — ' + e.message; err.hidden = false;
