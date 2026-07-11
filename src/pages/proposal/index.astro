@@ -1,0 +1,325 @@
+---
+// Propuesta pública tipo Qwilr, dentro de viven.ch.
+// El cliente entra con /proposal/?id=<slug> (+ password) y puede aceptar ahí mismo.
+// Los datos vienen de la Edge Function get-proposal (valida password, sin costos internos).
+// ?demo=1 renderiza un ejemplo hardcodeado (para previsualizar el diseño).
+const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
+const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Proposal — Viven</title>
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#0f1826" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style is:global>
+  :root{ --pp-max: 860px; }
+  body{background:var(--navy-900)}
+  .pp-top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--navy-900) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .pp-logo{font-family:'Space Grotesk';font-weight:700;font-size:20px;color:var(--text);letter-spacing:-.02em}
+  .pp-logo span{color:var(--acid)}
+  .pp-top .pp-cta{display:flex;gap:10px;align-items:center}
+  .pp-total-mini{font-size:13px;color:var(--muted)}
+  .pp-total-mini b{color:var(--text);font-size:15px}
+  .pp-wrap{max-width:var(--pp-max);margin:0 auto;padding:0 22px 120px}
+  .pp-sec{padding:52px 0;border-bottom:1px solid var(--line)}
+  .pp-eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--acid);margin-bottom:14px}
+  .pp-h1{font-size:clamp(30px,6vw,54px);line-height:1.05;letter-spacing:-.02em;margin:0 0 6px}
+  .pp-h2{font-size:clamp(22px,4vw,30px);margin:0 0 18px;letter-spacing:-.01em}
+  .pp-hero{padding:64px 0 40px}
+  .pp-hero .pp-for{color:var(--muted);font-size:15px;margin-top:14px}
+  .pp-lead{font-size:16.5px;line-height:1.7;color:var(--text-soft,var(--text));white-space:pre-line}
+  .pp-muted{color:var(--muted)}
+  .pp-sign{margin-top:18px;font-size:14.5px;color:var(--muted)}
+  .pp-sign b{color:var(--text);display:block;font-size:15px}
+  .pp-quote{border-left:3px solid var(--acid);padding:6px 0 6px 20px;margin:26px 0;font-size:17px;line-height:1.6;font-style:italic;color:var(--text)}
+  .pp-quote .pp-cite{font-style:normal;font-size:13.5px;color:var(--muted);margin-top:10px}
+  .pp-quote .pp-cite b{color:var(--text);font-style:normal}
+  .pp-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+  .pp-info{background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .pp-info .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-2);margin-bottom:5px}
+  .pp-info .v{font-size:15px;color:var(--text);font-weight:600}
+  .pp-outputs{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:8px}
+  .pp-outputs li{padding-left:26px;position:relative;font-size:15px;color:var(--text)}
+  .pp-outputs li::before{content:'▸';position:absolute;left:4px;color:var(--acid)}
+  .pp-scope{display:grid;gap:22px;margin-top:10px}
+  .pp-scope .s-t{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px}
+  .pp-scope .s-x{font-size:15px;line-height:1.65;color:var(--muted)}
+  /* tiers */
+  .pp-tiers{display:grid;gap:16px;margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .pp-tier{position:relative;background:var(--navy-800);border:1.5px solid var(--line-strong);border-radius:18px;padding:24px 22px;cursor:pointer;transition:border-color .15s,transform .05s}
+  .pp-tier:hover{border-color:var(--muted)}
+  .pp-tier.sel{border-color:var(--acid);box-shadow:0 0 0 3px color-mix(in srgb,var(--acid) 22%,transparent)}
+  .pp-tier.rec{border-color:color-mix(in srgb,var(--acid) 55%,var(--line-strong))}
+  .pp-tier .rec-badge{position:absolute;top:-11px;left:22px;background:var(--acid);color:#10210a;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.04em}
+  .pp-tier .t-name{font-size:19px;font-weight:700;color:var(--text)}
+  .pp-tier .t-sub{font-size:13px;color:var(--muted);margin-top:3px}
+  .pp-tier .t-price{font-size:28px;font-weight:800;color:var(--text);margin:14px 0 2px;letter-spacing:-.01em}
+  .pp-tier .t-price s{font-size:16px;font-weight:500;color:var(--muted-2);margin-right:8px}
+  .pp-tier .t-off{display:inline-block;background:color-mix(in srgb,var(--acid) 18%,transparent);color:var(--acid);font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;margin-bottom:10px}
+  .pp-tier .t-inc{list-style:none;padding:14px 0 0;margin:12px 0 0;border-top:1px solid var(--line);display:grid;gap:8px}
+  .pp-tier .t-inc li{padding-left:24px;position:relative;font-size:13.7px;line-height:1.5;color:var(--text)}
+  .pp-tier .t-inc li::before{content:'✓';position:absolute;left:2px;color:var(--acid);font-weight:700}
+  .pp-tier .t-pick{margin-top:16px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);border:1px solid var(--line-strong);border-radius:10px;padding:9px}
+  .pp-tier.sel .t-pick{background:var(--acid);color:#10210a;border-color:var(--acid)}
+  /* add-ons */
+  .pp-addg{margin-top:24px}
+  .pp-addg h3{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-2);margin:0 0 10px}
+  .pp-add{display:flex;align-items:flex-start;gap:12px;background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer}
+  .pp-add.sel{border-color:var(--acid)}
+  .pp-add input{margin-top:3px;width:18px;height:18px;accent-color:var(--acid);flex:none}
+  .pp-add .a-main{flex:1;min-width:0}
+  .pp-add .a-name{font-size:14.5px;font-weight:600;color:var(--text)}
+  .pp-add .a-note{font-size:12.5px;color:var(--muted-2);margin-top:2px}
+  .pp-add .a-price{font-weight:700;color:var(--text);white-space:nowrap;font-size:14.5px}
+  /* accept */
+  .pp-accept{background:var(--navy-800);border:1px solid var(--line);border-radius:18px;padding:28px 26px;margin-top:32px}
+  .pp-tot-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:15px;color:var(--muted)}
+  .pp-tot-row b{color:var(--text)}
+  .pp-tot-row.grand{border-top:1px solid var(--line);margin-top:8px;padding-top:14px;font-size:17px}
+  .pp-tot-row.grand b{font-size:24px}
+  .pp-acc-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+  .pp-acc-form input{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:15px;padding:13px 14px}
+  .pp-accept button{width:100%;margin-top:14px;font-size:16px;padding:16px}
+  .pp-fine{font-size:12px;color:var(--muted-2);margin-top:12px;text-align:center}
+  .pp-footer{text-align:center;padding:44px 0;color:var(--muted)}
+  .pp-footer a{color:var(--acid)}
+  /* gate + estados */
+  .pp-center{min-height:82vh;display:flex;align-items:center;justify-content:center;padding:22px}
+  .pp-card{max-width:400px;width:100%;background:var(--navy-800);border:1px solid var(--line);border-radius:20px;padding:34px;text-align:center}
+  .pp-card h1{font-size:24px;margin:14px 0 6px}
+  .pp-card p{color:var(--muted);font-size:14.5px;margin-bottom:20px}
+  .pp-card input{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:12px;color:var(--text);font-family:inherit;font-size:16px;padding:14px;text-align:center;letter-spacing:.05em}
+  .pp-card button{width:100%;margin-top:12px;padding:14px;font-size:16px}
+  .pp-err{color:#ff8b8b;font-size:13.5px;margin-top:12px;min-height:18px}
+  .pp-accepted-banner{background:color-mix(in srgb,#7ed957 14%,var(--navy-800));border:1px solid color-mix(in srgb,#7ed957 45%,var(--line));border-radius:14px;padding:16px 18px;margin:20px 0;color:var(--text);font-size:15px}
+  @media(max-width:640px){.pp-grid3{grid-template-columns:1fr}.pp-acc-form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <!-- GATE / loading -->
+  <div id="pp-gate" class="pp-center">
+    <div class="pp-card">
+      <div class="pp-logo" style="font-size:26px">viven<span>.</span></div>
+      <h1 id="pp-gate-title">Your proposal</h1>
+      <p id="pp-gate-sub">Enter the access code we sent you.</p>
+      <form id="pp-gate-form">
+        <input id="pp-pass" type="password" placeholder="Access code" autocomplete="off" />
+        <button class="btn btn-primary" type="submit">Open proposal →</button>
+      </form>
+      <div class="pp-err" id="pp-gate-err"></div>
+    </div>
+  </div>
+
+  <!-- PROPOSAL -->
+  <div id="pp-app" hidden>
+    <div class="pp-top">
+      <div class="pp-logo">viven<span>.</span></div>
+      <div class="pp-cta">
+        <span class="pp-total-mini">Total <b id="pp-mini-total">—</b></span>
+        <button class="btn btn-primary small" id="pp-jump-accept" type="button">Accept →</button>
+      </div>
+    </div>
+    <div class="pp-wrap" id="pp-body"><!-- render JS --></div>
+  </div>
+
+<script is:inline define:vars={{ SB_URL, SB_KEY }}>
+  const FN = (name) => SB_URL + '/functions/v1/' + name;
+  const HEAD = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
+  const qs = new URLSearchParams(location.search);
+  const slug = qs.get('id');
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmt = (n) => 'CHF ' + (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  let content = null, selTier = 0, selAddons = new Set();
+
+  const DEMO = {
+    lang: 'en', title: 'Chiral Nano AG — Promotional Video', client_name: 'Paula Fernandez',
+    intro: 'Dear Paula & Chiral Nano AG Team,\n\nThank you very much for taking the time to meet with me and giving me a deeper understanding of your content needs. We are happy to share our proposal for your video production.',
+    intro_sign: { name: 'Sebastian Cepeda', role: 'Founder | Executive Producer' },
+    testimonials: [
+      { quote: 'From the concept to the shooting days to the production of breathtaking videos, VIVEN offers an absolutely ingenious complete package that meets the highest standards.', name: 'Alexander Stauch', role: 'Head of Marketing', company: 'Meteomatics AG' },
+      { quote: 'It was awesome working with VIVEN! Great collaboration, flexibility and outstanding results!', name: 'Gianluca Cesari', role: 'Co-Founder & Business Development Lead', company: 'Sevensense Robotics' }
+    ],
+    overview: {
+      objective: 'Produce a high-quality promotional video that showcases the company’s machinery, production processes, and expertise in a clear, modern, and visually engaging way.',
+      outputs: ['1x Promotional Video, ca 1-2 min, 16:9 & 9:16', '5 Stills from Video'],
+      location: 'Ueberlandstrasse 129, 8600 Dübendorf', timing: 'TBD', delivery: '19 June'
+    },
+    scope: [
+      { title: 'Pre-Production', text: 'We take the brief and create a logistical game plan to implement it. We map out the necessary crew, equipment, shooting days, editing days, and put down a schedule.' },
+      { title: 'Production', text: 'Lights, camera, action; this is the fun part. We come out with our state-of-the-art cameras, lights, and audio to capture all the pieces we need.' },
+      { title: 'Post-Production', text: 'This is where we shine. When music, graphics, animation and live video come together, it’s magical.' },
+      { title: 'Presentation & Revisions', text: 'We present our work and work back and forth until it’s perfect.' }
+    ],
+    tiers: [
+      { name: 'Production Package', subtitle: '1 shooting day', price: 4879, discount_pct: 0, recommended: true,
+        includes: ['Excl. Concept Development', '1 Shooting day', 'Pre-Production (communication, crewing, logistics)', 'Crew: Producer, Director of Photography', 'Equipment: 4K Camera & Light Kit', '1x Promotional Video, 1-2 min, 16:9 & 9:16', '5 Stills from Video', '1x correction round', '1x Music license', 'Basic text animation'] }
+    ],
+    addon_groups: [
+      { title: 'Extras', items: [
+        { name: 'Scouting (only Producer)', note: 'Location visit to plan in advance', qty: 1, unit: 'Hour', price: 120 },
+        { name: 'Additional Correction Round', note: '', qty: 1, unit: 'Day', price: 950 },
+        { name: 'Graphic & animations', note: 'May vary depending on complexity', qty: 1, unit: 'Day', price: 900 }
+      ] }
+    ],
+    vat_rate: 8.1,
+    sender: { name: 'Sofia Treviño', email: 'sofia@viven.ch', phone: '+41 43 508 45 67' }
+  };
+
+  const tierPrice = (t) => (Number(t.price) || 0) * (1 - (Number(t.discount_pct) || 0) / 100);
+  function addonPrice(gi, ii){ const it = content.addon_groups[gi].items[ii]; return Number(it.price) || 0; }
+  function subtotal(){
+    let s = content.tiers.length ? tierPrice(content.tiers[selTier]) : 0;
+    selAddons.forEach((k) => { const [gi, ii] = k.split(':').map(Number); s += addonPrice(gi, ii); });
+    return s;
+  }
+  function totals(){ const net = subtotal(), vat = net * (Number(content.vat_rate) || 0) / 100; return { net, vat, gross: net + vat }; }
+
+  function refreshTotals(){
+    const t = totals();
+    $('pp-mini-total').textContent = fmt(t.gross);
+    const box = $('pp-tot-box');
+    if (box) box.innerHTML =
+      '<div class="pp-tot-row"><span>Subtotal</span><b>' + fmt(t.net) + '</b></div>' +
+      '<div class="pp-tot-row"><span>VAT ' + (Number(content.vat_rate) || 0) + '%</span><b>' + fmt(t.vat) + '</b></div>' +
+      '<div class="pp-tot-row grand"><span>Total</span><b>' + fmt(t.gross) + '</b></div>';
+  }
+
+  function render(){
+    const c = content;
+    const sender = c.sender || {};
+    const outputs = (c.overview && c.overview.outputs || []).map((o) => '<li>' + esc(o) + '</li>').join('');
+    const scope = (c.scope || []).map((s) => '<div><div class="s-t">' + esc(s.title) + '</div><div class="s-x">' + esc(s.text) + '</div></div>').join('');
+    const quotes = (c.testimonials || []).map((q) =>
+      '<div class="pp-quote">“' + esc(q.quote) + '”<div class="pp-cite"><b>' + esc(q.name) + '</b> — ' + esc(q.role) + (q.company ? ', ' + esc(q.company) : '') + '</div></div>').join('');
+    const tiers = (c.tiers || []).map((t, i) => {
+      const inc = (t.includes || []).map((x) => '<li>' + esc(x) + '</li>').join('');
+      const off = Number(t.discount_pct) > 0;
+      return '<div class="pp-tier' + (i === selTier ? ' sel' : '') + (t.recommended ? ' rec' : '') + '" data-t="' + i + '">' +
+        (t.recommended ? '<span class="rec-badge">Recommended</span>' : '') +
+        '<div class="t-name">' + esc(t.name) + '</div>' + (t.subtitle ? '<div class="t-sub">' + esc(t.subtitle) + '</div>' : '') +
+        (off ? '<div class="t-price"><s>' + fmt(t.price) + '</s>' + fmt(tierPrice(t)) + '</div><span class="t-off">' + t.discount_pct + '% OFF</span>'
+             : '<div class="t-price">' + fmt(t.price) + '</div>') +
+        '<ul class="t-inc">' + inc + '</ul>' +
+        '<div class="t-pick">' + (i === selTier ? '✓ Selected' : 'Select this package') + '</div></div>';
+    }).join('');
+    const addons = (c.addon_groups || []).map((g, gi) =>
+      '<div class="pp-addg"><h3>' + esc(g.title) + '</h3>' +
+      (g.items || []).map((it, ii) => {
+        const k = gi + ':' + ii, on = selAddons.has(k);
+        return '<label class="pp-add' + (on ? ' sel' : '') + '" data-k="' + k + '"><input type="checkbox"' + (on ? ' checked' : '') + '/>' +
+          '<div class="a-main"><div class="a-name">' + esc(it.name) + '</div>' +
+          (it.note ? '<div class="a-note">' + esc(it.note) + '</div>' : '') +
+          '<div class="a-note">' + (it.qty ? esc(it.qty) + ' ' + esc(it.unit || '') : '') + '</div></div>' +
+          '<div class="a-price">' + fmt(it.price) + '</div></label>';
+      }).join('') + '</div>').join('');
+
+    $('pp-body').innerHTML =
+      '<section class="pp-hero pp-sec">' +
+        '<div class="pp-eyebrow">Proposal</div>' +
+        '<h1 class="pp-h1">' + esc(c.title || 'Video Production Proposal') + '</h1>' +
+        (c.client_name ? '<div class="pp-for">Prepared for ' + esc(c.client_name) + '</div>' : '') +
+      '</section>' +
+      (c.accepted_banner || '') +
+      '<section class="pp-sec"><div class="pp-lead">' + esc(c.intro || '') + '</div>' +
+        (c.intro_sign ? '<div class="pp-sign"><b>' + esc(c.intro_sign.name) + '</b>' + esc(c.intro_sign.role || '') + '</div>' : '') +
+        (quotes ? quotes.split('</div>').slice(0, 1).join('</div>') + '</div>' : '') + '</section>' +
+      '<section class="pp-sec"><div class="pp-eyebrow">Project Overview</div>' +
+        (c.overview && c.overview.objective ? '<p class="pp-lead">' + esc(c.overview.objective) + '</p>' : '') +
+        (outputs ? '<ul class="pp-outputs">' + outputs + '</ul>' : '') +
+        '<div class="pp-grid3">' +
+          '<div class="pp-info"><div class="k">Location</div><div class="v">' + esc((c.overview || {}).location || 'TBD') + '</div></div>' +
+          '<div class="pp-info"><div class="k">Timing</div><div class="v">' + esc((c.overview || {}).timing || 'TBD') + '</div></div>' +
+          '<div class="pp-info"><div class="k">Delivery</div><div class="v">' + esc((c.overview || {}).delivery || 'TBD') + '</div></div>' +
+        '</div></section>' +
+      '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
+      '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
+        '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
+      '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +
+        '<div class="pp-eyebrow">Accept & start</div><div id="pp-tot-box"></div>' +
+        '<div id="pp-accept-ui"><div class="pp-acc-form"><input id="pp-acc-name" placeholder="Your full name" /><input id="pp-acc-email" type="email" placeholder="Your email" /></div>' +
+        '<button class="btn btn-primary" id="pp-do-accept" type="button">✓ Accept proposal</button>' +
+        '<div class="pp-fine">By accepting you agree to start the project on the selected scope. We’ll be in touch within one business day.</div>' +
+        '<div class="pp-err" id="pp-acc-err"></div></div>' +
+      '</div></section>' +
+      '<div class="pp-footer">Questions before we start? <a href="mailto:' + esc(sender.email || 'sofia@viven.ch') + '">' + esc(sender.email || 'sofia@viven.ch') + '</a>' +
+        (sender.phone ? ' · ' + esc(sender.phone) : '') + '<br>' + esc(sender.name || 'Viven') + ' — viven.ch</div>';
+
+    // bind
+    document.querySelectorAll('.pp-tier').forEach((el) => el.addEventListener('click', () => { selTier = +el.dataset.t; render(); scrollKeep(); }));
+    document.querySelectorAll('.pp-add').forEach((el) => el.addEventListener('click', (e) => {
+      e.preventDefault(); const k = el.dataset.k; selAddons.has(k) ? selAddons.delete(k) : selAddons.add(k); render(); scrollKeep();
+    }));
+    const accBtn = $('pp-do-accept'); if (accBtn) accBtn.addEventListener('click', doAccept);
+    if (c.accepted) lockAccepted(c.accepted);
+    refreshTotals();
+  }
+  let keepY = 0;
+  function scrollKeep(){ window.scrollTo(0, keepY); }
+  document.addEventListener('click', () => { keepY = window.scrollY; }, true);
+
+  function lockAccepted(a){
+    const ui = $('pp-accept-ui');
+    if (ui) ui.innerHTML = '<div class="pp-accepted-banner">✅ Accepted' + (a.name ? ' by ' + esc(a.name) : '') + (a.at ? ' on ' + new Date(a.at).toLocaleDateString() : '') + '. Thank you — we’ll be in touch.</div>';
+  }
+
+  async function doAccept(){
+    const name = $('pp-acc-name').value.trim(), email = $('pp-acc-email').value.trim();
+    const err = $('pp-acc-err');
+    if (!name || !/\S+@\S+\.\S+/.test(email)) { err.textContent = 'Please enter your name and a valid email.'; return; }
+    if (DEMO_MODE) { lockAccepted({ name, at: new Date().toISOString() }); return; }
+    const btn = $('pp-do-accept'); btn.disabled = true; btn.textContent = 'Accepting…';
+    const addons = [...selAddons].map((k) => { const [gi, ii] = k.split(':').map(Number); return content.addon_groups[gi].items[ii].name; });
+    try {
+      const res = await fetch(FN('accept-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({
+        slug, password: PASS, name, email, tier: (content.tiers[selTier] || {}).name, addons, total: totals().gross
+      }) });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'error');
+      lockAccepted({ name, at: new Date().toISOString() });
+    } catch (e) { err.textContent = 'Could not accept: ' + e.message; btn.disabled = false; btn.textContent = '✓ Accept proposal'; }
+  }
+
+  // ---- carga ----
+  let DEMO_MODE = qs.get('demo') === '1', PASS = '';
+  function boot(data){
+    content = data.content || data;
+    content.accepted = data.accepted || null;
+    document.getElementById('pp-gate').hidden = true;
+    document.getElementById('pp-app').hidden = false;
+    document.documentElement.lang = content.lang || 'en';
+    selTier = (content.tiers || []).findIndex((t) => t.recommended); if (selTier < 0) selTier = 0;
+    render();
+  }
+  $('pp-jump-accept') && $('pp-jump-accept').addEventListener('click', () => { const s = document.getElementById('pp-accept-sec'); s && s.scrollIntoView({ behavior: 'smooth' }); });
+
+  if (DEMO_MODE) { boot({ content: DEMO }); }
+  else if (!slug) { $('pp-gate-sub').textContent = 'Missing proposal link.'; $('pp-gate-form').hidden = true; }
+  else {
+    $('pp-gate-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      PASS = $('pp-pass').value;
+      const err = $('pp-gate-err'); err.textContent = '';
+      const btn = e.target.querySelector('button'); btn.disabled = true;
+      try {
+        const res = await fetch(FN('get-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({ slug, password: PASS }) });
+        const data = await res.json();
+        if (res.status === 404) { err.textContent = 'Proposal not found.'; btn.disabled = false; return; }
+        if (data.error === 'wrong_password') { err.textContent = 'Wrong access code — try again.'; btn.disabled = false; return; }
+        if (data.error) throw new Error(data.error);
+        boot(data);
+      } catch (e) { err.textContent = 'Could not open: ' + e.message; btn.disabled = false; }
+    });
+    // si no tiene password, intentar abrir directo
+    fetch(FN('get-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({ slug, password: '' }) })
+      .then((r) => r.json()).then((data) => { if (data && data.ok && !data.error) boot(data); }).catch(() => {});
+  }
+</script>
+</body>
+</html>

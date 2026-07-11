@@ -1,0 +1,73 @@
+// Supabase Edge Function: accept-proposal
+// El cliente acepta la propuesta desde la página pública. Valida password, marca
+// status=accepted con la selección (tier + add-ons + total) y avisa a Viven por email.
+//
+// Deploy:  supabase functions deploy accept-proposal --no-verify-jwt
+// Secret:  RESEND_API_KEY (ya seteado)
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  try {
+    const { slug, password, name, email, tier, addons, total } = await req.json();
+    if (!slug || !name || !email) return json({ error: "faltan datos (name, email)" }, 400);
+    const admin = createClient(SB_URL, SERVICE);
+    const { data, error } = await admin.from("proposals").select("*").eq("slug", slug).maybeSingle();
+    if (error) return json({ error: error.message });
+    if (!data) return json({ error: "not_found" }, 404);
+    if (data.password && String(password || "") !== String(data.password)) return json({ error: "wrong_password" }, 401);
+    if (data.status === "accepted") return json({ ok: true, already: true });
+
+    const upd = await admin.from("proposals").update({
+      status: "accepted",
+      accepted_at: new Date().toISOString(),
+      accepted_name: String(name).slice(0, 120),
+      accepted_email: String(email).slice(0, 160),
+      accepted_tier: tier ? String(tier).slice(0, 120) : null,
+      accepted_addons: Array.isArray(addons) ? addons : null,
+      accepted_total: Number(total) || null,
+    }).eq("id", data.id);
+    if (upd.error) return json({ error: upd.error.message });
+
+    // marcar el lead como ganado, si estaba ligado
+    if (data.lead_id) {
+      await admin.from("leads").update({ status: "ganado" }).eq("id", data.lead_id);
+    }
+
+    // avisar a Viven (best-effort)
+    if (RESEND_API_KEY) {
+      const body = `✅ Propuesta ACEPTADA\n\n` +
+        `Propuesta: ${data.title || slug}\n` +
+        `Cliente: ${name} <${email}>\n` +
+        (tier ? `Paquete: ${tier}\n` : "") +
+        (total ? `Total: CHF ${Number(total).toLocaleString("de-CH")}\n` : "") +
+        (Array.isArray(addons) && addons.length ? `Add-ons: ${addons.join(", ")}\n` : "");
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Viven Propuestas <leads@viven.ch>",
+          to: ["info@viven.ch"],
+          reply_to: email,
+          subject: `✅ Propuesta aceptada — ${data.title || slug}`,
+          text: body,
+        }),
+      }).catch(() => {});
+    }
+    return json({ ok: true });
+  } catch (e) {
+    return json({ error: String(e) });
+  }
+});
