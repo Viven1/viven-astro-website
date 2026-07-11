@@ -41,9 +41,15 @@ Deno.serve(async (req) => {
     }).eq("id", data.id);
     if (upd.error) return json({ error: upd.error.message });
 
-    // marcar el lead como ganado, si estaba ligado
+    // sincronizar TODO: lead → ganado (con hitos) y sus ofertas abiertas → ganadas
     if (data.lead_id) {
-      await admin.from("leads").update({ status: "ganado" }).eq("id", data.lead_id);
+      const nowIso = new Date().toISOString();
+      const { data: lead } = await admin.from("leads").select("won_at").eq("id", data.lead_id).maybeSingle();
+      const patch: Record<string, unknown> = { status: "ganado", last_stage_at: nowIso };
+      if (!lead?.won_at) patch.won_at = nowIso;
+      const { error: le } = await admin.from("leads").update(patch).eq("id", data.lead_id);
+      if (le) await admin.from("leads").update({ status: "ganado" }).eq("id", data.lead_id);   // columnas nuevas sin migrar
+      await admin.from("offers").update({ status: "won" }).eq("lead_id", String(data.lead_id)).in("status", ["draft", "sent"]);
     }
 
     // avisar a Viven (best-effort)

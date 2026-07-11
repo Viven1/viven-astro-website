@@ -1420,7 +1420,7 @@
       // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
       supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000),
       supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('proposals').select('lead_id,updated_at').limit(1000)
+      supabase.from('proposals').select('lead_id,updated_at,status').limit(1000)
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
@@ -1437,6 +1437,12 @@
     actNotes = {}; if (notesQ && !notesQ.error) (notesQ.data || []).forEach((n) => maxTo(actNotes, String(n.lead_id), n.created_at));
     actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
     actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
+    // reconciliar: propuesta aceptada pero lead sin ganar (aceptó con el dashboard cerrado) → sync
+    if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => {
+      if (p.status !== 'accepted' || !p.lead_id) return;
+      const l = allLeads.find((x) => String(x.id) === String(p.lead_id));
+      if (l && !['ganado', 'perdido'].includes(stageOf(l.status))) setLeadStage(l.id, 'ganado');
+    });
     actWeb = {}; (viewsQ.data || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
     renderLeads();
     renderAnalytics(lastViews, allLeads);
@@ -1907,10 +1913,22 @@
     if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
     // Perdido: el motivo queda grabado en TODO — nota en el contacto + ofertas y propuestas ligadas
     if (stage === 'perdido') cascadeLost(lead, lostReason || null);
+    // Ganado: las ofertas abiertas del lead pasan a ganadas (sync total deals ↔ ofertas)
+    if (stage === 'ganado') cascadeWon(lead);
     // el deal avanzó o cerró → cancelar follow-ups pendientes (además del guard del cron)
     if (['videocall', 'propuesta', 'ganado', 'perdido'].includes(stage))
       supabase.from('lead_followups').update({ status: 'canceled' }).eq('lead_id', String(id)).in('status', ['draft', 'approved']).then(() => { if (currentLead && String(currentLead.id) === String(id)) loadFollowups(currentLead); });
     return true;
+  }
+  // Deal ganado → sus ofertas abiertas (borrador/enviada) también, así Home y Ofertas dicen la verdad
+  async function cascadeWon(lead){
+    const open = (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(lead.id) && !o.archived && !o.is_template && ['draft', 'sent'].includes(o.status));
+    if (!open.length) return;
+    const { error } = await supabase.from('offers').update({ status: 'won' }).eq('lead_id', String(lead.id)).in('status', ['draft', 'sent']);
+    if (error) return;
+    open.forEach((o) => { o.status = 'won'; });
+    try { renderOffersList(); renderHome(); } catch (e) {}
+    toast('🏆 ' + open.length + ' oferta' + (open.length > 1 ? 's' : '') + ' marcada' + (open.length > 1 ? 's' : '') + ' como ganada' + (open.length > 1 ? 's' : ''));
   }
   // Registra la pérdida donde haga falta (best-effort: nada de esto bloquea el cambio de etapa)
   async function cascadeLost(lead, reason){
@@ -3148,6 +3166,11 @@
     }
     btn.disabled = false; btn.textContent = prev;
     if (res.error){ alert('No se pudo guardar: ' + res.error.message); return; }
+    // sync: oferta ganada → el deal (lead) pasa a Ganado automáticamente
+    if (payload.status === 'won' && ofCur.lead_id){
+      const lead = allLeads.find((l) => String(l.id) === String(ofCur.lead_id));
+      if (lead && stageOf(lead.status) !== 'ganado') { await setLeadStage(lead.id, 'ganado'); toast('🏆 Deal movido a Ganado'); }
+    }
     await offersLoad(); showEditor(false);
   }
   async function deleteOffer(){
