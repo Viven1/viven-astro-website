@@ -364,7 +364,7 @@ function renderLeadForm(mount){
     /* Además de Supabase, mandamos a HubSpot (CRM + automations) vía su
        API pública de submissions — sin cargar el widget pesado. Best-effort:
        si HubSpot falla, el lead igual queda en nuestro dashboard. */
-    hubspotSubmit(first, last, email, fMsg.value.trim());
+    hubspotSubmit(first, last, email, fMsg.value.trim(), (fCompany && fCompany.value.trim()) || '-');
 
     sbInsertLead(row).then(function(r){
       if(r && r.ok){
@@ -381,7 +381,7 @@ function renderLeadForm(mount){
 }
 /* Envío a HubSpot (Forms Submissions API, pública, sin auth ni widget).
    Los nombres de campo deben coincidir con el form de HubSpot (firstname/lastname/email/message). */
-function hubspotSubmit(first, last, email, message){
+function hubspotSubmit(first, last, email, message, company){
   try{
     var hutk = (document.cookie.match(/hubspotutk=([^;]+)/) || [])[1];
     var body = {
@@ -389,6 +389,7 @@ function hubspotSubmit(first, last, email, message){
         { name: 'firstname', value: first },
         { name: 'lastname', value: last },
         { name: 'email', value: email },
+        { name: 'company', value: company || '-' },   /* REQUERIDO por el form de HubSpot — sin esto rechazaba TODO */
         { name: 'message', value: message || '' }
       ],
       context: { pageUri: location.href, pageName: document.title }
