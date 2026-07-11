@@ -502,10 +502,11 @@
   <div class="dash-body">
     <aside class="dash-side">
       <button class="side-item active" data-tab="home" type="button"><span class="si-ic">🏠</span>Home</button>
-      <div class="side-sec">Contacts</div>
-      <button class="side-item" data-tab="leads" type="button"><span class="si-ic">📥</span>Leads <span class="pill" id="tab-leads-count">0</span></button>
+      <div class="side-sec">CRM</div>
+      <button class="side-item" data-tab="leads" type="button"><span class="si-ic">👤</span>Personas <span class="pill" id="tab-leads-count">0</span></button>
       <button class="side-item" data-tab="companies" type="button"><span class="si-ic">🏢</span>Companies</button>
-      <div class="side-sec">Deals</div>
+      <button class="side-item" data-tab="deals" type="button"><span class="si-ic">🤝</span>Deals</button>
+      <div class="side-sec">Ventas</div>
       <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
       <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
       <div class="side-sec">Analytics</div>
@@ -535,12 +536,34 @@
   </div>
 
   <!-- ============ TAB: LEADS ============ -->
+  <!-- ============ TAB: PERSONAS (contactos) ============ -->
   <div id="tab-leads" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">Personas</h2>
+        <p class="muted-note" style="margin:2px 0 0">Contactos: la gente que escribió o con la que hablás. Cada persona está conectada a su empresa y a sus deals.</p>
+      </div>
+    </div>
     <div class="kpis four">
-      <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Leads totales (histórico)</div></div>
+      <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Personas (histórico)</div></div>
       <div class="kpi"><div class="n" id="kl-week">–</div><div class="l" id="kl-week-l">En el período</div></div>
       <div class="kpi"><div class="n" id="kl-new">–</div><div class="l">Sin contactar</div></div>
       <div class="kpi"><div class="n" id="kl-ads">–</div><div class="l">Desde Google Ads (GCLID)</div></div>
+    </div>
+    <div class="pipe-bar">
+      <input type="search" id="lead-search" placeholder="Buscar por nombre, email o mensaje…" />
+      <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
+    </div>
+    <div id="leads-list"></div>
+  </div>
+
+  <!-- ============ TAB: DEALS (pipeline / oportunidades) ============ -->
+  <div id="tab-deals" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">Deals</h2>
+        <p class="muted-note" style="margin:2px 0 0">Tu pipeline de oportunidades por etapa. Arrastrá una tarjeta para moverla; el valor viene de las ofertas ligadas.</p>
+      </div>
     </div>
     <div class="kpis">
       <div class="kpi"><div class="n" id="kl-contacted">–</div><div class="l">Contactados</div></div>
@@ -553,22 +576,13 @@
       <h2>Funnel de ventas <span class="count">(conversión y tiempo entre etapas)</span></h2>
       <div class="funnel" id="funnel"></div>
     </div>
-
-    <div class="pipe-bar">
-      <input type="search" id="lead-search" placeholder="Buscar por nombre, email o mensaje…" />
-      <div class="view-toggle" role="group" aria-label="Vista">
-        <button class="vt-btn active" id="vt-board" type="button">▦ Board</button>
-        <button class="vt-btn" id="vt-list" type="button">☰ Lista</button>
-      </div>
-      <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
-    </div>
     <div class="pipeline" id="pipeline"></div>
-    <p class="muted-note" id="leads-empty" hidden>No hay leads que coincidan. Envía el formulario del sitio para testear.</p>
+    <p class="muted-note" id="leads-empty" hidden>No hay deals que coincidan. Envía el formulario del sitio para testear.</p>
 
-    <!-- Insights con IA sobre el pipeline/funnel de leads -->
+    <!-- Insights con IA sobre el pipeline/funnel -->
     <div class="panel ai-panel" style="margin-top:22px">
       <div class="ai-head">
-        <h2>🧠 Insights con IA <span class="count">cómo mover más leads a ganados</span></h2>
+        <h2>🧠 Insights con IA <span class="count">cómo mover más deals a ganados</span></h2>
         <button class="btn btn-primary small" id="ai-leads-btn" type="button">✨ Generar</button>
       </div>
       <div class="ai-body" id="ai-leads-body">
@@ -986,7 +1000,7 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'companies', 'offers', 'props', 'blog', 'analytics'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
@@ -1308,7 +1322,14 @@
     $('kl-lost').style.color = lost ? '#ff6b6b' : 'var(--text)';
 
     renderFunnel(viewLeads);
-    renderPipeline();
+    renderPeopleList();  // Personas (lista)
+    renderPipeline();    // Deals (board)
+  }
+  // Personas: tabla de gente (lista)
+  function renderPeopleList(){
+    const cont = $('leads-list'); if (!cont) return;
+    cont.innerHTML = leadsListHTML(filteredLeads());
+    cont.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id)));
   }
 
   /* ---------- HOME: KPIs globales + tendencia vs semana anterior ---------- */
@@ -1407,7 +1428,6 @@
     rows.forEach((r) => byStage[stageOf(r.status)].push(r));
     Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
     const pipe = $('pipeline');
-    if (leadsView === 'list'){ pipe.className = ''; pipe.innerHTML = leadsListHTML(rows); bindLeadRows(); return; }
     pipe.className = 'pipeline';
     pipe.innerHTML = STAGES.map((s) => {
       const cards = byStage[s.key].map((r) => cardHTML(r, s)).join('') || '<div class="pipe-empty">Sin leads</div>';
@@ -1935,15 +1955,6 @@
 
   /* ---------- Export CSV ---------- */
   /* toggle Board / Lista */
-  function setLeadsView(v){
-    leadsView = v;
-    $('vt-board').classList.toggle('active', v === 'board');
-    $('vt-list').classList.toggle('active', v === 'list');
-    renderPipeline();
-  }
-  $('vt-board').addEventListener('click', () => setLeadsView('board'));
-  $('vt-list').addEventListener('click', () => setLeadsView('list'));
-
   $('export-csv').addEventListener('click', () => {
     const cols = ['created_at','first_name','last_name','email','message','status','channel','gclid','utm_source','utm_campaign','landing_path','lang','session_id'];
     const csvCell = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
