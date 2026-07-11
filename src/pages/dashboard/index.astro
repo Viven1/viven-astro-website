@@ -1231,7 +1231,7 @@
   const PHASES = Object.keys(RATECARD);   // Development · Pre-Production · Production · Post-Production · Delivery
   const fmtM = (n) => 'CHF ' + (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  let offersList = [], ofCur = null, offersBuilt = false;
+  let offersList = [], ofCur = null, offersBuilt = false, inquiryFromLead = '';
 
   function offersInit(){ buildPresetSelect(); if (!offersBuilt){ offersBuilt = true; bindOffers(); } offersLoad(); }
 
@@ -1300,17 +1300,24 @@
     $('of-status').value = ofCur.status || 'draft';
     $('of-vat').value = ofCur.vat_rate ?? 8.1;
     $('of-lead').innerHTML = leadOptions(ofCur.lead_id);
-    $('of-inquiry').value = ''; $('of-ai-note').textContent = '';
-    prefillInquiry();
+    $('of-inquiry').value = ''; $('of-ai-note').textContent = ''; inquiryFromLead = '';
+    prefillInquiry(false);
     renderRows();
   }
-  // llena la consulta desde el lead ligado (si hay) para que la IA arme la oferta
-  function prefillInquiry(){
+  // llena la consulta desde el lead ligado. force=true (cambio explícito de lead) reemplaza;
+  // si vos editaste el texto a mano, pide confirmación antes de pisarlo.
+  function prefillInquiry(force){
     const lead = (allLeads || []).find((l) => String(l.id) === String(ofCur.lead_id));
-    if (lead && !$('of-inquiry').value.trim()){
-      $('of-inquiry').value = lead.message || '';
-    }
     $('of-ai-src').textContent = lead ? '· del lead ' + (lead.name || lead.email || lead.id) : '';
+    if (!lead) return;
+    const cur = $('of-inquiry').value;
+    const untouched = !cur.trim() || cur === inquiryFromLead;   // sigue siendo lo auto-rellenado
+    if (!untouched){
+      if (!force) return;                                       // al abrir: no pisar texto propio
+      if (!confirm('¿Reemplazar la consulta del cliente con el mensaje de "' + (lead.name || lead.email) + '"?')) return;
+    }
+    $('of-inquiry').value = lead.message || '';
+    inquiryFromLead = lead.message || '';
   }
   // catálogo plano para pasarle a la IA (precios reales)
   const catalogFlat = () => PHASES.flatMap((ph) => RATECARD[ph].map((it) => ({ phase: ph, name: it.name, unit: it.unit, price: it.price, cost: it.cost })));
@@ -1479,7 +1486,7 @@
     });
     $('of-vat').addEventListener('input', () => { ofCur.vat_rate = parseFloat($('of-vat').value) || 0; recalc(); });
     $('of-status').addEventListener('change', () => { ofCur.status = $('of-status').value; });
-    $('of-lead').addEventListener('change', () => { ofCur.lead_id = $('of-lead').value || null; prefillInquiry(); });
+    $('of-lead').addEventListener('change', () => { ofCur.lead_id = $('of-lead').value || null; prefillInquiry(true); });
     $('of-ai-gen').addEventListener('click', generateOfferAI);
     $('of-save').addEventListener('click', saveOffer);
     $('of-delete').addEventListener('click', deleteOffer);
