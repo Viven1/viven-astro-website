@@ -695,7 +695,7 @@
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [];
+  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board';
 
   function show(view){
     $('login-view').hidden = view !== 'login';
@@ -944,6 +944,11 @@
     $('kl-convrate').innerHTML = decided ? (won / decided * 100).toFixed(0) + '<small>%</small>' : '–';
     $('kl-followup').textContent = followWeek;
 
+    /* color-coding: ganados verde, perdidos rojo, el resto neutro (blanco) */
+    ['kl-total', 'kl-week', 'kl-new', 'kl-ads', 'kl-contacted', 'kl-convrate', 'kl-followup'].forEach((id) => { $(id).style.color = 'var(--text)'; });
+    $('kl-won').style.color = won ? '#7ed957' : 'var(--text)';
+    $('kl-lost').style.color = lost ? '#ff6b6b' : 'var(--text)';
+
     renderFunnel(viewLeads);
     renderPipeline();
   }
@@ -995,21 +1000,44 @@
       '<div class="pc-meta">' + ch + ads + follow + '<span class="pc-time">' + timeAgo(r.created_at) + '</span></div>' +
     '</div>';
   }
+  // valor total de las ofertas (no archivadas) ligadas a un conjunto de leads
+  const leadsValue = (leads) => leads.reduce((a, l) => a + offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0), 0);
+  const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
+
   function renderPipeline(){
     const rows = filteredLeads();
     $('leads-empty').hidden = rows.length > 0;
     const byStage = {}; STAGES.forEach((s) => byStage[s.key] = []);
     rows.forEach((r) => byStage[stageOf(r.status)].push(r));
     Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
-    $('pipeline').innerHTML = STAGES.map((s) => {
+    const pipe = $('pipeline');
+    if (leadsView === 'list'){ pipe.className = ''; pipe.innerHTML = leadsListHTML(rows); bindLeadRows(); return; }
+    pipe.className = 'pipeline';
+    pipe.innerHTML = STAGES.map((s) => {
       const cards = byStage[s.key].map((r) => cardHTML(r, s)).join('') || '<div class="pipe-empty">Sin leads</div>';
+      const val = leadsValue(byStage[s.key]);
       return '<div class="pipe-col" data-stage="' + s.key + '">' +
         '<div class="pipe-col-head"><span class="dot" style="background:' + s.color + '"></span>' + s.label +
         '<span class="cnt">' + byStage[s.key].length + '</span></div>' +
+        '<div class="pipe-col-val" style="color:' + s.color + '">' + fmtChf(val) + ' <small>en ofertas</small></div>' +
         '<div class="pipe-list">' + cards + '</div></div>';
     }).join('');
     bindPipeline();
   }
+  function leadsListHTML(rows){
+    if (!rows.length) return '<p class="muted-note" style="padding:14px">Sin leads en este período.</p>';
+    const body = rows.slice().sort((x, y) => new Date(y.created_at) - new Date(x.created_at)).map((r) => {
+      const s = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
+      const val = leadsValue([r]);
+      return '<tr data-id="' + esc(r.id) + '"><td><div class="lt-name">' + esc(r.name || r.first_name || '(sin nombre)') + '</div><div class="lt-mail">' + esc(r.email || '') + '</div></td>' +
+        '<td><span class="lt-stage" style="color:' + s.color + '"><span class="dot" style="background:' + s.color + '"></span>' + s.label + '</span></td>' +
+        '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') + '</td>' +
+        '<td>' + esc(r.channel || '—') + (r.gclid ? ' · Ads' : '') + '</td>' +
+        '<td class="lt-num">' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) + '</td></tr>';
+    }).join('');
+    return '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Lead</th><th>Etapa</th><th>Valor (ofertas)</th><th>Canal</th><th>Fecha</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+  }
+  function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id))); }
   let dragId = null;
   function bindPipeline(){
     document.querySelectorAll('.pipe-card').forEach((card) => {
@@ -1281,6 +1309,16 @@
   });
 
   /* ---------- Export CSV ---------- */
+  /* toggle Board / Lista */
+  function setLeadsView(v){
+    leadsView = v;
+    $('vt-board').classList.toggle('active', v === 'board');
+    $('vt-list').classList.toggle('active', v === 'list');
+    renderPipeline();
+  }
+  $('vt-board').addEventListener('click', () => setLeadsView('board'));
+  $('vt-list').addEventListener('click', () => setLeadsView('list'));
+
   $('export-csv').addEventListener('click', () => {
     const cols = ['created_at','first_name','last_name','email','message','status','channel','gclid','utm_source','utm_campaign','landing_path','lang','session_id'];
     const csvCell = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
