@@ -1,0 +1,40 @@
+---
+// Los 3 case studies REALES (con datos y resultados del cliente) — material de VENTA.
+// Van en home, servicios, why-viven… y al final de Projects (separados de la grilla).
+// Prop cat: ordena primero el case que matchea el servicio de la página.
+const { lang = 'en', cat = '' } = Astro.props;
+const T = {
+  eyebrow: { en: 'Case studies', de: 'Case Studies', es: 'Casos de éxito' },
+  title: { en: 'Results our clients talk about', de: 'Resultate, über die unsere Kunden sprechen', es: 'Resultados de los que hablan nuestros clientes' },
+  read: { en: 'Read the case study →', de: 'Case Study lesen →', es: 'Leer el caso →' },
+};
+const t = (k) => T[k][lang] || T[k].en;
+const CASES = [
+  { slug: 'en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding', cat: 'employer',
+    tag: 'Employer branding', client: 'Siemens Switzerland',
+    sum: { en: '120+ videos in 5 days — 3× lift in social & website traffic.', de: '120+ Videos in 5 Tagen — 3× mehr Social- & Website-Traffic.', es: '120+ videos en 5 días — 3× más tráfico social y web.' } },
+  { slug: 'en/case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions', cat: 'howto',
+    tag: 'Explainer / How-to', client: 'Meteomatics',
+    sum: { en: 'Complex weather-tech made simple — winning clients in new markets.', de: 'Komplexe Wetter-Technologie einfach erklärt — Neukunden in neuen Märkten.', es: 'Tecnología compleja explicada simple — clientes nuevos en mercados nuevos.' } },
+  { slug: 'en/case-study-sv-group-bringing-it-operations-and-hospitality-together', cat: 'corporate',
+    tag: 'Corporate', client: 'SV Group',
+    sum: { en: 'One film for recruiting, sales and brand — shot in live service.', de: 'Ein Film für Recruiting, Sales und Marke — gedreht im laufenden Betrieb.', es: 'Un film para recruiting, ventas y marca — filmado en servicio real.' } },
+];
+const ordered = cat ? [...CASES].sort((a, b) => (b.cat === cat ? 1 : 0) - (a.cat === cat ? 1 : 0)) : CASES;
+---
+<section class="sec cs-strip">
+  <div class="wrap">
+    <span class="eyebrow">{t('eyebrow')}</span>
+    <h2 style="margin:8px 0 22px">{t('title')}</h2>
+    <div class="cs-links">
+      {ordered.map((c) => (
+        <a class="cs-link reveal" href={'/' + c.slug + '/'}>
+          <span class="cs-tag">{c.tag}</span>
+          <strong>{c.client}</strong>
+          <span class="cs-sum">{c.sum[lang] || c.sum.en}</span>
+          <span class="cs-cta">{t('read')}</span>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>

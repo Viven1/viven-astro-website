@@ -17,18 +17,6 @@ const caseVideoIds = new Set(projects.map((pr) => String(pr.vimeo || '')).filter
 const CS_LABEL = { en: 'Case study', de: 'Case Study', es: 'Caso de éxito' };
 const csLabel = CS_LABEL[lang] || CS_LABEL.en;
 
-// Los 3 case studies REALES (con datos del cliente) — van PRIMEROS en la grilla de proyectos.
-const TEXT_CASES = [
-  { slug: 'en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding',
-    client: 'Siemens Switzerland', title: 'Employer Branding — 120+ videos, 3× traffic',
-    still: '/projects/de/siemens-mobility-employer-branding-kampagne/02-ity_Brand_Video_Employer_Branding_1.jpeg', cat: 'employer' },
-  { slug: 'en/case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions',
-    client: 'Meteomatics', title: 'Explainer series — complexity made simple',
-    still: '/projects/es/caso-de-exito-meteomatics-simplificando-la-complejidad-con-las-soluciones-en-video-de-viven-ag/01-g_ProRes_16z9_clean_Viven--Still008.jpeg', cat: 'howto' },
-  { slug: 'en/case-study-sv-group-bringing-it-operations-and-hospitality-together',
-    client: 'SV Group', title: 'Corporate film — IT, operations & hospitality',
-    still: 'https://i.vimeocdn.com/video/1741194175-4d2607a327006020c4ce65f12068267334e6b60d_960x540', cat: 'corporate' },
-];
 
 // service (idioma de la página) → categoría del filtro
 const serviceCat = (s) => {
@@ -126,12 +114,6 @@ csProjects.sort((a, b) => rank(a.client) - rank(b.client));
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
 <div class="work-grid" data-shuffle={caseFirst ? '1' : undefined}>
-  {caseFirst && TEXT_CASES.map((tc) => (
-    <a class="work-tile reveal wt-case" href={'/' + tc.slug + '/'} data-cat={tc.cat} data-pin="1" aria-label={tc.client + ' — ' + tc.title}>
-      <span class="wt-thumb"><img src={tc.still} width="960" height="540" loading="eager" decoding="async" alt={tc.client + ' — ' + tc.title} /></span>
-      <span class="wt-meta"><span class="wt-title">{tc.client}</span><span class="wt-cat"><span class="cl">{tc.title}</span></span></span>
-    </a>
-  ))}
   {csProjects.map((pr, i) => {
     const feat = feature && i === 0 ? ' wt-feature' : '';
     const c = serviceCat(pr.service);
