@@ -342,6 +342,8 @@
   .post-preview li{margin-bottom:5px}
   .post-preview a{color:var(--acid);text-decoration:underline}
   .post-preview strong{color:var(--text)}
+  .co-card{align-items:center;gap:14px}
+  .co-av{width:38px;height:38px;border-radius:10px;background:color-mix(in srgb,var(--acid) 15%,var(--navy-900));color:var(--acid);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
   .of-card-main{flex:1;min-width:0}
   .of-card-title{font-weight:600;font-size:15.5px}
   .of-card-sub{color:var(--muted-2);font-size:12.5px;margin-top:2px}
@@ -457,6 +459,7 @@
       <button class="side-item active" data-tab="home" type="button"><span class="si-ic">🏠</span>Home</button>
       <div class="side-sec">Contacts</div>
       <button class="side-item" data-tab="leads" type="button"><span class="si-ic">📥</span>Leads <span class="pill" id="tab-leads-count">0</span></button>
+      <button class="side-item" data-tab="companies" type="button"><span class="si-ic">🏢</span>Companies</button>
       <div class="side-sec">Deals</div>
       <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
       <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
@@ -525,6 +528,40 @@
       </div>
       <div class="ai-body" id="ai-leads-body">
         <p class="muted-note">La IA analiza tu funnel (conversión y tiempos por etapa), canales y follow-ups, y te da 3–5 mejoras concretas para cerrar más.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: COMPANIES ============ -->
+  <div id="tab-companies" hidden>
+    <div id="co-list-view">
+      <div class="of-bar">
+        <div>
+          <h2 style="margin:0">Companies</h2>
+          <p class="muted-note" style="margin:2px 0 0">Empresas de tus contactos (agrupadas por dominio del email). Las personas están separadas pero conectadas a su empresa.</p>
+        </div>
+      </div>
+      <div class="kpis four" style="margin-top:14px">
+        <div class="kpi"><div class="n" id="co-k-count">–</div><div class="l">Empresas</div></div>
+        <div class="kpi"><div class="n" id="co-k-contacts">–</div><div class="l">Contactos con empresa</div></div>
+        <div class="kpi"><div class="n" id="co-k-value">–</div><div class="l">Valor en ofertas</div></div>
+        <div class="kpi"><div class="n" id="co-k-multi">–</div><div class="l">Con 2+ contactos</div></div>
+      </div>
+      <div class="pipe-bar"><input type="search" id="co-search" placeholder="Buscar empresa…" /></div>
+      <div id="co-list" class="of-list"></div>
+      <p class="muted-note" id="co-empty" hidden>Sin empresas todavía. Aparecen solas cuando entran leads con email corporativo.</p>
+    </div>
+
+    <div id="co-detail" hidden>
+      <div class="of-bar"><button class="btn btn-ghost small" id="co-back" type="button">← Volver</button></div>
+      <div class="lm-top">
+        <div class="lm-id"><div class="lm-avatar" id="co-avatar"></div><div class="lm-idtext"><h3 id="co-name"></h3><div class="lm-sub" id="co-domain"></div></div></div>
+        <div class="lm-quick"><button class="lm-qbtn" id="co-edit-btn" type="button">✏️ Editar</button><a class="lm-qbtn" id="co-web" target="_blank" rel="noopener" hidden>🌐 Web</a></div>
+      </div>
+      <div class="lm-grid">
+        <aside class="lm-left" id="co-about"></aside>
+        <main class="lm-center"><div class="lm-block"><div class="lm-block-h">👥 Contactos <span class="count" id="co-contacts-n"></span></div><div id="co-contacts"></div></div></main>
+        <aside class="lm-right" id="co-right"></aside>
       </div>
     </div>
   </div>
@@ -893,7 +930,7 @@
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board';
+  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false;
 
   function show(view){
     $('login-view').hidden = view !== 'login';
@@ -901,11 +938,12 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'offers', 'props', 'blog', 'analytics'];
+  const TABS = ['home', 'leads', 'companies', 'offers', 'props', 'blog', 'analytics'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
     if (tab === 'home') renderHome();
+    if (tab === 'companies') renderCompanies();
     if (tab === 'offers') offersInit();
     if (tab === 'props') proposalsInit();
     if (tab === 'blog') blogInit();
@@ -1037,13 +1075,14 @@
   const until = () => new Date(rangeEnd()).toISOString();
 
   async function loadAll(){
-    const [leadsQ, viewsQ, videosQ, offersQ] = await Promise.all([
+    const [leadsQ, viewsQ, videosQ, offersQ, coQ] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
         .gte('created_at', since()).lte('created_at', until()).limit(20000),
       supabase.from('video_plays').select('video_id,label').gte('created_at', since()).lte('created_at', until()).limit(20000),
-      supabase.from('offers').select('*').order('updated_at', { ascending: false })
+      supabase.from('offers').select('*').order('updated_at', { ascending: false }),
+      supabase.from('companies').select('*')
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
@@ -1053,6 +1092,8 @@
     lastViews = viewsQ.data || [];
     // ofertas: best-effort (si no corrió el SQL 0003 todavía, seguimos sin romper el dashboard)
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
+    // companies: best-effort (si no corrió el SQL 0011, coMeta queda vacío)
+    coMeta = {}; if (coQ && !coQ.error) (coQ.data || []).forEach((c) => { if (c.domain) coMeta[c.domain] = c; });
     renderLeads();
     renderAnalytics(lastViews, allLeads);
     renderHome();
@@ -1443,8 +1484,11 @@
     $('lm-about').innerHTML =
       sec('Contacto',
         row('Nombre', esc(r.name), true) +
+        row('Cargo / rol', esc(r.job_title || '')) +
         row('Email', '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>', true) +
-        row('Teléfono', telV) + row('Empresa', esc(company)) + row('Idioma', (r.lang || '—').toUpperCase(), true)) +
+        row('Teléfono', telV) +
+        row('Empresa', domainOf(r.email) ? '<a href="#" class="lm-coclink" data-d="' + esc(domainOf(r.email)) + '">' + esc(companyName(domainOf(r.email))) + '</a>' : esc(company)) +
+        row('Idioma', (r.lang || '—').toUpperCase(), true)) +
       sec('Estado y seguimiento',
         row('Etapa', '<span class="ab-badge" style="color:' + (st.color || 'var(--muted)') + ';border-color:' + (st.color || 'var(--line-strong)') + '">' + esc(st.label || r.status || '—') + '</span>', true) +
         row('Próximo follow-up', nextF, true) +
@@ -1456,6 +1500,7 @@
         row('Creado', fmtD(r.created_at), true) + row('Contactado', fmtD(r.contacted_at)) +
         row('Video call', fmtD(r.videocall_at)) + row('Propuesta', fmtD(r.proposal_at)) +
         row('Ganado', fmtD(r.won_at)) + row('Perdido', fmtD(r.lost_at)));
+    $('lm-about').querySelectorAll('.lm-coclink').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); closeLead(); gotoTab('companies'); openCompany(a.dataset.d); }));
 
     renderLeadScore(r);
     // columna derecha: ofertas (deals) + tasks + notas
@@ -1590,6 +1635,7 @@
     const last = r.last_name || (r.name || '').trim().split(/\s+/).slice(1).join(' ') || '';
     $('lm-about').innerHTML = '<div class="ab-sec"><div class="ab-h">✏️ Editar datos</div>' +
       edField('Nombre', 'ed-first', first) + edField('Apellido', 'ed-last', last) +
+      edField('Cargo / rol', 'ed-job', r.job_title) +
       edField('Email', 'ed-email', r.email) + edField('Teléfono', 'ed-phone', r.phone) + edField('Empresa', 'ed-company', r.company) +
       '<div class="ab-row"><span class="ab-k">Idioma</span><span class="ab-v"><select class="ed-inp" id="ed-lang"><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></span></div>' +
       '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary xs" id="ed-save" type="button">Guardar</button><button class="btn btn-ghost xs" id="ed-cancel" type="button">Cancelar</button></div></div>';
@@ -1600,7 +1646,7 @@
   async function saveEditLead(){
     const r = currentLead; if (!r) return;
     const first = $('ed-first').value.trim(), last = $('ed-last').value.trim();
-    const patch = { first_name: first || null, last_name: last || null, name: (first + ' ' + last).trim() || r.name, email: $('ed-email').value.trim() || r.email, phone: $('ed-phone').value.trim() || null, company: $('ed-company').value.trim() || null, lang: $('ed-lang').value };
+    const patch = { first_name: first || null, last_name: last || null, name: (first + ' ' + last).trim() || r.name, job_title: $('ed-job').value.trim() || null, email: $('ed-email').value.trim() || r.email, phone: $('ed-phone').value.trim() || null, company: $('ed-company').value.trim() || null, lang: $('ed-lang').value };
     const btn = $('ed-save'); btn.disabled = true; btn.textContent = 'Guardando…';
     const { error } = await supabase.from('leads').update(patch).eq('id', r.id);
     if (error) { btn.disabled = false; btn.textContent = 'Guardar'; toast('No se pudo guardar: ' + error.message); return; }
@@ -2704,6 +2750,82 @@ ${body}
     } catch (e) {
       $('bg-pub-note').textContent = 'No se pudo publicar (¿deployaste publish-blog + seteaste GITHUB_TOKEN?): ' + e.message;
     } finally { btn.disabled = false; btn.textContent = prev; }
+  }
+
+  /* ================= COMPANIES (empresas, modelo HubSpot) ================= */
+  function domainOf(email){ const d = (email || '').split('@')[1]; if (!d || /gmail|hotmail|outlook|yahoo|icloud|gmx|bluewin|proton|me\.com/i.test(d)) return ''; return d.toLowerCase(); }
+  function companyName(domain){ return (coMeta[domain] && coMeta[domain].name) || (domain ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : ''); }
+  function companiesData(){
+    const map = new Map();
+    (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '')).forEach((l) => { const d = domainOf(l.email); if (!d) return; if (!map.has(d)) map.set(d, []); map.get(d).push(l); });
+    return [...map.entries()].map(([domain, contacts]) => ({
+      domain, name: companyName(domain), contacts,
+      value: contacts.reduce((a, l) => a + offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0), 0),
+      won: contacts.some((l) => stageOf(l.status) === 'ganado'), meta: coMeta[domain] || null
+    })).sort((a, b) => b.value - a.value || b.contacts.length - a.contacts.length || a.name.localeCompare(b.name));
+  }
+  function renderCompanies(){
+    if (!coBound){ coBound = true;
+      $('co-back').addEventListener('click', () => { coCur = null; $('co-detail').hidden = true; $('co-list-view').hidden = false; });
+      $('co-search').addEventListener('input', renderCompaniesList);
+      $('co-edit-btn').addEventListener('click', editCompany);
+    }
+    if (coCur) renderCompanyDetail(); else { $('co-detail').hidden = true; $('co-list-view').hidden = false; renderCompaniesList(); }
+  }
+  function renderCompaniesList(){
+    let data = companiesData();
+    const q = ($('co-search').value || '').toLowerCase().trim();
+    if (q) data = data.filter((c) => (c.name + ' ' + c.domain).toLowerCase().includes(q));
+    $('co-k-count').textContent = data.length;
+    $('co-k-contacts').textContent = data.reduce((a, c) => a + c.contacts.length, 0);
+    $('co-k-value').textContent = fmtChf(data.reduce((a, c) => a + c.value, 0));
+    $('co-k-multi').textContent = data.filter((c) => c.contacts.length >= 2).length;
+    $('co-empty').hidden = data.length > 0;
+    $('co-list').innerHTML = data.map((c) => '<button class="of-card co-card" data-d="' + esc(c.domain) + '" type="button"><div class="co-av">' + esc(c.name.slice(0, 2).toUpperCase()) + '</div>' +
+      '<div class="of-card-main"><div class="of-card-title">' + esc(c.name) + (c.won ? ' <span class="of-badge" style="color:#7ed957;border-color:#7ed957;font-size:10px">cliente</span>' : '') + '</div>' +
+      '<div class="of-card-sub">' + esc(c.domain) + ' · ' + c.contacts.length + ' contacto' + (c.contacts.length !== 1 ? 's' : '') + '</div></div>' +
+      '<div class="of-card-nums"><div class="of-card-net">' + fmtChf(c.value) + '</div><div class="of-card-margin" style="color:var(--muted-2)">en ofertas</div></div></button>').join('');
+    $('co-list').querySelectorAll('.co-card').forEach((c) => c.addEventListener('click', () => openCompany(c.dataset.d)));
+  }
+  function openCompany(domain){ coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false; renderCompanyDetail(); window.scrollTo(0, 0); }
+  function renderCompanyDetail(){
+    const domain = coCur; const data = companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0 };
+    const m = coMeta[domain] || {};
+    $('co-avatar').textContent = data.name.slice(0, 2).toUpperCase();
+    $('co-name').textContent = data.name; $('co-domain').textContent = domain;
+    const web = m.website || ('https://' + domain); const wb = $('co-web'); wb.hidden = false; wb.href = web;
+    const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + v + '</span></div>' : '';
+    $('co-about').innerHTML = '<div class="ab-sec"><div class="ab-h">Empresa</div>' +
+      row('Dominio', esc(domain)) + row('Industria', esc(m.industry || '')) + row('Web', '<a href="' + esc(web) + '" target="_blank" rel="noopener">' + esc(m.website || domain) + '</a>') + row('Teléfono', esc(m.phone || '')) + row('Owner', esc(m.owner || '')) + '</div>' +
+      (m.notes ? '<div class="ab-sec"><div class="ab-h">Notas</div><div style="font-size:13px;color:var(--muted);white-space:pre-wrap">' + esc(m.notes) + '</div></div>' : '') +
+      '<div class="ab-sec"><div class="ab-h">Resumen</div>' + row('Contactos', data.contacts.length) + row('Valor en ofertas', fmtChf(data.value)) + '</div>';
+    $('co-contacts-n').textContent = '(' + data.contacts.length + ')';
+    $('co-contacts').innerHTML = data.contacts.length ? data.contacts.map((l) => { const stg = STAGES.find((s) => s.key === stageOf(l.status)) || {};
+      return '<button class="lm-deal co-contact" data-id="' + esc(l.id) + '" type="button"><span class="lm-deal-t">' + esc(l.name || l.email) + (l.job_title ? ' <span class="muted-note">· ' + esc(l.job_title) + '</span>' : '') + '</span><span class="lm-deal-b"><span class="muted-note" style="font-size:11.5px">' + esc(l.email) + '</span><span class="of-badge" style="color:' + (stg.color || 'var(--muted)') + ';border-color:' + (stg.color || 'var(--line-strong)') + '">' + esc(stg.label || l.status || '') + '</span></span></button>'; }).join('')
+      : '<p class="muted-note">Sin contactos.</p>';
+    $('co-contacts').querySelectorAll('.co-contact').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.id)));
+    const ofs = data.contacts.flatMap((l) => offersForLead(l.id));
+    $('co-right').innerHTML = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas <span class="count">(' + ofs.length + ')</span></div>' +
+      (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
+        return '<button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('') : '<p class="muted-note">Sin ofertas.</p>') + '</div>';
+    $('co-right').querySelectorAll('[data-oid]').forEach((d) => d.addEventListener('click', () => { gotoTab('offers'); openOffer(d.dataset.oid); }));
+  }
+  function editCompany(){
+    const domain = coCur; if (!domain) return; const m = coMeta[domain] || {};
+    const fld = (l, id, v) => '<div class="ab-row"><span class="ab-k">' + l + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(v || '') + '"/></span></div>';
+    $('co-about').innerHTML = '<div class="ab-sec"><div class="ab-h">✏️ Editar empresa</div>' +
+      fld('Nombre', 'co-ed-name', m.name || companyName(domain)) + fld('Industria', 'co-ed-ind', m.industry) + fld('Web', 'co-ed-web', m.website) + fld('Teléfono', 'co-ed-phone', m.phone) + fld('Owner', 'co-ed-owner', m.owner) +
+      '<div style="margin:6px 0"><span class="ab-k">Notas</span><textarea class="ed-inp" id="co-ed-notes" style="min-height:70px;margin-top:5px">' + esc(m.notes || '') + '</textarea></div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary xs" id="co-ed-save" type="button">Guardar</button><button class="btn btn-ghost xs" id="co-ed-cancel" type="button">Cancelar</button></div></div>';
+    $('co-ed-save').addEventListener('click', saveCompanyMeta);
+    $('co-ed-cancel').addEventListener('click', renderCompanyDetail);
+  }
+  async function saveCompanyMeta(){
+    const domain = coCur; if (!domain) return;
+    const patch = { domain, name: $('co-ed-name').value.trim() || null, industry: $('co-ed-ind').value.trim() || null, website: $('co-ed-web').value.trim() || null, phone: $('co-ed-phone').value.trim() || null, owner: $('co-ed-owner').value.trim() || null, notes: $('co-ed-notes').value.trim() || null };
+    const { data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single();
+    if (error){ toast('No se pudo guardar (¿corriste el SQL 0011?): ' + error.message); return; }
+    coMeta[domain] = data; toast('Empresa guardada'); renderCompanyDetail();
   }
 
   /* ---------- Sesión persistente ---------- */
