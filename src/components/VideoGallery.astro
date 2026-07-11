@@ -127,9 +127,8 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
 ---
 <div class="work-grid" data-shuffle={caseFirst ? '1' : undefined}>
   {caseFirst && TEXT_CASES.map((tc) => (
-    <a class="work-tile reveal wt-case" href={'/' + tc.slug + '/'} data-cat={tc.cat} data-case="1" data-pin="1" aria-label={tc.client + ' — ' + csLabel}>
+    <a class="work-tile reveal wt-case" href={'/' + tc.slug + '/'} data-cat={tc.cat} data-pin="1" aria-label={tc.client + ' — ' + tc.title}>
       <span class="wt-thumb"><img src={tc.still} width="960" height="540" loading="eager" decoding="async" alt={tc.client + ' — ' + tc.title} /></span>
-      <span class="wt-badge">{csLabel}</span>
       <span class="wt-meta"><span class="wt-title">{tc.client}</span><span class="wt-cat"><span class="cl">{tc.title}</span></span></span>
     </a>
   ))}
@@ -137,10 +136,8 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
     const feat = feature && i === 0 ? ' wt-feature' : '';
     const c = serviceCat(pr.service);
     return (
-      <a class={'work-tile reveal wt-case' + feat} href={'/' + pr.slug + '/'} data-cat={c} data-case="1" aria-label={pr.client + ' — ' + csLabel}>
+      <a class={'work-tile reveal wt-case' + feat} href={'/' + pr.slug + '/'} data-cat={c} aria-label={pr.client}>
         <span class="wt-thumb"><img src={pr.stills[0]} width="1280" height="720" loading="lazy" decoding="async" alt={pr.headline} /></span>
-        <span class="wt-badge">{csLabel}</span>
-        <span class="wt-play" set:html={play} />
         <span class="wt-meta">
           <span class="wt-title">{pr.client}</span>
           <span class="wt-cat">{pick(CATLABEL[c], lang)}</span>
@@ -148,7 +145,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
       </a>
     );
   })}
-  {list.map((v, i) => {
+  {!caseFirst && list.map((v, i) => {
     const feat = feature && !caseFirst && i === 0 ? ' wt-feature' : '';
     // los videos de un cliente con case study llevan el "double tag" (badge Case study + categoría)
     // y linkean al case study — así los case studies SIEMPRE se muestran como tal
