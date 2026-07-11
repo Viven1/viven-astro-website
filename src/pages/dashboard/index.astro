@@ -205,6 +205,11 @@
   .of-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:18px 0}
   .of-meta .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
   .of-meta input,.of-meta select{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px}
+  .of-ai{background:color-mix(in srgb,var(--acid) 7%,var(--navy-800));border:1px solid color-mix(in srgb,var(--acid) 28%,var(--line));border-radius:14px;padding:14px 16px;margin-bottom:14px}
+  .of-ai-l{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px}
+  .of-ai-l span{color:var(--muted-2);font-weight:400}
+  .of-ai textarea{width:100%;min-height:64px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;padding:10px 12px;resize:vertical}
+  .of-ai-row{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
   .of-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .of-add select{flex:1;min-width:220px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;padding:9px 11px}
   .of-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
@@ -402,6 +407,16 @@
         <div class="bf"><label>Título de la oferta</label><input id="of-title" placeholder="p. ej. Chiral Nano AG — Promotional Video" /></div>
         <div class="bf"><label>Cliente</label><input id="of-client" placeholder="Nombre del cliente" /></div>
         <div class="bf"><label>Ligar a lead (opcional)</label><select id="of-lead"></select></div>
+      </div>
+
+      <!-- generar con IA desde la consulta del cliente -->
+      <div class="of-ai">
+        <label class="of-ai-l">🧠 Consulta del cliente (Anfrage) — la IA arma la oferta a partir de esto <span id="of-ai-src"></span></label>
+        <textarea id="of-inquiry" placeholder="Pegá acá lo que pidió el cliente (o se llena solo al ligar un lead)…"></textarea>
+        <div class="of-ai-row">
+          <button class="btn btn-primary small" id="of-ai-gen" type="button">✨ Generar oferta con IA</button>
+          <span class="muted-note" id="of-ai-note"></span>
+        </div>
       </div>
 
       <!-- agregar posición -->
@@ -1285,7 +1300,61 @@
     $('of-status').value = ofCur.status || 'draft';
     $('of-vat').value = ofCur.vat_rate ?? 8.1;
     $('of-lead').innerHTML = leadOptions(ofCur.lead_id);
+    $('of-inquiry').value = ''; $('of-ai-note').textContent = '';
+    prefillInquiry();
     renderRows();
+  }
+  // llena la consulta desde el lead ligado (si hay) para que la IA arme la oferta
+  function prefillInquiry(){
+    const lead = (allLeads || []).find((l) => String(l.id) === String(ofCur.lead_id));
+    if (lead && !$('of-inquiry').value.trim()){
+      $('of-inquiry').value = lead.message || '';
+    }
+    $('of-ai-src').textContent = lead ? '· del lead ' + (lead.name || lead.email || lead.id) : '';
+  }
+  // catálogo plano para pasarle a la IA (precios reales)
+  const catalogFlat = () => PHASES.flatMap((ph) => RATECARD[ph].map((it) => ({ phase: ph, name: it.name, unit: it.unit, price: it.price, cost: it.cost })));
+  // si la IA usó un ítem del catálogo, forzamos SUS precio/costo exactos (que no drifteen)
+  function snapToCatalog(items){
+    const cat = catalogFlat();
+    return items.map((it) => {
+      const hit = cat.find((c) => c.name.toLowerCase() === String(it.name || '').toLowerCase() && c.phase === it.phase)
+        || cat.find((c) => c.name.toLowerCase() === String(it.name || '').toLowerCase());
+      return hit
+        ? { phase: hit.phase, name: hit.name, qty: Number(it.qty) || 1, unit: hit.unit, price: hit.price, cost: hit.cost }
+        : { phase: it.phase || 'Production', name: it.name, qty: Number(it.qty) || 1, unit: it.unit || 'Tag', price: Number(it.price) || 0, cost: Number(it.cost) || 0 };
+    });
+  }
+  async function generateOfferAI(){
+    const inquiry = $('of-inquiry').value.trim();
+    if (!inquiry){ $('of-ai-note').textContent = 'Pegá la consulta del cliente primero (o ligá un lead).'; return; }
+    const btn = $('of-ai-gen'), prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Pensando…';
+    $('of-ai-note').textContent = '';
+    try {
+      // si hay lead ligado, traemos su brief para dar más contexto
+      let brief = null;
+      if (ofCur.lead_id){
+        const { data } = await supabase.from('briefs').select('*').eq('lead_id', String(ofCur.lead_id)).order('created_at', { ascending: false }).limit(1);
+        brief = (data && data[0]) || null;
+      }
+      const lead = (allLeads || []).find((l) => String(l.id) === String(ofCur.lead_id));
+      const lang = (brief && brief.lang) || (lead && lead.lang) || 'es';
+      const { data, error } = await supabase.functions.invoke('ai-offer', {
+        body: { inquiry, brief, catalog: catalogFlat(), lang }
+      });
+      if (error) throw new Error(data?.error || error?.message || 'sin respuesta');
+      if (data?.error) throw new Error(data.error);
+      if (!data || !Array.isArray(data.items) || !data.items.length) throw new Error('la IA no devolvió posiciones');
+      ofCur.items = snapToCatalog(data.items);
+      if (data.title && !$('of-title').value.trim()) { $('of-title').value = data.title; ofCur.title = data.title; }
+      if (lead && !$('of-client').value.trim()) { $('of-client').value = lead.name || ''; }
+      renderRows();
+      $('of-ai-note').textContent = '✨ Oferta propuesta (' + ofCur.items.length + ' posiciones) — revisá y ajustá antes de guardar.' + (data.summary ? ' ' + data.summary : '');
+    } catch (e) {
+      $('of-ai-note').textContent = 'No se pudo generar (¿deployaste ai-offer? ¿hay crédito Anthropic?): ' + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = prev;
+    }
   }
 
   const phaseOf = (it) => it.phase || 'Production';
@@ -1410,6 +1479,8 @@
     });
     $('of-vat').addEventListener('input', () => { ofCur.vat_rate = parseFloat($('of-vat').value) || 0; recalc(); });
     $('of-status').addEventListener('change', () => { ofCur.status = $('of-status').value; });
+    $('of-lead').addEventListener('change', () => { ofCur.lead_id = $('of-lead').value || null; prefillInquiry(); });
+    $('of-ai-gen').addEventListener('click', generateOfferAI);
     $('of-save').addEventListener('click', saveOffer);
     $('of-delete').addEventListener('click', deleteOffer);
     $('of-print').addEventListener('click', printOffer);
