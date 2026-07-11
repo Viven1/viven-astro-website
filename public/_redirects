@@ -95,3 +95,25 @@
 # en Cloudflare los redirects corren ANTES que los archivos (al revés de Netlify),
 # así que esos comodines secuestraban TODAS las páginas y posts reales.
 # URLs viejas no mapeadas → 404 con página branded (aceptable).
+
+# ============================================================
+#  OVERRIDES CLOUDFLARE — el runtime de Workers evalúa las reglas
+#  en orden inverso a Netlify (gana la ÚLTIMA que matchea).
+#  Duplicamos acá las reglas específicas para que le ganen a los
+#  wildcards genéricos de arriba. En Netlify son inofensivas
+#  (ahí gana la primera, que es idéntica).
+# ============================================================
+/blog/de/*                                                       /de/blog/:splat              301
+/blog/de                                                         /de/blog/                    301
+/services/brand-video/*                                          /en/services/brand-video/    301
+/services/brand-video                                            /en/services/brand-video/    301
+/services/product-video/*                                        /en/services/product-video/  301
+/services/product-video                                          /en/services/product-video/  301
+/services/employer-branding/*                                    /en/services/employer-branding/ 301
+/services/employer-branding                                      /en/services/employer-branding/ 301
+/services/how-to-video/*                                         /en/services/how-to-video/   301
+/services/how-to-video                                           /en/services/how-to-video/   301
+/services/social-media-video/*                                   /en/services/social-media-video/ 301
+/services/social-media-video                                     /en/services/social-media-video/ 301
+/services/corporate-video/*                                      /en/services/corporate-video/ 301
+/services/corporate-video                                        /en/services/corporate-video/ 301
