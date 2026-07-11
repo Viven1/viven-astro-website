@@ -653,10 +653,12 @@
   let sender = localStorage.getItem('viven_sender') || 'sofia';
   const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en') + '&topic=' + detectTopic(r.message);
 
-  function buildDraft(r){
+  // customProof: frase personalizada de la IA (opcional). Si no viene, usa la estática.
+  // La estructura (saludo, 2 CTAs, brief, firma) SIEMPRE la controla el código — la IA solo cambia el hook.
+  function buildDraft(r, customProof){
     const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
     const first = esc0(r.first_name || (r.name || '').trim().split(/\s+/)[0] || '');
-    const proof = PROOF[lang][detectTopic(r.message)];
+    const proof = customProof || PROOF[lang][detectTopic(r.message)];
     const S = SENDERS[sender] || SENDERS.sofia;
     const BOOK_URL = S.book;
     const SIGN = S.name + '\nViven — viven.ch · +41 43 508 33 81';
@@ -795,10 +797,13 @@
       const { data, error } = await supabase.functions.invoke('ai-suggest', {
         body: { lead: currentLead, lang: currentLead.lang || 'es' }
       });
-      if (error || !data || !data.suggestion) throw new Error(data?.error || error?.message || 'sin respuesta');
-      $('lm-draft').value = data.suggestion;
+      if (error) throw new Error(data?.error || error?.message || 'sin respuesta');
+      // La IA devuelve SOLO la frase personalizada (proof). El resto lo arma buildDraft → las CTAs y el brief nunca se pierden.
+      const aiProof = (data && (data.proof || data.suggestion) || '').trim();
+      if (!aiProof) throw new Error(data?.error || 'sin respuesta');
+      $('lm-draft').value = buildDraft(currentLead, aiProof);
       updateMailto();
-      $('lm-status-note').textContent = '✨ Borrador generado con IA — revisalo antes de enviar.';
+      $('lm-status-note').textContent = '✨ Frase personalizada con IA — las CTAs y el brief se mantienen. Revisalo antes de enviar.';
     } catch (e) {
       $('lm-status-note').textContent = 'No se pudo generar con IA (¿deployaste la función ai-suggest?): ' + e.message;
     } finally {
