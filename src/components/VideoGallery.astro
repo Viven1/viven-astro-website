@@ -12,6 +12,8 @@ for (const pr of projects) {
   if (pr.lang === lang && key && !caseByClient.has(key)) caseByClient.set(key, pr.slug);
 }
 const caseFor = (v) => caseByClient.get((v.client || '').trim().toLowerCase());
+// videos que YA son el hero de un case study → no repetirlos como tile de video (evita el doble de TomFit)
+const caseVideoIds = new Set(projects.map((pr) => String(pr.vimeo || '')).filter(Boolean));
 const CS_LABEL = { en: 'Case study', de: 'Case Study', es: 'Caso de éxito' };
 const csLabel = CS_LABEL[lang] || CS_LABEL.en;
 
@@ -66,7 +68,8 @@ const hasCat = (v, c) => (v.cat || '').split(' ').indexOf(c) !== -1;
 // Nota: NO ocultamos los videos de clientes con case study — son los mejores (UBS, Siemens…).
 // En la grilla de proyectos (caseFirst) aparecen como tiles reproducibles, además del tile de case study.
 const pool = videos.filter((v) => v.thumb && (!cat || hasCat(v, cat)) && (v.client || !junkTitle(v.title))
-  && !isTestimonial(v));
+  && !isTestimonial(v)
+  && !caseVideoIds.has(String(v.id)));
 const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
 for (const v of pool) {
   const key = v.client || ('__' + v.id);
