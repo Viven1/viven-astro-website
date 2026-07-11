@@ -62,7 +62,12 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 3000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 6000,
+        system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary before or after. Keep bullet lists concise so the JSON is never truncated.",
+        messages: [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
+      }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -71,13 +76,16 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
     }
     const data = await res.json();
     let text = (data.content?.[0]?.text ?? "").trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) text = m[0];
+    if (!text.startsWith("{")) text = "{" + text;          // el assistant fue prellenado con "{"
+    text = text.replace(/```json|```/g, "").trim();
+    const last = text.lastIndexOf("}");
+    if (last > -1) text = text.slice(0, last + 1);          // recorta basura post-JSON
     let p: any;
     try { p = JSON.parse(text); } catch { p = null; }
-    if (!p || !Array.isArray(p.tiers)) {
-      console.error("PARSE_ERROR", text.slice(0, 400));
-      return json({ error: "La IA no devolvió una propuesta válida." });
+    if (!p || !Array.isArray(p.tiers) || !p.tiers.length) {
+      console.error("PARSE_ERROR stop=" + data.stop_reason, text.slice(-400));
+      const hint = data.stop_reason === "max_tokens" ? " (respuesta cortada — probá de nuevo)" : "";
+      return json({ error: "La IA no devolvió una propuesta válida" + hint + "." });
     }
     // sanear
     const num = (v: any, d = 0) => Number(v) || d;
