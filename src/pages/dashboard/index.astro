@@ -7,9 +7,22 @@
 <!-- Página privada: fuera de buscadores y del sitemap -->
 <meta name="robots" content="noindex,nofollow" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
-<meta name="theme-color" content="#0f1826" />
+<meta name="theme-color" content="#1a1b1e" />
 <link rel="stylesheet" href="/assets/site.css" />
 <style is:global>
+  /* Paleta del dashboard: dark neutro (menos azul, más descansado para leer todo el día).
+     Solo aplica al dashboard — la web pública mantiene su navy de marca. */
+  :root{
+    --navy-900:#1a1b1e;   /* fondo principal */
+    --navy-800:#212328;   /* tarjetas / paneles */
+    --navy-700:#2a2c31;   /* elementos elevados */
+    --navy-600:#363940;   /* bordes fuertes / hover */
+    --line:rgba(255,255,255,.07);
+    --line-strong:rgba(255,255,255,.13);
+    --text:#eceef2;
+    --muted:#a2a7b2;
+    --muted-2:#868c98;
+  }
   .dash-wrap{max-width:1220px;margin:0 auto;padding:32px 24px 80px}
   .bell-wrap{position:relative}
   .bell-btn{position:relative;background:var(--navy-800);border:1px solid var(--line-strong);color:var(--text);width:38px;height:38px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
@@ -161,8 +174,13 @@
   .ab-badge{border:1px solid;border-radius:999px;font-size:11px;font-weight:600;padding:2px 9px}
   .lm-block{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .lm-block-h{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px}
-  .lm-deal{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;color:var(--text)}
+  .lm-deal{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--text)}
   .lm-deal:hover{border-color:var(--muted)}
+  .lm-deal-wrap{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+  .lm-conv{align-self:flex-end;background:transparent;border:0;color:var(--acid);font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:1px 2px}
+  .lm-conv:hover{text-decoration:underline}
+  .lm-mk{display:flex;gap:8px;margin-top:10px}
+  .lm-mk .btn{flex:1;justify-content:center}
   .lm-deal-t{font-size:13px;font-weight:600}
   .lm-deal-b{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .lm-deal-b b{font-family:'Space Grotesk'}
@@ -1696,8 +1714,11 @@
     const ofs = offersForLead(r.id);
     const dealsBlock = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></div>' +
       (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
-        return '<button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('')
-        : '<p class="muted-note">Sin ofertas ligadas.</p>') + '</div>';
+        return '<div class="lm-deal-wrap"><button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>' +
+          '<button class="lm-conv" data-conv="' + o.id + '" type="button" title="Convertir esta oferta en una propuesta (queda como una de las opciones)">→ Propuesta</button></div>'; }).join('')
+        : '<p class="muted-note">Sin ofertas ligadas todavía.</p>') +
+      '<div class="lm-mk"><button class="btn btn-ghost xs" id="lm-mk-offer" type="button">➕ Hacer oferta</button><button class="btn btn-primary xs" id="lm-mk-prop" type="button">🌐 Hacer propuesta</button></div>' +
+      '</div>';
     $('lm-right').innerHTML = dealsBlock +
       '<div class="lm-block"><div class="lm-block-h">✅ Tasks</div>' +
         '<div class="lm-taskadd"><input id="lm-task-t" placeholder="Nueva task…"/><div class="lm-taskadd-row"><input id="lm-task-d" type="date" title="Vence (fecha)"/><input id="lm-task-h" type="time" title="Hora (opcional)"/><select id="lm-task-a">' + teamOptions('', 'Responsable') + '</select><button class="btn btn-ghost xs" id="lm-task-add" type="button">+ Task</button></div></div>' +
@@ -1707,6 +1728,9 @@
         '<div class="lm-noteadd"><select id="lm-note-m">' + teamOptions('', 'Avisar a…') + '</select><button class="btn btn-primary xs" id="lm-note-add" type="button">Guardar nota</button></div>' +
         '<div id="lm-notes"><p class="muted-note">Cargando…</p></div></div>';
     $('lm-right').querySelectorAll('.lm-deal').forEach((d) => d.addEventListener('click', () => { closeLead(); gotoTab('offers'); openOffer(d.dataset.oid); }));
+    $('lm-right').querySelectorAll('.lm-conv').forEach((c) => c.addEventListener('click', () => offerToProp(c.dataset.conv, r)));
+    $('lm-mk-offer').addEventListener('click', () => makeOfferForLead(r));
+    $('lm-mk-prop').addEventListener('click', () => makePropForLead(r));
     $('lm-task-add').addEventListener('click', () => addTask(r));
     $('lm-note-add').addEventListener('click', () => addNote(r));
     loadTasksNotes(r);
@@ -1964,6 +1988,47 @@
     modal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
     currentLead = null;
+  }
+  // nombre de empresa/persona para prellenar cliente
+  function clientNameFor(r){ const d = leadDomain(r); return (d && companyName(d)) || r.company || r.name || ''; }
+  // Desde el contacto: crear una oferta ya ligada a este lead
+  function makeOfferForLead(r){
+    const client = clientNameFor(r);
+    closeLead(); gotoTab('offers');
+    ofCur = { title: 'Video para ' + (client || 'cliente'), client: client, lead_id: r.id, vat_rate: 8.1, status: 'draft', items: [] };
+    fillEditor(); showEditor(true);
+    toast('Nueva oferta para ' + (client || r.name || 'el cliente'));
+  }
+  // Desde el contacto: crear una propuesta ya ligada a este lead
+  function makePropForLead(r){
+    const client = clientNameFor(r);
+    closeLead(); gotoTab('props');
+    ppCur = blankProp();
+    ppCur.lead_id = r.id;
+    ppCur.client_name = client;
+    ppCur.client_email = r.email || '';
+    ppCur.title = 'Propuesta — ' + (client || r.name || '');
+    ppCur.lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
+    fillPropEditor(); showPropEditor(true);
+    toast('Nueva propuesta para ' + (client || r.name || 'el cliente'));
+  }
+  // Convertir una oferta existente en una propuesta: la oferta queda como una de las opciones (tiers)
+  function offerToProp(offerId, r){
+    const o = (offersList || []).find((x) => String(x.id) === String(offerId));
+    if (!o) { toast('No encontré la oferta'); return; }
+    const client = clientNameFor(r) || o.client || '';
+    closeLead(); gotoTab('props');
+    ppCur = blankProp();
+    ppCur.lead_id = r.id;
+    ppCur.client_name = client;
+    ppCur.client_email = r.email || '';
+    ppCur.title = 'Propuesta — ' + (client || r.name || '');
+    ppCur.lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
+    const items = Array.isArray(o.items) ? o.items : [];
+    const price = items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    ppCur.tiers = [{ name: o.title || 'Opción', subtitle: '', price: Math.round(price), discount_pct: 0, recommended: true, includes: items.map((it) => it.name).filter(Boolean), items: items }];
+    fillPropEditor(); showPropEditor(true);
+    toast('Propuesta creada con la oferta como opción — agregá 2 más o usá la IA');
   }
   modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeLead));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) closeLead(); });
