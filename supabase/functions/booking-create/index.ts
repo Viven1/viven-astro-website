@@ -86,22 +86,43 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     if (found) {
       leadId = found.id;
-      const st = String(found.status || "").toLowerCase();
-      // GANADO: no tocar la etapa (call de cliente existente, el deal no retrocede).
-      // PERDIDO: ¡reactivación! — volvió solo a agendar → de vuelta a Video call.
-      // Resto: avanza a Video call.
-      if (!["won", "ganado"].includes(st)) {
-        const reactivated = ["lost", "perdido"].includes(st);
-        await service.from("leads").update({ status: "videocall", videocall_at: nowIso, last_stage_at: nowIso, ...(reactivated ? { lost_reason: null } : {}) }).eq("id", found.id)
-          .then((r) => r.error && service.from("leads").update({ status: "videocall" }).eq("id", found.id));
-        await service.from("lead_followups").update({ status: "canceled" }).eq("lead_id", found.id).in("status", ["draft", "approved"]);
-        if (reactivated) await service.from("lead_notes").insert({ lead_id: String(found.id), author: "Booking", body: "🔄 Lead PERDIDO reactivado: agendó una call por su cuenta." }).then(() => {}, () => {});
+      // MODELO DEALS (SQL 0022): persona ≠ deal. Deal ABIERTO → pasa a videocall.
+      // Todos cerrados (ganado/perdido) o sin deals → se crea un DEAL NUEVO en videocall
+      // (el ganado viejo queda intacto en el board, y los follow-ups corren para el nuevo).
+      let dealsHandled = false;
+      try {
+        const { data: allDeals } = await service.from("deals").select("id,stage,created_at").eq("lead_id", found.id).eq("archived", false).order("created_at", { ascending: false });
+        if (Array.isArray(allDeals)) {
+          const open = allDeals.find((d) => !["ganado", "perdido", "won", "lost"].includes(String(d.stage || "").toLowerCase()));
+          const wasLost = !open && allDeals.some((d) => ["perdido", "lost"].includes(String(d.stage || "").toLowerCase()));
+          if (open) {
+            await service.from("deals").update({ stage: "videocall", videocall_at: nowIso, last_stage_at: nowIso }).eq("id", open.id);
+          } else {
+            await service.from("deals").insert({ lead_id: found.id, title: "Nuevo proyecto — " + name, stage: "videocall", videocall_at: nowIso, last_stage_at: nowIso });
+            await service.from("lead_notes").insert({ lead_id: String(found.id), author: "Booking", body: (wasLost ? "🔄 Reactivación: agendó una call por su cuenta — " : "🤝 Cliente existente agendó una call — ") + "deal NUEVO creado en Video call." }).then(() => {}, () => {});
+          }
+          // espejo: la persona refleja su deal más reciente (ahora: videocall)
+          await service.from("leads").update({ status: "videocall", videocall_at: found.videocall_at || nowIso, last_stage_at: nowIso }).eq("id", found.id)
+            .then((r) => r.error && service.from("leads").update({ status: "videocall" }).eq("id", found.id));
+          dealsHandled = true;
+        }
+      } catch (_e) { /* sin tabla deals → legado */ }
+      if (!dealsHandled) {
+        const st = String(found.status || "").toLowerCase();
+        if (!["won", "ganado"].includes(st)) {
+          const reactivated = ["lost", "perdido"].includes(st);
+          await service.from("leads").update({ status: "videocall", videocall_at: nowIso, last_stage_at: nowIso, ...(reactivated ? { lost_reason: null } : {}) }).eq("id", found.id)
+            .then((r) => r.error && service.from("leads").update({ status: "videocall" }).eq("id", found.id));
+          if (reactivated) await service.from("lead_notes").insert({ lead_id: String(found.id), author: "Booking", body: "🔄 Lead PERDIDO reactivado: agendó una call por su cuenta." }).then(() => {}, () => {});
+        }
       }
+      await service.from("lead_followups").update({ status: "canceled" }).eq("lead_id", found.id).in("status", ["draft", "approved"]);
     } else {
       const { data: created } = await service.from("leads")
         .insert({ name, first_name: name.split(/\s+/)[0], email, phone: phone || null, message: message || null, status: "videocall", channel: "booking", lang, videocall_at: nowIso, last_stage_at: nowIso })
         .select().maybeSingle();
       leadId = created?.id ?? null;
+      if (leadId) await service.from("deals").insert({ lead_id: leadId, title: name, stage: "videocall", videocall_at: nowIso, last_stage_at: nowIso }).then(() => {}, () => {});
     }
     // nota en el historial + registro del booking (best-effort)
     if (leadId) await service.from("lead_notes").insert({ lead_id: String(leadId), author: "Booking", body: `📅 Call agendada por el cliente: ${new Date(startMs).toLocaleString("de-CH", { timeZone: "Europe/Zurich" })} (${duration} min)` + (meet ? `\n${meet}` : "") }).then(() => {}, () => {});

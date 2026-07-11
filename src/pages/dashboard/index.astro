@@ -498,6 +498,10 @@
   .of-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:18px 0}
   .of-meta.of-addr{margin-top:-8px}
   .en-sum{font-size:13px;line-height:1.6;color:var(--text);margin:4px 0 8px}
+  .lm-dealrow{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+  .lm-dealrow-t{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;margin-bottom:7px}
+  .lm-dealrow-t b{font-variant-numeric:tabular-nums}
+  .lm-deal-st{width:100%}
   .en-hooks{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.7}
   .en-news{font-size:13px;margin:4px 0}
   #lm-enrich .ab-sec{margin-bottom:12px}
@@ -1433,7 +1437,7 @@
   const until = () => new Date(rangeEnd()).toISOString();
 
   async function loadAll(){
-    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ] = await Promise.all([
+    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
@@ -1444,7 +1448,8 @@
       // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
       supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000),
       supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('proposals').select('lead_id,updated_at,status').limit(1000)
+      supabase.from('proposals').select('lead_id,updated_at,status').limit(1000),
+      supabase.from('deals').select('*').order('created_at', { ascending: false })
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
@@ -1454,6 +1459,12 @@
     lastViews = viewsQ.data || [];
     // ofertas: best-effort (si no corrió el SQL 0003 todavía, seguimos sin romper el dashboard)
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
+    // DEALS (SQL 0022): la entidad REAL del pipeline (varios proyectos por persona).
+    // Sin la tabla → 1 deal sintético por persona (modo legado, mismo comportamiento).
+    dealsReal = !!(dealsQ && !dealsQ.error);
+    dealsList = dealsReal ? (dealsQ.data || []) : [];
+    const _withDeal = new Set(dealsList.map((d) => String(d.lead_id)));
+    allLeads.forEach((l) => { if (!_withDeal.has(String(l.id))) dealsList.push(synthDeal(l)); });
     // companies: best-effort (si no corrió el SQL 0011, coMeta queda vacío)
     coMeta = {}; if (coQ && !coQ.error) (coQ.data || []).forEach((c) => { if (c.domain) coMeta[c.domain] = c; });
     // última actividad: mapa lead_id → timestamp más reciente por tipo
@@ -1812,15 +1823,16 @@
       return created ? created.id : null;
     } catch (e) { toast('No se pudo crear la persona: ' + e.message); return null; }
   }
-  function cardHTML(r, st){
+  function cardHTML(d, st){
+    const r = leadById(d.lead_id) || {};
     const PRIO = { won: 0, sent: 1, draft: 2, lost: 3 };
-    const ofs = offersForLead(r.id).slice().sort((a, b) => (PRIO[a.status] ?? 9) - (PRIO[b.status] ?? 9));
-    let total = st.key === 'perdido' ? leadLostValue(r) : leadValue(r);
+    const ofs = offersForDeal(d).slice().sort((a, b) => (PRIO[a.status] ?? 9) - (PRIO[b.status] ?? 9));
+    let total = st.key === 'perdido' ? dealLostValue(d) : dealValue(d);
     let est = '';
-    if (!offersForLead(r.id).some((o) => o.status !== 'lost') && Number(r.deal_value)) est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>';
+    if (!ofs.some((o) => o.status !== 'lost') && Number(d.deal_value)) est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>';
     const ost = ofs.length ? '<span class="pc-ost" style="color:' + (OF_COLOR[ofs[0].status] || '#8ab4ff') + '">' + (OF_ST[ofs[0].status] || '') + '</span>' : '';
-    // nombre del deal: título de la oferta más relevante, o el de la persona
-    const dealName = (ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)');
+    // nombre del deal: su título, o el de la oferta más relevante, o el de la persona
+    const dealName = d.title || ((ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)'));
     const field = (k, v, cls) => v ? '<div class="pc-field"><span class="k">' + k + '</span><span class="v ' + (cls || '') + '">' + v + '</span></div>' : '';
     // empresa asociada con chip de logo
     const dom = leadDomain(r);
@@ -1831,16 +1843,18 @@
     const la = lastActivity(r);
     let act = la ? '<div class="pc-act">' + esc(actLabel(la)) + '</div>' : '';
     if (st.key === 'contactado' && r.next_follow_up_at) act += '<div class="pc-act">⏰ Follow-up: ' + fmtDMY(r.next_follow_up_at) + '</div>';
-    else if (st.key === 'perdido' && r.lost_reason) act += '<div class="pc-lost">✕ ' + esc(r.lost_reason) + '</div>';
+    else if (st.key === 'perdido' && (d.lost_reason || r.lost_reason)) act += '<div class="pc-lost">✕ ' + esc(d.lost_reason || r.lost_reason) + '</div>';
     const ch = r.channel ? '<span class="pc-badge">' + esc(r.channel) + '</span>' : '';
     const ads = r.gclid ? '<span class="pc-ads">Ads</span>' : '';
-    return '<div class="pipe-card" draggable="true" data-id="' + r.id + '" style="--stage:' + st.color + '">' +
+    const nDeals = dealsForLead(d.lead_id).length;
+    const multi = nDeals > 1 ? '<span class="pc-badge" title="Esta persona tiene ' + nDeals + ' proyectos">' + nDeals + ' proyectos</span>' : '';
+    return '<div class="pipe-card" draggable="true" data-id="' + esc(String(d.id)) + '" data-lead="' + esc(String(d.lead_id)) + '" style="--stage:' + st.color + '">' +
       '<div class="pc-name">' + esc(dealName) + '</div>' +
       field('Importe:', total ? fmtChf(total) + est : '—', 'amt') +
       coField + ownerF +
-      field('Creado:', fmtDMY(r.created_at)) +
+      field('Creado:', fmtDMY(d.created_at)) +
       act +
-      '<div class="pc-foot"><div class="pc-tags">' + ch + ads + ost + '</div>' + ownerAvatar(r) + '</div>' +
+      '<div class="pc-foot"><div class="pc-tags">' + ch + ads + multi + ost + '</div>' + ownerAvatar(r) + '</div>' +
     '</div>';
   }
   // REGLA DE VALOR ÚNICA (misma en board, Personas, Home y forecast):
@@ -1858,19 +1872,129 @@
   const leadsLostValue = (leads) => leads.reduce((a, l) => a + leadLostValue(l), 0);
   const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
 
+  /* ---------- DEALS (modelo HubSpot): la persona NO es el deal ----------
+     Un contacto puede tener varios proyectos; cada deal vive en el board con su
+     etapa. leads.status queda como ESPEJO del deal más reciente (compat con
+     follow-ups, Personas y KPIs). Sin SQL 0022 → deals sintéticos (legado). */
+  let dealsList = [], dealsReal = false;
+  const synthDeal = (l) => ({ id: 'L' + l.id, synthetic: true, lead_id: l.id, title: null, stage: stageOf(l.status), deal_value: l.deal_value, lost_reason: l.lost_reason, archived: false, created_at: l.created_at, last_stage_at: l.last_stage_at, contacted_at: l.contacted_at, videocall_at: l.videocall_at, proposal_at: l.proposal_at, won_at: l.won_at, lost_at: l.lost_at });
+  const leadById = (id) => (allLeads || []).find((l) => String(l.id) === String(id));
+  const dealsForLead = (lid) => (dealsList || []).filter((d) => String(d.lead_id) === String(lid) && !d.archived);
+  const latestDealOf = (lid) => dealsForLead(lid).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+  const openDealOf = (lid) => dealsForLead(lid).filter((d) => !['ganado', 'perdido'].includes(stageOf(d.stage))).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+  const firstDealOf = (lid) => dealsForLead(lid).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0] || null;
+  // ofertas de UN deal: por deal_id; las viejas sin deal_id caen en el PRIMER deal de la persona
+  const offersForDeal = (d) => {
+    if (d.synthetic) return offersForLead(d.lead_id);
+    const first = firstDealOf(d.lead_id);
+    return (offersList || []).filter((o) => !o.archived && !o.is_template && (
+      o.deal_id ? String(o.deal_id) === String(d.id)
+                : (o.lead_id && String(o.lead_id) === String(d.lead_id) && first && String(first.id) === String(d.id))));
+  };
+  // misma REGLA DE VALOR ÚNICA, por deal
+  const dealValue = (d) => {
+    const ofs = offersForDeal(d);
+    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0);
+    if (won) return won;
+    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0);
+    return open || Number(d.deal_value) || 0;
+  };
+  const dealsValue = (ds) => ds.reduce((a, d) => a + dealValue(d), 0);
+  const dealLostValue = (d) => offersForDeal(d).reduce((b, o) => b + offerNet(o), 0) || Number(d.deal_value) || 0;
+  const dealsLostValue = (ds) => ds.reduce((a, d) => a + dealLostValue(d), 0);
+  async function mirrorLeadStatus(lid){
+    const lead = leadById(lid); const top = latestDealOf(lid);
+    if (!lead || !top) return;
+    const stage = stageOf(top.stage);
+    if (stageOf(lead.status) === stage) return;
+    lead.status = stage; lead.last_stage_at = new Date().toISOString();
+    let { error } = await supabase.from('leads').update({ status: stage, last_stage_at: lead.last_stage_at }).eq('id', lid);
+    if (error && /last_stage_at/.test(error.message || '')) await supabase.from('leads').update({ status: stage }).eq('id', lid);
+  }
+  // deal sintético tocado → materializarlo en la tabla (si el SQL 0022 ya corrió)
+  async function ensureRealDeal(d){
+    if (!d || !d.synthetic) return d || null;
+    if (!dealsReal) return null;
+    const row = { lead_id: d.lead_id, title: d.title, stage: stageOf(d.stage), deal_value: d.deal_value ?? null, lost_reason: d.lost_reason ?? null, created_at: d.created_at, last_stage_at: d.last_stage_at, contacted_at: d.contacted_at, videocall_at: d.videocall_at, proposal_at: d.proposal_at, won_at: d.won_at, lost_at: d.lost_at };
+    const { data, error } = await supabase.from('deals').insert(row).select().single();
+    if (error || !data) return null;
+    const i = dealsList.findIndex((x) => x.id === d.id);
+    if (i > -1) dealsList[i] = data; else dealsList.push(data);
+    return data;
+  }
+  async function newDealForLead(lid, title, stage){
+    if (!dealsReal) { toast('Corré el SQL 0022 (deals) para tener varios proyectos por persona'); return null; }
+    const nowIso = new Date().toISOString();
+    const row = { lead_id: lid, title: title || 'Nuevo proyecto', stage: stage || 'nuevo', last_stage_at: nowIso };
+    const ts = STAGE_TS[stage]; if (ts) row[ts] = nowIso;
+    const { data, error } = await supabase.from('deals').insert(row).select().single();
+    if (error) { toast('No se pudo crear el deal: ' + error.message); return null; }
+    dealsList.unshift(data);
+    await mirrorLeadStatus(lid);
+    renderLeads();
+    return data;
+  }
+  // mueve UN deal de etapa (drag del board o select del contacto) + cascadas + espejo
+  async function setDealStage(id, stage){
+    let d = (dealsList || []).find((x) => String(x.id) === String(id));
+    if (!d || stageOf(d.stage) === stage) return false;
+    if (d.synthetic && !dealsReal) return setLeadStage(d.lead_id, stage);   // modo legado total
+    let lostReason;
+    if (stage === 'perdido') {
+      lostReason = prompt('¿Por qué se perdió este deal? (opcional)', d.lost_reason || '');
+      if (lostReason === null) return false;
+    }
+    if (d.synthetic) { const real = await ensureRealDeal(d); if (!real) return setLeadStage(d.lead_id, stage); d = real; }
+    const prev = d.stage;
+    const nowIso = new Date().toISOString();
+    d.stage = stage; d.last_stage_at = nowIso;
+    const patch = { stage, last_stage_at: nowIso };
+    const tsCol = STAGE_TS[stage];
+    if (tsCol && !d[tsCol]) { patch[tsCol] = nowIso; d[tsCol] = nowIso; }
+    if (stage === 'perdido') { patch.lost_reason = lostReason || null; d.lost_reason = lostReason || null; }
+    renderLeads();
+    const { error } = await supabase.from('deals').update(patch).eq('id', d.id);
+    if (error) { d.stage = prev; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
+    const lead = leadById(d.lead_id);
+    if (stage === 'perdido') {
+      // solo las ofertas de ESTE deal (los otros proyectos de la persona no se tocan)
+      for (const o of offersForDeal(d).filter((x) => x.status !== 'won' && x.status !== 'lost')) {
+        const r2 = await supabase.from('offers').update({ status: 'lost', lost_reason: lostReason || null }).eq('id', o.id);
+        if (r2.error && /lost_reason/.test(r2.error.message || '')) await supabase.from('offers').update({ status: 'lost' }).eq('id', o.id);
+        o.status = 'lost'; o.lost_reason = lostReason || null;
+      }
+      if (lead) supabase.from('lead_notes').insert({ lead_id: String(lead.id), author: 'Pipeline', body: '❌ Deal perdido' + (d.title ? ' «' + d.title + '»' : '') + (lostReason ? ' — motivo: ' + lostReason : '') }).then(() => {}, () => {});
+    }
+    if (stage === 'ganado') {
+      for (const o of offersForDeal(d).filter((x) => x.status === 'draft' || x.status === 'sent')) {
+        await supabase.from('offers').update({ status: 'won' }).eq('id', o.id); o.status = 'won';
+      }
+    }
+    // al avanzar/cerrar se cancela la secuencia vieja (la nueva se genera para la etapa nueva)
+    if (['videocall', 'propuesta', 'ganado', 'perdido'].includes(stage)) {
+      supabase.from('lead_followups').update({ status: 'canceled' }).eq('lead_id', String(d.lead_id)).in('status', ['draft', 'approved']).then(() => { if (currentLead && String(currentLead.id) === String(d.lead_id)) loadFollowups(currentLead); });
+    }
+    await mirrorLeadStatus(d.lead_id);
+    renderLeads();
+    return true;
+  }
+
   function renderPipeline(){
-    const rows = filteredLeads();
+    // el board muestra DEALS (proyectos) — los filtros/búsqueda siguen filtrando por persona
+    const rowsL = filteredLeads();
+    const okLead = new Set(rowsL.map((r) => String(r.id)));
+    const rows = (dealsList || []).filter((d) => !d.archived && okLead.has(String(d.lead_id)));
     $('leads-empty').hidden = rows.length > 0;
     const byStage = {}; STAGES.forEach((s) => byStage[s.key] = []);
-    rows.forEach((r) => byStage[stageOf(r.status)].push(r));
+    rows.forEach((d) => byStage[stageOf(d.stage)].push(d));
     Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
     // resumen: TOTAL del pipeline → abierto → ganado (con % del decidido) → perdido (para que duela y no se repita)
     const OPEN = ['nuevo', 'contactado', 'videocall', 'propuesta'];
-    const openVal = OPEN.reduce((a, k) => a + leadsValue(byStage[k]), 0);
+    const openVal = OPEN.reduce((a, k) => a + dealsValue(byStage[k]), 0);
     const openCnt = OPEN.reduce((a, k) => a + byStage[k].length, 0);
-    const weighted = OPEN.reduce((a, k) => a + leadsValue(byStage[k]) * (STAGES.find((s) => s.key === k).prob), 0);
-    const wonVal = leadsValue(byStage['ganado']);
-    const lostVal = leadsLostValue(byStage['perdido']);
+    const weighted = OPEN.reduce((a, k) => a + dealsValue(byStage[k]) * (STAGES.find((s) => s.key === k).prob), 0);
+    const wonVal = dealsValue(byStage['ganado']);
+    const lostVal = dealsLostValue(byStage['perdido']);
     const totalVal = openVal + wonVal + lostVal;
     const decided = wonVal + lostVal;
     const winPct = decided ? Math.round(wonVal / decided * 100) : null;
@@ -1884,8 +2008,8 @@
     pipe.className = 'pipeline';
     pipe.innerHTML = STAGES.map((s) => {
       const n = byStage[s.key].length;
-      const cards = byStage[s.key].map((r) => cardHTML(r, s)).join('') || '<div class="pipe-empty">Sin deals</div>';
-      const val = s.key === 'perdido' ? leadsLostValue(byStage[s.key]) : leadsValue(byStage[s.key]);
+      const cards = byStage[s.key].map((d) => cardHTML(d, s)).join('') || '<div class="pipe-empty">Sin deals</div>';
+      const val = s.key === 'perdido' ? dealsLostValue(byStage[s.key]) : dealsValue(byStage[s.key]);
       const wt = Math.round(val * s.prob);
       return '<div class="pipe-col" data-stage="' + s.key + '">' +
         '<div class="pipe-col-head"><span class="bar" style="background:' + s.color + '"></span><span class="st">' + s.label + '</span><span class="cnt">' + n + '</span></div>' +
@@ -1935,14 +2059,14 @@
     document.querySelectorAll('.pipe-card').forEach((card) => {
       card.addEventListener('dragstart', (e) => { dragId = card.dataset.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
       card.addEventListener('dragend', () => { card.classList.remove('dragging'); dragId = null; });
-      card.addEventListener('click', () => openLead(card.dataset.id));
+      card.addEventListener('click', () => openLead(card.dataset.lead || card.dataset.id));
     });
     document.querySelectorAll('.pipe-col').forEach((col) => {
       col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drop'); });
       col.addEventListener('dragleave', () => col.classList.remove('drop'));
       col.addEventListener('drop', async (e) => {
         e.preventDefault(); col.classList.remove('drop');
-        if (dragId) setLeadStage(dragId, col.dataset.stage);
+        if (dragId) setDealStage(dragId, col.dataset.stage);
       });
     });
   }
@@ -2154,13 +2278,23 @@
     // etapa editable desde el contacto: mismo flujo que arrastrar en el board
     const stSel = $('lm-stage-sel');
     if (stSel) stSel.addEventListener('change', async () => {
-      const ok = await setLeadStage(r.id, stSel.value);
+      const top = latestDealOf(r.id);
+      const ok = top ? await setDealStage(top.id, stSel.value) : await setLeadStage(r.id, stSel.value);
       if (ok) { toast('Etapa → ' + (STAGES.find((s) => s.key === stSel.value) || {}).label); openLead(r.id); }
       else stSel.value = stageOf(r.status);   // canceló o falló → volver
     });
 
     renderLeadScore(r);
-    // columna derecha: ofertas (deals) + tasks + notas
+    // columna derecha: PROYECTOS (deals) + ofertas + tasks + notas
+    const ldeals = dealsForLead(r.id).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const projBlock = '<div class="lm-block"><div class="lm-block-h">🤝 Proyectos <span class="count">(' + ldeals.length + ')</span></div>' +
+      ldeals.map((d) => { const st2 = STAGES.find((x) => x.key === stageOf(d.stage)) || STAGES[0];
+        const v = stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
+        return '<div class="lm-dealrow">' +
+          '<div class="lm-dealrow-t">' + esc(d.title || '(proyecto)') + '<b>' + (v ? fmtChf(v) : '—') + '</b></div>' +
+          '<select class="lm-stage-sel lm-deal-st" data-did="' + esc(String(d.id)) + '" style="color:' + st2.color + ';border-color:' + st2.color + '">' +
+          STAGES.map((x) => '<option value="' + x.key + '"' + (x.key === stageOf(d.stage) ? ' selected' : '') + '>' + x.label + '</option>').join('') + '</select></div>'; }).join('') +
+      '<button class="btn btn-ghost xs" id="lm-mk-newdeal" type="button" style="margin-top:8px" title="Nuevo proyecto para esta persona — aparece como deal nuevo en el board (los ganados/perdidos quedan intactos)">➕ Nuevo proyecto</button></div>';
     const ofs = offersForLead(r.id);
     const dealsBlock = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></div>' +
       (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
@@ -2170,7 +2304,7 @@
       '<div class="lm-mk"><button class="btn btn-ghost xs" id="lm-mk-offer" type="button">➕ Hacer oferta</button><button class="btn btn-primary xs" id="lm-mk-prop" type="button">🌐 Hacer propuesta</button></div>' +
       '<button class="lm-dealval" id="lm-mk-deal" type="button">🤝 ' + (Number(r.deal_value) ? 'Valor estimado: ' + fmtChf(Number(r.deal_value)) + ' — cambiar' : 'Poner valor estimado del deal') + '</button>' +
       '</div>';
-    $('lm-right').innerHTML = dealsBlock +
+    $('lm-right').innerHTML = projBlock + dealsBlock +
       '<div class="lm-block"><div class="lm-block-h">✅ Tasks</div>' +
         '<div class="lm-taskadd"><input id="lm-task-t" placeholder="Nueva task…"/><div class="lm-taskadd-row"><input id="lm-task-d" type="date" title="Vence (fecha)"/><input id="lm-task-h" type="time" title="Hora (opcional)"/><select id="lm-task-a">' + teamOptions('', 'Responsable') + '</select><button class="btn btn-ghost xs" id="lm-task-add" type="button">+ Task</button></div></div>' +
         '<div id="lm-tasks"><p class="muted-note">Cargando…</p></div></div>' +
@@ -2193,6 +2327,18 @@
       renderLeads(); openLead(r.id);
     });
     $('lm-mk-prop').addEventListener('click', () => makePropForLead(r));
+    $('lm-right').querySelectorAll('.lm-deal-st').forEach((sel) => sel.addEventListener('change', async () => {
+      const ok = await setDealStage(sel.dataset.did, sel.value);
+      if (ok) toast('Deal → ' + (STAGES.find((x) => x.key === sel.value) || {}).label);
+      openLead(r.id);
+    }));
+    const ndBtn = $('lm-mk-newdeal');
+    if (ndBtn) ndBtn.addEventListener('click', async () => {
+      const t = prompt('Nombre del nuevo proyecto:', 'Nuevo proyecto — ' + (r.name || r.email || ''));
+      if (t === null) return;
+      const d = await newDealForLead(r.id, t.trim() || 'Nuevo proyecto', 'nuevo');
+      if (d) { toast('🤝 Proyecto creado — ya está en el board en «Nuevo»'); openLead(r.id); }
+    });
     $('lm-task-add').addEventListener('click', () => addTask(r));
     $('lm-note-add').addEventListener('click', () => addNote(r));
     loadTasksNotes(r);
@@ -2447,7 +2593,8 @@
         offer_title: (offer && offer.status !== 'lost') ? offer.title : '',
         offer_total: (offer && offer.status !== 'lost') ? fmtM(offerNet(offer)) : '' } });
       if (error || data.error) throw new Error(error?.message || data.error);
-      const rows = (data.followups || []).map((f, i) => ({ lead_id: String(r.id), position: i + 1, subject: f.subject, body: f.body,
+      const od3 = openDealOf(r.id);
+      const rows = (data.followups || []).map((f, i) => ({ lead_id: String(r.id), deal_id: (od3 && !od3.synthetic) ? od3.id : null, position: i + 1, subject: f.subject, body: f.body,
         send_at: new Date(Date.now() + (Number(f.day) || (i + 1) * 3) * 864e5).toISOString(), status: 'draft', sender_key: sender }));
       const res = await sbWriteRowsResilient('lead_followups', rows, null);
       toast('✨ ' + res.rows.length + ' follow-ups generados — revisá, ajustá fechas y aprobá');
@@ -2577,7 +2724,8 @@
   function makeOfferForLead(r){
     const client = clientNameFor(r);
     closeLead(); gotoTab('offers');
-    ofCur = { title: 'Video para ' + (client || 'cliente'), client: client, lead_id: r.id, vat_rate: 8.1, status: 'draft', items: [] };
+    const od = openDealOf(r.id);
+    ofCur = { title: 'Video para ' + (client || 'cliente'), client: client, lead_id: r.id, deal_id: (od && !od.synthetic) ? od.id : null, vat_rate: 8.1, status: 'draft', items: [] };
     fillEditor(); showEditor(true);
     toast('Nueva oferta para ' + (client || r.name || 'el cliente'));
   }
@@ -3313,7 +3461,14 @@
       const lid = await ensureLeadFor(ofCur.client, undefined, ofCur.status);
       if (lid){ ofCur.lead_id = lid; $('of-lead').innerHTML = leadOptions(lid); }
     }
-    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms, client_company: ofCur.client_company || null, client_contact: ofCur.client_contact || null, client_address: ofCur.client_address || null, client_zip_city: ofCur.client_zip_city || null, client_phone: ofCur.client_phone || null, client_email: ofCur.client_email || null };
+    // ligar la oferta a un DEAL (proyecto): el abierto más reciente; si no hay, se crea uno
+    if (dealsReal && ofCur.lead_id && !ofCur.deal_id){
+      let od2 = openDealOf(ofCur.lead_id);
+      if (od2 && od2.synthetic) od2 = await ensureRealDeal(od2);
+      if (od2) ofCur.deal_id = od2.id;
+      else { const st3 = { won: 'ganado', sent: 'propuesta' }[ofCur.status] || 'propuesta'; const nd = await newDealForLead(ofCur.lead_id, ofCur.title || 'Nuevo proyecto', st3); if (nd) ofCur.deal_id = nd.id; }
+    }
+    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, deal_id: ofCur.deal_id || null, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms, client_company: ofCur.client_company || null, client_contact: ofCur.client_contact || null, client_address: ofCur.client_address || null, client_zip_city: ofCur.client_zip_city || null, client_phone: ofCur.client_phone || null, client_email: ofCur.client_email || null };
     const btn = $('of-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
     const doSave = (p) => ofCur.id
       ? supabase.from('offers').update(p).eq('id', ofCur.id).select().single()
@@ -3328,8 +3483,8 @@
     if (res.error){ alert('No se pudo guardar: ' + res.error.message); return; }
     // sync: oferta ganada → el deal (lead) pasa a Ganado automáticamente
     if (payload.status === 'won' && ofCur.lead_id){
-      const lead = allLeads.find((l) => String(l.id) === String(ofCur.lead_id));
-      if (lead && stageOf(lead.status) !== 'ganado') { await setLeadStage(lead.id, 'ganado'); toast('🏆 Deal movido a Ganado'); }
+      if (ofCur.deal_id) { const dd = (dealsList || []).find((x) => String(x.id) === String(ofCur.deal_id)); if (dd && stageOf(dd.stage) !== 'ganado') { await setDealStage(dd.id, 'ganado'); toast('🏆 Deal movido a Ganado'); } }
+      else { const lead = allLeads.find((l) => String(l.id) === String(ofCur.lead_id)); if (lead && stageOf(lead.status) !== 'ganado') { await setLeadStage(lead.id, 'ganado'); toast('🏆 Deal movido a Ganado'); } }
     }
     await offersLoad(); showEditor(false);
   }
@@ -3608,9 +3763,9 @@
     if (error) { toast('No se pudo (¿SQL 0019?): ' + error.message); return; }
     toast(p.archived ? 'Desarchivada' : '🗄 Archivada'); ppLoad();
   }
-  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
+  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, deal_id: null, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
   function fromRow(r){ const c = r.content || {}, ov = c.overview || {};
-    return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lost_reason: r.lost_reason || null, lead_id: r.lead_id || null,
+    return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lost_reason: r.lost_reason || null, lead_id: r.lead_id || null, deal_id: r.deal_id || null,
       title: r.title || c.title || '', client_name: r.client_name || '', client_email: r.client_email || '',
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
@@ -3759,11 +3914,18 @@
       const lid = await ensureLeadFor(ppCur.client_name, ppCur.client_email || null, ppCur.status === 'accepted' ? 'won' : 'sent');
       if (lid){ ppCur.lead_id = lid; $('pp-lead').innerHTML = leadOptions(lid); }
     }
-    const payload = { slug: ppCur.slug, password: ppCur.password || '', title: ppCur.title, client_name: ppCur.client_name, client_email: ppCur.client_email, lead_id: ppCur.lead_id, status: ppCur.status, content: buildContent() };
+    if (dealsReal && ppCur.lead_id && !ppCur.deal_id){
+      let od4 = openDealOf(ppCur.lead_id);
+      if (od4 && od4.synthetic) od4 = await ensureRealDeal(od4);
+      if (od4) ppCur.deal_id = od4.id;
+    }
+    const payload = { slug: ppCur.slug, password: ppCur.password || '', title: ppCur.title, client_name: ppCur.client_name, client_email: ppCur.client_email, lead_id: ppCur.lead_id, deal_id: ppCur.deal_id || null, status: ppCur.status, content: buildContent() };
     const btn = publish ? $('pp-publish') : $('pp-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = '…';
-    const res = ppCur.id
-      ? await supabase.from('proposals').update(payload).eq('id', ppCur.id).select().single()
-      : await supabase.from('proposals').insert(payload).select().single();
+    const doProp = (p) => ppCur.id
+      ? supabase.from('proposals').update(p).eq('id', ppCur.id).select().single()
+      : supabase.from('proposals').insert(p).select().single();
+    let res = await doProp(payload);
+    if (res.error && /deal_id/.test(res.error.message || '')) { delete payload.deal_id; res = await doProp(payload); }
     btn.disabled = false; btn.textContent = prev;
     if (res.error){ toast('No se pudo guardar (¿corriste el SQL 0004?): ' + res.error.message); return; }
     ppCur.id = res.data.id; ppCur.status = res.data.status;

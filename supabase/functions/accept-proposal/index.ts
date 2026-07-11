@@ -41,15 +41,24 @@ Deno.serve(async (req) => {
     }).eq("id", data.id);
     if (upd.error) return json({ error: upd.error.message });
 
-    // sincronizar TODO: lead → ganado (con hitos) y sus ofertas abiertas → ganadas
+    // sincronizar TODO — modelo DEALS: gana el DEAL de esta propuesta (los otros
+    // proyectos de la persona no se tocan) + sus ofertas; espejo en la persona.
+    const nowIso = new Date().toISOString();
+    let dealScoped = false;
+    if (data.deal_id) {
+      try {
+        await admin.from("deals").update({ stage: "ganado", won_at: nowIso, last_stage_at: nowIso }).eq("id", data.deal_id);
+        await admin.from("offers").update({ status: "won" }).eq("deal_id", data.deal_id).in("status", ["draft", "sent"]);
+        dealScoped = true;
+      } catch (_e) { /* tabla deals sin migrar → legado */ }
+    }
     if (data.lead_id) {
-      const nowIso = new Date().toISOString();
       const { data: lead } = await admin.from("leads").select("won_at").eq("id", data.lead_id).maybeSingle();
       const patch: Record<string, unknown> = { status: "ganado", last_stage_at: nowIso };
       if (!lead?.won_at) patch.won_at = nowIso;
       const { error: le } = await admin.from("leads").update(patch).eq("id", data.lead_id);
       if (le) await admin.from("leads").update({ status: "ganado" }).eq("id", data.lead_id);   // columnas nuevas sin migrar
-      await admin.from("offers").update({ status: "won" }).eq("lead_id", String(data.lead_id)).in("status", ["draft", "sent"]);
+      if (!dealScoped) await admin.from("offers").update({ status: "won" }).eq("lead_id", String(data.lead_id)).in("status", ["draft", "sent"]);
     }
 
     // avisar a Viven (best-effort)
