@@ -332,6 +332,37 @@
   b.neg{color:#ff8b8b!important}
   .of-bep{margin-top:12px;font-size:12.5px;color:var(--muted-2);line-height:1.5;border-top:1px dashed var(--line);padding-top:12px}
   @media(max-width:720px){.of-meta{grid-template-columns:1fr}.of-summary{max-width:none}}
+  /* ---- sidebar (HubSpot-style) ---- */
+  .dash-body{display:flex;gap:22px;align-items:flex-start}
+  .dash-side{flex:0 0 190px;position:sticky;top:16px;display:flex;flex-direction:column;gap:2px;padding-right:4px}
+  .dash-side .side-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-2);font-weight:700;padding:14px 10px 4px}
+  .side-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--muted);font-family:inherit;font-size:14px;font-weight:500;padding:9px 11px;border-radius:10px;cursor:pointer;transition:background .12s,color .12s}
+  .side-item:hover{background:var(--navy-800);color:var(--text)}
+  .side-item.active{background:color-mix(in srgb,var(--acid) 14%,transparent);color:var(--acid)}
+  .side-item .si-ic{font-size:15px;width:18px;text-align:center;flex:none}
+  .side-item .pill{margin-left:auto}
+  .side-item.disabled{opacity:.45;cursor:not-allowed}
+  .side-item.disabled:hover{background:none;color:var(--muted)}
+  .dash-main{flex:1;min-width:0}
+  @media(max-width:820px){.dash-body{flex-direction:column}.dash-side{position:static;flex-direction:row;flex-wrap:wrap;width:100%}.dash-side .side-sec{display:none}}
+  /* ---- home ---- */
+  .home-h{font-size:22px;margin:0 0 18px}
+  .home-h .home-sub{font-size:13px;font-weight:400;color:var(--muted-2);margin-left:6px}
+  .home-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .hk{background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:15px 17px}
+  .hk-l{color:var(--muted);font-size:12.5px}
+  .hk-n{font-family:'Space Grotesk';font-weight:700;font-size:26px;color:var(--text);line-height:1.15;margin-top:5px}
+  .hk-t{font-size:12.5px;margin-top:4px;font-weight:600}
+  .hk-t.up{color:#7ed957}
+  .hk-t.down{color:#ff8b8b}
+  .hk-t.muted{color:var(--muted-2);font-weight:400}
+  .home-panels{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:16px}
+  .home-att{display:flex;flex-direction:column;gap:2px}
+  .home-att .att{display:flex;align-items:center;gap:11px;padding:10px 6px;border-radius:10px;cursor:pointer;font-size:14px;color:var(--text)}
+  .home-att .att:hover{background:var(--navy-900)}
+  .home-att .att .ai{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .home-att .att b{margin-left:auto;font-family:'Space Grotesk';font-weight:700}
+  @media(max-width:920px){.home-kpis{grid-template-columns:repeat(2,1fr)}.home-panels{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -371,16 +402,42 @@
     </div>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="leads" type="button">📥 Leads <span class="pill" id="tab-leads-count">0</span></button>
-    <button class="tab" data-tab="offers" type="button">🧾 Ofertas</button>
-    <button class="tab" data-tab="props" type="button">🌐 Propuestas</button>
-    <button class="tab" data-tab="blog" type="button">📝 Blog SEO</button>
-    <button class="tab" data-tab="analytics" type="button">📊 Analytics</button>
+  <div class="dash-body">
+    <aside class="dash-side">
+      <button class="side-item active" data-tab="home" type="button"><span class="si-ic">🏠</span>Home</button>
+      <div class="side-sec">Contacts</div>
+      <button class="side-item" data-tab="leads" type="button"><span class="si-ic">📥</span>Leads <span class="pill" id="tab-leads-count">0</span></button>
+      <div class="side-sec">Deals</div>
+      <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
+      <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
+      <div class="side-sec">Analytics</div>
+      <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
+      <div class="side-sec">Content</div>
+      <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
+      <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🔎</span>SEO Strategy</button>
+      <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
+    </aside>
+    <div class="dash-main">
+
+  <!-- ============ TAB: HOME ============ -->
+  <div id="tab-home">
+    <h2 class="home-h">Hola 👋 <span class="home-sub">últimos 7 días · vs semana anterior</span></h2>
+    <div class="home-kpis">
+      <div class="hk"><div class="hk-l">Nuevos leads</div><div class="hk-n" id="h-leads">–</div><div class="hk-t" id="h-leads-t"></div></div>
+      <div class="hk"><div class="hk-l">Ganados</div><div class="hk-n" id="h-won">–</div><div class="hk-t" id="h-won-t"></div></div>
+      <div class="hk"><div class="hk-l">Ingresos ganados</div><div class="hk-n" id="h-rev">–</div><div class="hk-t" id="h-rev-t"></div></div>
+      <div class="hk"><div class="hk-l">Sesiones web</div><div class="hk-n" id="h-sess">–</div><div class="hk-t" id="h-sess-t"></div></div>
+      <div class="hk"><div class="hk-l">Valor pipeline (abierto)</div><div class="hk-n" id="h-pipe">–</div><div class="hk-t muted">ofertas enviadas</div></div>
+      <div class="hk"><div class="hk-l">Tasa de conversión</div><div class="hk-n" id="h-conv">–</div><div class="hk-t muted">ganado / decidido</div></div>
+    </div>
+    <div class="home-panels">
+      <div class="panel"><h2>Funnel de ventas <span class="count">(últimos 30 días)</span></h2><div class="funnel" id="home-funnel"></div></div>
+      <div class="panel"><h2>Necesita atención</h2><div class="home-att" id="home-att"></div></div>
+    </div>
   </div>
 
   <!-- ============ TAB: LEADS ============ -->
-  <div id="tab-leads">
+  <div id="tab-leads" hidden>
     <div class="kpis four">
       <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Leads totales (histórico)</div></div>
       <div class="kpi"><div class="n" id="kl-week">–</div><div class="l" id="kl-week-l">En el período</div></div>
@@ -703,6 +760,9 @@
       <div class="post-preview" id="bg-preview"></div>
     </div>
   </div>
+
+    </div><!-- /.dash-main -->
+  </div><!-- /.dash-body -->
 </div>
 
 <!-- ============ LEAD DETAIL MODAL ============ -->
@@ -766,19 +826,20 @@
     $('dash-view').hidden = view !== 'dash';
   }
 
-  /* ---------- Tabs ---------- */
-  document.querySelectorAll('.tab').forEach((t) => {
-    t.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === t));
-      $('tab-leads').hidden = t.dataset.tab !== 'leads';
-      $('tab-offers').hidden = t.dataset.tab !== 'offers';
-      $('tab-props').hidden = t.dataset.tab !== 'props';
-      $('tab-blog').hidden = t.dataset.tab !== 'blog';
-      $('tab-analytics').hidden = t.dataset.tab !== 'analytics';
-      if (t.dataset.tab === 'offers') offersInit();
-      if (t.dataset.tab === 'props') proposalsInit();
-      if (t.dataset.tab === 'blog') blogInit();
-    });
+  /* ---------- Navegación (sidebar) ---------- */
+  const TABS = ['home', 'leads', 'offers', 'props', 'blog', 'analytics'];
+  function gotoTab(tab){
+    document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
+    TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
+    if (tab === 'home') renderHome();
+    if (tab === 'offers') offersInit();
+    if (tab === 'props') proposalsInit();
+    if (tab === 'blog') blogInit();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
+    if (t.classList.contains('disabled')) return;
+    t.addEventListener('click', () => gotoTab(t.dataset.tab));
   });
 
   /* ---------- Login ---------- */
@@ -920,6 +981,7 @@
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
     renderLeads();
     renderAnalytics(lastViews, allLeads);
+    renderHome();
     // reproducciones de video + top 3 más vistos (si no corrió el SQL 0008, queda en 0)
     const plays = (videosQ && !videosQ.error) ? (videosQ.data || []) : [];
     $('ka-videos').textContent = plays.length;
@@ -1022,6 +1084,44 @@
 
     renderFunnel(viewLeads);
     renderPipeline();
+  }
+
+  /* ---------- HOME: KPIs globales + tendencia vs semana anterior ---------- */
+  function renderHome(){
+    const now = Date.now(), W = 7 * 864e5;
+    const real = (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || ''));
+    const inA = (d) => { if (!d) return false; const t = new Date(d).getTime(); return t >= now - W && t <= now; };
+    const inB = (d) => { if (!d) return false; const t = new Date(d).getTime(); return t >= now - 2 * W && t < now - W; };
+    const cnt = (arr, p) => arr.filter(p).length;
+    const tr = (a, b) => { if (b === 0) return a > 0 ? { t: '▲ nuevo', up: true } : { t: '—', muted: true }; const p = Math.round((a - b) / b * 100); return { t: (p >= 0 ? '▲ ' : '▼ ') + Math.abs(p) + '%', up: p >= 0 }; };
+    const setT = (id, x) => { const el = $(id); if (!el) return; el.textContent = x.t + ' vs sem. ant.'; el.className = 'hk-t ' + (x.muted ? 'muted' : (x.up ? 'up' : 'down')); };
+
+    const leadsA = cnt(real, (l) => inA(l.created_at)), leadsB = cnt(real, (l) => inB(l.created_at));
+    const wonA = cnt(real, (l) => inA(l.won_at)), wonB = cnt(real, (l) => inB(l.won_at));
+    const revOf = (pred) => (offersList || []).filter((o) => o.status === 'won' && pred(o.updated_at)).reduce((a, o) => a + offerNet(o), 0);
+    const revA = revOf(inA), revB = revOf(inB);
+    const sess = (pred) => new Set((lastViews || []).filter((v) => pred(v.created_at) && !/^claude-/.test(v.session_id || '')).map((v) => v.session_id)).size;
+    const sessA = sess(inA), sessB = sess(inB);
+    const pipe = (offersList || []).filter((o) => o.status === 'sent').reduce((a, o) => a + offerNet(o), 0);
+    const won = real.filter((l) => stageOf(l.status) === 'ganado').length, lost = real.filter((l) => stageOf(l.status) === 'perdido').length;
+
+    $('h-leads').textContent = leadsA; setT('h-leads-t', tr(leadsA, leadsB));
+    $('h-won').textContent = wonA; setT('h-won-t', tr(wonA, wonB));
+    $('h-rev').textContent = fmtChf(revA); setT('h-rev-t', tr(revA, revB));
+    $('h-sess').textContent = sessA.toLocaleString('de-CH'); setT('h-sess-t', tr(sessA, sessB));
+    $('h-pipe').textContent = fmtChf(pipe);
+    $('h-conv').textContent = (won + lost) ? Math.round(won / (won + lost) * 100) + '%' : '–';
+
+    renderFunnel(real.filter((l) => new Date(l.created_at).getTime() >= now - 30 * 864e5), 'home-funnel');
+
+    const in7 = now + W;
+    const att = (c, ic, txt, n, tab) => '<div class="att" data-tab="' + tab + '"><span class="ai" style="background:color-mix(in srgb,' + c + ' 18%,transparent);color:' + c + '">' + ic + '</span>' + txt + '<b>' + n + '</b></div>';
+    $('home-att').innerHTML =
+      att('#8ab4ff', '📥', 'Leads sin contactar', cnt(real, (l) => isNew(l.status)), 'leads') +
+      att('#f0c060', '⏰', 'Follow-ups esta semana', cnt(real, (l) => l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() <= in7), 'leads') +
+      att('#7ed957', '🧾', 'Ofertas esperando respuesta', (offersList || []).filter((o) => o.status === 'sent').length, 'offers') +
+      att('#c58af9', '🌐', 'Propuestas enviadas', (real.filter((l) => stageOf(l.status) === 'propuesta').length), 'props');
+    $('home-att').querySelectorAll('.att').forEach((a) => a.addEventListener('click', () => gotoTab(a.dataset.tab)));
   }
 
   /* ---------- Pipeline kanban (drag & drop entre etapas) ---------- */
@@ -1475,7 +1575,7 @@
   }
 
   /* ---------- Funnel de ventas: conversión + tiempo entre etapas ---------- */
-  function renderFunnel(leads){
+  function renderFunnel(leads, targetId){
     const set = (leads || []).filter((l) => !/^claude-/.test(l.session_id || ''));
     const steps = [
       { key: 'lead',       label: 'Leads',      ts: (l) => l.created_at },
@@ -1505,7 +1605,7 @@
     const won = rows[4].n, lost = set.filter((l) => l.lost_at).length, dec = won + lost;
     html += '<div class="fn-foot">Perdidos <b>' + lost + '</b> · Cierre (ganado / decididos) <b>' + (dec ? Math.round(won / dec * 100) + '%' : '—') + '</b>' +
       ' · <span class="fn-hint">los tiempos se miden arrastrando los leads por las etapas en orden</span></div>';
-    $('funnel').innerHTML = html;
+    $(targetId || 'funnel').innerHTML = html;
   }
 
   function renderAnalytics(rows, leads){
