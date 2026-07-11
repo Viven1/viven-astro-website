@@ -684,7 +684,11 @@
     </div>
     <p class="muted-note" id="bg-note" style="margin:0 0 16px">Escribí un tema y dale Generar. La IA arma título, meta description, cuerpo con links internos y FAQ (schema).</p>
 
+    <div class="pp-sec-h" id="bg-list-h" hidden>Tus artículos <span class="count">(generados — se guardan acá)</span></div>
+    <div id="bg-list" class="of-list" style="margin-bottom:20px"></div>
+
     <div id="bg-result" hidden>
+      <div class="pp-sec-h" style="margin-top:0">Editando <span class="count" id="bg-editing-lang"></span> · <span id="bg-versions"></span></div>
       <div class="pp-grid" style="grid-template-columns:1fr 1fr auto;align-items:end">
         <div class="bf"><label>Título SEO</label><input id="bg-title" /></div>
         <div class="bf"><label>Slug</label><input id="bg-slug" /></div>
@@ -2233,35 +2237,94 @@
   }
 
   /* ================= BLOG SEO con IA ================= */
-  let bgBuilt = false, bgCur = null;
-  function blogInit(){ if (bgBuilt) return; bgBuilt = true;
-    $('bg-gen').addEventListener('click', generateBlog);
+  let bgBuilt = false, bgCur = null, blogsList = [];
+  const LANGNAME = { en: 'EN', de: 'DE', es: 'ES' };
+  function blogInit(){ if (!bgBuilt){ bgBuilt = true;
+    $('bg-gen').addEventListener('click', () => generateBlog());
     $('bg-copy').addEventListener('click', copyBlogAstro);
     $('bg-publish').addEventListener('click', publishBlog);
-  }
+  } blogsLoad(); }
   // [[slug|anchor]] → link interno; para el preview usamos viven.ch, para el .astro usamos p("slug")
   const blogPreviewHtml = (html) => (html || '').replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_, s, a) => '<a href="https://www.viven.ch/' + s.trim() + '/">' + a.trim() + '</a>');
-  async function generateBlog(){
-    const topic = $('bg-topic').value.trim();
+
+  async function blogsLoad(){
+    const { data, error } = await supabase.from('blogs').select('*').order('updated_at', { ascending: false });
+    if (error){ return; }  // ¿corriste el SQL 0009? seguimos sin lista
+    blogsList = data || []; renderBlogList();
+  }
+  function renderBlogList(){
+    const box = $('bg-list'); $('bg-list-h').hidden = !blogsList.length;
+    const badge = { draft: ['Borrador', '#8ab4ff'], published: ['Publicado', '#7ed957'] };
+    // agrupar por group_id para ver qué idiomas ya existen
+    const langsByGroup = {}; blogsList.forEach((b) => { (langsByGroup[b.group_id] = langsByGroup[b.group_id] || new Set()).add(b.lang); });
+    box.innerHTML = blogsList.map((b) => { const bd = badge[b.status] || badge.draft;
+      const have = langsByGroup[b.group_id] || new Set();
+      const missing = ['en', 'de', 'es'].filter((l) => l !== b.lang && !have.has(l));
+      const langBtns = missing.map((l) => '<button class="of-act" data-act="loc" data-l="' + l + '" data-id="' + b.id + '" type="button">+ ' + LANGNAME[l] + '</button>').join('');
+      return '<div class="of-card"><div class="of-card-open" data-id="' + b.id + '">' +
+        '<div class="of-card-main"><div class="of-card-title">' + esc(b.title || '(sin título)') + ' <span class="of-badge" style="color:#c58af9;border-color:#c58af9;font-size:10px">' + LANGNAME[b.lang] + '</span></div>' +
+        '<div class="of-card-sub">' + esc(b.topic || b.slug || '') + ' · ' + new Date(b.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
+        '<span class="of-badge" style="color:' + bd[1] + ';border-color:' + bd[1] + '">' + bd[0] + '</span></div>' +
+        '<div class="of-actions">' + langBtns +
+          '<button class="of-act danger" data-act="del" data-id="' + b.id + '" type="button">🗑 Borrar</button>' +
+        '</div></div>';
+    }).join('');
+    box.querySelectorAll('.of-card-open').forEach((c) => c.addEventListener('click', () => loadBlog(c.dataset.id)));
+    box.querySelectorAll('.of-act').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.stopPropagation(); const id = btn.dataset.id, act = btn.dataset.act;
+      if (act === 'del') delBlog(id);
+      else if (act === 'loc') localizeBlog(id, btn.dataset.l);
+    }));
+  }
+  function fillBlogEditor(b){
+    bgCur = b;
+    $('bg-topic').value = b.topic || ''; $('bg-lang').value = b.lang || 'en';
+    $('bg-title').value = b.title || ''; $('bg-slug').value = b.slug || ''; $('bg-desc').value = b.description || '';
+    let html = '<span class="eyebrow">' + esc(b.eyebrow || 'Industry insight') + '</span><h1>' + esc(b.title || '') + '</h1>';
+    if (b.lead) html += '<p class="lead">' + esc(b.lead) + '</p>';
+    html += '<div class="post-body">' + blogPreviewHtml(b.body_html) + '</div>';
+    if (b.faq && b.faq.length) html += '<h2 style="margin-top:24px">FAQ</h2>' + b.faq.map((f) => '<div style="margin-bottom:12px"><strong>' + esc(f.q) + '</strong><br>' + esc(f.a) + '</div>').join('');
+    $('bg-preview').innerHTML = html;
+    $('bg-editing-lang').textContent = LANGNAME[b.lang] || b.lang;
+    const have = blogsList.filter((x) => x.group_id === b.group_id).map((x) => LANGNAME[x.lang]);
+    $('bg-versions').textContent = 'versiones: ' + (have.join(', ') || LANGNAME[b.lang]);
+    $('bg-result').hidden = false; $('bg-pub-note').textContent = '';
+  }
+  function loadBlog(id){ const b = blogsList.find((x) => String(x.id) === String(id)); if (b) fillBlogEditor(b); }
+
+  // genera un artículo (nuevo, o versión localizada si pasás groupId+localize) y lo guarda en blogs
+  async function generateBlog(opts){
+    opts = opts || {};
+    const topic = (opts.topic || $('bg-topic').value).trim();
+    const lang = opts.lang || $('bg-lang').value;
     if (!topic){ toast('Escribí un tema o keyword'); return; }
-    const btn = $('bg-gen'), prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Escribiendo…';
-    $('bg-note').textContent = 'La IA está escribiendo el artículo (título, cuerpo, links internos, FAQ)…';
+    const btn = opts.btn || $('bg-gen'), prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Escribiendo…';
+    $('bg-note').textContent = 'La IA está escribiendo el artículo (' + (LANGNAME[lang] || lang) + ')…';
     try {
-      const { data, error } = await supabase.functions.invoke('ai-blog', { body: { topic, lang: $('bg-lang').value } });
+      const { data, error } = await supabase.functions.invoke('ai-blog', { body: { topic, lang, localize: !!opts.localize } });
       if (error || !data || !data.body_html) throw new Error(data?.error || error?.message || 'sin respuesta');
-      bgCur = data;
-      $('bg-title').value = data.title || ''; $('bg-slug').value = data.slug || ''; $('bg-desc').value = data.description || '';
-      let html = '<span class="eyebrow">' + esc(data.eyebrow || 'Industry insight') + '</span><h1>' + esc(data.title || '') + '</h1>';
-      if (data.lead) html += '<p class="lead">' + esc(data.lead) + '</p>';
-      html += '<div class="post-body">' + blogPreviewHtml(data.body_html) + '</div>';
-      if (data.faq && data.faq.length){
-        html += '<h2 style="margin-top:24px">FAQ</h2>' + data.faq.map((f) => '<div style="margin-bottom:12px"><strong>' + esc(f.q) + '</strong><br>' + esc(f.a) + '</div>').join('');
-      }
-      $('bg-preview').innerHTML = html;
-      $('bg-result').hidden = false;
-      $('bg-note').textContent = '✨ Listo. Revisá/editá, copiá el .astro y publicalo (te digo dónde ponerlo al copiar).';
+      const row = { lang, topic, slug: data.slug, title: data.title, description: data.description, eyebrow: data.eyebrow, lead: data.lead, body_html: data.body_html, faq: data.faq || [], status: 'draft' };
+      if (opts.groupId) row.group_id = opts.groupId;
+      const ins = await supabase.from('blogs').insert(row).select().single();
+      if (ins.error) throw new Error('generado, pero no se pudo guardar (¿SQL 0009?): ' + ins.error.message);
+      await blogsLoad();
+      fillBlogEditor(ins.data);
+      $('bg-note').textContent = '✨ Listo — guardado en la lista. Revisá, editá y publicá.';
     } catch (e) { $('bg-note').textContent = 'No se pudo generar (¿deployaste ai-blog + crédito Anthropic?): ' + e.message; }
     finally { btn.disabled = false; btn.textContent = prev; }
+  }
+  function localizeBlog(id, targetLang){
+    const b = blogsList.find((x) => String(x.id) === String(id)); if (!b) return;
+    generateBlog({ topic: b.topic || b.title, lang: targetLang, localize: true, groupId: b.group_id });
+    toast('Generando versión ' + (LANGNAME[targetLang] || targetLang) + ' (nativa, con keywords locales)…');
+  }
+  async function delBlog(id){
+    const b = blogsList.find((x) => String(x.id) === String(id));
+    if (!confirm('¿Borrar el artículo "' + ((b && b.title) || '') + '"? (No lo saca de la web si ya lo publicaste)')) return;
+    const { error } = await supabase.from('blogs').delete().eq('id', id);
+    if (error){ toast('No se pudo borrar: ' + error.message); return; }
+    blogsList = blogsList.filter((x) => String(x.id) !== String(id)); renderBlogList();
+    if (bgCur && String(bgCur.id) === String(id)) $('bg-result').hidden = true;
   }
   // arma { path, content } del .astro listo para commitear
   function buildBlogAstro(){
@@ -2316,6 +2379,8 @@ ${body}
       const { data, error } = await supabase.functions.invoke('publish-blog', { body: { path: b.path, content: b.content, message: 'blog: ' + $('bg-title').value } });
       if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
       const liveUrl = 'https://www.viven.ch/' + b.lang + '/blog/' + b.slug + '/';
+      // marcar como publicado en la lista
+      if (bgCur && bgCur.id) { await supabase.from('blogs').update({ status: 'published', published_at: new Date().toISOString(), published_url: liveUrl }).eq('id', bgCur.id); blogsLoad(); }
       $('bg-pub-note').innerHTML = (data.updated ? '✅ Actualizado' : '✅ Publicado') + ' — Netlify lo está deployando (~1-2 min). Va a estar en <a href="' + esc(liveUrl) + '" target="_blank" style="color:var(--acid)">' + esc(liveUrl) + '</a>' + (data.commit ? ' · <a href="' + esc(data.commit) + '" target="_blank" style="color:var(--muted)">ver commit</a>' : '');
       toast('🚀 Publicado — deployando en Netlify');
     } catch (e) {

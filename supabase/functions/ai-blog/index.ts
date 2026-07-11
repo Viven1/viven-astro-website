@@ -30,14 +30,18 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { topic = "", keyword = "", lang = "en" } = await req.json();
+    const { topic = "", keyword = "", lang = "en", localize = false } = await req.json();
     const t = (topic || keyword || "").trim();
     if (!t) return json({ error: "falta el tema/keyword" }, 400);
     const language = lang === "de" ? "German" : lang === "es" ? "Spanish" : "English";
+    // cuando es una versión en otro idioma: NO traducir — reescribir nativo con keywords locales
+    const localizeNote = localize
+      ? `\n\nIMPORTANT — this is the ${language} version of an existing article on the same subject. Do NOT translate. Write a fresh, native ${language} article: think about the keywords a ${language}-speaking audience in the DACH/Swiss (or Hispanic) market ACTUALLY searches for this topic, and use those terms naturally in the title, headings and body. Localize examples, phrasing and search intent to that market. It should read as if originally written for that audience.`
+      : "";
 
     const prompt = `You write SEO blog articles for VIVEN AG, a video production company in Zürich (clients: UBS, Siemens, Porsche, ON, FIFA, Philips). Goal: rank on Google + AI overviews and drive leads.
 
-Write a complete, genuinely useful article in ${language} about: "${t}".
+Write a complete, genuinely useful article in ${language} about: "${t}".${localizeNote}
 
 Rules:
 - 700–1100 words. Natural, expert, non-fluffy. Answer the search intent directly in the first paragraph.
