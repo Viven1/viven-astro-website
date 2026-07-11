@@ -11,7 +11,15 @@ for (const pr of projects) {
   const key = (pr.client || '').trim().toLowerCase();
   if (pr.lang === lang && key && !caseByClient.has(key)) caseByClient.set(key, pr.slug);
 }
-const caseFor = (v) => caseByClient.get((v.client || '').trim().toLowerCase());
+// override por VIDEO: los 3 héroes de los case studies de texto largo linkean a su página
+// (tienen prioridad sobre el mapeo por cliente — ej. el tile de Working Students va al
+// case de Employer Branding aunque Siemens ya tenga otro case study por cliente)
+const CS_BY_VIDEO = {
+  '828322230': 'en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding',
+  '772421307': 'en/case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions',
+  '861150876': 'en/case-study-sv-group-bringing-it-operations-and-hospitality-together',
+};
+const caseFor = (v) => CS_BY_VIDEO[String(v.id)] || caseByClient.get((v.client || '').trim().toLowerCase());
 // videos que YA son el hero de un case study → no repetirlos como tile de video (evita el doble de TomFit)
 const caseVideoIds = new Set(projects.map((pr) => String(pr.vimeo || '')).filter(Boolean));
 const CS_LABEL = { en: 'Case study', de: 'Case Study', es: 'Caso de éxito' };
@@ -69,7 +77,7 @@ const hasCat = (v, c) => (v.cat || '').split(' ').indexOf(c) !== -1;
 // En la grilla de proyectos (caseFirst) aparecen como tiles reproducibles, además del tile de case study.
 const pool = videos.filter((v) => v.thumb && (!cat || hasCat(v, cat)) && (v.client || !junkTitle(v.title))
   && !isTestimonial(v)
-  && !caseVideoIds.has(String(v.id)));
+  && (!caseVideoIds.has(String(v.id)) || CS_BY_VIDEO[String(v.id)]));   // los héroes de los case de texto SÍ van (linkean al case)
 const groups = new Map();                                  // agrupar por cliente (sin cliente → único)
 for (const v of pool) {
   const key = v.client || ('__' + v.id);
