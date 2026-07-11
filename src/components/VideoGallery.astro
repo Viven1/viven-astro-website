@@ -76,7 +76,10 @@ for (const v of pool) {
 for (const arr of groups.values()) {                       // dentro de cada marca: destacado, luego más nuevo
   arr.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || time(b.date) - time(a.date));
 }
-const capped = [...groups.entries()].map(([k, arr]) => [k, arr.slice(0, perClient)]);
+// cap por cliente: ON pocos (casi todos iguales); el resto usa el default (en /projects es alto → se muestran ~todos)
+const CLIENT_CAP = { ON: 2 };
+const capFor = (k) => CLIENT_CAP[k] ?? perClient;
+const capped = [...groups.entries()].map(([k, arr]) => [k, arr.slice(0, capFor(k))]);
 capped.sort((A, B) => {                                     // ordenar marcas: destacada, importante, más nueva
   const fa = A[1].some((x) => x.featured) ? 0 : 1, fb = B[1].some((x) => x.featured) ? 0 : 1;
   if (fa !== fb) return fa - fb;

@@ -1182,14 +1182,24 @@
     $('lm-email').textContent = r.email;
     $('lm-email').href = 'mailto:' + r.email;
     $('lm-date').textContent = new Date(r.created_at).toLocaleString('es-CH', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+    // empresa: la del form, o derivada del dominio del email (como HubSpot)
+    const domainCompany = (email) => { const d = (email || '').split('@')[1]; if (!d || /gmail|hotmail|outlook|yahoo|icloud|gmx|bluewin|proton/i.test(d)) return ''; const b = d.split('.')[0]; return b.charAt(0).toUpperCase() + b.slice(1); };
+    const company = r.company || domainCompany(r.email);
+    const fmtD = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
     const fields = [
-      ['Canal', r.channel || '—'],
+      ['Empresa', company || '—'],
+      ['Teléfono', r.phone ? { link: 'tel:' + r.phone.replace(/[^\d+]/g, ''), text: r.phone } : '—'],
       ['Idioma', (r.lang || '—').toUpperCase()],
       ['Estado', r.status || '—'],
-      ['Página de entrada', r.landing_path || '—'],
-      ['Campaña (UTM)', r.utm_campaign || '—'],
+      ['Canal', r.channel || '—'],
       ['Fuente (UTM)', r.utm_source || '—'],
+      ['Campaña (UTM)', r.utm_campaign || '—'],
       ['GCLID (Google Ads)', r.gclid || '—'],
+      ['Página de entrada', r.landing_path || '—'],
+      ['Creado', fmtD(r.created_at)],
+      ['Contactado', fmtD(r.contacted_at)],
+      ['Video call', fmtD(r.videocall_at)],
+      ['Propuesta', fmtD(r.proposal_at)],
       ['Próximo follow-up', r.next_follow_up_at
         ? new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (r.follow_up_count ? ' · #' + (r.follow_up_count + 1) : '')
         : (r.status === 'contacted' || r.status === 'contactado' ? 'programando…' : '—')],
@@ -1199,9 +1209,10 @@
     const ofs = offersForLead(r.id);
     if (ofs.length) fields.push(['Ofertas ligadas', ofs.map((o) => fmtM(offerNet(o)) + ' (' + (OF_ST[o.status] || o.status) + ')').join(' · ')]);
     if (stageOf(r.status) === 'perdido') fields.push(['Motivo de pérdida', r.lost_reason || '(sin especificar)']);
-    $('lm-details').innerHTML = fields.map(([k, v]) =>
-      '<div class="detail"><div class="k">' + k + '</div><div class="v">' + esc(v) + '</div></div>'
-    ).join('');
+    $('lm-details').innerHTML = fields.map(([k, v]) => {
+      const val = (v && typeof v === 'object') ? '<a href="' + esc(v.link) + '">' + esc(v.text) + '</a>' : esc(v);
+      return '<div class="detail"><div class="k">' + k + '</div><div class="v">' + val + '</div></div>';
+    }).join('');
     $('lm-message').textContent = r.message || '(sin mensaje)';
     $('lm-sender').value = sender;
     const draft = buildDraft(r);

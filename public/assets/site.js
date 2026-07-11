@@ -277,6 +277,16 @@ function renderLeadForm(mount){
         '<label data-en=\'Work email <span class="req">*</span>\' data-de=\'Gesch&auml;ftliche E-Mail <span class="req">*</span>\' data-es=\'Email de trabajo <span class="req">*</span>\'>Work email <span class="req">*</span></label>' +
         '<input type="email" name="email" required maxlength="200" autocomplete="email" aria-label="Work email" />' +
       '</div>' +
+      '<div class="row2">' +
+        '<div class="field">' +
+          '<label data-en="Company" data-de="Unternehmen" data-es="Empresa">Company</label>' +
+          '<input type="text" name="company" maxlength="120" autocomplete="organization" aria-label="Company" />' +
+        '</div>' +
+        '<div class="field">' +
+          '<label data-en="Phone" data-de="Telefon" data-es="Tel&eacute;fono">Phone</label>' +
+          '<input type="tel" name="phone" maxlength="40" autocomplete="tel" aria-label="Phone" />' +
+        '</div>' +
+      '</div>' +
       '<div class="field">' +
         '<label data-en="What are you working on?" data-de="Woran arbeiten Sie?" data-es="&iquest;En qu&eacute; est&aacute;s trabajando?">What are you working on?</label>' +
         '<textarea name="message" maxlength="4000" rows="4" aria-label="Your message"></textarea>' +
@@ -300,6 +310,8 @@ function renderLeadForm(mount){
   var fLast = form.querySelector('[name="last_name"]');
   var fEmail = form.querySelector('[name="email"]');
   var fMsg = form.querySelector('[name="message"]');
+  var fCompany = form.querySelector('[name="company"]');
+  var fPhone = form.querySelector('[name="phone"]');
   var fHp = form.querySelector('[name="website"]');
 
   form.addEventListener('submit', function(e){
@@ -322,6 +334,8 @@ function renderLeadForm(mount){
       first_name: first,
       last_name: last,
       email: email,
+      company: (fCompany && fCompany.value.trim()) || null,
+      phone: (fPhone && fPhone.value.trim()) || null,
       message: fMsg.value.trim() || null
     };
     if(extra){
