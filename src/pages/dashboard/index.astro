@@ -277,6 +277,12 @@
   .pc-ost{font-size:10px;font-weight:800;letter-spacing:.02em}
   .pc-co{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#0f1826;flex:none}
   .pc-owner{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:#0f1826;flex:none}
+  .deals-analytics{margin-top:22px;border-top:1px solid var(--line);padding-top:6px}
+  .deals-analytics>summary{cursor:pointer;list-style:none;font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:10px 2px;display:flex;align-items:center;gap:8px}
+  .deals-analytics>summary::-webkit-details-marker{display:none}
+  .deals-analytics>summary::before{content:'▸';color:var(--muted);transition:transform .15s}
+  .deals-analytics[open]>summary::before{transform:rotate(90deg)}
+  .deals-analytics>summary span{color:var(--muted-2);font-weight:400;font-size:12.5px}
   .deals-sum{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 18px}
   .deals-sum .ds{flex:1;min-width:150px;background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:12px 15px}
   .deals-sum .ds .dv{font-family:'Space Grotesk';font-weight:700;font-size:21px;letter-spacing:-.02em}
@@ -575,37 +581,41 @@
 
   <!-- ============ TAB: DEALS (pipeline / oportunidades) ============ -->
   <div id="tab-deals" hidden>
-    <div class="of-bar" style="margin-bottom:14px">
+    <div class="of-bar" style="margin-bottom:12px">
       <div>
         <h2 style="margin:0">Deals</h2>
-        <p class="muted-note" style="margin:2px 0 0">Tu pipeline de oportunidades por etapa. Arrastrá una tarjeta para moverla; el valor viene de las ofertas ligadas.</p>
+        <p class="muted-note" style="margin:2px 0 0">Arrastrá una tarjeta para moverla de etapa. El valor viene de las ofertas ligadas.</p>
       </div>
     </div>
-    <div class="kpis">
-      <div class="kpi"><div class="n" id="kl-contacted">–</div><div class="l">Contactados</div></div>
-      <div class="kpi"><div class="n" id="kl-won">–</div><div class="l">Ganados</div></div>
-      <div class="kpi"><div class="n" id="kl-lost">–</div><div class="l">Perdidos</div></div>
-      <div class="kpi"><div class="n" id="kl-convrate">–</div><div class="l">Tasa de conversión</div></div>
-      <div class="kpi"><div class="n" id="kl-followup">–</div><div class="l">Follow-ups esta semana</div></div>
-    </div>
-    <div class="panel" style="margin-top:4px">
-      <h2>Funnel de ventas <span class="count">(conversión y tiempo entre etapas)</span></h2>
-      <div class="funnel" id="funnel"></div>
-    </div>
+    <!-- resumen compacto + board arriba de todo (como HubSpot) -->
     <div class="deals-sum" id="deals-sum"></div>
     <div class="pipeline" id="pipeline"></div>
     <p class="muted-note" id="leads-empty" hidden>No hay deals que coincidan. Envía el formulario del sitio para testear.</p>
 
-    <!-- Insights con IA sobre el pipeline/funnel -->
-    <div class="panel ai-panel" style="margin-top:22px">
-      <div class="ai-head">
-        <h2>🧠 Insights con IA <span class="count">cómo mover más deals a ganados</span></h2>
-        <button class="btn btn-primary small" id="ai-leads-btn" type="button">✨ Generar</button>
+    <!-- análisis del pipeline (secundario, debajo del board) -->
+    <details class="deals-analytics">
+      <summary>📊 Análisis del pipeline <span>(funnel · KPIs · insights IA)</span></summary>
+      <div class="kpis" style="margin-top:14px">
+        <div class="kpi"><div class="n" id="kl-contacted">–</div><div class="l">Contactados</div></div>
+        <div class="kpi"><div class="n" id="kl-won">–</div><div class="l">Ganados</div></div>
+        <div class="kpi"><div class="n" id="kl-lost">–</div><div class="l">Perdidos</div></div>
+        <div class="kpi"><div class="n" id="kl-convrate">–</div><div class="l">Tasa de conversión</div></div>
+        <div class="kpi"><div class="n" id="kl-followup">–</div><div class="l">Follow-ups esta semana</div></div>
       </div>
-      <div class="ai-body" id="ai-leads-body">
-        <p class="muted-note">La IA analiza tu funnel (conversión y tiempos por etapa), canales y follow-ups, y te da 3–5 mejoras concretas para cerrar más.</p>
+      <div class="panel" style="margin-top:14px">
+        <h2>Funnel de ventas <span class="count">(conversión y tiempo entre etapas)</span></h2>
+        <div class="funnel" id="funnel"></div>
       </div>
-    </div>
+      <div class="panel ai-panel" style="margin-top:18px">
+        <div class="ai-head">
+          <h2>🧠 Insights con IA <span class="count">cómo mover más deals a ganados</span></h2>
+          <button class="btn btn-primary small" id="ai-leads-btn" type="button">✨ Generar</button>
+        </div>
+        <div class="ai-body" id="ai-leads-body">
+          <p class="muted-note">La IA analiza tu funnel (conversión y tiempos por etapa), canales y follow-ups, y te da 3–5 mejoras concretas para cerrar más.</p>
+        </div>
+      </div>
+    </details>
   </div>
 
   <!-- ============ TAB: COMPANIES ============ -->
