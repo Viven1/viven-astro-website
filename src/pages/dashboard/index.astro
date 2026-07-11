@@ -172,6 +172,8 @@
   .ab-row .ab-v{color:var(--text);text-align:right;word-break:break-word;min-width:0}
   .ab-row .ab-v a{color:var(--acid)}
   .ab-badge{border:1px solid;border-radius:999px;font-size:11px;font-weight:600;padding:2px 9px}
+  .lm-stage-sel{background:var(--navy-800);border:1px solid;border-radius:999px;font-family:inherit;font-size:11.5px;font-weight:600;padding:3px 10px;cursor:pointer}
+  .lm-stage-sel option{color:var(--text);background:var(--navy-800)}
   .lm-block{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .lm-block-h{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px}
   .lm-deal{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--text)}
@@ -401,8 +403,18 @@
   .post-preview li{margin-bottom:5px}
   .post-preview a{color:var(--acid);text-decoration:underline}
   .post-preview strong{color:var(--text)}
-  .co-card{align-items:center;gap:14px}
-  .co-av{width:38px;height:38px;border-radius:10px;background:color-mix(in srgb,var(--acid) 15%,var(--navy-900));color:var(--acid);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+  /* Companies: grid de tarjetas compactas */
+  .co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:16px}
+  .co-card{display:flex;flex-direction:column;gap:12px;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:13px;padding:15px 16px;cursor:pointer;color:var(--text);font-family:inherit;transition:border-color .15s,transform .12s,box-shadow .2s}
+  .co-card:hover{border-color:var(--line-strong);transform:translateY(-1px);box-shadow:0 8px 22px -12px rgba(0,0,0,.6)}
+  .co-card-top{display:flex;align-items:center;gap:11px;min-width:0}
+  .co-av{width:40px;height:40px;border-radius:10px;color:#0f1826;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none}
+  .co-card-id{min-width:0}
+  .co-card-name{font-family:'Space Grotesk';font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+  .co-card-dom{color:var(--muted-2);font-size:12px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .co-card-stats{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}
+  .co-card-val{font-family:'Space Grotesk';font-weight:700;font-size:13.5px;color:var(--text)}
+  .co-card-val.zero{color:var(--muted-2);font-weight:400}
   .co-tbl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .co-th,.co-tr{display:grid;grid-template-columns:1.3fr 1.5fr auto;align-items:center;gap:10px;padding:9px 12px}
   .co-th-deals,.co-tr-deals{grid-template-columns:1.6fr auto auto}
@@ -1543,28 +1555,30 @@
       col.addEventListener('dragleave', () => col.classList.remove('drop'));
       col.addEventListener('drop', async (e) => {
         e.preventDefault(); col.classList.remove('drop');
-        const id = dragId; if (!id) return;
-        const stage = col.dataset.stage;
-        const lead = allLeads.find((l) => String(l.id) === String(id));
-        if (!lead || stageOf(lead.status) === stage) return;
-        const prev = lead.status;
-        // al pasar a Perdido, preguntar el motivo (opcional)
-        let lostReason;
-        if (stage === 'perdido') {
-          lostReason = prompt('¿Por qué se perdió este lead? (opcional)', lead.lost_reason || '');
-          if (lostReason === null) { col.classList.remove('drop'); return; }  // canceló → no mover
-        }
-        lead.status = stage;               // optimista
-        // sella el hito de esta etapa (si aún no tiene) para medir tiempos y conversión
-        const patch = { status: stage };
-        const tsCol = STAGE_TS[stage];
-        if (tsCol && !lead[tsCol]) { const now = new Date().toISOString(); patch[tsCol] = now; lead[tsCol] = now; }
-        if (stage === 'perdido') { patch.lost_reason = lostReason || null; lead.lost_reason = lostReason || null; }
-        renderLeads();
-        const { error } = await supabase.from('leads').update(patch).eq('id', id);
-        if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); }
+        if (dragId) setLeadStage(dragId, col.dataset.stage);
       });
     });
+  }
+  // Cambia la etapa de un lead (desde el board o desde el contacto): pregunta motivo
+  // si es Perdido, sella el hito de la etapa y persiste. Devuelve true si movió.
+  async function setLeadStage(id, stage){
+    const lead = allLeads.find((l) => String(l.id) === String(id));
+    if (!lead || stageOf(lead.status) === stage) return false;
+    const prev = lead.status;
+    let lostReason;
+    if (stage === 'perdido') {
+      lostReason = prompt('¿Por qué se perdió este lead? (opcional)', lead.lost_reason || '');
+      if (lostReason === null) return false;   // canceló → no mover
+    }
+    lead.status = stage;               // optimista
+    const patch = { status: stage };
+    const tsCol = STAGE_TS[stage];
+    if (tsCol && !lead[tsCol]) { const now = new Date().toISOString(); patch[tsCol] = now; lead[tsCol] = now; }
+    if (stage === 'perdido') { patch.lost_reason = lostReason || null; lead.lost_reason = lostReason || null; }
+    renderLeads();
+    const { error } = await supabase.from('leads').update(patch).eq('id', id);
+    if (error) { lead.status = prev; if (tsCol) lead[tsCol] = null; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
+    return true;
   }
 
   /* ---------- Lead detail + draft de respuesta ---------- */
@@ -1697,7 +1711,8 @@
         row('Empresa', ldom ? '<a href="#" class="lm-coclink" data-d="' + esc(ldom) + '">' + esc(companyName(ldom)) + '</a>' : esc(company)) +
         row('Idioma', (r.lang || '—').toUpperCase(), true)) +
       sec('Estado y seguimiento',
-        row('Etapa', '<span class="ab-badge" style="color:' + (st.color || 'var(--muted)') + ';border-color:' + (st.color || 'var(--line-strong)') + '">' + esc(st.label || r.status || '—') + '</span>', true) +
+        row('Etapa', '<select id="lm-stage-sel" class="lm-stage-sel" style="color:' + (st.color || 'var(--text)') + ';border-color:' + (st.color || 'var(--line-strong)') + '">' +
+          STAGES.map((s) => '<option value="' + s.key + '"' + (s.key === stageOf(r.status) ? ' selected' : '') + '>' + s.label + '</option>').join('') + '</select>', true) +
         row('Próximo follow-up', nextF, true) +
         (stageOf(r.status) === 'perdido' ? row('Motivo de pérdida', esc(r.lost_reason || '(sin especificar)'), true) : '')) +
       sec('Origen',
@@ -1708,6 +1723,13 @@
         row('Video call', fmtD(r.videocall_at)) + row('Propuesta', fmtD(r.proposal_at)) +
         row('Ganado', fmtD(r.won_at)) + row('Perdido', fmtD(r.lost_at)));
     $('lm-about').querySelectorAll('.lm-coclink').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); closeLead(); gotoTab('companies'); openCompany(a.dataset.d); }));
+    // etapa editable desde el contacto: mismo flujo que arrastrar en el board
+    const stSel = $('lm-stage-sel');
+    if (stSel) stSel.addEventListener('change', async () => {
+      const ok = await setLeadStage(r.id, stSel.value);
+      if (ok) { toast('Etapa → ' + (STAGES.find((s) => s.key === stSel.value) || {}).label); openLead(r.id); }
+      else stSel.value = stageOf(r.status);   // canceló o falló → volver
+    });
 
     renderLeadScore(r);
     // columna derecha: ofertas (deals) + tasks + notas
@@ -3114,10 +3136,16 @@ ${body}
     $('co-k-value').textContent = fmtChf(data.reduce((a, c) => a + c.value, 0));
     $('co-k-multi').textContent = data.filter((c) => c.contacts.length >= 2).length;
     $('co-empty').hidden = data.length > 0;
-    $('co-list').innerHTML = data.map((c) => '<button class="of-card co-card" data-d="' + esc(c.domain) + '" type="button"><div class="co-av">' + esc(c.name.slice(0, 2).toUpperCase()) + '</div>' +
-      '<div class="of-card-main"><div class="of-card-title">' + esc(c.name) + (c.won ? ' <span class="of-badge" style="color:#7ed957;border-color:#7ed957;font-size:10px">cliente</span>' : '') + '</div>' +
-      '<div class="of-card-sub">' + esc(c.domain) + ' · ' + c.contacts.length + ' contacto' + (c.contacts.length !== 1 ? 's' : '') + '</div></div>' +
-      '<div class="of-card-nums"><div class="of-card-net">' + fmtChf(c.value) + '</div><div class="of-card-margin" style="color:var(--muted-2)">en ofertas</div></div></button>').join('');
+    $('co-list').className = 'co-grid';
+    $('co-list').innerHTML = data.map((c) => {
+      const m = c.meta || {};
+      return '<button class="co-card" data-d="' + esc(c.domain) + '" type="button">' +
+        '<div class="co-card-top"><div class="co-av" style="background:' + coColor(c.name) + '">' + esc(c.name.slice(0, 2).toUpperCase()) + '</div>' +
+          '<div class="co-card-id"><div class="co-card-name">' + esc(c.name) + (c.won ? '<span class="of-badge" style="color:#7ed957;border-color:#7ed957;font-size:10px">cliente</span>' : '') + '</div>' +
+          '<div class="co-card-dom">' + esc(c.domain) + (m.industry ? ' · ' + esc(m.industry) : '') + '</div></div></div>' +
+        '<div class="co-card-stats"><span>👥 ' + c.contacts.length + ' contacto' + (c.contacts.length !== 1 ? 's' : '') + '</span>' +
+          '<span class="co-card-val' + (c.value ? '' : ' zero') + '">' + (c.value ? fmtChf(c.value) : 'sin ofertas') + '</span></div>' +
+      '</button>'; }).join('');
     $('co-list').querySelectorAll('.co-card').forEach((c) => c.addEventListener('click', () => openCompany(c.dataset.d)));
   }
   function openCompany(domain){ coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false; renderCompanyDetail(); window.scrollTo(0, 0); }
@@ -3126,6 +3154,7 @@ ${body}
     const domain = coCur; const data = companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0, won: false };
     const m = coMeta[domain] || {};
     $('co-avatar').textContent = data.name.slice(0, 2).toUpperCase();
+    $('co-avatar').style.background = coColor(data.name); $('co-avatar').style.color = '#0f1826';
     $('co-name').textContent = data.name; $('co-domain').textContent = domain;
     const web = m.website || ('https://' + domain); const wb = $('co-web'); wb.hidden = false; wb.href = web;
     const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + v + '</span></div>' : '';
