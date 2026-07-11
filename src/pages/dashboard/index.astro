@@ -8,6 +8,13 @@
 <meta name="robots" content="noindex,nofollow" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23142033%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2247%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%20font-size%3D%2244%22%20font-weight%3D%22700%22%20fill%3D%22%23ddf98f%22%20text-anchor%3D%22middle%22%3Ev%3C/text%3E%3C/svg%3E" />
 <meta name="theme-color" content="#0f1826" />
+<!-- App móvil: instalable desde Safari → Compartir → "Añadir a pantalla de inicio" -->
+<link rel="manifest" href="/dashboard.webmanifest" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Viven CRM" />
+<link rel="apple-touch-icon" href="/assets/crm-icon.png" />
 <link rel="stylesheet" href="/assets/site.css" />
 <script is:inline>
   // aplicar el tema guardado ANTES del primer render (sin flash)
@@ -508,7 +515,32 @@
   .side-item.disabled{opacity:.45;cursor:not-allowed}
   .side-item.disabled:hover{background:none;color:var(--muted)}
   .dash-main{flex:1;min-width:0}
-  @media(max-width:820px){.dash-body{flex-direction:column}.dash-side{position:static;flex-direction:row;flex-wrap:wrap;width:100%}.dash-side .side-sec{display:none}}
+  /* ---------- Modo app en móvil: sidebar → barra inferior fija ---------- */
+  .mob-nav,.mob-sheet{display:none}
+  @media(max-width:820px){
+    .dash-body{flex-direction:column}
+    .dash-side{display:none}                          /* fuera la lista gigante de arriba */
+    .dash-wrap{padding:18px 14px calc(84px + env(safe-area-inset-bottom))}
+    .dash-head{margin-bottom:14px}
+    .dash-head h1{font-size:22px}
+    .mob-nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:250;background:color-mix(in srgb,var(--navy-800) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line-strong);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+    .mob-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--muted-2);font-family:inherit;cursor:pointer;padding:4px 2px;border-radius:10px}
+    .mob-nav button .mi{font-size:19px;line-height:1}
+    .mob-nav button .ml{font-size:10px;font-weight:600;letter-spacing:.01em}
+    .mob-nav button.active{color:var(--acid)}
+    .mob-sheet{position:fixed;left:12px;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:249;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.5);padding:8px;display:flex;flex-direction:column}
+    .mob-sheet[hidden]{display:none}
+    .mob-sheet button{background:none;border:0;color:var(--text);font-family:inherit;font-size:14.5px;font-weight:600;text-align:left;padding:13px 14px;border-radius:10px;cursor:pointer}
+    .mob-sheet button.active,.mob-sheet button:hover{background:color-mix(in srgb,var(--acid) 10%,transparent);color:var(--acid)}
+    /* modal de contacto a pantalla completa */
+    .lead-modal{padding:0}
+    .lead-modal .lead-card{width:100%;min-height:100dvh;border-radius:0;margin:0}
+  }
+  /* tabla de personas en pantallas chicas: ocultar Canal y Creado para que respire */
+  @media(max-width:560px){
+    .lead-table th:nth-child(5),.lead-table td:nth-child(5),
+    .lead-table th:nth-child(6),.lead-table td:nth-child(6){display:none}
+  }
   /* ---- home ---- */
   .home-h{font-size:22px;margin:0 0 18px}
   .home-h .home-sub{font-size:13px;font-weight:400;color:var(--muted-2);margin-left:6px}
@@ -1066,6 +1098,21 @@
 
     </div><!-- /.dash-main -->
   </div><!-- /.dash-body -->
+
+  <!-- Navegación inferior estilo app (solo móvil) -->
+  <div class="mob-sheet" id="mob-sheet" hidden>
+    <button data-tab="companies" type="button">🏢 Companies</button>
+    <button data-tab="props" type="button">🌐 Propuestas</button>
+    <button data-tab="analytics" type="button">📊 Analytics</button>
+    <button data-tab="blog" type="button">📝 Blog</button>
+  </div>
+  <nav class="mob-nav" id="mob-nav" aria-label="Navegación">
+    <button data-tab="home" class="active" type="button"><span class="mi">🏠</span><span class="ml">Home</span></button>
+    <button data-tab="leads" type="button"><span class="mi">👤</span><span class="ml">Personas</span></button>
+    <button data-tab="deals" type="button"><span class="mi">🤝</span><span class="ml">Deals</span></button>
+    <button data-tab="offers" type="button"><span class="mi">🧾</span><span class="ml">Ofertas</span></button>
+    <button id="mob-more" type="button"><span class="mi">☰</span><span class="ml">Más</span></button>
+  </nav>
 </div>
 
 <!-- ============ LEAD DETAIL MODAL ============ -->
@@ -1159,6 +1206,11 @@
   const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
+    // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
+    const SHEET_TABS = ['companies', 'props', 'analytics', 'blog'];
+    document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
+    const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
     if (tab === 'home') renderHome();
     if (tab === 'companies') renderCompanies();
@@ -1171,6 +1223,10 @@
     if (t.classList.contains('disabled')) return;
     t.addEventListener('click', () => gotoTab(t.dataset.tab));
   });
+  // barra inferior móvil + hoja "Más"
+  document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.addEventListener('click', () => gotoTab(b.dataset.tab)));
+  $('mob-more') && $('mob-more').addEventListener('click', (e) => { e.stopPropagation(); const s = $('mob-sheet'); s.hidden = !s.hidden; });
+  document.addEventListener('click', (e) => { const s = $('mob-sheet'); if (s && !s.hidden && !s.contains(e.target)) s.hidden = true; });
 
   /* ---------- Login ---------- */
   $('login-form').addEventListener('submit', async (e) => {
