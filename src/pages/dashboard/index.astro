@@ -131,6 +131,15 @@
   .detail .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);margin-bottom:4px}
   .detail .v{font-size:13.5px;color:var(--text);word-break:break-all}
   .lead-msg{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px;white-space:pre-wrap}
+  .lm-journey{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:24px}
+  .lm-journey .jr-h{font-size:12.5px;font-weight:700;color:var(--text);margin:6px 0 8px;letter-spacing:.01em}
+  .lm-journey .jr-h span{color:var(--muted-2);font-weight:400}
+  .lm-journey .jr-list{list-style:none;margin:0 0 6px;padding:0;counter-reset:jr}
+  .lm-journey ol.jr-list li{counter-increment:jr}
+  .lm-journey ol.jr-list li::before{content:counter(jr);display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--navy-800);color:var(--muted-2);font-size:10px;margin-right:8px;flex:none}
+  .lm-journey .jr-list li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:3px 0}
+  .lm-journey .jr-path{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .lm-journey .jr-dur{color:var(--muted-2);font-size:12px;white-space:nowrap}
   .draft-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
   .draft-head h4{font-size:15px;display:flex;align-items:center;gap:8px}
   .draft-head h4 span{color:var(--acid)}
@@ -458,7 +467,7 @@
       </div>
     </div>
 
-    <p class="muted-note">Video stats: <span id="ka-videos">–</span> registros. (El tracking de qué % de cada video se mira se conecta en una próxima etapa.)</p>
+    <p class="muted-note">Reproducciones de video: <span id="ka-videos">–</span> · <span id="ka-videos-top"></span> (El % visto de cada video se conecta en una próxima etapa.)</p>
   </div>
 
   <!-- ============ TAB: OFERTAS ============ -->
@@ -656,6 +665,7 @@
     <p class="email-line"><a id="lm-email" href="#"></a> · <span id="lm-date"></span></p>
     <div class="detail-grid" id="lm-details"></div>
     <div class="lead-msg" id="lm-message"></div>
+    <div class="lm-journey" id="lm-journey" hidden></div>
     <div class="draft-head">
       <h4>✍️ <span>Borrador de respuesta</span> (editable — generado según lo que pide)</h4>
       <div style="display:flex;gap:8px;align-items:center">
@@ -846,7 +856,7 @@
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
         .gte('created_at', since()).lte('created_at', until()).limit(20000),
-      supabase.from('video_stats').select('id', { count: 'exact', head: true }),
+      supabase.from('video_plays').select('video_id,label').gte('created_at', since()).lte('created_at', until()).limit(20000),
       supabase.from('offers').select('*').order('updated_at', { ascending: false })
     ]);
     if (leadsQ.error || viewsQ.error) {
@@ -859,7 +869,12 @@
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
     renderLeads();
     renderAnalytics(lastViews, allLeads);
-    $('ka-videos').textContent = videosQ.count ?? 0;
+    // reproducciones de video + top 3 más vistos (si no corrió el SQL 0008, queda en 0)
+    const plays = (videosQ && !videosQ.error) ? (videosQ.data || []) : [];
+    $('ka-videos').textContent = plays.length;
+    const vc = {}; plays.forEach((p) => { const k = p.label || p.video_id; vc[k] = (vc[k] || 0) + 1; });
+    const top = Object.entries(vc).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => esc(String(k).slice(0, 30)) + ' (' + n + ')');
+    $('ka-videos-top').textContent = top.length ? 'Top: ' + top.join(', ') : '';
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     subscribeRealtime();
   }
@@ -1222,6 +1237,32 @@
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    loadJourney(r);
+  }
+  // Recorrido del lead: páginas visitadas + videos vistos (por session_id)
+  async function loadJourney(r){
+    const box = $('lm-journey');
+    box.hidden = true; box.innerHTML = '';
+    if (!r.session_id) return;
+    try {
+      const [pv, vp] = await Promise.all([
+        supabase.from('pageviews').select('path,created_at,duration').eq('session_id', r.session_id).order('created_at', { ascending: true }).limit(200),
+        supabase.from('video_plays').select('video_id,label,created_at').eq('session_id', r.session_id).order('created_at', { ascending: true }).limit(100)
+      ]);
+      const pages = pv.data || [], vids = vp.data || [];
+      if (!pages.length && !vids.length) return;
+      const fmtT = (d) => new Date(d).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      let html = '';
+      if (pages.length) {
+        html += '<div class="jr-h">🧭 Páginas visitadas <span>(' + pages.length + ')</span></div><ol class="jr-list">' +
+          pages.map((p) => '<li><span class="jr-path">' + esc(p.path || '/') + '</span>' + (p.duration > 0 ? '<span class="jr-dur">' + Math.round(p.duration) + 's</span>' : '') + '</li>').join('') + '</ol>';
+      }
+      if (vids.length) {
+        html += '<div class="jr-h">🎬 Videos que vio <span>(' + vids.length + ')</span></div><ul class="jr-list">' +
+          vids.map((v) => '<li><span class="jr-path">' + esc(v.label || v.video_id) + '</span><span class="jr-dur">' + fmtT(v.created_at).split(' ').slice(-1)[0] + '</span></li>').join('') + '</ul>';
+      }
+      box.innerHTML = html; box.hidden = false;
+    } catch (e) { /* silencioso: ¿corriste el SQL 0008? */ }
   }
   function updateMailto(){
     if (!currentLead) return;

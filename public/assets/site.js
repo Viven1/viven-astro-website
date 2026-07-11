@@ -152,6 +152,12 @@ var modal = document.getElementById('video-modal');
 var mount = document.getElementById('video-mount');
 function openVideo(id, title, hash){
   if(!id || !modal) return false;
+  /* tracking: qué video abrió esta sesión (para analytics + "videos vistos" por lead) */
+  try{
+    if(!/^(localhost|127\.|192\.168\.)/.test(location.hostname)){
+      sbInsert('video_plays', { session_id: sessionStorage.getItem('viven-session') || 'no-storage', video_id: String(id), label: title || null, lang: document.documentElement.lang || null });
+    }
+  }catch(e){}
   var h = hash ? 'h=' + hash + '&' : '';   /* videos privados de Vimeo necesitan el token */
   mount.innerHTML = '<iframe src="https://player.vimeo.com/video/' + id + '?' + h + 'autoplay=1&dnt=1&title=0&byline=0&portrait=0" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" title="' + (title || 'Viven video') + '"></iframe>';
   modal.classList.add('open');
