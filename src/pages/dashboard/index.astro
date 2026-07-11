@@ -1794,7 +1794,7 @@
   function cardHTML(r, st){
     const PRIO = { won: 0, sent: 1, draft: 2, lost: 3 };
     const ofs = offersForLead(r.id).slice().sort((a, b) => (PRIO[a.status] ?? 9) - (PRIO[b.status] ?? 9));
-    let total = leadValue(r);
+    let total = st.key === 'perdido' ? leadLostValue(r) : leadValue(r);
     let est = '';
     if (!offersForLead(r.id).some((o) => o.status !== 'lost') && Number(r.deal_value)) est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>';
     const ost = ofs.length ? '<span class="pc-ost" style="color:' + (OF_COLOR[ofs[0].status] || '#8ab4ff') + '">' + (OF_ST[ofs[0].status] || '') + '</span>' : '';
@@ -1832,6 +1832,9 @@
     return open || Number(l.deal_value) || 0;
   };
   const leadsValue = (leads) => leads.reduce((a, l) => a + leadValue(l), 0);
+  // valor PERDIDO: lo que estaba sobre la mesa cuando se perdió (ofertas incl. perdidas, o estimado)
+  const leadLostValue = (l) => offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0) || Number(l.deal_value) || 0;
+  const leadsLostValue = (leads) => leads.reduce((a, l) => a + leadLostValue(l), 0);
   const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
 
   function renderPipeline(){
@@ -1840,24 +1843,28 @@
     const byStage = {}; STAGES.forEach((s) => byStage[s.key] = []);
     rows.forEach((r) => byStage[stageOf(r.status)].push(r));
     Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
-    // resumen del pipeline (tipo HubSpot): abierto, ponderado (forecast), ganado, total
+    // resumen: TOTAL del pipeline → abierto → ganado (con % del decidido) → perdido (para que duela y no se repita)
     const OPEN = ['nuevo', 'contactado', 'videocall', 'propuesta'];
     const openVal = OPEN.reduce((a, k) => a + leadsValue(byStage[k]), 0);
     const openCnt = OPEN.reduce((a, k) => a + byStage[k].length, 0);
     const weighted = OPEN.reduce((a, k) => a + leadsValue(byStage[k]) * (STAGES.find((s) => s.key === k).prob), 0);
     const wonVal = leadsValue(byStage['ganado']);
+    const lostVal = leadsLostValue(byStage['perdido']);
+    const totalVal = openVal + wonVal + lostVal;
+    const decided = wonVal + lostVal;
+    const winPct = decided ? Math.round(wonVal / decided * 100) : null;
     const sum = $('deals-sum');
     if (sum) sum.innerHTML =
-      '<div class="ds"><div class="dv">' + fmtChf(openVal) + '</div><div class="dl">Pipeline abierto · ' + openCnt + ' deal' + (openCnt !== 1 ? 's' : '') + '</div></div>' +
-      '<div class="ds"><div class="dv" style="color:var(--acid)">' + fmtChf(Math.round(weighted)) + '</div><div class="dl">Ponderado (forecast)</div></div>' +
-      '<div class="ds"><div class="dv" style="color:#7ed957">' + fmtChf(wonVal) + '</div><div class="dl">Ganado (' + byStage['ganado'].length + ')</div></div>' +
-      '<div class="ds"><div class="dv">' + rows.length + '</div><div class="dl">Deals en total</div></div>';
+      '<div class="ds"><div class="dv">' + fmtChf(totalVal) + '</div><div class="dl">Pipeline TOTAL · ' + rows.length + ' deals</div></div>' +
+      '<div class="ds"><div class="dv">' + fmtChf(openVal) + '</div><div class="dl">Abierto (' + openCnt + ') · pond. ' + fmtChf(Math.round(weighted)) + '</div></div>' +
+      '<div class="ds"><div class="dv" style="color:#7ed957">' + fmtChf(wonVal) + '</div><div class="dl">Ganado (' + byStage['ganado'].length + ')' + (winPct !== null ? ' · <b style="color:#7ed957">' + winPct + '%</b> del decidido' : '') + '</div></div>' +
+      '<div class="ds"><div class="dv" style="color:#ff6b6b">' + fmtChf(lostVal) + '</div><div class="dl">Perdido (' + byStage['perdido'].length + ')' + (winPct !== null ? ' · ' + (100 - winPct) + '% — que no se repita' : '') + '</div></div>';
     const pipe = $('pipeline');
     pipe.className = 'pipeline';
     pipe.innerHTML = STAGES.map((s) => {
       const n = byStage[s.key].length;
       const cards = byStage[s.key].map((r) => cardHTML(r, s)).join('') || '<div class="pipe-empty">Sin deals</div>';
-      const val = leadsValue(byStage[s.key]);
+      const val = s.key === 'perdido' ? leadsLostValue(byStage[s.key]) : leadsValue(byStage[s.key]);
       const wt = Math.round(val * s.prob);
       return '<div class="pipe-col" data-stage="' + s.key + '">' +
         '<div class="pipe-col-head"><span class="bar" style="background:' + s.color + '"></span><span class="st">' + s.label + '</span><span class="cnt">' + n + '</span></div>' +
