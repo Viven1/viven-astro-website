@@ -3905,7 +3905,7 @@
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
       client: c.client || {},
-      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => g.items || []), videos: c.videos || [], terms: c.terms || DEFAULT_TERMS, testimonials: c.testimonials || pickReviews('general') };
+      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => (g.items || []).map((a) => ({ ...a, max: a.max || 1 }))), videos: c.videos || [], terms: c.terms || DEFAULT_TERMS, testimonials: c.testimonials || pickReviews('general') };
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
   function openProp(id){ const src = ppList.find((p) => String(p.id) === String(id)); if (!src) return; ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); }
@@ -3968,7 +3968,9 @@
   function renderAddonRows(){
     $('pp-addons-list').innerHTML = (ppCur.addons || []).map((a, i) =>
       '<div class="pp-row"><div class="rowtop"><input class="a-name grow" placeholder="Nombre (Drone)" value="' + esc(a.name || '') + '"/>' +
-      '<input class="a-price" type="number" placeholder="CHF" value="' + (a.price || 0) + '" style="width:110px"/><button class="rm" type="button" data-i="' + i + '">✕</button></div>' +
+      '<input class="a-price" type="number" placeholder="CHF" value="' + (a.price || 0) + '" style="width:110px"/>' +
+      '<input class="a-max" type="number" min="1" max="20" title="Cantidad máxima que puede elegir el cliente (1 = checkbox simple; ej. idiomas o rondas de revisión → 5)" placeholder="máx" value="' + (a.max || 1) + '" style="width:64px"/>' +
+      '<button class="rm" type="button" data-i="' + i + '">✕</button></div>' +
       '<input class="a-note grow" placeholder="Nota (opcional)" value="' + esc(a.note || '') + '" style="width:100%"/></div>').join('');
     $('pp-addons-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.addons.splice(+b.dataset.i, 1); renderAddonRows(); }));
   }
@@ -3982,7 +3984,7 @@
     event:    [{ id: 757649241, t: 'FIFA — Living Football' }, { id: 861150876, t: 'SV Group — Innovation Film' }],
     general:  [{ id: 1068759409, t: 'UBS — Corporate' }, { id: 861150876, t: 'SV Group — Innovation Film' }]
   };
-  const TESTI_VIDEO = { id: 866299843, t: 'Client testimonials — why work with Viven' };
+  const TESTI_VIDEO = { id: 1036679041, t: 'Client testimonials 2023 — Siemens, Meteomatics & SV Group' };
   // según el tipo de proyecto (detectado de la consulta/título): 2 del portfolio + 1 testimonial
   function suggestVideos(){
     collectEditor();
@@ -4022,7 +4024,7 @@
       recommended: r.querySelector('.t-rec').checked, includes: r.querySelector('.t-inc').value.split('\n').map((s) => s.trim()).filter(Boolean),
       items: (oldT[i] && oldT[i].items) || []
     }));
-    ppCur.addons = [...document.querySelectorAll('#pp-addons-list .pp-row')].map((r) => ({ name: r.querySelector('.a-name').value, note: r.querySelector('.a-note').value, price: parseFloat(r.querySelector('.a-price').value) || 0 })).filter((a) => a.name);
+    ppCur.addons = [...document.querySelectorAll('#pp-addons-list .pp-row')].map((r) => ({ name: r.querySelector('.a-name').value, note: r.querySelector('.a-note').value, price: parseFloat(r.querySelector('.a-price').value) || 0, max: Math.max(1, parseInt((r.querySelector('.a-max') || {}).value) || 1) })).filter((a) => a.name);
     ppCur.videos = [...document.querySelectorAll('#pp-videos-list .pp-row')].map((r) => ({ url: r.querySelector('.v-url').value.trim(), title: r.querySelector('.v-title').value.trim(), label: r.querySelector('.v-label').value })).filter((v) => v.url);
   }
   function buildContent(){
@@ -4032,7 +4034,7 @@
       intro: ppCur.intro, intro_sign: { name: s.name, role: s.role }, testimonials: ppCur.testimonials || DEFAULT_TESTIMONIALS,
       overview: { objective: ppCur.objective, outputs: ppCur.outputs, location: ppCur.location, timing: ppCur.timing, delivery: ppCur.delivery },
       scope: ppCur.scope, tiers: ppCur.tiers,
-      addon_groups: (ppCur.addons && ppCur.addons.length) ? [{ title: 'Add-ons', items: ppCur.addons.map((a) => ({ name: a.name, note: a.note, price: a.price })) }] : [],
+      addon_groups: (ppCur.addons && ppCur.addons.length) ? [{ title: 'Add-ons', items: ppCur.addons.map((a) => ({ name: a.name, note: a.note, price: a.price, max: a.max || 1 })) }] : [],
       videos: ppCur.videos, terms: ppCur.terms || '', vat_rate: ppCur.vat_rate, sender: { name: s.name, email: s.email, phone: s.phone }
     };
   }

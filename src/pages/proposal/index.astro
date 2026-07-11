@@ -114,6 +114,23 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .pp-err{color:#ff8b8b;font-size:13.5px;margin-top:12px;min-height:18px}
   .pp-accepted-banner{background:color-mix(in srgb,#7ed957 14%,var(--navy-800));border:1px solid color-mix(in srgb,#7ed957 45%,var(--line));border-radius:14px;padding:16px 18px;margin:20px 0;color:var(--text);font-size:15px}
   @media(max-width:640px){.pp-grid3{grid-template-columns:1fr}.pp-acc-form{grid-template-columns:1fr}}
+  /* ---- polish jul 2026: brand bar, prepared-for card, testimonial video, qty add-ons ---- */
+  .pp-brand{display:flex;align-items:center;gap:10px;padding:18px 0 0}
+  .pp-logo{font-family:'Space Grotesk';font-weight:800;font-size:22px;letter-spacing:-.02em;color:var(--acid)}
+  .pp-fp{font-size:8.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted-2)}
+  .pp-brand-r{margin-left:auto;font-size:12px;color:var(--muted)}
+  .pp-hero{padding:44px 0 34px;border-bottom:1px solid var(--line)}
+  .pp-for-card{display:inline-block;margin-top:18px;border:1px solid var(--line);background:var(--navy-800);border-radius:14px;padding:14px 18px;font-size:13.5px;line-height:1.65;color:var(--text)}
+  .pp-for-card .pf-k{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);margin-bottom:6px}
+  .pp-testi{margin-top:18px}
+  .pp-testi .pp-vid-frame{border-color:color-mix(in srgb,var(--acid) 30%,var(--line))}
+  .pp-add .a-qty{display:inline-flex;align-items:center;gap:10px;margin-top:8px;border:1px solid var(--line-strong);border-radius:100px;padding:3px 6px}
+  .pp-add .a-qty button{width:26px;height:26px;border-radius:50%;border:0;background:var(--navy-700);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;line-height:1}
+  .pp-add .a-qty button:hover{background:var(--acid);color:#10210a}
+  .pp-add .a-qty b{min-width:16px;text-align:center;font-size:14px}
+  .pp-add .a-x{color:var(--acid)}
+  .pp-add .a-each{font-size:11px;color:var(--muted-2);font-weight:400;text-align:right}
+  .pp-sec{scroll-margin-top:70px}
 </style>
 </head>
 <body>
@@ -152,7 +169,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => 'CHF ' + (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  let content = null, selTier = 0, selAddons = new Set();
+  let content = null, selTier = 0, selAddons = new Map();   // k "gi:ii" → cantidad elegida
 
   // Vimeo / YouTube URL → URL de embed. Soporta vimeo.com/ID, player.vimeo.com, youtu.be, youtube watch.
   function embedUrl(u){
@@ -207,7 +224,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   function addonPrice(gi, ii){ const it = content.addon_groups[gi].items[ii]; return Number(it.price) || 0; }
   function subtotal(){
     let s = content.tiers.length ? tierPrice(content.tiers[selTier]) : 0;
-    selAddons.forEach((k) => { const [gi, ii] = k.split(':').map(Number); s += addonPrice(gi, ii); });
+    selAddons.forEach((q, k) => { const [gi, ii] = k.split(':').map(Number); s += addonPrice(gi, ii) * (q || 1); });
     return s;
   }
   function totals(){ const net = subtotal(), vat = net * (Number(content.vat_rate) || 0) / 100; return { net, vat, gross: net + vat }; }
@@ -245,7 +262,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         '<ul class="t-inc">' + inc + '</ul>' +
         '<div class="t-pick">' + (i === selTier ? '✓ Selected' : 'Select this package') + '</div></div>';
     }).join('');
-    const videos = (c.videos || []).map((v) => {
+    const isTesti = (v) => /testimonial/i.test((v.label || '') + ' ' + (v.title || ''));
+    const testiV = (c.videos || []).find(isTesti) || { url: 'https://vimeo.com/1036679041', title: 'Hear it from our clients — Siemens, Meteomatics & SV Group', label: 'Testimonial' };
+    const videos = (c.videos || []).filter((v) => !isTesti(v)).map((v) => {
       const emb = embedUrl(v.url);
       if (!emb) return '';
       return '<figure class="pp-vid">' +
@@ -256,15 +275,20 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     const addons = (c.addon_groups || []).map((g, gi) =>
       '<div class="pp-addg"><h3>' + esc(g.title) + '</h3>' +
       (g.items || []).map((it, ii) => {
-        const k = gi + ':' + ii, on = selAddons.has(k);
+        const k = gi + ':' + ii, q = selAddons.get(k) || 0, on = q > 0;
+        const max = Math.max(1, Number(it.max) || 1);
+        // add-ons con cantidad (idiomas, rondas de revisión…): selector 1..max al elegirlo
+        const qtyUI = max > 1 && on
+          ? '<span class="a-qty" data-k="' + k + '"><button type="button" class="q-m">−</button><b>' + q + '</b><button type="button" class="q-p">+</button></span>'
+          : (max > 1 ? '<span class="a-note">hasta ' + max + '×</span>' : '');
         return '<label class="pp-add' + (on ? ' sel' : '') + '" data-k="' + k + '"><input type="checkbox"' + (on ? ' checked' : '') + '/>' +
-          '<div class="a-main"><div class="a-name">' + esc(it.name) + '</div>' +
-          (it.note ? '<div class="a-note">' + esc(it.note) + '</div>' : '') +
-          '<div class="a-note">' + (it.qty ? esc(it.qty) + ' ' + esc(it.unit || '') : '') + '</div></div>' +
-          '<div class="a-price">' + fmt(it.price) + '</div></label>';
+          '<div class="a-main"><div class="a-name">' + esc(it.name) + (on && q > 1 ? ' <b class="a-x">×' + q + '</b>' : '') + '</div>' +
+          (it.note ? '<div class="a-note">' + esc(it.note) + '</div>' : '') + qtyUI + '</div>' +
+          '<div class="a-price">' + fmt((Number(it.price) || 0) * (on ? q : 1)) + (on && q > 1 ? '<div class="a-each">' + fmt(it.price) + ' each</div>' : '') + '</div></label>';
       }).join('') + '</div>').join('');
 
     $('pp-body').innerHTML =
+      '<div class="pp-brand"><span class="pp-logo">viven</span><span class="pp-fp">Film Production</span><span class="pp-brand-r">★★★★★ 5.0 on Google</span></div>' +
       '<section class="pp-hero pp-sec">' +
         '<div class="pp-eyebrow">Proposal</div>' +
         '<h1 class="pp-h1">' + esc(c.title || 'Video Production Proposal') + '</h1>' +
@@ -272,7 +296,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           const cl = c.client || {};
           const L = [cl.company, c.client_name, cl.address, cl.zip_city, cl.phone].filter((x) => x && String(x).trim());
           if (!L.length) return c.client_name ? '<div class="pp-for">Prepared for ' + esc(c.client_name) + '</div>' : '';
-          return '<div class="pp-for">Prepared for<br>' + L.map((x) => esc(x)).join('<br>') + '</div>';
+          return '<div class="pp-for pp-for-card"><span class="pf-k">Prepared for</span>' + L.map((x) => esc(x)).join('<br>') + '</div>';
         })() +
       '</section>' +
       (c.accepted_banner || '') +
@@ -289,7 +313,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         '</div></section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
       (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
-      '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge + quotesRest + '</section>' +
+      '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge +
+        (embedUrl(testiV.url) ? '<figure class="pp-vid pp-testi"><div class="pp-vid-frame"><iframe src="' + esc(embedUrl(testiV.url)) + '" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><figcaption class="pp-vid-title">' + esc(testiV.title || 'Hear it from our clients') + '</figcaption></figure>' : '') +
+        quotesRest + '</section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
         '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
       (c.terms ? '<section class="pp-sec"><div class="pp-eyebrow">Terms &amp; Conditions</div><div class="pp-terms">' + esc(c.terms) + '</div><div class="pp-terms-gtc"><a href="https://viven.ch/terms-and-conditions/" target="_blank" rel="noopener">General Terms and Conditions ↗</a></div></section>' : '') +
@@ -306,8 +332,16 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     // bind
     document.querySelectorAll('.pp-tier').forEach((el) => el.addEventListener('click', () => { selTier = +el.dataset.t; render(); scrollKeep(); }));
     document.querySelectorAll('.pp-add').forEach((el) => el.addEventListener('click', (e) => {
-      e.preventDefault(); const k = el.dataset.k; selAddons.has(k) ? selAddons.delete(k) : selAddons.add(k); render(); scrollKeep();
+      if (e.target.closest('.a-qty')) return;    // los botones −/+ manejan lo suyo
+      e.preventDefault(); const k = el.dataset.k; selAddons.has(k) ? selAddons.delete(k) : selAddons.set(k, 1); render(); scrollKeep();
     }));
+    document.querySelectorAll('.a-qty').forEach((el) => {
+      const k = el.dataset.k;
+      const [gi, ii] = k.split(':').map(Number);
+      const max = Math.max(1, Number((content.addon_groups[gi].items[ii] || {}).max) || 1);
+      el.querySelector('.q-m').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); const q = (selAddons.get(k) || 1) - 1; q <= 0 ? selAddons.delete(k) : selAddons.set(k, q); render(); scrollKeep(); });
+      el.querySelector('.q-p').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); selAddons.set(k, Math.min(max, (selAddons.get(k) || 1) + 1)); render(); scrollKeep(); });
+    });
     const accBtn = $('pp-do-accept'); if (accBtn) accBtn.addEventListener('click', doAccept);
     if (c.accepted) lockAccepted(c.accepted);
     refreshTotals();
@@ -327,7 +361,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     if (!name || !/\S+@\S+\.\S+/.test(email)) { err.textContent = 'Please enter your name and a valid email.'; return; }
     if (DEMO_MODE) { lockAccepted({ name, at: new Date().toISOString() }); return; }
     const btn = $('pp-do-accept'); btn.disabled = true; btn.textContent = 'Accepting…';
-    const addons = [...selAddons].map((k) => { const [gi, ii] = k.split(':').map(Number); return content.addon_groups[gi].items[ii].name; });
+    const addons = [...selAddons.entries()].map(([k, q]) => { const [gi, ii] = k.split(':').map(Number); const it = content.addon_groups[gi].items[ii]; return it.name + (q > 1 ? ' ×' + q : ''); });
     try {
       const res = await fetch(FN('accept-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({
         slug, password: PASS, name, email, tier: (content.tiers[selTier] || {}).name, addons, total: totals().gross
