@@ -32,6 +32,10 @@ create policy companies_all_auth on public.companies for all to authenticated us
 
 -- rol/cargo de la persona dentro de la empresa (financial, project manager, etc.)
 alter table public.leads add column if not exists job_title text;
+-- empresa a la que pertenece la persona: nombre visible + dominio (clave de la empresa).
+-- si company_domain está seteado, manda por sobre el dominio del email (connect/override).
+alter table public.leads add column if not exists company        text;
+alter table public.leads add column if not exists company_domain text;
 
 create or replace function public.touch_companies_updated_at()
 returns trigger language plpgsql as $$
