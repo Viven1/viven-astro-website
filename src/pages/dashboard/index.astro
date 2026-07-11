@@ -687,8 +687,12 @@
       <div class="pp-grid" style="grid-template-columns:1fr 1fr auto;align-items:end">
         <div class="bf"><label>Título SEO</label><input id="bg-title" /></div>
         <div class="bf"><label>Slug</label><input id="bg-slug" /></div>
-        <button class="btn btn-ghost small" id="bg-copy" type="button" style="margin-bottom:0">⧉ Copiar .astro para publicar</button>
+        <div style="display:flex;gap:8px;margin-bottom:0">
+          <button class="btn btn-primary small" id="bg-publish" type="button">🚀 Publicar en la web</button>
+          <button class="btn btn-ghost small" id="bg-copy" type="button">⧉ Copiar .astro</button>
+        </div>
       </div>
+      <p class="muted-note" id="bg-pub-note" style="margin:-6px 0 10px"></p>
       <div class="bf"><label>Meta description</label><input id="bg-desc" /></div>
       <div class="pp-sec-h">Vista previa</div>
       <div class="post-preview" id="bg-preview"></div>
@@ -2222,6 +2226,7 @@
   function blogInit(){ if (bgBuilt) return; bgBuilt = true;
     $('bg-gen').addEventListener('click', generateBlog);
     $('bg-copy').addEventListener('click', copyBlogAstro);
+    $('bg-publish').addEventListener('click', publishBlog);
   }
   // [[slug|anchor]] → link interno; para el preview usamos viven.ch, para el .astro usamos p("slug")
   const blogPreviewHtml = (html) => (html || '').replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_, s, a) => '<a href="https://www.viven.ch/' + s.trim() + '/">' + a.trim() + '</a>');
@@ -2247,8 +2252,9 @@
     } catch (e) { $('bg-note').textContent = 'No se pudo generar (¿deployaste ai-blog + crédito Anthropic?): ' + e.message; }
     finally { btn.disabled = false; btn.textContent = prev; }
   }
-  function copyBlogAstro(){
-    if (!bgCur) return;
+  // arma { path, content } del .astro listo para commitear
+  function buildBlogAstro(){
+    if (!bgCur) return null;
     const lang = bgCur.lang || 'en';
     const slug = ($('bg-slug').value.trim() || bgCur.slug);
     const title = $('bg-title').value.trim(), desc = $('bg-desc').value.trim();
@@ -2283,7 +2289,27 @@ ${body}
 </div></div></section>
 </Base>`;
     const path = 'src/pages/' + lang + '/blog/' + slug + '/index.astro';
-    navigator.clipboard.writeText(astro).then(() => toast('Copiado. Pegalo en: ' + path + ' → commit → deploy'));
+    return { path, content: astro, slug, lang };
+  }
+  function copyBlogAstro(){
+    const b = buildBlogAstro(); if (!b) return;
+    navigator.clipboard.writeText(b.content).then(() => toast('Copiado. Pegalo en: ' + b.path));
+  }
+  async function publishBlog(){
+    const b = buildBlogAstro(); if (!b) return;
+    if (!/^[a-z0-9-]+$/.test(b.slug)) { toast('El slug solo puede tener letras, números y guiones'); return; }
+    if (!confirm('¿Publicar "' + $('bg-title').value + '" en la web?\n\nSe commitea a GitHub y Netlify lo publica en ~1-2 min en viven.ch/blog/' + b.slug + '/')) return;
+    const btn = $('bg-publish'), prev = btn.textContent; btn.disabled = true; btn.textContent = '🚀 Publicando…';
+    $('bg-pub-note').textContent = 'Commiteando a GitHub…';
+    try {
+      const { data, error } = await supabase.functions.invoke('publish-blog', { body: { path: b.path, content: b.content, message: 'blog: ' + $('bg-title').value } });
+      if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
+      const liveUrl = 'https://www.viven.ch/' + b.lang + '/blog/' + b.slug + '/';
+      $('bg-pub-note').innerHTML = (data.updated ? '✅ Actualizado' : '✅ Publicado') + ' — Netlify lo está deployando (~1-2 min). Va a estar en <a href="' + esc(liveUrl) + '" target="_blank" style="color:var(--acid)">' + esc(liveUrl) + '</a>' + (data.commit ? ' · <a href="' + esc(data.commit) + '" target="_blank" style="color:var(--muted)">ver commit</a>' : '');
+      toast('🚀 Publicado — deployando en Netlify');
+    } catch (e) {
+      $('bg-pub-note').textContent = 'No se pudo publicar (¿deployaste publish-blog + seteaste GITHUB_TOKEN?): ' + e.message;
+    } finally { btn.disabled = false; btn.textContent = prev; }
   }
 
   /* ---------- Sesión persistente ---------- */
