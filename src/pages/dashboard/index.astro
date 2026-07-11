@@ -252,7 +252,15 @@
       <h1>Viven <span>Dashboard</span></h1>
       <p class="dash-sub" id="updated-at">Últimos 30 días</p>
     </div>
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <select id="range-sel" class="status" title="Período">
+        <option value="1">Hoy</option>
+        <option value="7">7 días</option>
+        <option value="30" selected>30 días</option>
+        <option value="90">90 días</option>
+        <option value="365">1 año</option>
+      </select>
+      <input type="date" id="range-day" class="status" title="Un día puntual" />
       <button class="btn btn-ghost small" id="refresh-btn" type="button">↻ Actualizar</button>
       <button class="btn btn-ghost small" id="logout-btn" type="button">Salir</button>
     </div>
@@ -267,8 +275,8 @@
   <!-- ============ TAB: LEADS ============ -->
   <div id="tab-leads">
     <div class="kpis four">
-      <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Leads totales</div></div>
-      <div class="kpi"><div class="n" id="kl-week">–</div><div class="l">Últimos 7 días</div></div>
+      <div class="kpi"><div class="n" id="kl-total">–</div><div class="l">Leads totales (histórico)</div></div>
+      <div class="kpi"><div class="n" id="kl-week">–</div><div class="l" id="kl-week-l">En el período</div></div>
       <div class="kpi"><div class="n" id="kl-new">–</div><div class="l">Sin contactar</div></div>
       <div class="kpi"><div class="n" id="kl-ads">–</div><div class="l">Desde Google Ads (GCLID)</div></div>
     </div>
@@ -519,6 +527,16 @@
     show('login');
   });
   $('refresh-btn').addEventListener('click', loadAll);
+  /* filtro global de período */
+  $('range-sel').addEventListener('change', (e) => {
+    rangeDays = parseInt(e.target.value, 10) || 30;
+    rangeDay = null; $('range-day').value = '';
+    loadAll();
+  });
+  $('range-day').addEventListener('change', (e) => {
+    rangeDay = e.target.value || null;
+    loadAll();
+  });
 
   /* ---------- Insights con IA (Edge Function ai-insights → Claude) ---------- */
   $('ai-insights-btn').addEventListener('click', async () => {
@@ -543,15 +561,26 @@
   });
 
   /* ---------- Data ---------- */
-  const DAYS = 30;
-  const since = () => new Date(Date.now() - DAYS * 864e5).toISOString();
+  /* ---------- Ventana de tiempo (filtro global) ---------- */
+  let rangeDays = 30;      // preset: 1 / 7 / 30 / 90 / 365
+  let rangeDay = null;     // 'YYYY-MM-DD' → un día puntual (pisa el preset)
+  const rangeStart = () => rangeDay ? new Date(rangeDay + 'T00:00:00').getTime() : Date.now() - rangeDays * 864e5;
+  const rangeEnd = () => rangeDay ? new Date(rangeDay + 'T23:59:59.999').getTime() : Date.now();
+  const inRange = (d) => { const t = new Date(d).getTime(); return t >= rangeStart() && t <= rangeEnd(); };
+  const rangeLabel = () => rangeDay
+    ? new Date(rangeDay + 'T00:00:00').toLocaleDateString('es-CH', { day: '2-digit', month: 'long', year: 'numeric' })
+    : (rangeDays === 1 ? 'Hoy' : 'Últimos ' + rangeDays + ' días');
+  // nº de días que muestra el gráfico diario (acotado para que el SVG no explote)
+  const rangeSpanDays = () => rangeDay ? 1 : rangeDays;
+  const since = () => new Date(rangeStart()).toISOString();
+  const until = () => new Date(rangeEnd()).toISOString();
 
   async function loadAll(){
     const [leadsQ, viewsQ, videosQ] = await Promise.all([
-      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(1000),
+      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
-        .gte('created_at', since()).limit(20000),
+        .gte('created_at', since()).lte('created_at', until()).limit(20000),
       supabase.from('video_stats').select('id', { count: 'exact', head: true })
     ]);
     if (leadsQ.error || viewsQ.error) {
@@ -563,7 +592,7 @@
     renderLeads();
     renderAnalytics(lastViews, allLeads);
     $('ka-videos').textContent = videosQ.count ?? 0;
-    $('updated-at').textContent = 'Últimos 30 días · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+    $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     subscribeRealtime();
   }
 
@@ -613,6 +642,7 @@
 
   function filteredLeads(){
     return allLeads.filter((r) => {
+      if (!inRange(r.created_at)) return false;
       if (statusFilter === 'new' && !isNew(r.status)) return false;
       if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
       if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
@@ -625,17 +655,19 @@
   }
 
   function renderLeads(){
-    const week = Date.now() - 7 * 864e5;
-    $('kl-total').textContent = allLeads.length;
-    $('tab-leads-count').textContent = allLeads.filter((r) => isNew(r.status)).length;
-    $('kl-week').textContent = allLeads.filter((r) => new Date(r.created_at) > week).length;
-    $('kl-new').textContent = allLeads.filter((r) => isNew(r.status)).length;
-    $('kl-ads').textContent = allLeads.filter((r) => r.gclid).length;
+    /* leads dentro de la ventana de tiempo seleccionada */
+    const viewLeads = allLeads.filter((r) => inRange(r.created_at));
+    $('kl-total').textContent = allLeads.length;                       // histórico
+    $('tab-leads-count').textContent = allLeads.filter((r) => isNew(r.status)).length; // sin contactar SIEMPRE (accionable)
+    $('kl-week').textContent = viewLeads.length;                       // en el período
+    $('kl-week-l').textContent = rangeDay ? rangeLabel() : 'En el período (' + rangeLabel().toLowerCase() + ')';
+    $('kl-new').textContent = viewLeads.filter((r) => isNew(r.status)).length;
+    $('kl-ads').textContent = viewLeads.filter((r) => r.gclid).length;
 
-    /* estado del pipeline + follow-ups */
+    /* estado del pipeline + follow-ups — sobre los leads del período */
     /* usa la MISMA clasificación que el pipeline (stageOf) — si no, un lead arrastrado
        a "Ganado" queda con status 'ganado' y el KPI won ('won'/'cerrado') no lo contaba */
-    const byStage = (k) => allLeads.filter((r) => stageOf(r.status) === k).length;
+    const byStage = (k) => viewLeads.filter((r) => stageOf(r.status) === k).length;
     const contacted = byStage('contactado');
     const won = byStage('ganado');
     const lost = byStage('perdido');
@@ -996,9 +1028,8 @@
     const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
     const entries = real.filter((r) => r.is_entry);
     const sessions = new Set(real.map((r) => r.session_id));
-    const periodStart = Date.now() - DAYS * 864e5;
     const periodLeads = (leads || []).filter((l) =>
-      new Date(l.created_at).getTime() >= periodStart && !/^claude-/.test(l.session_id || ''));
+      inRange(l.created_at) && !/^claude-/.test(l.session_id || ''));
 
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     $('ka-views').textContent = real.length;
@@ -1009,10 +1040,12 @@
     $('ka-conv').textContent = periodLeads.length;
     $('ka-rate').textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
 
-    /* tráfico + leads por día */
+    /* tráfico + leads por día (anclado al fin de la ventana) */
+    const span = rangeSpanDays();
+    const anchor = rangeEnd();
     const days = [];
-    for (let i = DAYS - 1; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 864e5);
+    for (let i = span - 1; i >= 0; i--) {
+      const d = new Date(anchor - i * 864e5);
       days.push({ key: d.toISOString().slice(0, 10), label: d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), set: new Set(), leads: 0 });
     }
     const dayMap = new Map(days.map((d) => [d.key, d]));
@@ -1060,7 +1093,7 @@
 
     /* resumen compacto para los insights con IA */
     insightsData = {
-      dias: DAYS,
+      periodo: rangeLabel(),
       sesiones: sessions.size,
       paginas_vistas: real.length,
       tiempo_medio_seg: Math.round(avg),
