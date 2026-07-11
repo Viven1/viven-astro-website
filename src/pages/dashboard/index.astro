@@ -1321,6 +1321,10 @@
           <div id="lm-enrich"><p class="muted-note">Sin datos todavía.</p></div>
         </div>
         <div class="lm-block">
+          <div class="lm-block-h">📋 Brief del proyecto</div>
+          <div id="lm-brief"><p class="muted-note">Cargando…</p></div>
+        </div>
+        <div class="lm-block">
           <div class="draft-head">
             <div class="lm-block-h" style="margin:0">✍️ Responder <span class="muted-note" id="lm-status-note" style="font-weight:400"></span></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -2479,6 +2483,7 @@
 
     $('lm-message').textContent = r.message || '(sin mensaje)';
     renderEnrichment(r);
+    renderBriefBlock(r);
     $('lm-sender').value = sender;
     const draft = buildDraft(r);
     $('lm-draft').value = draft;
@@ -2488,6 +2493,24 @@
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     loadJourney(r);
+  }
+
+  /* ---------- Brief del cliente (tabla briefs): visible en el contacto ---------- */
+  async function latestBriefFor(lead){
+    try {
+      let { data } = await supabase.from('briefs').select('*').eq('lead_id', String(lead.id)).order('created_at', { ascending: false }).limit(1);
+      if ((!data || !data.length) && lead.email)
+        ({ data } = await supabase.from('briefs').select('*').ilike('email', lead.email).order('created_at', { ascending: false }).limit(1));
+      return (data && data[0]) || null;
+    } catch (e) { return null; }
+  }
+  async function renderBriefBlock(r){
+    const el = $('lm-brief'); if (!el) return;
+    const b = await latestBriefFor(r);
+    if (!b){ el.innerHTML = '<p class="muted-note">Sin brief todavía — el link se manda en la confirmación del booking y en los emails.</p>'; return; }
+    const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + esc(v) + '</span></div>' : '';
+    el.innerHTML = row('Objetivo', b.goal) + row('Canales', b.distribution) + row('Timing', b.timeline) + row('Presupuesto', b.budget) + row('Extra', b.extra) +
+      '<p class="muted-note" style="margin-top:6px">Recibido ' + fmtDMY(b.created_at) + (b.lang ? ' · ' + String(b.lang).toUpperCase() : '') + ' — la IA lo usa al generar la oferta/propuesta.</p>';
   }
 
   /* ---------- Enrich con IA: info actual de la persona + empresa (web search) ---------- */
@@ -3561,7 +3584,8 @@
       // si hay lead ligado, traemos su brief para dar más contexto
       let brief = null;
       if (ofCur.lead_id){
-        const { data } = await supabase.from('briefs').select('*').eq('lead_id', String(ofCur.lead_id)).order('created_at', { ascending: false }).limit(1);
+        const lead4 = allLeads.find((l) => String(l.id) === String(ofCur.lead_id));
+        const data = lead4 ? [await latestBriefFor(lead4)].filter(Boolean) : [];
         brief = (data && data[0]) || null;
       }
       const lead = (allLeads || []).find((l) => String(l.id) === String(ofCur.lead_id));
@@ -4246,7 +4270,7 @@
     $('pp-ai-note').textContent = 'La IA está armando la propuesta (intro, scope, 3 paquetes, add-ons)…';
     try {
       let brief = null;
-      if ($('pp-lead').value){ const { data } = await supabase.from('briefs').select('*').eq('lead_id', String($('pp-lead').value)).order('created_at', { ascending: false }).limit(1); if (data && data[0]) brief = data[0]; }
+      if ($('pp-lead').value){ const lead5 = allLeads.find((l) => String(l.id) === String($('pp-lead').value)); const b5 = lead5 ? await latestBriefFor(lead5) : null; if (b5) brief = b5; }
       const { data, error } = await supabase.functions.invoke('ai-proposal', { body: { inquiry, brief, catalog: catalogFlat(), lang: $('pp-lang').value, client_name: $('pp-cname').value } });
       if (error || !data || !Array.isArray(data.tiers)) throw new Error(data?.error || error?.message || 'sin respuesta');
       if (!$('pp-title').value && data.title) $('pp-title').value = data.title;
