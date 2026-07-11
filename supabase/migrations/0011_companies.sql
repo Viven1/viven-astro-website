@@ -15,8 +15,17 @@ create table if not exists public.companies (
   website    text,
   phone      text,
   owner      text,
-  notes      text
+  type       text,               -- Cliente / Prospecto / Partner…
+  city       text,
+  employees  text,               -- rango o número (texto para flexibilidad)
+  linkedin   text,
+  notes      text                -- descripción / notas internas
 );
+-- por si la tabla ya existía de una corrida previa: agregar columnas nuevas
+alter table public.companies add column if not exists type      text;
+alter table public.companies add column if not exists city      text;
+alter table public.companies add column if not exists employees text;
+alter table public.companies add column if not exists linkedin  text;
 alter table public.companies enable row level security;
 drop policy if exists companies_all_auth on public.companies;
 create policy companies_all_auth on public.companies for all to authenticated using (true) with check (true);

@@ -344,6 +344,25 @@
   .post-preview strong{color:var(--text)}
   .co-card{align-items:center;gap:14px}
   .co-av{width:38px;height:38px;border-radius:10px;background:color-mix(in srgb,var(--acid) 15%,var(--navy-900));color:var(--acid);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+  .co-tbl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .co-th,.co-tr{display:grid;grid-template-columns:1.3fr 1.5fr auto;align-items:center;gap:10px;padding:9px 12px}
+  .co-th-deals,.co-tr-deals{grid-template-columns:1.6fr auto auto}
+  .co-th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-2);background:color-mix(in srgb,var(--line) 40%,transparent);font-weight:600}
+  .co-tr{width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);cursor:pointer;color:inherit;font:inherit}
+  .co-tr:hover{background:color-mix(in srgb,var(--acid) 8%,transparent)}
+  .co-td-name{font-weight:600;font-size:13.5px;display:flex;flex-direction:column;gap:1px;min-width:0}
+  .co-role{font-weight:400;font-size:11.5px;color:var(--muted-2)}
+  .co-td-mail{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .co-td-amt{font-weight:700;font-size:13px;white-space:nowrap}
+  .co-act-h{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .co-act-h span{color:var(--muted-2);font-weight:400}
+  .co-act-item{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+  .co-act-t{font-size:13px;display:flex;flex-direction:column;gap:1px}
+  .co-act-who{font-size:11px;color:var(--muted-2)}
+  .co-act-due{font-size:11.5px;color:var(--muted-2);white-space:nowrap}
+  .co-act-due.od{color:#ff8b5e;font-weight:600}
+  .co-act-note{padding:6px 0;border-top:1px solid var(--line)}
+  .co-act-nb{font-size:12.5px;color:var(--muted);line-height:1.4}
   .of-card-main{flex:1;min-width:0}
   .of-card-title{font-weight:600;font-size:15.5px}
   .of-card-sub{color:var(--muted-2);font-size:12.5px;margin-top:2px}
@@ -560,7 +579,10 @@
       </div>
       <div class="lm-grid">
         <aside class="lm-left" id="co-about"></aside>
-        <main class="lm-center"><div class="lm-block"><div class="lm-block-h">👥 Contactos <span class="count" id="co-contacts-n"></span></div><div id="co-contacts"></div></div></main>
+        <main class="lm-center">
+          <div class="lm-block"><div class="lm-block-h">👥 Contactos <span class="count" id="co-contacts-n"></span></div><div id="co-contacts"></div></div>
+          <div class="lm-block"><div class="lm-block-h">🧾 Ofertas <span class="count" id="co-deals-n"></span></div><div id="co-deals"></div></div>
+        </main>
         <aside class="lm-right" id="co-right"></aside>
       </div>
     </div>
@@ -2788,44 +2810,82 @@ ${body}
     $('co-list').querySelectorAll('.co-card').forEach((c) => c.addEventListener('click', () => openCompany(c.dataset.d)));
   }
   function openCompany(domain){ coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false; renderCompanyDetail(); window.scrollTo(0, 0); }
+  const OFBADGE = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
   function renderCompanyDetail(){
-    const domain = coCur; const data = companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0 };
+    const domain = coCur; const data = companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0, won: false };
     const m = coMeta[domain] || {};
     $('co-avatar').textContent = data.name.slice(0, 2).toUpperCase();
     $('co-name').textContent = data.name; $('co-domain').textContent = domain;
     const web = m.website || ('https://' + domain); const wb = $('co-web'); wb.hidden = false; wb.href = web;
     const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + v + '</span></div>' : '';
-    $('co-about').innerHTML = '<div class="ab-sec"><div class="ab-h">Empresa</div>' +
-      row('Dominio', esc(domain)) + row('Industria', esc(m.industry || '')) + row('Web', '<a href="' + esc(web) + '" target="_blank" rel="noopener">' + esc(m.website || domain) + '</a>') + row('Teléfono', esc(m.phone || '')) + row('Owner', esc(m.owner || '')) + '</div>' +
-      (m.notes ? '<div class="ab-sec"><div class="ab-h">Notas</div><div style="font-size:13px;color:var(--muted);white-space:pre-wrap">' + esc(m.notes) + '</div></div>' : '') +
-      '<div class="ab-sec"><div class="ab-h">Resumen</div>' + row('Contactos', data.contacts.length) + row('Valor en ofertas', fmtChf(data.value)) + '</div>';
+    const ofs = data.contacts.flatMap((l) => offersForLead(l.id));
+    const wonSum = ofs.filter((o) => o.status === 'won').reduce((a, o) => a + offerNet(o), 0);
+    $('co-about').innerHTML =
+      '<div class="ab-sec"><div class="ab-h">Sobre la empresa</div>' +
+        row('Nombre', esc(m.name || data.name)) + row('Dominio', esc(domain)) + row('Tipo', esc(m.type || (data.won ? 'Cliente' : ''))) + row('Industria', esc(m.industry || '')) +
+        row('Web', '<a href="' + esc(web) + '" target="_blank" rel="noopener">' + esc(m.website || domain) + '</a>') +
+        (m.linkedin ? row('LinkedIn', '<a href="' + esc(m.linkedin) + '" target="_blank" rel="noopener">Perfil ↗</a>') : '') +
+        row('Ciudad', esc(m.city || '')) + row('Empleados', esc(m.employees || '')) + row('Teléfono', esc(m.phone || '')) + row('Owner', esc(m.owner || '')) + '</div>' +
+      (m.notes ? '<div class="ab-sec"><div class="ab-h">Descripción</div><div style="font-size:13px;color:var(--muted);white-space:pre-wrap">' + esc(m.notes) + '</div></div>' : '') +
+      '<div class="ab-sec"><div class="ab-h">Resumen</div>' + row('Contactos', data.contacts.length) + row('Ofertas', ofs.length) + row('Valor en ofertas', fmtChf(data.value)) + (wonSum ? row('Ganado', '<span style="color:#7ed957">' + fmtChf(wonSum) + '</span>') : '') + '</div>';
+    // contactos (personas) — tabla estilo HubSpot
     $('co-contacts-n').textContent = '(' + data.contacts.length + ')';
-    $('co-contacts').innerHTML = data.contacts.length ? data.contacts.map((l) => { const stg = STAGES.find((s) => s.key === stageOf(l.status)) || {};
-      return '<button class="lm-deal co-contact" data-id="' + esc(l.id) + '" type="button"><span class="lm-deal-t">' + esc(l.name || l.email) + (l.job_title ? ' <span class="muted-note">· ' + esc(l.job_title) + '</span>' : '') + '</span><span class="lm-deal-b"><span class="muted-note" style="font-size:11.5px">' + esc(l.email) + '</span><span class="of-badge" style="color:' + (stg.color || 'var(--muted)') + ';border-color:' + (stg.color || 'var(--line-strong)') + '">' + esc(stg.label || l.status || '') + '</span></span></button>'; }).join('')
+    $('co-contacts').innerHTML = data.contacts.length
+      ? '<div class="co-tbl"><div class="co-th"><span>Nombre</span><span>Email</span><span>Etapa</span></div>' + data.contacts.map((l) => { const stg = STAGES.find((s) => s.key === stageOf(l.status)) || {};
+          return '<button class="co-tr co-contact" data-id="' + esc(l.id) + '" type="button"><span class="co-td-name">' + esc(l.name || l.email) + (l.job_title ? '<span class="co-role">' + esc(l.job_title) + '</span>' : '') + '</span><span class="co-td-mail">' + esc(l.email) + '</span><span><span class="of-badge" style="color:' + (stg.color || 'var(--muted)') + ';border-color:' + (stg.color || 'var(--line-strong)') + '">' + esc(stg.label || l.status || '') + '</span></span></button>'; }).join('') + '</div>'
       : '<p class="muted-note">Sin contactos.</p>';
     $('co-contacts').querySelectorAll('.co-contact').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.id)));
-    const ofs = data.contacts.flatMap((l) => offersForLead(l.id));
-    $('co-right').innerHTML = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas <span class="count">(' + ofs.length + ')</span></div>' +
-      (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
-        return '<button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('') : '<p class="muted-note">Sin ofertas.</p>') + '</div>';
-    $('co-right').querySelectorAll('[data-oid]').forEach((d) => d.addEventListener('click', () => { gotoTab('offers'); openOffer(d.dataset.oid); }));
+    // ofertas (deals) de todos los contactos — tabla con importe
+    $('co-deals-n').textContent = '(' + ofs.length + ')';
+    $('co-deals').innerHTML = ofs.length
+      ? '<div class="co-tbl"><div class="co-th co-th-deals"><span>Oferta</span><span>Importe</span><span>Estado</span></div>' + ofs.map((o) => { const b = OFBADGE[o.status] || OFBADGE.draft;
+          return '<button class="co-tr co-tr-deals" data-oid="' + o.id + '" type="button"><span class="co-td-name">' + esc(o.title || '(sin título)') + '</span><span class="co-td-amt">' + fmtM(offerNet(o)) + '</span><span><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('') + '</div>'
+      : '<p class="muted-note">Sin ofertas todavía.</p>';
+    $('co-deals').querySelectorAll('[data-oid]').forEach((d) => d.addEventListener('click', () => { gotoTab('offers'); openOffer(d.dataset.oid); }));
+    // actividad agregada de toda la empresa (tasks + notas de todos los contactos)
+    $('co-right').innerHTML = '<div class="lm-block"><div class="lm-block-h">📌 Actividad de la empresa</div><div id="co-activity"><p class="muted-note">Cargando…</p></div></div>';
+    loadCompanyActivity(data.contacts);
   }
+  async function loadCompanyActivity(contacts){
+    const box = $('co-activity'); if (!box) return;
+    const ids = contacts.map((l) => String(l.id));
+    if (!ids.length) { box.innerHTML = '<p class="muted-note">Sin contactos.</p>'; return; }
+    const nmeOf = (id) => { const l = contacts.find((c) => String(c.id) === String(id)); return l ? (l.name || l.email) : ''; };
+    try {
+      const [tq, nq] = await Promise.all([
+        supabase.from('lead_tasks').select('*').in('lead_id', ids).eq('done', false).order('due_date', { ascending: true }).limit(8),
+        supabase.from('lead_notes').select('*').in('lead_id', ids).order('created_at', { ascending: false }).limit(6)
+      ]);
+      const tasks = (tq && !tq.error && tq.data) || [], notes = (nq && !nq.error && nq.data) || [];
+      const fmtDue = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '';
+      let html = '';
+      html += '<div class="co-act-h">✅ Tareas abiertas <span>(' + tasks.length + ')</span></div>';
+      html += tasks.length ? tasks.map((t) => { const overdue = t.due_date && new Date(t.due_date) < new Date(new Date().toDateString());
+        return '<div class="co-act-item"><span class="co-act-t">' + esc(t.title) + '<span class="co-act-who">' + esc(nmeShort(nmeOf(t.lead_id))) + (t.assignee ? ' · ' + esc(teamName(t.assignee)) : '') + '</span></span>' + (t.due_date ? '<span class="co-act-due' + (overdue ? ' od' : '') + '">' + fmtDue(t.due_date) + '</span>' : '') + '</div>'; }).join('') : '<p class="muted-note" style="margin:2px 0 10px">Ninguna.</p>';
+      html += '<div class="co-act-h" style="margin-top:12px">📝 Notas recientes <span>(' + notes.length + ')</span></div>';
+      html += notes.length ? notes.map((n) => '<div class="co-act-note"><div class="co-act-nb">' + esc((n.body || '').slice(0, 160)) + ((n.body || '').length > 160 ? '…' : '') + '</div><div class="co-act-who">' + esc(nmeShort(nmeOfNote(n, contacts))) + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>').join('') : '<p class="muted-note" style="margin:2px 0">Ninguna.</p>';
+      box.innerHTML = html;
+    } catch (e) { box.innerHTML = '<p class="muted-note">No se pudo cargar la actividad (¿SQL 0010?).</p>'; }
+  }
+  function nmeShort(s){ return (s || '').split(/\s+/)[0] || s || ''; }
+  function nmeOfNote(n, contacts){ const l = contacts.find((c) => String(c.id) === String(n.lead_id)); return l ? (l.name || l.email) : ''; }
   function editCompany(){
     const domain = coCur; if (!domain) return; const m = coMeta[domain] || {};
     const fld = (l, id, v) => '<div class="ab-row"><span class="ab-k">' + l + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(v || '') + '"/></span></div>';
     $('co-about').innerHTML = '<div class="ab-sec"><div class="ab-h">✏️ Editar empresa</div>' +
-      fld('Nombre', 'co-ed-name', m.name || companyName(domain)) + fld('Industria', 'co-ed-ind', m.industry) + fld('Web', 'co-ed-web', m.website) + fld('Teléfono', 'co-ed-phone', m.phone) + fld('Owner', 'co-ed-owner', m.owner) +
-      '<div style="margin:6px 0"><span class="ab-k">Notas</span><textarea class="ed-inp" id="co-ed-notes" style="min-height:70px;margin-top:5px">' + esc(m.notes || '') + '</textarea></div>' +
+      fld('Nombre', 'co-ed-name', m.name || companyName(domain)) + fld('Tipo', 'co-ed-type', m.type) + fld('Industria', 'co-ed-ind', m.industry) + fld('Web', 'co-ed-web', m.website) + fld('LinkedIn', 'co-ed-linkedin', m.linkedin) + fld('Ciudad', 'co-ed-city', m.city) + fld('Empleados', 'co-ed-emp', m.employees) + fld('Teléfono', 'co-ed-phone', m.phone) + fld('Owner', 'co-ed-owner', m.owner) +
+      '<div style="margin:6px 0"><span class="ab-k">Descripción / notas</span><textarea class="ed-inp" id="co-ed-notes" style="min-height:70px;margin-top:5px">' + esc(m.notes || '') + '</textarea></div>' +
       '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary xs" id="co-ed-save" type="button">Guardar</button><button class="btn btn-ghost xs" id="co-ed-cancel" type="button">Cancelar</button></div></div>';
     $('co-ed-save').addEventListener('click', saveCompanyMeta);
     $('co-ed-cancel').addEventListener('click', renderCompanyDetail);
   }
   async function saveCompanyMeta(){
     const domain = coCur; if (!domain) return;
-    const patch = { domain, name: $('co-ed-name').value.trim() || null, industry: $('co-ed-ind').value.trim() || null, website: $('co-ed-web').value.trim() || null, phone: $('co-ed-phone').value.trim() || null, owner: $('co-ed-owner').value.trim() || null, notes: $('co-ed-notes').value.trim() || null };
+    const g = (id) => { const el = $(id); return el && el.value.trim() ? el.value.trim() : null; };
+    const patch = { domain, name: g('co-ed-name'), type: g('co-ed-type'), industry: g('co-ed-ind'), website: g('co-ed-web'), linkedin: g('co-ed-linkedin'), city: g('co-ed-city'), employees: g('co-ed-emp'), phone: g('co-ed-phone'), owner: g('co-ed-owner'), notes: g('co-ed-notes') };
     const { data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single();
     if (error){ toast('No se pudo guardar (¿corriste el SQL 0011?): ' + error.message); return; }
-    coMeta[domain] = data; toast('Empresa guardada'); renderCompanyDetail();
+    coMeta[domain] = data; toast('Empresa guardada'); renderCompaniesList(); renderCompanyDetail();
   }
 
   /* ---------- Sesión persistente ---------- */
