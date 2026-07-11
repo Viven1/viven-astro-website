@@ -120,6 +120,39 @@
   .lead-modal.open{display:flex}
   .lead-modal .backdrop{position:fixed;inset:0;background:rgba(9,15,26,.86);backdrop-filter:blur(8px)}
   .lead-card{position:relative;z-index:2;width:min(760px,100%);background:var(--navy-800);border:1px solid var(--line-strong);border-radius:20px;padding:32px;animation:pop .35s var(--ease)}
+  .lead-card-wide{width:min(1080px,100%);padding:24px 26px}
+  /* header estilo HubSpot */
+  .lm-top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .lm-id{display:flex;align-items:center;gap:13px;min-width:0}
+  .lm-avatar{width:46px;height:46px;border-radius:50%;background:color-mix(in srgb,var(--acid) 18%,var(--navy-900));color:var(--acid);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex:none}
+  .lm-idtext h3{margin:0;font-size:19px}
+  .lm-sub{font-size:13.5px;color:var(--muted);margin-top:2px}
+  .lm-sub a{color:var(--acid)}
+  .lm-quick{display:flex;gap:8px;flex-wrap:wrap}
+  .lm-qbtn{display:inline-flex;align-items:center;gap:6px;background:var(--navy-900);border:1px solid var(--line-strong);color:var(--text);border-radius:9px;font-size:13px;padding:8px 13px;cursor:pointer;text-decoration:none}
+  .lm-qbtn:hover{border-color:var(--muted)}
+  /* grid 3 columnas */
+  .lm-grid{display:grid;grid-template-columns:260px 1fr 250px;gap:18px;align-items:start}
+  .lm-left,.lm-right{min-width:0}
+  .lm-center{min-width:0;display:flex;flex-direction:column;gap:14px}
+  .ab-sec{margin-bottom:14px}
+  .ab-sec .ab-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:700;margin-bottom:7px}
+  .ab-row{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13px;line-height:1.4}
+  .ab-row .ab-k{color:var(--muted);flex:none}
+  .ab-row .ab-v{color:var(--text);text-align:right;word-break:break-word;min-width:0}
+  .ab-row .ab-v a{color:var(--acid)}
+  .ab-badge{border:1px solid;border-radius:999px;font-size:11px;font-weight:600;padding:2px 9px}
+  .lm-block{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .lm-block-h{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px}
+  .lm-deal{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;color:var(--text)}
+  .lm-deal:hover{border-color:var(--muted)}
+  .lm-deal-t{font-size:13px;font-weight:600}
+  .lm-deal-b{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .lm-deal-b b{font-family:'Space Grotesk'}
+  .lm-center .lm-block .lead-msg{background:none;border:0;padding:0;margin:0;color:var(--text)}
+  .lm-center .lm-block .draft-box{background:var(--navy-800);min-height:200px;margin-top:2px}
+  .lm-center .lm-block .draft-head{margin-bottom:8px}
+  @media(max-width:900px){.lm-grid{grid-template-columns:1fr}}
   @keyframes pop{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   .lead-card .close{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--line-strong);color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;transition:.25s}
   .lead-card .close:hover{background:var(--acid);color:#142033}
@@ -768,33 +801,56 @@
 <!-- ============ LEAD DETAIL MODAL ============ -->
 <div class="lead-modal" id="lead-modal" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="backdrop" data-close></div>
-  <div class="lead-card">
+  <div class="lead-card lead-card-wide">
     <button class="close" type="button" data-close aria-label="Cerrar">&times;</button>
-    <h3 id="lm-name"></h3>
-    <p class="email-line"><a id="lm-email" href="#"></a> · <span id="lm-date"></span></p>
-    <div class="detail-grid" id="lm-details"></div>
-    <div class="lead-msg" id="lm-message"></div>
-    <div class="lm-journey" id="lm-journey" hidden></div>
-    <div class="draft-head">
-      <h4>✍️ <span>Borrador de respuesta</span> (editable — generado según lo que pide)</h4>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:12.5px;color:var(--muted)">De:
-          <select id="lm-sender" class="status" style="margin-left:4px">
-            <option value="sofia">Sofia</option>
-            <option value="sebastian">Sebastian</option>
-          </select>
-        </label>
-        <button class="btn btn-ghost small" id="lm-ai" type="button" title="Sugerencia personalizada con IA">✨ IA</button>
-        <button class="btn btn-ghost small" id="lm-copy" type="button">📋 Copiar</button>
-        <a class="btn btn-ghost small" id="lm-mailto" href="#">✉️ Mi correo</a>
-        <button class="btn btn-primary small" id="lm-send" type="button">📨 Enviar al lead</button>
+    <div class="lm-top">
+      <div class="lm-id">
+        <div class="lm-avatar" id="lm-avatar"></div>
+        <div class="lm-idtext">
+          <h3 id="lm-name"></h3>
+          <div class="lm-sub"><a id="lm-email" href="#"></a> <span id="lm-company-line"></span></div>
+        </div>
+      </div>
+      <div class="lm-quick">
+        <a class="lm-qbtn" id="lm-mailto" href="#" title="Escribir desde tu correo">✉️ Email</a>
+        <a class="lm-qbtn" id="lm-call" href="#" title="Llamar" hidden>📞 Llamar</a>
+        <a class="lm-qbtn" id="lm-wa" href="#" target="_blank" rel="noopener" title="WhatsApp" hidden>💬 WhatsApp</a>
       </div>
     </div>
-    <textarea class="draft-box" id="lm-draft"></textarea>
+
+    <div class="lm-grid">
+      <aside class="lm-left" id="lm-about"></aside>
+
+      <main class="lm-center">
+        <div class="lm-block">
+          <div class="lm-block-h">💬 Consulta del cliente</div>
+          <div class="lead-msg" id="lm-message"></div>
+        </div>
+        <div class="lm-block">
+          <div class="draft-head">
+            <div class="lm-block-h" style="margin:0">✍️ Responder <span class="muted-note" id="lm-status-note" style="font-weight:400"></span></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label style="font-size:12.5px;color:var(--muted)">De:
+                <select id="lm-sender" class="status" style="margin-left:4px">
+                  <option value="sofia">Sofia</option>
+                  <option value="sebastian">Sebastian</option>
+                </select>
+              </label>
+              <button class="btn btn-ghost small" id="lm-ai" type="button" title="Sugerencia personalizada con IA">✨ IA</button>
+              <button class="btn btn-ghost small" id="lm-copy" type="button">📋 Copiar</button>
+              <button class="btn btn-primary small" id="lm-send" type="button">📨 Enviar al lead</button>
+            </div>
+          </div>
+          <textarea class="draft-box" id="lm-draft"></textarea>
+        </div>
+        <div class="lm-journey" id="lm-journey" hidden></div>
+      </main>
+
+      <aside class="lm-right" id="lm-right"></aside>
+    </div>
+
     <div class="lead-actions">
-      <div class="left">
-        <span class="muted-note" id="lm-status-note"></span>
-      </div>
+      <div class="left"><span class="muted-note">ID: <span id="lm-id-txt"></span></span></div>
       <button class="btn btn-danger small" id="lm-delete" type="button">🗑 Borrar lead</button>
     </div>
   </div>
@@ -1344,41 +1400,52 @@
     const r = allLeads.find((l) => String(l.id) === String(id));
     if (!r) return;
     currentLead = r;
-    $('lm-name').textContent = r.name || '(sin nombre)';
-    $('lm-email').textContent = r.email;
-    $('lm-email').href = 'mailto:' + r.email;
-    $('lm-date').textContent = new Date(r.created_at).toLocaleString('es-CH', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
     // empresa: la del form, o derivada del dominio del email (como HubSpot)
     const domainCompany = (email) => { const d = (email || '').split('@')[1]; if (!d || /gmail|hotmail|outlook|yahoo|icloud|gmx|bluewin|proton/i.test(d)) return ''; const b = d.split('.')[0]; return b.charAt(0).toUpperCase() + b.slice(1); };
     const company = r.company || domainCompany(r.email);
+    const first = r.first_name || (r.name || '').trim().split(/\s+/)[0] || '';
+    const last = r.last_name || (r.name || '').trim().split(/\s+/).slice(1).join(' ') || '';
+    $('lm-avatar').textContent = ((first[0] || '?') + (last[0] || '')).toUpperCase();
+    $('lm-name').textContent = r.name || '(sin nombre)';
+    $('lm-email').textContent = r.email; $('lm-email').href = 'mailto:' + r.email;
+    $('lm-company-line').textContent = company ? '· ' + company : '';
+    $('lm-id-txt').textContent = r.id;
+    const phoneClean = (r.phone || '').replace(/[^\d+]/g, '');
+    const call = $('lm-call'), wa = $('lm-wa');
+    call.hidden = !r.phone; if (r.phone) call.href = 'tel:' + phoneClean;
+    wa.hidden = !r.phone; if (r.phone) wa.href = 'https://wa.me/' + phoneClean.replace(/^\+/, '');
+
     const fmtD = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
-    const fields = [
-      ['Empresa', company || '—'],
-      ['Teléfono', r.phone ? { link: 'tel:' + r.phone.replace(/[^\d+]/g, ''), text: r.phone } : '—'],
-      ['Idioma', (r.lang || '—').toUpperCase()],
-      ['Estado', r.status || '—'],
-      ['Canal', r.channel || '—'],
-      ['Fuente (UTM)', r.utm_source || '—'],
-      ['Campaña (UTM)', r.utm_campaign || '—'],
-      ['GCLID (Google Ads)', r.gclid || '—'],
-      ['Página de entrada', r.landing_path || '—'],
-      ['Creado', fmtD(r.created_at)],
-      ['Contactado', fmtD(r.contacted_at)],
-      ['Video call', fmtD(r.videocall_at)],
-      ['Propuesta', fmtD(r.proposal_at)],
-      ['Próximo follow-up', r.next_follow_up_at
-        ? new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (r.follow_up_count ? ' · #' + (r.follow_up_count + 1) : '')
-        : (r.status === 'contacted' || r.status === 'contactado' ? 'programando…' : '—')],
-      ['Sesión', r.session_id ? r.session_id.slice(0, 13) + '…' : '—']
-    ];
-    // ofertas ligadas (valor) + motivo de pérdida
+    const st = STAGES.find((s) => s.key === stageOf(r.status)) || {};
+    const nextF = r.next_follow_up_at ? new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' })
+      : ((r.status === 'contacted' || r.status === 'contactado') ? 'programando…' : '—');
+    const row = (k, v, always) => (v && v !== '—') || always ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + (v || '—') + '</span></div>' : '';
+    const sec = (t, rows) => rows ? '<div class="ab-sec"><div class="ab-h">' + t + '</div>' + rows + '</div>' : '';
+    const telV = r.phone ? '<a href="tel:' + esc(phoneClean) + '">' + esc(r.phone) + '</a>' : '';
+    $('lm-about').innerHTML =
+      sec('Contacto',
+        row('Nombre', esc(r.name), true) +
+        row('Email', '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>', true) +
+        row('Teléfono', telV) + row('Empresa', esc(company)) + row('Idioma', (r.lang || '—').toUpperCase(), true)) +
+      sec('Estado y seguimiento',
+        row('Etapa', '<span class="ab-badge" style="color:' + (st.color || 'var(--muted)') + ';border-color:' + (st.color || 'var(--line-strong)') + '">' + esc(st.label || r.status || '—') + '</span>', true) +
+        row('Próximo follow-up', nextF, true) +
+        (stageOf(r.status) === 'perdido' ? row('Motivo de pérdida', esc(r.lost_reason || '(sin especificar)'), true) : '')) +
+      sec('Origen',
+        row('Canal', esc(r.channel)) + row('Fuente (UTM)', esc(r.utm_source)) + row('Campaña (UTM)', esc(r.utm_campaign)) +
+        row('Google Ads (GCLID)', r.gclid ? 'sí' : '') + row('Página de entrada', esc(r.landing_path))) +
+      sec('Fechas',
+        row('Creado', fmtD(r.created_at), true) + row('Contactado', fmtD(r.contacted_at)) +
+        row('Video call', fmtD(r.videocall_at)) + row('Propuesta', fmtD(r.proposal_at)) +
+        row('Ganado', fmtD(r.won_at)) + row('Perdido', fmtD(r.lost_at)));
+
+    // columna derecha: ofertas ligadas (deals)
     const ofs = offersForLead(r.id);
-    if (ofs.length) fields.push(['Ofertas ligadas', ofs.map((o) => fmtM(offerNet(o)) + ' (' + (OF_ST[o.status] || o.status) + ')').join(' · ')]);
-    if (stageOf(r.status) === 'perdido') fields.push(['Motivo de pérdida', r.lost_reason || '(sin especificar)']);
-    $('lm-details').innerHTML = fields.map(([k, v]) => {
-      const val = (v && typeof v === 'object') ? '<a href="' + esc(v.link) + '">' + esc(v.text) + '</a>' : esc(v);
-      return '<div class="detail"><div class="k">' + k + '</div><div class="v">' + val + '</div></div>';
-    }).join('');
+    $('lm-right').innerHTML = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></div>' +
+      (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
+        return '<button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('')
+        : '<p class="muted-note">Sin ofertas. Creá una en Ofertas y ligala a este lead.</p>') + '</div>';
+    $('lm-right').querySelectorAll('.lm-deal').forEach((d) => d.addEventListener('click', () => { closeLead(); gotoTab('offers'); openOffer(d.dataset.oid); }));
     $('lm-message').textContent = r.message || '(sin mensaje)';
     $('lm-sender').value = sender;
     const draft = buildDraft(r);
