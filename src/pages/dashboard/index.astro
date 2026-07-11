@@ -11,6 +11,23 @@
 <link rel="stylesheet" href="/assets/site.css" />
 <style is:global>
   .dash-wrap{max-width:1220px;margin:0 auto;padding:32px 24px 80px}
+  .bell-wrap{position:relative}
+  .bell-btn{position:relative;background:var(--navy-800);border:1px solid var(--line-strong);color:var(--text);width:38px;height:38px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+  .bell-btn:hover{border-color:var(--acid)}
+  .bell-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ff5a5a;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--navy-900)}
+  .bell-panel{position:absolute;top:46px;right:0;width:360px;max-width:calc(100vw - 32px);max-height:min(70vh,520px);overflow:auto;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.5);z-index:120}
+  .bell-h{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px;position:sticky;top:0;background:var(--navy-800)}
+  .bell-x{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:14px}
+  .bell-grp{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:var(--muted-2);padding:11px 15px 4px}
+  .bell-grp.od{color:#ff8b5e}
+  .bell-item{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);padding:10px 15px;cursor:pointer;color:inherit;font:inherit}
+  .bell-item:hover{background:color-mix(in srgb,var(--acid) 8%,transparent)}
+  .bell-item .bi-t{font-size:13.5px;font-weight:600}
+  .bell-item .bi-s{font-size:11.5px;color:var(--muted)}
+  .bell-item .bi-due{font-size:11px;font-weight:600;color:var(--muted-2)}
+  .bell-item .bi-due.od{color:#ff5a5a}
+  .bell-empty{padding:26px 15px;text-align:center;color:var(--muted);font-size:13px}
+  @media(max-width:560px){.bell-panel{position:fixed;top:60px;left:16px;right:16px;width:auto;max-width:none}}
   .dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
   .dash-head h1{font-size:clamp(24px,3.4vw,32px)}
   .dash-head h1 span{color:var(--acid)}
@@ -470,6 +487,13 @@
         <option value="365">1 año</option>
       </select>
       <input type="date" id="range-day" class="status" title="Un día puntual" />
+      <div class="bell-wrap">
+        <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
+        <div class="bell-panel" id="bell-panel" hidden>
+          <div class="bell-h"><span>🔔 Tareas y avisos</span><button class="bell-x" id="bell-x" type="button" aria-label="Cerrar">✕</button></div>
+          <div id="bell-list"><p class="muted-note" style="padding:14px">Cargando…</p></div>
+        </div>
+      </div>
       <button class="btn btn-ghost small" id="refresh-btn" type="button">↻ Actualizar</button>
       <button class="btn btn-ghost small" id="logout-btn" type="button">Salir</button>
     </div>
@@ -954,7 +978,7 @@
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false;
+  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
 
   function show(view){
     $('login-view').hidden = view !== 'login';
@@ -988,6 +1012,7 @@
       password: f.password.value
     });
     if (error) { f.classList.add('has-error'); return; }
+    meEmail = (f.email.value.trim() || '').toLowerCase();
     show('dash');
     loadAll();
   });
@@ -1128,6 +1153,7 @@
     const top = Object.entries(vc).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => esc(String(k).slice(0, 30)) + ' (' + n + ')');
     $('ka-videos-top').textContent = top.length ? 'Top: ' + top.join(', ') : '';
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+    loadBell();
     subscribeRealtime();
   }
 
@@ -1149,6 +1175,7 @@
         const i = allLeads.findIndex((l) => l.id === payload.new.id);
         if (i > -1) { allLeads[i] = payload.new; renderLeads(); renderAnalytics(lastViews, allLeads); }
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, () => { loadBell(); })
       .subscribe();
   }
   function toast(msg){
@@ -1163,6 +1190,65 @@
     clearTimeout(t._h);
     t._h = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; }, 6000);
   }
+
+  /* ================= CAMPANA: tareas y avisos (mobile/desktop/tablet) ================= */
+  let bellItems = [], bellBound = false;
+  function leadName(id){ const l = allLeads.find((x) => String(x.id) === String(id)); return l ? (l.name || l.email) : 'Lead'; }
+  const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+  async function loadBell(){
+    if (!bellBound){ bellBound = true;
+      $('bell-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleBell(); });
+      $('bell-x').addEventListener('click', (e) => { e.stopPropagation(); $('bell-panel').hidden = true; });
+      $('bell-panel').addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', () => { $('bell-panel').hidden = true; });
+    }
+    try {
+      const [tq, nq] = await Promise.all([
+        supabase.from('lead_tasks').select('*').eq('done', false).order('due_date', { ascending: true }).limit(60),
+        supabase.from('lead_notes').select('*').not('mention', 'is', null).order('created_at', { ascending: false }).limit(30)
+      ]);
+      const tasks = (tq && !tq.error && tq.data) || [];
+      const notes = (nq && !nq.error && nq.data) || [];
+      const mine = (t) => !meEmail || !t.assignee || String(t.assignee).toLowerCase() === meEmail; // sin asignar o para mí
+      const t0 = startOfToday(), tEnd = new Date(t0.getTime() + 86400000);
+      bellItems = [];
+      tasks.filter(mine).forEach((t) => {
+        const due = t.due_date ? new Date(t.due_date + 'T00:00:00') : null;
+        let bucket = 'later', overdue = false;
+        if (due) { if (due < t0) { bucket = 'overdue'; overdue = true; } else if (due < tEnd) bucket = 'today'; else bucket = 'later'; }
+        else bucket = 'nodate';
+        bellItems.push({ kind: 'task', id: t.id, lead_id: t.lead_id, title: t.title, due, bucket, overdue });
+      });
+      // notas donde me mencionaron a mí (últimas 24-72h no filtramos, mostramos como aviso)
+      notes.filter((n) => meEmail && String(n.mention || '').toLowerCase() === meEmail).slice(0, 8).forEach((n) => {
+        bellItems.push({ kind: 'mention', id: n.id, lead_id: n.lead_id, title: (n.body || '').slice(0, 80), due: null, bucket: 'mention', overdue: false });
+      });
+      renderBell();
+    } catch (e) { /* si no corrió el SQL 0010, la campana queda vacía */ renderBell(); }
+  }
+  function renderBell(){
+    const badge = $('bell-badge');
+    const urgent = bellItems.filter((i) => i.bucket === 'overdue' || i.bucket === 'today' || i.bucket === 'mention').length;
+    if (urgent > 0) { badge.hidden = false; badge.textContent = urgent > 99 ? '99+' : urgent; } else badge.hidden = true;
+    const order = { overdue: 0, today: 1, mention: 2, later: 3, nodate: 4 };
+    const labels = { overdue: ['⚠️ Vencidas', true], today: ['📅 Para hoy', false], mention: ['💬 Te mencionaron', false], later: ['🕒 Próximas', false], nodate: ['📌 Sin fecha', false] };
+    const list = $('bell-list');
+    if (!bellItems.length) { list.innerHTML = '<div class="bell-empty">Nada pendiente 🎉<br>Las tareas que crees en un lead aparecen acá.</div>'; return; }
+    const grouped = {};
+    bellItems.forEach((i) => { (grouped[i.bucket] = grouped[i.bucket] || []).push(i); });
+    const fmtDue = (d) => d ? d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '';
+    let html = '';
+    Object.keys(grouped).sort((a, b) => (order[a] ?? 9) - (order[b] ?? 9)).forEach((b) => {
+      const [lbl, od] = labels[b] || [b, false];
+      html += '<div class="bell-grp' + (od ? ' od' : '') + '">' + lbl + ' (' + grouped[b].length + ')</div>';
+      grouped[b].forEach((i) => {
+        html += '<button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i.due) + '</span>' : '') + '</span></button>';
+      });
+    });
+    list.innerHTML = html;
+    list.querySelectorAll('.bell-item').forEach((b) => b.addEventListener('click', () => { $('bell-panel').hidden = true; gotoTab('leads'); openLead(b.dataset.lead); }));
+  }
+  function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
 
   /* ---------- LEADS ---------- */
   const isNew = (s) => s === 'new' || s === 'nuevo';
@@ -1631,11 +1717,11 @@
     const { error } = await supabase.from('lead_tasks').insert({ lead_id: String(r.id), title, due_date: due, assignee });
     if (error) { toast('No se pudo (¿SQL 0010?): ' + error.message); return; }
     $('lm-task-t').value = ''; $('lm-task-d').value = ''; $('lm-task-a').value = '';
-    loadTasksNotes(r);
+    loadTasksNotes(r); loadBell();
     if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron una task para el lead ' + (r.name || r.email) + ':\n\n"' + title + '"' + (due ? '\nVence: ' + due : ''));
     toast('Task creada' + (assignee ? ' · avisado a ' + teamName(assignee) : ''));
   }
-  async function toggleTask(id, done){ await supabase.from('lead_tasks').update({ done, done_at: done ? new Date().toISOString() : null }).eq('id', id); if (currentLead) loadTasksNotes(currentLead); }
+  async function toggleTask(id, done){ await supabase.from('lead_tasks').update({ done, done_at: done ? new Date().toISOString() : null }).eq('id', id); if (currentLead) loadTasksNotes(currentLead); loadBell(); }
   async function delTask(id){ await supabase.from('lead_tasks').delete().eq('id', id); if (currentLead) loadTasksNotes(currentLead); }
   async function addNote(r){
     const body = $('lm-note-b').value.trim(); if (!body) { toast('Escribí la nota'); return; }
@@ -1700,10 +1786,25 @@
       }
     }
     const patch = { first_name: first || null, last_name: last || null, name: (first + ' ' + last).trim() || r.name, job_title: $('ed-job').value.trim() || null, email, phone: $('ed-phone').value.trim() || null, company, company_domain, lang: $('ed-lang').value };
-    const { error } = await supabase.from('leads').update(patch).eq('id', r.id);
+    const { error, stripped } = await updateLeadResilient(r.id, patch);
     if (error) { btn.disabled = false; btn.textContent = 'Guardar'; toast('No se pudo guardar: ' + error.message); return; }
     Object.assign(r, patch); const i = allLeads.findIndex((l) => l.id === r.id); if (i > -1) Object.assign(allLeads[i], patch);
-    toast(company ? 'Guardado · empresa ' + company : 'Datos guardados'); openLead(r.id); renderLeads();
+    if (stripped.length) toast('Guardado, pero faltan columnas en la DB (' + stripped.join(', ') + '). Corré el SQL 0011.');
+    else toast(company ? 'Guardado · empresa ' + company : 'Datos guardados');
+    openLead(r.id); renderLeads();
+  }
+  // update de lead que sobrevive si falta una columna nueva (reintenta sin ella y avisa cuáles faltan)
+  async function updateLeadResilient(id, patch){
+    const p = { ...patch }; const stripped = [];
+    for (let i = 0; i < 5; i++){
+      const { error } = await supabase.from('leads').update(p).eq('id', id);
+      if (!error) return { error: null, stripped };
+      const m = /Could not find the '([^']+)' column|column "?([a-z_]+)"? .* does not exist/i.exec(error.message || '');
+      const col = m && (m[1] || m[2]);
+      if (col && col in p) { delete p[col]; stripped.push(col); continue; }
+      return { error, stripped };
+    }
+    return { error: null, stripped };
   }
   $('lm-edit-btn') && $('lm-edit-btn').addEventListener('click', startEditLead);
   // Recorrido del lead: páginas visitadas + videos vistos (por session_id)
@@ -2925,7 +3026,7 @@ ${body}
 
   /* ---------- Sesión persistente ---------- */
   supabase.auth.getSession().then(({ data }) => {
-    if (data.session) { show('dash'); loadAll(); }
+    if (data.session) { meEmail = (data.session.user?.email || '').toLowerCase(); show('dash'); loadAll(); }
     else show('login');
   });
 </script>
