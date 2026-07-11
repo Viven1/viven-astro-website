@@ -363,7 +363,7 @@
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null;
+  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [];
 
   function show(view){
     $('login-view').hidden = view !== 'login';
@@ -437,8 +437,9 @@
       return;
     }
     allLeads = leadsQ.data || [];
+    lastViews = viewsQ.data || [];
     renderLeads();
-    renderAnalytics(viewsQ.data || [], allLeads);
+    renderAnalytics(lastViews, allLeads);
     $('ka-videos').textContent = videosQ.count ?? 0;
     $('updated-at').textContent = 'Últimos 30 días · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     subscribeRealtime();
