@@ -41,7 +41,6 @@
 /services/social-media-video                                     /en/services/social-media-video/ 301
 /services/corporate-video/*                                      /en/services/corporate-video/ 301
 /services/corporate-video                                        /en/services/corporate-video/ 301
-/services/*                                                      /en/services/                301
 /services                                                        /en/services/                301
 /projects/*                                                      /en/projects/                301
 /projects                                                        /en/projects/                301
@@ -61,7 +60,6 @@
 # ---------- Blog: estructura nueva-anterior (/blog/… , /blog/de/…) → /{lang}/blog/ ----------
 /blog/de/*                                                       /de/blog/:splat              301
 /blog/de                                                         /de/blog/                    301
-/blog/*                                                          /en/blog/:splat              301
 /blog                                                            /en/blog/                    301
 
 # ---------- Páginas principales localizadas (sitio viejo) ----------
@@ -96,24 +94,51 @@
 # así que esos comodines secuestraban TODAS las páginas y posts reales.
 # URLs viejas no mapeadas → 404 con página branded (aceptable).
 
-# ============================================================
-#  OVERRIDES CLOUDFLARE — el runtime de Workers evalúa las reglas
-#  en orden inverso a Netlify (gana la ÚLTIMA que matchea).
-#  Duplicamos acá las reglas específicas para que le ganen a los
-#  wildcards genéricos de arriba. En Netlify son inofensivas
-#  (ahí gana la primera, que es idéntica).
-# ============================================================
-/blog/de/*                                                       /de/blog/:splat              301
-/blog/de                                                         /de/blog/                    301
-/services/brand-video/*                                          /en/services/brand-video/    301
-/services/brand-video                                            /en/services/brand-video/    301
-/services/product-video/*                                        /en/services/product-video/  301
-/services/product-video                                          /en/services/product-video/  301
-/services/employer-branding/*                                    /en/services/employer-branding/ 301
-/services/employer-branding                                      /en/services/employer-branding/ 301
-/services/how-to-video/*                                         /en/services/how-to-video/   301
-/services/how-to-video                                           /en/services/how-to-video/   301
-/services/social-media-video/*                                   /en/services/social-media-video/ 301
-/services/social-media-video                                     /en/services/social-media-video/ 301
-/services/corporate-video/*                                      /en/services/corporate-video/ 301
-/services/corporate-video                                        /en/services/corporate-video/ 301
+# ---------- Blog EN viejo (/blog/<slug>) → /en/blog/<slug>/ — estáticas, sin catch-all ----------
+# (el catch-all /blog/* y /services/* se eliminaron: en Cloudflare el wildcard SIEMPRE
+#  le gana a la regla específica por orden lexicográfico; slugs desconocidos → 404 branded)
+/blog/boost-brand-growth-with-an-effective-video-marketing-strategy /en/blog/boost-brand-growth-with-an-effective-video-marketing-strategy/  301
+/blog/collaborating-with-swiss-filmmakers-what-you-need-to-know  /en/blog/collaborating-with-swiss-filmmakers-what-you-need-to-know/  301
+/blog/commercial-video-production-in-switzerland-elevate-your-brand /en/blog/commercial-video-production-in-switzerland-elevate-your-brand/  301
+/blog/documentary-production-in-switzerland-why-its-a-prime-location-for-storytelling /en/blog/documentary-production-in-switzerland-why-its-a-prime-location-for-storytelling/  301
+/blog/exploring-film-production-services-in-switzerland          /en/blog/exploring-film-production-services-in-switzerland/  301
+/blog/film-production-in-switzerland-a-hub-for-creative-excellence /en/blog/film-production-in-switzerland-a-hub-for-creative-excellence/  301
+/blog/how-b2b-brands-generate-qualified-leads-with-video         /en/blog/how-b2b-brands-generate-qualified-leads-with-video/  301
+/blog/how-b2b-companies-simplify-complex-products-with-explainer-videos /en/blog/how-b2b-companies-simplify-complex-products-with-explainer-videos/  301
+/blog/how-big-brands-can-use-video-production-to-attract-new-prospects-and-drive-sales /en/blog/how-big-brands-can-use-video-production-to-attract-new-prospects-and-drive-sales/  301
+/blog/how-big-brands-can-use-video-production-to-drive-prospect-engagement-through-storytelling /en/blog/how-big-brands-can-use-video-production-to-drive-prospect-engagement-through-storytelling/  301
+/blog/how-big-brands-can-use-video-production-to-promote-case-studies-to-prospects /en/blog/how-big-brands-can-use-video-production-to-promote-case-studies-to-prospects/  301
+/blog/how-big-brands-can-use-video-production-to-promote-customer-advocacy-programs-to-existing-customers /en/blog/how-big-brands-can-use-video-production-to-promote-customer-advocacy-programs-to-existing-customers/  301
+/blog/how-big-brands-can-use-video-production-to-promote-customer-events-and-maximize-engagement /en/blog/how-big-brands-can-use-video-production-to-promote-customer-events-and-maximize-engagement/  301
+/blog/how-big-brands-can-use-video-production-to-promote-thought-leadership-to-prospects /en/blog/how-big-brands-can-use-video-production-to-promote-thought-leadership-to-prospects/  301
+/blog/how-big-brands-can-use-video-production-to-promote-upselling-opportunities-to-existing-customers /en/blog/how-big-brands-can-use-video-production-to-promote-upselling-opportunities-to-existing-customers/  301
+/blog/how-brands-build-trust-and-credibility-through-video       /en/blog/how-brands-build-trust-and-credibility-through-video/  301
+/blog/how-brands-can-use-video-production-to-engage-existing-customers-through-ongoing-education /en/blog/how-brands-can-use-video-production-to-engage-existing-customers-through-ongoing-education/  301
+/blog/how-brands-can-use-video-production-to-promote-seasonal-campaigns-to-prospects-and-customers /en/blog/how-brands-can-use-video-production-to-promote-seasonal-campaigns-to-prospects-and-customers/  301
+/blog/how-brands-can-use-video-production-to-promote-webinars-to-prospects /en/blog/how-brands-can-use-video-production-to-promote-webinars-to-prospects/  301
+/blog/how-brands-increase-e-commerce-conversions-with-product-videos /en/blog/how-brands-increase-e-commerce-conversions-with-product-videos/  301
+/blog/how-brands-simplify-complex-products-with-explainer-videos /en/blog/how-brands-simplify-complex-products-with-explainer-videos/  301
+/blog/how-explainer-videos-can-increase-product-sales-and-customer-engagement /en/blog/how-explainer-videos-can-increase-product-sales-and-customer-engagement/  301
+/blog/how-kanebo-elevates-luxury-through-cinematic-production-in-switzerland /en/blog/how-kanebo-elevates-luxury-through-cinematic-production-in-switzerland/  301
+/blog/how-multilingual-video-production-supports-brand-expansion /en/blog/how-multilingual-video-production-supports-brand-expansion/  301
+/blog/how-product-videos-shorten-the-sales-cycle-for-brands      /en/blog/how-product-videos-shorten-the-sales-cycle-for-brands/  301
+/blog/how-to-build-brand-awareness-with-strategic-video-content  /en/blog/how-to-build-brand-awareness-with-strategic-video-content/  301
+/blog/how-to-partner-with-your-video-agency-to-drive-sales-and-strengthen-customer-engagement /en/blog/how-to-partner-with-your-video-agency-to-drive-sales-and-strengthen-customer-engagement/  301
+/blog/how-to-use-video-production-to-engage-existing-customers-with-user-generated-content-campaigns /en/blog/how-to-use-video-production-to-engage-existing-customers-with-user-generated-content-campaigns/  301
+/blog/how-video-campaigns-drive-event-attendance-and-engagement  /en/blog/how-video-campaigns-drive-event-attendance-and-engagement/  301
+/blog/how-viven-helps-b2c-brands-dominate-social-media-with-scroll-stopping-videos /en/blog/how-viven-helps-b2c-brands-dominate-social-media-with-scroll-stopping-videos/  301
+/blog/how-viven-helps-brands-boost-customer-engagement-with-social-media-videos /en/blog/how-viven-helps-brands-boost-customer-engagement-with-social-media-videos/  301
+/blog/live-streaming-for-brands-how-to-engage-in-real-time-and-win-attention /en/blog/live-streaming-for-brands-how-to-engage-in-real-time-and-win-attention/  301
+/blog/maximise-business-impact-with-professional-video-production /en/blog/maximise-business-impact-with-professional-video-production/  301
+/blog/maximizing-customer-conversion-with-explainer-videos-a-strategic-guide /en/blog/maximizing-customer-conversion-with-explainer-videos-a-strategic-guide/  301
+/blog/strengthen-business-communication-with-corporate-video-production /en/blog/strengthen-business-communication-with-corporate-video-production/  301
+/blog/testimonials-the-most-trusted-marketing-tool-in-2025       /en/blog/testimonials-the-most-trusted-marketing-tool-in-2025/  301
+/blog/the-competitive-advantage-product-video-production-gives   /en/blog/the-competitive-advantage-product-video-production-gives/  301
+/blog/understanding-film-funding-opportunities-in-switzerland    /en/blog/understanding-film-funding-opportunities-in-switzerland/  301
+/blog/unlocking-business-growth-the-power-of-explainer-videos-in-generating-quality-leads /en/blog/unlocking-business-growth-the-power-of-explainer-videos-in-generating-quality-leads/  301
+/blog/use-video-production-to-engage-existing-customers-through-exclusive-community-content /en/blog/use-video-production-to-engage-existing-customers-through-exclusive-community-content/  301
+/blog/why-brands-choose-viven-as-their-video-agency-to-drive-sales-and-build-trust /en/blog/why-brands-choose-viven-as-their-video-agency-to-drive-sales-and-build-trust/  301
+/blog/why-customer-testimonial-videos-are-a-game-changer-for-big-brands /en/blog/why-customer-testimonial-videos-are-a-game-changer-for-big-brands/  301
+/blog/why-swiss-film-production-companies-are-in-high-demand     /en/blog/why-swiss-film-production-companies-are-in-high-demand/  301
+/blog/why-viven-is-the-video-agency-of-choice-for-b2b-brands     /en/blog/why-viven-is-the-video-agency-of-choice-for-b2b-brands/  301
+/blog/zurich-the-heart-of-switzerlands-film-production-scene     /en/blog/zurich-the-heart-of-switzerlands-film-production-scene/  301
