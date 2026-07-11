@@ -188,6 +188,45 @@
   .g-lead{fill:#ff9ec9;stroke:var(--navy-800);stroke-width:2;transition:.2s}
   .gsvg circle:hover{opacity:.8}
   .chart-labels{display:none}
+
+  /* ===== Offer tool ===== */
+  .of-bar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  .of-list{display:grid;gap:10px;margin-top:16px}
+  .of-card{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:15px 18px;cursor:pointer;color:var(--text);transition:border-color .15s,transform .05s;font-family:inherit}
+  .of-card:hover{border-color:var(--muted)}
+  .of-card:active{transform:scale(.995)}
+  .of-card-main{flex:1;min-width:0}
+  .of-card-title{font-weight:600;font-size:15.5px}
+  .of-card-sub{color:var(--muted-2);font-size:12.5px;margin-top:2px}
+  .of-card-nums{text-align:right}
+  .of-card-net{font-weight:700;font-size:15.5px}
+  .of-card-margin{font-size:12px;margin-top:2px}
+  .of-badge{border:1px solid;border-radius:999px;font-size:11px;font-weight:600;padding:3px 10px;white-space:nowrap}
+  .of-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:18px 0}
+  .of-meta .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .of-meta input,.of-meta select{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px}
+  .of-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .of-add select{flex:1;min-width:220px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;padding:9px 11px}
+  .of-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+  .of-table{width:100%;border-collapse:collapse;min-width:820px}
+  .of-table th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-2);padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .of-table td{padding:6px 10px;border-bottom:1px solid var(--line);font-size:13.5px}
+  .of-table th.num,.of-table td.num{text-align:right}
+  .of-table input,.of-table select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:13.5px;padding:7px 9px;width:100%}
+  .of-table input.w{width:92px;text-align:right}
+  .of-table td.num input.w{margin-left:auto;display:block}
+  .of-del{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px}
+  .of-del:hover{color:#ff8b8b;background:rgba(255,107,107,.1)}
+  .of-summary{margin:18px 0 8px;margin-left:auto;max-width:420px;background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .of-sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;color:var(--muted)}
+  .of-sum-row b{color:var(--text);font-variant-numeric:tabular-nums}
+  .of-sum-row.total b{font-size:18px}
+  .of-summary hr{border:0;border-top:1px solid var(--line);margin:8px 0}
+  .of-sum-row input{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font-family:inherit;font-size:13px;padding:3px 6px}
+  b.pos{color:#7ed957!important}
+  b.neg{color:#ff8b8b!important}
+  .of-bep{margin-top:12px;font-size:12.5px;color:var(--muted-2);line-height:1.5;border-top:1px dashed var(--line);padding-top:12px}
+  @media(max-width:720px){.of-meta{grid-template-columns:1fr}.of-summary{max-width:none}}
 </style>
 </head>
 <body>
@@ -221,6 +260,7 @@
 
   <div class="tabs">
     <button class="tab active" data-tab="leads" type="button">📥 Leads <span class="pill" id="tab-leads-count">0</span></button>
+    <button class="tab" data-tab="offers" type="button">🧾 Ofertas</button>
     <button class="tab" data-tab="analytics" type="button">📊 Analytics</button>
   </div>
 
@@ -308,6 +348,86 @@
 
     <p class="muted-note">Video stats: <span id="ka-videos">–</span> registros. (El tracking de qué % de cada video se mira se conecta en una próxima etapa.)</p>
   </div>
+
+  <!-- ============ TAB: OFERTAS ============ -->
+  <div id="tab-offers" hidden>
+    <!-- LISTA -->
+    <div id="of-list-view">
+      <div class="of-bar">
+        <div>
+          <h2 style="margin:0">Ofertas</h2>
+          <p class="muted-note" style="margin:2px 0 0">Calculá precio, costo interno, margen y breakeven. Se guardan en Supabase.</p>
+        </div>
+        <button class="btn btn-primary" id="of-new" type="button">➕ Nueva oferta</button>
+      </div>
+      <div class="kpis four" style="margin-top:16px">
+        <div class="kpi"><div class="n" id="of-k-count">–</div><div class="l">Ofertas</div></div>
+        <div class="kpi"><div class="n" id="of-k-open">–</div><div class="l">Enviadas (abiertas)</div></div>
+        <div class="kpi"><div class="n" id="of-k-value">–</div><div class="l">Valor pipeline (neto)</div></div>
+        <div class="kpi"><div class="n" id="of-k-margin">–</div><div class="l">Margen medio</div></div>
+      </div>
+      <div id="of-list" class="of-list"></div>
+      <p class="muted-note" id="of-empty" hidden>Todavía no hay ofertas. Creá la primera con "Nueva oferta".</p>
+    </div>
+
+    <!-- EDITOR -->
+    <div id="of-editor" hidden>
+      <div class="of-bar">
+        <button class="btn btn-ghost small" id="of-back" type="button">← Volver</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="of-status" class="status">
+            <option value="draft">Borrador</option>
+            <option value="sent">Enviada</option>
+            <option value="won">Ganada</option>
+            <option value="lost">Perdida</option>
+          </select>
+          <button class="btn btn-ghost small" id="of-print" type="button">🖨 Imprimir / PDF</button>
+          <button class="btn btn-ghost small" id="of-delete" type="button">🗑 Borrar</button>
+          <button class="btn btn-primary small" id="of-save" type="button">💾 Guardar</button>
+        </div>
+      </div>
+
+      <div class="of-meta">
+        <div class="bf"><label>Título de la oferta</label><input id="of-title" placeholder="p. ej. Chiral Nano AG — Promotional Video" /></div>
+        <div class="bf"><label>Cliente</label><input id="of-client" placeholder="Nombre del cliente" /></div>
+        <div class="bf"><label>Ligar a lead (opcional)</label><select id="of-lead"></select></div>
+      </div>
+
+      <!-- agregar posición -->
+      <div class="of-add">
+        <select id="of-preset"></select>
+        <button class="btn btn-ghost small" id="of-add-preset" type="button">＋ Agregar del catálogo</button>
+        <button class="btn btn-ghost small" id="of-add-blank" type="button">＋ Posición vacía</button>
+      </div>
+
+      <!-- tabla de posiciones -->
+      <div class="of-table-wrap">
+        <table class="of-table">
+          <thead>
+            <tr>
+              <th>Posición</th><th>Fase</th>
+              <th class="num">Cant.</th><th>Unidad</th>
+              <th class="num">Precio cliente</th><th class="num">Costo interno</th>
+              <th class="num">Total cliente</th><th class="num">Margen</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="of-rows"></tbody>
+        </table>
+      </div>
+
+      <!-- resumen -->
+      <div class="of-summary">
+        <div class="of-sum-row"><span>Total neto</span><b id="of-net">CHF 0.00</b></div>
+        <div class="of-sum-row"><span>IVA <input id="of-vat" type="number" step="0.1" value="8.1" style="width:56px"/>%</span><b id="of-vatamt">CHF 0.00</b></div>
+        <div class="of-sum-row total"><span>Total bruto</span><b id="of-gross">CHF 0.00</b></div>
+        <hr/>
+        <div class="of-sum-row"><span>Costo interno (breakeven)</span><b id="of-cost">CHF 0.00</b></div>
+        <div class="of-sum-row"><span>Ganancia (neto − costo)</span><b id="of-profit" class="pos">CHF 0.00</b></div>
+        <div class="of-sum-row"><span>Margen</span><b id="of-marginpct" class="pos">0%</b></div>
+        <div class="of-bep" id="of-bep"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ============ LEAD DETAIL MODAL ============ -->
@@ -375,7 +495,9 @@
     t.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === t));
       $('tab-leads').hidden = t.dataset.tab !== 'leads';
+      $('tab-offers').hidden = t.dataset.tab !== 'offers';
       $('tab-analytics').hidden = t.dataset.tab !== 'analytics';
+      if (t.dataset.tab === 'offers') offersInit();
     });
   });
 
@@ -1005,6 +1127,208 @@
     ).join('');
   }
   const esc0html = (s) => String(s ?? '');
+
+  /* =================== OFFER TOOL (Kostenkalkulation) =================== */
+  /* Rate card con tarifas reales de Viven (Moco). price = precio al cliente, cost = costo externo (freelancer/rental). */
+  const RATECARD = {
+    'Pre-Production': [
+      { name: 'Producer', unit: 'Std', price: 120, cost: 0 },
+      { name: '1st AC', unit: 'Std', price: 60, cost: 0 },
+      { name: 'Project Admin', unit: 'Fix', price: 300, cost: 0 },
+      { name: 'Scouting (Producer)', unit: 'Std', price: 120, cost: 0 },
+    ],
+    'Production': [
+      { name: 'Producer', unit: 'Tag', price: 950, cost: 0 },
+      { name: 'Director of Photography', unit: 'Tag', price: 1000, cost: 800 },
+      { name: 'Gaffer', unit: 'Tag', price: 700, cost: 670 },
+      { name: 'Sound / Audio', unit: 'Tag', price: 800, cost: 750 },
+      { name: 'Sony FX6 (Kit)', unit: 'Tag', price: 250, cost: 0 },
+      { name: 'Lenses Set', unit: 'Tag', price: 100, cost: 0 },
+      { name: '3-Point LED Kit', unit: 'Tag', price: 250, cost: 0 },
+      { name: 'Ronin RS3 Pro', unit: 'Tag', price: 60, cost: 0 },
+      { name: 'Van inkl. km', unit: 'Tag', price: 120, cost: 0 },
+      { name: 'Per Diems', unit: 'Person', price: 32, cost: 32 },
+    ],
+    'Post-Production': [
+      { name: 'Editor inkl. Suite + Color', unit: 'Tag', price: 950, cost: 550 },
+      { name: 'Motion / VFX Animation', unit: 'Tag', price: 900, cost: 750 },
+      { name: 'Music license', unit: 'Stk', price: 60, cost: 60 },
+      { name: 'Additional Correction Round', unit: 'Tag', price: 950, cost: 550 },
+    ],
+  };
+  const PHASES = Object.keys(RATECARD);
+  const fmtM = (n) => 'CHF ' + (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  let offersList = [], ofCur = null, offersBuilt = false;
+
+  function offersInit(){ buildPresetSelect(); if (!offersBuilt){ offersBuilt = true; bindOffers(); } offersLoad(); }
+
+  function buildPresetSelect(){
+    const sel = $('of-preset');
+    if (sel.dataset.built) return;
+    sel.dataset.built = '1';
+    sel.innerHTML = PHASES.map((ph) =>
+      '<optgroup label="' + ph + '">' +
+      RATECARD[ph].map((it, i) => '<option value="' + ph + '::' + i + '">' + esc(it.name) + ' — ' + fmtM(it.price) + '/' + it.unit + '</option>').join('') +
+      '</optgroup>').join('');
+  }
+
+  const offerNet = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+  const offerCost = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.cost) || 0), 0);
+  const offerMarginPct = (o) => { const n = offerNet(o); return n ? (n - offerCost(o)) / n * 100 : NaN; };
+
+  async function offersLoad(){
+    const { data, error } = await supabase.from('offers').select('*').order('updated_at', { ascending: false });
+    if (error){ $('of-empty').hidden = false; $('of-empty').textContent = 'No se pudo cargar (¿corriste el SQL 0003_offers?): ' + error.message; return; }
+    offersList = data || [];
+    renderOffersList();
+  }
+
+  function renderOffersList(){
+    const box = $('of-list');
+    $('of-empty').hidden = offersList.length > 0;
+    const open = offersList.filter((o) => o.status === 'sent');
+    const margins = offersList.map(offerMarginPct).filter((m) => isFinite(m));
+    $('of-k-count').textContent = offersList.length;
+    $('of-k-open').textContent = open.length;
+    $('of-k-value').textContent = fmtM(open.reduce((a, o) => a + offerNet(o), 0));
+    $('of-k-margin').textContent = margins.length ? Math.round(margins.reduce((a, b) => a + b, 0) / margins.length) + '%' : '–';
+    const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
+    box.innerHTML = offersList.map((o) => {
+      const net = offerNet(o), mp = offerMarginPct(o), b = badge[o.status] || badge.draft;
+      return '<button class="of-card" data-id="' + o.id + '" type="button">' +
+        '<div class="of-card-main"><div class="of-card-title">' + esc(o.title || '(sin título)') + '</div>' +
+        '<div class="of-card-sub">' + esc(o.client || '—') + ' · ' + (o.items ? o.items.length : 0) + ' posiciones · ' + new Date(o.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
+        '<div class="of-card-nums"><div class="of-card-net">' + fmtM(net) + '</div>' +
+        '<div class="of-card-margin" style="color:' + (mp >= 50 ? '#7ed957' : mp >= 30 ? '#f0c060' : '#ff8b8b') + '">' + (isFinite(mp) ? Math.round(mp) + '% margen' : '') + '</div></div>' +
+        '<span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></button>';
+    }).join('');
+    box.querySelectorAll('.of-card').forEach((c) => c.addEventListener('click', () => openOffer(c.dataset.id)));
+  }
+
+  function showEditor(on){ $('of-editor').hidden = !on; $('of-list-view').hidden = on; }
+
+  function newOffer(){ ofCur = { title: '', client: '', lead_id: null, vat_rate: 8.1, status: 'draft', items: [] }; fillEditor(); showEditor(true); }
+  function openOffer(id){
+    const src = offersList.find((o) => String(o.id) === String(id));
+    if (!src) return;
+    ofCur = JSON.parse(JSON.stringify(src));
+    if (!Array.isArray(ofCur.items)) ofCur.items = [];
+    fillEditor(); showEditor(true);
+  }
+
+  function leadOptions(sel){
+    return ['<option value="">— ninguno —</option>'].concat(
+      (allLeads || []).map((l) => '<option value="' + esc(l.id) + '"' + (String(sel) === String(l.id) ? ' selected' : '') + '>' + esc(l.name || l.email || l.id) + '</option>')
+    ).join('');
+  }
+  function fillEditor(){
+    $('of-title').value = ofCur.title || '';
+    $('of-client').value = ofCur.client || '';
+    $('of-status').value = ofCur.status || 'draft';
+    $('of-vat').value = ofCur.vat_rate ?? 8.1;
+    $('of-lead').innerHTML = leadOptions(ofCur.lead_id);
+    renderRows();
+  }
+
+  function renderRows(){
+    const tb = $('of-rows');
+    tb.innerHTML = ofCur.items.map((it, i) => {
+      const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
+      const margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
+      return '<tr data-i="' + i + '">' +
+        '<td><input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></td>' +
+        '<td><select class="ofi" data-f="phase">' + PHASES.map((p) => '<option' + (p === it.phase ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></td>' +
+        '<td class="num"><input class="ofi w" data-f="qty" type="number" step="0.25" value="' + (it.qty ?? 1) + '"/></td>' +
+        '<td><input class="ofi w" data-f="unit" value="' + esc(it.unit || '') + '"/></td>' +
+        '<td class="num"><input class="ofi w" data-f="price" type="number" step="10" value="' + (it.price ?? 0) + '"/></td>' +
+        '<td class="num"><input class="ofi w" data-f="cost" type="number" step="10" value="' + (it.cost ?? 0) + '"/></td>' +
+        '<td class="num">' + fmtM(total) + '</td>' +
+        '<td class="num" style="color:' + (margin >= 0 ? '#7ed957' : '#ff8b8b') + '">' + fmtM(margin) + '</td>' +
+        '<td><button class="of-del" type="button" data-i="' + i + '">✕</button></td></tr>';
+    }).join('');
+    tb.querySelectorAll('.ofi').forEach((inp) => inp.addEventListener('input', onRowInput));
+    tb.querySelectorAll('.of-del').forEach((b) => b.addEventListener('click', () => { ofCur.items.splice(+b.dataset.i, 1); renderRows(); }));
+    recalc();
+  }
+  function onRowInput(e){
+    const tr = e.target.closest('tr'), i = +tr.dataset.i, f = e.target.dataset.f;
+    let v = e.target.value;
+    if (['qty', 'price', 'cost'].includes(f)) v = parseFloat(v) || 0;
+    ofCur.items[i][f] = v;
+    if (['qty', 'price', 'cost'].includes(f)){
+      const it = ofCur.items[i], total = (Number(it.qty) || 0) * (Number(it.price) || 0), margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
+      tr.children[6].textContent = fmtM(total);
+      tr.children[7].textContent = fmtM(margin);
+      tr.children[7].style.color = margin >= 0 ? '#7ed957' : '#ff8b8b';
+      recalc();
+    }
+  }
+  function recalc(){
+    const net = offerNet(ofCur), cost = offerCost(ofCur);
+    const vat = net * (parseFloat($('of-vat').value) || 0) / 100;
+    const profit = net - cost, mp = net ? profit / net * 100 : 0;
+    $('of-net').textContent = fmtM(net);
+    $('of-vatamt').textContent = fmtM(vat);
+    $('of-gross').textContent = fmtM(net + vat);
+    $('of-cost').textContent = fmtM(cost);
+    $('of-profit').textContent = fmtM(profit);
+    $('of-profit').className = profit >= 0 ? 'pos' : 'neg';
+    $('of-marginpct').textContent = Math.round(mp) + '%';
+    $('of-marginpct').className = mp >= 50 ? 'pos' : mp >= 30 ? '' : 'neg';
+    $('of-bep').textContent = cost > 0
+      ? 'Breakeven en ' + fmtM(cost) + ' de costo externo. Podés descontar hasta ' + fmtM(profit) + ' (' + Math.round(mp) + '%) antes de perder plata.'
+      : 'Sin costo externo cargado — todo el neto es margen.';
+  }
+
+  async function saveOffer(){
+    ofCur.title = $('of-title').value.trim();
+    ofCur.client = $('of-client').value.trim();
+    ofCur.lead_id = $('of-lead').value || null;
+    ofCur.vat_rate = parseFloat($('of-vat').value) || 0;
+    ofCur.status = $('of-status').value;
+    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items };
+    const btn = $('of-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
+    const res = ofCur.id
+      ? await supabase.from('offers').update(payload).eq('id', ofCur.id).select().single()
+      : await supabase.from('offers').insert(payload).select().single();
+    btn.disabled = false; btn.textContent = prev;
+    if (res.error){ alert('No se pudo guardar: ' + res.error.message); return; }
+    await offersLoad(); showEditor(false);
+  }
+  async function deleteOffer(){
+    if (!ofCur.id){ showEditor(false); return; }
+    if (!confirm('¿Borrar esta oferta definitivamente?')) return;
+    const { error } = await supabase.from('offers').delete().eq('id', ofCur.id);
+    if (error){ alert('No se pudo borrar: ' + error.message); return; }
+    await offersLoad(); showEditor(false);
+  }
+  function printOffer(){
+    const net = offerNet(ofCur), vat = net * (parseFloat($('of-vat').value) || 0) / 100;
+    const rows = ofCur.items.map((it) => {
+      const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
+      return '<tr><td>' + esc(it.name || '') + '</td><td style="text-align:center">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td><td style="text-align:right">' + fmtM(it.price) + '</td><td style="text-align:right">' + fmtM(t) + '</td></tr>';
+    }).join('');
+    const w = window.open('', '_blank');
+    if (!w){ alert('Permití las ventanas emergentes para imprimir/guardar como PDF.'); return; }
+    w.document.write('<html><head><title>' + esc(ofCur.title || 'Offerte') + '</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:44px;color:#111;max-width:760px;margin:auto}h1{font-size:22px;margin:0 0 4px}.sub{color:#666;margin:0 0 24px}table{width:100%;border-collapse:collapse}td,th{padding:9px 8px;border-bottom:1px solid #e2e2e2;font-size:14px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}.tot{margin-top:22px;text-align:right;font-size:14px;line-height:1.9}.tot b{font-size:19px}</style></head><body><h1>' + esc(ofCur.title || 'Offerte') + '</h1><p class="sub">' + esc(ofCur.client || '') + '</p><table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table><div class="tot">Total netto: ' + fmtM(net) + '<br>MwSt ' + (parseFloat($('of-vat').value) || 0) + '%: ' + fmtM(vat) + '<br><b>Total brutto: ' + fmtM(net + vat) + '</b></div></body></html>');
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 350);
+  }
+
+  function bindOffers(){
+    $('of-new').addEventListener('click', newOffer);
+    $('of-back').addEventListener('click', () => showEditor(false));
+    $('of-add-blank').addEventListener('click', () => { ofCur.items.push({ name: '', phase: PHASES[1], qty: 1, unit: 'Tag', price: 0, cost: 0 }); renderRows(); });
+    $('of-add-preset').addEventListener('click', () => {
+      const [ph, idx] = $('of-preset').value.split('::'); const p = RATECARD[ph][+idx];
+      ofCur.items.push({ name: p.name, phase: ph, qty: 1, unit: p.unit, price: p.price, cost: p.cost }); renderRows();
+    });
+    $('of-vat').addEventListener('input', () => { ofCur.vat_rate = parseFloat($('of-vat').value) || 0; recalc(); });
+    $('of-status').addEventListener('change', () => { ofCur.status = $('of-status').value; });
+    $('of-save').addEventListener('click', saveOffer);
+    $('of-delete').addEventListener('click', deleteOffer);
+    $('of-print').addEventListener('click', printOffer);
+  }
 
   /* ---------- Sesión persistente ---------- */
   supabase.auth.getSession().then(({ data }) => {
