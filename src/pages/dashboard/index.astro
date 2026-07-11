@@ -310,6 +310,11 @@
       <div class="kpi"><div class="n" id="kl-convrate">–</div><div class="l">Tasa de conversión</div></div>
       <div class="kpi"><div class="n" id="kl-followup">–</div><div class="l">Follow-ups esta semana</div></div>
     </div>
+    <div class="panel" style="margin-top:4px">
+      <h2>Funnel de ventas <span class="count">(conversión y tiempo entre etapas)</span></h2>
+      <div class="funnel" id="funnel"></div>
+    </div>
+
     <div class="pipe-bar">
       <input type="search" id="lead-search" placeholder="Buscar por nombre, email o mensaje…" />
       <span class="pipe-hint">Arrastrá las tarjetas entre columnas para cambiar el estado →</span>
@@ -353,11 +358,6 @@
 
     <!-- Titulares automáticos: qué está funcionando -->
     <div class="insights" id="insights"></div>
-
-    <div class="panel">
-      <h2>Funnel de ventas <span class="count">(conversión y tiempo entre etapas)</span></h2>
-      <div class="funnel" id="funnel"></div>
-    </div>
 
     <div class="panel">
       <h2>Tráfico y leads por día <span class="count">(últimos 30 días)</span></h2>
@@ -799,6 +799,7 @@
     $('kl-convrate').innerHTML = decided ? (won / decided * 100).toFixed(0) + '<small>%</small>' : '–';
     $('kl-followup').textContent = followWeek;
 
+    renderFunnel(viewLeads);
     renderPipeline();
   }
 
@@ -1200,7 +1201,6 @@
     const sessions = new Set(real.map((r) => r.session_id));
     const periodLeads = (leads || []).filter((l) =>
       inRange(l.created_at) && !/^claude-/.test(l.session_id || ''));
-    renderFunnel(periodLeads);
 
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     $('ka-views').textContent = real.length;
