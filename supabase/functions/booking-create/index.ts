@@ -102,7 +102,41 @@ Deno.serve(async (req) => {
     if (leadId) await service.from("lead_notes").insert({ lead_id: String(leadId), author: "Booking", body: `📅 Call agendada por el cliente: ${new Date(startMs).toLocaleString("de-CH", { timeZone: "Europe/Zurich" })} (${duration} min)` + (meet ? `\n${meet}` : "") }).then(() => {}, () => {});
     await service.from("bookings").insert({ name, email, phone: phone || null, message: message || null, start_at: new Date(startMs).toISOString(), end_at: new Date(endMs).toISOString(), duration_m: duration, lang, lead_id: leadId, gcal_event: event.id || null, meet_url: meet }).then(() => {}, () => {});
 
-    // 4) avisar al equipo (push a todos los dispositivos suscritos)
+    // 4) email de confirmación PROPIO vía Resend — la invitación de Google Calendar
+    // a veces no genera email (auto-add silencioso); el cliente SIEMPRE recibe el nuestro.
+    try {
+      const RESEND = Deno.env.get("RESEND_API_KEY");
+      if (RESEND && meet) {
+        const when = new Date(startMs).toLocaleString(
+          lang === "de" ? "de-CH" : lang === "es" ? "es-ES" : "en-GB",
+          { timeZone: "Europe/Zurich", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+        const E = {
+          en: { sub: `Your call with Viven is booked — ${when}`, hi: `Hi ${name.split(/\s+/)[0]},`, p: `Your ${duration}-minute call is confirmed for <b>${when}</b> (Zurich time). The Google Calendar invite is on its way too.`, join: "→ Join with Google Meet", brief: "Fill in the 2-min brief", bp: "One more thing: the short project brief helps us come prepared." },
+          de: { sub: `Ihr Call mit Viven ist gebucht — ${when}`, hi: `Hallo ${name.split(/\s+/)[0]},`, p: `Ihr ${duration}-Minuten-Call ist bestätigt: <b>${when}</b> (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.`, join: "→ Mit Google Meet beitreten", brief: "2-Min-Briefing ausfüllen", bp: "Noch etwas: Mit dem kurzen Projekt-Briefing kommen wir bestens vorbereitet." },
+          es: { sub: `Tu llamada con Viven está reservada — ${when}`, hi: `Hola ${name.split(/\s+/)[0]},`, p: `Tu llamada de ${duration} minutos está confirmada: <b>${when}</b> (hora de Zúrich). La invitación de Google Calendar también va en camino.`, join: "→ Entrar con Google Meet", brief: "Completar el brief de 2 min", bp: "Una cosa más: el brief corto nos ayuda a llegar preparados." },
+        }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
+        const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230">
+          <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:22px 28px">
+            <span style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#ddf98f">viven</span>
+            <span style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#9aa6bd;margin-left:10px">Film Production</span>
+          </div>
+          <div style="border:1px solid #e8eaef;border-top:0;border-radius:0 0 14px 14px;padding:26px 28px">
+            <p style="font-size:15px;line-height:1.7;margin:0 0 8px">${E.hi}</p>
+            <p style="font-size:15px;line-height:1.7;margin:0 0 6px">${E.p}</p>
+            <div style="text-align:center;margin:24px 0 8px"><a href="${meet}" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">${E.join}</a></div>
+            <p style="font-size:13.5px;line-height:1.7;color:#5b6472;margin:18px 0 6px">${E.bp}</p>
+            <div style="text-align:center;margin:8px 0 4px"><a href="${BRIEF_URL}?lang=${lang}" style="border:1px solid #d5d9e2;color:#1a2230;font-weight:600;font-size:13px;text-decoration:none;border-radius:100px;padding:10px 20px;display:inline-block">${E.brief}</a></div>
+            <p style="font-size:11px;color:#8a94a8;text-align:center;margin:22px 0 0;border-top:1px solid #e8eaef;padding-top:14px"><b style="color:#1a2230">VIVEN AG</b> · Film Production · Zeughausstrasse 31, 8004 Zürich<br>viven.ch · ★★★★★ 5.0 on Google (47 reviews)</p>
+          </div></div>`;
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${RESEND}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ from: "Sebastian Cepeda — VIVEN AG <info@viven.ch>", to: [email], reply_to: "sebastian@viven.ch", subject: E.sub, html }),
+        });
+      }
+    } catch (_e) { /* email de confirmación best-effort — el evento ya existe */ }
+
+    // 5) avisar al equipo (push a todos los dispositivos suscritos)
     try {
       const { data: subs } = await service.from("push_subscriptions").select("id").limit(1);
       if (subs?.length) {
