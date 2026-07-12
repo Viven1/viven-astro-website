@@ -1,0 +1,64 @@
+---
+// Production services / line production para productoras que ruedan en Suiza.
+// URL EN = la del sitio viejo (Google ya la conocía; el redirect a /services/ se quitó).
+import Base from '../../layouts/Base.astro';
+const lang = "en";
+const d = {"title": "Video Production Services Zurich, Switzerland | Viven", "description": "Line production and production services in Switzerland: senior local crew, permits, casting and full logistics from our Zurich base. One clear CHF budget.", "h1": "Video Production Services in Zurich — Your Local Production Partner in Switzerland", "lead": "If you are bringing a shoot to Switzerland, Viven is your production services partner on the ground. From our base at Zeughausstrasse 31 in Zurich, we provide senior local crew, camera and lighting packages, filming permits, casting and complete logistics for foreign production companies, agencies and brands — one contact, one transparent budget in CHF, and a team that has delivered for UBS, Siemens, Porsche and FIFA.", "sections": [{"h2": "Your local production company in Switzerland", "html": "<p>Viven AG is a Zurich-based production company that works as the Swiss arm of your production: your creative, your director, our ground operation. We have produced for <strong>UBS, Siemens, Porsche, ON, FIFA, Philips and Kanebo</strong> — the Kanebo work coming out of Japan, so we know exactly what it takes to plug a local unit into an international pipeline: clear reporting lines, deliverables that match your post workflow, and no time lost to translation. Founder Sebastian Cepeda produced the first Swiss feature film on Netflix, and that feature-level discipline in scheduling, budgeting and set management runs through every service production we take on. We shoot across all of Switzerland and Europe.</p>"}, {"h2": "Senior local crew and equipment, ready to shoot", "html": "<p>You send the brief; we staff the shoot with department heads we work with every week.</p><ul><li><strong>Crew:</strong> senior DOP, gaffer and sound recordist as the core unit, scaled up with ACs, grips and production assistants as your shoot requires.</li><li><strong>Camera:</strong> Sony FX6 packages with cinema optics.</li><li><strong>Lighting and movement:</strong> LED lighting packages and DJI Ronin stabilisation.</li><li><strong>Transport:</strong> a production van is included, so gear and crew move as one unit.</li></ul><p>Everything is quoted as a single package. You are not chasing separate rental houses, insurance riders and freelancers across time zones — we own the whole line.</p>"}, {"h2": "Filming permits, locations and casting", "html": "<p>Switzerland rewards preparation: cities, transport authorities and protected landscapes each have their own permitting rules, and lead times decide whether your schedule holds. We handle <strong>filming permits</strong> in Zurich and cities across the country, and we scout and secure locations to match your boards — urban streets and rooftops, lakesides, Alpine roads and peaks, and studio stages when you need controlled conditions. We also run <strong>local casting</strong>, from professional actors to real-people talent, and manage releases and usage rights so your legal team has nothing to untangle later.</p>"}, {"h2": "Full logistics and a bilingual fixer for foreign crews", "html": "<p>Line production means the unglamorous work is finished before your team lands.</p><ul><li>Transport, accommodation and per diems for cast and crew</li><li>Production insurance and risk documentation</li><li>Schedules, call sheets and company moves between locations</li><li>A <strong>bilingual producer and fixer</strong> embedded with your team from prep through wrap</li></ul><p>We produce in English, German and Spanish, so nothing gets lost between your agency, the client and a Swiss location owner. And you get <strong>one contact and one transparent budget in CHF</strong> — itemised, realistic, and defended on set.</p>"}, {"h2": "Optional post production in Zurich — and how to start", "html": "<p>If you want to finish in Switzerland, we offer editing, colour grading and VFX in-house, plus subtitling in English, German and Spanish. If post stays with your team at home, we deliver organised, backed-up footage with camera and sound reports the moment wrap is called.</p><p>Send us your script, treatment or shot list together with your shoot window. Within days you will have a realistic CHF budget, a crew plan and a permit assessment — and a production office in Zurich that treats your shoot as its own.</p>"}]};
+const title = { "en": d.title };
+const description = { "en": d.description };
+const langUrls = {"en": "/en/video-production-services-zurich/", "de": "/de/produktionsservices-schweiz/", "es": "/es/servicios-de-produccion-audiovisual-suiza/"};
+const SITE = 'https://www.viven.ch';
+const ld = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: d.h1, description: d.description,
+  provider: { '@id': SITE + '/#organization' },
+  areaServed: { '@type': 'Country', name: 'Switzerland' },
+  serviceType: 'Film and video production services',
+  url: SITE + '/en/video-production-services-zurich/',
+});
+---
+<Base lang={lang} slug="video-production-services-zurich" active="services" title={title} description={description} singleLang={true} switchSlug="services" langUrls={langUrls}>
+  <script type="application/ld+json" slot="jsonld" set:html={ld}></script>
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">Production Services — Switzerland</span>
+      <h1 class="rsrc-h1">{d.h1}</h1>
+      <p class="lead">{d.lead}</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap rsrc-body">
+      {d.sections.map((sec) => (
+        <div class="rsrc-sec">
+          <h2>{sec.h2}</h2>
+          <div set:html={sec.html}></div>
+        </div>
+      ))}
+      <div class="rsrc-ctabox">
+        <div>
+          <div class="rsrc-ctat">Shooting in Switzerland?</div>
+          <p class="rsrc-ctas">Send us your script or treatment and your shooting window — clear CHF budget, usually within two business days.</p>
+        </div>
+        <div class="rsrc-ctabtns">
+          <a class="btn btn-primary" href="/en/contact/">Start the conversation</a>
+          <a class="btn btn-ghost" href="/book/" target="_blank" rel="noopener">📅 Book a 15-min call</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  <style is:global>
+    .rsrc-h1{font-size:clamp(28px,4.4vw,44px)!important}
+    .rsrc-body{max-width:820px}
+    .rsrc-sec{margin-bottom:30px}
+    .rsrc-sec h2{font-size:clamp(19px,2.6vw,24px);margin-bottom:12px}
+    .rsrc-sec p{color:var(--muted);font-size:15.5px;line-height:1.75;margin-bottom:12px}
+    .rsrc-sec ul{margin:0 0 12px 20px;color:var(--muted);font-size:15.5px;line-height:1.75}
+    .rsrc-sec li{margin-bottom:6px}
+    .rsrc-sec strong{color:var(--text)}
+    .rsrc-ctabox{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;border:1px solid var(--line-strong);background:var(--navy-800);border-radius:18px;padding:26px 28px;margin:40px 0 8px}
+    .rsrc-ctat{font-family:'Space Grotesk';font-weight:700;font-size:20px;margin-bottom:6px}
+    .rsrc-ctas{color:var(--muted);font-size:14px;max-width:460px;margin:0}
+    .rsrc-ctabtns{display:flex;gap:10px;flex-wrap:wrap}
+  </style>
+</Base>
