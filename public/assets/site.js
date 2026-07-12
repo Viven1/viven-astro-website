@@ -372,6 +372,7 @@ function renderLeadForm(mount){
       message: fMsg.value.trim() || null,
       form_path: location.pathname   /* en qué página convirtió (servicio > contact) */
     };
+    if(window.__vvAB) row.ab = window.__vvAB;   /* variantes A/B que vio (conversión por variante) */
     if(extra){
       row.session_id = extra.session_id;
       row.lang = extra.lang;
@@ -553,6 +554,56 @@ if(/^\/(thank-you|danke|gracias)\/?$/.test(location.pathname)){
   track('generate_lead', {method: 'lead_form', page: location.pathname});
 }
 
+/* ---------- A/B testing (definido en el dashboard → tabla ab_tests) ----------
+   La variante B se aplica client-side; el split vive en localStorage por test.
+   Exposiciones → ab_hits (tabla propia: NO toca pageviews); el lead se taggea
+   con window.__vvAB para medir conversión por variante. */
+window.__vvAB = '';
+function vvAbApply(changes){
+  (changes || []).forEach(function(c){
+    try{
+      var els = document.querySelectorAll(c.sel);
+      var el = els[c.idx || 0];
+      if(!el) return;
+      if(c.type === 'text') el.textContent = c.to;
+      else if(c.type === 'html') el.innerHTML = c.to;
+      else if(c.type === 'src') el.src = c.to;
+      else if(c.type === 'href') el.href = c.to;
+      else if(c.type === 'attr' && c.name) el.setAttribute(c.name, c.to);
+    }catch(e){}
+  });
+}
+(function vvAbInit(){
+  try{
+    var path = location.pathname;
+    fetch(SB_URL + '/rest/v1/ab_tests?select=id,split_pct,status,changes&url_path=eq.' + encodeURIComponent(path) + '&status=in.(running,done_b)', {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    }).then(function(r){ return r.ok ? r.json() : []; }).then(function(tests){
+      if(!tests || !tests.length) return;
+      var tags = [];
+      var run = function(){
+        tests.forEach(function(t){
+          var bucket = 'b';
+          if(t.status === 'running'){
+            var k = 'vv_ab_' + t.id;
+            bucket = null;
+            try{ bucket = localStorage.getItem(k); }catch(e){}
+            if(bucket !== 'a' && bucket !== 'b'){
+              bucket = (Math.random() * 100 < (Number(t.split_pct) || 50)) ? 'b' : 'a';
+              try{ localStorage.setItem(k, bucket); }catch(e){}
+            }
+            tags.push(t.id + ':' + bucket);
+            sbInsert('ab_hits', { test_id: t.id, bucket: bucket, session_id: (window.__vvSid || null), path: path });
+          }
+          if(bucket === 'b') vvAbApply(t.changes);
+        });
+        window.__vvAB = tags.join(',');
+      };
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+    }).catch(function(){});
+  }catch(e){}
+})();
+
 /* ---------- First-party analytics → Supabase (tabla pageviews) ----------
    Usa la API REST con fetch (0 KB de librerías). La key es la "publishable"
    de Supabase: es pública por diseño y RLS solo permite INSERT. */
@@ -617,6 +668,7 @@ function sbInsertLead(row){
       sessionStorage.setItem('viven-session', sid);
     }
   }catch(e){ sid = 'no-storage'; }
+  window.__vvSid = sid;   /* lo usa el runtime de A/B para las exposiciones */
 
   /* ---- Atribución de origen: se calcula UNA vez al entrar (ahí está el
      referrer/UTM) y se hereda en el resto de la sesión ---- */

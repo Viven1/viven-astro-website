@@ -1,0 +1,97 @@
+---
+// Hub de conocimiento /resources/ — las preguntas reales que la gente busca
+// (reconstruidas desde los ~94 slugs Q&A del sitio viejo: keyword research validado).
+import Base from '../../../layouts/Base.astro';
+import { langPaths, localePath } from '../../../i18n.js';
+import resources from '../../../data/resources.json';
+export const getStaticPaths = langPaths;
+const { lang } = Astro.params;
+const p = (s) => localePath(lang, s);
+
+const title = {
+  en: 'Video Production Resources — Every Question Answered | Viven',
+  de: 'Videoproduktion Wissen — Alle Fragen beantwortet | Viven',
+  es: 'Recursos de producción de video — Todas tus preguntas | Viven',
+};
+const description = {
+  en: 'The Viven knowledge hub: clear, expert answers to every question about video production — costs, process, formats, and what actually moves the numbers.',
+  de: 'Der Viven Wissens-Hub: klare Expertenantworten auf alle Fragen zur Videoproduktion — Kosten, Prozess, Formate und was wirklich Wirkung zeigt.',
+  es: 'El hub de conocimiento de Viven: respuestas expertas y claras a todas las preguntas sobre producción de video — costos, proceso y formatos.',
+};
+
+const CATS = {
+  brand:     { en: 'Brand & promotional videos', de: 'Marken- & Werbevideos', es: 'Videos de marca y promocionales' },
+  corporate: { en: 'Corporate video',            de: 'Unternehmensvideos',    es: 'Video corporativo' },
+  product:   { en: 'Product videos',             de: 'Produktvideos',         es: 'Videos de producto' },
+  social:    { en: 'Social media video',         de: 'Social Media Video',    es: 'Video para redes sociales' },
+  employer:  { en: 'Employer branding & recruiting', de: 'Employer Branding & Recruiting', es: 'Employer branding y reclutamiento' },
+  howto:     { en: 'Explainer, how-to & e-learning', de: 'Erklärvideos, How-to & E-Learning', es: 'Explicativos, how-to y e-learning' },
+  animation: { en: 'Animation & motion graphics', de: 'Animation & Motion Graphics', es: 'Animación y motion graphics' },
+  event:     { en: 'Event video',                de: 'Eventvideos',           es: 'Video de eventos' },
+  process:   { en: 'Production process',         de: 'Produktionsprozess',    es: 'Proceso de producción' },
+  general:   { en: 'Video strategy & more',      de: 'Videostrategie & mehr', es: 'Estrategia de video y más' },
+};
+const ORDER = ['brand', 'corporate', 'product', 'social', 'employer', 'howto', 'animation', 'event', 'process', 'general'];
+const mine = resources.filter((r) => r.lang === lang);
+const groups = ORDER.map((c) => ({ cat: c, items: mine.filter((r) => r.category === c) })).filter((g) => g.items.length);
+
+const crumbsLbl = { en: 'Resources', de: 'Wissen', es: 'Recursos' };
+const heroH1 = {
+  en: 'Every question, <span class="hl">answered properly.</span>',
+  de: 'Jede Frage, <span class="hl">richtig beantwortet.</span>',
+  es: 'Cada pregunta, <span class="hl">bien respondida.</span>',
+};
+const heroLead = {
+  en: 'Expert answers to the questions people actually ask about video production — written by the team that produces for UBS, Siemens and Porsche.',
+  de: 'Expertenantworten auf die Fragen, die zur Videoproduktion wirklich gestellt werden — vom Team hinter Produktionen für UBS, Siemens und Porsche.',
+  es: 'Respuestas expertas a las preguntas reales sobre producción de video — escritas por el equipo que produce para UBS, Siemens y Porsche.',
+};
+const ctaLbl = { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un proyecto' };
+---
+<Base lang={lang} slug="resources" active="resources" title={title} description={description}>
+  <section class="page-hero">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p('')}>{lang === 'es' ? 'Inicio' : 'Home'}</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <span>{crumbsLbl[lang]}</span>
+      </nav>
+      <span class="eyebrow">{crumbsLbl[lang]}</span>
+      <h1 set:html={heroH1[lang]}></h1>
+      <p class="lead">{heroLead[lang]}</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      {groups.map((g) => (
+        <div class="rsrc-group">
+          <h2 class="rsrc-cat">{CATS[g.cat][lang]} <span class="rsrc-n">({g.items.length})</span></h2>
+          <div class="rsrc-grid">
+            {g.items.map((r) => (
+              <a class="rsrc-card" href={p('resources/' + r.slug)}>
+                <span class="rsrc-q">{r.question}</span>
+                <span class="rsrc-arrow">→</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div class="rsrc-cta">
+        <a class="btn btn-primary" href={p('contact')}>{ctaLbl[lang]}</a>
+      </div>
+    </div>
+  </section>
+
+  <style is:global>
+    .rsrc-group{margin-bottom:44px}
+    .rsrc-cat{font-size:clamp(19px,2.6vw,24px);margin-bottom:16px}
+    .rsrc-cat .rsrc-n{color:var(--muted-2);font-size:14px;font-weight:400}
+    .rsrc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    @media(max-width:720px){.rsrc-grid{grid-template-columns:1fr}}
+    .rsrc-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:13px;background:var(--navy-800);padding:15px 18px;color:var(--text);text-decoration:none;font-size:15px;font-weight:500;transition:border-color .2s,transform .15s}
+    .rsrc-card:hover{border-color:var(--acid);transform:translateY(-1px)}
+    .rsrc-card .rsrc-arrow{color:var(--acid);flex:none}
+    .rsrc-cta{text-align:center;margin-top:14px}
+  </style>
+</Base>
