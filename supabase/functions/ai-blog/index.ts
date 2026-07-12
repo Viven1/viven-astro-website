@@ -34,9 +34,11 @@ Deno.serve(async (req) => {
     const t = (topic || keyword || "").trim();
     if (!t) return json({ error: "falta el tema/keyword" }, 400);
     const language = lang === "de" ? "German" : lang === "es" ? "Spanish" : "English";
-    // cuando es una versión en otro idioma: NO traducir — reescribir nativo con keywords locales
+    // cuando es una versión en otro idioma: NO traducir — reescribir nativo con keywords locales.
+    // Dos contratos separados: los HECHOS son fieles al master, el IDIOMA es 100% libre —
+    // si se mezclan en una sola orden ("faithful"), el modelo resuelve traduciendo 1:1.
     const sourceNote = source_html
-      ? `\n\nMASTER ARTICLE (already corrected and approved by the founder — this is the source of truth):\nTITLE: ${source_title}\nLEAD: ${source_lead}\nBODY HTML:\n${source_html}\nFAQ: ${JSON.stringify(source_faq)}\n\nWrite the ${language} version FAITHFUL to this master: same facts, same structure, same corrections, same internal links. Do NOT invent new claims and do NOT drop the founder's corrections. Still write it natively (real ${language} search keywords in title/headings/slug — not a literal translation).`
+      ? `\n\nMASTER ARTICLE (corrected and approved by the founder):\nTITLE: ${source_title}\nLEAD: ${source_lead}\nBODY HTML:\n${source_html}\nFAQ: ${JSON.stringify(source_faq)}\n\nYou are NOT translating this article. You are writing a NEW ${language} article on the same subject, under two separate contracts:\n\nCONTRACT 1 — FACTS (bound to the master): every number, price range, claim, recommendation and founder correction in the master must appear intact. Do not invent new claims, do not drop corrections. Reuse the same [[slug|anchor]] internal links (localize only the anchor text).\n\nCONTRACT 2 — LANGUAGE (completely free): before writing, decide which queries a native ${language} speaker in that market ACTUALLY types into Google for this topic — those queries (not the master's wording) dictate your title, slug, H2 headings and FAQ questions. Then write every paragraph from scratch in natural ${language}. You may reorder, merge or split sections, change examples and idioms, and reframe angles for that market.\n\nHARD RULE: if any paragraph of your draft could be aligned sentence-by-sentence with a master paragraph, it is a translation — rewrite it. A native reader must never suspect an original in another language exists.`
       : "";
     const localizeNote = localize
       ? `\n\nIMPORTANT — this is the ${language} version of an existing article on the same subject. Do NOT translate. Write a fresh, native ${language} article: think about the keywords a ${language}-speaking audience in the DACH/Swiss (or Hispanic) market ACTUALLY searches for this topic, and use those terms naturally in the title, headings and body. Localize examples, phrasing and search intent to that market. It should read as if originally written for that audience.`
@@ -62,8 +64,10 @@ Respond ONLY with valid minified JSON, no markdown fences:
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4000,
+        // propagación (source_html): Sonnet — sigue el doble contrato hechos/idioma sin caer
+        // en traducción literal; generación suelta: Haiku alcanza y es más barato
+        model: source_html ? "claude-sonnet-5" : "claude-haiku-4-5-20251001",
+        max_tokens: 5000,
         system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary.",
         messages: [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
       }),
