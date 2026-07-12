@@ -126,7 +126,7 @@ function loadHeroVideo(){
   if(!heroVideoAllowed()) return;
   var f = document.createElement('iframe');
   f.className = 'hero-video';
-  f.src = 'https://player.vimeo.com/video/' + heroId + '?background=1&autoplay=1&loop=1&muted=1&dnt=1';
+  f.src = 'https://player.vimeo.com/video/' + heroId + '?background=1&autoplay=1&loop=1&muted=1&playsinline=1&dnt=1';
   f.allow = 'autoplay; fullscreen';
   f.title = 'Viven showreel';
   f.loading = 'eager';
@@ -146,6 +146,14 @@ function loadHeroVideo(){
     loadHeroVideo();   // el visitante YA interactuó — cargar sin esperar al idle
   }
   evs.forEach(function(e){ window.addEventListener(e, go, { once: true, passive: true }); });
+  /* y si el visitante solo MIRA sin tocar nada: arrancar solo apenas termina de cargar
+     la página (post-LCP, no afecta la métrica) — el hero se siente vivo siempre */
+  function later(){
+    if('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 1800 });
+    else setTimeout(go, 1200);
+  }
+  if(document.readyState === 'complete') later();
+  else window.addEventListener('load', later, { once: true });
 })();
 
 /* ---------- Video modal (shared) ---------- */

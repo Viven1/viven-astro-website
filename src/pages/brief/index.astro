@@ -18,7 +18,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <link rel="stylesheet" href="/assets/site.css" />
 <style>
   .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px}
-  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);margin-bottom:26px;letter-spacing:-.02em}
+  .brief-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
+  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em}
+  .brief-langs{display:flex;gap:4px}
+  .brief-langs button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 9px;cursor:pointer;transition:.15s}
+  .brief-langs button:hover{color:var(--text)}
+  .brief-langs button.on{border-color:var(--acid);color:var(--acid)}
   .brief-logo span{color:var(--acid)}
   .brief-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:32px}
   .brief-card h1{font-size:clamp(23px,4vw,30px);line-height:1.15;margin-bottom:8px}
@@ -55,7 +60,14 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 </head>
 <body>
 <div class="brief-wrap">
-  <div class="brief-logo"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" style="height:22px;width:auto;display:block" /></div>
+  <div class="brief-top">
+    <div class="brief-logo"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" style="height:22px;width:auto;display:block" /></div>
+    <div class="brief-langs" id="brief-langs">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="de">DE</button>
+      <button type="button" data-lang="es">ES</button>
+    </div>
+  </div>
 
   <div class="brief-card" id="brief-form-card">
     <h1 id="bh-title" data-en="Tell us about your project" data-de="Erzählen Sie uns von Ihrem Projekt" data-es="Contanos sobre tu proyecto">Tell us about your project</h1>
@@ -78,8 +90,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       </div>
 
       <!-- Q1b: audiencia (single) -->
-      <div class="q" data-key="audience" data-multi="0">
+      <div class="q" data-key="audience" data-multi="1">
         <div class="qh" data-en="Who is it for?" data-de="Für wen ist es?" data-es="¿Para quién es?">Who is it for?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varios">Choose all that apply</div>
         <div class="opts two">
           <button type="button" class="opt" data-val="B2B decision makers"><span class="em">💼</span><span data-en="B2B decision makers" data-de="B2B-Entscheider" data-es="Decisores B2B">B2B decision makers</span><span class="tick">✓</span></button>
           <button type="button" class="opt" data-val="Consumers"><span class="em">🛍️</span><span data-en="Consumers" data-de="Konsument:innen" data-es="Consumidores">Consumers</span><span class="tick">✓</span></button>
@@ -152,8 +165,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       </div>
 
       <!-- Q2f: locación (single) -->
-      <div class="q" data-key="locations" data-multi="0">
+      <div class="q" data-key="locations" data-multi="1">
         <div class="qh" data-en="Where would we shoot?" data-de="Wo würden wir drehen?" data-es="¿Dónde rodaríamos?">Where would we shoot?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varios">Choose all that apply</div>
         <div class="opts two">
           <button type="button" class="opt" data-val="Our offices / site"><span class="em">🏢</span><span data-en="Our offices / site" data-de="Bei uns vor Ort" data-es="Nuestras oficinas">Our offices</span><span class="tick">✓</span></button>
           <button type="button" class="opt" data-val="Multiple locations"><span class="em">🗺️</span><span data-en="Multiple locations" data-de="Mehrere Locations" data-es="Varias locaciones">Multiple locations</span><span class="tick">✓</span></button>
@@ -217,8 +231,23 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   var topic = qs.get('topic') || '';
   document.documentElement.lang = lang;
 
-  // aplicar idioma a todo lo que tenga data-<lang>
-  document.querySelectorAll('[data-' + lang + ']').forEach(function(el){ el.textContent = el.getAttribute('data-' + lang); });
+  // aplicar idioma a todo lo que tenga data-<lang> (re-invocable desde el switcher)
+  function applyLang(){
+    document.querySelectorAll('[data-en],[data-de],[data-es]').forEach(function(el){
+      var t = el.getAttribute('data-' + lang);
+      if (t) el.textContent = t;
+    });
+    document.documentElement.lang = lang;
+    document.querySelectorAll('#brief-langs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
+  }
+  applyLang();
+  document.querySelectorAll('#brief-langs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      lang = b.getAttribute('data-lang');
+      applyLang();
+      var u = new URL(location.href); u.searchParams.set('lang', lang); history.replaceState(null, '', u);
+    });
+  });
 
   // pre-seleccionar el objetivo según el tema del email (data-topic en las opciones de goal)
   if (topic) {
@@ -276,12 +305,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 
     // respuestas profundas → answers (jsonb); si la columna no existe todavía, van al extra
     var answers = {
-      audience: collect(form.querySelector('.q[data-key="audience"]'))[0] || null,
+      audience: collect(form.querySelector('.q[data-key="audience"]')),
       quantity: collect(form.querySelector('.q[data-key="quantity"]'))[0] || null,
       formats: collect(form.querySelector('.q[data-key="formats"]')),
       languages: collect(form.querySelector('.q[data-key="languages"]')),
       oncamera: collect(form.querySelector('.q[data-key="oncamera"]')),
-      locations: collect(form.querySelector('.q[data-key="locations"]'))[0] || null,
+      locations: collect(form.querySelector('.q[data-key="locations"]')),
       references: form.references.value.trim() || null
     };
     var row = {

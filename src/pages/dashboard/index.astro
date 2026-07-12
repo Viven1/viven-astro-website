@@ -1790,12 +1790,14 @@
       refreshPushBtn();
     }
     try {
-      const [tq, nq] = await Promise.all([
+      const [tq, nq, bq] = await Promise.all([
         supabase.from('lead_tasks').select('*').eq('done', false).order('due_date', { ascending: true }).limit(60),
-        supabase.from('lead_notes').select('*').not('mention', 'is', null).order('created_at', { ascending: false }).limit(30)
+        supabase.from('lead_notes').select('*').not('mention', 'is', null).order('created_at', { ascending: false }).limit(30),
+        supabase.from('briefs').select('id,lead_id,email,goal,created_at').order('created_at', { ascending: false }).limit(10)
       ]);
       const tasks = (tq && !tq.error && tq.data) || [];
       const notes = (nq && !nq.error && nq.data) || [];
+      const briefs = (bq && !bq.error && bq.data) || [];
       const mine = (t) => !meEmail || !t.assignee || String(t.assignee).toLowerCase() === meEmail; // sin asignar o para mí
       const t0 = startOfToday(), tEnd = new Date(t0.getTime() + 86400000);
       bellItems = [];
@@ -1817,15 +1819,35 @@
         .slice(0, 8).forEach((l) => {
           bellItems.push({ kind: 'lead', id: 'l' + l.id, lead_id: l.id, title: '🎬 Lead nuevo: ' + (l.name || l.email || ''), due: null, bucket: 'newlead', overdue: false });
         });
+      // 🔔 EVENTOS DE NEGOCIO (últimos 7 días): videollamadas, briefs, ganadas
+      const evCut = Date.now() - 7 * 864e5;
+      const fmtDT = (iso) => new Date(iso).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      (upBookings || []).slice(0, 6).forEach((b) => {
+        bellItems.push({ kind: 'event', id: 'bk' + b.id, lead_id: b.lead_id, title: '📅 Videollamada: ' + (b.name || b.email || '') + ' · ' + fmtDT(b.start_at), due: null, bucket: 'event', overdue: false });
+      });
+      briefs.filter((b) => Date.parse(b.created_at) > evCut).slice(0, 6).forEach((b) => {
+        const lid = b.lead_id || ((allLeads || []).find((l) => l.email && b.email && l.email.toLowerCase() === b.email.toLowerCase()) || {}).id;
+        bellItems.push({ kind: 'event', id: 'br' + b.id, lead_id: lid, title: '📋 Brief recibido: ' + (b.email || '') + (b.goal ? ' · ' + b.goal : ''), due: null, bucket: 'event', overdue: false });
+      });
+      (offersList || []).filter((o) => o.status === 'won' && !o.archived && !o.is_template && Date.parse(o.updated_at) > evCut).slice(0, 6).forEach((o) => {
+        bellItems.push({ kind: 'event', id: 'ow' + o.id, lead_id: o.lead_id, title: '🏆 Oferta ganada: ' + (o.title || '') + ' · ' + fmtM(offerNet(o)), due: null, bucket: 'event', overdue: false });
+      });
+      acceptedProps().filter((p) => Date.parse(p.accepted_at || p.updated_at) > evCut).slice(0, 6).forEach((p) => {
+        bellItems.push({ kind: 'event', id: 'pw' + p.id, lead_id: p.lead_id, title: '🏆 Propuesta aceptada: ' + (p.title || '') + (Number(p.accepted_total) ? ' · ' + fmtM(p.accepted_total) : ''), due: null, bucket: 'event', overdue: false });
+      });
+      (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut).slice(0, 6).forEach((d) => {
+        const l = leadById(d.lead_id) || {};
+        bellItems.push({ kind: 'event', id: 'dw' + d.id, lead_id: d.lead_id, title: '🎉 Deal ganado: ' + (d.title || l.name || l.email || '') + ' · ' + fmtM(dealValue(d)), due: null, bucket: 'event', overdue: false });
+      });
       renderBell();
     } catch (e) { /* si no corrió el SQL 0010, la campana queda vacía */ renderBell(); }
   }
   function renderBell(){
     const badge = $('bell-badge');
-    const urgent = bellItems.filter((i) => i.bucket === 'overdue' || i.bucket === 'today' || i.bucket === 'mention' || i.bucket === 'newlead').length;
+    const urgent = bellItems.filter((i) => i.bucket === 'overdue' || i.bucket === 'today' || i.bucket === 'mention' || i.bucket === 'newlead' || i.bucket === 'event').length;
     if (urgent > 0) { badge.hidden = false; badge.textContent = urgent > 99 ? '99+' : urgent; } else badge.hidden = true;
-    const order = { newlead: 0, overdue: 1, today: 2, mention: 3, later: 4, nodate: 5 };
-    const labels = { newlead: ['🎬 Leads nuevos', false], overdue: ['⚠️ Vencidas', true], today: ['📅 Para hoy', false], mention: ['💬 Te mencionaron', false], later: ['🕒 Próximas', false], nodate: ['📌 Sin fecha', false] };
+    const order = { newlead: 0, event: 1, overdue: 2, today: 3, mention: 4, later: 5, nodate: 6 };
+    const labels = { newlead: ['🎬 Leads nuevos', false], event: ['🔔 Novedades', false], overdue: ['⚠️ Vencidas', true], today: ['📅 Para hoy', false], mention: ['💬 Te mencionaron', false], later: ['🕒 Próximas', false], nodate: ['📌 Sin fecha', false] };
     const list = $('bell-list');
     if (!bellItems.length) { list.innerHTML = '<div class="bell-empty">Nada pendiente 🎉<br>Las tareas que crees en un lead aparecen acá.</div>'; return; }
     const grouped = {};
@@ -1984,6 +2006,9 @@
     $('h-leads').textContent = leadsA; setT('h-leads-t', tr(leadsA, leadsB));
     $('h-won').textContent = wonA; setT('h-won-t', tr(wonA, wonB));
     $('h-rev').textContent = fmtChf(revA); setT('h-rev-t', tr(revA, revB));
+    // total histórico = lo mismo que suma la columna Ganado del board (ofertas won + propuestas aceptadas)
+    const revTotal = revOf(() => true) + revProps(() => true);
+    if (revTotal) $('h-rev-t').textContent += ' · histórico ' + fmtChf(revTotal);
     $('h-sess').textContent = sessA.toLocaleString('de-CH'); setT('h-sess-t', tr(sessA, sessB));
     $('h-pipe').textContent = fmtChf(pipe);
     $('h-conv').textContent = (won + lost) ? Math.round(won / (won + lost) * 100) + '%' : '–';
