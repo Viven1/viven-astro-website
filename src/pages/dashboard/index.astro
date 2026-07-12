@@ -1179,6 +1179,7 @@
           <span class="of-num" id="of-num" style="font-family:'Space Grotesk';font-weight:700;font-size:13px;color:var(--acid);letter-spacing:.03em"></span>
           <select id="of-status" class="status">
             <option value="draft">Borrador</option>
+            <option value="tier">Paquete de propuesta</option>
             <option value="sent">Enviada</option>
             <option value="won">Ganada</option>
             <option value="lost">Perdida</option>
@@ -2333,7 +2334,7 @@
   };
   const leadsValue = (leads) => leads.reduce((a, l) => a + leadValue(l), 0);
   // valor PERDIDO: lo que estaba sobre la mesa cuando se perdió (ofertas incl. perdidas, o estimado)
-  const leadLostValue = (l) => offersForLead(l.id).reduce((b, o) => b + offerNet(o), 0) || Number(l.deal_value) || 0;
+  const leadLostValue = (l) => offersForLead(l.id).filter((o) => o.status !== 'tier').reduce((b, o) => b + offerNet(o), 0) || Number(l.deal_value) || 0;
   const leadsLostValue = (leads) => leads.reduce((a, l) => a + leadLostValue(l), 0);
   const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
 
@@ -2365,7 +2366,7 @@
     return open || Number(d.deal_value) || 0;
   };
   const dealsValue = (ds) => ds.reduce((a, d) => a + dealValue(d), 0);
-  const dealLostValue = (d) => offersForDeal(d).reduce((b, o) => b + offerNet(o), 0) || Number(d.deal_value) || 0;
+  const dealLostValue = (d) => offersForDeal(d).filter((o) => o.status !== 'tier').reduce((b, o) => b + offerNet(o), 0) || Number(d.deal_value) || 0;
   const dealsLostValue = (ds) => ds.reduce((a, d) => a + dealLostValue(d), 0);
   async function mirrorLeadStatus(lid){
     const lead = leadById(lid); const top = latestDealOf(lid);
@@ -4052,7 +4053,8 @@
   function renderOffersList(){
     const box = $('of-list');
     $('of-empty').hidden = offersList.length > 0;
-    const pool = offersList.filter((o) => !o.is_template && !o.archived);   // templates y archivadas fuera de los KPIs
+    const base = offersList.filter((o) => !o.is_template && !o.archived);
+    const pool = base.filter((o) => o.status !== 'tier');   // paquetes de propuesta: visibles pero FUERA de los números
     const open = pool.filter((o) => o.status === 'sent');
     const won = pool.filter((o) => o.status === 'won');
     const lost = pool.filter((o) => o.status === 'lost');
@@ -4086,8 +4088,8 @@
       un.hidden = !unlinked.length;
       if (unlinked.length) un.innerHTML = '⚠️ <b>' + unlinked.length + ' oferta' + (unlinked.length > 1 ? 's' : '') + ' sin persona ligada</b> (' + fmtM(unlinked.reduce((a, o) => a + offerNet(o), 0)) + ') — no aparecen en el pipeline. Abrilas y guardá: te propone crear la persona en un click.';
     }
-    const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
-    const active = pool;   // pool ya excluye archivadas y templates
+    const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'], tier: ['Paquete propuesta', '#c58af9'] };
+    const active = base;   // la lista SÍ muestra los paquetes (para editarlos), los KPIs no
     const archived = offersList.filter((o) => o.archived && !o.is_template);
     const cardHtml = (o) => {
       const net = offerNet(o), mp = offerMarginPct(o), b = badge[o.status] || badge.draft;
@@ -5011,7 +5013,7 @@
         const baseName = ($('pp-cname').value || $('pp-title').value || 'Propuesta').trim();
         for (const t of ppCur.tiers) {
           const row = { title: baseName + ' — ' + (t.name || 'Paquete'), client: $('pp-cname').value || null,
-            lead_id: ppCur.lead_id || null, deal_id: ppCur.deal_id || null, vat_rate: 8.1, status: 'draft',
+            lead_id: ppCur.lead_id || null, deal_id: ppCur.deal_id || null, vat_rate: 8.1, status: 'tier',
             items: t.items || [], terms: DEFAULT_TERMS };
           const { data: od, error: oe } = await supabase.from('offers').insert(row).select().single();
           if (!oe && od) { t.offer_id = od.id; ppCur._genOffers.push(od.id); offersList.unshift(od); }

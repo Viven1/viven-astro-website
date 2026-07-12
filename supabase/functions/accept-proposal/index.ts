@@ -52,6 +52,21 @@ Deno.serve(async (req) => {
         dealScoped = true;
       } catch (_e) { /* tabla deals sin migrar → legado */ }
     }
+    // OFERTAS-PAQUETE (status 'tier', ligadas por tier.offer_id en el content):
+    // la elegida por el cliente pasa a GANADA (con sus posiciones exactas);
+    // los paquetes hermanos se ARCHIVAN — cero ruido en los números.
+    try {
+      const tiers = (data.content && Array.isArray(data.content.tiers)) ? data.content.tiers : [];
+      const winner = tiers.find((t: { name?: string; offer_id?: number }) => t.offer_id && tier && String(t.name || "").trim() === String(tier).trim());
+      for (const t of tiers) {
+        if (!t.offer_id) continue;
+        if (winner && t.offer_id === winner.offer_id) {
+          await admin.from("offers").update({ status: "won", archived: false }).eq("id", t.offer_id);
+        } else {
+          await admin.from("offers").update({ archived: true }).eq("id", t.offer_id).eq("status", "tier");
+        }
+      }
+    } catch (_e) { /* sin content.tiers → nada que hacer */ }
     if (data.lead_id) {
       const { data: lead } = await admin.from("leads").select("won_at").eq("id", data.lead_id).maybeSingle();
       const patch: Record<string, unknown> = { status: "ganado", last_stage_at: nowIso };
