@@ -511,6 +511,16 @@
   .ab-idea{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border:1px dashed var(--line-strong);border-radius:10px;padding:10px 12px;margin-bottom:7px}
   .ab-idea .t{font-size:13.5px}
   .ab-idea .hyp{font-size:12px;color:var(--muted-2);margin-top:3px}
+  .ab-cmp{position:fixed;inset:0;z-index:400;background:var(--navy-900);display:flex;flex-direction:column}
+  .ab-cmp-top{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line-strong)}
+  .ab-cmp-x{margin-left:auto;background:transparent;border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 14px;cursor:pointer}
+  .ab-cmp-x:hover{border-color:var(--acid);color:var(--acid)}
+  .ab-cmp-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-strong);min-height:0}
+  .ab-cmp-col{display:flex;flex-direction:column;background:var(--navy-900);min-height:0}
+  .ab-cmp-l{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 14px;border-bottom:1px solid var(--line)}
+  .ab-cmp-l.lb{color:var(--acid)}
+  .ab-cmp-col iframe{flex:1;width:100%;border:0;background:#fff}
+  @media(max-width:900px){.ab-cmp-grid{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
   .ab-card{border:1px solid var(--line);border-radius:14px;background:var(--navy-800);padding:16px 18px;margin-bottom:12px}
   .ab-card .top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
   .ab-card .nm{font-family:'Space Grotesk';font-weight:700;font-size:15.5px}
@@ -3864,7 +3874,10 @@
           '<div class="cell"><div class="l">Uplift B</div><div class="v" style="color:' + (up >= 0 ? '#7ed957' : '#ff8b8b') + '">' + (up >= 0 ? '+' : '') + up.toFixed(0) + '%</div></div>' +
         '</div>' +
         '<div class="ab-actions">' +
-          '<a class="btn btn-ghost small" href="https://www.viven.ch' + esc(t.url_path) + '?vvab=' + t.id + ':b" target="_blank" rel="noopener" title="Abre la página FORZANDO la variante B — para verla vos, sin sorteo y sin ensuciar los números">👁 Ver variante B</a>' +
+          (['running', 'done_b'].includes(t.status)
+            ? '<button class="btn btn-ghost small" data-act="cmp" type="button" title="Original y variante LADO A LADO — para ver que los cambios funcionan de verdad">🆚 Comparar A | B</button>' +
+              '<a class="btn btn-ghost small" href="https://www.viven.ch' + esc(t.url_path) + '?vvab=' + t.id + ':b" target="_blank" rel="noopener" title="Abrir solo la variante B (sin sorteo, sin exposición)">👁 Ver B</a>'
+            : '<span class="muted-note" style="align-self:center">▶ Inicialo para previsualizar</span>') +
           (t.status === 'draft' ? '<button class="btn btn-primary small" data-act="run" type="button">▶ Iniciar</button>' : '') +
           (t.status === 'running' ? '<button class="btn btn-ghost small" data-act="pause" type="button">⏸ Pausar</button>' +
             '<button class="btn btn-primary small" data-act="winb" type="button" title="La variante B pasa a servirse al 100% del tráfico">🏆 Usar B para todos</button>' +
@@ -3876,10 +3889,24 @@
     box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
       const id = btn.closest('.ab-card').dataset.id, act = btn.dataset.act;
       const patchMap = { run: { status: 'running', start_at: new Date().toISOString() }, pause: { status: 'draft' }, winb: { status: 'done_b', end_at: new Date().toISOString() }, wina: { status: 'done_a', end_at: new Date().toISOString() } };
+      if (act === 'cmp'){ const t = abTests.find((x) => String(x.id) === String(id)); if (t) abCompare(t); return; }
       if (act === 'del'){ if (!confirm('¿Borrar este test y sus datos?')) return; await supabase.from('ab_tests').delete().eq('id', id); abLoad(); return; }
       const { error } = await supabase.from('ab_tests').update(patchMap[act]).eq('id', id);
       if (error) toast(error.message); else { toast(act === 'winb' ? '🏆 Variante B activa para el 100% del tráfico' : 'Listo'); abLoad(); }
     }));
+  }
+  function abCompare(t){
+    const base = 'https://www.viven.ch' + t.url_path;
+    const ov = document.createElement('div');
+    ov.className = 'ab-cmp';
+    ov.innerHTML =
+      '<div class="ab-cmp-top"><b>🆚 ' + esc(t.name || t.url_path) + '</b><span class="muted-note">mismo URL, dos realidades — scrolleá cada lado</span><button class="ab-cmp-x" type="button" aria-label="Cerrar">✕ Cerrar</button></div>' +
+      '<div class="ab-cmp-grid">' +
+        '<div class="ab-cmp-col"><div class="ab-cmp-l">A — Original</div><iframe src="' + esc(base) + '?vvab=' + t.id + ':a" loading="eager"></iframe></div>' +
+        '<div class="ab-cmp-col"><div class="ab-cmp-l lb">B — Variante (' + (t.changes || []).length + ' cambio/s)</div><iframe src="' + esc(base) + '?vvab=' + t.id + ':b" loading="eager"></iframe></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('.ab-cmp-x').addEventListener('click', () => ov.remove());
   }
   async function abAnalyze(){
     let u = $('ab-url').value.trim();
