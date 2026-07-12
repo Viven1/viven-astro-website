@@ -32,7 +32,7 @@ async function googleToken(): Promise<string> {
   return (await res.json()).access_token;
 }
 
-const SITE = "https://viven-astro-website.viven-ag.workers.dev"; // TODO al ir live: https://www.viven.ch
+const SITE = "https://www.viven.ch"; // LIVE ✓
 const BRIEF_URL = SITE + "/brief/";
 
 Deno.serve(async (req) => {

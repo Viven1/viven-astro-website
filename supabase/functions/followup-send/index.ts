@@ -38,7 +38,7 @@ Deno.serve(async (_req) => {
       const snd = SENDER(fu.sender_key || "sofia");
       // CTA según la etapa: sin call → botón de booking; oferta/propuesta enviada → link a la propuesta si existe
       const stage = String(lead.status || "").toLowerCase();
-      const SITE = "https://viven-astro-website.viven-ag.workers.dev"; // TODO al ir live: https://www.viven.ch
+      const SITE = "https://www.viven.ch"; // LIVE ✓
       const BOOK_URL = SITE + "/book/";
       let cta = "";
       if (["new", "nuevo", "", "pending", "contacted", "contactado"].includes(stage)) {
