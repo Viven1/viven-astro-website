@@ -26,6 +26,15 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 insert into public.app_settings (key, value) values ('nurture', '{"enabled": true}') on conflict (key) do nothing;
 
+-- SELLADO: los leads que ya existen al correr esta migración NO reciben la
+-- secuencia retroactivamente (sería raro recibir "recibimos tu consulta" días
+-- después). Se marcan los 3 pasos como ya-enviados; solo los leads NUEVOS
+-- a partir de ahora entran al nurture desde cero.
+insert into public.nurture_log (lead_id, step)
+  select id, s from public.leads cross join (values (1),(2),(3)) as steps(s)
+  where created_at < now()
+on conflict (lead_id, step) do nothing;
+
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 do $$ begin
