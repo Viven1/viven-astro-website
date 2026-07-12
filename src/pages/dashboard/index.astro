@@ -419,9 +419,9 @@
   .of-arch-toggle:hover{color:var(--text)}
   .of-arch-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
   /* ---- editor de propuestas ---- */
-  #pp-editor .bf{margin-bottom:14px}
-  #pp-editor .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  #pp-editor .bf input,#pp-editor .bf select,#pp-editor .bf textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
+  #pp-editor .bf,#tab-blog .bf,#tab-services .bf{margin-bottom:14px}
+  #pp-editor .bf label,#tab-blog .bf label,#tab-services .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  #pp-editor .bf input,#pp-editor .bf select,#pp-editor .bf textarea,#tab-blog .bf input,#tab-blog .bf select,#tab-blog .bf textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
   .pp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0 8px;align-items:end}
   .pp-grid .bf{margin-bottom:0}
   .pp-grid3{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:6px;align-items:start}
@@ -480,6 +480,28 @@
   .co-card-stats{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}
   .co-card-val{font-family:'Space Grotesk';font-weight:700;font-size:13.5px;color:var(--text)}
   .co-card-val.zero{color:var(--muted-2);font-weight:400}
+  /* --- tab Servicios: catálogo de precios --- */
+  .sv-phase{font-family:'Space Grotesk';font-weight:700;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--acid);margin:18px 0 8px}
+  .sv-phase:first-child{margin-top:0}
+  .sv-row{display:grid;grid-template-columns:2.2fr 1.2fr .7fr 1fr 1fr auto auto;gap:8px;align-items:center;background:var(--navy-800);border:1px solid var(--line);border-radius:11px;padding:8px 10px;margin-bottom:7px}
+  .sv-row input,.sv-row select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:13.5px;padding:8px 10px;min-width:0;width:100%}
+  .sv-num{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted-2);white-space:nowrap}
+  .sv-num input{text-align:right}
+  .sv-cost input{color:#f0c060}
+  .sv-tgl,.sv-del{background:none;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);cursor:pointer;width:30px;height:30px;font-size:12px}
+  .sv-del:hover{border-color:#ff8b8b;color:#ff8b8b}
+  .sv-tgl:hover{border-color:var(--acid);color:var(--acid)}
+  .sv-off{opacity:.45}
+  @media(max-width:820px){
+    .sv-row{grid-template-columns:1fr 1fr auto auto;grid-template-areas:'name name name name' 'phase phase unit unit' 'price cost tgl del'}
+    .sv-row input[data-f=name]{grid-area:name}
+    .sv-row select{grid-area:phase}
+    .sv-row input[data-f=unit]{grid-area:unit}
+    .sv-row .sv-num{grid-area:price}
+    .sv-row .sv-cost{grid-area:cost}
+    .sv-row .sv-tgl{grid-area:tgl}
+    .sv-row .sv-del{grid-area:del}
+  }
   .co-tbl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .co-th,.co-tr{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:9px 12px}
   .co-th-deals,.co-tr-deals{grid-template-columns:1.6fr auto auto}
@@ -636,8 +658,9 @@
     .hk{padding:13px 14px}
     .hk-n{font-size:22px}
     /* pipeline: una columna por pantalla, con snap como un carrusel */
-    .pipeline{scroll-snap-type:x mandatory;scroll-padding:14px;-webkit-overflow-scrolling:touch}
+    .pipeline{scroll-snap-type:x proximity;scroll-padding:14px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
     .pipe-col{flex:0 0 85vw;min-width:85vw;scroll-snap-align:start;max-height:68dvh}
+    .pipe-card{cursor:default;touch-action:pan-x pan-y}
     /* tabla de Personas → cards apiladas (nada de scroll horizontal) */
     .lead-table-hs table{min-width:0;width:100%}
     .lead-table-hs thead{display:none}
@@ -680,6 +703,7 @@
     .of-table tr[data-i] td:nth-child(8)::before{content:'Margen'}
     .of-table tr.of-phase,.of-table tr.of-sub{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line)}
     .of-table tr.of-phase td,.of-table tr.of-sub td{display:block;padding:0;border:0}
+    #bg-result .pp-grid{grid-template-columns:1fr!important}
     .of-add{flex-direction:column;align-items:stretch}
     .of-add select{min-width:0;width:100%}
     .of-add .btn{width:100%}
@@ -769,6 +793,7 @@
       <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
       <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
       <button class="side-item" data-tab="booking" type="button"><span class="si-ic">📅</span>Booking</button>
+      <button class="side-item" data-tab="services" type="button"><span class="si-ic">🛠</span>Servicios</button>
       <div class="side-sec">Analytics</div>
       <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
       <div class="side-sec">Content</div>
@@ -1348,6 +1373,18 @@
   </div>
 
   <!-- ============ TAB: SEO (Google Search Console) ============ -->
+  <div id="tab-services" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">Servicios</h2>
+        <p class="muted-note" style="margin:2px 0 0">Tu lista de precios: lo que vendés y cuánto cuesta. Alimenta el catálogo de las ofertas ("Agregar del catálogo") — siempre up to date.</p>
+      </div>
+      <button class="btn btn-primary small" id="sv-add" type="button">➕ Agregar servicio</button>
+    </div>
+    <div id="sv-note" class="muted-note" hidden style="margin-bottom:10px"></div>
+    <div id="sv-list"><p class="muted-note">Cargando…</p></div>
+  </div>
+
   <div id="tab-seo" hidden>
     <div class="of-bar" style="margin-bottom:14px">
       <div>
@@ -1366,6 +1403,7 @@
     <button data-tab="companies" type="button">🏢 Companies</button>
     <button data-tab="props" type="button">🌐 Propuestas</button>
     <button data-tab="booking" type="button">📅 Booking</button>
+    <button data-tab="services" type="button">🛠 Servicios</button>
     <button data-tab="analytics" type="button">📊 Analytics</button>
     <button data-tab="blog" type="button">📝 Blog</button>
     <button data-tab="seo" type="button">🔎 Search Console</button>
@@ -1485,11 +1523,11 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'analytics', 'blog'];
+    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -1501,6 +1539,7 @@
     if (tab === 'blog') blogInit();
     if (tab === 'seo') seoInit();
     if (tab === 'booking') bookingInit();
+    if (tab === 'services') servicesInit();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
@@ -1679,6 +1718,7 @@
     actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
     actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
     propsAll = (propsQ && !propsQ.error) ? (propsQ.data || []) : [];
+    servicesLoad();   // catálogo de servicios (best-effort; sin tabla → RATECARD)
     // reconciliar: propuesta aceptada pero lead sin ganar (aceptó con el dashboard cerrado) → sync
     if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => {
       if (p.status !== 'accepted' || !p.lead_id) return;
@@ -2071,7 +2111,7 @@
     const ads = r.gclid ? '<span class="pc-ads">Ads</span>' : '';
     const nDeals = dealsForLead(d.lead_id).length;
     const multi = nDeals > 1 ? '<span class="pc-badge" title="Esta persona tiene ' + nDeals + ' proyectos">' + nDeals + ' proyectos</span>' : '';
-    return '<div class="pipe-card" draggable="true" data-id="' + esc(String(d.id)) + '" data-lead="' + esc(String(d.lead_id)) + '" style="--stage:' + st.color + '">' +
+    return '<div class="pipe-card" draggable="' + (PIPE_DRAG ? 'true' : 'false') + '" data-id="' + esc(String(d.id)) + '" data-lead="' + esc(String(d.lead_id)) + '" style="--stage:' + st.color + '">' +
       '<div class="pc-name">' + esc(dealName) + '</div>' +
       field('Importe:', total ? fmtChf(total) + est : '—', 'amt') +
       coField + ownerF +
@@ -2313,6 +2353,8 @@
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id))); }
+  // en táctil el drag nativo secuestra el scroll (iOS): ahí la etapa se cambia desde el contacto
+  const PIPE_DRAG = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   let dragId = null;
   function bindPipeline(){
     document.querySelectorAll('.pipe-card').forEach((card) => {
@@ -3480,13 +3522,100 @@
 
   function offersInit(){ buildPresetSelect(); if (!offersBuilt){ offersBuilt = true; bindOffers(); } showEditor(false); offersLoad(); }
 
+  /* ================= SERVICIOS: catálogo de precios editable =================
+     Tabla services (SQL 0025). Si no existe o está vacía → RATECARD hardcodeado.
+     El catálogo de las ofertas sale SIEMPRE de acá (CATALOG). */
+  let servicesList = [], servicesBuilt = false;
+  const CATALOG = () => {
+    const act = (servicesList || []).filter((x) => x.active !== false);
+    if (!act.length) return RATECARD;
+    const m = {};
+    PHASES.forEach((p) => { m[p] = []; });
+    act.forEach((x) => {
+      const ph = PHASES.includes(x.phase) ? x.phase : 'Production';
+      m[ph].push({ name: x.name || '', unit: x.unit || 'Fix', price: Number(x.price) || 0, cost: Number(x.cost) || 0 });
+    });
+    Object.keys(m).forEach((k) => { if (!m[k].length) delete m[k]; });
+    return m;
+  };
+  async function servicesLoad(){
+    const { data, error } = await supabase.from('services').select('*').order('phase').order('sort').order('id');
+    if (error){ servicesList = []; return { error }; }
+    servicesList = data || [];
+    return {};
+  }
+  function servicesInit(){
+    if (!servicesBuilt){
+      servicesBuilt = true;
+      $('sv-add').addEventListener('click', async () => {
+        const { data, error } = await supabase.from('services').insert({ name: 'Nuevo servicio', phase: 'Production', unit: 'Tag', price: 0, cost: 0 }).select().single();
+        if (error){ toast('No se pudo agregar (¿corriste el SQL 0025?): ' + error.message); return; }
+        servicesList.push(data); renderServices();
+        const inp = document.querySelector('.sv-row[data-id="' + data.id + '"] input[data-f="name"]');
+        if (inp){ inp.focus(); inp.select(); }
+      });
+    }
+    servicesLoad().then(({ error }) => {
+      const note = $('sv-note');
+      if (error){ note.hidden = false; note.innerHTML = '⚠️ La tabla <b>services</b> no existe todavía — corré el SQL <b>0025</b> en Supabase. Mientras tanto las ofertas usan el catálogo fijo.'; $('sv-list').innerHTML = ''; return; }
+      note.hidden = true; renderServices();
+    });
+  }
+  function renderServices(){
+    const box = $('sv-list'); if (!box) return;
+    if (!servicesList.length){ box.innerHTML = '<p class="muted-note">Sin servicios. Agregá el primero con ➕ — o corré el SQL 0025 que precarga el catálogo actual.</p>'; return; }
+    let html = '';
+    PHASES.forEach((ph) => {
+      const rows = servicesList.filter((x) => (PHASES.includes(x.phase) ? x.phase : 'Production') === ph);
+      if (!rows.length) return;
+      html += '<div class="sv-phase">' + esc(ph) + '</div>';
+      rows.forEach((x) => {
+        html += '<div class="sv-row' + (x.active === false ? ' sv-off' : '') + '" data-id="' + x.id + '">' +
+          '<input data-f="name" value="' + esc(x.name || '') + '" placeholder="Nombre del servicio" />' +
+          '<select data-f="phase">' + PHASES.map((p) => '<option' + (p === x.phase ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>' +
+          '<input data-f="unit" value="' + esc(x.unit || '') + '" placeholder="Tag/Std/Fix" title="Unidad: Tag, Std, Fix, Stk, Person, Sprache…" />' +
+          '<label class="sv-num">CHF<input data-f="price" type="number" step="10" value="' + (Number(x.price) || 0) + '" title="Precio al cliente" /></label>' +
+          '<label class="sv-num sv-cost">costo<input data-f="cost" type="number" step="10" value="' + (Number(x.cost) || 0) + '" title="Costo interno (freelancer/alquiler) — para calcular tu margen" /></label>' +
+          '<button class="sv-tgl" data-act="tgl" type="button" title="' + (x.active === false ? 'Reactivar (hoy no aparece en el catálogo)' : 'Pausar (sale del catálogo sin borrarlo)') + '">' + (x.active === false ? '▶' : '⏸') + '</button>' +
+          '<button class="sv-del" data-act="del" type="button" title="Borrar definitivamente">✕</button>' +
+        '</div>';
+      });
+    });
+    box.innerHTML = html;
+    box.querySelectorAll('.sv-row input,.sv-row select').forEach((inp) => inp.addEventListener('change', async () => {
+      const row = inp.closest('.sv-row'), id = row.dataset.id, f = inp.dataset.f;
+      let v = inp.value;
+      if (f === 'price' || f === 'cost') v = parseFloat(v) || 0;
+      const it = servicesList.find((x) => String(x.id) === String(id)); if (it) it[f] = v;
+      const { error } = await supabase.from('services').update({ [f]: v, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) toast('No se pudo guardar: ' + error.message); else svTouch();
+    }));
+    box.querySelectorAll('[data-act="tgl"]').forEach((b) => b.addEventListener('click', async () => {
+      const id = b.closest('.sv-row').dataset.id, it = servicesList.find((x) => String(x.id) === String(id));
+      const nv = it.active === false;
+      const { error } = await supabase.from('services').update({ active: nv }).eq('id', id);
+      if (error){ toast(error.message); return; }
+      it.active = nv; renderServices(); svTouch();
+    }));
+    box.querySelectorAll('[data-act="del"]').forEach((b) => b.addEventListener('click', async () => {
+      const id = b.closest('.sv-row').dataset.id, it = servicesList.find((x) => String(x.id) === String(id));
+      if (!confirm('¿Borrar «' + (it.name || 'servicio') + '» del catálogo?')) return;
+      const { error } = await supabase.from('services').delete().eq('id', id);
+      if (error){ toast(error.message); return; }
+      servicesList = servicesList.filter((x) => String(x.id) !== String(id)); renderServices(); svTouch();
+    }));
+  }
+  // el catálogo de ofertas se rearma la próxima vez que entres a Ofertas
+  function svTouch(){ const sel = $('of-preset'); if (sel) delete sel.dataset.built; }
+
   function buildPresetSelect(){
     const sel = $('of-preset');
     if (sel.dataset.built) return;
     sel.dataset.built = '1';
-    sel.innerHTML = PHASES.map((ph) =>
+    const cat = CATALOG();
+    sel.innerHTML = Object.keys(cat).map((ph) =>
       '<optgroup label="' + ph + '">' +
-      RATECARD[ph].map((it, i) => '<option value="' + ph + '::' + i + '">' + esc(it.name) + ' — ' + fmtM(it.price) + '/' + it.unit + '</option>').join('') +
+      cat[ph].map((it, i) => '<option value="' + ph + '::' + i + '">' + esc(it.name) + ' — ' + fmtM(it.price) + '/' + it.unit + '</option>').join('') +
       '</optgroup>').join('');
   }
 
@@ -3881,7 +4010,7 @@
     await offersLoad(); showEditor(false);
   }
   // wordmark "viven" (solo la marca, versión compacta para el PDF)
-  const VIVEN_MARK = '<svg viewBox="125 126 1000 288" style="height:30px;width:auto" fill="#ddf98f" xmlns="http://www.w3.org/2000/svg"><path d="M756.66,346.9l114.7-80.57c-37.87-83.92-102.57-60.93-102.57-60.93l-71.71,57.88v65.56c0,38.77,25.21,75.91,62.34,80.84h68.27l35.95-40.9-107,.1C756.66,371,756.7,346.56,756.66,346.9Zm.06-108.77s55.51-13.37,55.51,34.2l-55.51,39C757,310.8,756.72,238.13,756.72,238.13Z"/><path d="M270.4,255.39l-32.57,61.44L179,197.28l-54.41,44.41,22.58,22.58,74.76,149.91,106.6-198H237.09ZM431.78,125.83H372.19v49.22h59.59Zm1,71.45-82.54,67.36,22.95,22.95v78.47l-32.57,38.86H465.37l-32.58-38.86Zm704.72,207.64-32.58-38.86V286.85c0-43.67-29.24-84-71.06-89.57l-50.34,41.08L962.06,195.8l-57.37,47,22.58,22.95V366.06L894.7,404.92h124.73l-32.57-38.86V248.73h11.85a46.75,46.75,0,0,1,46.63,47V404.92ZM621.28,255.39l-32.57,61.44L529.86,197.28l-54.41,44.41L498,264.27,572.8,414.18l106.6-198H588Z"/></svg>';
+  const VIVEN_MARK = '<svg viewBox="125 126 1020 288" style="height:30px;width:auto" fill="#ddf98f" xmlns="http://www.w3.org/2000/svg"><path d="M756.66,346.9l114.7-80.57c-37.87-83.92-102.57-60.93-102.57-60.93l-71.71,57.88v65.56c0,38.77,25.21,75.91,62.34,80.84h68.27l35.95-40.9-107,.1C756.66,371,756.7,346.56,756.66,346.9Zm.06-108.77s55.51-13.37,55.51,34.2l-55.51,39C757,310.8,756.72,238.13,756.72,238.13Z"/><path d="M270.4,255.39l-32.57,61.44L179,197.28l-54.41,44.41,22.58,22.58,74.76,149.91,106.6-198H237.09ZM431.78,125.83H372.19v49.22h59.59Zm1,71.45-82.54,67.36,22.95,22.95v78.47l-32.57,38.86H465.37l-32.58-38.86Zm704.72,207.64-32.58-38.86V286.85c0-43.67-29.24-84-71.06-89.57l-50.34,41.08L962.06,195.8l-57.37,47,22.58,22.95V366.06L894.7,404.92h124.73l-32.57-38.86V248.73h11.85a46.75,46.75,0,0,1,46.63,47V404.92ZM621.28,255.39l-32.57,61.44L529.86,197.28l-54.41,44.41L498,264.27,572.8,414.18l106.6-198H588Z"/></svg>';
   function printOffer(){
     const vatRate = parseFloat($('of-vat').value) || 0;
     const net = offerNet(ofCur), vat = net * vatRate / 100;
@@ -4060,7 +4189,7 @@
     $('of-back').addEventListener('click', () => showEditor(false));
     $('of-add-blank').addEventListener('click', () => { ofCur.items.push({ name: '', phase: 'Production', qty: 1, unit: 'Tag', price: 0, cost: 0 }); renderRows(); });
     $('of-add-preset').addEventListener('click', () => {
-      const [ph, idx] = $('of-preset').value.split('::'); const p = RATECARD[ph][+idx];
+      const [ph, idx] = $('of-preset').value.split('::'); const p = CATALOG()[ph][+idx];
       ofCur.items.push({ name: p.name, phase: ph, qty: 1, unit: p.unit, price: p.price, cost: p.cost }); renderRows();
     });
     $('of-vat').addEventListener('input', () => { ofCur.vat_rate = parseFloat($('of-vat').value) || 0; recalc(); });

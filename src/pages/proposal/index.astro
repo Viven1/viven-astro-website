@@ -20,7 +20,15 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   :root{ --pp-max: 860px; }
   body{background:var(--navy-900)}
   .pp-top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--navy-900) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
-  .pp-logo{font-family:'Space Grotesk';font-weight:700;font-size:20px;color:var(--text);letter-spacing:-.02em}
+  .pp-logo{font-family:'Space Grotesk';font-weight:700;font-size:20px;color:var(--text);letter-spacing:-.02em}  .pp-logoimg{height:20px;width:auto;display:block}
+  .pp-break{margin:6px 0 8px;border-radius:16px;overflow:hidden;position:relative}
+  .pp-break img{width:100%;aspect-ratio:21/9;object-fit:cover;display:block}
+  .pp-break figcaption{position:absolute;left:16px;bottom:12px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:rgba(255,255,255,.92);text-shadow:0 1px 10px rgba(0,0,0,.7)}
+  .pp-call{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:color-mix(in srgb,#ddf98f 7%,transparent);border:1px solid rgba(221,249,143,.3);border-radius:16px;padding:22px 24px}
+  .pp-call-t{font-family:'Space Grotesk';font-weight:700;font-size:18px;margin-bottom:4px}
+  .pp-call-s{font-size:13.5px;color:var(--pp-muted,#9aa6bd);max-width:480px;line-height:1.55}
+  .pp-call-btn{flex:none}
+  @media(max-width:560px){.pp-break img{aspect-ratio:16/9}.pp-call{flex-direction:column;align-items:stretch;text-align:center}}  .pp-logoimg-lg{height:26px;margin:0 auto 6px}  .pp-logoimg-bar{height:22px}
   .pp-logo span{color:var(--acid)}
   .pp-top .pp-cta{display:flex;gap:10px;align-items:center}
   .pp-total-mini{font-size:13px;color:var(--muted)}
@@ -137,7 +145,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   <!-- GATE / loading -->
   <div id="pp-gate" class="pp-center">
     <div class="pp-card">
-      <div class="pp-logo" style="font-size:26px">viven<span>.</span></div>
+      <div class="pp-logo"><img class="pp-logoimg pp-logoimg-lg" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /></div>
       <h1 id="pp-gate-title">Your proposal</h1>
       <p id="pp-gate-sub">Enter the access code we sent you.</p>
       <form id="pp-gate-form">
@@ -151,7 +159,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   <!-- PROPOSAL -->
   <div id="pp-app" hidden>
     <div class="pp-top">
-      <div class="pp-logo">viven<span>.</span></div>
+      <div class="pp-logo"><img class="pp-logoimg" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /></div>
       <div class="pp-cta">
         <span class="pp-total-mini">Total <b id="pp-mini-total">—</b></span>
         <button class="btn btn-primary small" id="pp-jump-accept" type="button">Accept →</button>
@@ -289,8 +297,13 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           '<div class="a-price">' + fmt((Number(it.price) || 0) * (on ? q : 1)) + (on && q > 1 ? '<div class="a-each">' + fmt(it.price) + ' each</div>' : '') + '</div></label>';
       }).join('') + '</div>').join('');
 
+    // stills reales de rodajes como separadores visuales entre bloques
+    const BRK = (src, cap) => '<figure class="pp-break"><img src="' + src + '" alt="' + cap + '" loading="lazy" /><figcaption>' + cap + '</figcaption></figure>';
+    const BRK1 = BRK('/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg', 'On set — Siemens Employer Branding');
+    const BRK2 = BRK('/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg', 'Behind the scenes — Meteomatics');
+    const BRK3 = BRK('/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg', 'On set — Kanebo Sensai');
     $('pp-body').innerHTML =
-      '<div class="pp-brand"><span class="pp-logo">viven</span><span class="pp-fp">Film Production</span><span class="pp-brand-r">★★★★★ 5.0 on Google</span></div>' +
+      '<div class="pp-brand"><img class="pp-logoimg pp-logoimg-bar" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /><span class="pp-brand-r">★★★★★ 5.0 on Google</span></div>' +
       '<section class="pp-hero pp-sec">' +
         '<div class="pp-eyebrow">Proposal</div>' +
         '<h1 class="pp-h1">' + esc(c.title || 'Video Production Proposal') + '</h1>' +
@@ -305,6 +318,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       '<section class="pp-sec"><div class="pp-lead">' + esc(c.intro || '') + '</div>' +
         (c.intro_sign ? '<div class="pp-sign"><b>' + esc(c.intro_sign.name) + '</b>' + esc(c.intro_sign.role || '') + '</div>' : '') +
         (quotes ? quotes.split('</div>').slice(0, 1).join('</div>') + '</div>' : '') + '</section>' +
+      BRK1 +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Overview</div>' +
         (c.overview && c.overview.objective ? '<p class="pp-lead">' + esc(c.overview.objective) + '</p>' : '') +
         (outputs ? '<ul class="pp-outputs">' + outputs + '</ul>' : '') +
@@ -314,13 +328,18 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           '<div class="pp-info"><div class="k">Delivery</div><div class="v">' + esc((c.overview || {}).delivery || 'TBD') + '</div></div>' +
         '</div></section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
+      BRK2 +
       (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
       '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge +
         (embedUrl(testiV.url) ? '<figure class="pp-vid pp-testi"><div class="pp-vid-frame"><iframe src="' + esc(embedUrl(testiV.url)) + '" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><figcaption class="pp-vid-title">' + esc(testiV.title || 'Hear it from our clients') + '</figcaption></figure>' : '') +
         quotesRest + '</section>' +
+      BRK3 +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
         '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
-      (c.terms ? '<section class="pp-sec"><div class="pp-eyebrow">Terms &amp; Conditions</div><div class="pp-terms">' + esc(c.terms) + '</div><div class="pp-terms-gtc"><a href="https://viven.ch/terms-and-conditions/" target="_blank" rel="noopener">General Terms and Conditions ↗</a></div></section>' : '') +
+      '<section class="pp-sec"><div class="pp-call"><div class="pp-call-tx"><div class="pp-call-t">Questions before deciding?</div>' +
+        '<div class="pp-call-s">Book a quick 15-minute call — we\'ll walk you through the proposal and adjust anything you need.</div></div>' +
+        '<a class="btn btn-primary pp-call-btn" href="https://www.viven.ch/book/" target="_blank" rel="noopener">📅 Book a call</a></div></section>' +
+      (c.terms ? '<section class="pp-sec"><div class="pp-eyebrow">Terms &amp; Conditions</div><div class="pp-terms">' + esc(c.terms) + '</div><div class="pp-terms-gtc"><a href="https://www.viven.ch/en/terms/" target="_blank" rel="noopener">General Terms and Conditions ↗</a></div></section>' : '') +
       '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +
         '<div class="pp-eyebrow">Accept & start</div><div id="pp-tot-box"></div>' +
         '<div id="pp-accept-ui"><div class="pp-acc-form"><input id="pp-acc-name" placeholder="Your full name" /><input id="pp-acc-email" type="email" placeholder="Your email" /></div>' +
