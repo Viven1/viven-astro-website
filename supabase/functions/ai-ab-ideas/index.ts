@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const auth = req.headers.get("Authorization") ?? "";
     const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
+    if (!user) return json({ error: "unauthorized (sesión no llegó a la función — probá refrescar el dashboard)" });
 
     const { url = "", h1 = "", lead = "", ctas = [], lang = "en" } = await req.json();
     const prompt = `Sos un experto en CRO (conversion rate optimization) para una productora de video B2B en Zúrich (viven.ch — clientes UBS, Siemens, Porsche; el objetivo de cada página es generar leads: form de contacto o book-a-call).
@@ -43,7 +43,7 @@ Respondé SOLO con JSON válido:
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1800, messages: [{ role: "user", content: prompt }] }),
     });
-    if (!res.ok) return json({ error: "Anthropic " + res.status });
+    if (!res.ok) return json({ error: "Anthropic " + res.status + ": " + (await res.text()).slice(0, 200) });
     const data = await res.json();
     let text = (data.content?.[0]?.text ?? "").trim().replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
     const m = text.match(/\{[\s\S]*\}/);

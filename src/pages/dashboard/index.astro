@@ -4002,6 +4002,7 @@
       const ctas = abCands.filter((c) => c.label.startsWith('CTA')).map((c) => c.from);
       const lang2 = (abEditing.url_path.match(/^\/(en|de|es)\//) || [])[1] || 'en';
       const { data, error } = await supabase.functions.invoke('ai-ab-ideas', { body: { url: abEditing.url_path, h1, lead, ctas, lang: lang2 } });
+      if (error && error.context){ try { const j = await error.context.json(); throw new Error(j.error || error.message); } catch (e2) { if (e2.message) throw e2; } }
       if (error || data?.error || !Array.isArray(data?.ideas)) throw new Error(data?.error || error?.message || 'sin ideas');
       const box = $('ab-ideas-box'); box.hidden = false;
       box.innerHTML = data.ideas.map((id2, i) =>
