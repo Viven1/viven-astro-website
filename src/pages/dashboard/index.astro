@@ -531,6 +531,18 @@
   .lt-ph{color:var(--muted)}
   .lt-pill{display:inline-block;border:1px solid;border-radius:100px;padding:3px 11px;font-size:12px;font-weight:600}
   .lt-nd{font-size:11px;color:var(--muted-2)}
+  /* contacto estilo HubSpot: secciones plegables */
+  details.lm-fold > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+  details.lm-fold > summary::-webkit-details-marker{display:none}
+  details.lm-fold > summary::before{content:'▸';font-size:11px;color:var(--muted-2);transition:transform .15s;flex:none}
+  details.lm-fold[open] > summary::before{transform:rotate(90deg)}
+  details.lm-fold > summary .btn{margin-left:auto}
+  details.lm-fold:not([open]){opacity:.85}
+  details.ab-sec.lm-fold > summary{justify-content:flex-start}
+  .lm-back{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line-strong);background:transparent;color:var(--text);font-size:17px;cursor:pointer;transition:.2s}
+  .lm-back:hover{border-color:var(--acid);color:var(--acid)}
+  .lead-card-wide .close{top:12px;right:16px}
+  .lead-card-wide .lm-quick{margin-right:52px}
   .lm-dealrow{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px}
   .lm-dealrow-t{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;margin-bottom:7px}
   .lm-dealrow-t b{font-variant-numeric:tabular-nums}
@@ -1290,6 +1302,7 @@
   <div class="lead-card lead-card-wide">
     <button class="close" type="button" data-close aria-label="Cerrar">&times;</button>
     <div class="lm-top">
+      <button class="lm-back" id="lm-back" type="button" title="Volver a la lista">←</button>
       <div class="lm-id">
         <div class="lm-avatar" id="lm-avatar"></div>
         <div class="lm-idtext">
@@ -1309,21 +1322,20 @@
       <aside class="lm-left" id="lm-about"></aside>
 
       <main class="lm-center">
-        <div class="lm-block">
-          <div class="lm-block-h">💬 Consulta del cliente</div>
+        <details class="lm-block lm-fold" open>
+          <summary class="lm-block-h">💬 Consulta del cliente</summary>
           <div class="lead-msg" id="lm-message"></div>
-        </div>
-        <div class="lm-block">
-          <div class="draft-head">
-            <div class="lm-block-h" style="margin:0">🔎 Enriquecer con IA <span class="muted-note" id="lm-en-when" style="font-weight:400"></span></div>
+        </details>
+        <details class="lm-block lm-fold" id="lm-enrich-d">
+          <summary class="draft-head"><span class="lm-block-h" style="margin:0">🔎 Enriquecer con IA <span class="muted-note" id="lm-en-when" style="font-weight:400"></span></span>
             <button class="btn btn-ghost small" id="lm-enrich-btn" type="button" title="Busca en la web info ACTUAL de la persona y su empresa: web, redes, noticias y ganchos para la venta">✨ Buscar info actual</button>
-          </div>
+          </summary>
           <div id="lm-enrich"><p class="muted-note">Sin datos todavía.</p></div>
-        </div>
-        <div class="lm-block">
-          <div class="lm-block-h">📋 Brief del proyecto</div>
+        </details>
+        <details class="lm-block lm-fold" id="lm-brief-d">
+          <summary class="lm-block-h">📋 Brief del proyecto</summary>
           <div id="lm-brief"><p class="muted-note">Cargando…</p></div>
-        </div>
+        </details>
         <div class="lm-block">
           <div class="draft-head">
             <div class="lm-block-h" style="margin:0">✍️ Responder <span class="muted-note" id="lm-status-note" style="font-weight:400"></span></div>
@@ -1341,14 +1353,13 @@
           </div>
           <textarea class="draft-box" id="lm-draft"></textarea>
         </div>
-        <div class="lm-block">
-          <div class="draft-head">
-            <div class="lm-block-h" style="margin:0">📬 Follow-ups automáticos <span class="count" id="lm-fu-n"></span></div>
+        <details class="lm-block lm-fold" id="lm-fu-d">
+          <summary class="draft-head"><span class="lm-block-h" style="margin:0">📬 Follow-ups automáticos <span class="count" id="lm-fu-n"></span></span>
             <button class="btn btn-ghost small" id="lm-fu-gen" type="button" title="La IA arma 3 emails personalizados con fechas recomendadas — vos corregís y aprobás">✨ Generar secuencia</button>
-          </div>
+          </summary>
           <p class="muted-note" style="margin:0 0 10px">Se envían solos en la fecha elegida (desde info@viven.ch, reply-to tuyo). Se cancelan automáticamente si el deal avanza de etapa.</p>
           <div id="lm-fu-list"><p class="muted-note">Cargando…</p></div>
-        </div>
+        </details>
         <div class="lm-journey" id="lm-journey" hidden></div>
       </main>
 
@@ -2387,7 +2398,7 @@
     const nextF = r.next_follow_up_at ? new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' })
       : ((r.status === 'contacted' || r.status === 'contactado') ? 'programando…' : '—');
     const row = (k, v, always) => (v && v !== '—') || always ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + (v || '—') + '</span></div>' : '';
-    const sec = (t, rows) => rows ? '<div class="ab-sec"><div class="ab-h">' + t + '</div>' + rows + '</div>' : '';
+    const sec = (t, rows, open) => rows ? '<details class="ab-sec lm-fold"' + (open ? ' open' : '') + '><summary class="ab-h">' + t + '</summary>' + rows + '</details>' : '';
     const telV = r.phone ? '<a href="tel:' + esc(phoneClean) + '">' + esc(r.phone) + '</a>' : '';
     $('lm-about').innerHTML =
       sec('Contacto',
@@ -2396,13 +2407,13 @@
         row('Email', '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>', true) +
         row('Teléfono', telV) +
         row('Empresa', ldom ? '<a href="#" class="lm-coclink" data-d="' + esc(ldom) + '">' + esc(companyName(ldom)) + '</a>' : esc(company)) +
-        row('Idioma', (r.lang || '—').toUpperCase(), true)) +
+        row('Idioma', (r.lang || '—').toUpperCase(), true), true) +
       sec('Estado y seguimiento',
         row('Etapa', '<select id="lm-stage-sel" class="lm-stage-sel" style="color:' + (st.color || 'var(--text)') + ';border-color:' + (st.color || 'var(--line-strong)') + '">' +
           STAGES.map((s) => '<option value="' + s.key + '"' + (s.key === stageOf(r.status) ? ' selected' : '') + '>' + s.label + '</option>').join('') + '</select>', true) +
         row('Última actividad', esc(actLabel(lastActivity(r))), true) +
         row('Próximo follow-up', nextF, true) +
-        (stageOf(r.status) === 'perdido' ? row('Motivo de pérdida', esc(r.lost_reason || '(sin especificar)'), true) : '')) +
+        (stageOf(r.status) === 'perdido' ? row('Motivo de pérdida', esc(r.lost_reason || '(sin especificar)'), true) : ''), true) +
       sec('Origen',
         row('Canal', esc(r.channel)) + row('Fuente (UTM)', esc(r.utm_source)) + row('Campaña (UTM)', esc(r.utm_campaign)) +
         row('Google Ads (GCLID)', r.gclid ? 'sí' : '') + row('Página de entrada', esc(r.landing_path)) +
@@ -2424,31 +2435,31 @@
     renderLeadScore(r);
     // columna derecha: PROYECTOS (deals) + ofertas + tasks + notas
     const ldeals = dealsForLead(r.id).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    const projBlock = '<div class="lm-block"><div class="lm-block-h">🤝 Proyectos <span class="count">(' + ldeals.length + ')</span></div>' +
+    const projBlock = '<details class="lm-block lm-fold" open><summary class="lm-block-h">🤝 Proyectos <span class="count">(' + ldeals.length + ')</span></summary>' +
       ldeals.map((d) => { const st2 = STAGES.find((x) => x.key === stageOf(d.stage)) || STAGES[0];
         const v = stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
         return '<div class="lm-dealrow">' +
           '<div class="lm-dealrow-t">' + esc(d.title || '(proyecto)') + '<b>' + (v ? fmtChf(v) : '—') + '</b></div>' +
           '<select class="lm-stage-sel lm-deal-st" data-did="' + esc(String(d.id)) + '" style="color:' + st2.color + ';border-color:' + st2.color + '">' +
           STAGES.map((x) => '<option value="' + x.key + '"' + (x.key === stageOf(d.stage) ? ' selected' : '') + '>' + x.label + '</option>').join('') + '</select></div>'; }).join('') +
-      '<button class="btn btn-ghost xs" id="lm-mk-newdeal" type="button" style="margin-top:8px" title="Nuevo proyecto para esta persona — aparece como deal nuevo en el board (los ganados/perdidos quedan intactos)">➕ Nuevo proyecto</button></div>';
+      '<button class="btn btn-ghost xs" id="lm-mk-newdeal" type="button" style="margin-top:8px" title="Nuevo proyecto para esta persona — aparece como deal nuevo en el board (los ganados/perdidos quedan intactos)">➕ Nuevo proyecto</button></details>';
     const ofs = offersForLead(r.id);
-    const dealsBlock = '<div class="lm-block"><div class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></div>' +
+    const dealsBlock = '<details class="lm-block lm-fold"' + (ofs.length ? ' open' : '') + '><summary class="lm-block-h">🧾 Ofertas ligadas <span class="count">(' + ofs.length + ')</span></summary>' +
       (ofs.length ? ofs.map((o) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] }[o.status] || ['Borrador', '#8ab4ff'];
         return '<div class="lm-deal-wrap"><button class="lm-deal" data-oid="' + o.id + '" type="button"><span class="lm-deal-t">' + esc(o.title || '(sin título)') + '</span><span class="lm-deal-b"><b>' + fmtM(offerNet(o)) + '</b><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>' +
           '<button class="lm-conv" data-conv="' + o.id + '" type="button" title="Convertir esta oferta en una propuesta (queda como una de las opciones)">→ Propuesta</button></div>'; }).join('')
         : '<p class="muted-note">Sin ofertas ligadas todavía.</p>') +
       '<div class="lm-mk"><button class="btn btn-ghost xs" id="lm-mk-offer" type="button">➕ Hacer oferta</button><button class="btn btn-primary xs" id="lm-mk-prop" type="button">🌐 Hacer propuesta</button></div>' +
       '<button class="lm-dealval" id="lm-mk-deal" type="button">🤝 ' + (Number(r.deal_value) ? 'Valor estimado: ' + fmtChf(Number(r.deal_value)) + ' — cambiar' : 'Poner valor estimado del deal') + '</button>' +
-      '</div>';
+      '</details>';
     $('lm-right').innerHTML = projBlock + dealsBlock +
-      '<div class="lm-block"><div class="lm-block-h">✅ Tasks</div>' +
+      '<details class="lm-block lm-fold" open><summary class="lm-block-h">✅ Tasks</summary>' +
         '<div class="lm-taskadd"><input id="lm-task-t" placeholder="Nueva task…"/><div class="lm-taskadd-row"><input id="lm-task-d" type="date" title="Vence (fecha)"/><input id="lm-task-h" type="time" title="Hora (opcional)"/><select id="lm-task-a">' + teamOptions('', 'Responsable') + '</select><button class="btn btn-ghost xs" id="lm-task-add" type="button">+ Task</button></div></div>' +
-        '<div id="lm-tasks"><p class="muted-note">Cargando…</p></div></div>' +
-      '<div class="lm-block"><div class="lm-block-h">📝 Notas</div>' +
+        '<div id="lm-tasks"><p class="muted-note">Cargando…</p></div></details>' +
+      '<details class="lm-block lm-fold" open><summary class="lm-block-h">📝 Notas</summary>' +
         '<textarea id="lm-note-b" placeholder="Agregar una nota… (contexto, objeción, próximo paso)"></textarea>' +
         '<div class="lm-noteadd"><select id="lm-note-m">' + teamOptions('', 'Avisar a…') + '</select><button class="btn btn-primary xs" id="lm-note-add" type="button">Guardar nota</button></div>' +
-        '<div id="lm-notes"><p class="muted-note">Cargando…</p></div></div>';
+        '<div id="lm-notes"><p class="muted-note">Cargando…</p></div></details>';
     $('lm-right').querySelectorAll('.lm-deal').forEach((d) => d.addEventListener('click', () => { closeLead(); gotoTab('offers'); openOffer(d.dataset.oid); }));
     $('lm-right').querySelectorAll('.lm-conv').forEach((c) => c.addEventListener('click', () => offerToProp(c.dataset.conv, r)));
     $('lm-mk-offer').addEventListener('click', () => makeOfferForLead(r));
@@ -2507,6 +2518,7 @@
   async function renderBriefBlock(r){
     const el = $('lm-brief'); if (!el) return;
     const b = await latestBriefFor(r);
+    const dd = $('lm-brief-d'); if (dd) dd.open = !!b;
     if (!b){ el.innerHTML = '<p class="muted-note">Sin brief todavía — el link se manda en la confirmación del booking y en los emails.</p>'; return; }
     const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + esc(v) + '</span></div>' : '';
     el.innerHTML = row('Objetivo', b.goal) + row('Canales', b.distribution) + row('Timing', b.timeline) + row('Presupuesto', b.budget) + row('Extra', b.extra) +
@@ -2537,6 +2549,7 @@
     return h || '<p class="muted-note">La búsqueda no encontró nada útil.</p>';
   }
   function renderEnrichment(r){
+    const dd = $('lm-enrich-d'); if (dd) dd.open = !!r.enrichment;
     $('lm-en-when').textContent = r.enriched_at ? '· actualizado ' + fmtDMY(r.enriched_at) : '';
     $('lm-enrich').innerHTML = r.enrichment ? enrichHTML(r.enrichment) : '<p class="muted-note">Sin datos todavía — tocá «Buscar info actual» (busca en la web en vivo).</p>';
   }
@@ -2836,7 +2849,7 @@
     } catch (e) { toast('No se pudo generar (¿deployaste ai-followups?): ' + (e.message || e)); }
     btn.disabled = false; btn.textContent = '✨ Generar secuencia';
   }
-  $('lm-fu-gen') && $('lm-fu-gen').addEventListener('click', () => { if (currentLead) genFollowups(currentLead); });
+  $('lm-fu-gen') && $('lm-fu-gen').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); $('lm-fu-d').open = true; if (currentLead) genFollowups(currentLead); });
 
   function notifyUser(to, subject, body, leadId){
     const url = leadId ? '/dashboard/?lead=' + leadId : '/dashboard/';
@@ -2995,7 +3008,8 @@
     toast('Propuesta creada con la oferta como opción — agregá 2 más o usá la IA');
   }
   modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeLead));
-  $('lm-enrich-btn').addEventListener('click', runEnrich);
+  $('lm-back') && $('lm-back').addEventListener('click', closeLead);
+  $('lm-enrich-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); $('lm-enrich-d').open = true; runEnrich(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) closeLead(); });
 
   $('lm-copy').addEventListener('click', async () => {
