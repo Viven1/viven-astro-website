@@ -658,8 +658,10 @@
     .hk{padding:13px 14px}
     .hk-n{font-size:22px}
     /* pipeline: una columna por pantalla, con snap como un carrusel */
-    .pipeline{scroll-snap-type:x proximity;scroll-padding:14px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
-    .pipe-col{flex:0 0 85vw;min-width:85vw;scroll-snap-align:start;max-height:68dvh}
+    /* iOS: sin snap (se pelea con el scroll vertical anidado de las columnas) — scroll libre y robusto */
+    .pipeline{touch-action:pan-x pan-y;overscroll-behavior-x:contain}
+    .pipe-col{flex:0 0 85vw;min-width:85vw;max-height:68dvh;touch-action:pan-x pan-y}
+    .pipe-list{touch-action:pan-x pan-y}
     .pipe-card{cursor:default;touch-action:pan-x pan-y}
     /* tabla de Personas → cards apiladas (nada de scroll horizontal) */
     .lead-table-hs table{min-width:0;width:100%}
