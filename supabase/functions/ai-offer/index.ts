@@ -63,7 +63,7 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1500,
+        max_tokens: 4000,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -74,6 +74,7 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
     }
     const data = await res.json();
     let text = (data.content?.[0]?.text ?? "").trim();
+    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();   // fences de markdown
     const m = text.match(/\{[\s\S]*\}/);
     if (m) text = m[0];
     let parsed: any;
