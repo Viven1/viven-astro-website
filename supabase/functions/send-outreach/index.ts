@@ -52,10 +52,14 @@ Deno.serve(async (req) => {
       return json({ error: `Resend ${res.status}: ${t.slice(0, 300)}` });
     }
 
-    // marca el lead como contactado (el trigger programa el próximo follow-up) usando el service role
+    // marca el lead como contactado (el trigger programa el próximo follow-up) y logea el email
+    // para que la ficha del contacto muestre el hilo completo, mande quien mande
+    const admin = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     if (lead_id && mark_contacted) {
-      const admin = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await admin.from("leads").update({ status: "contactado", last_outreach_at: new Date().toISOString() }).eq("id", lead_id);
+    }
+    if (lead_id) {
+      await admin.from("email_log").insert({ lead_id: String(lead_id), to_addr: to, subject, body, sender_label: fromName || DEFAULT_FROM_NAME, source: "outreach" }).then(() => {}, () => {});
     }
     return json({ ok: true });
   } catch (e) {

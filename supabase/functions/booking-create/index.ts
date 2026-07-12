@@ -168,6 +168,7 @@ Deno.serve(async (req) => {
           headers: { "Authorization": `Bearer ${RESEND}`, "Content-Type": "application/json" },
           body: JSON.stringify({ from: "Sebastian Cepeda — VIVEN AG <info@viven.ch>", to: [email], reply_to: "sebastian@viven.ch", subject: E.sub, html }),
         });
+        if (leadId) await service.from("email_log").insert({ lead_id: String(leadId), to_addr: email, subject: E.sub, body: html, sender_label: "Sebastian", source: "booking-create" }).then(() => {}, () => {});
       }
     } catch (_e) { /* email de confirmación best-effort — el evento ya existe */ }
 

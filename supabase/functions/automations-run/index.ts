@@ -157,7 +157,11 @@ Deno.serve(async (req) => {
             headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
             body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: fill(step.subject, lead), html: wrap(fill(step.body, lead), unsub, String(lead.lang || "en"), sender) }),
           });
-          if (res.ok) { out.emails++; await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id); } else console.error("RESEND_FAIL", lead.email, res.status);
+          if (res.ok) {
+            out.emails++;
+            await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
+            await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: fill(step.subject, lead), body: fill(step.body, lead), sender_label: sender, source: "automations-run" }).then(() => {}, () => {});
+          } else console.error("RESEND_FAIL", lead.email, res.status);
         } else if (step.type === "ai_email") {
           // borrador IA → BANDEJA DE SALIDA (nunca sale sin aprobación humana)
           const draft = await aiDraft(lead, String(step.prompt || "Short friendly follow-up about their video project."), step.from || "team");
@@ -193,6 +197,7 @@ Deno.serve(async (req) => {
       if (res.ok) {
         await service.from("outbox").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.id);
         await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
+        await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: fill(ob.subject, lead), body: fill(ob.body, lead), sender_label: senderName, source: "automations-run" }).then(() => {}, () => {});
         out.outbox_sent = (out.outbox_sent || 0) + 1;
       } else await service.from("outbox").update({ status: "failed" }).eq("id", ob.id);
       await new Promise((ok) => setTimeout(ok, 120));

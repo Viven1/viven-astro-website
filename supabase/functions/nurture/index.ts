@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
       });
       if (res.ok) {
         await service.from("nurture_log").insert({ lead_id: r.id, step });
+        await service.from("email_log").insert({ lead_id: String(r.id), to_addr: r.email, subject, body: html, sender_label: "Sofia", source: "nurture" }).then(() => {}, () => {});
         out["s" + step as "s1"]++;
       } else console.error("RESEND_FAIL", r.email, step, res.status);
       await new Promise((ok) => setTimeout(ok, 150));

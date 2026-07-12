@@ -267,6 +267,14 @@
   .lm-reply-btn:hover{text-decoration:underline}
   .lm-reply-box{margin-top:6px}
   .lm-reply-ta{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;min-height:52px;resize:vertical;margin-bottom:6px}
+  .lm-email{border:1px solid var(--line);border-radius:11px;padding:10px 13px;margin-bottom:8px;cursor:pointer}
+  .lm-email-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px}
+  .lm-email-subj{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lm-email-meta{color:var(--muted-2);font-size:11px;white-space:nowrap;flex:none}
+  .lm-email-snip{color:var(--muted);font-size:12.5px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lm-email-body{color:var(--text);font-size:13px;line-height:1.55;margin-top:8px;white-space:pre-wrap;border-top:1px solid var(--line);padding-top:8px;display:none}
+  .lm-email.open .lm-email-body{display:block}
+  .lm-email.open .lm-email-snip{display:none}
   .lm-center .lm-block .lead-msg{background:none;border:0;padding:0;margin:0;color:var(--text)}
   .lm-center .lm-block .draft-box{background:var(--navy-800);min-height:200px;margin-top:2px}
   .lm-center .lm-block .draft-head{margin-bottom:8px}
@@ -1869,6 +1877,11 @@
           <summary class="lm-block-h">📋 Brief del proyecto</summary>
           <div id="lm-brief"><p class="muted-note">Cargando…</p></div>
         </details>
+        <details class="lm-block lm-fold" id="lm-emails-d" open>
+          <summary class="lm-block-h">📧 Emails con este contacto <span class="count" id="lm-emails-n"></span></summary>
+          <p class="muted-note" style="margin:0 0 10px">Todo lo que le mandamos desde acá — mande quien mande (Sofia, Sebastian o un workflow). No incluye respuestas que el cliente escriba directo a tu inbox.</p>
+          <div id="lm-emails"><p class="muted-note">Cargando…</p></div>
+        </details>
         <div class="lm-block">
           <div class="draft-head">
             <div class="lm-block-h" style="margin:0">✍️ Responder <span class="muted-note" id="lm-status-note" style="font-weight:400"></span></div>
@@ -2287,29 +2300,33 @@
       notes.filter((n) => meEmail && String(n.mention || '').toLowerCase() === meEmail).slice(0, 8).forEach((n) => {
         bellItems.push({ kind: 'mention', id: n.id, lead_id: n.lead_id, title: (n.body || '').slice(0, 80), due: null, bucket: 'mention', overdue: false });
       });
+      // ruido de cuentas internas/propias (probando el CRM con nuestro propio email) —
+      // mismo patrón que ya usan Ads/Newsletter para no confundir tests con negocio real
+      const BELL_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+      const bellSkip = (em) => BELL_TEST.test(em || '') || (em || '').toLowerCase() === 'cepeda.sebastian@gmail.com';
       // leads nuevos sin contactar (últimas 72h) — lo mismo que llega por push
       const cutoff = Date.now() - 72 * 36e5;
-      (allLeads || []).filter((l) => isNew(l.status) && !/^claude-/.test(l.session_id || '') && Date.parse(l.created_at) > cutoff)
+      (allLeads || []).filter((l) => isNew(l.status) && !/^claude-/.test(l.session_id || '') && Date.parse(l.created_at) > cutoff && !bellSkip(l.email))
         .slice(0, 8).forEach((l) => {
           bellItems.push({ kind: 'lead', id: 'l' + l.id, lead_id: l.id, title: '🎬 Lead nuevo: ' + (l.name || l.email || ''), due: null, bucket: 'newlead', overdue: false });
         });
       // 🔔 EVENTOS DE NEGOCIO (últimos 7 días): videollamadas, briefs, ganadas
       const evCut = Date.now() - 7 * 864e5;
       const fmtDT = (iso) => new Date(iso).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-      (upBookings || []).slice(0, 6).forEach((b) => {
+      (upBookings || []).filter((b) => !bellSkip(b.email)).slice(0, 6).forEach((b) => {
         bellItems.push({ kind: 'event', id: 'bk' + b.id, lead_id: b.lead_id, title: '📅 Videollamada: ' + (b.name || b.email || '') + ' · ' + fmtDT(b.start_at), due: null, bucket: 'event', overdue: false });
       });
-      briefs.filter((b) => Date.parse(b.created_at) > evCut).slice(0, 6).forEach((b) => {
+      briefs.filter((b) => Date.parse(b.created_at) > evCut && !bellSkip(b.email)).slice(0, 6).forEach((b) => {
         const lid = b.lead_id || ((allLeads || []).find((l) => l.email && b.email && l.email.toLowerCase() === b.email.toLowerCase()) || {}).id;
         bellItems.push({ kind: 'event', id: 'br' + b.id, lead_id: lid, title: '📋 Brief recibido: ' + (b.email || '') + (b.goal ? ' · ' + b.goal : ''), due: null, bucket: 'event', overdue: false });
       });
-      (offersList || []).filter((o) => o.status === 'won' && !o.archived && !o.is_template && Date.parse(o.updated_at) > evCut).slice(0, 6).forEach((o) => {
+      (offersList || []).filter((o) => o.status === 'won' && !o.archived && !o.is_template && Date.parse(o.updated_at) > evCut && !bellSkip((leadById(o.lead_id) || {}).email)).slice(0, 6).forEach((o) => {
         bellItems.push({ kind: 'event', id: 'ow' + o.id, lead_id: o.lead_id, title: '🏆 Oferta ganada: ' + (o.title || '') + ' · ' + fmtM(offerNet(o)), due: null, bucket: 'event', overdue: false });
       });
-      acceptedProps().filter((p) => Date.parse(p.accepted_at || p.updated_at) > evCut).slice(0, 6).forEach((p) => {
+      acceptedProps().filter((p) => Date.parse(p.accepted_at || p.updated_at) > evCut && !bellSkip((leadById(p.lead_id) || {}).email)).slice(0, 6).forEach((p) => {
         bellItems.push({ kind: 'event', id: 'pw' + p.id, lead_id: p.lead_id, title: '🏆 Propuesta aceptada: ' + (p.title || '') + (Number(p.accepted_total) ? ' · ' + fmtM(p.accepted_total) : ''), due: null, bucket: 'event', overdue: false });
       });
-      (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut).forEach((d) => {
+      (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut && !bellSkip((leadById(d.lead_id) || {}).email)).forEach((d) => {
         const l = leadById(d.lead_id) || {};
         bellItems.push({ kind: 'event', id: 'dw' + d.id, lead_id: d.lead_id, title: '🎉 Deal ganado: ' + (d.title || l.name || l.email || '') + ' · ' + fmtM(dealValue(d)), due: null, bucket: 'event', overdue: false });
       });
@@ -3243,6 +3260,37 @@
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     loadJourney(r);
+    loadEmailLog(r);
+  }
+
+  /* ================= 📧 EMAILS: hilo unificado de todo lo que se le mandó al lead ================= */
+  async function loadEmailLog(r){
+    const box = $('lm-emails'), n = $('lm-emails-n'); if (!box) return;
+    try {
+      const { data, error } = await supabase.from('email_log').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100);
+      if (error) throw error;
+      renderEmailThread(data || []);
+      if (n) n.textContent = data && data.length ? '(' + data.length + ')' : '';
+    } catch (e) {
+      box.innerHTML = '<p class="muted-note">Corré el SQL 0044 para activar el hilo de emails.</p>';
+      if (n) n.textContent = '';
+    }
+  }
+  function renderEmailThread(rows){
+    const box = $('lm-emails'); if (!box) return;
+    if (!rows.length) { box.innerHTML = '<p class="muted-note">Sin emails registrados todavía — los que mandes desde «Responder» (abajo) o los que salgan de un workflow van a aparecer acá.</p>'; return; }
+    const fmtE = (d) => new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const snip = (b) => esc(String(b || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, 110);
+    const SRC_L = { outreach: '✍️ Manual', 'automations-run': '⚙️ Workflow', nurture: '🌱 Nurture', 'booking-create': '📅 Booking', 'calc-email': '🧮 Calculadora' };
+    box.innerHTML = rows.map((e2) => {
+      const bodyHtml = /<[a-z][\s\S]*>/i.test(e2.body || '') ? String(e2.body) : esc(String(e2.body || ''));
+      return '<div class="lm-email">' +
+        '<div class="lm-email-h"><span class="lm-email-subj">' + esc(e2.subject || '(sin asunto)') + '</span><span class="lm-email-meta">' + esc(e2.sender_label || '') + ' · ' + fmtE(e2.created_at) + '</span></div>' +
+        '<div class="lm-email-snip">' + snip(e2.body) + '</div>' +
+        '<div class="lm-email-body">' + bodyHtml + '<p class="muted-note" style="margin-top:8px">' + (SRC_L[e2.source] || esc(e2.source || '')) + '</p></div>' +
+      '</div>';
+    }).join('');
+    box.querySelectorAll('.lm-email').forEach((el) => el.addEventListener('click', () => el.classList.toggle('open')));
   }
 
   /* ---------- Brief del cliente (tabla briefs): visible en el contacto ---------- */
