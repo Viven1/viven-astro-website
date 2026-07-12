@@ -28,7 +28,21 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .pp-call-t{font-family:'Space Grotesk';font-weight:700;font-size:18px;margin-bottom:4px}
   .pp-call-s{font-size:13.5px;color:var(--pp-muted,#9aa6bd);max-width:480px;line-height:1.55}
   .pp-call-btn{flex:none}
-  @media(max-width:560px){.pp-break img{aspect-ratio:16/9}.pp-call{flex-direction:column;align-items:stretch;text-align:center}}  .pp-logoimg-lg{height:26px;margin:0 auto 6px}  .pp-logoimg-bar{height:22px}
+  @media(max-width:560px){.pp-break img{aspect-ratio:16/9}.pp-call{flex-direction:column;align-items:stretch;text-align:center}}
+  /* ---------- export PDF / print: papel blanco, tinta oscura ---------- */
+  @media print{
+    :root{--navy-900:#fff;--navy-800:#fff;--navy-700:#f4f6f9;--text:#1a2230;--muted:#4a5364;--muted-2:#7a8496;--line:#dfe3ea;--line-strong:#c9cfda;--acid:#5d7a06}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{background:#fff}
+    .pp-top,.pp-cta,#pp-print,#pp-jump-accept,.pp-call,.pp-acc-form,#pp-do-accept,.pp-fine,.pp-err{display:none!important}
+    .pp-vid-frame{display:none!important}
+    .pp-vid-title::after{content:' — viven.ch';color:var(--muted-2)}
+    .pp-logoimg{filter:invert(1) hue-rotate(180deg)}
+    .pp-sec,.pp-tier,.pp-break{break-inside:avoid;page-break-inside:avoid}
+    .pp-break{border-radius:10px}
+    .pp-break img{aspect-ratio:21/9}
+    a{color:#1a2230;text-decoration:none}
+  }  .pp-logoimg-lg{height:26px;margin:0 auto 6px}  .pp-logoimg-bar{height:22px}
   .pp-logo span{color:var(--acid)}
   .pp-top .pp-cta{display:flex;gap:10px;align-items:center}
   .pp-total-mini{font-size:13px;color:var(--muted)}
@@ -162,6 +176,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       <div class="pp-logo"><img class="pp-logoimg" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /></div>
       <div class="pp-cta">
         <span class="pp-total-mini">Total <b id="pp-mini-total">—</b></span>
+        <button class="btn btn-ghost small" id="pp-print" type="button" title="Export as PDF / print">🖨 PDF</button>
         <button class="btn btn-primary small" id="pp-jump-accept" type="button">Accept →</button>
       </div>
     </div>
@@ -405,6 +420,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     render();
   }
   $('pp-jump-accept') && $('pp-jump-accept').addEventListener('click', () => { const s = document.getElementById('pp-accept-sec'); s && s.scrollIntoView({ behavior: 'smooth' }); });
+  $('pp-print') && $('pp-print').addEventListener('click', () => window.print());
 
   if (PREVIEW_MODE) {
     // vista previa desde el dashboard: contenido en localStorage, sin password ni backend

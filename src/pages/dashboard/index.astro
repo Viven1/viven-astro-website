@@ -4273,10 +4273,18 @@
     renderTplStrip('pp-tpl-strip', ppList.filter((x) => x.is_template), usePropTemplate, delPropTemplate);
     $('pp-empty').hidden = pool.length > 0;
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], accepted: ['Aceptada', '#7ed957'] };
-    box.innerHTML = pool.map((p) => { const b = badge[p.status] || badge.draft;
+    // valor de la propuesta: lo aceptado si ya cerró; si no, el paquete recomendado (o el 1ro)
+    const propVal = (p) => {
+      if (Number(p.accepted_total)) return Number(p.accepted_total);
+      const ts = (p.content && p.content.tiers) || [];
+      const rec = ts.find((t) => t.recommended) || ts[0];
+      return Number(rec && rec.price) || 0;
+    };
+    box.innerHTML = pool.map((p) => { const b = badge[p.status] || badge.draft; const v = propVal(p);
       return '<div class="of-card"><div class="of-card-open" data-id="' + p.id + '">' +
         '<div class="of-card-main"><div class="of-card-title">' + esc(p.title || '(sin título)') + '</div>' +
         '<div class="of-card-sub">' + esc(p.client_name || '—') + ' · ' + (p.views || 0) + ' vistas · ' + new Date(p.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
+        '<div class="of-card-nums"><span class="of-card-net"' + (p.status === 'accepted' ? ' style="color:#7ed957"' : '') + '>' + (v ? fmtM(v) : '—') + '</span>' + (v && p.status !== 'accepted' ? '<span class="muted-note" style="font-size:10.5px;display:block">' + (((p.content || {}).tiers || []).find((t) => t.recommended) ? 'recomendado' : 'paquete 1') + '</span>' : '') + '</div>' +
         '<span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></div>' +
         '<div class="of-actions">' +
           (p.slug ? '<button class="of-act" data-act="link" data-id="' + p.id + '" type="button">🔗 Copiar link</button>' : '') +
