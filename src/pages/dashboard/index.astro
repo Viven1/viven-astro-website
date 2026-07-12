@@ -471,6 +471,15 @@
   .post-preview .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--acid)}
   .post-preview h1{font-size:26px;margin:8px 0 12px;color:var(--text);line-height:1.2}
   .post-preview .lead{font-size:16px;color:var(--muted);margin-bottom:18px}
+  .gads-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .gads-kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+  .gads-kpi b{font-size:19px;line-height:1.1}
+  .gads-kpi span{font-size:11.5px;color:var(--muted)}
+  .gads-roi{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+  .gads-roi .gads-kpi{min-width:128px;justify-content:center}
+  .gads-table{width:100%;border-collapse:collapse;font-size:13px;min-width:460px}
+  .gads-table th,.gads-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+  .gads-table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
   .bg-group{border:1px solid var(--line);border-radius:13px;padding:4px 12px;margin-bottom:10px}
   .bg-group summary{cursor:pointer;font-weight:700;font-size:14px;padding:9px 2px;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
   .bg-group summary::before{content:'▸';color:var(--muted-2);transition:transform .15s}
@@ -875,6 +884,7 @@
       <div class="side-sec">Analytics</div>
       <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
       <button class="side-item" data-tab="ab" type="button"><span class="si-ic">🧪</span>A/B Tests</button>
+      <button class="side-item" data-tab="gads" type="button"><span class="si-ic">🎯</span>Google Ads</button>
       <div class="side-sec">Content</div>
       <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
       <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
@@ -1152,6 +1162,36 @@
 
     <p class="muted-note">Reproducciones de video: <span id="ka-videos">–</span> · <span id="ka-videos-top"></span> (El % visto de cada video se conecta en una próxima etapa.)</p>
 
+  </div>
+
+  <!-- ============ TAB: GOOGLE ADS ============ -->
+  <div id="tab-gads" hidden>
+    <div class="panel">
+      <h2>🎯 Google Ads</h2>
+      <p class="muted-note" style="margin:6px 0 12px">Sesiones que aterrizaron con gclid ≈ clicks reales. El gasto exacto y los clicks oficiales llegan cuando Google apruebe el developer token de la API; mientras tanto cargá la inversión abajo y el ROI se calcula solo. Spam y tests quedan excluidos de todo.</p>
+      <div class="gads-kpis">
+        <div class="gads-kpi"><b id="gads-sess">–</b><span>Sesiones desde Ads</span></div>
+        <div class="gads-kpi"><b id="gads-leads">–</b><span>Leads</span></div>
+        <div class="gads-kpi"><b id="gads-cr">–</b><span>Sesión → lead</span></div>
+        <div class="gads-kpi"><b id="gads-won">–</b><span>Ganados</span></div>
+        <div class="gads-kpi"><b id="gads-wonval">–</b><span>Valor ganado</span></div>
+        <div class="gads-kpi"><b id="gads-pipe">–</b><span>Pipeline abierto (Ads)</span></div>
+      </div>
+      <div class="gads-roi">
+        <div class="bf" style="margin:0;max-width:250px"><label>Inversión total en Ads (CHF)</label>
+          <div style="display:flex;gap:8px"><input id="gads-spend-in" type="number" min="0" step="50" placeholder="p. ej. 2000" /><button class="btn btn-ghost small" id="gads-spend-save" type="button" title="Guardar">💾</button></div>
+        </div>
+        <div class="gads-kpi"><b id="gads-cpl">–</b><span>Costo por lead</span></div>
+        <div class="gads-kpi"><b id="gads-cpa">–</b><span>Costo por ganado</span></div>
+        <div class="gads-kpi"><b id="gads-roas">–</b><span>ROAS (× la inversión)</span></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Campañas <span class="count">(por utm_campaign)</span></h2>
+      <div id="gads-camps" style="overflow-x:auto"><p class="muted-note">Sin datos todavía.</p></div>
+    </div>
+
     <div class="panel" style="margin-top:14px">
       <h2>🎯 Google Ads — conversiones offline</h2>
       <p class="muted-note" style="margin:6px 0 12px">Le devolvemos a Google qué clicks terminaron en CLIENTES: así el algoritmo optimiza por ganados, no por formularios. Estado: <b id="ads-n-leads">–</b> leads con gclid · <b id="ads-n-won">–</b> ganados · <b id="ads-won-val">–</b>.</p>
@@ -1160,6 +1200,14 @@
         <button class="btn btn-ghost small" id="ads-csv-all" type="button">⬇️ CSV de todos los leads Ads</button>
       </div>
       <p class="muted-note" style="margin-top:10px">Setup una sola vez en Google Ads: <b>Objetivos → Conversiones → Nueva acción de conversión → Importar → Conversiones de clientes potenciales → Cargar un archivo</b>. Creá dos acciones con estos nombres EXACTOS: <code>Lead ganado (CRM)</code> y <code>Lead (CRM)</code>. Después cada carga va en <b>Conversiones → Cargas</b>. Cuando quieras la subida 100% automática por API, pedime y te guío para solicitar el developer token (Google tarda unos días en aprobarlo).</p>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <details class="bg-group" style="border:0;padding:0;margin:0">
+        <summary>👥 Contactos que van a Google Ads <span class="count" id="gads-nlist">0</span></summary>
+        <p class="muted-note" style="margin:4px 0 10px">Todos los que llegaron con gclid. Los 🚫 (excluidos a mano, tests o spam) NO se reportan — se cambia con el botón 🎯/🚫 en la ficha.</p>
+        <div id="gads-list"></div>
+      </details>
     </div>
   </div>
 
@@ -1590,6 +1638,7 @@
     <button data-tab="services" type="button">🛠 Servicios</button>
     <button data-tab="analytics" type="button">📊 Analytics</button>
     <button data-tab="ab" type="button">🧪 A/B Tests</button>
+    <button data-tab="gads" type="button">🎯 Google Ads</button>
     <button data-tab="blog" type="button">📝 Blog</button>
     <button data-tab="seo" type="button">🔎 Search Console</button>
     <div class="mob-ver" id="mob-ver"></div>
@@ -1711,11 +1760,11 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services', 'ab'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services', 'ab', 'gads'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services', 'ab'];
+    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services', 'ab', 'gads'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -1729,6 +1778,7 @@
     if (tab === 'booking') bookingInit();
     if (tab === 'services') servicesInit();
     if (tab === 'ab') abInit();
+    if (tab === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
@@ -3942,10 +3992,63 @@
       const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;   // mismos patrones anti-test que review-request
       const adsOk = (r) => !r.ads_exclude && !ADS_TEST.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
       const adsFetch = async () => {
-        let q = await supabase.from('leads').select('gclid,name,email,value,status,created_at,updated_at,ads_exclude').not('gclid', 'is', null);
-        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('gclid,name,email,value,status,created_at,updated_at').not('gclid', 'is', null);
+        let q = await supabase.from('leads').select('id,gclid,name,email,value,status,created_at,updated_at,utm_campaign,ads_exclude').not('gclid', 'is', null);
+        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('id,gclid,name,email,value,status,created_at,updated_at,utm_campaign').not('gclid', 'is', null);
         return q;
       };
+      const chf = (n) => 'CHF ' + (+n || 0).toLocaleString('de-CH');
+      window.gadsLoad = async () => {
+        adsInfoLoad();
+        const { data } = await adsFetch();
+        const all = data || [];
+        const rows = all.filter(adsOk), won = rows.filter(adsIsWon);
+        const wonVal = won.reduce((a2, r) => a2 + (+r.value || 0), 0);
+        const openVal = rows.filter((r) => !adsIsWon(r) && !/perdido|lost/i.test(r.status || '')).reduce((a2, r) => a2 + (+r.value || 0), 0);
+        let sess = 0; const sessByCamp = {};
+        try {
+          const { data: pv } = await supabase.from('pageviews').select('session_id,utm_campaign,gclid,channel').or('channel.eq.paid_search,gclid.not.is.null').limit(20000);
+          const seen = new Set();
+          (pv || []).forEach((p) => { if (p.session_id && !seen.has(p.session_id)){ seen.add(p.session_id); sess++; const c = p.utm_campaign || '(sin campaña)'; sessByCamp[c] = (sessByCamp[c] || 0) + 1; } });
+        } catch (e) { /* pageviews aún sin esas columnas */ }
+        $('gads-sess').textContent = sess || '–';
+        $('gads-leads').textContent = rows.length;
+        $('gads-cr').textContent = sess ? Math.round((rows.length / sess) * 100) + '%' : '–';
+        $('gads-won').textContent = won.length;
+        $('gads-wonval').textContent = chf(wonVal);
+        $('gads-pipe').textContent = chf(openVal);
+        let spend = 0;
+        try { const { data: st } = await supabase.from('ads_settings').select('spend').eq('id', 1).maybeSingle(); spend = +((st || {}).spend || 0); } catch (e) { /* tabla pendiente (SQL 0037) */ }
+        if (!spend) spend = +(localStorage.getItem('vv_ads_spend') || 0);
+        if ($('gads-spend-in') && document.activeElement !== $('gads-spend-in')) $('gads-spend-in').value = spend || '';
+        $('gads-cpl').textContent = spend && rows.length ? chf(Math.round(spend / rows.length)) : '–';
+        $('gads-cpa').textContent = spend && won.length ? chf(Math.round(spend / won.length)) : '–';
+        $('gads-roas').textContent = spend ? (wonVal / spend).toFixed(1) + '×' : '–';
+        const camps = {};
+        rows.forEach((r) => { const c = r.utm_campaign || '(sin campaña)'; camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; camps[c].leads++; if (adsIsWon(r)){ camps[c].won++; camps[c].val += (+r.value || 0); } });
+        Object.keys(sessByCamp).forEach((c) => { camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; });
+        const names = Object.keys(camps);
+        $('gads-camps').innerHTML = !names.length ? '<p class="muted-note">Sin datos todavía — aparecen solos cuando lleguen sesiones o leads con gclid.</p>' :
+          '<table class="gads-table"><thead><tr><th>Campaña</th><th>Sesiones</th><th>Leads</th><th>Ganados</th><th>Valor</th></tr></thead><tbody>' +
+          names.sort((a2, b2) => (camps[b2].leads - camps[a2].leads) || ((sessByCamp[b2] || 0) - (sessByCamp[a2] || 0))).map((c) =>
+            '<tr><td>' + esc(c) + '</td><td>' + (sessByCamp[c] || 0) + '</td><td>' + camps[c].leads + '</td><td>' + camps[c].won + '</td><td>' + chf(camps[c].val) + '</td></tr>').join('') +
+          '</tbody></table>';
+        $('gads-nlist').textContent = all.length;
+        $('gads-list').innerHTML = all.map((r) => {
+          const out = !adsOk(r);
+          return '<div class="of-card"><div class="of-card-open" data-glead="' + r.id + '">' +
+            '<div class="of-card-main"><div class="of-card-title">' + (out ? '🚫 ' : '🎯 ') + esc(r.name || r.email || '(sin nombre)') + (adsIsWon(r) ? ' <span class="of-badge" style="color:#7ed957;border-color:#7ed957">Ganado</span>' : '') + '</div>' +
+            '<div class="of-card-sub">' + esc(r.email || '') + ' · ' + esc(r.utm_campaign || 'sin campaña') + ' · ' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (out ? ' · <b>no se reporta</b>' : '') + '</div></div>' +
+            '<span class="of-badge">' + chf(r.value) + '</span></div></div>';
+        }).join('') || '<p class="muted-note">Todavía no llegó ningún lead desde Ads.</p>';
+        $('gads-list').querySelectorAll('[data-glead]').forEach((c) => c.addEventListener('click', () => { gotoTab('leads'); openLead(c.dataset.glead); }));
+      };
+      $('gads-spend-save') && $('gads-spend-save').addEventListener('click', async () => {
+        const v = +($('gads-spend-in').value || 0);
+        localStorage.setItem('vv_ads_spend', String(v));
+        try { const { error } = await supabase.from('ads_settings').upsert({ id: 1, spend: v, updated_at: new Date().toISOString() }); if (error) throw error; toast('💾 Inversión guardada'); }
+        catch (e) { toast('Guardada en este dispositivo (corré el SQL 0037 para sincronizarla entre dispositivos)'); }
+        window.gadsLoad();
+      });
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -3968,7 +4071,6 @@
         if ($('ads-n-leads')){ $('ads-n-leads').textContent = rows.length; $('ads-n-won').textContent = won.length; $('ads-won-val').textContent = 'CHF ' + won.reduce((a2, r) => a2 + (+r.value || 0), 0).toLocaleString('de-CH'); }
       } catch (e) { /* sin datos aún */ } };
       adsInfoLoad();
-      document.querySelectorAll('[data-tab="analytics"]').forEach((b) => b.addEventListener('click', () => setTimeout(adsInfoLoad, 250)));
       $('ab-ideas').addEventListener('click', abIdeas);
       $('ab-save-run').addEventListener('click', () => abSave('running'));
       $('ab-save-draft').addEventListener('click', () => abSave('draft'));
