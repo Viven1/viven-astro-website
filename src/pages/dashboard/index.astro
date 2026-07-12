@@ -62,6 +62,11 @@
   .bell-item .bi-s{font-size:11.5px;color:var(--muted)}
   .bell-item .bi-due{font-size:11px;font-weight:600;color:var(--muted-2)}
   .bell-item .bi-due.od{color:#ff5a5a}
+  .bell-row{display:flex;align-items:stretch}
+  .bell-row .bell-item{flex:1;min-width:0}
+  .bell-dis{flex:none;background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:11px;padding:0 12px;opacity:.5;transition:.15s}
+  .bell-row:hover .bell-dis{opacity:1}
+  .bell-dis:hover{color:#ff8b8b}
   .bell-empty{padding:26px 15px;text-align:center;color:var(--muted);font-size:13px}
   @media(max-width:560px){.bell-panel{position:fixed;top:60px;left:16px;right:16px;width:auto;max-width:none}}
   .dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
@@ -1830,6 +1835,13 @@
   let bellItems = [], bellBound = false;
   function leadName(id){ const l = allLeads.find((x) => String(x.id) === String(id)); return l ? (l.name || l.email) : 'Lead'; }
   const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+  const bellDismissed = new Set(JSON.parse(localStorage.getItem('bellDismissed') || '[]'));
+  function dismissBellItem(k){
+    bellDismissed.add(k);
+    localStorage.setItem('bellDismissed', JSON.stringify([...bellDismissed].slice(-300)));
+    bellItems = bellItems.filter((i) => (i.kind + ':' + i.id) !== k);
+    renderBell();
+  }
   async function loadBell(){
     if (!bellBound){ bellBound = true;
       $('bell-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleBell(); });
@@ -1885,10 +1897,11 @@
       acceptedProps().filter((p) => Date.parse(p.accepted_at || p.updated_at) > evCut).slice(0, 6).forEach((p) => {
         bellItems.push({ kind: 'event', id: 'pw' + p.id, lead_id: p.lead_id, title: '🏆 Propuesta aceptada: ' + (p.title || '') + (Number(p.accepted_total) ? ' · ' + fmtM(p.accepted_total) : ''), due: null, bucket: 'event', overdue: false });
       });
-      (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut).slice(0, 6).forEach((d) => {
+      (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut).forEach((d) => {
         const l = leadById(d.lead_id) || {};
         bellItems.push({ kind: 'event', id: 'dw' + d.id, lead_id: d.lead_id, title: '🎉 Deal ganado: ' + (d.title || l.name || l.email || '') + ' · ' + fmtM(dealValue(d)), due: null, bucket: 'event', overdue: false });
       });
+      bellItems = bellItems.filter((i) => !bellDismissed.has(i.kind + ':' + i.id));
       renderBell();
     } catch (e) { /* si no corrió el SQL 0010, la campana queda vacía */ renderBell(); }
   }
@@ -1908,11 +1921,13 @@
       const [lbl, od] = labels[b] || [b, false];
       html += '<div class="bell-grp' + (od ? ' od' : '') + '">' + lbl + ' (' + grouped[b].length + ')</div>';
       grouped[b].forEach((i) => {
-        html += '<button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span></button>';
+        html += '<div class="bell-row"><button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span></button>' +
+          '<button class="bell-dis" data-k="' + esc(i.kind + ':' + i.id) + '" type="button" title="Descartar esta notificación" aria-label="Descartar">✕</button></div>';
       });
     });
     list.innerHTML = html;
     list.querySelectorAll('.bell-item').forEach((b) => b.addEventListener('click', () => { $('bell-panel').hidden = true; gotoTab('leads'); openLead(b.dataset.lead); }));
+    list.querySelectorAll('.bell-dis').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); dismissBellItem(b.dataset.k); }));
   }
   function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
   // re-evaluar cada 4 min: cuando una task cruza su hora, el badge salta solo
