@@ -678,6 +678,13 @@ function sbInsertLead(row){
   return attempt(row, 0);
 }
 window.sbInsertLead = sbInsertLead;   /* expuesto para la calculadora de presupuesto (todo site.js vive en un IIFE) */
+window.sbCallFunction = function(name, body){   /* llama funciones públicas (calc-email, etc.) sin cargar el SDK de supabase-js */
+  return fetch(SB_URL + '/functions/v1/' + name, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+    body: JSON.stringify(body), keepalive: true
+  }).then(function(r){ return r.json(); }).catch(function(){ return null; });
+};
 (function(){
   /* no registrar visitas en desarrollo local */
   if(/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;

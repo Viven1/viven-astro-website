@@ -38,13 +38,13 @@ const description = {"en":"Get an instant CHF price range for your video project
       <button class="btn btn-primary" type="submit">Show my breakdown →</button>
     </form>
     <p class="form-note">We reply within one business day with a concrete proposal. No spam, ever.</p>
+    <p class="form-note calc-privacy">By submitting, you agree we may email you your estimate and follow up about your project. See our <a href="/en/privacy-policy/" style="color:inherit;text-decoration:underline">Privacy Policy</a>. No spam, ever.</p>
   </div>
 
   <div class="calc-result" id="calc-result" hidden>
-    <h2>✅ Here is your estimated breakdown</h2>
-    <div id="calc-breakdown"></div>
-    <div class="calc-est-range" id="calc-range2" style="margin-top:14px"></div>
-    <p style="margin-top:18px"><a class="book-call" href="/book/" target="_blank" rel="noopener">Prefer to talk it through? Book a free 15-min call →</a></p>
+    <h2 id="calc-result-h">✅ Check your inbox</h2>
+    <p id="calc-result-p">We just sent your personalized estimate to <strong id="calc-sent-email"></strong> (check spam if you don't see it in a minute). Meanwhile:</p>
+    <p style="margin-top:18px"><a class="book-call" href="/book/" target="_blank" rel="noopener">📅 Book a free 15-min call →</a></p>
   </div>
 </div></div></section>
 <style is:global>
@@ -61,6 +61,7 @@ const description = {"en":"Get an instant CHF price range for your video project
 .calc-est-range.calc-locked{font-size:16px;font-weight:700;color:var(--acid,#ddf98f);cursor:default}
 .calc-form{border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:22px;margin-top:8px}
 .calc-form h2{font-size:17px;margin-bottom:12px}
+.calc-privacy{font-size:11.5px;opacity:.65;margin-top:6px}
 .calc-form form{display:grid;gap:10px;grid-template-columns:1fr 1fr}
 .calc-form input{background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:10px;color:inherit;font-family:inherit;font-size:14.5px;padding:12px 14px}
 .calc-form input#cf-name{grid-column:1/2}
@@ -126,14 +127,22 @@ const description = {"en":"Get an instant CHF price range for your video project
     if(extra){ row.session_id = extra.session_id; row.lang = extra.lang;
       if(extra.attrib){ row.channel = extra.attrib.channel; row.gclid = extra.attrib.gclid; row.utm_source = extra.attrib.utm_source; row.utm_campaign = extra.attrib.utm_campaign; row.landing_path = extra.attrib.landing_path; } }
     if(window.__vvAB) row.ab = window.__vvAB;
+    var submitBtn = document.querySelector('#calc-form button[type="submit"]');
+    var origLabel = submitBtn.textContent; submitBtn.disabled = true; submitBtn.textContent = 'Sending your estimate…';
     var done = function(){
       document.getElementById('calc-form-box').hidden = true;
-      var res = document.getElementById('calc-result'); res.hidden = false;
-      document.getElementById('calc-breakdown').innerHTML = '<table>' + r.lines.map(function(l){ return '<tr><td>' + l[0] + '</td><td>' + fmt(l[1]) + '</td></tr>'; }).join('') + '</table>';
-      document.getElementById('calc-range2').textContent = fmt(r.lo) + ' – ' + fmt(r.hi);
+      var res = document.getElementById('calc-result');
+      document.getElementById('calc-sent-email').textContent = email;
+      res.hidden = false;
       res.scrollIntoView({behavior:'smooth', block:'start'});
     };
-    if(window.sbInsertLead){ window.sbInsertLead(row).then(done, done); } else { done(); }
+    var sendEmail = function(){
+      if(window.sbCallFunction){
+        window.sbCallFunction('calc-email', { to: email, name: name, lang: (extra && extra.lang) || document.documentElement.lang || 'en', lines: r.lines, lo: r.lo, hi: r.hi, config: cfg });
+      }
+    };
+    if(window.sbInsertLead){ window.sbInsertLead(row).then(function(){ sendEmail(); done(); }, function(){ sendEmail(); done(); }); }
+    else { sendEmail(); done(); }
   });
 })();
 </script>
