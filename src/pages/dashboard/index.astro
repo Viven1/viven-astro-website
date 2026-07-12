@@ -610,8 +610,49 @@
     .of-act{font-size:12px;padding:7px 10px}
     /* modal de contacto: header respeta el notch */
     .lead-card-wide{padding-top:calc(10px + env(safe-area-inset-top))}
-    .dash-head{margin-bottom:14px}
-    .dash-head h1{font-size:22px}
+    .dash-head{margin-bottom:12px;flex-wrap:nowrap;gap:8px}
+    .dash-head h1{font-size:20px;white-space:nowrap}
+    .dash-sub{display:none}
+    .dash-head .btn.small{padding:8px 11px;font-size:12.5px;white-space:nowrap}
+    #refresh-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
+    #refresh-btn::before{content:'↻';font-size:17px}
+    .dash-actions{gap:7px;flex-wrap:nowrap!important}
+    #logout-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
+    #logout-btn::before{content:'⏻';font-size:16px}
+    /* inputs a 16px: iOS no hace zoom al enfocar */
+    input,select,textarea{font-size:16px!important}
+    .tabs{overflow-x:auto;scrollbar-width:none;margin-bottom:18px;flex-wrap:nowrap}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{padding:10px 12px;font-size:14.5px;white-space:nowrap;flex:none}
+    .panel{padding:16px 14px}
+    .kpis,.kpis.four{grid-template-columns:repeat(2,1fr);gap:10px}
+    .kpi{padding:14px 15px}
+    .kpi .n{font-size:clamp(19px,6.5vw,26px)}
+    .home-kpis{grid-template-columns:repeat(2,1fr);gap:10px}
+    .hk{padding:13px 14px}
+    .hk-n{font-size:22px}
+    /* pipeline: una columna por pantalla, con snap como un carrusel */
+    .pipeline{scroll-snap-type:x mandatory;scroll-padding:14px;-webkit-overflow-scrolling:touch}
+    .pipe-col{flex:0 0 85vw;min-width:85vw;scroll-snap-align:start;max-height:68dvh}
+    /* tabla de Personas → cards apiladas (nada de scroll horizontal) */
+    .lead-table-hs table{min-width:0;width:100%}
+    .lead-table-hs thead{display:none}
+    .lead-table-hs tbody tr{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .lead-table-hs tbody td{display:none;padding:0;border:0;white-space:normal}
+    .lead-table-hs tbody td:nth-child(1){display:block;flex:1 1 100%}
+    .lead-table-hs tbody td:nth-child(4){display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:12px}
+    .lead-table-hs tbody td:nth-child(5){display:block}
+    .lead-table-hs tbody td:nth-child(6){display:block;font-weight:700;font-family:'Space Grotesk'}
+    /* contacto apilado en orden útil: conversación → proyectos/ofertas → ficha */
+    .lm-center{order:1}
+    .lm-right{order:2}
+    .lm-left{order:3}
+    .lm-quick{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-bottom:4px}
+    .lead-actions .btn{flex:1 1 auto}
+    /* barras de título (Deals/Ofertas/etc): que el texto envuelva y el botón baje */
+    .of-bar{flex-wrap:wrap}
+    .of-bar > div{min-width:0;flex:1 1 100%}
+    .of-bar .muted-note{white-space:normal}
     .mob-nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:250;background:color-mix(in srgb,var(--navy-800) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line-strong);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
     .mob-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--muted-2);font-family:inherit;cursor:pointer;padding:4px 2px;border-radius:10px}
     .mob-nav button .mi{font-size:19px;line-height:1}
@@ -625,10 +666,10 @@
     .lead-modal{padding:0}
     .lead-modal .lead-card{width:100%;min-height:100dvh;border-radius:0;margin:0}
   }
-  /* tabla de personas en pantallas chicas: ocultar Canal y Creado para que respire */
+  /* tablas genéricas (no la de Personas) en pantallas chicas: ocultar columnas 5 y 6 */
   @media(max-width:560px){
-    .lead-table th:nth-child(5),.lead-table td:nth-child(5),
-    .lead-table th:nth-child(6),.lead-table td:nth-child(6){display:none}
+    .lead-table-wrap:not(.lead-table-hs) .lead-table th:nth-child(5),.lead-table-wrap:not(.lead-table-hs) .lead-table td:nth-child(5),
+    .lead-table-wrap:not(.lead-table-hs) .lead-table th:nth-child(6),.lead-table-wrap:not(.lead-table-hs) .lead-table td:nth-child(6){display:none}
   }
   /* ---- home ---- */
   .home-h{font-size:22px;margin:0 0 18px}
@@ -673,7 +714,7 @@
       <h1>Viven <span>Dashboard</span></h1>
       <p class="dash-sub" id="updated-at">Últimos 30 días</p>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div class="dash-actions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="bell-btn" id="theme-btn" type="button" title="Cambiar tema (oscuro/claro)" aria-label="Cambiar tema">◐</button>
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
@@ -1294,8 +1335,10 @@
   <div class="mob-sheet" id="mob-sheet" hidden>
     <button data-tab="companies" type="button">🏢 Companies</button>
     <button data-tab="props" type="button">🌐 Propuestas</button>
+    <button data-tab="booking" type="button">📅 Booking</button>
     <button data-tab="analytics" type="button">📊 Analytics</button>
     <button data-tab="blog" type="button">📝 Blog</button>
+    <button data-tab="seo" type="button">🔎 Search Console</button>
   </div>
   <nav class="mob-nav" id="mob-nav" aria-label="Navegación">
     <button data-tab="home" class="active" type="button"><span class="mi">🏠</span><span class="ml">Home</span></button>
@@ -1734,6 +1777,8 @@
   const VAPID_PUB = 'BPZuJFhqNy9HDHDi0MzPh_DklooKyOUHInq7rfyqKIWXWMe6yShB1xCiQSJfOWUzaMhFT4NMwv3B_rwVPal-hyg';
   function b64ToU8(s){ const pad = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...b].map((c) => c.charCodeAt(0))); }
   function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  // registrar el SW siempre (no solo al activar push): así la PWA instala y cachea el shell
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/dashboard-sw.js', { scope: '/dashboard/' }).catch(() => {});
   async function refreshPushBtn(){
     const btn = $('bell-push'); if (!btn) return;
     if (!pushSupported()){ btn.textContent = '📲 Push no disponible'; btn.title = 'En iPhone: instalá la app (Compartir → Añadir a pantalla de inicio) y abrila desde el ícono'; return; }
