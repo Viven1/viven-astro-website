@@ -67,6 +67,7 @@ Write a complete, genuinely useful article in ${language} about: "${topic}".${lo
 
 Rules:
 - 700–1100 words. Natural, expert, non-fluffy. Answer the search intent directly in the first paragraph.
+- German = SWISS High German: NEVER use "ß" — always "ss" (Strasse, gross, heisst, ausserdem). This is non-negotiable for a Swiss company.
 - Structure: a strong lead paragraph, then 4–6 <h2> sections (with <h3> and <ul> where useful). No <h1>.
 - Weave in 2–4 internal links using EXACTLY this placeholder form: [[slug|anchor text]] where slug is one of: ${INTERNAL.join(", ")}. Use them naturally.
 - Never claim the founder made a "Netflix original" — the correct fact is: produced the first Swiss feature film on Netflix.
@@ -98,7 +99,11 @@ Respond ONLY with valid minified JSON, no markdown fences:
   let p: { title?: string; slug?: string; description?: string; eyebrow?: string; lead?: string; body_html?: string; faq?: unknown[] } | null = null;
   try { p = JSON.parse(text); } catch { p = null; }
   if (!p || !p.body_html) throw new Error("artículo inválido (" + lang + ")");
-  p.faq = Array.isArray(p.faq) ? p.faq.slice(0, 5) : [];
+  if (lang === "de") { // Schweizer Hochdeutsch: sin ß, siempre ss (garantizado por código, no solo por prompt)
+      for (const k of ["title", "description", "lead", "body_html"]) if (typeof p[k] === "string") p[k] = p[k].replaceAll("ß", "ss");
+      if (Array.isArray(p.faq)) p.faq = p.faq.map((f: { q?: string; a?: string }) => ({ q: String(f.q ?? "").replaceAll("ß", "ss"), a: String(f.a ?? "").replaceAll("ß", "ss") }));
+    }
+    p.faq = Array.isArray(p.faq) ? p.faq.slice(0, 5) : [];
   p.slug = String(p.slug || topic).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70);
   return p;
 }

@@ -50,6 +50,7 @@ Write a complete, genuinely useful article in ${language} about: "${t}".${locali
 
 Rules:
 - 700–1100 words. Natural, expert, non-fluffy. Answer the search intent directly in the first paragraph.
+- German = SWISS High German: NEVER use "ß" — always "ss" (Strasse, gross, heisst, ausserdem). This is non-negotiable for a Swiss company.
 - Structure: a strong lead paragraph, then 4–6 <h2> sections (with <h3> and <ul> where useful). No <h1> (the title is separate).
 - Weave in 2–4 internal links using EXACTLY this placeholder form: [[slug|anchor text]] where slug is one of: ${INTERNAL.join(", ")}. Use them naturally, not stuffed.
 - End with a short CTA paragraph inviting the reader to contact Viven.
@@ -88,6 +89,10 @@ Respond ONLY with valid minified JSON, no markdown fences:
     if (!p || !p.body_html) {
       console.error("PARSE_ERROR stop=" + data.stop_reason, text.slice(-300));
       return json({ error: "La IA no devolvió un artículo válido" + (data.stop_reason === "max_tokens" ? " (cortado — probá de nuevo)" : "") + "." });
+    }
+    if (lang === "de") { // Schweizer Hochdeutsch: sin ß, siempre ss (garantizado por código, no solo por prompt)
+      for (const k of ["title", "description", "lead", "body_html"]) if (typeof p[k] === "string") p[k] = p[k].replaceAll("ß", "ss");
+      if (Array.isArray(p.faq)) p.faq = p.faq.map((f: { q?: string; a?: string }) => ({ q: String(f.q ?? "").replaceAll("ß", "ss"), a: String(f.a ?? "").replaceAll("ß", "ss") }));
     }
     p.faq = Array.isArray(p.faq) ? p.faq.slice(0, 5) : [];
     p.slug = String(p.slug || t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70);
