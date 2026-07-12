@@ -133,6 +133,8 @@ function loadHeroVideo(){
     v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
     v.preload = 'auto';
     v.src = heroMp4;
+    /* fade-in: el video aparece suave sobre el póster — sin salto de color al navegar */
+    v.addEventListener('playing', function(){ v.classList.add('on'); }, { once: true });
     heroBg.insertBefore(v, heroBg.querySelector('.grain'));
     var pr = v.play(); if(pr && pr.catch) pr.catch(function(){});
     return;

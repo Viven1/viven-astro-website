@@ -64,7 +64,7 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 6000,
+        max_tokens: 8000,
         system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary before or after. Keep bullet lists concise so the JSON is never truncated.",
         messages: [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
       }),
