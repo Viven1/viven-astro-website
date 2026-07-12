@@ -1,10 +1,29 @@
 ---
 import Base from '../../../../layouts/Base.astro';
 import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+
 const lang = "de";
 const p = (s) => localePath(lang, s);
 const title = {"de":"Videoproduktion Zürich: Checkliste zur Agentur-Auswahl | Viven"};
 const description = {"de":"Praktische Checkliste: Wie Sie die richtige Videoproduktionsfirma in Zürich auswählen. Kriterien, Fragen und worauf Sie achten sollten."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videoproduktion-agentur-zuerich-checkliste";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
 ---
 <Base lang={lang} slug="blog/videoproduktion-agentur-zuerich-checkliste" active="blog" singleLang={true} langUrls={{"en":"/en/blog/","de":"/de/blog/videoproduktion-agentur-zuerich-checkliste/","es":"/es/blog/"}} title={title} description={description}>
   <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/videoproduktion-agentur-zuerich-checkliste/\"},\"headline\":\"Videoproduktion Zürich: Checkliste zur Agentur-Auswahl\",\"description\":\"Praktische Checkliste: Wie Sie die richtige Videoproduktionsfirma in Zürich auswählen. Kriterien, Fragen und worauf Sie achten sollten.\",\"datePublished\":\"2026-07-12T08:10:00+01:00\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/videoproduktion-agentur-zuerich-checkliste/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Videoproduktion Zürich: Checkliste zur Agentur-Auswahl\",\"item\":\"https://www.viven.ch/de/blog/videoproduktion-agentur-zuerich-checkliste/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie lange dauert eine typische Videoproduktion in Zürich?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Von der ersten Idee bis zum fertigen Video dauert es normalerweise 2–12 Wochen, je nach Komplexität. Ein einfaches Produktvideo kann in 3–4 Wochen fertig sein, eine aufwendige Kampagne mit mehreren Locations benötigt 8–16 Wochen.\"}},{\"@type\":\"Question\",\"name\":\"Was ist der Unterschied zwischen einer grossen und kleinen Videoproduktionsagentur?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Grosse Agenturen haben spezialisierte Teams für jede Phase (Konzept, Regie, Animation, etc.) und können komplexe Projekte schneller umsetzen. Kleinere Agenturen sind flexibler, persönlicher und oft günstiger – eignen sich aber besser für kleinere bis mittlere Budgets. Entscheidend ist die Erfahrung mit Ihrem Projekttyp, nicht die Grösse.\"}},{\"@type\":\"Question\",\"name\":\"Kann ich mein Video später noch verwenden oder ändern lassen?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das hängt vom Lizenzvertrag ab. In der Regel erhalten Sie ewige Nutzungsrechte für Ihr finales Video. Kleine Änderungen (Schnitt, Musik-Updates) sind oft möglich; grössere Überarbeitungen verursachen zusätzliche Kosten. Klären Sie das vorab in der Offerte.\"}}]}]}"}></script>
@@ -20,4 +39,50 @@ const description = {"de":"Praktische Checkliste: Wie Sie die richtige Videoprod
 <h2>1. Referenzen und Portfolio prüfen</h2><p>Das Portfolio ist der zuverlässigste Indikator für Qualität. Eine seriöse Videoproduktion in Zürich zeigt Arbeiten, die dem Umfang Ihres Projekts entsprechen – nicht nur Hochglanzprojekte, sondern auch nachvollziehbare Lösungen für mittelständische Unternehmen.</p><ul><li>Schauen Sie sich mindestens 5–10 aktuelle Projekte an</li><li>Prüfen Sie, ob die Agentur Erfahrung in Ihrer Branche hat (Finanzdienstleistungen, Industrie, Tech, Retail)</li><li>Kontaktieren Sie, wenn möglich, Referenzkunden und fragen Sie nach Zusammenarbeit und Ergebnis</li><li>Achten Sie auf technische Qualität (Farbgrading, Sound Design, Schnitt)</li></ul><p>Hochwertige Agenturen arbeiten mit bekannten Marken zusammen und dokumentieren das transparent. Eine Agentur, die mit Unternehmen wie UBS, Siemens oder Porsche arbeitet, hat unter Beweis gestellt, dass sie hohe Standards erfüllt.</p><h2>2. Klare Leistungsabgrenzung und Transparenz</h2><p>Bevor Sie einen Vertrag unterzeichnen, muss das Leistungspaket klar definiert sein. Viele Projekte scheitern nicht an Kreativität, sondern an Missverständnissen über Umfang und Verantwortung.</p><ul><li><strong>Was ist im Paket enthalten?</strong> Konzept, Dreharbeiten, Schnitt, Musik, Freigaben?</li><li><strong>Wie viele Revisionsschleifen sind vorgesehen?</strong> (Typisch: 2–3 Überarbeitungsrunden)</li><li><strong>Was kostet es zusätzlich?</strong> Extra-Drehtage, Musik-Lizenzen, zusätzliche Schnittversionen</li><li><strong>Wer trägt Verantwortung für Genehmigungen?</strong> Drehgenehmigungen, Musik-Rechte, Talent-Freigaben</li></ul><p>Transparente Agenturen stellen einen Kostenvoranschlag zur Verfügung und erklären jede Position. Versteckte Gebühren sind ein Warnsignal.</p><h2>3. Prozess und Zusammenarbeit verstehen</h2><p>Der Produktionsprozess sollte strukturiert und nachvollziehbar sein. Eine gute Agentur führt Sie durch Discovery, Konzeption, Pre-Production, Dreharbeiten und Post-Production.</p><ul><li>Wird ein Kick-off-Meeting durchgeführt, um Ihre Ziele, Zielgruppe und KPIs zu verstehen?</li><li>Erhalten Sie Storyboards oder Animatics vor den Dreharbeiten?</li><li>Wie ist die Kommunikation organisiert? (Projektmanager, feste Ansprechperson)</li><li>Werden regelmässig Statusupdates gegeben?</li><li>Wie läuft die finale Abnahme ab?</li></ul><p>Ein strukturierter Prozess reduziert Überraschungen und sichert die Qualität. Für verschiedene Video-Formate – ob <a href={p("services/product-video")}>Produktvideo</a>, <a href={p("services/corporate-video")}>Corporate Video</a> oder <a href={p("services/social-media-video")}>Social-Media-Content</a> – sollte die Agentur unterschiedliche Vorgehensweisen anwenden können.</p><h2>4. Budget realistisch kalkulieren</h2><p>Videoproduktion ist kein Massenprodukt. Die Kosten in der Schweiz sind höher als in Nachbarländern, aber das spiegelt Qualität und Fachkompetenz wider. Eine pauschale "Budget-Antwort" gibt es nicht – es hängt von Umfang, Komplexität und Ihrer Vision ab.</p><ul><li><strong>Einfache Produktvideos (1–3 Min.):</strong> 8.000–20.000 CHF</li><li><strong>Hochwertige Corporate Videos (5–10 Min.):</strong> 25.000–60.000 CHF</li><li><strong>Kampagnen mit mehreren Assets:</strong> 40.000–150.000 CHF+</li></ul><p>Misstrauen Sie Offerten, die deutlich unter Marktpreisen liegen. Achten Sie darauf, dass die Agentur die vollständigen Kosten erklärt und nicht mit versteckten Gebühren rechnet.</p><h2>5. Technische Fähigkeiten und Equipment</h2><p>Professionelle Ausrüstung ist Grundvoraussetzung, aber nicht alles. Eine gute Agentur investiert in modernes Equipment und bildungsschulung ihrer Teams.</p><ul><li>Arbeitet die Agentur mit 4K- oder 8K-Kameras?</li><li>Gibt es eigene Schnitt- und Farbgrading-Studios?</li><li>Verfügt sie über Spezialisten für Motion Graphics, Animation oder VFX?</li><li>Kann die Agentur für Ihre Vertriebskanäle optimieren (TV, YouTube, TikTok, Instagram)?</li></ul><p>Für <a href={p("services/employer-branding")}>Employer-Branding-Kampagnen</a> oder komplexe Produktpräsentationen benötigen Sie eine Agentur mit breitem technischem Spektrum. Besuchen Sie das Studio oder verlangen Sie einen virtuellen Rundgang.</p><h2>6. Langfristige Zusammenarbeit prüfen</h2><p>Gute Videoproduktionsagenturen denken über einzelne Projekte hinaus. Fragen Sie, ob die Agentur Sie auch bei zukünftigen Produktionen unterstützen kann und ob sie Rabatte für mehrjährige Zusammenarbeit bietet.</p><ul><li>Kann die Agentur eine Content-Strategie mit Ihnen entwickeln?</li><li>Werden Nutzungsrechte unbegrenzt oder zeitlich begrenzt gewährt?</li><li>Steht die Agentur für technischen Support nach Projektabschluss zur Verfügung?</li></ul><p>Werfen Sie einen Blick auf <a href={p("projects")}>bisherige Projekte</a> und schauen Sie, welche Kunden über Jahre hinweg mit der Agentur arbeiten. Das ist ein Qualitätssignal.</p><h2>Fazit und nächste Schritte</h2><p>Die Wahl der richtigen Videoproduktionsagentur ist ein Investitionsentscheid. Nehmen Sie sich Zeit für Gespräche, fordern Sie mehrere Offerten an und vertrauen Sie auf Bauchgefühl und Fachkompetenz. Eine erfahrene Agentur wird nicht nur einen Film produzieren, sondern Sie strategisch beraten – von der Idee bis zur Verbreitung.</p><p>Sie möchten mit einem erfahrenen Partner sprechen? Viven AG hat jahrelang Videoproduktionen für Schweizer Marken realisiert. Werfen Sie einen Blick auf unsere Arbeiten und kontaktieren Sie uns für ein unverbindliches Gespräch über Ihr Projekt – <a href={p("contact")}>jetzt anfragen</a>.</p>
 <div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
 </div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit drei Konzeptideen, Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tres ideas de concepto, tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="videoproduktion-agentur-zuerich-checkliste" />
+  </div></section>
 </Base>
