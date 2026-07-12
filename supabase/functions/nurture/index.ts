@@ -51,9 +51,9 @@ function wrap(inner: string, unsub: string, lang: string): string {
   const bye = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" }[lang] || "Unsubscribe";
   return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
-  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><span style="color:#fff;font-weight:800;font-size:19px;letter-spacing:.5px">viven<span style="color:#ddf98f">.</span></span></div>
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">${inner}
-    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia &amp; Sebastian, VIVEN AG</p>
+    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p>
   </div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zeughausstrasse 31, 8004 Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${bye}</a></p>
 </div></body>`;
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: "Sofia & Sebastian — VIVEN <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [r.email], subject, html: wrap(html, unsub, String(r.lang || "en")) }),
+        body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email], subject, html: wrap(html, unsub, String(r.lang || "en")) }),
       });
       if (res.ok) {
         await service.from("nurture_log").insert({ lead_id: r.id, step });

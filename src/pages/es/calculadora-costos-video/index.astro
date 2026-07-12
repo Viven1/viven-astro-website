@@ -77,7 +77,7 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
   var PRICE = { types:{brand:6500,product:5000,eb:7500,howto:4000,social:3500,corporate:5500},
     durs:{s:.9,m:1,l:1.15,xl:1.3}, days:[0,2500,5000], locs:[0,600,1200],
     extras:{anim:1300,drone:650,ml:350,subs:200,fotos:400,testi:1000} };
-  var ITEMS = {"base": "Producción base", "dur": "Factor duración", "days": "Días de rodaje extra", "locs": "Locaciones extra", "anim": "Animación / motion", "drone": "Drone", "ml": "Idioma adicional", "subs": "Subtítulos", "fotos": "Fotos still", "testi": "Testimonial"};
+  var ITEMS = {"base": "Producción base", "dur": "Ajuste por duración", "days": "Días de rodaje extra", "locs": "Locaciones extra", "anim": "Animación / motion", "drone": "Drone", "ml": "Idioma adicional", "subs": "Subtítulos", "fotos": "Fotos still", "testi": "Testimonial"};
   var sel = { type:null, dur:null, days:0, locs:0, extras:{} };
   function round500(n){ return Math.round(n/500)*500; }
   function calc(){
@@ -85,7 +85,7 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
     var lines = [];
     var base = PRICE.types[sel.type]; lines.push([ITEMS.base, base]);
     var t = base * PRICE.durs[sel.dur];
-    if(PRICE.durs[sel.dur] !== 1) lines.push([ITEMS.dur + ' ×' + PRICE.durs[sel.dur], Math.round(base*(PRICE.durs[sel.dur]-1))]);
+    if(PRICE.durs[sel.dur] !== 1) lines.push([ITEMS.dur + ' (' + {"s": "menos de 1 min", "m": "1\u20132 min", "l": "2\u20135 min", "xl": "5+ min"}[sel.dur] + ')', Math.round(base*(PRICE.durs[sel.dur]-1))]);
     if(PRICE.days[sel.days]){ t += PRICE.days[sel.days]; lines.push([ITEMS.days, PRICE.days[sel.days]]); }
     if(PRICE.locs[sel.locs]){ t += PRICE.locs[sel.locs]; lines.push([ITEMS.locs, PRICE.locs[sel.locs]]); }
     for(var k in sel.extras){ if(sel.extras[k]){ t += PRICE.extras[k]; lines.push([ITEMS[k], PRICE.extras[k]]); } }

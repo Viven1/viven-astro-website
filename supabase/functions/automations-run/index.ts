@@ -65,7 +65,7 @@ function wrap(bodyText: string, unsub: string, lang: string, sender: string): st
     `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:#222">${esc(p).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#5b7cfa">$1</a>').replace(/\n/g, "<br>")}</p>`).join("");
   return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
-  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><span style="color:#fff;font-weight:800;font-size:19px;letter-spacing:.5px">viven<span style="color:#ddf98f">.</span></span></div>
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">${paras}
     <p style="margin:22px 0 0;font-size:14px;color:#444">— ${esc(sender)}, VIVEN AG</p>
   </div>
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
         } else if (step.type === "email") {
           const F = FROMS[step.from] || FROMS.team;
           const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
-          const sender = (FROMS[step.from] ? (step.from === "team" ? "Sofia & Sebastian" : step.from === "sofia" ? "Sofia" : "Sebastian") : "Sofia & Sebastian");
+          const sender = (FROMS[step.from] ? (step.from === "team" ? "Sofia" : step.from === "sofia" ? "Sofia" : "Sebastian") : "Sofia");
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
       }
       const F = FROMS[ob.sender] || FROMS.team;
       const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
-      const senderName = ob.sender === "sofia" ? "Sofia" : ob.sender === "sebastian" ? "Sebastian" : "Sofia & Sebastian";
+      const senderName = ob.sender === "sebastian" ? "Sebastian" : "Sofia";
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },

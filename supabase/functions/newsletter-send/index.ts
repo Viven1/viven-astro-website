@@ -83,18 +83,18 @@ Deno.serve(async (req) => {
       const unsub = r.id != null ? `${SB_URL}/functions/v1/newsletter-unsub?l=${r.id}&t=${tok}` : "https://www.viven.ch";
       const full = `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
-  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><span style="color:#fff;font-weight:800;font-size:19px;letter-spacing:.5px">viven<span style="color:#ddf98f">.</span></span></div>
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">
     ${r.name ? `<p style="margin:0 0 16px;font-size:15px;color:#222">Hi ${esc(r.name)},</p>` : ""}
     ${html}
-    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia &amp; Sebastian, VIVEN AG</p>
+    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p>
   </div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${UNSUB_LABEL[lang] || UNSUB_LABEL.en}</a></p>
 </div></body>`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: "Sofia & Sebastian — VIVEN <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [r.email], subject: nl.subject, html: full }),
+        body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email], subject: nl.subject, html: full }),
       });
       if (res.ok) { sent++; if (!test_to) await service.from("newsletter_sends").insert({ newsletter_id: id, lead_id: r.id ?? null, email: r.email }); }
       else { failed++; console.error("RESEND_FAIL", r.email, res.status, (await res.text()).slice(0, 120)); }
