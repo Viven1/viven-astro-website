@@ -695,7 +695,13 @@
   /* ---- sidebar (HubSpot-style) ---- */
   .dash-body{display:flex;gap:22px;align-items:flex-start}
   .dash-side{flex:0 0 190px;position:sticky;top:16px;display:flex;flex-direction:column;gap:2px;padding-right:4px}
-  .dash-side .side-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-2);font-weight:700;padding:14px 10px 4px}
+  .side-group{margin-top:4px}
+  .side-group .side-sec{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;cursor:pointer;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-2);font-weight:700;padding:12px 10px 6px;font-family:inherit}
+  .side-group .side-sec:hover{color:var(--muted)}
+  .side-chev{width:12px;height:12px;transition:transform .18s}
+  .side-group.collapsed .side-chev{transform:rotate(-90deg)}
+  .side-group-items{display:flex;flex-direction:column;gap:2px;overflow:hidden}
+  .side-group.collapsed .side-group-items{display:none}
   .side-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--muted);font-family:inherit;font-size:14px;font-weight:500;padding:9px 11px;border-radius:10px;cursor:pointer;transition:background .12s,color .12s}
   .side-item:hover{background:var(--navy-800);color:var(--text)}
   .side-item.active{background:color-mix(in srgb,var(--acid) 14%,transparent);color:var(--acid)}
@@ -884,25 +890,46 @@
   <div class="dash-body">
     <aside class="dash-side">
       <button class="side-item active" data-tab="home" type="button"><span class="si-ic">🏠</span>Home</button>
-      <div class="side-sec">CRM</div>
-      <button class="side-item" data-tab="leads" type="button"><span class="si-ic">👤</span>Personas <span class="pill" id="tab-leads-count">0</span></button>
-      <button class="side-item" data-tab="companies" type="button"><span class="si-ic">🏢</span>Companies</button>
-      <div class="side-sec">Ventas</div>
-      <button class="side-item" data-tab="deals" type="button"><span class="si-ic">🤝</span>Deals</button>
-      <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
-      <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
-      <button class="side-item" data-tab="booking" type="button"><span class="si-ic">📅</span>Booking</button>
-      <button class="side-item" data-tab="services" type="button"><span class="si-ic">🛠</span>Servicios</button>
-      <div class="side-sec">Analytics</div>
-      <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
-      <button class="side-item" data-tab="ab" type="button"><span class="si-ic">🧪</span>A/B Tests</button>
-      <button class="side-item" data-tab="gads" type="button"><span class="si-ic">🎯</span>Google Ads</button>
-      <div class="side-sec">Content</div>
-      <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
-      <button class="side-item" data-tab="news" type="button"><span class="si-ic">📰</span>Newsletter</button>
-      <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Workflows</button>
-      <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
-      <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
+      <div class="side-group" data-group="crm">
+        <button class="side-sec" type="button">CRM<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="leads" type="button"><span class="si-ic">👤</span>Personas <span class="pill" id="tab-leads-count">0</span></button>
+          <button class="side-item" data-tab="companies" type="button"><span class="si-ic">🏢</span>Companies</button>
+        </div>
+      </div>
+      <div class="side-group" data-group="ventas">
+        <button class="side-sec" type="button">Ventas<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="deals" type="button"><span class="si-ic">🤝</span>Deals</button>
+          <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
+          <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
+          <button class="side-item" data-tab="booking" type="button"><span class="si-ic">📅</span>Booking</button>
+          <button class="side-item" data-tab="services" type="button"><span class="si-ic">🛠</span>Servicios</button>
+        </div>
+      </div>
+      <div class="side-group" data-group="analytics">
+        <button class="side-sec" type="button">Analytics<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
+          <button class="side-item" data-tab="ab" type="button"><span class="si-ic">🧪</span>A/B Tests</button>
+          <button class="side-item" data-tab="gads" type="button"><span class="si-ic">🎯</span>Google Ads</button>
+        </div>
+      </div>
+      <div class="side-group" data-group="content">
+        <button class="side-sec" type="button">Content<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
+          <button class="side-item" data-tab="news" type="button"><span class="si-ic">📰</span>Newsletter</button>
+          <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
+          <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
+        </div>
+      </div>
+      <div class="side-group" data-group="automations">
+        <button class="side-sec" type="button">Automations<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Workflows</button>
+        </div>
+      </div>
     </aside>
     <div class="dash-main">
 
@@ -1906,6 +1933,15 @@
     if (tab === 'auto') autoInit();
     window.scrollTo(0, 0);
   }
+  // grupos del sidebar: colapsables, con memoria por navegador (localStorage)
+  document.querySelectorAll('.side-group').forEach((g) => {
+    const key = 'vv_side_' + g.dataset.group;
+    if (localStorage.getItem(key) === '1') g.classList.add('collapsed');
+    g.querySelector('.side-sec').addEventListener('click', () => {
+      g.classList.toggle('collapsed');
+      localStorage.setItem(key, g.classList.contains('collapsed') ? '1' : '0');
+    });
+  });
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
     if (t.classList.contains('disabled')) return;
     t.addEventListener('click', () => gotoTab(t.dataset.tab));
