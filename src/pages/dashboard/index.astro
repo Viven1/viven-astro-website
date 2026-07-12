@@ -1160,7 +1160,11 @@
       </div>
     </div>
 
-    <p class="muted-note">Reproducciones de video: <span id="ka-videos">–</span> · <span id="ka-videos-top"></span> (El % visto de cada video se conecta en una próxima etapa.)</p>
+    <div class="panel" style="margin-top:14px">
+      <h2>🎬 Video analytics <span class="count">(en el período)</span></h2>
+      <p class="muted-note" style="margin:6px 0 10px">Plays = veces abierto · los hitos 25/50/75/✅ muestran hasta dónde miran (dropoff) · Ø visto = promedio por sesión · <b>Leads</b> = contactos cuya sesión vio ese video antes de convertir. Los hitos se llenan con las vistas nuevas (SQL 0038).</p>
+      <div id="ka-video-table" style="overflow-x:auto"><p class="muted-note">Sin reproducciones en el período.</p></div>
+    </div>
 
   </div>
 
@@ -1924,7 +1928,7 @@
       supabase.from('pageviews')
         .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
         .gte('created_at', since()).lte('created_at', until()).limit(20000),
-      supabase.from('video_plays').select('video_id,label').gte('created_at', since()).lte('created_at', until()).limit(20000),
+      supabase.from('video_plays').select('*').gte('created_at', since()).lte('created_at', until()).limit(20000),
       supabase.from('offers').select('*').order('updated_at', { ascending: false }),
       supabase.from('companies').select('*'),
       // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
@@ -1988,12 +1992,9 @@
     renderLeads();
     renderAnalytics(lastViews, allLeads);
     renderHome();
-    // reproducciones de video + top 3 más vistos (si no corrió el SQL 0008, queda en 0)
+    // video analytics con profundidad (plays + hitos de retención + conversión)
     const plays = (videosQ && !videosQ.error) ? (videosQ.data || []) : [];
-    $('ka-videos').textContent = plays.length;
-    const vc = {}; plays.forEach((p) => { const k = p.label || p.video_id; vc[k] = (vc[k] || 0) + 1; });
-    const top = Object.entries(vc).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => esc(String(k).slice(0, 30)) + ' (' + n + ')');
-    $('ka-videos-top').textContent = top.length ? 'Top: ' + top.join(', ') : '';
+    renderVideoAna(plays, allLeads);
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     loadBell();
     subscribeRealtime();
@@ -5401,6 +5402,28 @@
     const { data, error } = await supabase.from('blogs').select('*').order('updated_at', { ascending: false });
     if (error){ return; }  // ¿corriste el SQL 0009? seguimos sin lista
     blogsList = data || []; renderBlogList();
+  }
+  function renderVideoAna(plays, leadsArr){
+    const box = $('ka-video-table'); if (!box) return;
+    if (!plays.length){ box.innerHTML = '<p class="muted-note">Sin reproducciones en el período.</p>'; return; }
+    const leadSess = new Set((leadsArr || []).map((l) => l.session_id).filter(Boolean));
+    const by = {};
+    plays.forEach((p) => {
+      const k = p.label || p.video_id;
+      const b = by[k] = by[k] || { plays: 0, m: { 25: 0, 50: 0, 75: 0, 100: 0 }, sess: new Set(), maxBy: {} };
+      const pct = +p.pct || 0;
+      if (!pct){ b.plays++; if (p.session_id) b.sess.add(p.session_id); }
+      else if (b.m[pct] !== undefined) b.m[pct]++;
+      if (p.session_id) b.maxBy[p.session_id] = Math.max(b.maxBy[p.session_id] || 0, pct);
+    });
+    const rows = Object.entries(by).sort((a2, b2) => b2[1].plays - a2[1].plays);
+    box.innerHTML = '<table class="gads-table" style="min-width:560px"><thead><tr><th>Video</th><th>Plays</th><th>25%</th><th>50%</th><th>75%</th><th>✅ 100%</th><th>Ø visto</th><th>Leads</th></tr></thead><tbody>' +
+      rows.map(([k, b]) => {
+        const sess = Object.keys(b.maxBy);
+        const avg = sess.length ? Math.round(sess.reduce((a2, s2) => a2 + b.maxBy[s2], 0) / sess.length) : 0;
+        const conv = [...b.sess].filter((s2) => leadSess.has(s2)).length;
+        return '<tr><td>' + esc(String(k).slice(0, 42)) + '</td><td><b>' + b.plays + '</b></td><td>' + (b.m[25] || '·') + '</td><td>' + (b.m[50] || '·') + '</td><td>' + (b.m[75] || '·') + '</td><td>' + (b.m[100] || '·') + '</td><td>' + (avg ? avg + '%' : '–') + '</td><td>' + (conv ? '<b style="color:var(--acid)">' + conv + '</b>' : '·') + '</td></tr>';
+      }).join('') + '</tbody></table>';
   }
   function renderBlogList(){
     const box = $('bg-list'); $('bg-list-h').hidden = !blogsList.length;

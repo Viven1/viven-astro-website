@@ -183,6 +183,7 @@ function openVideo(id, title, hash){
     }
   }catch(e){}
   var h = hash ? 'h=' + hash + '&' : '';   /* videos privados de Vimeo necesitan el token */
+  vvVidHooked = false;   /* el player nuevo se suscribe a los eventos de progreso al estar ready */
   mount.innerHTML = '<iframe src="https://player.vimeo.com/video/' + id + '?' + h + 'autoplay=1&dnt=1&title=0&byline=0&portrait=0" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" title="' + (title || 'Viven video') + '"></iframe>';
   modal.classList.add('open');
   modal.setAttribute('aria-hidden','false');
@@ -561,7 +562,17 @@ if(/^\/(thank-you|danke|gracias)\/?$/.test(location.pathname)){
    de Supabase: es pública por diseño y RLS solo permite INSERT. */
 var SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
 var SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+/* ---------- modo no-track del equipo ----------
+   viven.ch/?viven-notrack=1 → este navegador deja de contar (pageviews, videos,
+   A/B) para siempre; ?viven-notrack=0 lo reactiva. Los LEADS nunca se bloquean. */
+try{
+  var vvnp = new URLSearchParams(location.search);
+  if(vvnp.get('viven-notrack') === '1'){ localStorage.setItem('vv_notrack', '1'); console.log('[viven] analytics OFF en este navegador'); }
+  if(vvnp.get('viven-notrack') === '0'){ localStorage.removeItem('vv_notrack'); console.log('[viven] analytics ON'); }
+}catch(e){}
+
 function sbInsert(table, row){
+  if(table !== 'leads'){ try{ if(localStorage.getItem('vv_notrack') === '1') return Promise.resolve(); }catch(e){} }
   return fetch(SB_URL + '/rest/v1/' + table, {
     method: 'POST',
     headers: {
@@ -803,3 +814,48 @@ function sbInsertLead(row){
 })();
 
 })();
+
+
+/* ---------- profundidad de video: hitos 25/50/75/100 (dropoff) ----------
+   El player de Vimeo emite eventos por postMessage; nos suscribimos al estar
+   ready y reportamos cada hito UNA vez por video y sesión → el dashboard arma
+   la curva de retención y cruza sesiones-que-vieron-video con leads. */
+var vvVidMs = {};
+var vvVidHooked = false;
+window.addEventListener('message', function(e){
+  if(String(e.origin).indexOf('player.vimeo.com') === -1) return;
+  var d; try{ d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; }catch(err){ return; }
+  if(!d || !d.event) return;
+  if(d.event === 'ready'){
+    try{
+      ['playProgress', 'timeupdate', 'finish', 'ended'].forEach(function(ev){
+        e.source.postMessage(JSON.stringify({ method: 'addEventListener', value: ev }), '*');
+      });
+    }catch(err){}
+    return;
+  }
+  var vid = null, label = null;
+  try{
+    var ifr = document.querySelectorAll('iframe[src*="player.vimeo.com"]');
+    for(var i = 0; i < ifr.length; i++){
+      if(ifr[i].contentWindow === e.source){ var m = ifr[i].src.match(/video\/(\d+)/); vid = m && m[1]; label = ifr[i].title || null; break; }
+    }
+  }catch(err){}
+  if(!vid) return;
+  var pct = null;
+  if(d.event === 'finish' || d.event === 'ended') pct = 100;
+  else if((d.event === 'playProgress' || d.event === 'timeupdate') && d.data && d.data.percent){
+    var p = d.data.percent * 100;
+    if(p >= 75) pct = 75; else if(p >= 50) pct = 50; else if(p >= 25) pct = 25;
+  }
+  if(pct === null) return;
+  var seen = vvVidMs[vid] = vvVidMs[vid] || {};
+  [25, 50, 75, 100].forEach(function(hm){
+    if(hm <= pct && !seen[hm]){
+      seen[hm] = true;
+      if(!/^(localhost|127\.|192\.168\.)/.test(location.hostname)){
+        sbInsert('video_plays', { session_id: sessionStorage.getItem('viven-session') || 'no-storage', video_id: String(vid), label: label, lang: document.documentElement.lang || null, pct: hm });
+      }
+    }
+  });
+});
