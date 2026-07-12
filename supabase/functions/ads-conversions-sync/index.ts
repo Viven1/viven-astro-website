@@ -60,12 +60,17 @@ Deno.serve(async (req) => {
 
     // todas las conversiones: lead (form) y lead ganado (con valor) — Google Ads
     // ignora duplicados exactos, así que el snapshot completo diario es seguro.
-    const { data, error } = await service.from("leads").select("gclid,value,status,created_at,updated_at").not("gclid", "is", null);
+    let q = await service.from("leads").select("gclid,email,value,status,created_at,updated_at,ads_exclude").not("gclid", "is", null);
+    if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("gclid,email,value,status,created_at,updated_at").not("gclid", "is", null);
+    const { data, error } = q;
     if (error) return json({ error: error.message }, 500);
+    // nunca reportar spam/tests: exclusión manual (ads_exclude), emails de prueba y estados descartados
+    const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+    const clean = (data ?? []).filter((r) => !(r as { ads_exclude?: boolean }).ads_exclude && !ADS_TEST.test((r as { email?: string }).email || "") && !/spam|descartado|perdido-spam/i.test(r.status || ""));
     const isWon = (r: { status?: string }) => /ganado|won|cerrado/i.test(r.status || "");
     const p2 = (n: number) => String(n).padStart(2, "0");
     const fmt = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
-    const rows = (data ?? []).flatMap((r) => {
+    const rows = clean.flatMap((r) => {
       const out: string[][] = [[r.gclid, "Lead (CRM)", fmt(r.created_at), "0", "CHF"]];
       if (isWon(r)) out.push([r.gclid, "Lead ganado (CRM)", fmt(r.updated_at || r.created_at), String(+r.value || 0), "CHF"]);
       return out;

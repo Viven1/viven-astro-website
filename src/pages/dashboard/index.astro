@@ -1622,6 +1622,8 @@
         <a class="lm-qbtn" id="lm-mailto" href="#" title="Escribir desde tu correo">✉️ Email</a>
         <a class="lm-qbtn" id="lm-call" href="#" title="Llamar" hidden>📞 Llamar</a>
         <a class="lm-qbtn" id="lm-wa" href="#" target="_blank" rel="noopener" title="WhatsApp" hidden>💬 WhatsApp</a>
+        <button class="lm-qbtn" id="lm-review" type="button" title="Enviar pedido de reseña de Google (solo cuando el proyecto está ENTREGADO)" hidden>⭐ Pedir reseña</button>
+        <button class="lm-qbtn" id="lm-ads-x" type="button" title="Incluir/excluir este lead de las conversiones que se reportan a Google Ads" hidden>🎯</button>
       </div>
     </div>
 
@@ -2856,6 +2858,7 @@
     const phoneClean = (r.phone || '').replace(/[^\d+]/g, '');
     const call = $('lm-call'), wa = $('lm-wa');
     const rvb = $('lm-review'); if (rvb) rvb.hidden = stageOf(r.status) !== 'ganado';   // ⭐ solo en ganados
+    const axb = $('lm-ads-x'); if (axb){ axb.hidden = !r.gclid; axb.textContent = r.ads_exclude ? '🚫 Ads: excluido' : '🎯 Ads: se envía'; }
     call.hidden = !r.phone; if (r.phone) call.href = 'tel:' + phoneClean;
     wa.hidden = !r.phone; if (r.phone) wa.href = 'https://wa.me/' + phoneClean.replace(/^\+/, '');
 
@@ -3464,6 +3467,15 @@
     return { error: null, stripped };
   }
   $('lm-edit-btn') && $('lm-edit-btn').addEventListener('click', startEditLead);
+  $('lm-ads-x') && $('lm-ads-x').addEventListener('click', async () => {
+    if (!currentLead || !currentLead.gclid) return;
+    const nv = !currentLead.ads_exclude;
+    const { error } = await supabase.from('leads').update({ ads_exclude: nv }).eq('id', currentLead.id);
+    if (error){ toast(/column/.test(error.message || '') ? 'Falta correr el SQL 0036 (columna ads_exclude)' : 'No se pudo: ' + error.message); return; }
+    currentLead.ads_exclude = nv;
+    $('lm-ads-x').textContent = nv ? '🚫 Ads: excluido' : '🎯 Ads: se envía';
+    toast(nv ? 'Este lead NO se reporta a Google Ads (spam/test)' : 'Este lead vuelve a reportarse a Google Ads');
+  });
   $('lm-review') && $('lm-review').addEventListener('click', async () => {
     if (!currentLead) return;
     if (!confirm('¿Mandar AHORA el pedido de reseña de Google a ' + (currentLead.name || currentLead.email) + '?\n\nSolo si el proyecto ya está entregado.')) return;
@@ -3927,10 +3939,17 @@
 
       // Google Ads — conversiones offline (CSV con el formato exacto del import oficial)
       const adsIsWon = (r) => /ganado|won|cerrado/i.test(r.status || '');
+      const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;   // mismos patrones anti-test que review-request
+      const adsOk = (r) => !r.ads_exclude && !ADS_TEST.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
+      const adsFetch = async () => {
+        let q = await supabase.from('leads').select('gclid,name,email,value,status,created_at,updated_at,ads_exclude').not('gclid', 'is', null);
+        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('gclid,name,email,value,status,created_at,updated_at').not('gclid', 'is', null);
+        return q;
+      };
       const adsCsv = async (wonOnly) => {
-        const { data, error } = await supabase.from('leads').select('gclid,name,value,status,created_at,updated_at').not('gclid', 'is', null);
+        const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
-        const rows = (data || []).filter((r) => r.gclid && (!wonOnly || adsIsWon(r)));
+        const rows = (data || []).filter((r) => r.gclid && adsOk(r) && (!wonOnly || adsIsWon(r)));
         if (!rows.length){ toast(wonOnly ? 'Todavía no hay ganados que hayan venido de Ads.' : 'Todavía no hay leads con gclid.'); return; }
         const p2 = (n) => String(n).padStart(2, '0');
         const fmt = (iso) => { const d = new Date(iso); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
@@ -3943,11 +3962,13 @@
       };
       $('ads-csv-won') && $('ads-csv-won').addEventListener('click', () => adsCsv(true));
       $('ads-csv-all') && $('ads-csv-all').addEventListener('click', () => adsCsv(false));
-      (async () => { try {
-        const { data } = await supabase.from('leads').select('gclid,value,status').not('gclid', 'is', null);
-        const rows = data || [], won = rows.filter(adsIsWon);
+      const adsInfoLoad = async () => { try {
+        const { data } = await adsFetch();
+        const rows = (data || []).filter(adsOk), won = rows.filter(adsIsWon);
         if ($('ads-n-leads')){ $('ads-n-leads').textContent = rows.length; $('ads-n-won').textContent = won.length; $('ads-won-val').textContent = 'CHF ' + won.reduce((a2, r) => a2 + (+r.value || 0), 0).toLocaleString('de-CH'); }
-      } catch (e) { /* sin datos aún */ } })();
+      } catch (e) { /* sin datos aún */ } };
+      adsInfoLoad();
+      document.querySelectorAll('[data-tab="analytics"]').forEach((b) => b.addEventListener('click', () => setTimeout(adsInfoLoad, 250)));
       $('ab-ideas').addEventListener('click', abIdeas);
       $('ab-save-run').addEventListener('click', () => abSave('running'));
       $('ab-save-draft').addEventListener('click', () => abSave('draft'));
