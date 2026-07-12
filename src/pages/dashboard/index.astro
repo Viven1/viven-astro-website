@@ -237,7 +237,7 @@
   .fu-top input[type="datetime-local"]{background:var(--navy-700);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:5px 8px}
   .fu-subj{flex:1;min-width:160px;background:transparent;border:0;border-bottom:1px dashed var(--line-strong);color:var(--text);font-family:inherit;font-size:13.5px;font-weight:600;padding:3px 2px}
   .fu-st{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:100px;padding:2px 9px;white-space:nowrap}
-  .fu-body{width:100%;background:var(--navy-700);border:1px solid var(--line);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.55;padding:9px 11px;min-height:84px;resize:vertical}
+  .fu-body{width:100%;box-sizing:border-box;background:var(--navy-700);border:1px solid var(--line);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.55;padding:9px 11px;min-height:64px;resize:none;overflow:hidden}
   .fu-actions{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
   .of-terms-box{margin-top:18px}
   .of-terms-box .pp-sec-h{margin-bottom:8px}
@@ -2827,6 +2827,12 @@
           '<button class="btn btn-ghost xs" data-fu="cancel" type="button" style="color:#ff8b8b">✕ Cancelar</button></div>') +
       '</div>'; }).join('');
     box.querySelectorAll('[data-fu]').forEach((b) => b.addEventListener('click', () => fuAction(b.closest('.fu-row'), b.dataset.fu, r)));
+    // el campo crece con el texto: el email entero visible de una, sin scroll interno
+    box.querySelectorAll('.fu-body').forEach((t) => {
+      const fit = () => { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; };
+      t.addEventListener('input', fit);
+      fit();
+    });
   }
   async function fuAction(row, act, r){
     const id = row.dataset.id;
