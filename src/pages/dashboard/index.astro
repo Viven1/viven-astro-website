@@ -3358,7 +3358,10 @@
         let { data: d } = await supabase.from('deals').select('portal_token').eq('id', did).maybeSingle();
         let token = d && d.portal_token;
         if (!token) {
-          token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+          // crypto.randomUUID(): este token es el ÚNICO control de acceso al
+          // portal del cliente — Math.random() no es un CSPRNG y su salida no
+          // tiene largo fijo (podía salir bien corta), débil para ese rol
+          token = crypto.randomUUID().replace(/-/g, '');
           const { error } = await supabase.from('deals').update({ portal_token: token }).eq('id', did);
           if (error){ toast(/does not exist|column/i.test(error.message) ? 'Falta correr el SQL 0052' : '⚠️ ' + error.message); return; }
         }
@@ -5116,7 +5119,11 @@
     renderRows();
     refreshInvoiceBtn();
   }
-  // botón de factura: solo tiene sentido con la oferta ganada y ya guardada (con id real)
+  // botón de factura: solo tiene sentido con la oferta ganada y ya guardada (con id real).
+  // Guard con secuencia: si abrís otra oferta antes de que esta consulta vuelva,
+  // el resultado viejo NO debe pisar curInvoice de la oferta que estás mirando ahora
+  // (si no, "Marcar pagada" podía terminar marcando la factura de OTRA oferta).
+  let invoiceReqSeq = 0;
   async function refreshInvoiceBtn(){
     const btn = $('of-invoice'), paidBtn = $('of-invoice-paid');
     if (!btn) return;
@@ -5124,7 +5131,10 @@
     btn.hidden = !show; paidBtn.hidden = true;
     if (!show) return;
     curInvoice = null;
-    const { data } = await supabase.from('invoices').select('*').eq('offer_id', ofCur.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const seq = ++invoiceReqSeq;
+    const forOfferId = ofCur.id;
+    const { data } = await supabase.from('invoices').select('*').eq('offer_id', forOfferId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (seq !== invoiceReqSeq || ofCur.id !== forOfferId) return;   // se abrió otra oferta mientras esperábamos
     curInvoice = data || null;
     if (curInvoice) {
       btn.textContent = (curInvoice.status === 'paid' ? '✅ ' : '🧾 ') + curInvoice.number;

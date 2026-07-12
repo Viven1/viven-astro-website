@@ -43,7 +43,10 @@ Deno.serve(async (_req) => {
       const daysLeft = Math.round((renewalMs - todayMs) / 864e5);
       const milestone = MILESTONES.find((m) => m === daysLeft);
       if (milestone === undefined) continue;
-      const marker = `[LIC#${lic.id}:${milestone}]`;
+      // el marcador incluye la renewal_date vigente — así, cuando se renueva
+      // (misma fila, nueva fecha), el próximo ciclo genera marcadores NUEVOS
+      // en vez de quedar dedupeado para siempre por los avisos del ciclo viejo
+      const marker = `[LIC#${lic.id}:${lic.renewal_date}:${milestone}]`;
       if ([...already].some((t) => t.includes(marker))) continue;
 
       let lead: { name?: string; email?: string } | null = null;

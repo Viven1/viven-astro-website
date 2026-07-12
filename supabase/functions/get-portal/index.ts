@@ -14,6 +14,13 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+// comparación en tiempo constante — el token es el único control de acceso acá
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -22,7 +29,7 @@ Deno.serve(async (req) => {
     if (!id || !t) return json({ error: "missing_params" }, 400);
     const { data: deal, error } = await service.from("deals").select("id,title,production_status,portal_note,deliverable_url,portal_token,lead_id,stage").eq("id", id).maybeSingle();
     if (error) return json({ error: error.message }, 500);
-    if (!deal || !deal.portal_token || deal.portal_token !== t) return json({ error: "not_found" }, 404);
+    if (!deal || !deal.portal_token || !timingSafeEqual(String(deal.portal_token), String(t))) return json({ error: "not_found" }, 404);
 
     let client: { name?: string; lang?: string } | null = null;
     if (deal.lead_id) { const { data } = await service.from("leads").select("name,lang").eq("id", deal.lead_id).maybeSingle(); client = data; }

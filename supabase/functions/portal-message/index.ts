@@ -15,6 +15,13 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+// comparación en tiempo constante — el token es el único control de acceso acá
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 async function pushAll(title: string, body: string, url: string) {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -35,7 +42,13 @@ Deno.serve(async (req) => {
     if (!id || !t || !String(message || "").trim()) return json({ error: "missing_params" }, 400);
     const { data: deal, error } = await service.from("deals").select("id,title,portal_token,lead_id").eq("id", id).maybeSingle();
     if (error) return json({ error: error.message }, 500);
-    if (!deal || !deal.portal_token || deal.portal_token !== t) return json({ error: "not_found" }, 404);
+    if (!deal || !deal.portal_token || !timingSafeEqual(String(deal.portal_token), String(t))) return json({ error: "not_found" }, 404);
+
+    // rate-limit simple sin infra extra: un mensaje cada 20s por proyecto —
+    // este endpoint es público y sin captcha, un token filtrado no debería
+    // poder bombardear al equipo de pushes ni llenar las notas de spam
+    const { data: recent } = await service.from("lead_notes").select("created_at").eq("lead_id", deal.lead_id ? String(deal.lead_id) : "").ilike("author", "%(portal)").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (recent && Date.now() - new Date(recent.created_at).getTime() < 20_000) return json({ error: "too_many_requests" }, 429);
 
     let clientName = "Cliente";
     if (deal.lead_id) { const { data } = await service.from("leads").select("name,email").eq("id", deal.lead_id).maybeSingle(); if (data) clientName = data.name || data.email || clientName; }
