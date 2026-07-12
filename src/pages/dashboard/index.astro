@@ -3992,8 +3992,8 @@
       const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;   // mismos patrones anti-test que review-request
       const adsOk = (r) => !r.ads_exclude && !ADS_TEST.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
       const adsFetch = async () => {
-        let q = await supabase.from('leads').select('id,gclid,name,email,value,status,created_at,updated_at,utm_campaign,ads_exclude').not('gclid', 'is', null);
-        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('id,gclid,name,email,value,status,created_at,updated_at,utm_campaign').not('gclid', 'is', null);
+        let q = await supabase.from('leads').select('id,gclid,name,email,deal_value,status,created_at,won_at,last_stage_at,utm_campaign,ads_exclude').not('gclid', 'is', null);
+        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('id,gclid,name,email,deal_value,status,created_at,won_at,last_stage_at,utm_campaign').not('gclid', 'is', null);
         return q;
       };
       const chf = (n) => 'CHF ' + (+n || 0).toLocaleString('de-CH');
@@ -4002,8 +4002,8 @@
         const { data } = await adsFetch();
         const all = data || [];
         const rows = all.filter(adsOk), won = rows.filter(adsIsWon);
-        const wonVal = won.reduce((a2, r) => a2 + (+r.value || 0), 0);
-        const openVal = rows.filter((r) => !adsIsWon(r) && !/perdido|lost/i.test(r.status || '')).reduce((a2, r) => a2 + (+r.value || 0), 0);
+        const wonVal = won.reduce((a2, r) => a2 + (+r.deal_value || 0), 0);
+        const openVal = rows.filter((r) => !adsIsWon(r) && !/perdido|lost/i.test(r.status || '')).reduce((a2, r) => a2 + (+r.deal_value || 0), 0);
         let sess = 0; const sessByCamp = {};
         try {
           const { data: pv } = await supabase.from('pageviews').select('session_id,utm_campaign,gclid,channel').or('channel.eq.paid_search,gclid.not.is.null').limit(20000);
@@ -4024,7 +4024,7 @@
         $('gads-cpa').textContent = spend && won.length ? chf(Math.round(spend / won.length)) : '–';
         $('gads-roas').textContent = spend ? (wonVal / spend).toFixed(1) + '×' : '–';
         const camps = {};
-        rows.forEach((r) => { const c = r.utm_campaign || '(sin campaña)'; camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; camps[c].leads++; if (adsIsWon(r)){ camps[c].won++; camps[c].val += (+r.value || 0); } });
+        rows.forEach((r) => { const c = r.utm_campaign || '(sin campaña)'; camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; camps[c].leads++; if (adsIsWon(r)){ camps[c].won++; camps[c].val += (+r.deal_value || 0); } });
         Object.keys(sessByCamp).forEach((c) => { camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; });
         const names = Object.keys(camps);
         $('gads-camps').innerHTML = !names.length ? '<p class="muted-note">Sin datos todavía — aparecen solos cuando lleguen sesiones o leads con gclid.</p>' :
@@ -4038,7 +4038,7 @@
           return '<div class="of-card"><div class="of-card-open" data-glead="' + r.id + '">' +
             '<div class="of-card-main"><div class="of-card-title">' + (out ? '🚫 ' : '🎯 ') + esc(r.name || r.email || '(sin nombre)') + (adsIsWon(r) ? ' <span class="of-badge" style="color:#7ed957;border-color:#7ed957">Ganado</span>' : '') + '</div>' +
             '<div class="of-card-sub">' + esc(r.email || '') + ' · ' + esc(r.utm_campaign || 'sin campaña') + ' · ' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (out ? ' · <b>no se reporta</b>' : '') + '</div></div>' +
-            '<span class="of-badge">' + chf(r.value) + '</span></div></div>';
+            '<span class="of-badge">' + chf(r.deal_value) + '</span></div></div>';
         }).join('') || '<p class="muted-note">Todavía no llegó ningún lead desde Ads.</p>';
         $('gads-list').querySelectorAll('[data-glead]').forEach((c) => c.addEventListener('click', () => { gotoTab('leads'); openLead(c.dataset.glead); }));
       };
@@ -4057,7 +4057,7 @@
         const p2 = (n) => String(n).padStart(2, '0');
         const fmt = (iso) => { const d = new Date(iso); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
         const lines = ['Parameters:TimeZone=Europe/Zurich', 'Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency'];
-        rows.forEach((r) => { const won = adsIsWon(r); lines.push([r.gclid, won ? 'Lead ganado (CRM)' : 'Lead (CRM)', fmt(won ? (r.updated_at || r.created_at) : r.created_at), +r.value || 0, 'CHF'].join(',')); });
+        rows.forEach((r) => { const won = adsIsWon(r); lines.push([r.gclid, won ? 'Lead ganado (CRM)' : 'Lead (CRM)', fmt(won ? (r.won_at || r.last_stage_at || r.created_at) : r.created_at), +r.value || 0, 'CHF'].join(',')); });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
         a.download = wonOnly ? 'google-ads-conversiones-ganados.csv' : 'google-ads-conversiones-leads.csv';
