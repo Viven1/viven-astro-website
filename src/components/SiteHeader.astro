@@ -14,6 +14,11 @@ const services = [
   ['social', 'services/social-media-video'],
   ['corporate', 'services/corporate-video'],
 ];
+const company = ({
+  en: [['clients', 'Clients'], ['testimonials', 'Testimonials'], ['case-studies', 'Case studies']],
+  de: [['kunden', 'Kunden'], ['testimonials', 'Kundenstimmen'], ['fallstudien', 'Fallstudien']],
+  es: [['clientes', 'Clientes'], ['testimonios', 'Testimonios'], ['casos-de-exito', 'Casos de éxito']],
+})[lang] || [['clients', 'Clients'], ['testimonials', 'Testimonials'], ['case-studies', 'Case studies']];
 ---
 <header class="site" id="header">
   <div class="wrap nav">
@@ -32,7 +37,14 @@ const services = [
       </div>
       <a href={p('projects')} class={active === 'projects' ? 'active' : ''}>{t('projects')}</a>
       <a href={p("blog")} class={active === 'blog' ? 'active' : ''}>{t('blog')}</a>
-      <a href={p('why-viven')} class={active === 'why' ? 'active' : ''}>{t('why')}</a>
+      <div class="nav-item">
+        <a href={p('why-viven')} class={active === 'why' ? 'active' : ''}>{t('why')} <Fragment set:html={chev} /></a>
+        <div class="dropdown">
+          <div class="dropdown-inner">
+            {company.map(([cs, cl]) => (<a href={p(cs)}>{cl}</a>))}
+          </div>
+        </div>
+      </div>
       <a href={p('faq')} class={active === 'faq' ? 'active' : ''}>{t('faq')}</a>
       <a href={p('contact')} class={active === 'contact' ? 'active' : ''}>{t('contact')}</a>
     </nav>
@@ -57,6 +69,7 @@ const services = [
   <a href={p('projects')} class={active === 'projects' ? 'active' : ''}>{t('projects')}</a>
   <a href={p("blog")} class={active === 'blog' ? 'active' : ''}>{t('blog')}</a>
   <a href={p('why-viven')} class={active === 'why' ? 'active' : ''}>{t('why')}</a>
+  {company.map(([cs, cl]) => (<a href={p(cs)} class="sub">{cl}</a>))}
   <a href={p('faq')} class={active === 'faq' ? 'active' : ''}>{t('faq')}</a>
   <a href={p('contact')} class={active === 'contact' ? 'active' : ''}>{t('contact')}</a>
   <div class="lang" role="group" aria-label="Language" style="margin-top:24px;align-self:flex-start">
