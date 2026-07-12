@@ -1164,6 +1164,7 @@
           <option value="365">1 año</option>
         </select>
         <input type="date" id="range-day" class="status" title="Un día puntual" />
+        <span class="muted-note" id="data-fresh" title="Estos números se recargan solos cada 3 min mientras tenés la pestaña abierta"></span>
       </div>
     </div>
     <div class="kpis">
@@ -2117,6 +2118,7 @@
       return;
     }
     allLeads = leadsQ.data || [];
+    window.__vvLoadedAt = Date.now();
     lastViews = viewsQ.data || [];
     // ofertas: best-effort (si no corrió el SQL 0003 todavía, seguimos sin romper el dashboard)
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
@@ -2313,6 +2315,16 @@
   function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
   // re-evaluar cada 4 min: cuando una task cruza su hora, el badge salta solo
   setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadBell(); }, 240000);
+  /* Analytics/Home mostraban una FOTO fija del momento en que cargó la página (sin
+     recargar, el número no se movía nunca) — eso hacía parecer "raro" cualquier
+     comparación. Ahora se refresca solo cada 3 min (mientras la pestaña esté visible)
+     y siempre se ve hace cuánto es el dato, para no confundir una foto vieja con el vivo. */
+  setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadAll(); }, 180000);
+  setInterval(() => {
+    const el = $('data-fresh'); if (!el || !window.__vvLoadedAt) return;
+    const s2 = Math.round((Date.now() - window.__vvLoadedAt) / 1000);
+    el.textContent = s2 < 60 ? 'actualizado hace ' + s2 + 's' : 'actualizado hace ' + Math.round(s2 / 60) + ' min';
+  }, 1000);
 
   /* ================= WEB PUSH: notificaciones reales al celular ================= */
   const VAPID_PUB = 'BPZuJFhqNy9HDHDi0MzPh_DklooKyOUHInq7rfyqKIWXWMe6yShB1xCiQSJfOWUzaMhFT4NMwv3B_rwVPal-hyg';
