@@ -677,6 +677,7 @@ function sbInsertLead(row){
   }
   return attempt(row, 0);
 }
+window.sbInsertLead = sbInsertLead;   /* expuesto para la calculadora de presupuesto (todo site.js vive en un IIFE) */
 (function(){
   /* no registrar visitas en desarrollo local */
   if(/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;

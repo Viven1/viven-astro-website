@@ -887,6 +887,7 @@
       <button class="side-item" data-tab="gads" type="button"><span class="si-ic">🎯</span>Google Ads</button>
       <div class="side-sec">Content</div>
       <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
+      <button class="side-item" data-tab="news" type="button"><span class="si-ic">📰</span>Newsletter</button>
       <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
       <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
     </aside>
@@ -1166,6 +1167,32 @@
       <div id="ka-video-table" style="overflow-x:auto"><p class="muted-note">Sin reproducciones en el período.</p></div>
     </div>
 
+  </div>
+
+  <!-- ============ TAB: NEWSLETTER ============ -->
+  <div id="tab-news" hidden>
+    <div class="panel">
+      <h2>📰 Newsletter</h2>
+      <p class="muted-note" style="margin:6px 0 12px">Envíos segmentados vía Resend. Se excluyen solos: dados de baja, spam/descartados y emails de test. Cada mail sale con link de baja de un click.</p>
+      <div class="pp-grid" style="grid-template-columns:2fr 1fr 1fr;align-items:end;gap:10px">
+        <div class="bf"><label>Asunto</label><input id="nw-subject" placeholder="p. ej. Was kostet ein Imagefilm 2026?" /></div>
+        <div class="bf"><label>Segmento</label><select id="nw-stage"><option value="all">Todos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select></div>
+        <div class="bf"><label>Idioma</label><select id="nw-lang"><option value="all">Todos</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></div>
+      </div>
+      <div class="bf"><label>Contenido <span class="muted-note" style="font-weight:400">(texto plano — párrafos con línea en blanco; los links se vuelven clickeables)</span></label>
+        <textarea id="nw-body" rows="10" style="width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:12px;resize:vertical"></textarea></div>
+      <div class="ab-urlrow" style="margin-top:10px">
+        <button class="btn btn-ghost small" id="nw-blog" type="button">📰 Usar último artículo</button>
+        <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver destinatarios</button>
+        <button class="btn btn-ghost small" id="nw-test" type="button">✉️ Test a mi email</button>
+        <button class="btn btn-primary small" id="nw-send" type="button">🚀 Enviar</button>
+      </div>
+      <p class="muted-note" id="nw-note" style="margin-top:8px"></p>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Campañas <span class="count" id="nw-listcount"></span></h2>
+      <div id="nw-list"><p class="muted-note">Sin campañas todavía.</p></div>
+    </div>
   </div>
 
   <!-- ============ TAB: GOOGLE ADS ============ -->
@@ -1649,6 +1676,7 @@
     <button data-tab="ab" type="button">🧪 A/B Tests</button>
     <button data-tab="gads" type="button">🎯 Google Ads</button>
     <button data-tab="blog" type="button">📝 Blog</button>
+    <button data-tab="news" type="button">📰 Newsletter</button>
     <button data-tab="seo" type="button">🔎 Search Console</button>
     <div class="mob-ver" id="mob-ver"></div>
   </div>
@@ -1769,11 +1797,11 @@
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services', 'ab', 'gads'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services', 'ab', 'gads', 'news'];
   function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services', 'ab', 'gads'];
+    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services', 'ab', 'gads', 'news'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -1788,6 +1816,7 @@
     if (tab === 'services') servicesInit();
     if (tab === 'ab') abInit();
     if (tab === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
+    if (tab === 'news') newsInit();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
@@ -4070,6 +4099,40 @@
         catch (e) { toast('Guardada en este dispositivo (corré el SQL 0037 para sincronizarla entre dispositivos)'); }
         window.gadsLoad();
       });
+
+      // Newsletter
+      $('nw-count') && $('nw-count').addEventListener('click', async () => {
+        let q = await supabase.from('leads').select('email,status,lang,unsubscribed').not('email', 'is', null);
+        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('email,status,lang').not('email', 'is', null);
+        const seen = new Set();
+        const n = (q.data || []).filter((r) => { const e2 = (r.email || '').toLowerCase(); if (seen.has(e2)) return false; seen.add(e2); return nwSegFilter(r); }).length;
+        $('nw-note').textContent = '👥 ' + n + ' destinatarios en este segmento.';
+      });
+      $('nw-blog') && $('nw-blog').addEventListener('click', async () => {
+        const { data } = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
+        const b = (data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
+        $('nw-subject').value = b.title; if (b.lang) $('nw-lang').value = b.lang;
+        $('nw-body').value = (b.lead || '') + '\n\n' + ((b.lang === 'de' ? 'Weiterlesen: ' : b.lang === 'es' ? 'Leé el artículo completo: ' : 'Read the full article: ') + (b.published_url || 'https://www.viven.ch/blog/'));
+        nwCur = null; $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
+      });
+      $('nw-test') && $('nw-test').addEventListener('click', async () => {
+        const id = await nwSave(); if (!id) return;
+        const { data: s2 } = await supabase.auth.getUser();
+        const me = s2 && s2.user && s2.user.email; if (!me){ toast('Sin email de sesión'); return; }
+        $('nw-note').textContent = 'Enviando test…';
+        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { id, test_to: me } });
+        $('nw-note').textContent = error ? '⚠️ ' + error.message : (data && data.error) ? '⚠️ ' + data.error : '✉️ Test enviado a ' + me + ' — revisá tu inbox.';
+      });
+      $('nw-send') && $('nw-send').addEventListener('click', async () => {
+        const id = await nwSave(); if (!id) return;
+        if (!confirm('¿Enviar esta campaña al segmento seleccionado?\n\nNo se puede deshacer.')) return;
+        $('nw-note').textContent = 'Enviando…'; $('nw-send').disabled = true;
+        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { id } });
+        $('nw-send').disabled = false;
+        if (error || (data && data.error)){ $('nw-note').textContent = '⚠️ ' + (error ? error.message : data.error); return; }
+        $('nw-note').textContent = '🚀 Enviada a ' + data.sent + ' contactos' + (data.failed ? ' (' + data.failed + ' fallaron)' : '') + '.';
+        nwCur = null; $('nw-subject').value = ''; $('nw-body').value = ''; newsInit();
+      });
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -5422,6 +5485,41 @@
     const { data, error } = await supabase.from('blogs').select('*').order('updated_at', { ascending: false });
     if (error){ return; }  // ¿corriste el SQL 0009? seguimos sin lista
     blogsList = data || []; renderBlogList();
+  }
+  let nwCur = null, nwList = [];
+  async function newsInit(){
+    const { data, error } = await supabase.from('newsletters').select('*').order('created_at', { ascending: false });
+    if (error){ $('nw-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0039 — ' + esc(error.message) + '</p>'; return; }
+    nwList = data || [];
+    $('nw-listcount').textContent = nwList.length || '';
+    $('nw-list').innerHTML = nwList.map((n) => '<div class="of-card"><div class="of-card-open" data-nw="' + n.id + '">' +
+      '<div class="of-card-main"><div class="of-card-title">' + esc(n.subject) + '</div>' +
+      '<div class="of-card-sub">' + (n.segment_stage === 'won' ? 'Clientes' : n.segment_stage === 'open' ? 'Prospectos' : 'Todos') + ' · ' + (n.segment_lang === 'all' ? 'todos los idiomas' : n.segment_lang.toUpperCase()) + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
+      '<span class="of-badge" style="color:' + (n.status === 'sent' ? '#7ed957' : '#8ab4ff') + ';border-color:currentColor">' + (n.status === 'sent' ? '✅ ' + n.sent_count + ' enviados' : 'Borrador') + '</span></div></div>').join('') || '<p class="muted-note">Sin campañas todavía.</p>';
+    $('nw-list').querySelectorAll('[data-nw]').forEach((c) => c.addEventListener('click', () => {
+      const n = nwList.find((x) => x.id === c.dataset.nw); if (!n) return;
+      nwCur = n.status === 'sent' ? null : n;
+      $('nw-subject').value = n.subject; $('nw-body').value = n.body; $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
+      $('nw-note').textContent = n.status === 'sent' ? 'Cargada como COPIA (la original ya se envió) — al enviar se crea una campaña nueva.' : 'Borrador cargado.';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
+  }
+  async function nwSave(){
+    const row = { subject: $('nw-subject').value.trim(), body: $('nw-body').value, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, updated_at: new Date().toISOString() };
+    if (!row.subject || !row.body.trim()){ toast('Falta asunto o contenido'); return null; }
+    if (nwCur && nwCur.id){ const { error } = await supabase.from('newsletters').update(row).eq('id', nwCur.id); if (error){ toast(error.message); return null; } return nwCur.id; }
+    const { data, error } = await supabase.from('newsletters').insert(row).select().single();
+    if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0039' : error.message); return null; }
+    nwCur = data; return data.id;
+  }
+  function nwSegFilter(r){
+    const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+    if (!r.email || TEST.test(r.email) || r.unsubscribed) return false;
+    if (/spam|descartado/i.test(r.status || '')) return false;
+    const won = /ganado|won|cerrado/i.test(r.status || '');
+    const st = $('nw-stage').value; if (st === 'won' && !won) return false; if (st === 'open' && won) return false;
+    const lg = $('nw-lang').value; if (lg !== 'all' && (r.lang || 'en') !== lg) return false;
+    return true;
   }
   function renderVideoAna(plays, leadsArr){
     const box = $('ka-video-table'); if (!box) return;

@@ -1,0 +1,138 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { localePath } from '../../../i18n.js';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Video Production Cost Calculator | Viven"};
+const description = {"en":"Get an instant CHF price range for your video project: type, duration, shoot days and extras. Free, no obligation — built on real Swiss production budgets."};
+---
+<Base lang={lang} slug="video-cost-calculator" active="" singleLang={true} langUrls={{"en": "/en/video-cost-calculator/", "de": "/de/videoproduktion-kosten-rechner/", "es": "/es/calculadora-costos-video/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\": \"https://schema.org\", \"@graph\": [{\"@type\": \"WebApplication\", \"name\": \"What will your video cost?\", \"applicationCategory\": \"BusinessApplication\", \"operatingSystem\": \"Web\", \"offers\": {\"@type\": \"Offer\", \"price\": \"0\", \"priceCurrency\": \"CHF\"}, \"url\": \"https://www.viven.ch/en/video-cost-calculator/\", \"inLanguage\": \"en\", \"publisher\": {\"@id\": \"https://www.viven.ch/#organization\"}}, {\"@type\": \"BreadcrumbList\", \"itemListElement\": [{\"@type\": \"ListItem\", \"position\": 1, \"name\": \"Home\", \"item\": \"https://www.viven.ch/\"}, {\"@type\": \"ListItem\", \"position\": 2, \"name\": \"What will your video cost?\", \"item\": \"https://www.viven.ch/en/video-cost-calculator/\"}]}]}"}></script>
+<section class="page-hero"><div class="wrap"><div class="post-wrap">
+  <span class="eyebrow">Free tool</span>
+  <h1>What will your video cost?</h1>
+  <p class="lead">Answer four quick questions and get an instant, honest CHF range — based on real budgets from 100+ Swiss productions for brands like UBS, Siemens and FIFA.</p>
+</div></div></section>
+<section class="sec" style="padding-top:24px"><div class="wrap"><div class="calc-wrap reveal">
+  <div class="calc-q"><h2>1. What type of video?</h2><div class="calc-chips" data-group="type"><button type="button" data-v="brand">🎬 Brand film</button><button type="button" data-v="product">📦 Product video</button><button type="button" data-v="eb">👥 Employer branding</button><button type="button" data-v="howto">🎓 How-to / explainer</button><button type="button" data-v="social">📱 Social media pack</button><button type="button" data-v="corporate">🏢 Corporate film</button></div></div>
+  <div class="calc-q"><h2>2. Final length?</h2><div class="calc-chips" data-group="dur"><button type="button" data-v="s">Under 1 min</button><button type="button" data-v="m">1–2 min</button><button type="button" data-v="l">2–5 min</button><button type="button" data-v="xl">5+ min</button></div></div>
+  <div class="calc-q"><h2>3. Shoot days & locations</h2>
+    <div class="calc-chips" data-group="days"><button type="button" data-v="0">1 shoot day</button><button type="button" data-v="1">2 days</button><button type="button" data-v="2">3+ days</button></div>
+    <div class="calc-chips" data-group="locs" style="margin-top:10px"><button type="button" data-v="0">1 location</button><button type="button" data-v="1">2 locations</button><button type="button" data-v="2">3+ locations</button></div></div>
+  <div class="calc-q"><h2>4. Extras</h2><div class="calc-chips calc-multi" data-group="extras"><button type="button" data-v="anim">✨ Animation / motion graphics</button><button type="button" data-v="drone">🚁 Drone footage</button><button type="button" data-v="ml">🌍 Extra language version</button><button type="button" data-v="subs">💬 Subtitles</button><button type="button" data-v="fotos">📸 Photo stills</button><button type="button" data-v="testi">⭐ Client testimonial add-on</button></div></div>
+
+  <div class="calc-est" id="calc-est" hidden>
+    <div class="calc-est-label">Your estimated range</div>
+    <div class="calc-est-range" id="calc-range">CHF –</div>
+    <p class="muted-note">Realistic range for Swiss-quality production. The exact quote depends on your concept — get it free below.</p>
+  </div>
+
+  <div class="calc-form" id="calc-form-box" hidden>
+    <h2>Get your detailed breakdown</h2>
+    <form id="calc-form" autocomplete="on">
+      <input type="text" id="cf-name" placeholder="Name" required />
+      <input type="email" id="cf-email" placeholder="Work email" required />
+      <input type="text" id="cf-co" placeholder="Company (optional)" />
+      <input type="text" id="cf-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
+      <button class="btn btn-primary" type="submit">Show my breakdown →</button>
+    </form>
+    <p class="form-note">We reply within one business day with a concrete proposal. No spam, ever.</p>
+  </div>
+
+  <div class="calc-result" id="calc-result" hidden>
+    <h2>✅ Here is your estimated breakdown</h2>
+    <div id="calc-breakdown"></div>
+    <div class="calc-est-range" id="calc-range2" style="margin-top:14px"></div>
+    <p style="margin-top:18px"><a class="book-call" href="/book/" target="_blank" rel="noopener">Prefer to talk it through? Book a free 15-min call →</a></p>
+  </div>
+</div></div></section>
+<style is:global>
+.calc-wrap{max-width:780px;margin:0 auto}
+.calc-q{margin-bottom:26px}
+.calc-q h2{font-size:17px;margin-bottom:12px}
+.calc-chips{display:flex;flex-wrap:wrap;gap:9px}
+.calc-chips button{background:var(--navy-800,#16233a);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:inherit;font-family:inherit;font-size:14px;padding:11px 16px;cursor:pointer;transition:.18s}
+.calc-chips button:hover{border-color:var(--acid,#ddf98f)}
+.calc-chips button.on{background:var(--acid,#ddf98f);color:#0f1826;border-color:var(--acid,#ddf98f);font-weight:700}
+.calc-est{border:1px solid var(--acid,#ddf98f);border-radius:16px;padding:20px 22px;margin:28px 0}
+.calc-est-label{font-size:12px;letter-spacing:.8px;text-transform:uppercase;opacity:.7}
+.calc-est-range{font-size:32px;font-weight:800;margin:6px 0 4px}
+.calc-form{border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:22px;margin-top:8px}
+.calc-form h2{font-size:17px;margin-bottom:12px}
+.calc-form form{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.calc-form input{background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:10px;color:inherit;font-family:inherit;font-size:14.5px;padding:12px 14px}
+.calc-form input#cf-name{grid-column:1/2}
+.calc-form button{grid-column:1/-1}
+@media(max-width:640px){.calc-form form{grid-template-columns:1fr}}
+.calc-result{border:1px solid var(--acid,#ddf98f);border-radius:16px;padding:22px;margin-top:8px}
+.calc-result table{width:100%;border-collapse:collapse;margin-top:10px}
+.calc-result td{padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.1);font-size:14px}
+.calc-result td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+</style>
+<script is:inline>
+(function(){
+  var PRICE = { types:{brand:18000,product:12000,eb:20000,howto:8000,social:9000,corporate:15000},
+    durs:{s:.85,m:1,l:1.25,xl:1.5}, days:[0,3500,7000], locs:[0,1500,3000],
+    extras:{anim:2500,drone:1200,ml:900,subs:400,fotos:800,testi:2000} };
+  var ITEMS = {"base": "Base production", "dur": "Length factor", "days": "Extra shoot days", "locs": "Extra locations", "anim": "Animation / motion", "drone": "Drone", "ml": "Extra language", "subs": "Subtitles", "fotos": "Photo stills", "testi": "Testimonial add-on"};
+  var sel = { type:null, dur:null, days:0, locs:0, extras:{} };
+  function round500(n){ return Math.round(n/500)*500; }
+  function calc(){
+    if(!sel.type || !sel.dur) return null;
+    var lines = [];
+    var base = PRICE.types[sel.type]; lines.push([ITEMS.base, base]);
+    var t = base * PRICE.durs[sel.dur];
+    if(PRICE.durs[sel.dur] !== 1) lines.push([ITEMS.dur + ' ×' + PRICE.durs[sel.dur], Math.round(base*(PRICE.durs[sel.dur]-1))]);
+    if(PRICE.days[sel.days]){ t += PRICE.days[sel.days]; lines.push([ITEMS.days, PRICE.days[sel.days]]); }
+    if(PRICE.locs[sel.locs]){ t += PRICE.locs[sel.locs]; lines.push([ITEMS.locs, PRICE.locs[sel.locs]]); }
+    for(var k in sel.extras){ if(sel.extras[k]){ t += PRICE.extras[k]; lines.push([ITEMS[k], PRICE.extras[k]]); } }
+    return { lo: round500(t*.85), hi: round500(t*1.2), lines: lines, total: Math.round(t) };
+  }
+  function fmt(n){ return 'CHF ' + n.toLocaleString('de-CH'); }
+  function refresh(){
+    var r = calc(); var est = document.getElementById('calc-est'), fb = document.getElementById('calc-form-box');
+    if(!r){ est.hidden = true; fb.hidden = true; return; }
+    est.hidden = false; fb.hidden = document.getElementById('calc-result').hidden === false;
+    document.getElementById('calc-range').textContent = fmt(r.lo) + ' – ' + fmt(r.hi);
+  }
+  document.querySelectorAll('.calc-chips').forEach(function(g){
+    var group = g.dataset.group, multi = g.classList.contains('calc-multi');
+    g.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){
+        if(multi){ b.classList.toggle('on'); sel.extras[b.dataset.v] = b.classList.contains('on'); }
+        else { g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on');
+          if(group==='type') sel.type = b.dataset.v; if(group==='dur') sel.dur = b.dataset.v;
+          if(group==='days') sel.days = +b.dataset.v; if(group==='locs') sel.locs = +b.dataset.v; }
+        refresh();
+        var est = document.getElementById('calc-est'); if(est && !est.hidden) est.scrollIntoView({behavior:'smooth', block:'nearest'});
+      });
+    });
+  });
+  document.getElementById('calc-form').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    if(document.getElementById('cf-hp').value) return;
+    var r = calc(); if(!r) return;
+    var name = document.getElementById('cf-name').value.trim();
+    var email = document.getElementById('cf-email').value.trim();
+    var co = document.getElementById('cf-co').value.trim();
+    var cfg = [];
+    document.querySelectorAll('.calc-chips button.on').forEach(function(b){ cfg.push(b.textContent.trim()); });
+    var row = { name: name, first_name: name.split(' ')[0], last_name: name.split(' ').slice(1).join(' ') || null,
+      email: email, company: co || null, source: 'calculator', form_path: location.pathname,
+      message: '🧮 CALCULADORA — ' + cfg.join(' · ') + ' → ' + fmt(r.lo) + '–' + fmt(r.hi) };
+    var extra = window.vivenAttribution ? window.vivenAttribution() : null;
+    if(extra){ row.session_id = extra.session_id; row.lang = extra.lang;
+      if(extra.attrib){ row.channel = extra.attrib.channel; row.gclid = extra.attrib.gclid; row.utm_source = extra.attrib.utm_source; row.utm_campaign = extra.attrib.utm_campaign; row.landing_path = extra.attrib.landing_path; } }
+    if(window.__vvAB) row.ab = window.__vvAB;
+    var done = function(){
+      document.getElementById('calc-form-box').hidden = true;
+      var res = document.getElementById('calc-result'); res.hidden = false;
+      document.getElementById('calc-breakdown').innerHTML = '<table>' + r.lines.map(function(l){ return '<tr><td>' + l[0] + '</td><td>' + fmt(l[1]) + '</td></tr>'; }).join('') + '</table>';
+      document.getElementById('calc-range2').textContent = fmt(r.lo) + ' – ' + fmt(r.hi);
+      res.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    if(window.sbInsertLead){ window.sbInsertLead(row).then(done, done); } else { done(); }
+  });
+})();
+</script>
+</Base>
