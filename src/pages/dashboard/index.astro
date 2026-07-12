@@ -1195,6 +1195,14 @@
       <h2>Campañas <span class="count" id="nw-listcount"></span></h2>
       <div id="nw-list"><p class="muted-note">Sin campañas todavía.</p></div>
     </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="draft-head">
+        <h2 style="margin:0">🌱 Nurture automático <span class="count" id="nur-stats"></span></h2>
+        <button class="btn btn-ghost small" id="nur-toggle" type="button">…</button>
+      </div>
+      <p class="muted-note" style="margin:8px 0 0">Secuencia automática a leads nuevos: <b>①</b> bienvenida a los ~30 min ("oferta en 48h" + showreel; si vino de la calculadora, recap del rango) · <b>②</b> +3 días: case study según su interés + testimonials · <b>③</b> +7 días: último toque suave con booking. Los pasos ②③ solo salen si el lead sigue SIN CONTACTAR (si ya lo trabajás, se frenan solos) y se apagan con el botón. Nunca a bajas ni tests; máximo un email por paso. La bienvenida ① siempre sale — es la confirmación que el cliente espera.</p>
+    </div>
   </div>
 
   <!-- ============ TAB: GOOGLE ADS ============ -->
@@ -4139,6 +4147,12 @@
         $('nw-note').textContent = '🚀 Enviada a ' + data.sent + ' contactos' + (data.failed ? ' (' + data.failed + ' fallaron)' : '') + '.';
         nwCur = null; $('nw-subject').value = ''; $('nw-body').value = ''; newsInit();
       });
+      $('nur-toggle') && $('nur-toggle').addEventListener('click', async () => {
+        const on = !$('nur-toggle').dataset.on;
+        const { error } = await supabase.from('app_settings').upsert({ key: 'nurture', value: { enabled: on }, updated_at: new Date().toISOString() });
+        if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0040' : error.message); return; }
+        toast(on ? '🌱 Nurture ②③ ENCENDIDO' : 'Nurture ②③ apagado (la bienvenida ① sigue)'); newsInit();
+      });
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -5498,6 +5512,16 @@
     if (error){ $('nw-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0039 — ' + esc(error.message) + '</p>'; return; }
     nwList = data || [];
     $('nw-listcount').textContent = nwList.length || '';
+    (async () => { try {
+      const [{ data: st }, { data: lg }] = await Promise.all([
+        supabase.from('app_settings').select('value').eq('key', 'nurture').maybeSingle(),
+        supabase.from('nurture_log').select('step'),
+      ]);
+      const on = !(st && st.value && st.value.enabled === false);
+      const btn = $('nur-toggle'); if (btn){ btn.textContent = on ? '🟢 Pasos ②③ activos — apagar' : '⚪ Pasos ②③ apagados — encender'; btn.dataset.on = on ? '1' : ''; }
+      const c = { 1: 0, 2: 0, 3: 0 }; (lg || []).forEach((x) => c[x.step] = (c[x.step] || 0) + 1);
+      if ($('nur-stats')) $('nur-stats').textContent = '① ' + c[1] + ' · ② ' + c[2] + ' · ③ ' + c[3] + ' enviados';
+    } catch (e) { if ($('nur-stats')) $('nur-stats').textContent = 'falta SQL 0040'; } })();
     $('nw-list').innerHTML = nwList.map((n) => '<div class="of-card"><div class="of-card-open" data-nw="' + n.id + '">' +
       '<div class="of-card-main"><div class="of-card-title">' + esc(n.subject) + '</div>' +
       '<div class="of-card-sub">' + (n.segment_stage === 'won' ? 'Clientes' : n.segment_stage === 'open' ? 'Prospectos' : 'Todos') + ' · ' + (n.segment_lang === 'all' ? 'todos los idiomas' : n.segment_lang.toUpperCase()) + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
