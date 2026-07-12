@@ -46,8 +46,17 @@ Deno.serve(async (req) => {
     const end = new Date(Date.now() - 2 * 864e5);         // GSC llega con ~2 días de lag
     const start = new Date(end.getTime() - d * 864e5);
     const ymd = (x: Date) => x.toISOString().slice(0, 10);
-    const site = Deno.env.get("GSC_SITE") || "sc-domain:viven.ch";
     const token = await googleToken();
+    // Propiedad: GSC_SITE si está seteado; si no, autodetectar entre las propiedades
+    // verificadas de la cuenta (dominio > www > apex) — así nunca 403 por property equivocada.
+    let site = Deno.env.get("GSC_SITE") || "";
+    if (!site) {
+      const sres = await fetch("https://searchconsole.googleapis.com/webmasters/v3/sites", { headers: { Authorization: "Bearer " + token } });
+      const entries = sres.ok ? ((await sres.json()).siteEntry ?? []) : [];
+      const ok = entries.filter((e: { permissionLevel?: string }) => e.permissionLevel !== "siteUnverifiedUser").map((e: { siteUrl: string }) => e.siteUrl);
+      const pref = ["sc-domain:viven.ch", "https://www.viven.ch/", "https://viven.ch/"];
+      site = pref.find((p) => ok.includes(p)) || ok[0] || "https://viven.ch/";
+    }
 
     const query = async (dimensions: string[] | null, rowLimit = 15) => {
       const res = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {

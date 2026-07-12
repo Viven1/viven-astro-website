@@ -263,7 +263,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         '<div class="t-pick">' + (i === selTier ? '✓ Selected' : 'Select this package') + '</div></div>';
     }).join('');
     const isTesti = (v) => /testimonial/i.test((v.label || '') + ' ' + (v.title || ''));
-    const testiV = (c.videos || []).find(isTesti) || { url: 'https://vimeo.com/1036679041', title: 'Hear it from our clients — Siemens, Meteomatics & SV Group', label: 'Testimonial' };
+    let testiV = (c.videos || []).find(isTesti) || { url: 'https://vimeo.com/1036679041', title: 'Hear it from our clients — Siemens, Meteomatics & SV Group', label: 'Testimonial' };
+    // 866299843 es un SHOWREEL de testimonials (14s), no un testimonial real — propuestas viejas lo traen guardado
+    if (/866299843/.test(testiV.url || '')) testiV = { url: 'https://vimeo.com/1036679041', title: 'Hear it from our clients — Siemens, Meteomatics & SV Group', label: 'Testimonial' };
     const videos = (c.videos || []).filter((v) => !isTesti(v)).map((v) => {
       const emb = embedUrl(v.url);
       if (!emb) return '';

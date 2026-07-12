@@ -126,7 +126,7 @@
   @media(max-width:980px){.insights{grid-template-columns:1fr}}
 
   /* performance table (canales / páginas que traen leads) */
-  .perf{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+  .perf{width:100%;border-collapse:collapse;font-size:13px;min-width:440px}
   .perf th{text-align:left;color:var(--muted-2);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--line-strong)}
   .perf th.num,.perf td.num{text-align:right}
   .perf td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -190,7 +190,7 @@
   /* grid 3 columnas */
   .lm-grid{display:grid;grid-template-columns:300px 1fr 320px;gap:20px;align-items:stretch;flex:1;min-height:0}
   .lm-left,.lm-right{min-width:0;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
-  .lm-center{min-width:0;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding:0 6px 20px;scrollbar-width:thin;border-left:1px solid var(--line);border-right:1px solid var(--line);padding-left:20px;padding-right:20px}
+  .lm-center{min-width:0;display:flex;flex-direction:column;gap:18px;overflow-y:auto;padding:0 6px 24px;scrollbar-width:thin;border-left:1px solid var(--line);border-right:1px solid var(--line);padding-left:22px;padding-right:22px}
   .lm-top{flex:none}
   .lead-card-wide .lead-actions{flex:none;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
   .ab-sec{margin-bottom:14px}
@@ -300,7 +300,8 @@
   .btn-danger:hover{background:rgba(255,90,90,.12);border-color:#ff9a9a;transform:translateY(-2px)}
   @media(max-width:680px){.detail-grid{grid-template-columns:1fr 1fr}}
   [hidden]{display:none!important}
-  @media(max-width:980px){.kpis,.kpis.four{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}}
+  @media(max-width:980px){.kpis,.kpis.four{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:1280px){.grid-2{grid-template-columns:1fr}}
   /* ---------- Pipeline kanban ---------- */
   .pipe-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
   .pipe-bar input[type=search]{flex:1;min-width:220px;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 14px}
@@ -439,6 +440,8 @@
   .pp-row{background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
   .pp-row .rowtop{display:flex;gap:10px;align-items:center;margin-bottom:8px}
   .pp-row input,.pp-row textarea,.pp-row select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:14px;padding:9px 11px}
+  /* bündig: el texto ocupa TODO el ancho y crece con el contenido — nunca scroll interno */
+  .pp-row textarea,#tab-props textarea{width:100%;min-height:54px;resize:none;overflow:hidden;line-height:1.55;display:block;margin-top:8px}
   .pp-row .grow{flex:1;min-width:0}
   .pp-row .rm{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:16px;padding:2px 6px}
   .pp-row .rm:hover{color:#ff8b8b}
@@ -478,12 +481,13 @@
   .co-card-val{font-family:'Space Grotesk';font-weight:700;font-size:13.5px;color:var(--text)}
   .co-card-val.zero{color:var(--muted-2);font-weight:400}
   .co-tbl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .co-th,.co-tr{display:grid;grid-template-columns:1.3fr 1.5fr auto;align-items:center;gap:10px;padding:9px 12px}
+  .co-th,.co-tr{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:9px 12px}
   .co-th-deals,.co-tr-deals{grid-template-columns:1.6fr auto auto}
   .co-th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-2);background:color-mix(in srgb,var(--line) 40%,transparent);font-weight:600}
   .co-tr{width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);cursor:pointer;color:inherit;font:inherit}
   .co-tr:hover{background:color-mix(in srgb,var(--acid) 8%,transparent)}
   .co-td-name{font-weight:600;font-size:13.5px;display:flex;flex-direction:column;gap:1px;min-width:0}
+  .co-tr-deals .co-td-name{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .co-role{font-weight:400;font-size:11.5px;color:var(--muted-2)}
   .co-td-mail{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .co-td-amt{font-weight:700;font-size:13px;white-space:nowrap}
@@ -653,6 +657,32 @@
     .of-bar{flex-wrap:wrap}
     .of-bar > div{min-width:0;flex:1 1 100%}
     .of-bar .muted-note{white-space:normal}
+    /* editor de OFERTA: la tabla de posiciones se vuelve cards (adiós scroll lateral) */
+    .of-table{min-width:0}
+    .of-table thead{display:none}
+    .of-table tr[data-i]{display:grid;grid-template-columns:repeat(4,1fr);gap:7px 8px;padding:11px 12px;border-bottom:1px solid var(--line)}
+    .of-table tr[data-i] td{display:block;padding:0;border:0;min-width:0}
+    .of-table tr[data-i] td:nth-child(1){grid-area:1/1/2/4}
+    .of-table tr[data-i] td:nth-child(9){grid-area:1/4/2/5;justify-self:end}
+    .of-table tr[data-i] td:nth-child(2){grid-area:2/1/3/3}
+    .of-table tr[data-i] td:nth-child(3){grid-area:2/3/3/4}
+    .of-table tr[data-i] td:nth-child(4){grid-area:2/4/3/5}
+    .of-table tr[data-i] td:nth-child(5){grid-area:3/1/4/2}
+    .of-table tr[data-i] td:nth-child(6){grid-area:3/2/4/3}
+    .of-table tr[data-i] td:nth-child(7){grid-area:3/3/4/4;align-self:end;text-align:right;font-weight:700;font-family:'Space Grotesk'}
+    .of-table tr[data-i] td:nth-child(8){grid-area:3/4/4/5;align-self:end;text-align:right;font-size:12px}
+    .of-table tr[data-i] td:nth-child(n+3)::before{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);margin-bottom:3px}
+    .of-table tr[data-i] td:nth-child(3)::before{content:'Cant.'}
+    .of-table tr[data-i] td:nth-child(4)::before{content:'Unidad'}
+    .of-table tr[data-i] td:nth-child(5)::before{content:'Precio'}
+    .of-table tr[data-i] td:nth-child(6)::before{content:'Costo int.'}
+    .of-table tr[data-i] td:nth-child(7)::before{content:'Total';font-weight:400;font-family:'Inter'}
+    .of-table tr[data-i] td:nth-child(8)::before{content:'Margen'}
+    .of-table tr.of-phase,.of-table tr.of-sub{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line)}
+    .of-table tr.of-phase td,.of-table tr.of-sub td{display:block;padding:0;border:0}
+    .of-add{flex-direction:column;align-items:stretch}
+    .of-add select{min-width:0;width:100%}
+    .of-add .btn{width:100%}
     .mob-nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:250;background:color-mix(in srgb,var(--navy-800) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line-strong);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
     .mob-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--muted-2);font-family:inherit;cursor:pointer;padding:4px 2px;border-radius:10px}
     .mob-nav button .mi{font-size:19px;line-height:1}
@@ -1622,7 +1652,7 @@
       // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
       supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000),
       supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('proposals').select('lead_id,updated_at,status').limit(1000),
+      supabase.from('proposals').select('*').limit(1000),
       supabase.from('deals').select('*').order('created_at', { ascending: false }),
       supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8)
     ]);
@@ -1648,6 +1678,7 @@
     actNotes = {}; if (notesQ && !notesQ.error) (notesQ.data || []).forEach((n) => maxTo(actNotes, String(n.lead_id), n.created_at));
     actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
     actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
+    propsAll = (propsQ && !propsQ.error) ? (propsQ.data || []) : [];
     // reconciliar: propuesta aceptada pero lead sin ganar (aceptó con el dashboard cerrado) → sync
     if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => {
       if (p.status !== 'accepted' || !p.lead_id) return;
@@ -1901,7 +1932,8 @@
     const wonA = cnt(real, (l) => inA(l.won_at) && stageOf(l.status) === 'ganado'), wonB = cnt(real, (l) => inB(l.won_at) && stageOf(l.status) === 'ganado');
     const activeOf = (offersList || []).filter((o) => !o.archived && !o.is_template);
     const revOf = (pred) => activeOf.filter((o) => o.status === 'won' && pred(o.updated_at)).reduce((a, o) => a + offerNet(o), 0);
-    const revA = revOf(inA), revB = revOf(inB);
+    const revProps = (pred) => acceptedProps().filter((p) => !propCovered(p) && pred(p.accepted_at || p.updated_at)).reduce((a, p) => a + propNet(p), 0);
+    const revA = revOf(inA) + revProps(inA), revB = revOf(inB) + revProps(inB);
     const sess = (pred) => new Set((lastViews || []).filter((v) => pred(v.created_at) && !/^claude-/.test(v.session_id || '')).map((v) => v.session_id)).size;
     const sessA = sess(inA), sessB = sess(inB);
     const pipe = activeOf.filter((o) => o.status === 'sent').reduce((a, o) => a + offerNet(o), 0);
@@ -2048,11 +2080,35 @@
       '<div class="pc-foot"><div class="pc-tags">' + ch + ads + multi + ost + '</div>' + ownerAvatar(r) + '</div>' +
     '</div>';
   }
+  /* PROPUESTAS ACEPTADAS = plata ganada aunque no haya oferta ligada.
+     Dedupe: si el deal/persona ya tiene una oferta GANADA, la propuesta no vuelve a sumar
+     (accept-proposal marca won las ofertas del deal — sumar ambas sería contar doble). */
+  let propsAll = [];
+  const acceptedProps = () => (propsAll || []).filter((p) => p.status === 'accepted' && !p.archived && !p.is_template);
+  const propNet = (p) => {
+    if (Number(p.accepted_total)) return Number(p.accepted_total);
+    const ts = (p.content && p.content.tiers) || [];
+    const rec = ts.find((t) => t.recommended) || ts[0];
+    return Number(rec && rec.price) || 0;
+  };
+  const propCovered = (p) => (offersList || []).some((o) => o.status === 'won' && !o.archived && !o.is_template && (
+    (p.deal_id && String(o.deal_id || '') === String(p.deal_id)) ||
+    (!p.deal_id && p.lead_id && String(o.lead_id || '') === String(p.lead_id))));
+  const propsWonForLead = (lid) => acceptedProps().filter((p) => String(p.lead_id || '') === String(lid) && !propCovered(p)).reduce((a, p) => a + propNet(p), 0);
+  const propsWonForDeal = (d) => acceptedProps().filter((p) => {
+    if (propCovered(p)) return false;
+    if (p.deal_id) return String(p.deal_id) === String(d.id);
+    if (String(p.lead_id || '') !== String(d.lead_id)) return false;
+    if (d.synthetic) return true;
+    const first = firstDealOf(d.lead_id);
+    return !!(first && String(first.id) === String(d.id));
+  }).reduce((a, p) => a + propNet(p), 0);
+
   // REGLA DE VALOR ÚNICA (misma en board, Personas, Home y forecast):
   // ganadas si existen; si no, abiertas (borrador+enviada); las PERDIDAS nunca suman; fallback: valor estimado.
   const leadValue = (l) => {
     const ofs = offersForLead(l.id);
-    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0);
+    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0) + propsWonForLead(l.id);
     if (won) return won;
     const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0);
     return open || Number(l.deal_value) || 0;
@@ -2085,7 +2141,7 @@
   // misma REGLA DE VALOR ÚNICA, por deal
   const dealValue = (d) => {
     const ofs = offersForDeal(d);
-    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0);
+    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0) + propsWonForDeal(d);
     if (won) return won;
     const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0);
     return open || Number(d.deal_value) || 0;
@@ -3454,19 +3510,21 @@
     const open = pool.filter((o) => o.status === 'sent');
     const won = pool.filter((o) => o.status === 'won');
     const lost = pool.filter((o) => o.status === 'lost');
-    const decided = won.length + lost.length;
+    const propExtra = acceptedProps().filter((p) => !propCovered(p));   // propuestas ganadas sin oferta ligada
+    const propExtraNet = propExtra.reduce((a, p) => a + propNet(p), 0);
+    const decided = won.length + lost.length + propExtra.length;
     const margins = pool.map(offerMarginPct).filter((m) => isFinite(m));
     renderTplStrip('of-tpl-strip', offersList.filter((o) => o.is_template), useOfferTemplate, delOfferTemplate);
     // semanas para cerrar (ganadas): updated_at - created_at, aprox del cierre
     const closeDurs = won.map((o) => (Date.parse(o.updated_at) - Date.parse(o.created_at)) / 6048e5).filter((d) => d >= 0);
     $('of-k-open').textContent = open.length;
-    $('of-k-won').textContent = won.length;
+    $('of-k-won').textContent = won.length + propExtra.length;
     $('of-k-conv').innerHTML = decided ? Math.round(won.length / decided * 100) + '<small>%</small>' : '–';
     $('of-k-weeks').textContent = closeDurs.length ? (closeDurs.reduce((a, b) => a + b, 0) / closeDurs.length).toFixed(1) : '–';
     $('of-k-count').textContent = pool.length;
     // ganadas: bruto (lo que facturás), neto, costos externos (lo que debés) y ganancia real
-    const wonNet = won.reduce((a, o) => a + offerNet(o), 0);
-    const wonGross = won.reduce((a, o) => a + offerNet(o) * (1 + (o.vat_rate ?? 8.1) / 100), 0);
+    const wonNet = won.reduce((a, o) => a + offerNet(o), 0) + propExtraNet;
+    const wonGross = won.reduce((a, o) => a + offerNet(o) * (1 + (o.vat_rate ?? 8.1) / 100), 0) + propExtraNet * 1.081;
     const wonCost = won.reduce((a, o) => a + offerCost(o), 0);
     $('of-k-gross').textContent = fmtM(wonGross);
     $('of-k-value').textContent = fmtM(wonNet);
@@ -4125,11 +4183,19 @@
     showLostNote('pp-lostr', ppCur.lost_reason || leadLostReason(ppCur.lead_id), false);
     updatePropLinkBox();
   }
+  function ppAutoGrow(){
+    document.querySelectorAll('#tab-props textarea').forEach((t) => {
+      const fit = () => { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; };
+      if (!t.dataset.fit){ t.dataset.fit = '1'; t.addEventListener('input', fit); }
+      fit();
+    });
+  }
   function renderScopeRows(){
     $('pp-scope-list').innerHTML = (ppCur.scope || []).map((s, i) =>
       '<div class="pp-row"><div class="rowtop"><input class="s-title grow" placeholder="Título (Pre-Production)" value="' + esc(s.title || '') + '"/><button class="rm" type="button" data-i="' + i + '">✕</button></div>' +
       '<textarea class="s-text" placeholder="Descripción">' + esc(s.text || '') + '</textarea></div>').join('');
     $('pp-scope-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.scope.splice(+b.dataset.i, 1); renderScopeRows(); }));
+    ppAutoGrow();
   }
   function renderTierRows(){
     // select "usar oferta": alinear un paquete con una oferta ya creada (Lite/Starter/Pro a mano)
@@ -4160,6 +4226,7 @@
       renderTierRows();
       toast('Paquete alineado con la oferta «' + (o.title || '') + '»');
     }));
+    ppAutoGrow();
   }
   function renderAddonRows(){
     $('pp-addons-list').innerHTML = (ppCur.addons || []).map((a, i) =>
@@ -4169,6 +4236,7 @@
       '<button class="rm" type="button" data-i="' + i + '">✕</button></div>' +
       '<input class="a-note grow" placeholder="Nota (opcional)" value="' + esc(a.note || '') + '" style="width:100%"/></div>').join('');
     $('pp-addons-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.addons.splice(+b.dataset.i, 1); renderAddonRows(); }));
+    ppAutoGrow();
   }
   // portfolio curado por tipo de proyecto (IDs de Vimeo reales de la web)
   const VIDEO_SUGGEST = {
@@ -4188,6 +4256,8 @@
     const picks = VIDEO_SUGGEST[topic] || VIDEO_SUGGEST.general;
     const have = new Set((ppCur.videos || []).map((v) => v.url));
     picks.forEach((p) => { const url = 'https://vimeo.com/' + p.id; if (!have.has(url)) ppCur.videos.push({ url, title: p.t, label: 'Portfolio' }); });
+    // migrar propuestas viejas que traían el showreel de testimonials como si fuera un testimonial
+    ppCur.videos = (ppCur.videos || []).filter((v) => !/866299843/.test(v.url || ''));
     const tUrl = 'https://vimeo.com/' + TESTI_VIDEO.id;
     if (!have.has(tUrl)) ppCur.videos.push({ url: tUrl, title: TESTI_VIDEO.t, label: 'Testimonial' });
     ppCur.testimonials = pickReviews(topic);   // reviews de Google acordes al proyecto
@@ -4582,7 +4652,7 @@ ${body}
   const OFBADGE = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
   // términos por defecto (de las ofertas reales de Viven) — editables por oferta/propuesta
   const DEFAULT_TERMS = 'Payment Terms\n50% in advance after confirmation, 50% after delivery.\n\nShooting Day Duration\nA shooting day is nine hours brutto and includes travel time, setup & shooting time, and one hour lunch. Overtime excluded.\n\nCancelation Terms\nOnce the project is approved, pre-production costs are due regardless of the cancelation date. If canceled less than 10 days before the shoot, the total production costs are due.';
-  const GTC_LINE = 'General Terms and Conditions: https://viven.ch/terms-and-conditions/';
+  const GTC_LINE = 'General Terms and Conditions: https://www.viven.ch/en/terms/';
   // Google reviews reales (de reviews.json) — el pool rota según el tipo de proyecto
   const GREVIEWS = [
     { cat: 'corporate', name: 'Paula Fernandez', company: 'Corporate video', text: 'Working with Sofia and her team was a fantastic experience. We were on a very strict timeline, but they managed to deliver a high-quality corporate video in record time.' },
@@ -4627,8 +4697,8 @@ ${body}
     // contactos (personas) — tabla estilo HubSpot
     $('co-contacts-n').textContent = '(' + data.contacts.length + ')';
     $('co-contacts').innerHTML = data.contacts.length
-      ? '<div class="co-tbl"><div class="co-th"><span>Nombre</span><span>Email</span><span>Etapa</span></div>' + data.contacts.map((l) => { const stg = STAGES.find((s) => s.key === stageOf(l.status)) || {};
-          return '<button class="co-tr co-contact" data-id="' + esc(l.id) + '" type="button"><span class="co-td-name">' + esc(l.name || l.email) + (l.job_title ? '<span class="co-role">' + esc(l.job_title) + '</span>' : '') + '</span><span class="co-td-mail">' + esc(l.email) + '</span><span><span class="of-badge" style="color:' + (stg.color || 'var(--muted)') + ';border-color:' + (stg.color || 'var(--line-strong)') + '">' + esc(stg.label || l.status || '') + '</span></span></button>'; }).join('') + '</div>'
+      ? '<div class="co-tbl"><div class="co-th"><span>Contacto</span><span>Etapa</span></div>' + data.contacts.map((l) => { const stg = STAGES.find((s) => s.key === stageOf(l.status)) || {};
+          return '<button class="co-tr co-contact" data-id="' + esc(l.id) + '" type="button"><span class="co-td-name">' + esc(l.name || l.email) + '<span class="co-role">' + esc([l.job_title, l.email].filter(Boolean).join(' · ')) + '</span></span><span><span class="of-badge" style="color:' + (stg.color || 'var(--muted)') + ';border-color:' + (stg.color || 'var(--line-strong)') + '">' + esc(stg.label || l.status || '') + '</span></span></button>'; }).join('') + '</div>'
       : '<p class="muted-note">Sin contactos.</p>';
     $('co-contacts').querySelectorAll('.co-contact').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.id)));
     // ofertas (deals) de todos los contactos — tabla con importe
