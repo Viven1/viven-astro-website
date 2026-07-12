@@ -32,6 +32,9 @@ function buildAstro(b: Record<string, unknown>, sibs: Record<string, string> = {
   const esc = (x: string) => x.replace(/</g, "");
   const heroImg = b.hero_image ? `<img src="${b.hero_image}" alt="${esc(title)}" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />\n` : "";
   const videoBlock = b.video_id ? `\n<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/${b.video_id}?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>\n` : "";
+  const MONTHS: Record<string, string[]> = { en: ["January","February","March","April","May","June","July","August","September","October","November","December"], de: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"], es: ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"] };
+  const dNow = new Date(); const mName = (MONTHS[lang] || MONTHS.en)[dNow.getMonth()];
+  const dateStr = lang === "de" ? `${dNow.getDate()}. ${mName} ${dNow.getFullYear()}` : lang === "es" ? `${dNow.getDate()} de ${mName} de ${dNow.getFullYear()}` : `${mName} ${dNow.getDate()}, ${dNow.getFullYear()}`;
   const content =
 `---
 import Base from '../../../../layouts/Base.astro';
@@ -44,10 +47,11 @@ const description = {"${lang}":${JSON.stringify(desc)}};
 <Base lang={lang} slug="blog/${slug}" active="blog" singleLang={true} langUrls={${JSON.stringify({ en: "/en/blog/", de: "/de/blog/", es: "/es/blog/", ...Object.fromEntries(Object.entries(sibs).map(([l, s2]) => [l, `/${l}/blog/${s2}/`])), [lang]: `/${lang}/blog/${slug}/` })}} title={title} description={description}>
   <script type="application/ld+json" slot="jsonld" set:html={${JSON.stringify(jsonld)}}></` + `script>
 <section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
-  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <a href={p("blog")}>Blog</a> <span>${esc(title)}</span></nav>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>${esc(title)}</span></nav>
   <span class="eyebrow">${esc(String(b.eyebrow || "Industry insight"))}</span>
   <h1>${esc(title)}</h1>
   <p class="lead">${esc(String(b.lead || desc))}</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>${dateStr}</span></p>
 </div></div></section>
 <section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
 ${heroImg}${body}${videoBlock}

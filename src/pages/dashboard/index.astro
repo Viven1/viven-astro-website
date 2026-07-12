@@ -471,6 +471,11 @@
   .post-preview .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--acid)}
   .post-preview h1{font-size:26px;margin:8px 0 12px;color:var(--text);line-height:1.2}
   .post-preview .lead{font-size:16px;color:var(--muted);margin-bottom:18px}
+  .bg-group{border:1px solid var(--line);border-radius:13px;padding:4px 12px;margin-bottom:10px}
+  .bg-group summary{cursor:pointer;font-weight:700;font-size:14px;padding:9px 2px;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+  .bg-group summary::before{content:'▸';color:var(--muted-2);transition:transform .15s}
+  .bg-group[open] summary::before{transform:rotate(90deg)}
+  .bg-group summary .count{background:var(--navy-900);border:1px solid var(--line);border-radius:20px;font-size:11px;padding:2px 9px;color:var(--muted)}
   .bg-faq{position:relative;border:1px solid var(--line);border-radius:11px;padding:12px 40px 12px 14px;margin-bottom:9px}
   .bg-faq .q{font-weight:700;font-size:14px;margin-bottom:5px}
   .bg-faq .a{font-size:13.5px;color:var(--muted);line-height:1.6}
@@ -1401,7 +1406,7 @@
     <div id="bg-list" class="of-list" style="margin-bottom:20px"></div>
 
     <div id="bg-result" hidden>
-      <div class="pp-sec-h" style="margin-top:0">Editando <span class="count" id="bg-editing-lang"></span> · <span id="bg-versions"></span></div>
+      <div class="pp-sec-h" id="bg-editor-top" style="margin-top:0">Editando <span class="count" id="bg-editing-lang"></span> · <span id="bg-versions"></span></div>
       <div class="pp-grid" style="grid-template-columns:1fr 1fr auto;align-items:end">
         <div class="bf"><label>Título SEO</label><input id="bg-title" /></div>
         <div class="bf"><label>Slug</label><input id="bg-slug" /></div>
@@ -1507,7 +1512,7 @@
     <div class="panel" id="ab-wiz" hidden>
       <h2>🧪 Nuevo A/B test</h2>
       <div class="ab-urlrow">
-        <input id="ab-url" placeholder="URL de la página a testear — p. ej. https://www.viven.ch/en/services/brand-video/" />
+        <input id="ab-url" placeholder="Página a testear — vale viven.ch/en/services/brand-video/ (con o sin https)" />
         <button class="btn btn-ghost small" id="ab-analyze" type="button">🔎 Analizar página</button>
       </div>
       <p class="muted-note" id="ab-wiz-note" style="margin:8px 0 0"></p>
@@ -3995,8 +4000,10 @@
   async function abAnalyze(){
     let u = $('ab-url').value.trim();
     if (!u){ toast('Pegá la URL de la página'); return; }
+    // vale cualquier forma: https://viven.ch/en/..., viven.ch/en/... o /en/... a secas
+    if (!/^https?:\/\//i.test(u) && !u.startsWith('/')) u = 'https://' + u;
     let path;
-    try { path = u.startsWith('http') ? new URL(u).pathname : u; } catch (e) { toast('URL inválida'); return; }
+    try { path = u.startsWith('/') ? u : new URL(u).pathname; } catch (e) { toast('URL inválida'); return; }
     if (!path.endsWith('/')) path += '/';
     $('ab-wiz-note').textContent = 'Analizando ' + path + '…';
     try {
@@ -5240,23 +5247,26 @@
   }
   function renderBlogList(){
     const box = $('bg-list'); $('bg-list-h').hidden = !blogsList.length;
-    const badge = { draft: ['Borrador', '#8ab4ff'], published: ['Publicado', '#7ed957'] };
-    // agrupar por group_id para ver qué idiomas ya existen
     const langsByGroup = {}; blogsList.forEach((b) => { (langsByGroup[b.group_id] = langsByGroup[b.group_id] || new Set()).add(b.lang); });
-    box.innerHTML = blogsList.map((b) => { const bd = badge[b.status] || badge.draft;
+    const card = (b) => {
       const have = langsByGroup[b.group_id] || new Set();
       const missing = ['en', 'de', 'es'].filter((l) => l !== b.lang && !have.has(l));
       const langBtns = missing.map((l) => '<button class="of-act" data-act="loc" data-l="' + l + '" data-id="' + b.id + '" type="button">+ ' + LANGNAME[l] + '</button>').join('');
+      const live = b.status === 'published' && b.published_url ? '<a class="of-act" href="' + b.published_url + '" target="_blank" rel="noopener" style="text-decoration:none">↗ Ver live</a>' : '';
       return '<div class="of-card"><div class="of-card-open" data-id="' + b.id + '">' +
         '<div class="of-card-main"><div class="of-card-title">' + esc(b.title || '(sin título)') + ' <span class="of-badge" style="color:#c58af9;border-color:#c58af9;font-size:10px">' + LANGNAME[b.lang] + '</span></div>' +
-        '<div class="of-card-sub">' + esc(b.topic || b.slug || '') + ' · ' + new Date(b.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
-        '<span class="of-badge" style="color:' + bd[1] + ';border-color:' + bd[1] + '">' + bd[0] + '</span></div>' +
-        '<div class="of-actions">' + langBtns +
+        '<div class="of-card-sub">' + esc(b.topic || b.slug || '') + ' · ' + new Date(b.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div></div>' +
+        '<div class="of-actions">' + live + langBtns +
           '<button class="of-act danger" data-act="del" data-id="' + b.id + '" type="button">🗑 Borrar</button>' +
         '</div></div>';
-    }).join('');
-    box.querySelectorAll('.of-card-open').forEach((c) => c.addEventListener('click', () => loadBlog(c.dataset.id)));
-    box.querySelectorAll('.of-act').forEach((btn) => btn.addEventListener('click', (e) => {
+    };
+    const drafts = blogsList.filter((b) => b.status !== 'published');
+    const pubs = blogsList.filter((b) => b.status === 'published');
+    box.innerHTML =
+      '<details class="bg-group" open><summary>📝 Borradores <span class="count">' + drafts.length + '</span></summary>' + (drafts.map(card).join('') || '<p class="muted-note">Sin borradores pendientes.</p>') + '</details>' +
+      '<details class="bg-group"' + (drafts.length ? '' : ' open') + '><summary>🚀 Publicados <span class="count">' + pubs.length + '</span></summary>' + (pubs.map(card).join('') || '<p class="muted-note">Todavía nada publicado.</p>') + '</details>';
+    box.querySelectorAll('.of-card-open').forEach((c) => c.addEventListener('click', () => loadBlog(c.dataset.id, true)));
+    box.querySelectorAll('.of-act[data-act]').forEach((btn) => btn.addEventListener('click', (e) => {
       e.stopPropagation(); const id = btn.dataset.id, act = btn.dataset.act;
       if (act === 'del') delBlog(id);
       else if (act === 'loc') localizeBlog(id, btn.dataset.l);
@@ -5289,7 +5299,8 @@
     $('bg-versions').textContent = 'versiones: ' + (have.join(', ') || LANGNAME[b.lang]);
     $('bg-result').hidden = false; $('bg-pub-note').textContent = '';
   }
-  function loadBlog(id){ const b = blogsList.find((x) => String(x.id) === String(id)); if (b) fillBlogEditor(b); }
+  function loadBlog(id, scroll){ const b = blogsList.find((x) => String(x.id) === String(id)); if (!b) return; fillBlogEditor(b);
+    if (scroll) setTimeout(() => { const t = $('bg-editor-top'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); }
   // vista previa editada → body_html canónico (los <a> internos vuelven a [[slug|anchor]])
   function bgCollectEdits(){
     const bodyEl = $('bg-ed-body'), leadEl = $('bg-ed-lead');
@@ -5396,6 +5407,9 @@
       { "@type": "BreadcrumbList", itemListElement: [ { "@type": "ListItem", position: 1, name: "Home", item: "https://www.viven.ch/" }, { "@type": "ListItem", position: 2, name: "Blog", item: 'https://www.viven.ch/' + lang + '/blog/' }, { "@type": "ListItem", position: 3, name: title, item: url } ] },
       ...(faqSchema.length ? [{ "@type": "FAQPage", mainEntity: faqSchema }] : [])
     ] });
+    const MONTHS = { en: ['January','February','March','April','May','June','July','August','September','October','November','December'], de: ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'], es: ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'] };
+    const dNow = new Date(); const mName = (MONTHS[lang] || MONTHS.en)[dNow.getMonth()];
+    const dateStr = lang === 'de' ? dNow.getDate() + '. ' + mName + ' ' + dNow.getFullYear() : lang === 'es' ? dNow.getDate() + ' de ' + mName + ' de ' + dNow.getFullYear() : mName + ' ' + dNow.getDate() + ', ' + dNow.getFullYear();
     const astro =
 `---
 import Base from '../../../../layouts/Base.astro';
@@ -5408,10 +5422,11 @@ const description = {"${lang}":${JSON.stringify(desc)}};
 <Base lang={lang} slug="blog/${slug}" active="blog" singleLang={true} langUrls={${JSON.stringify(langUrls)}} title={title} description={description}>
   <script type="application/ld+json" slot="jsonld" set:html={${JSON.stringify(jsonld)}}></` + `script>
 <section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
-  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <a href={p("blog")}>Blog</a> <span>${title.replace(/</g, '')}</span></nav>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>${title.replace(/</g, '')}</span></nav>
   <span class="eyebrow">${(bgCur.eyebrow || 'Industry insight').replace(/</g, '')}</span>
   <h1>${title.replace(/</g, '')}</h1>
   <p class="lead">${(bgCur.lead || desc).replace(/</g, '')}</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>${dateStr}</span></p>
 </div></div></section>
 <section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
 ${$('bg-hero').value.trim() ? '<img src="' + $('bg-hero').value.trim() + '" alt="' + title.replace(/"/g, '') + '" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />' : ''}

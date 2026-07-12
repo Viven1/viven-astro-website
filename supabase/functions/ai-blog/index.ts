@@ -70,7 +70,8 @@ Respond ONLY with valid minified JSON, no markdown fences:
         model: source_html ? "claude-sonnet-5" : "claude-haiku-4-5-20251001",
         max_tokens: 5000,
         system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary.",
-        messages: [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
+        // Sonnet (propagación) NO soporta prefill de assistant; con Haiku sí lo usamos para forzar JSON
+        messages: source_html ? [{ role: "user", content: prompt }] : [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
       }),
     });
     if (!res.ok) {
@@ -80,7 +81,8 @@ Respond ONLY with valid minified JSON, no markdown fences:
     }
     const data = await res.json();
     let text = (data.content?.[0]?.text ?? "").trim();
-    if (!text.startsWith("{")) text = "{" + text;
+    if (source_html) { const fb = text.indexOf("{"); text = fb > -1 ? text.slice(fb) : "{" + text; }
+    else if (!text.startsWith("{")) text = "{" + text;
     text = text.replace(/```json|```/g, "").trim();
     const last = text.lastIndexOf("}");
     if (last > -1) text = text.slice(0, last + 1);
