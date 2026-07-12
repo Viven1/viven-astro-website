@@ -1192,7 +1192,12 @@
     </div>
 
     <div class="panel" style="margin-top:14px">
-      <h2>Campañas <span class="count">(por utm_campaign)</span></h2>
+      <h2>📡 Datos oficiales de Google Ads <span class="count">(últimos 30 días)</span></h2>
+      <div id="gads-official"><p class="muted-note">Cargando…</p></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>Campañas <span class="count">(según nuestro analytics, por utm_campaign)</span></h2>
       <div id="gads-camps" style="overflow-x:auto"><p class="muted-note">Sin datos todavía.</p></div>
     </div>
 
@@ -4017,8 +4022,23 @@
         $('gads-won').textContent = won.length;
         $('gads-wonval').textContent = chf(wonVal);
         $('gads-pipe').textContent = chf(openVal);
+        // datos oficiales de la API (si el token ya fue aprobado, mandan sobre lo manual)
+        let official = null;
+        try { const { data: gs } = await supabase.functions.invoke('gads-stats', { body: {} }); if (gs && gs.ok) official = gs; else if (gs && gs.pending && $('gads-official')) $('gads-official').innerHTML = '<p class="muted-note">⏳ Esperando la aprobación del developer token por parte de Google (' + esc(gs.reason || 'Basic access pendiente') + '). Este bloque se enciende solo cuando llegue el mail — sin tocar nada.</p>'; } catch (e) { /* función aún no deployada */ }
+        if (official && $('gads-official')){
+          $('gads-official').innerHTML = '<div class="gads-kpis" style="margin-bottom:12px">' +
+            '<div class="gads-kpi"><b>' + chf(Math.round(official.total.cost)) + '</b><span>Gasto (30d)</span></div>' +
+            '<div class="gads-kpi"><b>' + official.total.clicks.toLocaleString('de-CH') + '</b><span>Clicks</span></div>' +
+            '<div class="gads-kpi"><b>' + official.total.impressions.toLocaleString('de-CH') + '</b><span>Impresiones</span></div>' +
+            '<div class="gads-kpi"><b>' + (official.total.clicks ? chf((official.total.cost / official.total.clicks).toFixed(2)) : '–') + '</b><span>CPC medio</span></div>' +
+          '</div>' +
+          '<table class="gads-table"><thead><tr><th>Campaña</th><th>Estado</th><th>Gasto</th><th>Clicks</th><th>Impresiones</th><th>Conv.</th></tr></thead><tbody>' +
+          official.campaigns.map((c) => '<tr><td>' + esc(c.name) + '</td><td>' + (c.status === 'ENABLED' ? '🟢' : '⏸') + '</td><td>' + chf(Math.round(c.cost)) + '</td><td>' + c.clicks + '</td><td>' + c.impressions.toLocaleString('de-CH') + '</td><td>' + c.conversions + '</td></tr>').join('') +
+          '</tbody></table>';
+        }
         let spend = 0;
-        try { const { data: st } = await supabase.from('ads_settings').select('spend').eq('id', 1).maybeSingle(); spend = +((st || {}).spend || 0); } catch (e) { /* tabla pendiente (SQL 0037) */ }
+        if (official) spend = Math.round(official.total.cost);
+        if (!spend){ try { const { data: st } = await supabase.from('ads_settings').select('spend').eq('id', 1).maybeSingle(); spend = +((st || {}).spend || 0); } catch (e) { /* tabla pendiente (SQL 0037) */ } }
         if (!spend) spend = +(localStorage.getItem('vv_ads_spend') || 0);
         if ($('gads-spend-in') && document.activeElement !== $('gads-spend-in')) $('gads-spend-in').value = spend || '';
         $('gads-cpl').textContent = spend && rows.length ? chf(Math.round(spend / rows.length)) : '–';
