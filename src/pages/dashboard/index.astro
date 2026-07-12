@@ -1515,6 +1515,15 @@
       <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
     </div>
     <div id="seo-body"><p class="muted-note">Cargando…</p></div>
+
+    <div class="panel" style="margin-top:16px">
+      <div class="draft-head">
+        <h2 style="margin:0">🎯 Oportunidades de keywords <span class="count">GSC × competencia × IA</span></h2>
+        <button class="btn btn-primary small" id="kw-run" type="button">✨ Buscar oportunidades</button>
+      </div>
+      <p class="muted-note" style="margin:6px 0 10px">Cruza tus búsquedas REALES de Search Console con lo que rankea la competencia suiza (búsqueda web en vivo) y devuelve acciones concretas: qué reforzar, qué escribir, qué title cambiar. Los temas nuevos van directo a la cola del motor con ⚡.</p>
+      <div id="kw-out"></div>
+    </div>
   </div>
     </div><!-- /.dash-main -->
   </div><!-- /.dash-body -->
@@ -3051,7 +3060,42 @@
 
   /* ---------- SEO: Google Search Console (gsc-stats) ---------- */
   let seoLoaded = false;
-  function seoInit(){ if (!seoLoaded) loadSeo(); }
+  let kwBound = false;
+  function kwInit(){
+    if (kwBound) return; kwBound = true;
+    $('kw-run').addEventListener('click', async () => {
+      const btn = $('kw-run'), prev = btn.textContent; btn.disabled = true; btn.textContent = '🔎 Investigando (~1 min)…';
+      $('kw-out').innerHTML = '<p class="muted-note">Leyendo Search Console, espiando a la competencia y priorizando…</p>';
+      try {
+        const { data, error } = await supabase.functions.invoke('ai-keywords', { body: {} });
+        if (error || data?.error) throw new Error(data?.error || error?.message || 'sin respuesta');
+        const ops = (data.opportunities || []).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+        const TY = { quick_win: ['⚡ Quick win', '#7ed957'], new_content: ['📝 Contenido nuevo', '#8ab4ff'], page_fix: ['🔧 Ajuste de página', '#f0c060'] };
+        $('kw-out').innerHTML = '<p class="muted-note" style="margin-bottom:10px">' + data.queries + ' búsquedas reales analizadas (' + esc(data.site || '') + ')</p>' + ops.map((o, i) => {
+          const t = TY[o.type] || TY.new_content;
+          return '<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px">' +
+            '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px">' +
+            '<span class="of-badge" style="color:' + t[1] + ';border-color:' + t[1] + '">' + t[0] + '</span>' +
+            '<b style="font-size:14px">' + esc(o.keyword || '') + '</b>' +
+            '<span class="muted-note">' + esc((o.lang || '').toUpperCase()) + ' · prioridad ' + (o.priority || '–') + '</span></div>' +
+            '<div class="muted-note" style="margin-bottom:6px">' + esc(o.why || '') + '</div>' +
+            '<div style="font-size:13.5px">→ ' + esc(o.action || '') + '</div>' +
+            (o.type === 'new_content' ? '<button class="btn btn-ghost small kw-q" data-i="' + i + '" type="button" style="margin-top:8px">⚡ Mandar a la cola del motor</button>' : '') +
+          '</div>';
+        }).join('');
+        $('kw-out').querySelectorAll('.kw-q').forEach((b) => b.addEventListener('click', async () => {
+          const o = ops[+b.dataset.i];
+          const { error: e2 } = await supabase.from('content_queue').insert({ topic: o.action || o.keyword, priority: Math.min(10, o.priority || 5) });
+          if (e2) { toast('¿SQL 0032? ' + e2.message); return; }
+          b.textContent = '✓ En la cola'; b.disabled = true;
+          toast('📝 «' + (o.action || o.keyword).slice(0, 60) + '…» en la cola — escribilo ya con ⚡ desde el tab Blog');
+        }));
+      } catch (e) { $('kw-out').innerHTML = '<p class="muted-note">⚠️ ' + esc(e.message || String(e)) + (String(e).includes('google_token') ? ' — falta cerrar el OAuth de Google.' : '') + '</p>'; }
+      btn.disabled = false; btn.textContent = prev;
+    });
+  }
+  function seoInit(){
+    kwInit(); if (!seoLoaded) loadSeo(); }
   async function loadSeo(){
     seoLoaded = true;
     const el = $('seo-body');
