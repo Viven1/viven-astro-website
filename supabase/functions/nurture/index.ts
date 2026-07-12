@@ -63,7 +63,7 @@ const BTN = (url: string, label: string) => `<p style="margin:20px 0"><a href="$
 
 function mailFor(step: number, lead: Record<string, unknown>): { subject: string; html: string } {
   const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
-  const first = String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim();
+  const first = esc(String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim());
   const hi = { en: `Hi${first ? " " + first : ""},`, de: `Hallo${first ? " " + first : ""}`, es: `Hola${first ? " " + first : ""}:` }[lang]!;
   const msg = String(lead.message || "");
   const calc = msg.includes("🧮 CALCULADORA") ? (msg.match(/CHF[\s\d'.,–-]+CHF[\s\d'.,]+|CHF[\s\d'.,]+[–-][\s]*CHF[\s\d'.,]+/) || [""])[0] : "";

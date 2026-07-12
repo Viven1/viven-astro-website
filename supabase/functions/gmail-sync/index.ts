@@ -73,6 +73,12 @@ Deno.serve(async (_req) => {
       const refreshToken = Deno.env.get(mb.refreshSecret);
       if (!refreshToken) { out[mb.key] = "sin_secret_" + mb.refreshSecret; continue; }
       try {
+        // el cursor para la PRÓXIMA corrida se calcula con la hora de ANTES de
+        // arrancar a listar/leer mensajes (no la de después) — si tomáramos la
+        // hora de después, un mensaje que llega a mitad de esta corrida (ya
+        // pasó el listado de Gmail pero la corrida sigue laburando) quedaría
+        // afuera de este batch Y del próximo (el cursor ya lo dejaría atrás)
+        const runStartedAt = new Date();
         const token = await accessToken(refreshToken);
         const { data: st } = await service.from("gmail_sync_state").select("*").eq("mailbox", mb.key).maybeSingle();
         const sinceTs = st?.last_synced_at ? Math.floor(new Date(st.last_synced_at).getTime() / 1000) : Math.floor((Date.now() - 24 * 3600e3) / 1000);
@@ -102,7 +108,7 @@ Deno.serve(async (_req) => {
           await service.from("leads").update({ last_reply_at: new Date().toISOString() }).eq("id", leadId).then(() => {}, () => {});
           matched++;
         }
-        await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: new Date().toISOString() });
+        await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: runStartedAt.toISOString() });
         out[mb.key] = { seen, matched };
       } catch (e) {
         out[mb.key] = "error: " + String(e);

@@ -43,11 +43,16 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { id, test_to } = await req.json();
+    const { id, test_to, mark_sent } = await req.json();
     if (!id) return json({ error: "falta id" }, 400);
     const { data: nl } = await service.from("newsletters").select("*").eq("id", id).maybeSingle();
     if (!nl) return json({ error: "newsletter no encontrada" }, 404);
     if (nl.status === "sent" && !test_to) return json({ error: "esta campaña ya fue enviada" }, 400);
+    // envío real a UNA persona (mark_sent) — se registra igual que un envío completo,
+    // para no perder rastro ni permitir remandar el mismo borrador a todo el segmento
+    // por error. El self-test rápido ("Test a mi email") NO manda mark_sent y sigue
+    // sin dejar rastro, como siempre.
+    const trackThis = !test_to || mark_sent;
 
     // destinatarios
     const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
@@ -55,7 +60,10 @@ Deno.serve(async (req) => {
     const isOut = (st: string) => /spam|descartado/i.test(st || "");
     let recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
     if (test_to) {
-      recips = [{ email: String(test_to) }];
+      // si el email coincide con un lead real, usamos su id/lang → link de baja
+      // funcional en vez del fallback a la home (que no da forma de darse de baja)
+      const { data: matchLead } = await service.from("leads").select("id,lang").ilike("email", String(test_to)).maybeSingle();
+      recips = [{ email: String(test_to), id: matchLead?.id, lang: matchLead?.lang }];
     } else {
       let q = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
       if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
@@ -96,11 +104,11 @@ Deno.serve(async (req) => {
         headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
         body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email], subject: nl.subject, html: full }),
       });
-      if (res.ok) { sent++; if (!test_to) await service.from("newsletter_sends").insert({ newsletter_id: id, lead_id: r.id ?? null, email: r.email }); }
+      if (res.ok) { sent++; if (trackThis) await service.from("newsletter_sends").insert({ newsletter_id: id, lead_id: r.id ?? null, email: r.email }); }
       else { failed++; console.error("RESEND_FAIL", r.email, res.status, (await res.text()).slice(0, 120)); }
       if (recips.length > 8) await new Promise((ok) => setTimeout(ok, 150));   // suave con el rate limit
     }
-    if (!test_to) await service.from("newsletters").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: sent, updated_at: new Date().toISOString() }).eq("id", id);
+    if (trackThis) await service.from("newsletters").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: sent, updated_at: new Date().toISOString() }).eq("id", id);
     return json({ ok: true, sent, failed, test: !!test_to });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));

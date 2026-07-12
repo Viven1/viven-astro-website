@@ -1273,7 +1273,14 @@
       </div>
       <div class="bf"><label>Contenido <span class="muted-note" style="font-weight:400">(texto plano — párrafos con línea en blanco; los links se vuelven clickeables)</span></label>
         <textarea id="nw-body" rows="10" style="width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:12px;resize:vertical"></textarea></div>
+      <div class="bf"><label>Notas para la IA <span class="muted-note" style="font-weight:400">(opcional — ideas, links, tono; el Asunto de arriba hace de título/tema)</span></label>
+        <input id="nw-ai-notes" placeholder="p. ej. mencionar el nuevo case study de Meteomatics, tono relajado" /></div>
+      <div class="pp-grid" style="grid-template-columns:1fr 1fr;align-items:end;gap:10px;margin-top:2px">
+        <div class="bf"><label>Enviar a</label><select id="nw-mode"><option value="segment">Todo el segmento (según filtros de arriba)</option><option value="one">Una persona (email directo)</option></select></div>
+        <div class="bf" id="nw-one-wrap" hidden><label>Email del destinatario</label><input id="nw-one-email" type="email" placeholder="nombre@empresa.com" /></div>
+      </div>
       <div class="ab-urlrow" style="margin-top:10px">
+        <button class="btn btn-ghost small" id="nw-ai" type="button">✨ Generar con IA</button>
         <button class="btn btn-ghost small" id="nw-blog" type="button">📰 Usar último artículo</button>
         <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver destinatarios</button>
         <button class="btn btn-ghost small" id="nw-test" type="button">✉️ Test a mi email</button>
@@ -2326,7 +2333,9 @@
       });
       // ruido de cuentas internas/propias (probando el CRM con nuestro propio email) —
       // mismo patrón que ya usan Ads/Newsletter para no confundir tests con negocio real
-      const BELL_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+      // "test" acotado por no-letras a los dos lados — evita falsos positivos
+      // reales como testimonial@empresa.com o contest@empresa.com
+      const BELL_TEST = /@viven\.ch$|@entropia|@example\.|(^|[^a-z])test([^a-z]|$)/i;
       const bellSkip = (em) => BELL_TEST.test(em || '') || (em || '').toLowerCase() === 'cepeda.sebastian@gmail.com';
       // leads nuevos sin contactar (últimas 72h) — lo mismo que llega por push
       const cutoff = Date.now() - 72 * 36e5;
@@ -2410,11 +2419,17 @@
   // (podrías estar escribiendo un email sin guardar). iOS puede tener la app abierta horas sin
   // re-chequear por su cuenta, así que forzamos reg.update() cada 5 min y al volver a la app.
   if ('serviceWorker' in navigator) {
+    // 'controllerchange' también dispara en la primerísima instalación (sin
+    // controller previo → nuevo controller), lo que mostraría "hay una versión
+    // nueva" a alguien que recién instaló la app por primera vez. Solo es un
+    // update real si YA había un controller activo antes de este page load.
+    const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('/dashboard-sw.js', { scope: '/dashboard/' }).then((reg) => {
       setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
     }).catch(() => {});
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) return;
       const b = $('app-update-btn'); if (b) b.hidden = false;
     });
   }
@@ -3320,9 +3335,15 @@
     const fmtE = (d) => new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     const snip = (b) => esc(String(b || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, 110);
     const SRC_L = { outreach: '✍️ Manual', 'automations-run': '⚙️ Workflow', nurture: '🌱 Nurture', 'booking-create': '📅 Booking', 'calc-email': '🧮 Calculadora', 'gmail-sebastian': '📥 Respondió (a Sebastian)', 'gmail-sofia': '📥 Respondió (a Sofia)', 'gmail-info': '📥 Respondió (a info@)' };
+    // Nunca "adivinar" HTML por sniffing (¿tiene una etiqueta?) — eso es lo que
+    // permitía que un nombre/mensaje con <img onerror=...> de un lead se ejecutara
+    // acá dentro. Solo las fuentes que YA arman su HTML con los campos del lead
+    // escapados (wrap()/esc() del lado del servidor) se renderizan como HTML;
+    // el resto (texto plano: outreach, respuestas de Gmail) se escapa siempre.
+    const HTML_SOURCES = ['automations-run', 'nurture', 'booking-create'];
     box.innerHTML = rows.map((e2) => {
       const inbound = e2.direction === 'in';
-      const bodyHtml = /<[a-z][\s\S]*>/i.test(e2.body || '') ? String(e2.body) : esc(String(e2.body || ''));
+      const bodyHtml = HTML_SOURCES.indexOf(e2.source) > -1 ? String(e2.body || '') : esc(String(e2.body || '')).replace(/\n/g, '<br>');
       return '<div class="lm-email' + (inbound ? ' lm-email-in' : '') + '">' +
         '<div class="lm-email-h"><span class="lm-email-subj">' + (inbound ? '📥 ' : '') + esc(e2.subject || '(sin asunto)') + '</span><span class="lm-email-meta">' + esc(e2.sender_label || '') + ' · ' + fmtE(e2.created_at) + '</span></div>' +
         '<div class="lm-email-snip">' + snip(e2.body) + '</div>' +
@@ -4404,27 +4425,45 @@
         const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { id, test_to: me } });
         $('nw-note').textContent = error ? '⚠️ ' + error.message : (data && data.error) ? '⚠️ ' + data.error : '✉️ Test enviado a ' + me + ' — revisá tu inbox.';
       });
+      $('nw-mode') && $('nw-mode').addEventListener('change', () => {
+        $('nw-one-wrap').hidden = $('nw-mode').value !== 'one';
+      });
+      $('nw-ai') && $('nw-ai').addEventListener('click', async () => {
+        const topic = $('nw-subject').value.trim();
+        if (!topic){ toast('Poné un tema/título en Asunto primero'); return; }
+        const btn = $('nw-ai'), prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Escribiendo…';
+        try {
+          const lg = $('nw-lang').value === 'all' ? 'en' : $('nw-lang').value;
+          const { data, error } = await supabase.functions.invoke('ai-newsletter', { body: { topic, notes: $('nw-ai-notes').value.trim(), lang: lg } });
+          if (error || (data && data.error)){ toast('⚠️ ' + (error ? error.message : data.error)); return; }
+          $('nw-subject').value = data.subject; $('nw-body').value = data.body;
+          $('nw-note').textContent = '✨ Borrador generado (' + lg.toUpperCase() + ') — revisá y editá antes de mandar.';
+        } finally { btn.disabled = false; btn.textContent = prev; }
+      });
       $('nw-send') && $('nw-send').addEventListener('click', async () => {
+        const toOne = $('nw-mode').value === 'one';
+        const oneEmail = $('nw-one-email').value.trim();
+        if (toOne && (!oneEmail || !oneEmail.includes('@'))){ toast('Poné un email válido'); return; }
         const id = await nwSave(); if (!id) return;
-        if (!confirm('¿Enviar esta campaña al segmento seleccionado?\n\nNo se puede deshacer.')) return;
+        if (!confirm(toOne ? '¿Enviar directo a ' + oneEmail + '?' : '¿Enviar esta campaña al segmento seleccionado?\n\nNo se puede deshacer.')) return;
         $('nw-note').textContent = 'Enviando…'; $('nw-send').disabled = true;
-        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { id } });
+        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: toOne ? { id, test_to: oneEmail, mark_sent: true } : { id } });
         $('nw-send').disabled = false;
         if (error || (data && data.error)){ $('nw-note').textContent = '⚠️ ' + (error ? error.message : data.error); return; }
-        $('nw-note').textContent = '🚀 Enviada a ' + data.sent + ' contactos' + (data.failed ? ' (' + data.failed + ' fallaron)' : '') + '.';
-        nwCur = null; $('nw-subject').value = ''; $('nw-body').value = ''; newsInit();
+        $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + data.sent + ' contactos' + (data.failed ? ' (' + data.failed + ' fallaron)' : '') + '.';
+        nwCur = null; $('nw-subject').value = ''; $('nw-body').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; newsInit();
       });
       // Automatizaciones — cada handler blindado: si algo falla, se ve en un toast (nunca "no pasa nada" en silencio)
       const auGuard = (fn) => (...args) => { try { const r = fn(...args); if (r && r.catch) r.catch((e) => toast('⚠️ ' + (e && e.message || e))); } catch (e) { toast('⚠️ ' + (e && e.message || e)); } };
       $('au-new') && $('au-new').addEventListener('click', auGuard(() => auOpen(null)));
-      $('au-close') && $('au-close').addEventListener('click', auGuard(() => { $('au-editor').hidden = true; }));
+      $('au-close') && $('au-close').addEventListener('click', auGuard(() => auCloseEditor()));
       $('au-save') && $('au-save').addEventListener('click', auGuard(() => auSave(false)));
       $('au-dup') && $('au-dup').addEventListener('click', auGuard(() => auSave(true)));
       $('au-del') && $('au-del').addEventListener('click', auGuard(async () => {
         if (!auCur || !confirm('¿Borrar este workflow? Los envíos ya hechos no se tocan.')) return;
         const { error } = await supabase.from('automations').delete().eq('id', auCur.id);
         if (error){ toast('⚠️ ' + error.message); return; }
-        $('au-editor').hidden = true; toast('🗑 Borrada'); autoInit();
+        auCloseEditor(); toast('🗑 Borrada'); autoInit();
       }));
       $('au-trigger') && $('au-trigger').addEventListener('change', auGuard(auCfgVis));
       $('au-ab') && $('au-ab').addEventListener('change', auGuard(() => { auCollect(); auRenderFlow(); }));
@@ -5919,6 +5958,7 @@
     return html;
   }
   function auRenderFlow(){
+    document.body.classList.remove('au-fs-open'); // el re-render destruye el wrap .au-fs si había uno expandido
     const ab = $('au-ab').value === '50';
     const trig = $('au-trigger').value;
     const trigLbl = trig === 'stage' ? 'Lead llega a etapa: ' + (AU_STAGE_L[$('au-cfg-stage').value] || $('au-cfg-stage').value)
@@ -5999,7 +6039,12 @@
     document.querySelectorAll('.au-cfg-days').forEach((e) => e.style.display = t === 'inactivity' ? '' : 'none');
     document.querySelectorAll('.au-cfg-source').forEach((e) => e.style.display = t === 'lead_new' ? '' : 'none');
   }
+  // cierra el editor y SIEMPRE limpia el estado de textarea-en-pantalla-completa
+  // (⤢ Expandir) — sin esto, cerrar/guardar/borrar con un campo expandido dejaba
+  // todo el dashboard sin poder scrollear hasta recargar la página
+  function auCloseEditor(){ $('au-editor').hidden = true; document.body.classList.remove('au-fs-open'); }
   function auOpen(id){
+    document.body.classList.remove('au-fs-open');
     const a = id ? auList.find((x) => x.id === id) : null;
     auCur = a || null;
     $('au-ed-title').textContent = a ? '✏️ ' + a.name : 'Nuevo workflow';
@@ -6094,7 +6139,7 @@
     if (auCur && auCur.id && !asCopy) res = await supabase.from('automations').update(row).eq('id', auCur.id);
     else res = await supabase.from('automations').insert(asCopy ? { ...row, name: row.name + ' (copia)', enabled: false } : row);
     if (res.error){ toast(/does not exist|relation/i.test(res.error.message) ? 'Falta correr el SQL 0041' : res.error.message); return; }
-    toast('💾 Guardada'); $('au-editor').hidden = true; autoInit();
+    toast('💾 Guardada'); auCloseEditor(); autoInit();
   }
   const AU_PRESETS = {
     ref: { name: '🎁 Referral con Gutschein (post-proyecto)', trigger: 'stage', cfg: { stage: 'ganado', source: 'any', lang: 'any' }, ab: '0',

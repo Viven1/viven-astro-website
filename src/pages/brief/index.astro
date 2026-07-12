@@ -47,6 +47,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   @media(max-width:520px){.opts.two{grid-template-columns:1fr}}
   /* inputs finales */
   .bf{margin-bottom:16px}
+  .bf-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:480px){.bf-row2{grid-template-columns:1fr}}
   .bf label{display:block;font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:7px}
   .bf input,.bf textarea{width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:12px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px}
   .bf textarea{min-height:80px;resize:vertical}
@@ -244,8 +246,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 
       <!-- datos -->
       <div class="q">
-        <div class="qh" data-en="Your email — so we can match the brief to your call" data-de="Ihre E-Mail — damit wir das Briefing Ihrem Call zuordnen können" data-es="Tu email — para conectar el brief con tu llamada">Your email — so we can match the brief to your call</div>
-        <div class="bf" style="margin-top:12px"><label data-en="Email" data-de="E-Mail" data-es="Email">Email</label><input type="email" name="email" autocomplete="email" required /></div>
+        <div class="qh" data-en="Your details — so we can match the brief to your call" data-de="Ihre Angaben — damit wir das Briefing Ihrem Call zuordnen können" data-es="Tus datos — para conectar el brief con tu llamada">Your details — so we can match the brief to your call</div>
+        <div class="bf-row2" style="margin-top:12px">
+          <div class="bf"><label data-en="First name" data-de="Vorname" data-es="Nombre">First name</label><input type="text" name="first_name" autocomplete="given-name" required /></div>
+          <div class="bf"><label data-en="Last name" data-de="Nachname" data-es="Apellido">Last name</label><input type="text" name="last_name" autocomplete="family-name" required /></div>
+        </div>
+        <div class="bf"><label data-en="Email" data-de="E-Mail" data-es="Email">Email</label><input type="email" name="email" autocomplete="email" required /></div>
         <div class="bf"><label data-en="Videos you like as reference? (links, optional)" data-de="Referenz-Videos, die Ihnen gefallen? (Links, optional)" data-es="¿Videos de referencia que te gusten? (links, opcional)">References (optional)</label><input name="references" placeholder="youtube.com/…, vimeo.com/…" /></div>
         <div class="bf"><label data-en="Anything else? (optional)" data-de="Sonst noch etwas? (optional)" data-es="¿Algo más? (opcional)">Anything else? (optional)</label><textarea name="extra"></textarea></div>
       </div>
@@ -304,8 +310,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     var qBlocks = form.querySelectorAll('.q[data-key]');
     var done = 0;
     qBlocks.forEach(function(q){ if (q.querySelector('.opt.sel')) done++; });
-    // +1 por email válido
-    var total = qBlocks.length + 1;
+    // +1 por nombre+apellido, +1 por email válido
+    var total = qBlocks.length + 2;
+    if (form.first_name.value.trim() && form.last_name.value.trim()) done++;
     if (form.email.value.trim() && /\S+@\S+\.\S+/.test(form.email.value)) done++;
     bar.style.width = Math.round(done / total * 100) + '%';
   }
@@ -326,6 +333,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     });
   });
   form.email.addEventListener('input', updateProgress);
+  form.first_name.addEventListener('input', updateProgress);
+  form.last_name.addEventListener('input', updateProgress);
   updateProgress();
 
   function collect(q){
@@ -357,9 +366,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       destination: collect(form.querySelector('.q[data-key="destination"]'))[0] || null,
       references: form.references.value.trim() || null
     };
+    var first = form.first_name.value.trim();
+    var last = form.last_name.value.trim();
     var row = {
       lead_id: leadId, lang: lang,
-      name: null, email: form.email.value.trim(),
+      name: (first + ' ' + last).trim() || null, first_name: first || null, last_name: last || null,
+      email: form.email.value.trim(),
       goal: goal, distribution: distribution || null,
       timeline: timeline || null, budget: budget || null,
       extra: form.extra.value.trim() || null,
@@ -373,9 +385,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       body: JSON.stringify(row)
     }).then(function(r){
       if (r.ok) { document.getElementById('brief-form-card').hidden = true; document.getElementById('brief-ok').hidden = false; window.scrollTo(0,0); return; }
-      // columna answers ausente (SQL 0027 sin correr) → plegar answers al extra y reintentar
+      // columna answers y/o first_name/last_name ausentes (SQL 0027/0047 sin correr) → plegar al extra y reintentar
       var flat = Object.keys(answers).map(function(k){ var v = answers[k]; if (Array.isArray(v)) v = v.join(', '); return v ? k + ': ' + v : ''; }).filter(Boolean).join(' · ');
-      delete row.answers;
+      delete row.answers; delete row.first_name; delete row.last_name;
       row.extra = ((row.extra || '') + (flat ? '\n[brief] ' + flat : '')).trim() || null;
       return fetch(SB_URL + '/rest/v1/briefs', {
         method: 'POST',

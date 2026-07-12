@@ -152,15 +152,17 @@ Deno.serve(async (req) => {
           const F = FROMS[step.from] || FROMS.team;
           const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
           const sender = (FROMS[step.from] ? (step.from === "team" ? "Sofia" : step.from === "sofia" ? "Sofia" : "Sebastian") : "Sofia");
+          const subjectFilled = fill(step.subject, lead);
+          const htmlFilled = wrap(fill(step.body, lead), unsub, String(lead.lang || "en"), sender); // wrap() escapea los campos del lead sustituidos — nunca guardar fill() crudo
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-            body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: fill(step.subject, lead), html: wrap(fill(step.body, lead), unsub, String(lead.lang || "en"), sender) }),
+            body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: subjectFilled, html: htmlFilled }),
           });
           if (res.ok) {
             out.emails++;
             await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
-            await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: fill(step.subject, lead), body: fill(step.body, lead), sender_label: sender, source: "automations-run" }).then(() => {}, () => {});
+            await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: subjectFilled, body: htmlFilled, sender_label: sender, source: "automations-run" }).then(() => {}, () => {});
           } else console.error("RESEND_FAIL", lead.email, res.status);
         } else if (step.type === "ai_email") {
           // borrador IA → BANDEJA DE SALIDA (nunca sale sin aprobación humana)
@@ -189,15 +191,17 @@ Deno.serve(async (req) => {
       const F = FROMS[ob.sender] || FROMS.team;
       const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
       const senderName = ob.sender === "sebastian" ? "Sebastian" : "Sofia";
+      const subjectFilled = fill(ob.subject, lead);
+      const htmlFilled = wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), senderName); // wrap() escapea los campos del lead sustituidos — nunca guardar fill() crudo
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: fill(ob.subject, lead), html: wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), senderName) }),
+        body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: subjectFilled, html: htmlFilled }),
       });
       if (res.ok) {
         await service.from("outbox").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.id);
         await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
-        await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: fill(ob.subject, lead), body: fill(ob.body, lead), sender_label: senderName, source: "automations-run" }).then(() => {}, () => {});
+        await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: subjectFilled, body: htmlFilled, sender_label: senderName, source: "automations-run" }).then(() => {}, () => {});
         out.outbox_sent = (out.outbox_sent || 0) + 1;
       } else await service.from("outbox").update({ status: "failed" }).eq("id", ob.id);
       await new Promise((ok) => setTimeout(ok, 120));

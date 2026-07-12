@@ -16,6 +16,7 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 async function googleToken(): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -146,9 +147,9 @@ Deno.serve(async (req) => {
           lang === "de" ? "de-CH" : lang === "es" ? "es-ES" : "en-GB",
           { timeZone: "Europe/Zurich", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
         const E = {
-          en: { sub: `Your call with Viven is booked — ${when}`, hi: `Hi ${name.split(/\s+/)[0]},`, p: `Your ${duration}-minute call is confirmed for <b>${when}</b> (Zurich time). The Google Calendar invite is on its way too.`, join: "→ Join with Google Meet", brief: "Fill in the 2-min brief", bp: "One more thing: the short project brief helps us come prepared." },
-          de: { sub: `Ihr Call mit Viven ist gebucht — ${when}`, hi: `Hallo ${name.split(/\s+/)[0]},`, p: `Ihr ${duration}-Minuten-Call ist bestätigt: <b>${when}</b> (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.`, join: "→ Mit Google Meet beitreten", brief: "2-Min-Briefing ausfüllen", bp: "Noch etwas: Mit dem kurzen Projekt-Briefing kommen wir bestens vorbereitet." },
-          es: { sub: `Tu llamada con Viven está reservada — ${when}`, hi: `Hola ${name.split(/\s+/)[0]},`, p: `Tu llamada de ${duration} minutos está confirmada: <b>${when}</b> (hora de Zúrich). La invitación de Google Calendar también va en camino.`, join: "→ Entrar con Google Meet", brief: "Completar el brief de 2 min", bp: "Una cosa más: el brief corto nos ayuda a llegar preparados." },
+          en: { sub: `Your call with Viven is booked — ${when}`, hi: `Hi ${esc(name.split(/\s+/)[0])},`, p: `Your ${duration}-minute call is confirmed for <b>${when}</b> (Zurich time). The Google Calendar invite is on its way too.`, join: "→ Join with Google Meet", brief: "Fill in the 2-min brief", bp: "One more thing: the short project brief helps us come prepared." },
+          de: { sub: `Ihr Call mit Viven ist gebucht — ${when}`, hi: `Hallo ${esc(name.split(/\s+/)[0])},`, p: `Ihr ${duration}-Minuten-Call ist bestätigt: <b>${when}</b> (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.`, join: "→ Mit Google Meet beitreten", brief: "2-Min-Briefing ausfüllen", bp: "Noch etwas: Mit dem kurzen Projekt-Briefing kommen wir bestens vorbereitet." },
+          es: { sub: `Tu llamada con Viven está reservada — ${when}`, hi: `Hola ${esc(name.split(/\s+/)[0])},`, p: `Tu llamada de ${duration} minutos está confirmada: <b>${when}</b> (hora de Zúrich). La invitación de Google Calendar también va en camino.`, join: "→ Entrar con Google Meet", brief: "Completar el brief de 2 min", bp: "Una cosa más: el brief corto nos ayuda a llegar preparados." },
         }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
         const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230">
           <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:22px 28px">
