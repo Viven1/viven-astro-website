@@ -15,21 +15,158 @@ const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABA
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
-// media por categoría: hero image SIEMPRE (stills reales), video solo cuando encaja
+// Media por categoría: MUCHAS imágenes reales por categoría (no una sola) +
+// video solo cuando encaja. pickMedia() consulta blogs.hero_image para saber
+// qué se usó y CUÁNDO, y siempre prioriza la que lleva más tiempo sin salir
+// (o nunca salió) — así nunca se repite dos veces seguidas y, si el pool de
+// la categoría es chico, el repeat queda espaciado semanas por diseño en vez
+// de por suerte.
+const P = "/projects/";
 const MEDIA: Record<string, { imgs: string[]; video?: string }> = {
-  corporate: { imgs: ["/projects/siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg"], video: "861150876" },
-  employer:  { imgs: ["/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg"], video: "412290258" },
-  product:   { imgs: ["/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg"], video: "1068759296" },
-  social:    { imgs: ["/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg"], video: "828322230" },
-  howto:     { imgs: ["/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg"], video: "1026464530" },
-  event:     { imgs: ["/projects/fifa-living-football-social-media-campaign/02-Living_Football_Viven_Video_Agentur17.jpeg"], video: "757649241" },
-  brand:     { imgs: ["/projects/meteomatics-product-campaign-brand-video/03-Meteomatics_VIVEN_Video_Agentur_060.jpg"], video: "502153490" },
-  process:   { imgs: ["/projects/siemens-shaping-the-future-together-employer-branding-campaign/05-RORES_clean_VIVEN.00_12_48_09.Still040.jpg"] },
-  general:   { imgs: ["/projects/carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg"] },
+  corporate: { imgs: [
+    P + "stadtspital-zurich-mis-spital-mis-laebe/01-pital_Mis_L_be_VIVEN_Video_Agency_011.jpeg",
+    P + "stadtspital-zurich-mis-spital-mis-laebe/04-Spital_Mis_L_be_VIVEN_Video_Agency_018.jpg",
+    P + "stadtspital-zurich-mis-spital-mis-laebe/06-Spital_Mis_L_be_VIVEN_Video_Agency_017.jpg",
+    P + "stadtspital-zurich-women-in-medicine/01-men_in_Medicine_VIVEN_Video_Agency_015.jpg",
+    P + "stadtspital-zurich-women-in-medicine/03-men_in_Medicine_VIVEN_Video_Agency_016.jpg",
+    P + "kyan-health-making-mental-well-being-a-superpower-at-work/01-th__VIVEN_Video_Film_Production-005.jpeg",
+    P + "kyan-health-making-mental-well-being-a-superpower-at-work/04-th__VIVEN_Video_Film_Production-008.jpeg",
+    P + "kyan-health-making-mental-well-being-a-superpower-at-work/06-th__VIVEN_Video_Film_Production-006.jpeg",
+    P + "devenir-a-merkle-interactive-experience/01-Devenir_Merkle_VIVEN_Video_Agency_044.jpg",
+    P + "devenir-a-merkle-interactive-experience/04-Devenir_Merkle_VIVEN_Video_Agency_017.jpg",
+    P + "devenir-a-merkle-interactive-experience/06-Devenir_Merkle_VIVEN_Video_Agency_016.jpg",
+  ], video: "861150876" },
+  employer: { imgs: [
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/01-RORES_clean_VIVEN.00_18_49_20.Still052.jpg",
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/04-RORES_clean_VIVEN.00_10_04_04.Still034.jpg",
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/06-RORES_clean_VIVEN.00_18_16_23.Still051.jpg",
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/08-RORES_clean_VIVEN.00_00_29_06.Still017.jpg",
+    P + "kpmg-consultepreneur-employer-branding/01-UNIVERSUM_KPMG_2.jpeg",
+    P + "kpmg-consultepreneur-employer-branding/03-UNIVERSUM_KPMG_15.jpg",
+    P + "kpmg-consultepreneur-employer-branding/05-UNIVERSUM_KPMG_3.jpeg",
+    P + "kpmg-consultepreneur-employer-branding/07-UNIVERSUM_KPMG_7.jpeg",
+    P + "ubs-coffee-stain-employer-branding-campaign/01-randing_Campaign_Viven_Video_Agency_7.jpeg",
+    P + "ubs-coffee-stain-employer-branding-campaign/03-randing_Campaign_Viven_Video_Agency_5.jpeg",
+    P + "ubs-coffee-stain-employer-branding-campaign/05-randing_Campaign_Viven_Video_Agency_8.jpeg",
+    P + "ubs-coffee-stain-employer-branding-campaign/07-randing_Campaign_Viven_Video_Agency_9.jpeg",
+    P + "ubs-more-than-code-employer-branding/01-S_Tech_Employer_Branding_Campaign_2.jpeg",
+    P + "ubs-more-than-code-employer-branding/04-S_Tech_Employer_Branding_Campaign_7.jpeg",
+    P + "ubs-more-than-code-employer-branding/06-S_Tech_Employer_Branding_Campaign_3.jpeg",
+    P + "employer-branding-campaign-for-lem/01-LEM_Employer_Branding_Video_Agentur_7.jpg",
+    P + "employer-branding-campaign-for-lem/03-LEM_Employer_Branding_Video_Agentur_11.jpg",
+    P + "employer-branding-campaign-for-lem/05-LEM_Employer_Branding_Video_Agentur_1.jpg",
+    P + "employer-branding-campaign-for-lem/07-LEM_Employer_Branding_Video_Agentur_5.jpg",
+  ], video: "412290258" },
+  product: { imgs: [
+    P + "meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg",
+    P + "meteomatics-product-campaign-brand-video/04-Meteomatics_VIVEN_Video_Agentur_030.jpg",
+    P + "meteomatics-product-campaign-brand-video/06-Meteomatics_VIVEN_Video_Agentur_063.jpg",
+    P + "meteomatics-product-campaign-brand-video/08-Meteomatics_VIVEN_Video_Agentur_002.jpg",
+    P + "anybotics-anymal-c-product-launch/01-on2019-08-22-12h10m12s489-1-1024x512.jpg",
+    P + "anybotics-anymal-c-product-launch/03-tion2019-08-22-12h09m05s955-1024x512.jpg",
+    P + "anybotics-anymal-c-product-launch/05-C_VIVEN_AG_Video_Production_1024x512.jpg",
+    P + "franke-the-office-hero-horeca-product-launch/01-ro__VIVEN_Video_Film_Production-007.jpeg",
+    P + "franke-the-office-hero-horeca-product-launch/04-ro__VIVEN_Video_Film_Production-004.jpeg",
+    P + "franke-the-office-hero-horeca-product-launch/07-ca__VIVEN_Video_Film_Production-004.jpeg",
+    P + "franke-the-office-hero-horeca-product-launch/10-ca__VIVEN_Video_Film_Production-005.jpeg",
+    P + "v-zug-combair-600-how-to-video-campaign/01-UG_How_To_Videos_Viven_Video_Agency_38.jpg",
+    P + "v-zug-combair-600-how-to-video-campaign/04-UG_How_To_Videos_Viven_Video_Agency_23.jpg",
+    P + "v-zug-combair-600-how-to-video-campaign/07-ZUG_How_To_Videos_Viven_Video_Agency_8.jpg",
+  ], video: "1068759296" },
+  social: { imgs: [
+    P + "fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg",
+    P + "fifa-living-football-social-media-campaign/03-Living_Football_Viven_Video_Agentur10.jpeg",
+    P + "fifa-living-football-social-media-campaign/05-Living_Football_Viven_Video_Agentur11.jpeg",
+    P + "fifa-living-football-social-media-campaign/07-Living_Football_Viven_Video_Agentur15.jpeg",
+    P + "carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg",
+    P + "carvolution-tvc-social-media-campaign/03-2sec_EN_B_v20210824_COMPOSED.Still009.jpeg",
+    P + "carvolution-tvc-social-media-campaign/05-sec_EN_B_v20210824_COMPOSED.Still0012.jpeg",
+    P + "carvolution-tvc-social-media-campaign/07-2sec_EN_B_v20210824_COMPOSED.Still005.jpeg",
+    P + "nile-spring-winter-campaign/01-Nile_Winter_Campaign_1.jpeg",
+    P + "nile-spring-winter-campaign/03-Nile_Winter_Campaign_3.jpeg",
+    P + "nile-spring-winter-campaign/05-Nile_Spring_Campaign10.jpeg",
+    P + "nile-spring-winter-campaign/07-Nile_Spring_Campaign2.jpeg",
+    P + "porsche-on-the-road-to-electromobility/01-tric_Transfer_Social_Media_Campaign_6.jpeg",
+    P + "porsche-on-the-road-to-electromobility/04-ric_Transfer_Social_Media_Campaign_14.jpeg",
+    P + "porsche-on-the-road-to-electromobility/07-ric_Transfer_Social_Media_Campaign_15.jpeg",
+  ], video: "828322230" },
+  howto: { imgs: [
+    P + "kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg",
+    P + "kanebo-sensai-skincare-how-to-video-campaign/03-re_How_To_Videos_Viven_Video_Agency_54.jpg",
+    P + "kanebo-sensai-skincare-how-to-video-campaign/05-re_How_To_Videos_Viven_Video_Agency_53.jpg",
+    P + "kanebo-sensai-skincare-how-to-video-campaign/07-re_How_To_Videos_Viven_Video_Agency_23.jpg",
+    P + "v-zug-combair-600-how-to-video-campaign/02-UG_How_To_Videos_Viven_Video_Agency_20.jpg",
+    P + "v-zug-combair-600-how-to-video-campaign/05-UG_How_To_Videos_Viven_Video_Agency_18.jpg",
+    P + "v-zug-combair-600-how-to-video-campaign/08-ZUG_How_To_Videos_Viven_Video_Agency_6.jpg",
+  ], video: "1026464530" },
+  event: { imgs: [
+    P + "fifa-living-football-social-media-campaign/02-Living_Football_Viven_Video_Agentur17.jpeg",
+    P + "fifa-living-football-social-media-campaign/04-Living_Football_Viven_Video_Agentur9.jpeg",
+    P + "fifa-living-football-social-media-campaign/06-Living_Football_Viven_Video_Agentur3.jpeg",
+    P + "fifa-living-football-social-media-campaign/08-Living_Football_Viven_Video_Agentur14.jpeg",
+    P + "nile-spring-winter-campaign/02-Nile_Winter_Campaign_4.jpeg",
+    P + "nile-spring-winter-campaign/04-Nile_Winter_Campaign_6.jpeg",
+    P + "nile-spring-winter-campaign/06-Nile_Spring_Campaign13.jpeg",
+    P + "nile-spring-winter-campaign/08-Nile_Winter_Campaign_5.jpeg",
+    P + "devenir-a-merkle-interactive-experience/02-Devenir_Merkle_VIVEN_Video_Agency_030.jpg",
+    P + "devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg",
+    P + "devenir-a-merkle-interactive-experience/07-Devenir_Merkle_VIVEN_Video_Agency_003.jpg",
+  ], video: "757649241" },
+  brand: { imgs: [
+    P + "sv-group-innovation-film-brand-video/01-Inovation_film_VIVEN_Video_Agentur_018.jpg",
+    P + "sv-group-innovation-film-brand-video/03-Inovation_film_VIVEN_Video_Agentur_002.jpg",
+    P + "sv-group-innovation-film-brand-video/05-Inovation_film_VIVEN_Video_Agentur_017.jpg",
+    P + "sv-group-innovation-film-brand-video/07-Inovation_film_VIVEN_Video_Agentur_008.jpg",
+    P + "nccr-robotics-brand-video/01-Brand_Video_Viven_Video_Production_19.jpg",
+    P + "nccr-robotics-brand-video/03-Brand_Video_Viven_Video_Production_24.jpg",
+    P + "nccr-robotics-brand-video/05-s_Brand_Video_Viven_Video_Production_7.jpg",
+    P + "nccr-robotics-brand-video/07-Brand_Video_Viven_Video_Production_13.jpg",
+    P + "pmi-why-science-matters-brand-video/02-VIVEN_Film_Production_Why_Science_010.jpeg",
+    P + "pmi-why-science-matters-brand-video/04-VIVEN_Film_Production_Why_Science_004.jpeg",
+    P + "pmi-why-science-matters-brand-video/06-VIVEN_Film_Production_Why_Science_027.jpeg",
+    P + "pmi-why-science-matters-brand-video/08-VIVEN_Film_Production_Why_Science_033.jpeg",
+    P + "sevensense-brand-video/01-Sevensense_Brand_Video_13.jpg",
+    P + "sevensense-brand-video/03-Sevensense_Brand_Video_14.jpg",
+    P + "sevensense-brand-video/05-Sevensense_Brand_Video_18.jpg",
+    P + "sevensense-brand-video/07-Sevensense_Brand_Video_3.jpg",
+    P + "villa-malaga-el-tiempo-de-un-vino-documentary-film/01-Villa_Malaga_Doc_1.jpg",
+    P + "villa-malaga-el-tiempo-de-un-vino-documentary-film/03-Villa_Malaga_Doc_4.jpg",
+    P + "villa-malaga-el-tiempo-de-un-vino-documentary-film/05-Villa_Malaga_Doc_3.jpg",
+  ], video: "502153490" },
+  process: { imgs: [
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg",
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg",
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/05-RORES_clean_VIVEN.00_12_48_09.Still040.jpg",
+    P + "siemens-shaping-the-future-together-employer-branding-campaign/07-RORES_clean_VIVEN.00_20_12_10.Still059.jpg",
+    P + "himmelfahrtskommando-feature-film/01-Feature_Film_Himmelfahrtskommando3.jpeg",
+    P + "himmelfahrtskommando-feature-film/03-Feature_Film_Himmelfahrtskommando2.jpeg",
+    P + "himmelfahrtskommando-feature-film/05-Feature_Film_Himmelfahrtskommando1.jpeg",
+    P + "singularity-sci-fi-feature-film/01-Singularity_Feature_Film_7.jpeg",
+    P + "singularity-sci-fi-feature-film/03-Singularity_Feature_Film_6.jpeg",
+    P + "singularity-sci-fi-feature-film/05-Singularity_Feature_Film_4.jpeg",
+    P + "porsche-on-the-road-to-electromobility/02-tric_Transfer_Social_Media_Campaign_7.jpeg",
+    P + "porsche-on-the-road-to-electromobility/05-ric_Transfer_Social_Media_Campaign_11.jpeg",
+    P + "porsche-on-the-road-to-electromobility/08-ric_Transfer_Social_Media_Campaign_16.jpeg",
+  ] },
+  general: { imgs: [
+    P + "carvolution-tvc-social-media-campaign/02-2sec_EN_B_v20210824_COMPOSED.Still006.jpeg",
+    P + "carvolution-tvc-social-media-campaign/04-2sec_EN_B_v20210824_COMPOSED.Still008.jpeg",
+    P + "carvolution-tvc-social-media-campaign/06-sec_EN_B_v20210824_COMPOSED.Still0011.jpeg",
+    P + "carvolution-tvc-social-media-campaign/08-2sec_EN_B_v20210824_COMPOSED.Still002.jpeg",
+    P + "devenir-a-merkle-interactive-experience/03-Devenir_Merkle_VIVEN_Video_Agency_024.jpg",
+    P + "devenir-a-merkle-interactive-experience/08-Devenir_Merkle_VIVEN_Video_Agency_008.jpg",
+    P + "kyan-health-making-mental-well-being-a-superpower-at-work/02-th__VIVEN_Video_Film_Production-009.jpeg",
+    P + "kyan-health-making-mental-well-being-a-superpower-at-work/05-th__VIVEN_Video_Film_Production-001.jpeg",
+    P + "kyan-health-making-mental-well-being-a-superpower-at-work/07-th__VIVEN_Video_Film_Production-003.jpeg",
+    P + "villa-malaga-el-tiempo-de-un-vino-documentary-film/02-Villa_Malaga_Doc_2.jpg",
+    P + "villa-malaga-el-tiempo-de-un-vino-documentary-film/04-Villa_Malaga_Doc_7.jpg",
+    P + "villa-malaga-el-tiempo-de-un-vino-documentary-film/06-Villa_Malaga_Doc_5.jpg",
+  ] },
 };
-function pickMedia(topic: string): { hero: string; video: string | null } {
+
+function classify(topic: string): string {
   const t = topic.toLowerCase();
-  const cat = /corporate|internal comm/.test(t) ? "corporate"
+  return /corporate|internal comm/.test(t) ? "corporate"
     : /employer|recruit|talent|gen z/.test(t) ? "employer"
     : /product/.test(t) ? "product"
     : /social/.test(t) ? "social"
@@ -37,8 +174,25 @@ function pickMedia(topic: string): { hero: string; video: string | null } {
     : /event|stream|trade show/.test(t) ? "event"
     : /cost|price|roi|choose|brief|timeline|process|shoot day|batch/.test(t) ? "process"
     : /brand|marketing|video seo|multilingual|trend/.test(t) ? "brand" : "general";
+}
+// Elige la imagen del pool de la categoría que lleva MÁS tiempo sin usarse
+// (o nunca usada), consultando el historial real de blogs.hero_image — así
+// nunca se repite la misma seguida y, si hay que repetir, es porque ya
+// pasaron semanas (todo el resto del pool también se usó hace poco).
+async function pickMedia(topic: string): Promise<{ hero: string; video: string | null }> {
+  const cat = classify(topic);
   const m = MEDIA[cat] || MEDIA.general;
-  return { hero: m.imgs[0], video: m.video || null };
+  const { data: recent } = await service.from("blogs").select("hero_image, created_at").not("hero_image", "is", null).order("created_at", { ascending: false }).limit(200);
+  const lastUsed: Record<string, number> = {};
+  (recent ?? []).forEach((r: { hero_image: string; created_at: string }) => {
+    const t = new Date(r.created_at).getTime();
+    if (!(r.hero_image in lastUsed) || t > lastUsed[r.hero_image]) lastUsed[r.hero_image] = t;
+  });
+  const scored = m.imgs.map((img) => ({ img, last: lastUsed[img] ?? 0 })).sort((a, b) => a.last - b.last);
+  // entre las 3 menos usadas recientemente, elegimos al azar (variedad sin perder el criterio de antigüedad)
+  const pool = scored.slice(0, Math.min(3, scored.length));
+  const hero = pool[Math.floor(Math.random() * pool.length)].img;
+  return { hero, video: m.video || null };
 }
 
 const INTERNAL = ["services/brand-video", "services/product-video", "services/employer-branding", "services/how-to-video", "services/social-media-video", "services/corporate-video", "projects", "contact", "faq", "blog", "resources"];
@@ -129,7 +283,7 @@ Deno.serve(async (req) => {
 
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
     const groupId = crypto.randomUUID();
-    const media = pickMedia(item.topic);
+    const media = await pickMedia(item.topic);
     const made: { lang: string; id: number; title: string; lead: string; token: string | null; body: string; faq: { q: string; a: string }[] }[] = [];
     try {
       for (const [lg, loc] of [["en", false], ["de", true], ["es", true]] as [string, boolean][]) {
