@@ -108,6 +108,7 @@ if(document.documentElement.hasAttribute('data-fixed-lang')){
 /* ---------- Vimeo: hero background (deferred for LCP) ---------- */
 var heroBg = document.querySelector('.hero-bg');
 var heroId = heroBg && (heroBg.dataset.vimeo || '').trim();
+var heroMp4 = heroBg && (heroBg.dataset.mp4 || '').trim();   /* self-hosted: autoplay instantáneo, iOS incluido */
 /* ¿vale la pena autoplay del video pesado? En desktop siempre; en mobile SOLO
    con buena conexión y sin ahorro de datos (si no, se queda el póster ligero). */
 function heroVideoAllowed(){
@@ -122,8 +123,20 @@ function heroVideoAllowed(){
   return true;
 }
 function loadHeroVideo(){
-  if(!heroId || heroBg.querySelector('.hero-video')) return;
+  if((!heroId && !heroMp4) || heroBg.querySelector('.hero-video')) return;
   if(!heroVideoAllowed()) return;
+  if(heroMp4){
+    /* MP4 propio: <video> nativo — arranca al toque, sin player de Vimeo */
+    var v = document.createElement('video');
+    v.className = 'hero-video';
+    v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+    v.preload = 'auto';
+    v.src = heroMp4;
+    heroBg.insertBefore(v, heroBg.querySelector('.grain'));
+    var pr = v.play(); if(pr && pr.catch) pr.catch(function(){});
+    return;
+  }
   var f = document.createElement('iframe');
   f.className = 'hero-video';
   f.src = 'https://player.vimeo.com/video/' + heroId + '?background=1&autoplay=1&loop=1&muted=1&playsinline=1&dnt=1';
