@@ -1368,6 +1368,15 @@
     <p class="muted-note" id="bg-note" style="margin:0 0 16px">Escribí un tema y dale Generar. La IA arma título, meta description, cuerpo con links internos y FAQ (schema).</p>
 
     <div class="pp-sec-h" id="bg-list-h" hidden>Tus artículos <span class="count">(generados — se guardan acá)</span></div>
+    <details class="panel lm-fold" id="cq-panel" style="margin-bottom:16px">
+      <summary class="lm-block-h" style="font-size:15px">⚙️ Motor de contenido — cola de temas <span class="count" id="cq-n"></span></summary>
+      <p class="muted-note" style="margin:8px 0 10px">Lunes, miércoles y viernes a las 7:30 el motor toma el PRÓXIMO tema, escribe EN + DE como borradores y te los manda por email con botón «🚀 Publicar» (también quedan acá abajo). Nada sale sin tu aprobación.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <input id="cq-new" placeholder="Agregar tema (se escribe en EN + DE)…" style="flex:1;min-width:240px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:9px 12px" />
+        <button class="btn btn-ghost small" id="cq-add" type="button">➕ A la cola</button>
+      </div>
+      <div id="cq-list"><p class="muted-note">Cargando…</p></div>
+    </details>
     <div id="bg-list" class="of-list" style="margin-bottom:20px"></div>
 
     <div id="bg-result" hidden>
@@ -1907,6 +1916,8 @@
   function dismissBellItem(k){
     bellDismissed.add(k);
     localStorage.setItem('bellDismissed', JSON.stringify([...bellDismissed].slice(-300)));
+    // y a la BASE: descartada acá = descartada en todos tus dispositivos, para siempre
+    supabase.from('bell_dismissed').upsert({ user_email: meEmail || '', key: k }).then(() => {}, () => {});
     bellItems = bellItems.filter((i) => (i.kind + ':' + i.id) !== k);
     renderBell();
   }
@@ -1920,11 +1931,13 @@
       refreshPushBtn();
     }
     try {
-      const [tq, nq, bq] = await Promise.all([
+      const [tq, nq, bq, dq] = await Promise.all([
         supabase.from('lead_tasks').select('*').eq('done', false).order('due_date', { ascending: true }).limit(60),
         supabase.from('lead_notes').select('*').not('mention', 'is', null).order('created_at', { ascending: false }).limit(30),
-        supabase.from('briefs').select('id,lead_id,email,goal,created_at').order('created_at', { ascending: false }).limit(10)
+        supabase.from('briefs').select('id,lead_id,email,goal,created_at').order('created_at', { ascending: false }).limit(10),
+        supabase.from('bell_dismissed').select('key').limit(1000)
       ]);
+      if (dq && !dq.error) (dq.data || []).forEach((d) => bellDismissed.add(d.key));
       const tasks = (tq && !tq.error && tq.data) || [];
       const notes = (nq && !nq.error && nq.data) || [];
       const briefs = (bq && !bq.error && bq.data) || [];
@@ -5000,7 +5013,33 @@
   /* ================= BLOG SEO con IA ================= */
   let bgBuilt = false, bgCur = null, blogsList = [];
   const LANGNAME = { en: 'EN', de: 'DE', es: 'ES' };
-  function blogInit(){ if (!bgBuilt){ bgBuilt = true;
+  async function cqLoad(){
+    const box = $('cq-list'); if (!box) return;
+    const { data, error } = await supabase.from('content_queue').select('*').eq('status', 'pending').order('priority', { ascending: false }).order('id');
+    if (error){ box.innerHTML = '<p class="muted-note">⚠️ Corré el SQL <b>0032</b> para activar el motor.</p>'; $('cq-n').textContent = ''; return; }
+    const rows = data || [];
+    $('cq-n').textContent = '(' + rows.length + ' pendientes)';
+    box.innerHTML = rows.length ? rows.map((r, i) =>
+      '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line)">' +
+      '<span class="muted-note" style="flex:none;width:22px;text-align:right">' + (i + 1) + '.</span>' +
+      '<span style="flex:1;font-size:13.5px">' + esc(r.topic) + '</span>' +
+      '<button class="sv-del" data-id="' + r.id + '" type="button" title="Sacar de la cola">✕</button></div>').join('')
+      : '<p class="muted-note">Cola vacía — agregá temas arriba.</p>';
+    box.querySelectorAll('.sv-del').forEach((b) => b.addEventListener('click', async () => {
+      await supabase.from('content_queue').delete().eq('id', b.dataset.id); cqLoad();
+    }));
+  }
+  let cqBound = false;
+  function blogInit(){
+    if (!cqBound){ cqBound = true;
+      $('cq-add') && $('cq-add').addEventListener('click', async () => {
+        const t = $('cq-new').value.trim(); if (!t) return;
+        const { error } = await supabase.from('content_queue').insert({ topic: t, priority: 5 });
+        if (error){ toast('¿Corriste el SQL 0032? ' + error.message); return; }
+        $('cq-new').value = ''; toast('Tema en cola ✓'); cqLoad();
+      });
+    }
+    cqLoad(); if (!bgBuilt){ bgBuilt = true;
     $('bg-gen').addEventListener('click', () => generateBlog());
     $('bg-copy').addEventListener('click', copyBlogAstro);
     $('bg-publish').addEventListener('click', publishBlog);

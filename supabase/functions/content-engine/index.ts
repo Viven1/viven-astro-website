@@ -15,6 +15,32 @@ const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABA
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
+// media por categoría: hero image SIEMPRE (stills reales), video solo cuando encaja
+const MEDIA: Record<string, { imgs: string[]; video?: string }> = {
+  corporate: { imgs: ["/projects/siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg"], video: "861150876" },
+  employer:  { imgs: ["/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg"], video: "412290258" },
+  product:   { imgs: ["/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg"], video: "1068759296" },
+  social:    { imgs: ["/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg"], video: "828322230" },
+  howto:     { imgs: ["/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg"], video: "1026464530" },
+  event:     { imgs: ["/projects/fifa-living-football-social-media-campaign/02-Living_Football_Viven_Video_Agentur17.jpeg"], video: "757649241" },
+  brand:     { imgs: ["/projects/meteomatics-product-campaign-brand-video/03-Meteomatics_VIVEN_Video_Agentur_060.jpg"], video: "502153490" },
+  process:   { imgs: ["/projects/siemens-shaping-the-future-together-employer-branding-campaign/05-RORES_clean_VIVEN.00_12_48_09.Still040.jpg"] },
+  general:   { imgs: ["/projects/carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg"] },
+};
+function pickMedia(topic: string): { hero: string; video: string | null } {
+  const t = topic.toLowerCase();
+  const cat = /corporate|internal comm/.test(t) ? "corporate"
+    : /employer|recruit|talent|gen z/.test(t) ? "employer"
+    : /product/.test(t) ? "product"
+    : /social/.test(t) ? "social"
+    : /how-to|explainer|support|onboarding|e-learning/.test(t) ? "howto"
+    : /event|stream|trade show/.test(t) ? "event"
+    : /cost|price|roi|choose|brief|timeline|process|shoot day|batch/.test(t) ? "process"
+    : /brand|marketing|video seo|multilingual|trend/.test(t) ? "brand" : "general";
+  const m = MEDIA[cat] || MEDIA.general;
+  return { hero: m.imgs[0], video: m.video || null };
+}
+
 const INTERNAL = ["services/brand-video", "services/product-video", "services/employer-branding", "services/how-to-video", "services/social-media-video", "services/corporate-video", "projects", "contact", "faq", "blog", "resources"];
 
 async function pushAll(title: string, body: string, url: string) {
@@ -87,21 +113,48 @@ Deno.serve(async (_req) => {
 
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
     const groupId = crypto.randomUUID();
-    const made: string[] = [];
+    const media = pickMedia(item.topic);
+    const made: { lang: string; id: number; title: string; lead: string; token: string }[] = [];
     try {
-      const en = await writeArticle(item.topic, "en", false);
-      await service.from("blogs").insert({ lang: "en", topic: item.topic, slug: en.slug, title: en.title, description: en.description, eyebrow: en.eyebrow || "Industry insight", lead: en.lead, body_html: en.body_html, faq: en.faq, status: "draft", group_id: groupId });
-      made.push("EN");
-      const de = await writeArticle(item.topic, "de", true);
-      await service.from("blogs").insert({ lang: "de", topic: item.topic, slug: de.slug, title: de.title, description: de.description, eyebrow: de.eyebrow || "Industry insight", lead: de.lead, body_html: de.body_html, faq: de.faq, status: "draft", group_id: groupId });
-      made.push("DE");
+      for (const [lg, loc] of [["en", false], ["de", true]] as [string, boolean][]) {
+        const a = await writeArticle(item.topic, lg, loc);
+        const token = crypto.randomUUID();
+        const { data: row } = await service.from("blogs").insert({
+          lang: lg, topic: item.topic, slug: a.slug, title: a.title, description: a.description,
+          eyebrow: a.eyebrow || "Industry insight", lead: a.lead, body_html: a.body_html, faq: a.faq,
+          status: "draft", group_id: groupId, hero_image: media.hero, video_id: media.video, approve_token: token,
+        }).select("id").single();
+        made.push({ lang: lg.toUpperCase(), id: row?.id, title: a.title, lead: a.lead || "", token });
+      }
     } catch (e) {
-      // si falla a mitad, el tema vuelve a la cola para el próximo run
       if (!made.length) { await service.from("content_queue").update({ status: "pending" }).eq("id", item.id); throw e; }
     }
     await service.from("content_queue").update({ status: "done", done_at: new Date().toISOString() }).eq("id", item.id);
-    await pushAll("📝 Borradores listos: " + item.topic, made.join(" + ") + " esperan tu aprobación en el tab Blog.", "/dashboard/");
-    return json({ ok: true, topic: item.topic, made });
+    await pushAll("📝 Borradores listos: " + item.topic, made.map((m) => m.lang).join(" + ") + " esperan tu aprobación (email o tab Blog).", "/dashboard/");
+
+    // email a Sebastián con preview + botones Publicar / Editar
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (RESEND_API_KEY && made.length) {
+      const FN = Deno.env.get("SUPABASE_URL") + "/functions/v1/blog-approve";
+      const cards = made.map((m) => `
+        <div style="border:1px solid #e3e6ec;border-radius:14px;padding:18px 20px;margin:0 0 14px">
+          <div style="font-size:11px;letter-spacing:.08em;color:#8a94a8;font-weight:700">${m.lang}</div>
+          <div style="font-size:17px;font-weight:700;margin:4px 0 8px">${m.title}</div>
+          <div style="font-size:13.5px;color:#5b6472;line-height:1.6;margin-bottom:14px">${m.lead.slice(0, 220)}</div>
+          <a href="${FN}?id=${m.id}&t=${m.token}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:10px 18px;border-radius:100px;text-decoration:none;margin-right:8px">🚀 Publicar ${m.lang}</a>
+          <a href="https://www.viven.ch/dashboard/" style="display:inline-block;border:1px solid #d5d9e2;color:#1a2230;font-weight:600;padding:10px 18px;border-radius:100px;text-decoration:none">✏️ Editar</a>
+        </div>`).join("");
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Viven Content Engine <leads@viven.ch>", to: ["sebastian@viven.ch"],
+          subject: "📝 Para aprobar: " + item.topic,
+          html: `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto"><h2 style="font-size:18px">Nuevos borradores del motor de contenido</h2><p style="color:#5b6472;font-size:13.5px">Tema: <b>${item.topic}</b> · hero image ✓${media.video ? " · video ✓" : ""}. Un click en Publicar y sale a la web (deploy ~2 min); Editar abre el dashboard.</p>${cards}</div>`,
+        }),
+      }).catch(() => {});
+    }
+    return json({ ok: true, topic: item.topic, made: made.map((m) => m.lang) });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);
