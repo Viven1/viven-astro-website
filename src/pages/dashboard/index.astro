@@ -5377,18 +5377,23 @@
     if (bgCur && String(bgCur.id) === String(id)) $('bg-result').hidden = true;
   }
   // arma { path, content } del .astro listo para commitear
-  function buildBlogAstro(){
+  function buildBlogAstro(sibs){
     if (!bgCur) return null;
+    sibs = sibs || {};
     const lang = bgCur.lang || 'en';
     const slug = ($('bg-slug').value.trim() || bgCur.slug);
     const title = $('bg-title').value.trim(), desc = $('bg-desc').value.trim();
-    const url = 'https://www.viven.ch/blog/' + slug + '/';
+    const url = 'https://www.viven.ch/' + lang + '/blog/' + slug + '/';
+    // hreflang: el propio post + hermanos PUBLICADOS del grupo; el resto va al índice del blog (nunca a un 404)
+    const langUrls = { en: '/en/blog/', de: '/de/blog/', es: '/es/blog/' };
+    for (const [l, ss] of Object.entries(sibs)) langUrls[l] = '/' + l + '/blog/' + ss + '/';
+    langUrls[lang] = '/' + lang + '/blog/' + slug + '/';
     // links internos [[slug|anchor]] → {p("slug")}
     const body = (bgCur.body_html || '').replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_, s, a) => '<a href={p("' + s.trim() + '")}>' + a.trim() + '</a>');
     const faqSchema = (bgCur.faq || []).map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } }));
     const jsonld = JSON.stringify({ "@context": "https://schema.org", "@graph": [
-      { "@type": "BlogPosting", mainEntityOfPage: { "@type": "WebPage", "@id": url }, headline: title, description: desc, inLanguage: lang, author: { "@type": "Person", name: "Sofia Treviño" }, publisher: { "@id": "https://www.viven.ch/#organization" }, url },
-      { "@type": "BreadcrumbList", itemListElement: [ { "@type": "ListItem", position: 1, name: "Home", item: "https://www.viven.ch/" }, { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.viven.ch/blog/" }, { "@type": "ListItem", position: 3, name: title, item: url } ] },
+      { "@type": "BlogPosting", mainEntityOfPage: { "@type": "WebPage", "@id": url }, headline: title, description: desc, inLanguage: lang, author: { "@type": "Person", name: "Sofia Treviño" }, publisher: { "@id": "https://www.viven.ch/#organization" }, url, datePublished: new Date().toISOString(), ...($('bg-hero').value.trim() ? { image: 'https://www.viven.ch' + $('bg-hero').value.trim() } : {}) },
+      { "@type": "BreadcrumbList", itemListElement: [ { "@type": "ListItem", position: 1, name: "Home", item: "https://www.viven.ch/" }, { "@type": "ListItem", position: 2, name: "Blog", item: 'https://www.viven.ch/' + lang + '/blog/' }, { "@type": "ListItem", position: 3, name: title, item: url } ] },
       ...(faqSchema.length ? [{ "@type": "FAQPage", mainEntity: faqSchema }] : [])
     ] });
     const astro =
@@ -5400,7 +5405,7 @@ const p = (s) => localePath(lang, s);
 const title = {"${lang}":${JSON.stringify(title + ' | Viven')}};
 const description = {"${lang}":${JSON.stringify(desc)}};
 ---
-<Base lang={lang} slug="blog/${slug}" active="blog" singleLang={true} langUrls={{"en":"/en/blog/${slug}/","de":"/de/blog/${slug}/","es":"/es/blog/"}} title={title} description={description}>
+<Base lang={lang} slug="blog/${slug}" active="blog" singleLang={true} langUrls={${JSON.stringify(langUrls)}} title={title} description={description}>
   <script type="application/ld+json" slot="jsonld" set:html={${JSON.stringify(jsonld)}}></` + `script>
 <section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
   <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <a href={p("blog")}>Blog</a> <span>${title.replace(/</g, '')}</span></nav>
@@ -5422,7 +5427,12 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     navigator.clipboard.writeText(b.content).then(() => toast('Copiado. Pegalo en: ' + b.path));
   }
   async function publishBlog(){
-    const b = buildBlogAstro(); if (!b) return;
+    let sibs = {};
+    if (bgCur && bgCur.group_id){
+      const { data: sb } = await supabase.from('blogs').select('lang,slug').eq('group_id', bgCur.group_id).eq('status', 'published');
+      (sb || []).forEach((r) => { if (r.lang !== bgCur.lang) sibs[r.lang] = r.slug; });
+    }
+    const b = buildBlogAstro(sibs); if (!b) return;
     if (!/^[a-z0-9-]+$/.test(b.slug)) { toast('El slug solo puede tener letras, números y guiones'); return; }
     if (!confirm('¿Publicar "' + $('bg-title').value + '" en la web?\n\nSe commitea a GitHub y Netlify lo publica en ~1-2 min en viven.ch/blog/' + b.slug + '/')) return;
     const btn = $('bg-publish'), prev = btn.textContent; btn.disabled = true; btn.textContent = '🚀 Publicando…';

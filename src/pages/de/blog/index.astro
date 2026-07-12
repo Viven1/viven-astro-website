@@ -4,6 +4,21 @@ import Testimonials from '../../../components/Testimonials.astro';
 const lang = "de";
 const title = {"de":"Blog — Insights zur Videoproduktion | Viven"};
 const description = {"de":"Praxisnahe Guides zu Marken-, Produkt- und Employer-Branding-Video — von Viven, Videoproduktion aus Zürich."};
+
+// Posts publicados por el dashboard / motor de contenido: cualquier carpeta de post
+// que no esté en las cards fijas de abajo se auto-descubre acá y aparece PRIMERA.
+const KNOWN = new Set(['commercial-video-production-in-switzerland-elevate-your-brand', 'der-wettbewerbsvorteil-durch-professionelle-produktvideos', 'dokumentarfilmproduktion-in-der-schweiz-warum-dieser-ort-ideal-fuer-storytelling-ist', 'film-production-in-switzerland-a-hub-for-creative-excellence', 'filmfoerderungsmoeglichkeiten-in-der-schweiz-verstehen', 'filmproduktionsservices-in-der-schweiz-entdecken', 'how-big-brands-can-use-video-production-to-promote-customer-advocacy-programs-to-existing-customers', 'how-big-brands-can-use-video-production-to-promote-thought-leadership-to-prospects', 'how-kanebo-elevates-luxury-through-cinematic-production-in-switzerland', 'live-streaming-fuer-marken-so-erreichst-du-dein-publikum-in-echtzeit', 'mehr-qualifizierte-leads-mit-erklaervideos-so-waechst-dein-business-nachhaltig', 'mit-professioneller-videoproduktion-den-business-impact-maximieren', 'so-arbeitest-du-mit-deiner-videoagentur-zusammen-für-mehr-umsatz-und-staerkere-kundenbindung', 'so-steigern-erklaervideos-deine-conversion-rate-ein-strategischer-leitfaden', 'so-steigern-marken-ihre-e-commerce-konversionen-mit-produktvideos', 'stärke-die-unternehmenskommunikation-mit-corporate-videoproduktion', 'steigere-dein-markenwachstum-mit-einer-effektiven-video-marketing-strategie', 'testimonials-das-vertrauenswuerdigste-marketing-tool-im-jahr-2025', 'warum-brands-viven-als-videoagentur-waehlen-um-den-verkauf-zu-foerdern-und-vertrauen-aufzubauen', 'warum-kunden-testimonial-videos-für-marken-ein-echter-gamechanger-sind', 'warum-schweizer-filmproduktionsfirmen-so-gefragt-sind', 'warum-viven-die-bevorzugte-videoagentur-fuer-b2b-marken-ist', 'wie-b2b-marken-mit-video-qualifizierte-leads-generieren', 'wie-b2b-unternehmen-komplexe-produkte-mit-erklaervideos-einfach-erklaeren', 'wie-brands-mit-exklusivem-video-content-eine-treue-community-aufbauen', 'wie-brands-mit-video-fallstudien-neue-kundinnen-überzeugen', 'wie-brands-mit-videoproduktion-neue-kundinnen-gewinnen-und-den-umsatz-steigern', 'wie-die-mehrsprachige-videoproduktion-die-markenexpansion-unterstuetzt', 'wie-du-mit-strategischem-video-content-markenbekanntheit-aufbaust', 'wie-du-mit-user-generated-content-bestehende-kundinnen-aktiv-einbindest', 'wie-du-mit-video-upselling-potenziale-bei-bestandskundinnen-clever-nutzt', 'wie-erklaervideos-den-produktverkauf-steigern-und-die-kundenbindung-verbessern', 'wie-grosse-marken-mit-video-content-ihre-kundenevents-bewerben-und-mehr-engagement-erzielen', 'wie-grosse-marken-mit-videoproduktion-durch-storytelling-die-aufmerksamkeit-von-interessenten-gewinnen', 'wie-marken-durch-videos-vertrauen-und-glaubwuerdigkeit-aufbauen', 'wie-marken-komplexe-produkte-mit-erklaerungsvideos-vereinfachen', 'wie-marken-mit-videoproduktion-ihre-bestandskundinnen-langfristig-binden', 'wie-marken-mit-videoproduktion-saisonale-kampagnen-erfolgreich-bewerben', 'wie-produktvideos-den-verkaufsprozess-für-marken-verkuerzen', 'wie-unternehmen-mit-video-promotion-die-teilnahme-an-webinaren-steigern', 'wie-videokampagnen-die-teilnahme-an-veranstaltungen-und-das-engagement-steigern', 'wie-viven-b2c-marken-mit-scroll-stopping-videos-auf-social-media-zum-erfolg-verhilft', 'zuerich-das-herzstueck-der-schweizer-filmproduktionsszene', 'zusammenarbeit-mit-schweizer-filmschaffenden-das-solltest-du-wissen']);
+const rawPosts = import.meta.glob('./*/index.astro', { query: '?raw', import: 'default', eager: true });
+const autoPosts = Object.entries(rawPosts).map(([path, raw]) => {
+  const slug = path.split('/')[1];
+  if (KNOWN.has(slug)) return null;
+  const jstr = (re) => { const m = String(raw).match(re); if (!m) return ''; try { return JSON.parse(m[1]); } catch { return ''; } };
+  const title = String(jstr(/const title = \{"[a-z]{2}":("(?:[^"\\]|\\.)*")\}/) || slug).replace(/ \| Viven$/, '');
+  const desc = String(jstr(/const description = \{"[a-z]{2}":("(?:[^"\\]|\\.)*")\}/) || '');
+  const img = (String(raw).match(/<img src="([^"]+)"/) || [])[1] || '/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg';
+  const date = (String(raw).match(/datePublished[^0-9]{0,6}([0-9]{4}-[0-9]{2}-[0-9]{2}[0-9T:.+]*)/) || [])[1] || '';
+  return { slug, title, desc, img, date };
+}).filter(Boolean).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 ---
 <Base lang={lang} slug="blog" active="blog" singleLang={true} title={title} description={description}>
   <section class="page-hero">
@@ -16,6 +31,12 @@ const description = {"de":"Praxisnahe Guides zu Marken-, Produkt- und Employer-B
   <section class="sec" style="padding-top:0">
     <div class="wrap">
       <div class="blog-grid">
+      {autoPosts.map((post) => (
+        <a href={'/de/blog/' + post.slug + '/'} class="blog-card reveal">
+          <div class="blog-card-img"><img src={post.img} loading="lazy" decoding="async" width="480" height="270" alt={post.title} /></div>
+          <div class="blog-card-body"><h3>{post.title}</h3><p>{post.desc}</p><span class="more">Weiterlesen →</span></div>
+        </a>
+      ))}
       <a href="/de/blog/commercial-video-production-in-switzerland-elevate-your-brand/" class="blog-card reveal">
         <div class="blog-card-img"><img src="https://i.vimeocdn.com/video/1723770021-7c755912ff0012a9ffa73bb1fac2f72ac383687ff2485697846886fc785c988a-d_960?region=us" loading="lazy" decoding="async" width="480" height="270" alt="Kommerzielle Videoproduktion in der Schweiz: Deine Marke im Fokus" /></div>
         <div class="blog-card-body"><h3>Kommerzielle Videoproduktion in der Schweiz: Deine Marke im Fokus</h3><p>Kommerzielle Videoproduktion in der Schweiz: vielfältige Locations, mehrsprachige Crews und hochwertige Inhalte für internationale Marken.</p><span class="more">Weiterlesen →</span></div>

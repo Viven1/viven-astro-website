@@ -8,14 +8,14 @@
 // Secrets: GITHUB_TOKEN, GITHUB_REPO (los mismos de publish-blog)
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { encodeBase64 } from "jsr:@std/encoding/base64";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const GH_TOKEN = Deno.env.get("GITHUB_TOKEN")!;
 const REPO = Deno.env.get("GITHUB_REPO") || "Viven1/viven-astro-website";
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
-function buildAstro(b: Record<string, unknown>): { path: string; content: string; url: string } {
+function buildAstro(b: Record<string, unknown>, sibs: Record<string, string> = {}): { path: string; content: string; url: string } {
   const lang = String(b.lang || "en");
   const slug = String(b.slug || "");
   const title = String(b.title || "");
@@ -25,7 +25,7 @@ function buildAstro(b: Record<string, unknown>): { path: string; content: string
   const faq = Array.isArray(b.faq) ? b.faq as { q: string; a: string }[] : [];
   const faqSchema = faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } }));
   const jsonld = JSON.stringify({ "@context": "https://schema.org", "@graph": [
-    { "@type": "BlogPosting", mainEntityOfPage: { "@type": "WebPage", "@id": url }, headline: title, description: desc, inLanguage: lang, author: { "@type": "Person", name: "Sofia Treviño" }, publisher: { "@id": "https://www.viven.ch/#organization" }, url, ...(b.hero_image ? { image: "https://www.viven.ch" + b.hero_image } : {}) },
+    { "@type": "BlogPosting", mainEntityOfPage: { "@type": "WebPage", "@id": url }, headline: title, description: desc, inLanguage: lang, author: { "@type": "Person", name: "Sofia Treviño" }, publisher: { "@id": "https://www.viven.ch/#organization" }, url, datePublished: new Date().toISOString(), ...(b.hero_image ? { image: "https://www.viven.ch" + b.hero_image } : {}) },
     { "@type": "BreadcrumbList", itemListElement: [ { "@type": "ListItem", position: 1, name: "Home", item: "https://www.viven.ch/" }, { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.viven.ch/blog/" }, { "@type": "ListItem", position: 3, name: title, item: url } ] },
     ...(faqSchema.length ? [{ "@type": "FAQPage", mainEntity: faqSchema }] : []),
   ] });
@@ -41,7 +41,7 @@ const p = (s) => localePath(lang, s);
 const title = {"${lang}":${JSON.stringify(title + " | Viven")}};
 const description = {"${lang}":${JSON.stringify(desc)}};
 ---
-<Base lang={lang} slug="blog/${slug}" active="blog" singleLang={true} langUrls={{"${lang}":"/${lang}/blog/${slug}/"}} title={title} description={description}>
+<Base lang={lang} slug="blog/${slug}" active="blog" singleLang={true} langUrls={${JSON.stringify({ en: "/en/blog/", de: "/de/blog/", es: "/es/blog/", ...Object.fromEntries(Object.entries(sibs).map(([l, s2]) => [l, `/${l}/blog/${s2}/`])), [lang]: `/${lang}/blog/${slug}/` })}} title={title} description={description}>
   <script type="application/ld+json" slot="jsonld" set:html={${JSON.stringify(jsonld)}}></` + `script>
 <section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
   <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <a href={p("blog")}>Blog</a> <span>${esc(title)}</span></nav>
@@ -66,7 +66,12 @@ Deno.serve(async (req) => {
     if (!b.approve_token || b.approve_token !== t) return json({ error: "token inválido" }, 403);
     if (b.status === "published" && b.published_url) return Response.redirect(b.published_url, 302);
 
-    const { path, content, url } = buildAstro(b);
+    const sibs: Record<string, string> = {};
+    if (b.group_id) {
+      const { data: sb } = await service.from("blogs").select("lang,slug").eq("group_id", b.group_id).eq("status", "published");
+      (sb ?? []).forEach((r: { lang: string; slug: string }) => { if (r.lang !== b.lang) sibs[r.lang] = r.slug; });
+    }
+    const { path, content, url } = buildAstro(b, sibs);
     const api = `https://api.github.com/repos/${REPO}/contents/${path}`;
     const gh = { "Authorization": `Bearer ${GH_TOKEN}`, "Accept": "application/vnd.github+json", "User-Agent": "viven-dashboard", "Content-Type": "application/json", "X-GitHub-Api-Version": "2022-11-28" };
     let sha: string | undefined;
@@ -76,6 +81,21 @@ Deno.serve(async (req) => {
     if (!put.ok) return json({ error: "GitHub " + put.status + ": " + (await put.text()).slice(0, 200) }, 500);
 
     await service.from("blogs").update({ status: "published", published_at: new Date().toISOString(), published_url: url, approve_token: null }).eq("id", id);
+
+    // sitemap + IndexNow (best effort)
+    try {
+      const sApi = `https://api.github.com/repos/${REPO}/contents/public/sitemap.xml`;
+      const sg = await fetch(sApi + "?ref=main", { headers: gh });
+      if (sg.ok) {
+        const sj = await sg.json();
+        const xml = new TextDecoder().decode(decodeBase64(String(sj.content).replace(/\n/g, "")));
+        if (!xml.includes(url)) {
+          const entry = `  <url><loc>${url}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>\n</urlset>`;
+          await fetch(sApi, { method: "PUT", headers: gh, body: JSON.stringify({ message: "sitemap: + " + url, content: encodeBase64(xml.replace(/<\/urlset>\s*$/, entry)), branch: "main", sha: sj.sha }) });
+        }
+      }
+      await fetch("https://api.indexnow.org/indexnow", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ host: "www.viven.ch", key: "f5d336eabbd541e0ae3c7683bb4b149a", keyLocation: "https://www.viven.ch/f5d336eabbd541e0ae3c7683bb4b149a.txt", urlList: [url] }) });
+    } catch (e2) { console.error("POSTPUBLISH_WARN", String(e2)); }
     // página HTML mínima de confirmación (el deploy tarda ~2 min)
     return new Response(`<!doctype html><meta charset="utf-8"><title>Publicado ✓</title><body style="font-family:sans-serif;background:#0f1826;color:#f4f6fb;display:grid;place-items:center;min-height:100vh;text-align:center"><div><h1>🚀 Publicado</h1><p>${b.title}</p><p style="color:#9aa6bd">El deploy tarda ~2 minutos.</p><p><a href="${url}" style="color:#ddf98f">${url}</a></p></div>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
   } catch (e) {

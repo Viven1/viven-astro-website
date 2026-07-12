@@ -7,7 +7,7 @@
 //          GITHUB_REPO  (opcional, default "Viven1/viven-astro-website")
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { encodeBase64 } from "jsr:@std/encoding/base64";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 
 const GH_TOKEN = Deno.env.get("GITHUB_TOKEN")!;
 const REPO = Deno.env.get("GITHUB_REPO") || "Viven1/viven-astro-website";
@@ -67,7 +67,26 @@ Deno.serve(async (req) => {
       return json({ error: `GitHub ${putRes.status}: ${t.slice(0, 300)}` });
     }
     const j = await putRes.json();
-    return json({ ok: true, updated: !!sha, commit: j.commit?.html_url });
+
+    // post-publicación (best effort): sitemap.xml + IndexNow, para que Google/Bing se enteren solos
+    const mm = path.match(/^src\/pages\/(en|de|es)\/blog\/([a-z0-9-]+)\//);
+    const liveUrl = mm ? `https://www.viven.ch/${mm[1]}/blog/${mm[2]}/` : "";
+    if (liveUrl) {
+      try {
+        const sApi = `https://api.github.com/repos/${REPO}/contents/public/sitemap.xml`;
+        const sg = await fetch(sApi + "?ref=main", { headers: ghHeaders });
+        if (sg.ok) {
+          const sj = await sg.json();
+          const xml = new TextDecoder().decode(decodeBase64(String(sj.content).replace(/\n/g, "")));
+          if (!xml.includes(liveUrl)) {
+            const entry = `  <url><loc>${liveUrl}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>\n</urlset>`;
+            await fetch(sApi, { method: "PUT", headers: ghHeaders, body: JSON.stringify({ message: "sitemap: + " + liveUrl, content: encodeBase64(xml.replace(/<\/urlset>\s*$/, entry)), branch: "main", sha: sj.sha }) });
+          }
+        }
+        await fetch("https://api.indexnow.org/indexnow", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ host: "www.viven.ch", key: "f5d336eabbd541e0ae3c7683bb4b149a", keyLocation: "https://www.viven.ch/f5d336eabbd541e0ae3c7683bb4b149a.txt", urlList: [liveUrl] }) });
+      } catch (e2) { console.error("POSTPUBLISH_WARN", String(e2)); }
+    }
+    return json({ ok: true, updated: !!sha, commit: j.commit?.html_url, url: liveUrl });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) });

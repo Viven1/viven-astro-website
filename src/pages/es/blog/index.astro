@@ -4,11 +4,32 @@ import Testimonials from '../../../components/Testimonials.astro';
 const lang='es';
 const title={"es":"Blog — Producción de video en Zúrich | Viven"};
 const description={"es":"Guías sobre video de marca, producto y employer branding — por Viven, productora de video en Zúrich."};
+
+// Posts publicados por el dashboard / motor de contenido: cualquier carpeta de post
+// que no esté en las cards fijas de abajo se auto-descubre acá y aparece PRIMERA.
+const KNOWN = new Set(['como-el-video-convierte-la-atencion-en-resultados-de-negocio', 'employer-branding-en-video-como-atraer-al-talento-correcto', 'produccion-de-video-en-suiza-por-que-las-marcas-lideres-eligen-zurich', 'video-de-producto-como-convertir-caracteristicas-en-ventas']);
+const rawPosts = import.meta.glob('./*/index.astro', { query: '?raw', import: 'default', eager: true });
+const autoPosts = Object.entries(rawPosts).map(([path, raw]) => {
+  const slug = path.split('/')[1];
+  if (KNOWN.has(slug)) return null;
+  const jstr = (re) => { const m = String(raw).match(re); if (!m) return ''; try { return JSON.parse(m[1]); } catch { return ''; } };
+  const title = String(jstr(/const title = \{"[a-z]{2}":("(?:[^"\\]|\\.)*")\}/) || slug).replace(/ \| Viven$/, '');
+  const desc = String(jstr(/const description = \{"[a-z]{2}":("(?:[^"\\]|\\.)*")\}/) || '');
+  const img = (String(raw).match(/<img src="([^"]+)"/) || [])[1] || '/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg';
+  const date = (String(raw).match(/datePublished[^0-9]{0,6}([0-9]{4}-[0-9]{2}-[0-9]{2}[0-9T:.+]*)/) || [])[1] || '';
+  return { slug, title, desc, img, date };
+}).filter(Boolean).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 ---
 <Base lang={lang} slug="blog" active="blog" singleLang={true} title={title} description={description}>
   <section class="page-hero"><div class="wrap"><span class="eyebrow">Blog</span><h1>Video que funciona, <span class="hl">explicado.</span></h1><p class="lead">Guías prácticas sobre video de marca, producto y employer branding.</p></div></section>
   <section class="sec" style="padding-top:0"><div class="wrap">
       <div class="blog-grid">
+      {autoPosts.map((post) => (
+        <a href={'/es/blog/' + post.slug + '/'} class="blog-card reveal">
+          <div class="blog-card-img"><img src={post.img} loading="lazy" decoding="async" width="480" height="270" alt={post.title} /></div>
+          <div class="blog-card-body"><h3>{post.title}</h3><p>{post.desc}</p><span class="more">Leer más →</span></div>
+        </a>
+      ))}
       <a href="/es/blog/produccion-de-video-en-suiza-por-que-las-marcas-lideres-eligen-zurich/" class="blog-card reveal">
         <div class="blog-card-img"><img src="https://i.vimeocdn.com/video/1741194175-4d2607a327006020c4ce65f12068267334e6b60d07cad6b532b941d9c60de4bd-d_960?region=us" loading="lazy" decoding="async" width="480" height="270" alt="Producción de video en Suiza: por qué las marcas líderes eligen Zúrich" /></div>
         <div class="blog-card-body"><h3>Producción de video en Suiza: por qué las marcas líderes eligen Zúrich</h3><p>Zúrich concentra el talento y la infraestructura de la producción audiovisual suiza. Descubre por qué marcas como UBS, Siemens, Porsche y ON confían en productoras de Zúrich.</p><span class="more">Leer →</span></div>
