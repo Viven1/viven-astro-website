@@ -2097,13 +2097,35 @@
   const since = () => new Date(rangeStart()).toISOString();
   const until = () => new Date(rangeEnd()).toISOString();
 
+  // Supabase/PostgREST cappea cada response a un máximo de filas (Max Rows del
+  // proyecto) SIN avisar, aunque el cliente pida .limit(20000) — un .select()
+  // sin paginar sobre una tabla que ya superó ese tope devuelve un subconjunto
+  // arbitrario (no hay .order()) y todo lo que se cuenta desde ahí (sesiones,
+  // canales, páginas) queda subestimado en silencio. Paginar con .range() +
+  // .order() es la única forma de traer TODAS las filas del rango.
+  async function fetchAllRows(table, cols, sinceIso, untilIso, dateCol){
+    dateCol = dateCol || 'created_at';
+    const PAGE = 1000;
+    let all = [], from = 0;
+    for (;;) {
+      const { data, error } = await supabase.from(table).select(cols)
+        .gte(dateCol, sinceIso).lte(dateCol, untilIso)
+        .order(dateCol, { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) return { data: null, error };
+      all = all.concat(data || []);
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
+      if (from > 200000) break; // salvavidas: nunca debería llegar acá
+    }
+    return { data: all, error: null };
+  }
+
   async function loadAll(){
     const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ, bookQ] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
-      supabase.from('pageviews')
-        .select('created_at,path,device,session_id,channel,referrer,lang,is_entry,duration')
-        .gte('created_at', since()).lte('created_at', until()).limit(20000),
-      supabase.from('video_plays').select('*').gte('created_at', since()).lte('created_at', until()).limit(20000),
+      fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
+      fetchAllRows('video_plays', '*', since(), until()),
       supabase.from('offers').select('*').order('updated_at', { ascending: false }),
       supabase.from('companies').select('*'),
       // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
