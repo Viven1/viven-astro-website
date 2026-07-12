@@ -556,6 +556,25 @@ if(/^\/(thank-you|danke|gracias)\/?$/.test(location.pathname)){
   track('generate_lead', {method: 'lead_form', page: location.pathname});
 }
 
+/* ---------- First-party analytics → Supabase (tabla pageviews) ----------
+   Usa la API REST con fetch (0 KB de librerías). La key es la "publishable"
+   de Supabase: es pública por diseño y RLS solo permite INSERT. */
+var SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
+var SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+function sbInsert(table, row){
+  return fetch(SB_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(row),
+    keepalive: true
+  }).catch(function(){});
+}
+
 /* ---------- A/B testing (definido en el dashboard → tabla ab_tests) ----------
    La variante B se aplica client-side; el split vive en localStorage por test.
    Exposiciones → ab_hits (tabla propia: NO toca pageviews); el lead se taggea
@@ -615,24 +634,7 @@ function vvAbApply(changes){
   }catch(e){}
 })();
 
-/* ---------- First-party analytics → Supabase (tabla pageviews) ----------
-   Usa la API REST con fetch (0 KB de librerías). La key es la "publishable"
-   de Supabase: es pública por diseño y RLS solo permite INSERT. */
-var SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
-var SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
-function sbInsert(table, row){
-  return fetch(SB_URL + '/rest/v1/' + table, {
-    method: 'POST',
-    headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify(row),
-    keepalive: true
-  }).catch(function(){});
-}
+
 /* Insert de lead a prueba de fallos: si a la tabla le falta una columna nueva
    (p.ej. 'phone' antes de correr el SQL), la saca y reintenta — así NUNCA se
    pierde un lead por un desajuste de esquema. Devuelve {ok:true|false}. */
