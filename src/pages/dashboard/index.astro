@@ -1373,7 +1373,7 @@
     <div class="pp-sec-h" id="bg-list-h" hidden>Tus artículos <span class="count">(generados — se guardan acá)</span></div>
     <details class="panel lm-fold" id="cq-panel" style="margin-bottom:16px">
       <summary class="lm-block-h" style="font-size:15px">⚙️ Motor de contenido — cola de temas <span class="count" id="cq-n"></span></summary>
-      <p class="muted-note" style="margin:8px 0 10px">Lunes, miércoles y viernes a las 7:30 el motor toma el PRÓXIMO tema, escribe EN + DE como borradores y te los manda por email con botón «🚀 Publicar» (también quedan acá abajo). Nada sale sin tu aprobación.</p>
+      <p class="muted-note" style="margin:8px 0 10px">Lunes, miércoles y viernes a las 7:30 el motor toma el PRÓXIMO tema y escribe <b>EN + DE + ES</b> — cada idioma con sus keywords nativos reales, no traducciones. Te llegan por email con botón «🚀 Publicar». Con ⚡ lo escribís YA sin esperar al cron. Nada sale sin tu aprobación.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         <input id="cq-new" placeholder="Agregar tema (se escribe en EN + DE)…" style="flex:1;min-width:240px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:9px 12px" />
         <button class="btn btn-ghost small" id="cq-add" type="button">➕ A la cola</button>
@@ -5082,10 +5082,21 @@
       '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line)">' +
       '<span class="muted-note" style="flex:none;width:22px;text-align:right">' + (i + 1) + '.</span>' +
       '<span style="flex:1;font-size:13.5px">' + esc(r.topic) + '</span>' +
+      '<button class="btn btn-ghost small cq-now" data-id="' + r.id + '" type="button" title="Escribir este tema YA (EN+DE+ES) — te llega por email y push en ~2 min">⚡ Escribir ahora</button>' +
       '<button class="sv-del" data-id="' + r.id + '" type="button" title="Sacar de la cola">✕</button></div>').join('')
       : '<p class="muted-note">Cola vacía — agregá temas arriba.</p>';
     box.querySelectorAll('.sv-del').forEach((b) => b.addEventListener('click', async () => {
       await supabase.from('content_queue').delete().eq('id', b.dataset.id); cqLoad();
+    }));
+    box.querySelectorAll('.cq-now').forEach((b) => b.addEventListener('click', async () => {
+      b.disabled = true; b.textContent = '✍️ Escribiendo…';
+      toast('⚡ Escribiendo EN + DE + ES — te llegan por email y push en ~2 min. Podés seguir trabajando.');
+      try {
+        const { data, error } = await supabase.functions.invoke('content-engine', { body: { queue_id: +b.dataset.id } });
+        if (error || data?.error) throw new Error(data?.error || error?.message || 'sin respuesta');
+        toast('📝 Listo: ' + (data.made || []).join(' + ') + ' — revisá tu email o el listado de abajo.');
+        cqLoad(); if (typeof blogsLoad === 'function') blogsLoad();
+      } catch (e) { toast('No se pudo: ' + (e.message || e)); b.disabled = false; b.textContent = '⚡ Escribir ahora'; }
     }));
   }
   let cqBound = false;

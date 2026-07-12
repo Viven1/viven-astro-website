@@ -57,8 +57,9 @@ async function pushAll(title: string, body: string, url: string) {
 
 async function writeArticle(topic: string, lang: string, localize: boolean) {
   const language = lang === "de" ? "German" : lang === "es" ? "Spanish" : "English";
+  const market = lang === "de" ? "Swiss/DACH (German-speaking)" : lang === "es" ? "Spanish-speaking (Spain + Latin America, and Spanish speakers in Switzerland)" : "international";
   const localizeNote = localize
-    ? `\n\nIMPORTANT — this is the ${language} version of an existing article on the same subject. Do NOT translate. Write a fresh, native ${language} article: think about the keywords a ${language}-speaking audience in the DACH/Swiss market ACTUALLY searches for this topic, and use those terms naturally in the title, headings and body. Localize examples, phrasing and search intent to that market.`
+    ? `\n\nIMPORTANT — this is the ${language} version of an existing article on the same subject. Do NOT translate. Write a fresh, NATIVE ${language} article: research mentally what keywords a ${language}-speaking audience in the ${market} market ACTUALLY types into Google for this topic (their real search phrasing, not a translation of the English keyword), and use those exact terms naturally in the title, H2s, slug and body. Localize examples, currency framing and search intent. It must read as originally written for that market.`
     : "";
   const prompt = `You write SEO blog articles for VIVEN AG, a video production company in Zürich (clients: UBS, Siemens, Porsche, ON, FIFA, Philips). Goal: rank on Google + AI overviews and drive leads.
 
@@ -102,13 +103,23 @@ Respond ONLY with valid minified JSON, no markdown fences:
   return p;
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
   try {
-    // próximo tema pendiente (mayor prioridad primero, después FIFO)
-    const { data: items, error } = await service.from("content_queue")
-      .select("*").eq("status", "pending").order("priority", { ascending: false }).order("id").limit(1);
-    if (error) return json({ error: error.message }, 500);
-    const item = (items ?? [])[0];
+    // modo WRITE NOW: body {queue_id} escribe ESE tema ya (botón ⚡ del dashboard);
+    // sin body: el cron toma el próximo pendiente por prioridad
+    const body = await req.json().catch(() => ({}));
+    let item: Record<string, unknown> | undefined;
+    if (body.queue_id) {
+      const { data: one, error: e1 } = await service.from("content_queue").select("*").eq("id", body.queue_id).neq("status", "working").maybeSingle();
+      if (e1) return json({ error: e1.message }, 500);
+      item = one ?? undefined;
+      if (!item) return json({ error: "tema no encontrado (¿ya se está escribiendo?)" }, 404);
+    } else {
+      const { data: items, error } = await service.from("content_queue")
+        .select("*").eq("status", "pending").order("priority", { ascending: false }).order("id").limit(1);
+      if (error) return json({ error: error.message }, 500);
+      item = (items ?? [])[0];
+    }
     if (!item) return json({ ok: true, msg: "cola vacía — sembrá más temas en content_queue" });
 
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
@@ -116,7 +127,7 @@ Deno.serve(async (_req) => {
     const media = pickMedia(item.topic);
     const made: { lang: string; id: number; title: string; lead: string; token: string }[] = [];
     try {
-      for (const [lg, loc] of [["en", false], ["de", true]] as [string, boolean][]) {
+      for (const [lg, loc] of [["en", false], ["de", true], ["es", true]] as [string, boolean][]) {
         const a = await writeArticle(item.topic, lg, loc);
         const token = crypto.randomUUID();
         const { data: row } = await service.from("blogs").insert({
