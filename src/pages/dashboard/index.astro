@@ -1748,6 +1748,29 @@
     actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
     propsAll = (propsQ && !propsQ.error) ? (propsQ.data || []) : [];
     servicesLoad();   // catálogo de servicios (best-effort; sin tabla → RATECARD)
+    // SELF-HEAL de ganados: los syncs (deal→ofertas, oferta→deal) existen desde hoy,
+    // pero los datos viejos quedaron a medias — esta pasada los reconcilia y de ahí
+    // en más Propuestas, Home y Deals muestran SIEMPRE los mismos números.
+    (async () => {
+      try {
+        let dirty = false;
+        for (const d of (dealsList || []).filter((x) => !x.synthetic && stageOf(x.stage) === 'ganado')) {
+          for (const o of offersForDeal(d).filter((x) => x.status === 'draft' || x.status === 'sent')) {
+            await supabase.from('offers').update({ status: 'won' }).eq('id', o.id); o.status = 'won'; dirty = true;
+          }
+        }
+        for (const o of (offersList || []).filter((x) => x.status === 'won' && !x.archived && !x.is_template)) {
+          const d = o.deal_id ? (dealsList || []).find((x) => String(x.id) === String(o.deal_id)) : (o.lead_id ? openDealOf(o.lead_id) : null);
+          if (d && !d.synthetic && !['ganado', 'perdido'].includes(stageOf(d.stage))) {
+            const now = new Date().toISOString();
+            await supabase.from('deals').update({ stage: 'ganado', won_at: d.won_at || now, last_stage_at: now }).eq('id', d.id);
+            d.stage = 'ganado'; d.won_at = d.won_at || now; dirty = true;
+            mirrorLeadStatus(d.lead_id);
+          }
+        }
+        if (dirty) renderLeads();
+      } catch (e) { /* best-effort */ }
+    })();
     // reconciliar: propuesta aceptada pero lead sin ganar (aceptó con el dashboard cerrado) → sync
     if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => {
       if (p.status !== 'accepted' || !p.lead_id) return;
