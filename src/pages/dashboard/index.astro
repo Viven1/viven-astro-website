@@ -2429,8 +2429,31 @@
       if (lead) supabase.from('lead_notes').insert({ lead_id: String(lead.id), author: 'Pipeline', body: '❌ Deal perdido' + (d.title ? ' «' + d.title + '»' : '') + (lostReason ? ' — motivo: ' + lostReason : '') }).then(() => {}, () => {});
     }
     if (stage === 'ganado') {
-      for (const o of offersForDeal(d).filter((x) => x.status === 'draft' || x.status === 'sent')) {
-        await supabase.from('offers').update({ status: 'won' }).eq('id', o.id); o.status = 'won';
+      // QUIRÚRGICO por número de oferta: gana UNA, las demás se archivan (nada de
+      // promover todos los borradores — para eso existen los A26xxxx)
+      const open = offersForDeal(d).filter((x) => ['draft', 'sent', 'tier'].includes(x.status));
+      if (open.length === 1) {
+        await supabase.from('offers').update({ status: 'won' }).eq('id', open[0].id); open[0].status = 'won';
+        toast('🏆 ' + (open[0].number || 'Oferta') + ' marcada como Ganada');
+      } else if (open.length > 1) {
+        const lista = open.map((o) => '  ' + (o.number || '#' + o.id) + ' — ' + (o.title || '(sin título)') + ' — ' + fmtM(offerNet(o))).join('\n');
+        const ans = prompt('🏆 ¿QUÉ oferta ganó? Escribí su número — esa pasa a Ganada y las otras ' + (open.length - 1) + ' se ARCHIVAN:\n\n' + lista, open[0].number || '');
+        if (ans && ans.trim()) {
+          const q = ans.trim().toLowerCase();
+          const win = open.find((o) => String(o.number || '').toLowerCase() === q || String(o.id) === q);
+          if (win) {
+            await supabase.from('offers').update({ status: 'won', archived: false }).eq('id', win.id); win.status = 'won'; win.archived = false;
+            for (const o of open) {
+              if (o.id === win.id) continue;
+              await supabase.from('offers').update({ archived: true }).eq('id', o.id); o.archived = true;
+            }
+            toast('🏆 ' + (win.number || 'Oferta') + ' ganada · ' + (open.length - 1) + ' archivada(s)');
+          } else {
+            toast('No encontré «' + ans.trim() + '» — el deal quedó ganado pero no toqué ninguna oferta');
+          }
+        } else {
+          toast('Deal ganado — elegí después la oferta ganadora abriéndola y poniéndola en Ganada');
+        }
       }
     }
     // al avanzar/cerrar se cancela la secuencia vieja (la nueva se genera para la etapa nueva)
