@@ -900,7 +900,7 @@
       <div class="side-sec">Content</div>
       <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
       <button class="side-item" data-tab="news" type="button"><span class="si-ic">📰</span>Newsletter</button>
-      <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Automations</button>
+      <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Workflows</button>
       <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
       <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
     </aside>
@@ -1220,7 +1220,7 @@
   <div id="tab-auto" hidden>
     <div class="panel">
       <div class="draft-head">
-        <h2 style="margin:0">⚙️ Automatizaciones <span class="count">si esto → hacé aquello</span></h2>
+        <h2 style="margin:0">⚙️ Workflows <span class="count">si esto → hacé aquello</span></h2>
         <button class="btn btn-primary small" id="au-new" type="button">➕ Nueva</button>
       </div>
       <p class="muted-note" style="margin:8px 0 10px">Plantillas listas para clonar y adaptar:</p>
@@ -1230,7 +1230,7 @@
         <button class="btn btn-ghost small" id="au-pre-wel" type="button">👋 Bienvenida VIP calculadora</button>
         <button class="btn btn-ghost small" id="au-pre-dor" type="button">😴 Reactivación de dormidos (IA)</button>
       </div>
-      <div id="au-list" style="margin-top:14px"><p class="muted-note">Sin automatizaciones todavía — creá una o cloná una plantilla. (Requiere SQL 0041.)</p></div>
+      <div id="au-list" style="margin-top:14px"><p class="muted-note">Sin workflows todavía — creá uno o cloná una plantilla. (Requiere SQL 0041.)</p></div>
     </div>
 
     <div class="panel" style="margin-top:14px">
@@ -1243,7 +1243,7 @@
     </div>
 
     <div class="panel" id="au-editor" style="margin-top:14px" hidden>
-      <h2 id="au-ed-title">Nueva automatización</h2>
+      <h2 id="au-ed-title">Nuevo workflow</h2>
       <div class="pp-grid" style="grid-template-columns:2fr 1fr;gap:10px;align-items:end">
         <div class="bf"><label>Nombre</label><input id="au-name" placeholder="p. ej. Referral post-proyecto" /></div>
         <div class="bf"><label>Estado</label><select id="au-enabled"><option value="">⏸ Pausada (borrador)</option><option value="1">🟢 Activa</option></select></div>
@@ -1269,7 +1269,7 @@
         <div class="ab-urlrow"><select id="au-add-type-b" class="au-addsel"><option value="email">📧 Email</option><option value="ai_email">🤖 Email IA (a bandeja)</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option></select>
         <button class="btn btn-ghost small" id="au-add-b" type="button">➕ Agregar paso</button></div></div>
 
-      <p class="muted-note" style="margin:10px 0">Tokens en asunto/cuerpo: <code>{'{{first_name}}'}</code> · <code>{'{{name}}'}</code> · <code>{'{{company}}'}</code>. Nunca se manda a dados de baja ni emails de test; un lead entra UNA vez por automatización.</p>
+      <p class="muted-note" style="margin:10px 0">Tokens en asunto/cuerpo: <code>{'{{first_name}}'}</code> · <code>{'{{name}}'}</code> · <code>{'{{company}}'}</code>. Nunca se manda a dados de baja ni emails de test; un lead entra UNA vez por workflow.</p>
       <div class="ab-urlrow">
         <button class="btn btn-primary small" id="au-save" type="button">💾 Guardar</button>
         <button class="btn btn-ghost small" id="au-dup" type="button" hidden>📋 Duplicar</button>
@@ -1761,7 +1761,7 @@
     <button data-tab="gads" type="button">🎯 Google Ads</button>
     <button data-tab="blog" type="button">📝 Blog</button>
     <button data-tab="news" type="button">📰 Newsletter</button>
-    <button data-tab="auto" type="button">⚙️ Automations</button>
+    <button data-tab="auto" type="button">⚙️ Workflows</button>
     <button data-tab="seo" type="button">🔎 Search Console</button>
     <div class="mob-ver" id="mob-ver"></div>
   </div>
@@ -4237,7 +4237,7 @@
       $('au-save') && $('au-save').addEventListener('click', () => auSave(false));
       $('au-dup') && $('au-dup').addEventListener('click', () => auSave(true));
       $('au-del') && $('au-del').addEventListener('click', async () => {
-        if (!auCur || !confirm('¿Borrar esta automatización? Los envíos ya hechos no se tocan.')) return;
+        if (!auCur || !confirm('¿Borrar este workflow? Los envíos ya hechos no se tocan.')) return;
         await supabase.from('automations').delete().eq('id', auCur.id);
         $('au-editor').hidden = true; toast('🗑 Borrada'); autoInit();
       });
@@ -5636,7 +5636,7 @@
         '<div class="of-card-sub">SI ' + esc(auTriggerLabel(a)) + ' → ' + ((a.steps_a || []).length) + ' pasos' + (a.ab_split >= 50 ? ' · A/B 50/50' : '') + ' · ' + stats + '</div></div>' +
         '<span class="of-badge">' + ((a.steps_a || []).filter((x) => x.type === 'email').length + ((a.steps_b || []).filter((x) => x.type === 'email').length)) + ' 📧</span></div>' +
         '<div class="of-actions"><button class="of-act" data-auact="toggle" data-id="' + a.id + '" type="button">' + (a.enabled ? '⏸ Pausar' : '▶️ Activar') + '</button></div></div>';
-    }).join('') || '<p class="muted-note">Sin automatizaciones todavía — creá una o cloná una plantilla.</p>';
+    }).join('') || '<p class="muted-note">Sin workflows todavía — creá uno o cloná una plantilla.</p>';
     obLoad();
     $('au-list').querySelectorAll('[data-au]').forEach((c) => c.addEventListener('click', () => auOpen(c.dataset.au)));
     $('au-list').querySelectorAll('[data-auact="toggle"]').forEach((b) => b.addEventListener('click', async (e) => {
@@ -5661,7 +5661,7 @@
         '<div class="ab-urlrow" style="margin-top:10px"><button class="btn btn-primary small" data-obact="ok" data-id="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
         '<button class="btn btn-ghost small" data-obact="lead" data-id="' + o.lead_id + '" type="button">👤 Ver ficha</button>' +
         '<button class="btn btn-ghost small danger" data-obact="no" data-id="' + o.id + '" type="button">🗑 Descartar</button></div></div>';
-    }).join('') || '<p class="muted-note">Bandeja vacía — los pasos 🤖 Email IA de tus automatizaciones dejan acá sus borradores.</p>';
+    }).join('') || '<p class="muted-note">Bandeja vacía — los pasos 🤖 Email IA de tus workflows dejan acá sus borradores.</p>';
     $('ob-list').querySelectorAll('[data-obact]').forEach((b) => b.addEventListener('click', async () => {
       const act = b.dataset.obact;
       if (act === 'lead'){ gotoTab('leads'); openLead(b.dataset.id); return; }
@@ -5729,7 +5729,7 @@
   function auOpen(id){
     const a = id ? auList.find((x) => x.id === id) : null;
     auCur = a || null;
-    $('au-ed-title').textContent = a ? '✏️ ' + a.name : 'Nueva automatización';
+    $('au-ed-title').textContent = a ? '✏️ ' + a.name : 'Nuevo workflow';
     $('au-name').value = a ? a.name : '';
     $('au-enabled').value = a && a.enabled ? '1' : '';
     $('au-trigger').value = a ? a.trigger : 'lead_new';
