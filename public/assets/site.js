@@ -129,7 +129,8 @@ function loadHeroVideo(){
   f.src = 'https://player.vimeo.com/video/' + heroId + '?background=1&autoplay=1&loop=1&muted=1&dnt=1';
   f.allow = 'autoplay; fullscreen';
   f.title = 'Viven showreel';
-  f.loading = 'lazy';
+  f.loading = 'eager';
+  f.fetchPriority = 'high';
   heroBg.insertBefore(f, heroBg.querySelector('.grain'));
 }
 /* Facade: cargamos el player de Vimeo (pesado + cookie de terceros) recién en la
@@ -142,7 +143,7 @@ function loadHeroVideo(){
   function go(){
     if(done) return; done = true;
     evs.forEach(function(e){ window.removeEventListener(e, go); });
-    (window.requestIdleCallback || function(cb){ setTimeout(cb, 1); })(loadHeroVideo, { timeout: 1200 });
+    loadHeroVideo();   // el visitante YA interactuó — cargar sin esperar al idle
   }
   evs.forEach(function(e){ window.addEventListener(e, go, { once: true, passive: true }); });
 })();
