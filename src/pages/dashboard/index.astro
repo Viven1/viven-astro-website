@@ -268,6 +268,7 @@
   .lm-reply-box{margin-top:6px}
   .lm-reply-ta{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;min-height:52px;resize:vertical;margin-bottom:6px}
   .lm-email{border:1px solid var(--line);border-radius:11px;padding:10px 13px;margin-bottom:8px;cursor:pointer}
+  .lm-email-in{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 7%,transparent)}
   .lm-email-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px}
   .lm-email-subj{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lm-email-meta{color:var(--muted-2);font-size:11px;white-space:nowrap;flex:none}
@@ -1879,7 +1880,7 @@
         </details>
         <details class="lm-block lm-fold" id="lm-emails-d" open>
           <summary class="lm-block-h">📧 Emails con este contacto <span class="count" id="lm-emails-n"></span></summary>
-          <p class="muted-note" style="margin:0 0 10px">Todo lo que le mandamos desde acá — mande quien mande (Sofia, Sebastian o un workflow). No incluye respuestas que el cliente escriba directo a tu inbox.</p>
+          <p class="muted-note" style="margin:0 0 10px">Todo lo que le mandamos desde acá (mande quien mande) + sus respuestas por Gmail (📥), sincronizadas cada 5 min.</p>
           <div id="lm-emails"><p class="muted-note">Cargando…</p></div>
         </details>
         <div class="lm-block">
@@ -3278,14 +3279,15 @@
   }
   function renderEmailThread(rows){
     const box = $('lm-emails'); if (!box) return;
-    if (!rows.length) { box.innerHTML = '<p class="muted-note">Sin emails registrados todavía — los que mandes desde «Responder» (abajo) o los que salgan de un workflow van a aparecer acá.</p>'; return; }
+    if (!rows.length) { box.innerHTML = '<p class="muted-note">Sin emails registrados todavía — los que mandes desde «Responder» (abajo), los de un workflow, o las respuestas que llegan por Gmail van a aparecer acá.</p>'; return; }
     const fmtE = (d) => new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     const snip = (b) => esc(String(b || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, 110);
-    const SRC_L = { outreach: '✍️ Manual', 'automations-run': '⚙️ Workflow', nurture: '🌱 Nurture', 'booking-create': '📅 Booking', 'calc-email': '🧮 Calculadora' };
+    const SRC_L = { outreach: '✍️ Manual', 'automations-run': '⚙️ Workflow', nurture: '🌱 Nurture', 'booking-create': '📅 Booking', 'calc-email': '🧮 Calculadora', 'gmail-sebastian': '📥 Respondió (a Sebastian)', 'gmail-sofia': '📥 Respondió (a Sofia)', 'gmail-info': '📥 Respondió (a info@)' };
     box.innerHTML = rows.map((e2) => {
+      const inbound = e2.direction === 'in';
       const bodyHtml = /<[a-z][\s\S]*>/i.test(e2.body || '') ? String(e2.body) : esc(String(e2.body || ''));
-      return '<div class="lm-email">' +
-        '<div class="lm-email-h"><span class="lm-email-subj">' + esc(e2.subject || '(sin asunto)') + '</span><span class="lm-email-meta">' + esc(e2.sender_label || '') + ' · ' + fmtE(e2.created_at) + '</span></div>' +
+      return '<div class="lm-email' + (inbound ? ' lm-email-in' : '') + '">' +
+        '<div class="lm-email-h"><span class="lm-email-subj">' + (inbound ? '📥 ' : '') + esc(e2.subject || '(sin asunto)') + '</span><span class="lm-email-meta">' + esc(e2.sender_label || '') + ' · ' + fmtE(e2.created_at) + '</span></div>' +
         '<div class="lm-email-snip">' + snip(e2.body) + '</div>' +
         '<div class="lm-email-body">' + bodyHtml + '<p class="muted-note" style="margin-top:8px">' + (SRC_L[e2.source] || esc(e2.source || '')) + '</p></div>' +
       '</div>';
