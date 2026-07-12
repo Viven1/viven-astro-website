@@ -68,15 +68,21 @@ Deno.serve(async (req) => {
     const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
     const clean = (data ?? []).filter((r) => !(r as { ads_exclude?: boolean }).ads_exclude && !ADS_TEST.test((r as { email?: string }).email || "") && !/spam|descartado|perdido-spam/i.test(r.status || ""));
     const isWon = (r: { status?: string }) => /ganado|won|cerrado/i.test(r.status || "");
-    const p2 = (n: number) => String(n).padStart(2, "0");
-    const fmt = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
+    // hora LOCAL de Zúrich con offset explícito (+01:00/+02:00 según DST) — el Data
+    // Manager de Google Ads lee la fila 1 como encabezados, así que la vieja línea
+    // "Parameters:TimeZone=…" ya no va: la zona viaja dentro de cada timestamp.
+    const fmt = (iso: string) => {
+      const d = new Date(iso);
+      const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(d).map((p) => [p.type, p.value]));
+      const off = (new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", timeZoneName: "longOffset" }).formatToParts(d).find((p) => p.type === "timeZoneName")?.value || "GMT+01:00").replace("GMT", "");
+      return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}${off}`;
+    };
     const rows = clean.flatMap((r) => {
       const out: string[][] = [[r.gclid, "Lead (CRM)", fmt(r.created_at), "0", "CHF"]];
       if (isWon(r)) out.push([r.gclid, "Lead ganado (CRM)", fmt((r as { won_at?: string; last_stage_at?: string }).won_at || (r as { last_stage_at?: string }).last_stage_at || r.created_at), String(+(r as { deal_value?: number }).deal_value! || 0), "CHF"]);
       return out;
     });
     const values = [
-      ["Parameters:TimeZone=Europe/Zurich"],
       ["Google Click ID", "Conversion Name", "Conversion Time", "Conversion Value", "Conversion Currency"],
       ...rows,
     ];
