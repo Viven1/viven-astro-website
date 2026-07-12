@@ -471,6 +471,9 @@
   .post-preview .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--acid)}
   .post-preview h1{font-size:26px;margin:8px 0 12px;color:var(--text);line-height:1.2}
   .post-preview .lead{font-size:16px;color:var(--muted);margin-bottom:18px}
+  .post-preview [contenteditable]{border-radius:8px;transition:box-shadow .15s}
+  .post-preview [contenteditable]:hover{box-shadow:0 0 0 1px var(--line-strong)}
+  .post-preview [contenteditable]:focus{outline:none;box-shadow:0 0 0 1.5px var(--acid)}
   .post-preview h2{font-size:19px;margin:22px 0 8px;color:var(--text)}
   .post-preview h3{font-size:16px;margin:16px 0 6px;color:var(--text)}
   .post-preview p{color:var(--muted);margin:0 0 12px;font-size:14.5px}
@@ -1398,6 +1401,8 @@
         <div class="bf"><label>Título SEO</label><input id="bg-title" /></div>
         <div class="bf"><label>Slug</label><input id="bg-slug" /></div>
         <div style="display:flex;gap:8px;margin-bottom:0">
+          <button class="btn btn-ghost small" id="bg-save" type="button" title="Guarda tus correcciones hechas directo sobre la vista previa">💾 Guardar cambios</button>
+          <button class="btn btn-ghost small" id="bg-prop" type="button" title="Reescribe los OTROS idiomas fieles a esta versión corregida (keywords nativos, no traducción)">🌍 Propagar a los demás idiomas</button>
           <button class="btn btn-primary small" id="bg-publish" type="button">🚀 Publicar en la web</button>
           <button class="btn btn-ghost small" id="bg-copy" type="button">⧉ Copiar .astro</button>
         </div>
@@ -5173,6 +5178,8 @@
   let cqBound = false;
   function blogInit(){
     if (!cqBound){ cqBound = true;
+      $('bg-save') && $('bg-save').addEventListener('click', () => saveBlogEdits(false));
+      $('bg-prop') && $('bg-prop').addEventListener('click', propagateBlog);
       $('cq-add') && $('cq-add').addEventListener('click', async () => {
         const t = $('cq-new').value.trim(); if (!t) return;
         const { error } = await supabase.from('content_queue').insert({ topic: t, priority: 5 });
@@ -5222,8 +5229,9 @@
     $('bg-topic').value = b.topic || ''; $('bg-lang').value = b.lang || 'en';
     $('bg-title').value = b.title || ''; $('bg-slug').value = b.slug || ''; $('bg-desc').value = b.description || '';
     let html = '<span class="eyebrow">' + esc(b.eyebrow || 'Industry insight') + '</span><h1>' + esc(b.title || '') + '</h1>';
-    if (b.lead) html += '<p class="lead">' + esc(b.lead) + '</p>';
-    html += '<div class="post-body">' + blogPreviewHtml(b.body_html) + '</div>';
+    html += '<p class="lead" id="bg-ed-lead" contenteditable="true" spellcheck="true">' + esc(b.lead || '') + '</p>';
+    html += '<div class="post-body" id="bg-ed-body" contenteditable="true" spellcheck="true">' + blogPreviewHtml(b.body_html) + '</div>';
+    html += '<p class="muted-note" style="margin-top:10px">✏️ El lead y el cuerpo son EDITABLES: hacé click y corregí lo que quieras → 💾 Guardar cambios → 🌍 Propagar.</p>';
     if (b.faq && b.faq.length) html += '<h2 style="margin-top:24px">FAQ</h2>' + b.faq.map((f) => '<div style="margin-bottom:12px"><strong>' + esc(f.q) + '</strong><br>' + esc(f.a) + '</div>').join('');
     $('bg-preview').innerHTML = html;
     $('bg-editing-lang').textContent = LANGNAME[b.lang] || b.lang;
@@ -5232,6 +5240,52 @@
     $('bg-result').hidden = false; $('bg-pub-note').textContent = '';
   }
   function loadBlog(id){ const b = blogsList.find((x) => String(x.id) === String(id)); if (b) fillBlogEditor(b); }
+  // vista previa editada → body_html canónico (los <a> internos vuelven a [[slug|anchor]])
+  function bgCollectEdits(){
+    const bodyEl = $('bg-ed-body'), leadEl = $('bg-ed-lead');
+    if (!bodyEl || !bgCur) return null;
+    let body = bodyEl.innerHTML
+      .replace(/<a[^>]*href="https:\/\/www\.viven\.ch\/([^"]+?)\/?"[^>]*>([\s\S]*?)<\/a>/g, (m, sl, an) => '[[' + sl + '|' + an.replace(/<[^>]+>/g, '') + ']]')
+      .replace(/\scontenteditable="true"|\sspellcheck="true"/g, '');
+    return {
+      title: $('bg-title').value.trim(), slug: $('bg-slug').value.trim(), description: $('bg-desc').value.trim(),
+      lead: (leadEl.textContent || '').trim(), body_html: body,
+    };
+  }
+  async function saveBlogEdits(silent){
+    const ed = bgCollectEdits(); if (!ed) return false;
+    const { error } = await supabase.from('blogs').update(ed).eq('id', bgCur.id);
+    if (error){ toast('No se pudo guardar: ' + error.message); return false; }
+    Object.assign(bgCur, ed);
+    const i = blogsList.findIndex((x) => String(x.id) === String(bgCur.id)); if (i > -1) Object.assign(blogsList[i], ed);
+    if (!silent) toast('💾 Correcciones guardadas');
+    return true;
+  }
+  async function propagateBlog(){
+    if (!bgCur) return;
+    if (!(await saveBlogEdits(true))) return;
+    const others = ['en', 'de', 'es'].filter((l) => l !== bgCur.lang);
+    const btn = $('bg-prop'), prev = btn.textContent; btn.disabled = true;
+    for (const l of others){
+      btn.textContent = '🌍 Escribiendo ' + (LANGNAME[l] || l) + '…';
+      $('bg-pub-note').textContent = 'Reescribiendo ' + (LANGNAME[l] || l) + ' fiel a tu versión corregida (keywords nativos)…';
+      try {
+        const { data, error } = await supabase.functions.invoke('ai-blog', { body: {
+          topic: bgCur.topic || bgCur.title, lang: l, localize: true,
+          source_title: bgCur.title, source_lead: bgCur.lead, source_html: bgCur.body_html, source_faq: bgCur.faq || [],
+        } });
+        if (error || !data || !data.body_html) throw new Error(data?.error || error?.message || 'sin respuesta');
+        const sib = blogsList.find((x) => x.group_id === bgCur.group_id && x.lang === l);
+        const row = { lang: l, topic: bgCur.topic, slug: data.slug, title: data.title, description: data.description, eyebrow: data.eyebrow, lead: data.lead, body_html: data.body_html, faq: data.faq || [], status: 'draft', group_id: bgCur.group_id, hero_image: bgCur.hero_image || null, video_id: bgCur.video_id || null };
+        if (sib) { const { error: e2 } = await supabase.from('blogs').update(row).eq('id', sib.id); if (e2 && /column/.test(e2.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').update(row).eq('id', sib.id); } }
+        else { const { error: e3 } = await supabase.from('blogs').insert(row); if (e3 && /column/.test(e3.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').insert(row); } }
+        toast('✓ ' + (LANGNAME[l] || l) + ' actualizado desde el master');
+      } catch (e) { toast('⚠️ ' + (LANGNAME[l] || l) + ': ' + (e.message || e)); }
+    }
+    btn.disabled = false; btn.textContent = prev;
+    $('bg-pub-note').textContent = '🌍 Idiomas propagados desde tu versión corregida — revisalos y publicá cada uno.';
+    await blogsLoad();
+  }
 
   // genera un artículo (nuevo, o versión localizada si pasás groupId+localize) y lo guarda en blogs
   async function generateBlog(opts){
