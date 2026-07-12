@@ -42,7 +42,10 @@ Deno.serve(async (req) => {
       const pref = ["sc-domain:viven.ch", "https://www.viven.ch/", "https://viven.ch/"];
       site = pref.find((p) => ok.includes(p)) || ok[0] || "https://viven.ch/";
     }
-    const feeds = ["https://www.viven.ch/sitemap.xml", "https://www.viven.ch/video-sitemap.xml"];
+    // el feedpath debe vivir BAJO la propiedad (cross-host = 403): con propiedad
+    // url-prefix usamos su mismo prefijo; con dominio (sc-domain) usamos www.
+    const prefix = site.startsWith("sc-domain:") ? "https://www.viven.ch/" : site;
+    const feeds = [prefix + "sitemap.xml", prefix + "video-sitemap.xml"];
     const results: Record<string, number> = {};
     for (const f of feeds) {
       const r = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/sitemaps/${encodeURIComponent(f)}`, {

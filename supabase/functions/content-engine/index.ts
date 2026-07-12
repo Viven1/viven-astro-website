@@ -125,17 +125,26 @@ Deno.serve(async (req) => {
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
     const groupId = crypto.randomUUID();
     const media = pickMedia(item.topic);
-    const made: { lang: string; id: number; title: string; lead: string; token: string }[] = [];
+    const made: { lang: string; id: number; title: string; lead: string; token: string | null; body: string; faq: { q: string; a: string }[] }[] = [];
     try {
       for (const [lg, loc] of [["en", false], ["de", true], ["es", true]] as [string, boolean][]) {
         const a = await writeArticle(item.topic, lg, loc);
         const token = crypto.randomUUID();
-        const { data: row } = await service.from("blogs").insert({
+        // insert RESILIENTE: si faltan columnas nuevas (SQL 0034 sin correr), las saca y reintenta
+        let row: Record<string, unknown> = {
           lang: lg, topic: item.topic, slug: a.slug, title: a.title, description: a.description,
           eyebrow: a.eyebrow || "Industry insight", lead: a.lead, body_html: a.body_html, faq: a.faq,
           status: "draft", group_id: groupId, hero_image: media.hero, video_id: media.video, approve_token: token,
-        }).select("id").single();
-        made.push({ lang: lg.toUpperCase(), id: row?.id, title: a.title, lead: a.lead || "", token });
+        };
+        let ins = await service.from("blogs").insert(row).select("id").single();
+        for (let tries = 0; ins.error && tries < 4; tries++) {
+          const m = /'([^']+)' column/.exec(ins.error.message || "");
+          if (!m || !(m[1] in row)) break;
+          delete row[m[1]];
+          ins = await service.from("blogs").insert(row).select("id").single();
+        }
+        if (ins.error) throw new Error("no pude guardar el borrador (" + lg + "): " + ins.error.message);
+        made.push({ lang: lg.toUpperCase(), id: ins.data?.id, title: a.title, lead: a.lead || "", token: ("approve_token" in row) ? token : null, body: a.body_html || "", faq: (a.faq || []) as { q: string; a: string }[] });
       }
     } catch (e) {
       if (!made.length) { await service.from("content_queue").update({ status: "pending" }).eq("id", item.id); throw e; }
@@ -147,13 +156,21 @@ Deno.serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (RESEND_API_KEY && made.length) {
       const FN = Deno.env.get("SUPABASE_URL") + "/functions/v1/blog-approve";
+      // artículo COMPLETO legible en el email: hero + cuerpo entero + FAQ, botones arriba
+      const clean = (h: string) => h.replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, "<strong>$1</strong>");
       const cards = made.map((m) => `
-        <div style="border:1px solid #e3e6ec;border-radius:14px;padding:18px 20px;margin:0 0 14px">
+        <div style="border:1px solid #e3e6ec;border-radius:14px;padding:20px 22px;margin:0 0 22px">
           <div style="font-size:11px;letter-spacing:.08em;color:#8a94a8;font-weight:700">${m.lang}</div>
-          <div style="font-size:17px;font-weight:700;margin:4px 0 8px">${m.title}</div>
-          <div style="font-size:13.5px;color:#5b6472;line-height:1.6;margin-bottom:14px">${m.lead.slice(0, 220)}</div>
-          <a href="${FN}?id=${m.id}&t=${m.token}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:10px 18px;border-radius:100px;text-decoration:none;margin-right:8px">🚀 Publicar ${m.lang}</a>
-          <a href="https://www.viven.ch/dashboard/" style="display:inline-block;border:1px solid #d5d9e2;color:#1a2230;font-weight:600;padding:10px 18px;border-radius:100px;text-decoration:none">✏️ Editar</a>
+          <div style="font-size:19px;font-weight:700;margin:4px 0 12px">${m.title}</div>
+          <div style="margin-bottom:14px">
+            ${m.token ? `<a href="${FN}?id=${m.id}&t=${m.token}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:10px 18px;border-radius:100px;text-decoration:none;margin-right:8px">🚀 Publicar ${m.lang}</a>` : ""}
+            <a href="https://www.viven.ch/dashboard/" style="display:inline-block;border:1px solid #d5d9e2;color:#1a2230;font-weight:600;padding:10px 18px;border-radius:100px;text-decoration:none">✏️ Editar en el dashboard</a>
+          </div>
+          <img src="https://www.viven.ch${media.hero}" alt="" style="width:100%;border-radius:12px;margin-bottom:14px" />
+          <div style="font-size:15px;color:#1a2230;line-height:1.7;font-style:italic;margin-bottom:12px">${m.lead}</div>
+          <div style="font-size:14px;color:#333c4a;line-height:1.75">${clean(m.body)}</div>
+          ${m.faq.length ? `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #eceef2"><b style="font-size:13px">FAQ</b>${m.faq.map((f) => `<p style="font-size:13px;margin:8px 0 2px"><b>${f.q}</b><br>${f.a}</p>`).join("")}</div>` : ""}
+          ${media.video ? `<p style="font-size:12.5px;color:#8a94a8;margin-top:12px">🎬 Al publicar se embebe también el video Vimeo ${media.video} al final del artículo.</p>` : ""}
         </div>`).join("");
       await fetch("https://api.resend.com/emails", {
         method: "POST",
