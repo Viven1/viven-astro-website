@@ -1,10 +1,28 @@
 ---
 import Base from '../../../../layouts/Base.astro';
 import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
 const lang = "es";
 const p = (s) => localePath(lang, s);
 const title = {"es":"Cómo elegir productora de video en Zúrich: checklist 2024 | Viven"};
 const description = {"es":"Guía práctica para seleccionar la mejor productora audiovisual en Zúrich. Criterios clave, portfolio, experiencia y presupuesto para empresas."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "como-elegir-productora-video-zurich";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
 ---
 <Base lang={lang} slug="blog/como-elegir-productora-video-zurich" active="blog" singleLang={true} langUrls={{"en":"/en/blog/how-to-choose-video-production-company-zurich/","de":"/de/blog/videoproduktion-agentur-zuerich-checkliste/","es":"/es/blog/como-elegir-productora-video-zurich/"}} title={title} description={description}>
   <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/como-elegir-productora-video-zurich/\"},\"headline\":\"Cómo elegir productora de video en Zúrich: checklist 2024\",\"description\":\"Guía práctica para seleccionar la mejor productora audiovisual en Zúrich. Criterios clave, portfolio, experiencia y presupuesto para empresas.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/como-elegir-productora-video-zurich/\",\"datePublished\":\"2026-07-12T11:34:52.376Z\",\"image\":\"https://www.viven.ch/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Cómo elegir productora de video en Zúrich: checklist 2024\",\"item\":\"https://www.viven.ch/es/blog/como-elegir-productora-video-zurich/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto cuesta producir un video corporativo en Zúrich?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"El rango típico es 8.000–50.000 CHF según duración, número de locaciones, complejidad creativa (animación, efectos) y equipo involucrado. Videos simples de 1–2 minutos rondan 8.000–15.000 CHF; producciones de marca complejas pueden superar 50.000 CHF. Solicita presupuesto desglosado antes de decidir.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué preguntas hacer a una productora antes de contratar?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Pregunta sobre equipo técnico y creativo asignado, casos similares en tu industria, plazos de producción, desglose de postproducción, revisiones incluidas, formatos de entrega, y resultados medibles de proyectos anteriores. Pide referencias de clientes recientes.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo toma producir un video corporativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Varía entre 4–12 semanas desde brief hasta entrega final. Videos simples: 4–6 semanas. Producciones complejas con animación y múltiples locaciones: 8–12 semanas. Negocia cronograma durante la propuesta según tus deadlines.\"}}]}]}"}></script>
@@ -20,4 +38,50 @@ const description = {"es":"Guía práctica para seleccionar la mejor productora 
 <h2>Verifica el portafolio y la experiencia en tu industria</h2><p>No todos los portfolios son iguales. Una productora que domina video corporativo para banca no necesariamente entiende las dinámicas de startup tecnológica. Busca casos de éxito en tu sector específico: ¿Han trabajado con empresas del mismo tamaño? ¿Entienden los retos de tu industria?</p><p>Viven ha producido contenido para multinacionales como UBS, Siemens y Porsche. Esto no es publicidad: es señal de que pueden gestionar briefs complejos, stakeholders exigentes y estándares de calidad corporativa. Pide referencias y habla directamente con clientes anteriores si es posible.</p><ul><li>Revisa mínimo 5–7 proyectos similares al tuyo</li><li>Comprueba que dominan el formato específico: <a href={p("services/brand-video")}>video de marca</a>, <a href={p("services/product-video")}>video de producto</a>, documental corporativo, etc.</li><li>Verifica duración y escala de los proyectos (presupuesto comparable)</li></ul><h2>Evalúa capacidades técnicas y creativas</h2><p>Equipamiento y talento son dos cosas distintas. Una productora puede tener cámaras 4K pero equipo creativo mediocre. Pregunta por:</p><ul><li><strong>Equipo técnico:</strong> ¿Poseen equipamiento propio? ¿Qué cámaras, luces y micrófonos usan?</li><li><strong>Equipo creativo:</strong> ¿Quién es el director? ¿Quién gestiona producción? ¿El editor/colorista es especializado?</li><li><strong>Postproducción:</strong> ¿Tienen estudios propios o subcontratan? ¿Ofrecen animación, motion graphics, subtitulación multiidioma?</li><li><strong>Alcance estratégico:</strong> ¿Solo filman o también ayudan a definir estrategia y mensajes?</li></ul><p>Las mejores productoras entienden que el video es una herramienta de comunicación, no solo un producto estético. Deben poder asesorarte sobre estructura narrativa, plataformas de distribución y KPIs.</p><h2>Compara propuestas y presupuestos con transparencia</h2><p>Una propuesta seria debe detallar:</p><ul><li>Número de días de rodaje y locaciones</li><li>Equipo técnico y humano asignado</li><li>Desglose de postproducción (edición, color, sound design, animación)</li><li>Revisiones incluidas y costos de cambios adicionales</li><li>Plazos claros de entrega</li><li>Formatos de entrega (resolución, codec, subtítulos en varios idiomas)</li></ul><p>Desconfía de presupuestos vagos o extraordinariamente bajos. En Zúrich, una <a href={p("services/corporate-video")}>producción corporativa</a> de calidad oscila entre 8.000–50.000 CHF según alcance. Por debajo de eso, algo está faltando. Solicita referencias de presupuestos anteriores similares.</p><h2>Verifica experiencia en distribución y resultados medibles</h2><p>No todos los videos funcionan igual en redes sociales, web corporativa o presentaciones de accionistas. Una buena productora entiende la diferencia y optimiza cada versión para su canal.</p><p>Pregunta qué datos tienen de proyectos anteriores: ¿views, engagement, leads generados, retención de audiencia? Busca una productora que pueda mostrar ROI, no solo visualizaciones bonitas. <a href={p("services/social-media-video")}>Videos para redes sociales</a> requieren estructura narrativa distinta a un <a href={p("services/employer-branding")}>video de employer branding</a>; ambos exigen expertise diferente.</p><h2>Valora comunicación, disponibilidad y alineación cultural</h2><p>La parte técnica es importante, pero trabajarás meses con esta productora. Evalúa:</p><ul><li>¿Responden rápido a consultas? ¿Hablan tu idioma sin barreras (importante si buscas una productora hispanohablante en Zúrich)?</li><li>¿Proponen ideas o solo ejecutan lo que pides?</li><li>¿Documentan procesos? ¿Incluyen revisiones en el presupuesto?</li><li>¿Tienen metodología clara o es improvisado?</li><li>¿Entienden tu marca o necesitas explicarlo todo constantemente?</li></ul><p>Una productora ágil, transparente y colaborativa vale más que una famosa pero distante. El mejor video sale de la combinación de tu visión y su experiencia.</p><h2>Solicita una reunión preliminar sin costo</h2><p>Las productoras serias ofrecen una conversación inicial para entender tu proyecto. Úsala para evaluar química, capacidad de escucha y propuestas preliminares. Si desde la primera call te piden dinero o rehúyen preguntas, es mala señal.</p><p>En Viven, <a href={p("contact")}>iniciamos cada proyecto con una sesión de brief estratégico</a> donde definimos objetivos, audiencia y plataformas antes de tocar una cámara. Es la forma correcta de trabajar.</p><h3>Resumen de la checklist</h3><ul><li>✓ Portfolio con casos similares a tu industria</li><li>✓ Equipo técnico y creativo identificado</li><li>✓ Propuesta detallada y desglose presupuestario claro</li><li>✓ Referencias de clientes anteriores</li><li>✓ Experiencia en distribución y medición de resultados</li><li>✓ Comunicación fluida y alineación de valores</li><li>✓ Reunión preliminar que valide química y propuestas</li></ul><p>Si una productora cumple la mayoría de estos puntos, tienes probabilidades altas de éxito. No busques la más barata ni la más famosa: busca la más adecuada para tu proyecto específico.</p><p>¿Necesitas una productora de video en Zúrich que entienda estrategia además de calidad técnica? Tenemos experiencia produciendo para startups, corporaciones multinacionales y organizaciones internacionales. <a href={p("contact")}>Agenda una conversación sin costo</a> para evaluar tu proyecto.</p>
 <div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
 </div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit drei Konzeptideen, Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tres ideas de concepto, tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="como-elegir-productora-video-zurich" />
+  </div></section>
 </Base>
