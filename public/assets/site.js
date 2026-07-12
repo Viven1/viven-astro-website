@@ -582,10 +582,16 @@ function vvAbApply(changes){
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
     }).then(function(r){ return r.ok ? r.json() : []; }).then(function(tests){
       if(!tests || !tests.length) return;
+      var force = null;
+      try{ var fm = (new URLSearchParams(location.search).get('vvab') || '').match(/^(\d+):(a|b)$/); if(fm) force = { id: +fm[1], b: fm[2] }; }catch(e){}
       var tags = [];
       var run = function(){
         tests.forEach(function(t){
           var bucket = 'b';
+          if(force && force.id === t.id){
+            if(force.b === 'b') vvAbApply(t.changes);
+            return;   /* preview forzado: ni sorteo ni exposición */
+          }
           if(t.status === 'running'){
             var k = 'vv_ab_' + t.id;
             bucket = null;
@@ -602,6 +608,9 @@ function vvAbApply(changes){
         window.__vvAB = tags.join(',');
       };
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+      /* anti-carrera: si el swap de idioma pisa la variante, la re-aplicamos */
+      setTimeout(run2, 700);
+      function run2(){ tests.forEach(function(t){ var b2 = force && force.id === t.id ? force.b : (function(){ try{ return localStorage.getItem('vv_ab_' + t.id); }catch(e){ return null; } })(); if(b2 === 'b') vvAbApply(t.changes); }); }
     }).catch(function(){});
   }catch(e){}
 })();

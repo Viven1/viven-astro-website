@@ -3836,7 +3836,7 @@
     const abLeads = (lq && !lq.error && lq.data) || [];
     // exposiciones únicas por test/bucket
     const exp = {};
-    hits.forEach((h) => { const k = h.test_id + ':' + h.bucket; (exp[k] = exp[k] || new Set()).add(h.session_id || Math.random()); });
+    hits.filter((h) => !/^claude-/.test(h.session_id || '')).forEach((h) => { const k = h.test_id + ':' + h.bucket; (exp[k] = exp[k] || new Set()).add(h.session_id || Math.random()); });
     renderAbList(exp, abLeads);
   }
   function renderAbList(exp, abLeads){
@@ -3864,6 +3864,7 @@
           '<div class="cell"><div class="l">Uplift B</div><div class="v" style="color:' + (up >= 0 ? '#7ed957' : '#ff8b8b') + '">' + (up >= 0 ? '+' : '') + up.toFixed(0) + '%</div></div>' +
         '</div>' +
         '<div class="ab-actions">' +
+          '<a class="btn btn-ghost small" href="https://www.viven.ch' + esc(t.url_path) + '?vvab=' + t.id + ':b" target="_blank" rel="noopener" title="Abre la página FORZANDO la variante B — para verla vos, sin sorteo y sin ensuciar los números">👁 Ver variante B</a>' +
           (t.status === 'draft' ? '<button class="btn btn-primary small" data-act="run" type="button">▶ Iniciar</button>' : '') +
           (t.status === 'running' ? '<button class="btn btn-ghost small" data-act="pause" type="button">⏸ Pausar</button>' +
             '<button class="btn btn-primary small" data-act="winb" type="button" title="La variante B pasa a servirse al 100% del tráfico">🏆 Usar B para todos</button>' +
@@ -3891,6 +3892,9 @@
       const res = await fetch(path, { headers: { Accept: 'text/html' } });
       if (!res.ok) throw new Error('HTTP ' + res.status + ' — ¿la página existe en este dominio?');
       const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      // páginas trilingües: el HTML trae EN + data-de/data-es — aplicamos el idioma REAL de la URL
+      const plang = (path.match(/^\/(en|de|es)\//) || [])[1];
+      if (plang && plang !== 'en') doc.querySelectorAll('[data-' + plang + ']').forEach((el) => { const t = el.getAttribute('data-' + plang); if (t) el.textContent = t; });
       abCands = [];
       const push = (label, sel, idx, type, val, name) => { if (val && String(val).trim()) abCands.push({ label, sel, idx, type, name: name || null, from: String(val).trim() }); };
       const h1 = doc.querySelector('h1'); if (h1) push('H1', 'h1', 0, 'text', h1.textContent);
@@ -3910,7 +3914,7 @@
       $('ab-editor').hidden = false;
       $('ab-ideas-box').hidden = true; $('ab-ideas-box').innerHTML = '';
       $('ab-wiz-note').textContent = '✓ ' + abCands.length + ' elementos encontrados. Editá los que quieras testear.';
-      if (!$('ab-name').value) $('ab-name').value = 'Test ' + path;
+      if (!$('ab-name').value || /^Test \//.test($('ab-name').value)) $('ab-name').value = 'Test ' + path;
     } catch (e) { $('ab-wiz-note').textContent = '⚠️ ' + (e.message || e); }
   }
   async function abIdeas(){
