@@ -18,7 +18,28 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
+const ANTHROPIC = Deno.env.get("ANTHROPIC_API_KEY")!;
 const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+const VOICE: Record<string, string> = {
+  sofia: "You write as Sofia Treviño, producer at VIVEN: warm, precise, service-minded, zero fluff.",
+  sebastian: "You write as Sebastian Cepeda, founder of VIVEN (produced the first Swiss feature film on Netflix): direct, generous, entrepreneurial, zero hype.",
+  team: "You write as the VIVEN team: friendly, professional, concise.",
+};
+async function aiDraft(lead: Record<string, unknown>, prompt: string, sender: string): Promise<{ subject: string; body: string } | null> {
+  const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
+  const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Plain text only, 60-120 words, ONE call to action, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts not present in the context. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \n\n.`;
+  const ctx = `CONTACT: ${lead.name || ""} · ${lead.company || ""} · stage: ${lead.status || "nuevo"} · source: ${lead.source || "form"} · their original message: "${String(lead.message || "").slice(0, 500)}"`;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 700, system: sys, messages: [{ role: "user", content: `TASK FOR THIS EMAIL: ${prompt}\n\n${ctx}` }] }),
+  });
+  if (!res.ok) { console.error("AI_DRAFT_FAIL", res.status); return null; }
+  const data = await res.json();
+  let t = (data.content?.[0]?.text ?? "").trim().replace(/```json|```/g, "");
+  const m = t.match(/\{[\s\S]*\}/); if (m) t = m[0];
+  try { const p = JSON.parse(t); return p.subject && p.body ? p : null; } catch { return null; }
+}
 const STAGE_TS: Record<string, string> = { contactado: "contacted_at", videocall: "videocall_at", propuesta: "proposal_at", ganado: "won_at", perdido: "lost_at" };
 const isNuevo = (st: string) => ["", "new", "nuevo", "pending"].includes((st || "").toLowerCase());
 
@@ -80,8 +101,14 @@ Deno.serve(async (req) => {
         cands = q.data ?? [];
       } else if (au.trigger === "inactivity") {
         const days = Math.max(2, +cfg.days || 7);
-        const q = await service.from("leads").select("id,email,name,first_name,company,lang,status,created_at,contacted_at,unsubscribed").not("email", "is", null).lte("created_at", new Date(Date.now() - days * 864e5).toISOString()).gte("created_at", new Date(Date.now() - (days + 14) * 864e5).toISOString());
-        cands = (q.data ?? []).filter((r) => isNuevo(String(r.status)) || String(r.status).toLowerCase() === "contactado" || String(r.status).toLowerCase() === "contacted");
+        if (cfg.scope === "dormant") {
+          // clientes GANADOS sin actividad hace 'days' días (reactivación de dormidos)
+          const q = await service.from("leads").select("id,email,name,first_name,company,lang,status,won_at,unsubscribed,message").not("email", "is", null).not("won_at", "is", null).lte("won_at", new Date(Date.now() - days * 864e5).toISOString());
+          cands = (q.data ?? []).slice(0, 10);   // lotes chicos: máx 10 por corrida, no saturar la bandeja
+        } else {
+          const q = await service.from("leads").select("id,email,name,first_name,company,lang,status,created_at,contacted_at,unsubscribed,message").not("email", "is", null).lte("created_at", new Date(Date.now() - days * 864e5).toISOString()).gte("created_at", new Date(Date.now() - (days + 14) * 864e5).toISOString());
+          cands = (q.data ?? []).filter((r) => isNuevo(String(r.status)) || String(r.status).toLowerCase() === "contactado" || String(r.status).toLowerCase() === "contacted");
+        }
       }
       for (const r of cands) {
         if (!r.email || TEST.test(String(r.email)) || (r as { unsubscribed?: boolean }).unsubscribed) { out.skipped++; continue; }
@@ -100,7 +127,22 @@ Deno.serve(async (req) => {
       if (run.step_idx >= steps.length) { await service.from("automation_runs").update({ status: "done" }).eq("id", run.id); out.done++; continue; }
       const { data: lead } = await service.from("leads").select("*").eq("id", run.lead_id).maybeSingle();
       if (!lead || (lead as { unsubscribed?: boolean }).unsubscribed) { await service.from("automation_runs").update({ status: "stopped" }).eq("id", run.id); continue; }
+      // EXIT RULES: conversación viva o lead que avanzó → robots afuera
+      const enrolledAt = new Date(run.created_at).getTime();
+      const replied = lead.last_reply_at && new Date(lead.last_reply_at).getTime() > enrolledAt;
+      const stageAdvanced = (au.trigger === "lead_new" || au.trigger === "inactivity") && !isNuevo(String(lead.status)) && !/contactado|contacted/i.test(String(lead.status));
+      const booked = lead.videocall_at && new Date(lead.videocall_at).getTime() > enrolledAt;
+      if (replied || stageAdvanced || booked) {
+        await service.from("automation_runs").update({ status: "stopped" }).eq("id", run.id);
+        out.exited = (out.exited || 0) + 1; continue;
+      }
       const step = steps[run.step_idx];
+      // THROTTLE global: máx 1 email automático / 5 días por contacto (los waits del camino mandan igual)
+      if ((step.type === "email" || step.type === "ai_email") && lead.last_automated_email_at &&
+          Date.now() - new Date(lead.last_automated_email_at).getTime() < 5 * 864e5 && !(run.step_idx === 0 && au.trigger === "lead_new")) {
+        await service.from("automation_runs").update({ next_at: new Date(Date.now() + 2 * 864e5).toISOString() }).eq("id", run.id);
+        out.throttled = (out.throttled || 0) + 1; continue;
+      }
       let nextAt = new Date();
       if (body.dry_run) { out.steps++; continue; }
       try {
@@ -115,7 +157,11 @@ Deno.serve(async (req) => {
             headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
             body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: fill(step.subject, lead), html: wrap(fill(step.body, lead), unsub, String(lead.lang || "en"), sender) }),
           });
-          if (res.ok) out.emails++; else console.error("RESEND_FAIL", lead.email, res.status);
+          if (res.ok) { out.emails++; await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id); } else console.error("RESEND_FAIL", lead.email, res.status);
+        } else if (step.type === "ai_email") {
+          // borrador IA → BANDEJA DE SALIDA (nunca sale sin aprobación humana)
+          const draft = await aiDraft(lead, String(step.prompt || "Short friendly follow-up about their video project."), step.from || "team");
+          if (draft) { await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, sender: step.from || "team", subject: draft.subject, body: draft.body }); out.drafts = (out.drafts || 0) + 1; }
         } else if (step.type === "task") {
           await service.from("lead_tasks").insert({ lead_id: lead.id, title: "⚙️ " + fill(step.title, lead), due_date: new Date().toISOString().slice(0, 10), done: false });
         } else if (step.type === "push") {
@@ -127,6 +173,28 @@ Deno.serve(async (req) => {
       const nextIdx = run.step_idx + 1;
       await service.from("automation_runs").update({ step_idx: nextIdx, next_at: nextAt.toISOString(), status: nextIdx >= steps.length ? "done" : "active" }).eq("id", run.id);
       out.steps++;
+      await new Promise((ok) => setTimeout(ok, 120));
+    }
+    // ============ 3) BANDEJA: enviar los aprobados ============
+    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").limit(50);
+    for (const ob of appr ?? []) {
+      const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
+      if (!lead || !lead.email || (lead as { unsubscribed?: boolean }).unsubscribed || TEST.test(String(lead.email))) {
+        await service.from("outbox").update({ status: "discarded" }).eq("id", ob.id); continue;
+      }
+      const F = FROMS[ob.sender] || FROMS.team;
+      const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
+      const senderName = ob.sender === "sofia" ? "Sofia" : ob.sender === "sebastian" ? "Sebastian" : "Sofia & Sebastian";
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: fill(ob.subject, lead), html: wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), senderName) }),
+      });
+      if (res.ok) {
+        await service.from("outbox").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.id);
+        await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
+        out.outbox_sent = (out.outbox_sent || 0) + 1;
+      } else await service.from("outbox").update({ status: "failed" }).eq("id", ob.id);
       await new Promise((ok) => setTimeout(ok, 120));
     }
     return json({ ok: true, ...out, automations: (autos ?? []).length });

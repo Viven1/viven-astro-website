@@ -1228,8 +1228,18 @@
         <button class="btn btn-ghost small" id="au-pre-ref" type="button">🎁 Referral con Gutschein</button>
         <button class="btn btn-ghost small" id="au-pre-rev" type="button">⭐ Recordatorio de reseña (al team)</button>
         <button class="btn btn-ghost small" id="au-pre-wel" type="button">👋 Bienvenida VIP calculadora</button>
+        <button class="btn btn-ghost small" id="au-pre-dor" type="button">😴 Reactivación de dormidos (IA)</button>
       </div>
       <div id="au-list" style="margin-top:14px"><p class="muted-note">Sin automatizaciones todavía — creá una o cloná una plantilla. (Requiere SQL 0041.)</p></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="draft-head">
+        <h2 style="margin:0">📤 Bandeja de salida <span class="count" id="ob-count"></span></h2>
+        <button class="btn btn-ghost small" id="ob-approve-all" type="button" hidden>✅ Aprobar todos</button>
+      </div>
+      <p class="muted-note" style="margin:6px 0 10px">Borradores escritos por la IA con el contexto real de cada contacto. Nada sale sin tu OK — editá, cambiá el remitente o descartá. Los aprobados salen en la próxima corrida del motor (máx. 20 min).</p>
+      <div id="ob-list"><p class="muted-note">Bandeja vacía.</p></div>
     </div>
 
     <div class="panel" id="au-editor" style="margin-top:14px" hidden>
@@ -1246,16 +1256,17 @@
         </select></div>
         <div class="bf au-cfg au-cfg-stage"><label>Etapa</label><select id="au-cfg-stage"><option value="contactado">Contactado</option><option value="videocall">Video call</option><option value="propuesta">Propuesta</option><option value="ganado" selected>Ganado</option><option value="perdido">Perdido</option></select></div>
         <div class="bf au-cfg au-cfg-days"><label>Días de inactividad</label><input id="au-cfg-days" type="number" min="2" value="7" /></div>
+        <div class="bf au-cfg au-cfg-days"><label>Sobre quién</label><select id="au-cfg-scope"><option value="nuevo">Leads sin cerrar</option><option value="dormant">😴 Clientes dormidos (ganados)</option></select></div>
         <div class="bf au-cfg au-cfg-source"><label>Fuente</label><select id="au-cfg-source"><option value="any">Cualquiera</option><option value="calculator">🧮 Calculadora</option><option value="form">Formulario</option></select></div>
         <div class="bf"><label>Idioma</label><select id="au-cfg-lang"><option value="any">Todos</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></div>
         <div class="bf"><label>A/B de caminos</label><select id="au-ab"><option value="0">Sin A/B (todo por A)</option><option value="50">50/50 — mitad camino B</option></select></div>
       </div>
 
       <div class="au-path"><h3>Camino A</h3><div id="au-steps-a"></div>
-        <div class="ab-urlrow"><select id="au-add-type-a" class="au-addsel"><option value="email">📧 Email</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option></select>
+        <div class="ab-urlrow"><select id="au-add-type-a" class="au-addsel"><option value="email">📧 Email</option><option value="ai_email">🤖 Email IA (a bandeja)</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option></select>
         <button class="btn btn-ghost small" id="au-add-a" type="button">➕ Agregar paso</button></div></div>
       <div class="au-path" id="au-path-b" hidden><h3>Camino B <span class="muted-note" style="font-weight:400">(la otra mitad del split)</span></h3><div id="au-steps-b"></div>
-        <div class="ab-urlrow"><select id="au-add-type-b" class="au-addsel"><option value="email">📧 Email</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option></select>
+        <div class="ab-urlrow"><select id="au-add-type-b" class="au-addsel"><option value="email">📧 Email</option><option value="ai_email">🤖 Email IA (a bandeja)</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option></select>
         <button class="btn btn-ghost small" id="au-add-b" type="button">➕ Agregar paso</button></div></div>
 
       <p class="muted-note" style="margin:10px 0">Tokens en asunto/cuerpo: <code>{'{{first_name}}'}</code> · <code>{'{{name}}'}</code> · <code>{'{{company}}'}</code>. Nunca se manda a dados de baja ni emails de test; un lead entra UNA vez por automatización.</p>
@@ -1784,6 +1795,7 @@
         <a class="lm-qbtn" id="lm-wa" href="#" target="_blank" rel="noopener" title="WhatsApp" hidden>💬 WhatsApp</a>
         <button class="lm-qbtn" id="lm-review" type="button" title="Enviar pedido de reseña de Google (solo cuando el proyecto está ENTREGADO)" hidden>⭐ Pedir reseña</button>
         <button class="lm-qbtn" id="lm-ads-x" type="button" title="Incluir/excluir este lead de las conversiones que se reportan a Google Ads" hidden>🎯</button>
+        <button class="lm-qbtn" id="lm-replied" type="button" title="Marcar que el contacto respondió — lo saca de todas las secuencias automáticas activas">✉️ Respondió</button>
       </div>
     </div>
 
@@ -3631,6 +3643,13 @@
     return { error: null, stripped };
   }
   $('lm-edit-btn') && $('lm-edit-btn').addEventListener('click', startEditLead);
+  $('lm-replied') && $('lm-replied').addEventListener('click', async () => {
+    if (!currentLead) return;
+    const { error } = await supabase.from('leads').update({ last_reply_at: new Date().toISOString() }).eq('id', currentLead.id);
+    if (error){ toast(/column/.test(error.message || '') ? 'Falta correr el SQL 0042' : error.message); return; }
+    await supabase.from('automation_runs').update({ status: 'stopped' }).eq('lead_id', currentLead.id).eq('status', 'active');
+    toast('✉️ Marcado como respondió — fuera de todas las secuencias automáticas');
+  });
   $('lm-ads-x') && $('lm-ads-x').addEventListener('click', async () => {
     if (!currentLead || !currentLead.gclid) return;
     const nv = !currentLead.ads_exclude;
@@ -4229,6 +4248,7 @@
       $('au-pre-ref') && $('au-pre-ref').addEventListener('click', () => auPreset('ref'));
       $('au-pre-rev') && $('au-pre-rev').addEventListener('click', () => auPreset('rev'));
       $('au-pre-wel') && $('au-pre-wel').addEventListener('click', () => auPreset('wel'));
+      $('au-pre-dor') && $('au-pre-dor').addEventListener('click', () => auPreset('dor'));
 
       $('nur-toggle') && $('nur-toggle').addEventListener('click', async () => {
         const on = !$('nur-toggle').dataset.on;
@@ -5617,6 +5637,7 @@
         '<span class="of-badge">' + ((a.steps_a || []).filter((x) => x.type === 'email').length + ((a.steps_b || []).filter((x) => x.type === 'email').length)) + ' 📧</span></div>' +
         '<div class="of-actions"><button class="of-act" data-auact="toggle" data-id="' + a.id + '" type="button">' + (a.enabled ? '⏸ Pausar' : '▶️ Activar') + '</button></div></div>';
     }).join('') || '<p class="muted-note">Sin automatizaciones todavía — creá una o cloná una plantilla.</p>';
+    obLoad();
     $('au-list').querySelectorAll('[data-au]').forEach((c) => c.addEventListener('click', () => auOpen(c.dataset.au)));
     $('au-list').querySelectorAll('[data-auact="toggle"]').forEach((b) => b.addEventListener('click', async (e) => {
       e.stopPropagation(); const a = auList.find((x) => x.id === b.dataset.id); if (!a) return;
@@ -5624,10 +5645,51 @@
       toast(!a.enabled ? '🟢 Activada' : '⏸ Pausada'); autoInit();
     }));
   }
+  async function obLoad(){
+    const { data, error } = await supabase.from('outbox').select('*').eq('status', 'pending').order('created_at');
+    if (error){ $('ob-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0042 — ' + esc(error.message) + '</p>'; return; }
+    const obs = data || [];
+    $('ob-count').textContent = obs.length || '';
+    $('ob-approve-all').hidden = obs.length < 2;
+    $('ob-list').innerHTML = obs.map((o) => {
+      const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
+      return '<div class="au-step" data-ob="' + o.id + '">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b><span class="muted-note">' + esc(l.company || '') + '</span></div>' +
+        '<label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>' +
+        '<label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" />' +
+        '<label>Cuerpo</label><textarea class="ob-body">' + esc(o.body) + '</textarea>' +
+        '<div class="ab-urlrow" style="margin-top:10px"><button class="btn btn-primary small" data-obact="ok" data-id="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
+        '<button class="btn btn-ghost small" data-obact="lead" data-id="' + o.lead_id + '" type="button">👤 Ver ficha</button>' +
+        '<button class="btn btn-ghost small danger" data-obact="no" data-id="' + o.id + '" type="button">🗑 Descartar</button></div></div>';
+    }).join('') || '<p class="muted-note">Bandeja vacía — los pasos 🤖 Email IA de tus automatizaciones dejan acá sus borradores.</p>';
+    $('ob-list').querySelectorAll('[data-obact]').forEach((b) => b.addEventListener('click', async () => {
+      const act = b.dataset.obact;
+      if (act === 'lead'){ gotoTab('leads'); openLead(b.dataset.id); return; }
+      const card = b.closest('.au-step');
+      if (act === 'ok'){
+        const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: card.querySelector('.ob-subject').value, body: card.querySelector('.ob-body').value };
+        const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.id);
+        if (e2){ toast(e2.message); return; }
+        toast('✅ Aprobado — sale en la próxima corrida (≤20 min)');
+      } else {
+        await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.id);
+        toast('🗑 Descartado');
+      }
+      obLoad();
+    }));
+    $('ob-approve-all').onclick = async () => {
+      if (!confirm('¿Aprobar TODOS los borradores tal como están?')) return;
+      for (const card of $('ob-list').querySelectorAll('.au-step')){
+        await supabase.from('outbox').update({ status: 'approved', sender: card.querySelector('.ob-sender').value, subject: card.querySelector('.ob-subject').value, body: card.querySelector('.ob-body').value }).eq('id', card.dataset.ob);
+      }
+      toast('✅ Todos aprobados'); obLoad();
+    };
+  }
   function auStepHtml(st, v, i){
     const F = () => '<select class="f-from"><option value="sofia"' + (st.from === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (st.from === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (!st.from || st.from === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>';
     let inner = '';
     if (st.type === 'email') inner = '<span class="au-tag">📧 EMAIL</span><label>Sale de</label>' + F() + '<label>Asunto</label><input class="f-subject" value="' + esc(st.subject || '') + '" /><label>Cuerpo (párrafos con línea en blanco; los links se vuelven clickeables)</label><textarea class="f-body">' + esc(st.body || '') + '</textarea>';
+    else if (st.type === 'ai_email') inner = '<span class="au-tag">🤖 EMAIL IA → BANDEJA</span><label>Sale de</label>' + F() + '<label>Instrucción para la IA (qué tiene que lograr este email; la IA usa el contexto real del contacto y escribe en su idioma)</label><textarea class="f-prompt">' + esc(st.prompt || '') + '</textarea><p class="muted-note" style="margin-top:6px">El borrador NO se envía solo: cae en la 📤 Bandeja y lo aprobás/editás vos.</p>';
     else if (st.type === 'wait') inner = '<span class="au-tag">⏱ ESPERAR</span><label>Días</label><input class="f-days" type="number" min="0" value="' + (+st.days || 1) + '" />';
     else if (st.type === 'task') inner = '<span class="au-tag">✅ TAREA</span><label>Título de la tarea</label><input class="f-title" value="' + esc(st.title || '') + '" />';
     else if (st.type === 'push') inner = '<span class="au-tag">🔔 PUSH</span><label>Texto</label><input class="f-title" value="' + esc(st.title || '') + '" />';
@@ -5649,6 +5711,7 @@
       box.querySelectorAll('.au-step').forEach((el) => {
         const t = el.dataset.type;
         if (t === 'email') arr.push({ type: 'email', from: el.querySelector('.f-from').value, subject: el.querySelector('.f-subject').value, body: el.querySelector('.f-body').value });
+        else if (t === 'ai_email') arr.push({ type: 'ai_email', from: el.querySelector('.f-from').value, prompt: el.querySelector('.f-prompt').value });
         else if (t === 'wait') arr.push({ type: 'wait', days: +el.querySelector('.f-days').value || 1 });
         else if (t === 'task') arr.push({ type: 'task', title: el.querySelector('.f-title').value });
         else if (t === 'push') arr.push({ type: 'push', title: el.querySelector('.f-title').value });
@@ -5673,6 +5736,7 @@
     const c = (a && a.trigger_config) || {};
     $('au-cfg-stage').value = c.stage || 'ganado';
     $('au-cfg-days').value = c.days || 7;
+    $('au-cfg-scope').value = c.scope || 'nuevo';
     $('au-cfg-source').value = c.source || 'any';
     $('au-cfg-lang').value = c.lang || 'any';
     $('au-ab').value = a && a.ab_split >= 50 ? '50' : '0';
@@ -5688,7 +5752,7 @@
       name: $('au-name').value.trim() || 'Sin nombre',
       enabled: !!$('au-enabled').value,
       trigger: $('au-trigger').value,
-      trigger_config: { stage: $('au-cfg-stage').value, days: +$('au-cfg-days').value || 7, source: $('au-cfg-source').value, lang: $('au-cfg-lang').value },
+      trigger_config: { stage: $('au-cfg-stage').value, days: +$('au-cfg-days').value || 7, scope: $('au-cfg-scope').value, source: $('au-cfg-source').value, lang: $('au-cfg-lang').value },
       ab_split: +$('au-ab').value || 0,
       steps_a: auSteps.a, steps_b: auSteps.b,
       updated_at: new Date().toISOString(),
@@ -5705,6 +5769,8 @@
       steps: [{ type: 'wait', days: 21 }, { type: 'email', from: 'sebastian', subject: 'Ein Geschenk für dein Netzwerk — CHF 500 🎁', body: 'Hallo {{first_name}},\n\nes hat uns riesig gefreut, mit euch zu arbeiten — und wir hoffen, das Video leistet bereits gute Dienste.\n\nEine kleine Idee: Kennst du ein Unternehmen, das auch Video braucht? Wenn du uns vorstellst und daraus ein Projekt wird, bekommt diese Firma CHF 500 Rabatt mit dem Code REFERRAL500 — und du unseren ewigen Dank plus Priorität im Kalender.\n\nEinfach auf diese Mail antworten oder die Person direkt mit uns verbinden: info@viven.ch\n\nDanke dir!' }] },
     rev: { name: '⭐ Recordatorio de reseña (solo al team)', trigger: 'stage', cfg: { stage: 'ganado', source: 'any', lang: 'any' }, ab: '0',
       steps: [{ type: 'wait', days: 30 }, { type: 'task', title: '⭐ ¿Proyecto de {{name}} entregado? Mandar pedido de reseña desde la ficha' }, { type: 'push', title: '⭐ Revisar si toca pedir reseña' }] },
+    dor: { name: '😴 Reactivación de clientes dormidos', trigger: 'inactivity', cfg: { stage: 'ganado', scope: 'dormant', days: 365, source: 'any', lang: 'any' }, ab: '0',
+      steps: [{ type: 'ai_email', from: 'sebastian', prompt: 'Reactivar a un cliente que ganamos hace más de un año y no tiene proyecto nuevo. Referenciar su proyecto/mensaje original si existe. Ángulo: su video ya tiene tiempo — ¿sigue representando lo que hace la empresa hoy? Ofrecer un refresh o una idea nueva. CTA: responder este email o agendar 15 min en https://www.viven.ch/book/' }, { type: 'wait', days: 7 }, { type: 'ai_email', from: 'sebastian', prompt: 'Follow-up suave del email anterior de reactivación. Muy corto, sin presión, con una idea concreta nueva (p. ej. video para reclutamiento o social cut-downs del material existente). Mismo CTA.' }] },
     wel: { name: '👋 Bienvenida VIP calculadora', trigger: 'lead_new', cfg: { stage: 'ganado', source: 'calculator', lang: 'any' }, ab: '0',
       steps: [{ type: 'email', from: 'sofia', subject: 'Dein Video-Budget — nächster Schritt in 48h', body: 'Hallo {{first_name}},\n\ndanke für deine Berechnung! Dein Rahmen ist bei uns angekommen und einer von uns beiden meldet sich innert 48 Stunden (werktags) mit drei Konzeptideen und einer Fixofferte.\n\nWenn du es eilig hast: https://www.viven.ch/book/ — 15 Minuten, direkt mit uns.\n\nBis gleich!' }] },
   };
@@ -5715,6 +5781,7 @@
     $('au-name').value = p.name; $('au-enabled').value = '';
     $('au-trigger').value = p.trigger;
     $('au-cfg-stage').value = p.cfg.stage; $('au-cfg-days').value = 7;
+    $('au-cfg-scope').value = p.cfg.scope || 'nuevo'; $('au-cfg-days').value = p.cfg.days || 7;
     $('au-cfg-source').value = p.cfg.source; $('au-cfg-lang').value = p.cfg.lang;
     $('au-ab').value = p.ab;
     auSteps = { a: JSON.parse(JSON.stringify(p.steps)).map((x) => x.body ? { ...x, body: x.body.split('\\n').join('\n') } : x), b: [] };
