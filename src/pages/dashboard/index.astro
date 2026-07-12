@@ -471,6 +471,11 @@
   .post-preview .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--acid)}
   .post-preview h1{font-size:26px;margin:8px 0 12px;color:var(--text);line-height:1.2}
   .post-preview .lead{font-size:16px;color:var(--muted);margin-bottom:18px}
+  .bg-faq{position:relative;border:1px solid var(--line);border-radius:11px;padding:12px 40px 12px 14px;margin-bottom:9px}
+  .bg-faq .q{font-weight:700;font-size:14px;margin-bottom:5px}
+  .bg-faq .a{font-size:13.5px;color:var(--muted);line-height:1.6}
+  .bg-faq-x{position:absolute;top:8px;right:8px;background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:13px}
+  .bg-faq-x:hover{color:#ff8b8b}
   .post-preview [contenteditable]{border-radius:8px;transition:box-shadow .15s}
   .post-preview [contenteditable]:hover{box-shadow:0 0 0 1px var(--line-strong)}
   .post-preview [contenteditable]:focus{outline:none;box-shadow:0 0 0 1.5px var(--acid)}
@@ -1409,6 +1414,35 @@
       </div>
       <p class="muted-note" id="bg-pub-note" style="margin:-6px 0 10px"></p>
       <div class="bf"><label>Meta description</label><input id="bg-desc" /></div>
+      <div class="pp-grid" style="grid-template-columns:1fr 1fr;align-items:start">
+        <div class="bf"><label>🖼 Imagen héroe <span class="muted-note" style="font-weight:400">(auto-elegida — cambiala si querés; path de /projects/…)</span></label>
+          <input id="bg-hero" list="bg-hero-opts" placeholder="/projects/…/still.jpg (vacío = sin imagen)" />
+          <datalist id="bg-hero-opts">
+            <option value="/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg">Siemens EB — set</option>
+            <option value="/projects/siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg">Siemens EB — entrevista</option>
+            <option value="/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg">Meteomatics — BTS</option>
+            <option value="/projects/meteomatics-product-campaign-brand-video/03-Meteomatics_VIVEN_Video_Agentur_060.jpg">Meteomatics — equipo</option>
+            <option value="/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg">Kanebo — beauty set</option>
+            <option value="/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg">FIFA — Living Football</option>
+            <option value="/projects/carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg">Carvolution — TVC</option>
+            <option value="/projects/singularity-sci-fi-feature-film/01-Singularity_Feature_Film_7.jpeg">Singularity — film</option>
+            <option value="/projects/v-zug-combair-600-how-to-video-campaign/02-UG_How_To_Videos_Viven_Video_Agency_20.jpg">V-ZUG — how-to</option>
+          </datalist></div>
+        <div class="bf"><label>🎬 Video Vimeo <span class="muted-note" style="font-weight:400">(ID; se embebe al final del artículo)</span></label>
+          <input id="bg-video" list="bg-video-opts" placeholder="502153490 (vacío = sin video)" />
+          <datalist id="bg-video-opts">
+            <option value="1057568537">Viven — Showreel</option>
+            <option value="502153490">Siemens — The Circle</option>
+            <option value="412290258">UBS — Apprenticeship</option>
+            <option value="1068759296">V-ZUG — Combair V600</option>
+            <option value="1026464530">V-ZUG — How-to</option>
+            <option value="828322230">Siemens — Working Students</option>
+            <option value="861150876">SV Group — Innovation Film</option>
+            <option value="757649241">FIFA — Living Football</option>
+            <option value="1068759356">ON — Product Launch</option>
+            <option value="1036679041">Testimonials 2023 (Siemens+Meteo+SV)</option>
+          </datalist></div>
+      </div>
       <div class="pp-sec-h">Vista previa</div>
       <div class="post-preview" id="bg-preview"></div>
     </div>
@@ -5181,6 +5215,8 @@
   function blogInit(){
     if (!cqBound){ cqBound = true;
       $('bg-save') && $('bg-save').addEventListener('click', () => saveBlogEdits(false));
+      $('bg-hero') && $('bg-hero').addEventListener('input', () => { const i = $('bg-prevhero'); if (!i) return; const v = $('bg-hero').value.trim(); i.src = v; i.style.display = v ? '' : 'none'; });
+      $('bg-video') && $('bg-video').addEventListener('input', () => { const w = $('bg-prevvid'); if (!w) return; const v = $('bg-video').value.trim().replace(/\D/g, ''); if (v){ w.style.display = ''; w.innerHTML = '<iframe src="https://player.vimeo.com/video/' + v + '?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allowfullscreen></iframe>'; } else { w.style.display = 'none'; w.innerHTML = ''; } });
       $('bg-prop') && $('bg-prop').addEventListener('click', propagateBlog);
       $('cq-add') && $('cq-add').addEventListener('click', async () => {
         const t = $('cq-new').value.trim(); if (!t) return;
@@ -5230,12 +5266,24 @@
     bgCur = b;
     $('bg-topic').value = b.topic || ''; $('bg-lang').value = b.lang || 'en';
     $('bg-title').value = b.title || ''; $('bg-slug').value = b.slug || ''; $('bg-desc').value = b.description || '';
+    $('bg-hero').value = b.hero_image || '';
+    $('bg-video').value = b.video_id || '';
     let html = '<span class="eyebrow">' + esc(b.eyebrow || 'Industry insight') + '</span><h1>' + esc(b.title || '') + '</h1>';
     html += '<p class="lead" id="bg-ed-lead" contenteditable="true" spellcheck="true">' + esc(b.lead || '') + '</p>';
+    html += '<img id="bg-prevhero" src="' + esc(b.hero_image || '') + '" alt="" style="width:100%;border-radius:14px;margin:6px 0 18px;aspect-ratio:16/9;object-fit:cover' + (b.hero_image ? '' : ';display:none') + '" onerror="this.style.display=\'none\'" />';
     html += '<div class="post-body" id="bg-ed-body" contenteditable="true" spellcheck="true">' + blogPreviewHtml(b.body_html) + '</div>';
-    html += '<p class="muted-note" style="margin-top:10px">✏️ El lead y el cuerpo son EDITABLES: hacé click y corregí lo que quieras → 💾 Guardar cambios → 🌍 Propagar.</p>';
-    if (b.faq && b.faq.length) html += '<h2 style="margin-top:24px">FAQ</h2>' + b.faq.map((f) => '<div style="margin-bottom:12px"><strong>' + esc(f.q) + '</strong><br>' + esc(f.a) + '</div>').join('');
+    html += '<div id="bg-prevvid" style="' + (b.video_id ? '' : 'display:none;') + 'position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;margin:18px 0">' + (b.video_id ? '<iframe src="https://player.vimeo.com/video/' + esc(b.video_id) + '?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allowfullscreen></iframe>' : '') + '</div>';
+    html += '<div id="bg-faqwrap"><h2 style="margin-top:24px;display:flex;align-items:center;gap:10px">FAQ <button class="btn btn-ghost small" id="bg-faq-add" type="button">➕ Pregunta</button></h2>' +
+      (b.faq || []).map((f) => '<div class="bg-faq"><div class="q" contenteditable="true">' + esc(f.q) + '</div><div class="a" contenteditable="true">' + esc(f.a) + '</div><button class="bg-faq-x" type="button" title="Borrar pregunta">✕</button></div>').join('') + '</div>';
+    html += '<p class="muted-note" style="margin-top:10px">✏️ TODO es editable: lead, cuerpo y FAQ (click y escribís). Imagen y video se cambian arriba y se ven acá. 💾 Guardar → 🌍 Propagar → 🚀 Publicar.</p>';
     $('bg-preview').innerHTML = html;
+    const bindFaq = () => $('bg-preview').querySelectorAll('.bg-faq-x').forEach((x) => x.onclick = () => x.closest('.bg-faq').remove());
+    bindFaq();
+    $('bg-faq-add').addEventListener('click', () => {
+      const d = document.createElement('div'); d.className = 'bg-faq';
+      d.innerHTML = '<div class="q" contenteditable="true">Nueva pregunta…</div><div class="a" contenteditable="true">Respuesta…</div><button class="bg-faq-x" type="button">✕</button>';
+      $('bg-faqwrap').appendChild(d); bindFaq(); d.querySelector('.q').focus();
+    });
     $('bg-editing-lang').textContent = LANGNAME[b.lang] || b.lang;
     const have = blogsList.filter((x) => x.group_id === b.group_id).map((x) => LANGNAME[x.lang]);
     $('bg-versions').textContent = 'versiones: ' + (have.join(', ') || LANGNAME[b.lang]);
@@ -5249,14 +5297,19 @@
     let body = bodyEl.innerHTML
       .replace(/<a[^>]*href="https:\/\/www\.viven\.ch\/([^"]+?)\/?"[^>]*>([\s\S]*?)<\/a>/g, (m, sl, an) => '[[' + sl + '|' + an.replace(/<[^>]+>/g, '') + ']]')
       .replace(/\scontenteditable="true"|\sspellcheck="true"/g, '');
+    const faq = [...$('bg-preview').querySelectorAll('.bg-faq')].map((d) => ({
+      q: (d.querySelector('.q').textContent || '').trim(), a: (d.querySelector('.a').textContent || '').trim(),
+    })).filter((f) => f.q && f.q !== 'Nueva pregunta…');
     return {
       title: $('bg-title').value.trim(), slug: $('bg-slug').value.trim(), description: $('bg-desc').value.trim(),
-      lead: (leadEl.textContent || '').trim(), body_html: body,
+      lead: (leadEl.textContent || '').trim(), body_html: body, faq,
+      hero_image: $('bg-hero').value.trim() || null, video_id: $('bg-video').value.trim() || null,
     };
   }
   async function saveBlogEdits(silent){
     const ed = bgCollectEdits(); if (!ed) return false;
-    const { error } = await supabase.from('blogs').update(ed).eq('id', bgCur.id);
+    let { error } = await supabase.from('blogs').update(ed).eq('id', bgCur.id);
+    if (error && /column/.test(error.message || '')){ const e2 = { ...ed }; delete e2.hero_image; delete e2.video_id; ({ error } = await supabase.from('blogs').update(e2).eq('id', bgCur.id)); }
     if (error){ toast('No se pudo guardar: ' + error.message); return false; }
     Object.assign(bgCur, ed);
     const i = blogsList.findIndex((x) => String(x.id) === String(bgCur.id)); if (i > -1) Object.assign(blogsList[i], ed);
@@ -5356,7 +5409,9 @@ const description = {"${lang}":${JSON.stringify(desc)}};
   <p class="lead">${(bgCur.lead || desc).replace(/</g, '')}</p>
 </div></div></section>
 <section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+${$('bg-hero').value.trim() ? '<img src="' + $('bg-hero').value.trim() + '" alt="' + title.replace(/"/g, '') + '" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />' : ''}
 ${body}
+${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/' + $('bg-video').value.trim() + '?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>' : ''}
 </div></div></section>
 </Base>`;
     const path = 'src/pages/' + lang + '/blog/' + slug + '/index.astro';
