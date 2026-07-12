@@ -2674,8 +2674,25 @@
     const dd = $('lm-brief-d'); if (dd) dd.open = !!b;
     if (!b){ el.innerHTML = '<p class="muted-note">Sin brief todavía — el link se manda en la confirmación del booking y en los emails.</p>'; return; }
     const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + esc(v) + '</span></div>' : '';
-    el.innerHTML = row('Objetivo', b.goal) + row('Canales', b.distribution) + row('Timing', b.timeline) + row('Presupuesto', b.budget) + row('Extra', b.extra) +
-      '<p class="muted-note" style="margin-top:6px">Recibido ' + fmtDMY(b.created_at) + (b.lang ? ' · ' + String(b.lang).toUpperCase() : '') + ' — la IA lo usa al generar la oferta/propuesta.</p>';
+    const A = b.answers || {};
+    const list = (v) => Array.isArray(v) ? v.join(', ') : (v || '');
+    el.innerHTML = row('Objetivo', b.goal) + row('Audiencia', list(A.audience)) + row('Canales', b.distribution) +
+      row('Cantidad', list(A.quantity)) + row('Formatos', list(A.formats)) + row('Idiomas', list(A.languages)) +
+      row('En cámara', list(A.oncamera)) + row('Locación', list(A.locations)) + row('Referencias', list(A.references)) +
+      row('Timing', b.timeline) + row('Presupuesto', b.budget) + row('Extra', b.extra) +
+      '<p class="muted-note" style="margin-top:6px">Recibido ' + fmtDMY(b.created_at) + (b.lang ? ' · ' + String(b.lang).toUpperCase() : '') + ' — la IA lo usa al generar la oferta/propuesta.</p>' +
+      '<button class="btn btn-primary small" id="lm-brief-offer" type="button" style="margin-top:10px" title="Abre una oferta nueva ligada a esta persona y la IA la arma con el brief + tu catálogo de servicios">🧾 ✨ Crear oferta desde este brief</button>';
+    const bo = $('lm-brief-offer');
+    if (bo) bo.addEventListener('click', () => offerFromBrief(r));
+  }
+  // brief → oferta en UN click: abre Ofertas, liga el lead y dispara la IA
+  function offerFromBrief(lead){
+    closeLead();
+    gotoTab('offers');
+    newOffer();
+    const sel = $('of-lead');
+    if (sel){ sel.value = String(lead.id); sel.dispatchEvent(new Event('change')); }
+    setTimeout(() => { const g = $('of-ai-gen'); if (g) g.click(); }, 80);
   }
 
   /* ---------- Enrich con IA: info actual de la persona + empresa (web search) ---------- */
@@ -3825,7 +3842,7 @@
     inquiryFromLead = lead.message || '';
   }
   // catálogo plano para pasarle a la IA (precios reales)
-  const catalogFlat = () => PHASES.flatMap((ph) => RATECARD[ph].map((it) => ({ phase: ph, name: it.name, unit: it.unit, price: it.price, cost: it.cost })));
+  const catalogFlat = () => { const c = CATALOG(); return Object.keys(c).flatMap((ph) => c[ph].map((it) => ({ phase: ph, name: it.name, unit: it.unit, price: it.price, cost: it.cost }))); };
   // si la IA usó un ítem del catálogo, forzamos SUS precio/costo exactos (que no drifteen)
   function snapToCatalog(items){
     const cat = catalogFlat();
