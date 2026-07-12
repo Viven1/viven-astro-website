@@ -932,6 +932,7 @@
           <div id="bell-list"><p class="muted-note" style="padding:14px">Cargando…</p></div>
         </div>
       </div>
+      <button class="btn btn-primary small" id="app-update-btn" type="button" hidden title="Hay una versión nueva de la app instalada — tocá para cargarla">🔄 Nueva versión</button>
       <button class="btn btn-ghost small" id="refresh-btn" type="button">↻ Actualizar</button>
       <button class="btn btn-ghost small" id="logout-btn" type="button">Salir</button>
     </div>
@@ -2402,8 +2403,22 @@
   // versión del build visible en el sheet Más — para diagnosticar apps con código viejo
   const BUILD_VER = document.lastModified ? new Date(document.lastModified).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   const mv = $('mob-ver'); if (mv && BUILD_VER) mv.textContent = 'build ' + BUILD_VER;
-  // registrar el SW siempre (no solo al activar push): así la PWA instala y cachea el shell
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/dashboard-sw.js', { scope: '/dashboard/' }).catch(() => {});
+  // registrar el SW siempre (no solo al activar push): así la PWA instala y cachea el shell.
+  // Update UX: el SW ya hace skipWaiting()+clients.claim() apenas instala una versión nueva,
+  // así que 'controllerchange' es la señal confiable de "ya hay código nuevo corriendo, pero
+  // esta pestaña sigue con el JS viejo en memoria" → mostramos el botón, nunca recargamos solos
+  // (podrías estar escribiendo un email sin guardar). iOS puede tener la app abierta horas sin
+  // re-chequear por su cuenta, así que forzamos reg.update() cada 5 min y al volver a la app.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/dashboard-sw.js', { scope: '/dashboard/' }).then((reg) => {
+      setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      const b = $('app-update-btn'); if (b) b.hidden = false;
+    });
+  }
+  $('app-update-btn') && $('app-update-btn').addEventListener('click', () => location.reload());
   async function refreshPushBtn(){
     const btn = $('bell-push'); if (!btn) return;
     if (!pushSupported()){ btn.textContent = '📲 Push no disponible'; btn.title = 'En iPhone: instalá la app (Compartir → Añadir a pantalla de inicio) y abrila desde el ícono'; return; }

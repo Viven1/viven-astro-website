@@ -1,6 +1,6 @@
 /* Service worker del Viven CRM: recibe Web Push, abre el dashboard al tocar,
    y cachea el shell para que la app instale y abra rápido (incluso offline). */
-var CACHE = 'viven-crm-v2';
+var CACHE = 'viven-crm-v3';
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));
