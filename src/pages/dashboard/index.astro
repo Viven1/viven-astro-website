@@ -528,6 +528,19 @@
   .au-field-wrap.au-fs textarea{flex:1;min-height:0;font-size:14.5px}
   body.au-fs-open{overflow:hidden}
   .au-addsel{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 8px}
+  #au-enroll-lead{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px}
+  .au-enr-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .au-enr-row:last-child{border-bottom:0}
+  .au-enr-main{flex:1;min-width:0}
+  .au-enr-name{font-size:13.5px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .au-enr-step{font-size:12px;color:var(--muted);margin-top:2px}
+  .au-enr-badge{font-size:10.5px;font-weight:700;letter-spacing:.3px;padding:2px 8px;border-radius:20px;flex:none}
+  .au-enr-badge.active{color:#7ed957;border:1px solid #7ed957}
+  .au-enr-badge.stopped{color:#ff8b8b;border:1px solid #ff8b8b}
+  .au-enr-badge.done{color:var(--muted-2);border:1px solid var(--line-strong)}
+  .au-enr-actions{display:flex;gap:4px;flex:none}
+  .au-enr-actions button{background:none;border:1px solid var(--line);border-radius:7px;color:var(--muted);cursor:pointer;font-size:11px;padding:4px 8px}
+  .au-enr-actions button:hover{color:var(--acid);border-color:var(--acid)}
   @media(max-width:720px){.au-branches{flex-direction:column;align-items:stretch}.au-branch-mid{justify-content:center;padding:6px 0}}
   .bg-group{border:1px solid var(--line);border-radius:13px;padding:4px 12px;margin-bottom:10px}
   .bg-group summary{cursor:pointer;font-weight:700;font-size:14px;padding:9px 2px;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
@@ -1329,6 +1342,15 @@
 
       <div class="au-flow-wrap"><div class="au-flow" id="au-flow"></div></div>
       <p class="muted-note" style="margin-top:4px">Arrastrá ⠿ para reordenar pasos dentro de un camino · tocá <b>+</b> entre nodos para insertar ahí mismo · ✏️ edita, 📋 duplica, 🗑 borra cada paso.</p>
+
+      <details class="lm-block lm-fold" id="au-enrolled-d" style="margin-top:14px">
+        <summary class="lm-block-h">👥 Inscriptos <span class="count" id="au-enrolled-n"></span></summary>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="au-enroll-lead" style="flex:1;min-width:200px"></select>
+          <button class="btn btn-ghost small" id="au-enroll-add" type="button">➕ Agregar persona</button>
+        </div>
+        <div id="au-enrolled-list"><p class="muted-note">Guardá el workflow primero para poder inscribir gente.</p></div>
+      </details>
 
       <p class="muted-note" style="margin:10px 0">Tokens en asunto/cuerpo: <code>{'{{first_name}}'}</code> · <code>{'{{name}}'}</code> · <code>{'{{company}}'}</code>. Nunca se manda a dados de baja ni emails de test; un lead entra UNA vez por workflow.</p>
       <div class="ab-urlrow">
@@ -4400,6 +4422,7 @@
       $('au-pre-rev') && $('au-pre-rev').addEventListener('click', auGuard(() => auPreset('rev')));
       $('au-pre-wel') && $('au-pre-wel').addEventListener('click', auGuard(() => auPreset('wel')));
       $('au-pre-dor') && $('au-pre-dor').addEventListener('click', auGuard(() => auPreset('dor')));
+      $('au-enroll-add') && $('au-enroll-add').addEventListener('click', auGuard(auEnrollPerson));
 
       $('nur-toggle') && $('nur-toggle').addEventListener('click', async () => {
         const on = !$('nur-toggle').dataset.on;
@@ -5980,7 +6003,65 @@
     $('au-dup').hidden = !a; $('au-del').hidden = !a;
     $('au-editor').hidden = false;
     auCfgVis(); auRenderFlow();
+    auLoadEnrolled(a);
     $('au-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  /* ================= 👥 INSCRIPTOS: quién está en qué paso, frenar o sumar gente ================= */
+  function auEnrStepTxt(a, run){
+    const steps = run.variant === 'b' ? (a.steps_b || []) : (a.steps_a || []);
+    if (run.status === 'done' || run.step_idx >= steps.length) return 'Terminó la secuencia';
+    const st = steps[run.step_idx];
+    if (!st) return '—';
+    return 'Paso ' + (run.step_idx + 1) + '/' + steps.length + ': ' + (AU_TYPE_META[st.type] || {}).ic + ' ' + auStepSummary(st);
+  }
+  function auEnrNextTxt(run){
+    if (run.status === 'stopped') return 'Frenado';
+    if (run.status === 'done') return '—';
+    if (!run.next_at) return 'pendiente';
+    const t = new Date(run.next_at).getTime(), now = Date.now();
+    if (t <= now) return 'se procesa en el próximo pase del motor (~20 min)';
+    const days = Math.round((t - now) / 864e5);
+    return days >= 1 ? 'envía en ' + days + ' día' + (days === 1 ? '' : 's') : 'envía hoy ' + new Date(run.next_at).toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+  }
+  async function auLoadEnrolled(a){
+    const box = $('au-enrolled-list'), n = $('au-enrolled-n'), sel = $('au-enroll-lead');
+    if (!a){ box.innerHTML = '<p class="muted-note">Guardá el workflow primero para poder inscribir gente.</p>'; if (n) n.textContent = ''; return; }
+    box.innerHTML = '<p class="muted-note">Cargando…</p>';
+    if (sel) sel.innerHTML = '<option value="">Elegir persona…</option>' + (allLeads || []).slice().sort((x, y) => (x.name || x.email || '').localeCompare(y.name || y.email || '')).map((l) => '<option value="' + l.id + '">' + esc(l.name || l.email) + '</option>').join('');
+    const { data, error } = await supabase.from('automation_runs').select('*').eq('automation_id', a.id).order('created_at', { ascending: false });
+    if (error){ box.innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; if (n) n.textContent = ''; return; }
+    const runs = data || [];
+    if (n) n.textContent = runs.length ? '(' + runs.length + ')' : '';
+    if (!runs.length){ box.innerHTML = '<p class="muted-note">Nadie inscripto todavía.</p>'; return; }
+    box.innerHTML = runs.map((r) => {
+      const l = leadById(r.lead_id) || {};
+      const badge = r.status === 'active' ? 'active' : r.status === 'stopped' ? 'stopped' : 'done';
+      const badgeTxt = r.status === 'active' ? '🟢 Activo' : r.status === 'stopped' ? '⏸ Frenado' : '✅ Terminado';
+      return '<div class="au-enr-row" data-rid="' + r.id + '">' +
+        '<div class="au-enr-main"><div class="au-enr-name">' + esc(l.name || l.email || ('Lead #' + r.lead_id)) + (a.ab_split >= 50 ? ' · ' + r.variant.toUpperCase() : '') + '</div>' +
+        '<div class="au-enr-step">' + esc(auEnrStepTxt(a, r)) + ' · ' + esc(auEnrNextTxt(r)) + '</div></div>' +
+        '<span class="au-enr-badge ' + badge + '">' + badgeTxt + '</span>' +
+        '<div class="au-enr-actions">' +
+        (r.status === 'active' ? '<button data-act="stop" type="button">⏸ Frenar</button>' : r.status === 'stopped' ? '<button data-act="resume" type="button">▶️ Reactivar</button>' : '') +
+        '<button data-act="del" type="button">🗑</button></div></div>';
+    }).join('');
+    box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+      const row = btn.closest('.au-enr-row'), rid = +row.dataset.rid, act = btn.dataset.act;
+      if (act === 'stop') await supabase.from('automation_runs').update({ status: 'stopped' }).eq('id', rid);
+      else if (act === 'resume') await supabase.from('automation_runs').update({ status: 'active', next_at: new Date().toISOString() }).eq('id', rid);
+      else if (act === 'del'){ if (!confirm('¿Sacar a esta persona del workflow del todo?')) return; await supabase.from('automation_runs').delete().eq('id', rid); }
+      auLoadEnrolled(auCur);
+    }));
+  }
+  async function auEnrollPerson(){
+    const a = auCur; if (!a || !a.id){ toast('Guardá el workflow primero'); return; }
+    const leadId = $('au-enroll-lead').value; if (!leadId){ toast('Elegí una persona'); return; }
+    const variant = a.ab_split >= 50 && Math.random() < 0.5 ? 'b' : 'a';
+    const { error } = await supabase.from('automation_runs').insert({ automation_id: a.id, lead_id: +leadId, variant, step_idx: 0, next_at: new Date().toISOString(), status: 'active' });
+    if (error){ toast(/duplicate|unique/i.test(error.message) ? 'Esa persona ya está inscripta en este workflow' : '⚠️ ' + error.message); return; }
+    toast('➕ Persona agregada al workflow');
+    $('au-enroll-lead').value = '';
+    auLoadEnrolled(a);
   }
   async function auSave(asCopy){
     auCollect();
