@@ -1839,11 +1839,8 @@
     (async () => {
       try {
         let dirty = false;
-        for (const d of (dealsList || []).filter((x) => !x.synthetic && stageOf(x.stage) === 'ganado')) {
-          for (const o of offersForDeal(d).filter((x) => x.status === 'draft' || x.status === 'sent')) {
-            await supabase.from('offers').update({ status: 'won' }).eq('id', o.id); o.status = 'won'; dirty = true;
-          }
-        }
+        // (la dirección "deal ganado → borradores won" se ELIMINÓ el 12/07: promovía
+        //  cotizaciones nuevas de clientes ya ganados — como los paquetes de propuesta)
         for (const o of (offersList || []).filter((x) => x.status === 'won' && !x.archived && !x.is_template)) {
           const d = o.deal_id ? (dealsList || []).find((x) => String(x.id) === String(o.deal_id)) : (o.lead_id ? openDealOf(o.lead_id) : null);
           if (d && !d.synthetic && !['ganado', 'perdido'].includes(stageOf(d.stage))) {
