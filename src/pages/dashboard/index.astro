@@ -2746,6 +2746,7 @@
     $('lm-id-txt').textContent = r.id;
     const phoneClean = (r.phone || '').replace(/[^\d+]/g, '');
     const call = $('lm-call'), wa = $('lm-wa');
+    const rvb = $('lm-review'); if (rvb) rvb.hidden = stageOf(r.status) !== 'ganado';   // ⭐ solo en ganados
     call.hidden = !r.phone; if (r.phone) call.href = 'tel:' + phoneClean;
     wa.hidden = !r.phone; if (r.phone) wa.href = 'https://wa.me/' + phoneClean.replace(/^\+/, '');
 
@@ -3319,6 +3320,18 @@
     return { error: null, stripped };
   }
   $('lm-edit-btn') && $('lm-edit-btn').addEventListener('click', startEditLead);
+  $('lm-review') && $('lm-review').addEventListener('click', async () => {
+    if (!currentLead) return;
+    if (!confirm('¿Mandar AHORA el pedido de reseña de Google a ' + (currentLead.name || currentLead.email) + '?\n\nSolo si el proyecto ya está entregado.')) return;
+    const btn = $('lm-review'); btn.disabled = true;
+    try {
+      const { data, error } = await supabase.functions.invoke('review-request', { body: { lead_id: currentLead.id } });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'sin respuesta');
+      toast('⭐ Pedido de reseña enviado a ' + data.sent_to);
+      if (typeof loadNotes === 'function') loadNotes(currentLead);
+    } catch (e) { toast('No se pudo: ' + (e.message || e)); }
+    btn.disabled = false;
+  });
   // Recorrido del lead: páginas visitadas + videos vistos (por session_id)
   async function loadJourney(r){
     const box = $('lm-journey');
