@@ -510,7 +510,14 @@
   .au-node-body label{display:block;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted-2);margin:8px 0 3px}
   .au-node-body label:first-child{margin-top:0}
   .au-node-body input,.au-node-body select,.au-node-body textarea{width:100%;background:var(--navy-800);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:inherit;font-size:13.5px;padding:8px 10px}
-  .au-node-body textarea{min-height:100px;resize:vertical}
+  .au-node-body textarea{min-height:140px;resize:vertical;line-height:1.55}
+  .au-field-wrap{position:relative}
+  .au-field-wrap label{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .au-fs-toggle{background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted-2);cursor:pointer;font-size:10.5px;letter-spacing:0;text-transform:none;padding:2px 7px;flex:none}
+  .au-fs-toggle:hover{color:var(--acid);border-color:var(--acid)}
+  .au-field-wrap.au-fs{position:fixed;inset:16px;z-index:9999;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;box-shadow:0 24px 60px -12px rgba(0,0,0,.6)}
+  .au-field-wrap.au-fs textarea{flex:1;min-height:0;font-size:14.5px}
+  body.au-fs-open{overflow:hidden}
   .au-addsel{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 8px}
   @media(max-width:720px){.au-branches{flex-direction:column;align-items:stretch}.au-branch-mid{justify-content:center;padding:6px 0}}
   .bg-group{border:1px solid var(--line);border-radius:13px;padding:4px 12px;margin-bottom:10px}
@@ -5803,8 +5810,8 @@
     const open = auOpenIdx === (v + '-' + i);
     const F = (cur) => '<select class="f-from"><option value="sofia"' + (cur === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (cur === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (!cur || cur === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>';
     let fields = '';
-    if (st.type === 'email') fields = '<label>Sale de</label>' + F(st.from) + '<label>Asunto</label><input class="f-subject" value="' + esc(st.subject || '') + '" /><label>Cuerpo (párrafos con línea en blanco)</label><textarea class="f-body">' + esc(st.body || '') + '</textarea>';
-    else if (st.type === 'ai_email') fields = '<label>Sale de</label>' + F(st.from) + '<label>Instrucción para la IA (usa el contexto real del contacto y escribe en su idioma)</label><textarea class="f-prompt">' + esc(st.prompt || '') + '</textarea><p class="muted-note" style="margin-top:6px">No se envía solo: cae en 📤 Bandeja para tu aprobación.</p>';
+    if (st.type === 'email') fields = '<label>Sale de</label>' + F(st.from) + '<label>Asunto</label><input class="f-subject" value="' + esc(st.subject || '') + '" /><div class="au-field-wrap"><label>Cuerpo (párrafos con línea en blanco) <button type="button" class="au-fs-toggle" data-act="fs">⤢ Expandir</button></label><textarea class="f-body">' + esc(st.body || '') + '</textarea></div>';
+    else if (st.type === 'ai_email') fields = '<label>Sale de</label>' + F(st.from) + '<div class="au-field-wrap"><label>Instrucción para la IA (usa el contexto real del contacto y escribe en su idioma) <button type="button" class="au-fs-toggle" data-act="fs">⤢ Expandir</button></label><textarea class="f-prompt">' + esc(st.prompt || '') + '</textarea></div><p class="muted-note" style="margin-top:6px">No se envía solo: cae en 📤 Bandeja para tu aprobación.</p>';
     else if (st.type === 'wait') fields = '<label>Días</label><input class="f-days" type="number" min="0" value="' + (+st.days || 1) + '" />';
     else if (st.type === 'task' || st.type === 'push') fields = '<label>Texto</label><input class="f-title" value="' + esc(st.title || '') + '" />';
     else fields = '<label>Nueva etapa</label><select class="f-status"><option value="contactado"' + (st.value === 'contactado' ? ' selected' : '') + '>Contactado</option><option value="propuesta"' + (st.value === 'propuesta' ? ' selected' : '') + '>Propuesta</option><option value="perdido"' + (st.value === 'perdido' ? ' selected' : '') + '>Perdido</option></select>';
@@ -5871,6 +5878,14 @@
       });
     });
     $('au-copy-ab') && $('au-copy-ab').addEventListener('click', () => { auCollect(); auSteps.b = JSON.parse(JSON.stringify(auSteps.a)); toast('📋 Camino A copiado a B'); auRenderFlow(); });
+    flow.querySelectorAll('.au-fs-toggle').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const wrap = btn.closest('.au-field-wrap');
+      const fs = wrap.classList.toggle('au-fs');
+      document.body.classList.toggle('au-fs-open', fs);
+      btn.textContent = fs ? '✕ Cerrar' : '⤢ Expandir';
+      if (fs) wrap.querySelector('textarea').focus();
+    }));
   }
   function auCollect(){
     ['a', 'b'].forEach((v) => {
