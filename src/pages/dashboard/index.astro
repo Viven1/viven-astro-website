@@ -6689,6 +6689,15 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     } catch (err){ toast('Error importando: ' + err.message); }
   });
 
+  // abInit() ata los botones de Google Ads / Newsletter / Workflows (quedaron
+  // adentro de su guard "una sola vez" por error de copy-paste) — si el guard
+  // solo se disparaba al entrar al tab A/B Tests, esos botones quedaban SIN
+  // ningún listener (clic = no pasa nada, sin error) hasta que alguien pasara
+  // por A/B Tests primero. abInit() ya es idempotente (if(!abBuilt)), así que
+  // llamarla acá una vez al cargar el dashboard garantiza que esos tres tabs
+  // funcionen sin depender del orden en que se navega.
+  abInit();
+
   /* ---------- Sesión persistente ---------- */
   // si venimos de una notificación push (/dashboard/?lead=12), abrir ese lead directo
   function openFromQuery(){
