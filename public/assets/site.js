@@ -386,6 +386,7 @@ function renderLeadForm(mount){
         row.utm_source = extra.attrib.utm_source;
         row.utm_campaign = extra.attrib.utm_campaign;
         row.landing_path = extra.attrib.landing_path;
+        if(extra.attrib.ref_code) row.referred_by = extra.attrib.ref_code;
       }
     }
     /* Además de Supabase, mandamos a HubSpot (CRM + automations) vía su
@@ -716,6 +717,7 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     };
     var gclid = q.get('gclid') || q.get('gbraid') || q.get('wbraid'); /* variantes iOS de Google Ads */
     var fbclid = q.get('fbclid');
+    var refCode = q.get('ref'); /* código de referido — ?ref=REFxx en el link que comparte un cliente */
     var refHost = '';
     try{
       if(document.referrer) refHost = new URL(document.referrer).hostname.replace(/^www\./,'');
@@ -742,7 +744,7 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
       referrer: own ? null : (refHost || null),
       utm_source: utm.source, utm_medium: utm.medium || null,
       utm_campaign: utm.campaign, utm_term: utm.term, utm_content: utm.content,
-      gclid: gclid, fbclid: fbclid,
+      gclid: gclid, fbclid: fbclid, ref_code: refCode,
       landing_path: location.pathname
     };
   }

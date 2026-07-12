@@ -57,7 +57,13 @@ async function unsubToken(id: string | number): Promise<string> {
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 function fill(t: string, lead: Record<string, unknown>): string {
   const first = String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim();
-  return String(t || "").replaceAll("{{first_name}}", first).replaceAll("{{name}}", String(lead.name || first)).replaceAll("{{company}}", String(lead.company || ""));
+  const refCode = String(lead.referral_code || "");
+  return String(t || "")
+    .replaceAll("{{first_name}}", first)
+    .replaceAll("{{name}}", String(lead.name || first))
+    .replaceAll("{{company}}", String(lead.company || ""))
+    .replaceAll("{{referral_code}}", refCode)
+    .replaceAll("{{referral_link}}", refCode ? `https://www.viven.ch/?ref=${refCode}` : "https://www.viven.ch");
 }
 function wrap(bodyText: string, unsub: string, lang: string, sender: string): string {
   const bye = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" }[lang] || "Unsubscribe";
@@ -127,6 +133,12 @@ Deno.serve(async (req) => {
       if (run.step_idx >= steps.length) { await service.from("automation_runs").update({ status: "done" }).eq("id", run.id); out.done++; continue; }
       const { data: lead } = await service.from("leads").select("*").eq("id", run.lead_id).maybeSingle();
       if (!lead || (lead as { unsubscribed?: boolean }).unsubscribed) { await service.from("automation_runs").update({ status: "stopped" }).eq("id", run.id); continue; }
+      // código de referido propio (para {{referral_link}}) — se genera una sola
+      // vez, la primera vez que un workflow lo necesita, y queda para siempre
+      if (!lead.referral_code) {
+        lead.referral_code = "REF" + lead.id;
+        await service.from("leads").update({ referral_code: lead.referral_code }).eq("id", lead.id).then(() => {}, () => {});
+      }
       // EXIT RULES: conversación viva o lead que avanzó → robots afuera
       const enrolledAt = new Date(run.created_at).getTime();
       const replied = lead.last_reply_at && new Date(lead.last_reply_at).getTime() > enrolledAt;

@@ -124,6 +124,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .pp-acc-form input{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:15px;padding:13px 14px}
   .pp-accept button{width:100%;margin-top:14px;font-size:16px;padding:16px}
   .pp-fine{font-size:12px;color:var(--muted-2);margin-top:12px;text-align:center}
+  .pp-agree{display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:13.5px;color:var(--muted);cursor:pointer;line-height:1.4}
+  .pp-agree input{margin-top:2px;flex:none}
+  .pp-signed-name{font-family:'Brush Script MT',cursive;font-size:26px;color:var(--acid);margin-top:8px}
   .pp-footer{text-align:center;padding:44px 0;color:var(--muted)}
   .pp-footer a{color:var(--acid)}
   /* gate + estados */
@@ -358,8 +361,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +
         '<div class="pp-eyebrow">Accept & start</div><div id="pp-tot-box"></div>' +
         '<div id="pp-accept-ui"><div class="pp-acc-form"><input id="pp-acc-name" placeholder="Your full name" /><input id="pp-acc-email" type="email" placeholder="Your email" /></div>' +
-        '<button class="btn btn-primary" id="pp-do-accept" type="button">✓ Accept proposal</button>' +
-        '<div class="pp-fine">By accepting you agree to start the project on the selected scope. We’ll be in touch within one business day.</div>' +
+        '<label class="pp-agree"><input type="checkbox" id="pp-acc-agree" /> I have read and agree to the Terms &amp; Conditions above</label>' +
+        '<button class="btn btn-primary" id="pp-do-accept" type="button">✓ Accept &amp; sign proposal</button>' +
+        '<div class="pp-fine">Typing your name above and clicking accept counts as your electronic signature. By accepting you agree to start the project on the selected scope. We’ll be in touch within one business day.</div>' +
         '<div class="pp-err" id="pp-acc-err"></div></div>' +
       '</div></section>' +
       '<div class="pp-footer">Questions before we start? <a href="mailto:' + esc(sender.email || 'sofia@viven.ch') + '">' + esc(sender.email || 'sofia@viven.ch') + '</a>' +
@@ -388,24 +392,26 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 
   function lockAccepted(a){
     const ui = $('pp-accept-ui');
-    if (ui) ui.innerHTML = '<div class="pp-accepted-banner">✅ Accepted' + (a.name ? ' by ' + esc(a.name) : '') + (a.at ? ' on ' + new Date(a.at).toLocaleDateString() : '') + '. Thank you — we’ll be in touch.</div>';
+    if (ui) ui.innerHTML = '<div class="pp-accepted-banner">✅ Accepted &amp; signed' + (a.at ? ' on ' + new Date(a.at).toLocaleDateString() : '') + '. Thank you — we’ll be in touch.' +
+      (a.name ? '<div class="pp-signed-name">' + esc(a.name) + '</div>' : '') + '</div>';
   }
 
   async function doAccept(){
     const name = $('pp-acc-name').value.trim(), email = $('pp-acc-email').value.trim();
     const err = $('pp-acc-err');
     if (!name || !/\S+@\S+\.\S+/.test(email)) { err.textContent = 'Please enter your name and a valid email.'; return; }
+    if (!$('pp-acc-agree').checked) { err.textContent = 'Please confirm you agree to the Terms & Conditions.'; return; }
     if (DEMO_MODE) { lockAccepted({ name, at: new Date().toISOString() }); return; }
     const btn = $('pp-do-accept'); btn.disabled = true; btn.textContent = 'Accepting…';
     const addons = [...selAddons.entries()].map(([k, q]) => { const [gi, ii] = k.split(':').map(Number); const it = content.addon_groups[gi].items[ii]; return it.name + (q > 1 ? ' ×' + q : ''); });
     try {
       const res = await fetch(FN('accept-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({
-        slug, password: PASS, name, email, tier: (content.tiers[selTier] || {}).name, addons, total: totals().gross
+        slug, password: PASS, name, email, tier: (content.tiers[selTier] || {}).name, addons, total: totals().gross, agreed_terms: true
       }) });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'error');
       lockAccepted({ name, at: new Date().toISOString() });
-    } catch (e) { err.textContent = 'Could not accept: ' + e.message; btn.disabled = false; btn.textContent = '✓ Accept proposal'; }
+    } catch (e) { err.textContent = 'Could not accept: ' + e.message; btn.disabled = false; btn.textContent = '✓ Accept & sign proposal'; }
   }
 
   // ---- carga ----

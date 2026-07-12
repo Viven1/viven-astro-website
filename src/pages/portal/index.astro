@@ -1,0 +1,139 @@
+---
+// Portal del cliente — estado del proyecto sin pelotear por email.
+// Acceso: /portal/?id=<deal_id>&t=<portal_token>. Público (token en la URL,
+// validado server-side en get-portal), noindex.
+const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
+const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project status — Viven</title>
+<meta name="robots" content="noindex,nofollow" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="theme-color" content="#0f1826" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style>
+  body{background:#0f1826}
+  .pt-wrap{max-width:640px;margin:0 auto;padding:44px 22px 90px}
+  .pt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
+  .pt-langs{display:flex;gap:4px}
+  .pt-langs button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 9px;cursor:pointer}
+  .pt-langs button.on{border-color:var(--acid);color:var(--acid)}
+  .pt-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:32px}
+  .pt-card h1{font-size:clamp(21px,4vw,27px);line-height:1.2;margin-bottom:22px}
+  .pt-steps{display:flex;flex-direction:column;gap:0;margin-bottom:28px}
+  .pt-step{display:flex;align-items:flex-start;gap:14px;padding:10px 0;position:relative}
+  .pt-step .dot{width:26px;height:26px;border-radius:50%;background:var(--navy-900);border:2px solid var(--line-strong);color:var(--muted-2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;z-index:1}
+  .pt-step.done .dot{background:var(--acid);border-color:var(--acid);color:#142033}
+  .pt-step.current .dot{border-color:var(--acid);color:var(--acid)}
+  .pt-step .line{position:absolute;left:12px;top:36px;bottom:-10px;width:2px;background:var(--line-strong)}
+  .pt-step:last-child .line{display:none}
+  .pt-step.done .line{background:var(--acid)}
+  .pt-step .lbl{font-size:14.5px;color:var(--muted);padding-top:3px}
+  .pt-step.current .lbl{color:var(--text);font-weight:700}
+  .pt-step.done .lbl{color:var(--text)}
+  .pt-note{background:var(--navy-900);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px;white-space:pre-wrap}
+  .pt-vid{border-radius:14px;overflow:hidden;margin-bottom:24px;background:#000}
+  .pt-vid iframe{width:100%;aspect-ratio:16/9;display:block;border:0}
+  .pt-fb textarea{width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:12px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px;min-height:80px;resize:vertical;margin-bottom:10px}
+  .pt-fb button{width:100%;font-size:15px;padding:13px}
+  .pt-fb .ok{text-align:center;color:var(--acid);font-size:14px;padding:10px 0}
+  .pt-err{color:#ff8b8b;font-size:13px;text-align:center;margin-top:8px}
+  .pt-center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="pt-wrap">
+  <div class="pt-top">
+    <div class="brief-logo"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN" style="height:22px;width:auto;display:block" /></div>
+    <div class="pt-langs" id="pt-langs">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="de">DE</button>
+      <button type="button" data-lang="es">ES</button>
+    </div>
+  </div>
+  <div id="pt-body"><div class="pt-center">Loading…</div></div>
+</div>
+
+<script is:inline define:vars={{ SB_URL, SB_KEY }}>
+  var qs = new URLSearchParams(location.search);
+  var id = qs.get('id'), tok = qs.get('t');
+  var lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang') : (navigator.language || 'en').slice(0,2);
+  if (!['en','de','es'].includes(lang)) lang = 'en';
+  document.documentElement.lang = lang;
+
+  var STEPS = ['pre_production','filming','editing','client_review','delivered'];
+  var L = {
+    en: { title: 'Your project status', steps: ['Pre-production','Filming','Editing','Your review','Delivered'], feedback: 'Leave a comment or question', send: 'Send', sent: '✅ Sent — we\'ll get back to you soon.', watch: 'Watch your video', err: 'Could not load — check the link or contact info@viven.ch', errSend: 'Could not send — try again or email info@viven.ch' },
+    de: { title: 'Ihr Projektstatus', steps: ['Vorproduktion','Dreh','Schnitt','Ihre Durchsicht','Geliefert'], feedback: 'Kommentar oder Frage hinterlassen', send: 'Senden', sent: '✅ Gesendet — wir melden uns bald.', watch: 'Ihr Video ansehen', err: 'Konnte nicht geladen werden — Link prüfen oder info@viven.ch kontaktieren', errSend: 'Konnte nicht gesendet werden — bitte erneut versuchen oder info@viven.ch' },
+    es: { title: 'El estado de tu proyecto', steps: ['Preproducción','Rodaje','Edición','Tu revisión','Entregado'], feedback: 'Dejá un comentario o pregunta', send: 'Enviar', sent: '✅ Enviado — te respondemos pronto.', watch: 'Ver tu video', err: 'No se pudo cargar — revisá el link o escribí a info@viven.ch', errSend: 'No se pudo enviar — probá de nuevo o escribí a info@viven.ch' },
+  }[lang];
+
+  function embedUrl(u){
+    if (!u) return '';
+    var v = u.match(/vimeo\.com\/(\d+)/);
+    if (v) return 'https://player.vimeo.com/video/' + v[1];
+    var y = u.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([\w-]+)/);
+    if (y) return 'https://www.youtube.com/embed/' + y[1];
+    return '';
+  }
+
+  function render(data){
+    var idx = Math.max(0, STEPS.indexOf(data.production_status || 'pre_production'));
+    var stepsHtml = STEPS.map(function(s, i){
+      var cls = i < idx ? 'done' : (i === idx ? 'current' : '');
+      return '<div class="pt-step ' + cls + '"><div class="dot">' + (i < idx ? '✓' : (i+1)) + '</div><div class="line"></div><div class="lbl">' + L.steps[i] + '</div></div>';
+    }).join('');
+    var vidEmbed = embedUrl(data.deliverable_url);
+    var body = document.getElementById('pt-body');
+    body.innerHTML =
+      '<div class="pt-card">' +
+        '<h1>' + L.title + (data.client_name ? ' — ' + esc(data.client_name.split(' ')[0]) : '') + '</h1>' +
+        '<div class="pt-steps">' + stepsHtml + '</div>' +
+        (data.portal_note ? '<div class="pt-note">' + esc(data.portal_note) + '</div>' : '') +
+        (vidEmbed ? '<div class="pt-vid"><iframe src="' + vidEmbed + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>' : '') +
+        '<div class="pt-fb">' +
+          '<label style="display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">' + L.feedback + '</label>' +
+          '<textarea id="pt-msg"></textarea>' +
+          '<button class="btn btn-primary" id="pt-send" type="button">' + L.send + '</button>' +
+          '<div class="pt-err" id="pt-err" style="display:none"></div>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('pt-send').addEventListener('click', function(){
+      var msg = document.getElementById('pt-msg').value.trim();
+      var err = document.getElementById('pt-err');
+      if (!msg) return;
+      var btn = document.getElementById('pt-send'); btn.disabled = true;
+      fetch(SB_URL + '/functions/v1/portal-message', {
+        method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, t: tok, message: msg })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if (d && d.ok) { document.querySelector('.pt-fb').innerHTML = '<div class="ok">' + L.sent + '</div>'; }
+        else { err.textContent = L.errSend; err.style.display = 'block'; btn.disabled = false; }
+      }).catch(function(){ err.textContent = L.errSend; err.style.display = 'block'; btn.disabled = false; });
+    });
+  }
+  function esc(s){ return String(s || '').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  document.querySelectorAll('#pt-langs button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-lang') === lang);
+    b.addEventListener('click', function(){ var u = new URL(location.href); u.searchParams.set('lang', b.getAttribute('data-lang')); location.href = u.toString(); });
+  });
+
+  if (!id || !tok) {
+    document.getElementById('pt-body').innerHTML = '<div class="pt-center">' + L.err + '</div>';
+  } else {
+    fetch(SB_URL + '/functions/v1/get-portal', {
+      method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, t: tok })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) render(d);
+      else document.getElementById('pt-body').innerHTML = '<div class="pt-center">' + L.err + '</div>';
+    }).catch(function(){ document.getElementById('pt-body').innerHTML = '<div class="pt-center">' + L.err + '</div>'; });
+  }
+</script>
+</body>
+</html>

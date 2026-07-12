@@ -21,14 +21,19 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { slug, password, name, email, tier, addons, total } = await req.json();
+    const { slug, password, name, email, tier, addons, total, agreed_terms } = await req.json();
     if (!slug || !name || !email) return json({ error: "faltan datos (name, email)" }, 400);
+    if (!agreed_terms) return json({ error: "hay que aceptar los términos" }, 400);
     const admin = createClient(SB_URL, SERVICE);
     const { data, error } = await admin.from("proposals").select("*").eq("slug", slug).maybeSingle();
     if (error) return json({ error: error.message });
     if (!data) return json({ error: "not_found" }, 404);
     if (data.password && String(password || "") !== String(data.password)) return json({ error: "wrong_password" }, 401);
     if (data.status === "accepted") return json({ ok: true, already: true });
+
+    // rastro mínimo de auditoría de la firma: IP best-effort (proxy delante en
+    // Supabase Edge Functions) — no bloquea el accept si no viene ningún header
+    const signedIp = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || null;
 
     const upd = await admin.from("proposals").update({
       status: "accepted",
@@ -38,6 +43,8 @@ Deno.serve(async (req) => {
       accepted_tier: tier ? String(tier).slice(0, 120) : null,
       accepted_addons: Array.isArray(addons) ? addons : null,
       accepted_total: Number(total) || null,
+      signed_ip: signedIp,
+      agreed_terms: true,
     }).eq("id", data.id);
     if (upd.error) return json({ error: upd.error.message });
 
