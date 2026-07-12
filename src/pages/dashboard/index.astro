@@ -1148,6 +1148,7 @@
       <div class="of-bar">
         <button class="btn btn-ghost small" id="of-back" type="button">← Volver</button>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="of-num" id="of-num" style="font-family:'Space Grotesk';font-weight:700;font-size:13px;color:var(--acid);letter-spacing:.03em"></span>
           <select id="of-status" class="status">
             <option value="draft">Borrador</option>
             <option value="sent">Enviada</option>
@@ -1212,6 +1213,7 @@
 
       <!-- resumen -->
       <div class="of-summary">
+        <div class="of-sum-row"><span>Descuento <input id="of-disc" type="number" step="0.5" min="0" max="50" value="0" style="width:56px"/>%</span><b id="of-discamt" style="color:#f0c060">CHF 0.00</b></div>
         <div class="of-sum-row"><span>Total neto</span><b id="of-net">CHF 0.00</b></div>
         <div class="of-sum-row"><span>IVA <input id="of-vat" type="number" step="0.1" value="8.1" style="width:56px"/>%</span><b id="of-vatamt">CHF 0.00</b></div>
         <div class="of-sum-row total"><span>Total bruto</span><b id="of-gross">CHF 0.00</b></div>
@@ -3771,7 +3773,7 @@
       '</optgroup>').join('');
   }
 
-  const offerNet = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+  const offerNet = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0) * (1 - (Number(o && o.discount_pct) || 0) / 100);
   const offerCost = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.cost) || 0), 0);
   const offerMarginPct = (o) => { const n = offerNet(o); return n ? (n - offerCost(o)) / n * 100 : NaN; };
 
@@ -3830,7 +3832,7 @@
       const noLead = (!o.lead_id && !o.is_template) ? ' · <span style="color:#f0c060">⚠ sin persona (fuera del pipeline)</span>' : '';
       return '<div class="of-card' + (o.archived ? ' arch' : '') + '" data-id="' + o.id + '">' +
         '<div class="of-card-open" data-id="' + o.id + '">' +
-          '<div class="of-card-main"><div class="of-card-title">' + esc(o.title || '(sin título)') + '</div>' +
+          '<div class="of-card-main"><div class="of-card-title">' + (o.number ? '<span style="color:var(--acid);font-size:12px;margin-right:7px">' + esc(o.number) + '</span>' : '') + esc(o.title || '(sin título)') + '</div>' +
           '<div class="of-card-sub">' + esc(o.client || leadName || '—') + ' · ' + (o.items ? o.items.length : 0) + ' posiciones · ' + new Date(o.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) +
             (o.status === 'lost' && (o.lost_reason || leadLostReason(o.lead_id)) ? ' · <span style="color:#ff8b8b">✕ ' + esc(o.lost_reason || leadLostReason(o.lead_id)) + '</span>' : '') + noLead + '</div></div>' +
           '<div class="of-card-nums"><div class="of-card-net">' + fmtM(net) + '</div>' +
@@ -3924,6 +3926,8 @@
     ).join('');
   }
   function fillEditor(){
+    $('of-num').textContent = ofCur.number || '';
+    $('of-disc').value = ofCur.discount_pct || 0;
     $('of-title').value = ofCur.title || '';
     $('of-client').value = ofCur.client || '';
     $('of-status').value = ofCur.status || 'draft';
@@ -4077,6 +4081,8 @@
   }
   function recalc(){
     const net = offerNet(ofCur), cost = offerCost(ofCur);
+    const sum0 = (ofCur.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    $('of-discamt').textContent = (sum0 - net) > 0.005 ? '− ' + fmtM(sum0 - net) : 'CHF 0.00';
     const vat = net * (parseFloat($('of-vat').value) || 0) / 100;
     const profit = net - cost, mp = net ? profit / net * 100 : 0;
     $('of-net').textContent = fmtM(net);
@@ -4117,7 +4123,7 @@
       if (od2) ofCur.deal_id = od2.id;
       else { const st3 = { won: 'ganado', sent: 'propuesta' }[ofCur.status] || 'propuesta'; const nd = await newDealForLead(ofCur.lead_id, ofCur.title || 'Nuevo proyecto', st3); if (nd) ofCur.deal_id = nd.id; }
     }
-    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, deal_id: ofCur.deal_id || null, vat_rate: ofCur.vat_rate, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms, client_company: ofCur.client_company || null, client_contact: ofCur.client_contact || null, client_address: ofCur.client_address || null, client_zip_city: ofCur.client_zip_city || null, client_phone: ofCur.client_phone || null, client_email: ofCur.client_email || null };
+    const payload = { title: ofCur.title, client: ofCur.client, lead_id: ofCur.lead_id, deal_id: ofCur.deal_id || null, vat_rate: ofCur.vat_rate, discount_pct: ofCur.discount_pct || 0, status: ofCur.status, items: ofCur.items, lost_reason: ofCur.lost_reason || null, terms: ofCur.terms, client_company: ofCur.client_company || null, client_contact: ofCur.client_contact || null, client_address: ofCur.client_address || null, client_zip_city: ofCur.client_zip_city || null, client_phone: ofCur.client_phone || null, client_email: ofCur.client_email || null };
     const btn = $('of-save'), prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
     const doSave = (p) => ofCur.id
       ? supabase.from('offers').update(p).eq('id', ofCur.id).select().single()
@@ -4166,6 +4172,8 @@
   function printOffer(){
     const vatRate = parseFloat($('of-vat').value) || 0;
     const net = offerNet(ofCur), vat = net * vatRate / 100;
+    const sum0 = (ofCur.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    const discPct = Number(ofCur.discount_pct) || 0;
     // agrupado por fase, con subtotal por fase (versión cliente: sin costo interno)
     let rows = '';
     PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
@@ -4223,7 +4231,7 @@
       '<div class="topbar"><button onclick="window.close();history.length>1&&history.back()">← Volver</button>' +
       '<button class="pr" onclick="window.print()">🖨 Imprimir / Guardar PDF</button></div>' +
       '<div class="band"><div class="brand">' + VIVEN_MARK + '<div class="fp">Film<br>Production</div></div>' +
-        '<div class="doc"><div class="t">Offerte</div><div class="d">' + today + '</div></div></div>' +
+        '<div class="doc"><div class="t">Offerte' + (ofCur.number ? ' ' + esc(ofCur.number) : '') + '</div><div class="d">' + today + '</div></div></div>' +
       '<div class="wrap">' +
         (() => {
           // bloque legal del cliente: empresa, persona, dirección, CP, tel, email
@@ -4237,7 +4245,10 @@
         '<p class="intro-p">Besten Dank für Ihre Anfrage und das entgegengebrachte Vertrauen. Gerne unterbreiten wir Ihnen die folgende Offerte:</p>' +
         '<h1>' + esc(ofCur.title || 'Video Produktion') + '</h1>' +
         '<table><thead><tr><th>Position</th><th style="text-align:center">Menge</th><th style="text-align:right">Preis</th><th style="text-align:right">Total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-        '<div class="totcard"><div class="row"><span>Total netto</span><span>' + fmtM(net) + '</span></div>' +
+        '<div class="totcard">' +
+          (discPct > 0 ? '<div class="row"><span>Zwischensumme</span><span>' + fmtM(sum0) + '</span></div>' +
+            '<div class="row"><span>Rabatt ' + discPct + '%</span><span>− ' + fmtM(sum0 - net) + '</span></div>' : '') +
+          '<div class="row"><span>Total netto</span><span>' + fmtM(net) + '</span></div>' +
           '<div class="row"><span>MwSt ' + vatRate + '%</span><span>' + fmtM(vat) + '</span></div>' +
           '<div class="row gross"><span>Total</span><span>' + fmtM(net + vat) + '</span></div></div>' +
         (ofCur.terms ? '<div class="terms"><div class="th">Terms &amp; Conditions</div>' + esc(ofCur.terms) + '</div>' : '') +
@@ -4345,6 +4356,7 @@
       ofCur.items.push({ name: p.name, phase: ph, qty: 1, unit: p.unit, price: p.price, cost: p.cost }); renderRows();
     });
     $('of-vat').addEventListener('input', () => { ofCur.vat_rate = parseFloat($('of-vat').value) || 0; recalc(); });
+    $('of-disc').addEventListener('input', () => { ofCur.discount_pct = parseFloat($('of-disc').value) || 0; recalc(); });
     $('of-status').addEventListener('change', () => {
       ofCur.status = $('of-status').value;
       // al marcar Perdida a mano, registrar el motivo (queda grabado al guardar)
