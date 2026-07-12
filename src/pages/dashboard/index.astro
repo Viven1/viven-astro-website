@@ -1151,6 +1151,16 @@
     </div>
 
     <p class="muted-note">Reproducciones de video: <span id="ka-videos">–</span> · <span id="ka-videos-top"></span> (El % visto de cada video se conecta en una próxima etapa.)</p>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>🎯 Google Ads — conversiones offline</h2>
+      <p class="muted-note" style="margin:6px 0 12px">Le devolvemos a Google qué clicks terminaron en CLIENTES: así el algoritmo optimiza por ganados, no por formularios. Estado: <b id="ads-n-leads">–</b> leads con gclid · <b id="ads-n-won">–</b> ganados · <b id="ads-won-val">–</b>.</p>
+      <div class="ab-urlrow">
+        <button class="btn btn-ghost small" id="ads-csv-won" type="button">⬇️ CSV de ganados</button>
+        <button class="btn btn-ghost small" id="ads-csv-all" type="button">⬇️ CSV de todos los leads Ads</button>
+      </div>
+      <p class="muted-note" style="margin-top:10px">Setup una sola vez en Google Ads: <b>Objetivos → Conversiones → Nueva acción de conversión → Importar → Conversiones de clientes potenciales → Cargar un archivo</b>. Creá dos acciones con estos nombres EXACTOS: <code>Lead ganado (CRM)</code> y <code>Lead (CRM)</code>. Después cada carga va en <b>Conversiones → Cargas</b>. Cuando quieras la subida 100% automática por API, pedime y te guío para solicitar el developer token (Google tarda unos días en aprobarlo).</p>
+    </div>
   </div>
 
   <!-- ============ TAB: OFERTAS ============ -->
@@ -3914,6 +3924,30 @@
       $('ab-new').addEventListener('click', () => { abEditing = null; $('ab-wiz').hidden = false; $('ab-editor').hidden = true; $('ab-url').value = ''; $('ab-wiz-note').textContent = ''; });
       $('ab-cancel').addEventListener('click', () => { $('ab-wiz').hidden = true; });
       $('ab-analyze').addEventListener('click', abAnalyze);
+
+      // Google Ads — conversiones offline (CSV con el formato exacto del import oficial)
+      const adsIsWon = (r) => /ganado|won|cerrado/i.test(r.status || '');
+      const adsCsv = async (wonOnly) => {
+        const { data, error } = await supabase.from('leads').select('gclid,name,value,status,created_at,updated_at').not('gclid', 'is', null);
+        if (error){ toast('No se pudo leer: ' + error.message); return; }
+        const rows = (data || []).filter((r) => r.gclid && (!wonOnly || adsIsWon(r)));
+        if (!rows.length){ toast(wonOnly ? 'Todavía no hay ganados que hayan venido de Ads.' : 'Todavía no hay leads con gclid.'); return; }
+        const p2 = (n) => String(n).padStart(2, '0');
+        const fmt = (iso) => { const d = new Date(iso); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); };
+        const lines = ['Parameters:TimeZone=Europe/Zurich', 'Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency'];
+        rows.forEach((r) => { const won = adsIsWon(r); lines.push([r.gclid, won ? 'Lead ganado (CRM)' : 'Lead (CRM)', fmt(won ? (r.updated_at || r.created_at) : r.created_at), +r.value || 0, 'CHF'].join(',')); });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+        a.download = wonOnly ? 'google-ads-conversiones-ganados.csv' : 'google-ads-conversiones-leads.csv';
+        a.click(); toast('CSV listo — importalo en Google Ads → Conversiones → Cargas');
+      };
+      $('ads-csv-won') && $('ads-csv-won').addEventListener('click', () => adsCsv(true));
+      $('ads-csv-all') && $('ads-csv-all').addEventListener('click', () => adsCsv(false));
+      (async () => { try {
+        const { data } = await supabase.from('leads').select('gclid,value,status').not('gclid', 'is', null);
+        const rows = data || [], won = rows.filter(adsIsWon);
+        if ($('ads-n-leads')){ $('ads-n-leads').textContent = rows.length; $('ads-n-won').textContent = won.length; $('ads-won-val').textContent = 'CHF ' + won.reduce((a2, r) => a2 + (+r.value || 0), 0).toLocaleString('de-CH'); }
+      } catch (e) { /* sin datos aún */ } })();
       $('ab-ideas').addEventListener('click', abIdeas);
       $('ab-save-run').addEventListener('click', () => abSave('running'));
       $('ab-save-draft').addEventListener('click', () => abSave('draft'));
