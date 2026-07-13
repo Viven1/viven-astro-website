@@ -1,3 +1,10 @@
+---
+// pool de fotos reales (stills de rodajes) para elegir los separadores de una propuesta
+import projects from '../../data/projects.json';
+const stillsPool = projects
+  .filter((p) => p.lang === 'en' && Array.isArray(p.stills) && p.stills.length)
+  .map((p) => ({ client: p.client || p.headline || 'Project', stills: p.stills }));
+---
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1666,6 +1673,9 @@
 
       <div class="pp-sec-h">Videos por URL <span class="count">(Vimeo / YouTube — testimonials, case studies, portfolio)</span> <button class="btn btn-ghost xs" id="pp-video-suggest" type="button" title="Elige 2 videos del portfolio según el tipo de proyecto + 1 video testimonial">🎬 Sugerir según proyecto</button> <button class="btn btn-ghost xs" id="pp-video-add" type="button">+ video</button></div>
       <div id="pp-videos-list"></div>
+
+      <div class="pp-sec-h">Fotos <span class="count">(separadores entre secciones — elegí stills reales de rodajes)</span></div>
+      <div class="pp-grid3" id="pp-photos-list"></div>
     </div>
   </div>
 
@@ -2000,6 +2010,7 @@
   </div>
 </div>
 
+<script is:inline define:vars={{ stillsPool }}>window.STILLS_POOL = stillsPool;</script>
 <script>
   import { createClient } from '@supabase/supabase-js';
 
@@ -5771,14 +5782,20 @@
     if (error) { toast('No se pudo (¿SQL 0019?): ' + error.message); return; }
     toast(p.archived ? 'Desarchivada' : '🗄 Archivada'); ppLoad();
   }
-  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, deal_id: null, client: {}, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general') }; }
+  const DEFAULT_BREAK_IMAGES = [
+    { src: '/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg', cap: 'On set — Siemens Employer Branding' },
+    { src: '/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg', cap: 'Behind the scenes — Meteomatics' },
+    { src: '/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg', cap: 'On set — Kanebo Sensai' },
+  ];
+  function blankProp(){ return { id: null, slug: null, password: '', status: 'draft', lost_reason: null, lead_id: null, deal_id: null, client: {}, title: '', client_name: '', client_email: '', lang: 'en', vat_rate: 8.1, sender_key: 'sofia', intro: '', objective: '', outputs: [], location: '', timing: '', delivery: '', scope: [], tiers: [], addons: [], videos: [], terms: DEFAULT_TERMS, testimonials: pickReviews('general'), break_images: DEFAULT_BREAK_IMAGES.map((b) => ({ ...b })) }; }
   function fromRow(r){ const c = r.content || {}, ov = c.overview || {};
     return { id: r.id, slug: r.slug, password: r.password || '', status: r.status || 'draft', lost_reason: r.lost_reason || null, lead_id: r.lead_id || null, deal_id: r.deal_id || null,
       title: r.title || c.title || '', client_name: r.client_name || '', client_email: r.client_email || '',
       lang: c.lang || 'en', vat_rate: c.vat_rate ?? 8.1, sender_key: c.sender_key || 'sofia',
       intro: c.intro || '', objective: ov.objective || '', outputs: ov.outputs || [], location: ov.location || '', timing: ov.timing || '', delivery: ov.delivery || '',
       client: c.client || {},
-      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => (g.items || []).map((a) => ({ ...a, max: a.max || 1 }))), videos: c.videos || [], terms: c.terms || DEFAULT_TERMS, testimonials: c.testimonials || pickReviews('general') };
+      scope: c.scope || [], tiers: c.tiers || [], addons: (c.addon_groups || []).flatMap((g) => (g.items || []).map((a) => ({ ...a, max: a.max || 1 }))), videos: c.videos || [], terms: c.terms || DEFAULT_TERMS, testimonials: c.testimonials || pickReviews('general'),
+      break_images: (c.break_images && c.break_images.length === 3) ? c.break_images : DEFAULT_BREAK_IMAGES.map((b) => ({ ...b })) };
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
   function openProp(id){ const src = ppList.find((p) => String(p.id) === String(id)); if (!src) return; ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); }
@@ -5796,7 +5813,7 @@
     $('pp-intro').value = ppCur.intro; $('pp-objective').value = ppCur.objective;
     $('pp-terms').value = ppCur.terms ?? '';
     $('pp-outputs').value = (ppCur.outputs || []).join('\n'); $('pp-loc').value = ppCur.location; $('pp-timing').value = ppCur.timing; $('pp-delivery').value = ppCur.delivery;
-    renderScopeRows(); renderTierRows(); renderAddonRows(); renderVideoRows();
+    renderScopeRows(); renderTierRows(); renderAddonRows(); renderVideoRows(); renderPhotoRows();
     const badge = $('pp-status-badge'); badge.className = 'pp-status-badge ' + (ppCur.status || 'draft');
     badge.textContent = { draft: 'Borrador', sent: 'Enviada', accepted: 'Aceptada' }[ppCur.status] || 'Borrador';
     showLostNote('pp-lostr', ppCur.lost_reason || leadLostReason(ppCur.lead_id), false);
@@ -5904,6 +5921,24 @@
       '<input class="v-title grow" placeholder="Título (opcional)" value="' + esc(v.title || '') + '" style="width:100%"/></div>').join('');
     $('pp-videos-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.videos.splice(+b.dataset.i, 1); renderVideoRows(); }));
   }
+  // opciones agrupadas por cliente, con el still ya elegido pre-seleccionado
+  function stillOptions(sel){
+    return (window.STILLS_POOL || []).map((p) =>
+      '<optgroup label="' + esc(p.client) + '">' + p.stills.map((s, i) =>
+        '<option value="' + esc(s) + '" data-client="' + esc(p.client) + '"' + (s === sel ? ' selected' : '') + '>' + esc(p.client) + ' — foto ' + (i + 1) + '</option>').join('') + '</optgroup>'
+    ).join('');
+  }
+  function renderPhotoRows(){
+    if (!ppCur.break_images) ppCur.break_images = DEFAULT_BREAK_IMAGES.map((b) => ({ ...b }));
+    $('pp-photos-list').innerHTML = ppCur.break_images.map((b, i) =>
+      '<div class="pp-row"><img src="' + esc(b.src) + '" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:6px" />' +
+      '<select class="pp-photo-sel" data-i="' + i + '">' + stillOptions(b.src) + '</select></div>').join('');
+    $('pp-photos-list').querySelectorAll('.pp-photo-sel').forEach((s) => s.addEventListener('change', () => {
+      const i = +s.dataset.i, opt = s.selectedOptions[0];
+      ppCur.break_images[i] = { src: s.value, cap: 'On set — ' + (opt ? opt.dataset.client : '') };
+      renderPhotoRows();
+    }));
+  }
   function collectEditor(){
     ppCur.title = $('pp-title').value.trim(); ppCur.client_name = $('pp-cname').value.trim(); ppCur.client_email = $('pp-cemail').value.trim();
     ppCur.client = { company: $('pp-ccompany').value.trim() || null, address: $('pp-caddr').value.trim() || null, zip_city: $('pp-czip').value.trim() || null, phone: $('pp-cphone').value.trim() || null };
@@ -5932,7 +5967,8 @@
       overview: { objective: ppCur.objective, outputs: ppCur.outputs, location: ppCur.location, timing: ppCur.timing, delivery: ppCur.delivery },
       scope: ppCur.scope, tiers: ppCur.tiers,
       addon_groups: (ppCur.addons && ppCur.addons.length) ? [{ title: 'Add-ons', items: ppCur.addons.map((a) => ({ name: a.name, note: a.note, price: a.price, max: a.max || 1 })) }] : [],
-      videos: ppCur.videos, terms: ppCur.terms || '', vat_rate: ppCur.vat_rate, sender: { name: s.name, email: s.email, phone: s.phone }
+      videos: ppCur.videos, terms: ppCur.terms || '', vat_rate: ppCur.vat_rate, sender: { name: s.name, email: s.email, phone: s.phone },
+      break_images: ppCur.break_images || DEFAULT_BREAK_IMAGES
     };
   }
   // vista previa: guarda el contenido actual en localStorage y abre /proposal/?preview=1 (sin publicar, sin password)

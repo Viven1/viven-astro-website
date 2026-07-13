@@ -315,11 +315,15 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           '<div class="a-price">' + fmt((Number(it.price) || 0) * (on ? q : 1)) + (on && q > 1 ? '<div class="a-each">' + fmt(it.price) + ' each</div>' : '') + '</div></label>';
       }).join('') + '</div>').join('');
 
-    // stills reales de rodajes como separadores visuales entre bloques
+    // stills reales de rodajes como separadores visuales entre bloques — elegibles desde el dashboard (con default si la propuesta es vieja)
     const BRK = (src, cap) => '<figure class="pp-break"><img src="' + src + '" alt="' + cap + '" loading="lazy" /><figcaption>' + cap + '</figcaption></figure>';
-    const BRK1 = BRK('/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg', 'On set — Siemens Employer Branding');
-    const BRK2 = BRK('/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg', 'Behind the scenes — Meteomatics');
-    const BRK3 = BRK('/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg', 'On set — Kanebo Sensai');
+    const DEFAULT_BRK = [
+      { src: '/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg', cap: 'On set — Siemens Employer Branding' },
+      { src: '/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg', cap: 'Behind the scenes — Meteomatics' },
+      { src: '/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg', cap: 'On set — Kanebo Sensai' },
+    ];
+    const brk = (c.break_images && c.break_images.length === 3) ? c.break_images : DEFAULT_BRK;
+    const BRK1 = BRK(brk[0].src, brk[0].cap), BRK2 = BRK(brk[1].src, brk[1].cap), BRK3 = BRK(brk[2].src, brk[2].cap);
     $('pp-body').innerHTML =
       '<div class="pp-brand"><img class="pp-logoimg pp-logoimg-bar" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /><span class="pp-brand-r">★★★★★ 5.0 on Google</span></div>' +
       '<section class="pp-hero pp-sec">' +
@@ -347,13 +351,13 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         '</div></section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
       BRK2 +
-      (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
+      '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
+        '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
       '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge +
         (embedUrl(testiV.url) ? '<figure class="pp-vid pp-testi"><div class="pp-vid-frame"><iframe src="' + esc(embedUrl(testiV.url)) + '" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><figcaption class="pp-vid-title">' + esc(testiV.title || 'Hear it from our clients') + '</figcaption></figure>' : '') +
         quotesRest + '</section>' +
       BRK3 +
-      '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
-        '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
+      (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
       '<section class="pp-sec"><div class="pp-call"><div class="pp-call-tx"><div class="pp-call-t">Questions before deciding?</div>' +
         '<div class="pp-call-s">Book a quick 15-minute call — we\'ll walk you through the proposal and adjust anything you need.</div></div>' +
         '<a class="btn btn-primary pp-call-btn" href="https://www.viven.ch/book/" target="_blank" rel="noopener">📅 Book a call</a></div></section>' +
