@@ -2041,7 +2041,17 @@ const stillsPool = projects
 
   /* ---------- Navegación (sidebar) ---------- */
   const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services', 'licenses', 'ab', 'gads', 'news', 'auto'];
-  function gotoTab(tab){
+  // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
+  // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
+  // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
+  // Nurture…), no solo en el que ya tenías cargado en memoria al abrir el dashboard.
+  async function refreshLeadsList(){
+    try {
+      const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000);
+      if (!error && data) allLeads = data;
+    } catch (e) { /* si falla, seguimos con lo que ya había en memoria */ }
+  }
+  async function gotoTab(tab){
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
     const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services', 'licenses', 'ab', 'gads', 'news', 'auto'];
@@ -2049,6 +2059,8 @@ const stillsPool = projects
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
+    window.scrollTo(0, 0);
+    await refreshLeadsList();
     if (tab === 'home') renderHome();
     if (tab === 'companies') renderCompanies();
     if (tab === 'offers') offersInit();
@@ -2062,7 +2074,6 @@ const stillsPool = projects
     if (tab === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
     if (tab === 'news') newsInit();
     if (tab === 'auto') autoInit();
-    window.scrollTo(0, 0);
   }
   // grupos del sidebar: colapsables, con memoria por navegador (localStorage)
   document.querySelectorAll('.side-group').forEach((g) => {
