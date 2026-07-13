@@ -1940,9 +1940,13 @@ const stillsPool = projects
 .lm2-who{min-width:0}
 .lm2-who .nm{font-family:'Space Grotesk';font-weight:700;font-size:16.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lm2-who .sub{font-size:12px;color:var(--muted)}
-.lm2-nav{display:flex;gap:4px}
-.lm2-nav button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--muted);cursor:pointer;font-size:13px}
-.lm2-nav button:hover{color:var(--text)}
+.lm2-back{border:1px solid var(--line-strong);background:transparent;color:var(--muted);border-radius:100px;font:600 12px Inter,sans-serif;padding:7px 13px;cursor:pointer;white-space:nowrap}
+.lm2-back:hover{color:var(--text);border-color:var(--muted)}
+.lm2-nav{display:flex;align-items:center;border:1px solid var(--line-strong);border-radius:100px;overflow:hidden}
+.lm2-nav button{width:30px;height:30px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.lm2-nav button:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.05)}
+.lm2-nav button:disabled{opacity:.3;cursor:default}
+.lm2-nav .lm2-nav-n{font-size:10.5px;color:var(--muted-2);padding:0 6px;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
 .lm2-pipe{display:flex;border:1px solid var(--line-strong);border-radius:100px;overflow:hidden;font-size:10.5px;font-weight:700}
 .lm2-pipe span{padding:6px 11px;color:var(--muted-2);cursor:pointer;white-space:nowrap}
 .lm2-pipe span.done{color:#142033;background:var(--acid)}
@@ -4356,7 +4360,10 @@ const stillsPool = projects
     const order = filteredLeads().map((l) => String(l.id));
     const oi = order.indexOf(String(r.id));
     $('lm2-hd').innerHTML =
-      '<div class="lm2-nav"><button id="lm2-nav-prev" title="Contacto anterior"' + (oi <= 0 ? ' disabled' : '') + '>←</button><button id="lm2-nav-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>→</button></div>' +
+      '<button class="lm2-back" id="lm2-back" type="button" title="Volver a todos los contactos">← Personas</button>' +
+      '<div class="lm2-nav"><button id="lm2-nav-prev" title="Contacto anterior"' + (oi <= 0 ? ' disabled' : '') + '>‹</button>' +
+        (oi > -1 ? '<span class="lm2-nav-n">' + (oi + 1) + '/' + order.length + '</span>' : '') +
+        '<button id="lm2-nav-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>›</button></div>' +
       '<div class="lm2-avatar">' + esc(((first[0] || '?') + (last[0] || '')).toUpperCase()) + '</div>' +
       '<div class="lm2-who"><div class="nm">' + esc(r.name || '(sin nombre)') + '<span class="lm-score" id="lm2-score"></span></div>' +
       '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div></div>' +
@@ -4370,6 +4377,7 @@ const stillsPool = projects
       '</div>';
     // score: mismo pill que la clásica (renderLeadScore escribe en lm-score → lo copio a mano)
     try { renderLeadScore(r); const s0 = $('lm-score'); const s2 = $('lm2-score'); if (s0 && s2) { s2.textContent = s0.textContent; s2.title = s0.title; s2.style.cssText = s0.style.cssText; } } catch (e) {}
+    $('lm2-back').addEventListener('click', () => { closeLead2(); gotoTab('leads'); });
     $('lm2-nav-prev') && $('lm2-nav-prev').addEventListener('click', () => oi > 0 && openLeadV2(order[oi - 1]));
     $('lm2-nav-next') && $('lm2-nav-next').addEventListener('click', () => oi < order.length - 1 && openLeadV2(order[oi + 1]));
     // etapa: clic en el pipeline = mismo flujo que el select de la clásica
