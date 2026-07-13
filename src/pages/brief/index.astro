@@ -18,7 +18,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="theme-color" content="#0f1826" />
 <link rel="stylesheet" href="/assets/site.css" />
-<style>
+<style is:global>
   .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px}
   .brief-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
   .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em}
@@ -61,27 +61,42 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .brief-alt a{color:var(--acid)}
   .berr{color:#ff8b8b;font-size:13.5px;margin-top:10px;text-align:center;display:none}
   .brief-actions{display:flex;gap:10px;justify-content:center;margin:22px 0 4px;flex-wrap:wrap}
-  .brief-actions button{font-family:inherit;font-size:14px;font-weight:700;border-radius:100px;padding:11px 20px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--navy-900);color:var(--text)}
-  .brief-actions button:hover{border-color:var(--muted)}
+  .brief-actions button,.brief-actions a{font-family:inherit;font-size:14px;font-weight:700;border-radius:100px;padding:11px 20px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--navy-900);color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+  .brief-actions button:hover,.brief-actions a:hover{border-color:var(--muted)}
   .brief-actions button:disabled{opacity:.6;cursor:default}
+  .brief-actions.primary button,.brief-actions.primary a:first-child{border-color:var(--acid);background:var(--acid);color:#142033}
   .brief-email-msg{text-align:center;font-size:13px;color:var(--acid);margin-top:10px;min-height:1em}
-  .brief-summary{margin-top:24px;text-align:left;border-top:1px solid var(--line);padding-top:20px}
-  .bs-meta{font-size:13px;color:var(--muted);margin-bottom:12px;text-align:center}
+
+  /* ---- documento/PDF: mismo lockup navy+acid que ofertas y propuestas, para que
+     el brief se vea y se sienta como un documento real de VIVEN cuando se imprime
+     o se reenvía — es un lead magnet, tiene que dar ganas de compartirlo. ---- */
+  .brief-summary{margin-top:26px}
+  .bs-doc{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 24px 70px -24px rgba(0,0,0,.55);color:#1a2230}
+  .bs-band{background:#0f1826;color:#f4f6fb;padding:22px 26px;display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .bs-brand{display:flex;align-items:center;gap:10px}
+  .bs-brand svg{height:24px;width:auto;display:block}
+  .bs-fp{font-size:9.5px;line-height:1.15;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aab4c7}
+  .bs-doctitle{text-align:right}
+  .bs-dt-label{font-family:'Space Grotesk';font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .bs-dt-date{font-size:11px;color:#9aa6bd;margin-top:2px}
+  .bs-client{padding:18px 26px;border-bottom:1px solid #eceef2;display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .bs-client-name{font-family:'Space Grotesk';font-weight:700;font-size:16.5px;color:#0f1826}
+  .bs-client-email{font-size:12.5px;color:#6b7385}
   .bs-table{width:100%;border-collapse:collapse}
-  .bs-table td{padding:8px 6px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
-  .bs-table .bs-k{color:var(--muted-2);width:44%;padding-right:10px}
-  .bs-table .bs-v{color:var(--text);font-weight:500}
+  .bs-table td{padding:11px 26px;border-bottom:1px solid #eceef2;font-size:13px;vertical-align:top}
+  .bs-table tr:nth-child(even) td{background:#f8f9fb}
+  .bs-table .bs-k{color:#8a94a8;width:40%;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .bs-table .bs-v{color:#1a2230;font-weight:600;font-size:13.5px}
+  .bs-foot{padding:18px 26px 24px;font-size:11.5px;color:#8a94a8;line-height:1.7;text-align:center;border-top:1px solid #eceef2}
+  .bs-foot b{color:#1a2230}
   @media print{
     body{background:#fff}
     .brief-langs,.brief-alt,.no-print{display:none !important}
-    .brief-wrap{max-width:none;padding:0 24px}
-    .brief-card{border:none;background:#fff;padding:0}
-    .brief-ok .big{display:none}
-    h1,.brief-ok h1{color:#0f1826}
-    .lead{color:#555}
-    .bs-meta{color:#555}
-    .bs-table td{color:#111;border-bottom:1px solid #ddd}
-    .bs-table .bs-k{color:#666}
+    .brief-wrap{max-width:none;padding:0}
+    .brief-card{border:none;background:#fff;padding:0;box-shadow:none}
+    /* en el PDF no hace falta el "gracias" ni los botones — solo el documento en sí */
+    .brief-ok .big,.brief-ok h1,.brief-ok>.lead{display:none}
+    .bs-doc{box-shadow:none;border-radius:0}
   }
 </style>
 </head>
@@ -293,7 +308,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     <div class="big">✅</div>
     <h1 data-en="Got it — thank you!" data-de="Erhalten — danke!" data-es="¡Recibido — gracias!">Got it — thank you!</h1>
     <p class="lead" id="brief-ok-lead-call" data-en="Perfect — now we can come well prepared. See you on the call!" data-de="Perfekt — so kommen wir bestens vorbereitet. Bis zum Call!" data-es="Perfecto — así llegamos bien preparados. ¡Nos vemos en la llamada!" hidden>Perfect — now we can come well prepared. See you on the call!</p>
-    <p class="lead" id="brief-ok-lead-tool" data-en="We'll take a look and come back with next steps — usually within one business day." data-de="Wir sehen uns das an und melden uns mit den nächsten Schritten — meist innerhalb eines Werktags." data-es="Lo vamos a revisar y te contactamos con los próximos pasos — normalmente dentro de un día hábil." hidden>We'll take a look and come back with next steps — usually within one business day.</p>
+    <p class="lead" id="brief-ok-lead-tool" data-en="It's yours now — brief your team with it, get quotes elsewhere, whatever's useful. Want us to take a shot at pricing it too?" data-de="Es gehört jetzt Ihnen — briefen Sie Ihr Team damit, holen Sie andere Angebote ein, ganz wie es passt. Sollen wir Ihnen auch einen Preis dazu schicken?" data-es="Ya es tuyo — usalo para brief a tu equipo, pedí otras cotizaciones, lo que te sirva. ¿Querés que también te pasemos un precio?" hidden>It's yours now — brief your team with it, get quotes elsewhere, whatever's useful. Want us to take a shot at pricing it too?</p>
+    <div class="brief-actions primary no-print" id="brief-cta-tool" hidden>
+      <button type="button" id="brief-quote-btn">📩 <span data-en="Yes, send me a quote" data-de="Ja, schickt mir ein Angebot" data-es="Sí, mandame una cotización">Yes, send me a quote</span></button>
+      <a href="/book/" target="_blank" rel="noopener">📅 <span data-en="Book a 15-min call" data-de="15-Min-Call buchen" data-es="Agendar 15 min">Book a 15-min call</span></a>
+    </div>
+    <div class="brief-email-msg no-print" id="brief-quote-msg"></div>
     <div class="brief-actions no-print">
       <button type="button" id="brief-print">🖨️ <span data-en="Print / Save as PDF" data-de="Drucken / Als PDF speichern" data-es="Imprimir / Guardar como PDF">Print / Save as PDF</span></button>
       <button type="button" id="brief-email-btn">✉️ <span data-en="Email me a copy" data-de="Kopie per E-Mail senden" data-es="Enviarme una copia por email">Email me a copy</span></button>
@@ -311,8 +331,11 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   document.documentElement.lang = lang;
 
   // dos versiones del mensaje final: "nos vemos en la llamada" solo si ya reservó un call
-  // (llega acá con ?lead=<id> desde booking-create) — si es alguien que encontró /brief/ como tool suelto, sin call agendado
+  // (llega acá con ?lead=<id> desde booking-create) — si es alguien que encontró /brief/ como tool suelto,
+  // sin call agendado, el brief es SUYO para usar como quiera; no le prometemos que le vamos a escribir
+  // solos — le ofrecemos pedir cotización o agendar, a que decida él
   document.getElementById(leadId ? 'brief-ok-lead-call' : 'brief-ok-lead-tool').hidden = false;
+  if (!leadId) document.getElementById('brief-cta-tool').hidden = false;
 
   // aplicar idioma a todo lo que tenga data-<lang> (re-invocable desde el switcher)
   function applyLang(){
@@ -405,13 +428,24 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   var L_NOTES = { en: 'Anything else', de: 'Sonstiges', es: 'Otros comentarios' };
   var L_SENT = { en: '✓ Sent — check your inbox', de: '✓ Gesendet — E-Mails prüfen', es: '✓ Enviado — revisá tu bandeja' };
   var L_FAIL = { en: 'Could not send — try again later', de: 'Konnte nicht gesendet werden — später erneut versuchen', es: 'No se pudo enviar — probá más tarde' };
+  var L_DOCTITLE = { en: 'Project Brief', de: 'Projekt-Briefing', es: 'Brief de proyecto' };
+  var L_QUOTE_OK = { en: '✓ Got it — we’ll send you a quote shortly.', de: '✓ Alles klar — wir schicken Ihnen in Kürze ein Angebot.', es: '✓ Listo — te mandamos una cotización pronto.' };
+  var L_QUOTE_FAIL = { en: 'Could not send — try again or book a call instead', de: 'Konnte nicht gesendet werden — bitte erneut versuchen oder Call buchen', es: 'No se pudo enviar — probá de nuevo o agendá una llamada' };
+  var LOCALE = { en: 'en-GB', de: 'de-CH', es: 'es-AR' };
+  // mismo wordmark navy+acid que usan las ofertas y propuestas del dashboard — para que el
+  // brief se vea y se sienta como un documento real de VIVEN, no una captura de la web
+  var VIVEN_MARK = '<svg viewBox="125 126 1020 288" fill="#ddf98f" xmlns="http://www.w3.org/2000/svg"><path d="M756.66,346.9l114.7-80.57c-37.87-83.92-102.57-60.93-102.57-60.93l-71.71,57.88v65.56c0,38.77,25.21,75.91,62.34,80.84h68.27l35.95-40.9-107,.1C756.66,371,756.7,346.56,756.66,346.9Zm.06-108.77s55.51-13.37,55.51,34.2l-55.51,39C757,310.8,756.72,238.13,756.72,238.13Z"/><path d="M270.4,255.39l-32.57,61.44L179,197.28l-54.41,44.41,22.58,22.58,74.76,149.91,106.6-198H237.09ZM431.78,125.83H372.19v49.22h59.59Zm1,71.45-82.54,67.36,22.95,22.95v78.47l-32.57,38.86H465.37l-32.58-38.86Zm704.72,207.64-32.58-38.86V286.85c0-43.67-29.24-84-71.06-89.57l-50.34,41.08L962.06,195.8l-57.37,47,22.58,22.95V366.06L894.7,404.92h124.73l-32.57-38.86V248.73h11.85a46.75,46.75,0,0,1,46.63,47V404.92ZM621.28,255.39l-32.57,61.44L529.86,197.28l-54.41,44.41L498,264.27,572.8,414.18l106.6-198H588Z"/></svg>';
   function renderSummary(data){
     var rows = data.pairs.map(function(p){ return '<tr><td class="bs-k">' + escapeHtml(p[0]) + '</td><td class="bs-v">' + escapeHtml(p[1]) + '</td></tr>'; }).join('');
     if (data.references) rows += '<tr><td class="bs-k">' + (L_REF[lang] || L_REF.en) + '</td><td class="bs-v">' + escapeHtml(data.references) + '</td></tr>';
     if (data.extra) rows += '<tr><td class="bs-k">' + (L_NOTES[lang] || L_NOTES.en) + '</td><td class="bs-v">' + escapeHtml(data.extra) + '</td></tr>';
+    var date = new Date().toLocaleDateString(LOCALE[lang] || 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     document.getElementById('brief-summary').innerHTML =
-      '<div class="bs-meta">' + escapeHtml(data.name) + ' · ' + escapeHtml(data.to) + '</div>' +
-      '<table class="bs-table">' + rows + '</table>';
+      '<div class="bs-doc"><div class="bs-band"><div class="bs-brand">' + VIVEN_MARK + '<div class="bs-fp">Film<br>Production</div></div>' +
+      '<div class="bs-doctitle"><div class="bs-dt-label">' + (L_DOCTITLE[lang] || L_DOCTITLE.en) + '</div><div class="bs-dt-date">' + date + '</div></div></div>' +
+      '<div class="bs-client"><div class="bs-client-name">' + escapeHtml(data.name) + '</div><div class="bs-client-email">' + escapeHtml(data.to) + '</div></div>' +
+      '<table class="bs-table">' + rows + '</table>' +
+      '<div class="bs-foot"><b>VIVEN AG</b> — Video Production · Zürich, Switzerland<br>viven.ch · info@viven.ch</div></div>';
   }
   var lastBrief = null;
   document.getElementById('brief-print').addEventListener('click', function(){ window.print(); });
@@ -427,6 +461,32 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     }).then(function(r){ return r.ok; }).catch(function(){ return false; }).then(function(ok){
       msg.textContent = ok ? (L_SENT[lang] || L_SENT.en) : (L_FAIL[lang] || L_FAIL.en);
       btn.disabled = false;
+    });
+  });
+  // "Sí, mandame una cotización" (solo tool suelto, sin call) — el trigger briefs_autolead
+  // YA crea/liga el lead por email en el submit original de más arriba; si acá insertáramos
+  // directo en leads, duplicaría el contacto. En vez de eso mandamos OTRO brief (mismo insert
+  // seguro que ya usa el form), el trigger lo liga al MISMO lead por email (sin duplicar), y el
+  // "extra" deja bien claro que esta vez sí pidió cotización — para que Sebastián/Sofia lo vean
+  document.getElementById('brief-quote-btn').addEventListener('click', function(){
+    if (!lastBrief) return;
+    var btn = document.getElementById('brief-quote-btn');
+    var msg = document.getElementById('brief-quote-msg');
+    btn.disabled = true; msg.textContent = '';
+    var full = (lastBrief.name || '').trim();
+    var first = full.split(' ')[0] || null;
+    var last = full.split(' ').slice(1).join(' ') || null;
+    var row = {
+      lang: lang, name: full || null, first_name: first, last_name: last, email: lastBrief.to,
+      extra: '🔔 QUIERE COTIZACIÓN (pidió precio desde el brief-tool) — ' + lastBrief.pairs.map(function(p){ return p[0] + ': ' + p[1]; }).join(' · ')
+    };
+    fetch(SB_URL + '/rest/v1/briefs', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(row)
+    }).then(function(r){ return r.ok; }).catch(function(){ return false; }).then(function(ok){
+      msg.textContent = ok ? (L_QUOTE_OK[lang] || L_QUOTE_OK.en) : (L_QUOTE_FAIL[lang] || L_QUOTE_FAIL.en);
+      if (!ok) btn.disabled = false;
     });
   });
 
