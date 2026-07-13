@@ -4532,7 +4532,15 @@ const stillsPool = projects
     notes.forEach((n) => ev.push({ t: n.created_at, ty: 'nota', chip: ['nota', '📝 Nota'], title: esc((n.body || '').slice(0, 140)) + ((n.body || '').length > 140 ? '…' : ''), meta: esc(n.author || '') }));
     tasks.forEach((t) => ev.push({ t: t.created_at, ty: 'task', chip: ['task', t.done ? '✅ Task hecha' : '⏳ Task'], title: '<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" class="lm2-tk" data-id="' + esc(String(t.id)) + '"' + (t.done ? ' checked' : '') + ' /> <span' + (t.done ? ' style="text-decoration:line-through;color:var(--muted)"' : '') + '>' + esc(t.title) + '</span></label>', meta: [t.due_date ? 'vence ' + t.due_date + (t.due_time ? ' ' + t.due_time : '') : '', t.assignee ? teamName(t.assignee) : ''].filter(Boolean).join(' · ') }));
     briefs.forEach((b) => { const a = b.answers || {}; const quote = /QUIERE COTIZACIÓN/.test(b.extra || '');
-      ev.push({ t: b.created_at, ty: 'brief', chip: ['brief', '📋 Brief'], title: '<b>' + (quote ? '🔔 Pidió cotización — ' : 'Brief recibido — ') + esc(b.goal || '') + '</b>', meta: [b.budget, b.timeline, a.quantity].filter(Boolean).map(esc).join(' · '), body: b.extra || '' }); });
+      // el brief completo, legible, en el desplegable — sin esto el evento no sirve de mucho
+      const li = (k, v) => { if (!v) return ''; const s = Array.isArray(v) ? v.join(', ') : String(v); return s.trim() ? k + ': ' + s + '\n' : ''; };
+      const full =
+        li('Objetivo', b.goal) + li('Audiencia', a.audience) + li('Dónde va a correr', b.distribution || a.distribution) +
+        li('Cantidad de videos', a.quantity) + li('Formatos', a.formats) + li('Idiomas y subtítulos', a.languages) +
+        li('En cámara', a.oncamera) + li('Locaciones', a.locations) + li('Timing', b.timeline) + li('Presupuesto', b.budget) +
+        li('Qué deben HACER después de verlo', a.action) + li('Qué deben sentir', a.feeling) + li('Adónde deben llegar', a.destination) +
+        li('Referencias', a.references) + (b.extra ? '\n' + b.extra : '');
+      ev.push({ t: b.created_at, ty: 'brief', chip: ['brief', '📋 Brief'], title: '<b>' + (quote ? '🔔 Pidió cotización — ' : 'Brief recibido — ') + esc(b.goal || '') + '</b>', meta: [b.budget, b.timeline, a.quantity].filter(Boolean).map(esc).join(' · '), body: full.trim() }); });
     [['contacted_at', 'Contactado'], ['videocall_at', 'Video call'], ['proposal_at', 'Propuesta enviada'], ['won_at', '🎉 Ganado'], ['lost_at', 'Perdido']].forEach(([f, l]) => { if (r[f]) ev.push({ t: r[f], ty: 'sys', chip: ['sys', '⚙️ Etapa'], title: l }); });
     // web: agrupar pageviews por día (200 sueltos ahogarían la timeline)
     const byDay = {};
