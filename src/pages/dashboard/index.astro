@@ -1306,7 +1306,19 @@
         <h2 style="margin:0">🌱 Nurture automático <span class="count" id="nur-stats"></span></h2>
         <button class="btn btn-ghost small" id="nur-toggle" type="button">…</button>
       </div>
-      <p class="muted-note" style="margin:8px 0 0">Secuencia automática a leads nuevos: <b>①</b> bienvenida a los ~30 min ("oferta en 48h" + showreel; si vino de la calculadora, recap del rango) · <b>②</b> +3 días: case study según su interés + testimonials · <b>③</b> +7 días: último toque suave con booking. Los pasos ②③ solo salen si el lead sigue SIN CONTACTAR (si ya lo trabajás, se frenan solos) y se apagan con el botón. Nunca a bajas ni tests; máximo un email por paso. La bienvenida ① siempre sale — es la confirmación que el cliente espera.</p>
+      <p class="muted-note" style="margin:8px 0 0">Secuencia a leads nuevos: <b>①</b> bienvenida a los ~30 min ("oferta en 48h" + showreel; si vino de la calculadora, recap del rango) · <b>②</b> +3 días: case study según su interés + testimonials · <b>③</b> +7 días: último toque suave con booking. Los pasos ②③ solo salen si el lead sigue SIN CONTACTAR (si ya lo trabajás, se frenan solos) y se apagan con el botón de arriba (para todos de una). Nunca a bajas ni tests; máximo un email por paso. <b>Ningún paso sale solo</b> — los tres caen como borrador a 📤 Bandeja de salida (abajo, en Workflows) para tu OK.</p>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="draft-head">
+        <h2 style="margin:0">👥 Quién está adentro <span class="count" id="nur-roster-n"></span></h2>
+      </div>
+      <p class="muted-note" style="margin:6px 0 10px">Se agregan solos los leads nuevos (podés pausarlos acá) o agregá vos a alguien puntual.</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select id="nur-add-lead" style="flex:1;min-width:200px"></select>
+        <button class="btn btn-ghost small" id="nur-add-btn" type="button">➕ Agregar persona</button>
+      </div>
+      <div id="nur-roster-list"><p class="muted-note">Cargando…</p></div>
     </div>
   </div>
 
@@ -1332,7 +1344,7 @@
         <h2 style="margin:0">📤 Bandeja de salida <span class="count" id="ob-count"></span></h2>
         <button class="btn btn-ghost small" id="ob-approve-all" type="button" hidden>✅ Aprobar todos</button>
       </div>
-      <p class="muted-note" style="margin:6px 0 10px">Borradores escritos por la IA con el contexto real de cada contacto. Nada sale sin tu OK — editá, cambiá el remitente o descartá. Los aprobados salen en la próxima corrida del motor (máx. 20 min).</p>
+      <p class="muted-note" style="margin:6px 0 10px">Acá caen los borradores de los workflows (🤖 Email IA) y del 🌱 nurture automático — los tres pasos, incluida la bienvenida. Nada sale sin tu OK — editá, cambiá el remitente o descartá. Los aprobados salen en la próxima corrida del motor correspondiente (nurture: cada hora · workflows: máx. 20 min).</p>
       <div id="ob-list"><p class="muted-note">Bandeja vacía.</p></div>
     </div>
 
@@ -4569,8 +4581,9 @@
         const on = !$('nur-toggle').dataset.on;
         const { error } = await supabase.from('app_settings').upsert({ key: 'nurture', value: { enabled: on }, updated_at: new Date().toISOString() });
         if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0040' : error.message); return; }
-        toast(on ? '🌱 Nurture ②③ ENCENDIDO' : 'Nurture ②③ apagado (la bienvenida ① sigue)'); newsInit();
+        toast(on ? '🌱 Nurture ②③ ENCENDIDO' : 'Nurture ②③ apagado'); newsInit();
       });
+      $('nur-add-btn') && $('nur-add-btn').addEventListener('click', nurAddPerson);
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -6195,8 +6208,9 @@
     $('ob-approve-all').hidden = obs.length < 2;
     $('ob-list').innerHTML = obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
+      const srcTag = o.kind === 'nurture' ? '🌱 Nurture · paso ' + o.step : '⚙️ Workflow';
       return '<div class="au-step" data-ob="' + o.id + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b><span class="muted-note">' + esc(l.company || '') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b><span class="muted-note">' + esc(srcTag) + (l.company ? ' · ' + esc(l.company) : '') + '</span></div>' +
         '<label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>' +
         '<label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" />' +
         '<label>Cuerpo</label><textarea class="ob-body">' + esc(o.body) + '</textarea>' +
@@ -6478,6 +6492,56 @@
   }
 
   let nwCur = null, nwList = [];
+  async function nurLoad(){
+    const box = $('nur-roster-list'), n = $('nur-roster-n'), sel = $('nur-add-lead');
+    if (!box) return;
+    if (sel) sel.innerHTML = '<option value="">Elegir persona…</option>' + (allLeads || []).slice().sort((x, y) => (x.name || x.email || '').localeCompare(y.name || y.email || '')).map((l) => '<option value="' + l.id + '">' + esc(l.name || l.email) + '</option>').join('');
+    try {
+      const [{ data: rows, error }, { data: logs }, { data: obs }] = await Promise.all([
+        supabase.from('nurture_state').select('*').order('enrolled_at', { ascending: false }),
+        supabase.from('nurture_log').select('lead_id,step'),
+        supabase.from('outbox').select('lead_id,step,status').eq('kind', 'nurture').in('status', ['pending', 'approved']),
+      ]);
+      if (error){ box.innerHTML = '<p class="muted-note">⚠️ ' + (/relation|does not exist/i.test(error.message) ? 'Falta correr el SQL 0053' : esc(error.message)) + '</p>'; if (n) n.textContent = ''; return; }
+      const st = rows || [];
+      if (n) n.textContent = st.length ? '(' + st.length + ')' : '';
+      if (!st.length){ box.innerHTML = '<p class="muted-note">Nadie inscripto todavía — entran solos los leads nuevos (o agregá a alguien arriba).</p>'; return; }
+      const sentBy = {}; (logs || []).forEach((l) => { (sentBy[l.lead_id] = sentBy[l.lead_id] || new Set()).add(l.step); });
+      const waitingBy = {}; (obs || []).forEach((o) => { waitingBy[o.lead_id] = o.step; });
+      const circled = { 1: '①', 2: '②', 3: '③' };
+      box.innerHTML = st.map((s) => {
+        const l = leadById(s.lead_id) || {};
+        const done = sentBy[s.lead_id] || new Set();
+        const wStep = waitingBy[s.lead_id];
+        const progress = [1, 2, 3].map((i) => (done.has(i) ? '✅' : wStep === i ? '📤' : '⚪') + circled[i]).join(' ');
+        const waitNote = wStep ? '<div class="au-enr-step" style="color:var(--acid)">📤 Paso ' + wStep + ' esperando tu OK en 📤 Bandeja de salida</div>' : '';
+        const badge = s.status === 'active' ? 'active' : 'stopped';
+        const badgeTxt = s.status === 'active' ? '🟢 Activo' : '⏸ Pausado';
+        return '<div class="au-enr-row" data-nid="' + s.id + '">' +
+          '<div class="au-enr-main"><div class="au-enr-name">' + esc(l.name || l.email || ('Lead #' + s.lead_id)) + (s.source === 'manual' ? ' · agregado a mano' : '') + '</div>' +
+          '<div class="au-enr-step">' + progress + '</div>' + waitNote + '</div>' +
+          '<span class="au-enr-badge ' + badge + '">' + badgeTxt + '</span>' +
+          '<div class="au-enr-actions">' +
+          (s.status === 'active' ? '<button data-act="pause" type="button">⏸ Pausar</button>' : '<button data-act="resume" type="button">▶️ Activar</button>') +
+          '<button data-act="del" type="button">🗑</button></div></div>';
+      }).join('');
+      box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+        const row = btn.closest('.au-enr-row'), nid = +row.dataset.nid, act = btn.dataset.act;
+        if (act === 'pause') await supabase.from('nurture_state').update({ status: 'paused', updated_at: new Date().toISOString() }).eq('id', nid);
+        else if (act === 'resume') await supabase.from('nurture_state').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', nid);
+        else if (act === 'del'){ if (!confirm('¿Sacar a esta persona del nurture del todo?')) return; await supabase.from('nurture_state').delete().eq('id', nid); }
+        nurLoad();
+      }));
+    } catch (e) { box.innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
+  }
+  async function nurAddPerson(){
+    const leadId = $('nur-add-lead').value; if (!leadId){ toast('Elegí una persona'); return; }
+    const { error } = await supabase.from('nurture_state').insert({ lead_id: +leadId, status: 'active', source: 'manual' });
+    if (error){ toast(/duplicate|unique/i.test(error.message) ? 'Esa persona ya está en el nurture' : '⚠️ ' + error.message); return; }
+    toast('➕ Agregado — entra en la próxima corrida (≤1h)');
+    $('nur-add-lead').value = '';
+    nurLoad();
+  }
   async function newsInit(){
     const { data, error } = await supabase.from('newsletters').select('*').order('created_at', { ascending: false });
     if (error){ $('nw-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0039 — ' + esc(error.message) + '</p>'; return; }
@@ -6493,6 +6557,7 @@
       const c = { 1: 0, 2: 0, 3: 0 }; (lg || []).forEach((x) => c[x.step] = (c[x.step] || 0) + 1);
       if ($('nur-stats')) $('nur-stats').textContent = '① ' + c[1] + ' · ② ' + c[2] + ' · ③ ' + c[3] + ' enviados';
     } catch (e) { if ($('nur-stats')) $('nur-stats').textContent = 'falta SQL 0040'; } })();
+    nurLoad();
     $('nw-list').innerHTML = nwList.map((n) => '<div class="of-card"><div class="of-card-open" data-nw="' + n.id + '">' +
       '<div class="of-card-main"><div class="of-card-title">' + esc(n.subject) + '</div>' +
       '<div class="of-card-sub">' + (n.segment_stage === 'won' ? 'Clientes' : n.segment_stage === 'open' ? 'Prospectos' : 'Todos') + ' · ' + (n.segment_lang === 'all' ? 'todos los idiomas' : n.segment_lang.toUpperCase()) + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
