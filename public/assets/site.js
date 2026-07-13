@@ -130,13 +130,24 @@ function loadHeroVideo(){
     var v = document.createElement('video');
     v.className = 'hero-video';
     v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
-    v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('autoplay', '');
     v.preload = 'auto';
     v.src = heroMp4;
     /* fade-in: el video aparece suave sobre el póster — sin salto de color al navegar */
     v.addEventListener('playing', function(){ v.classList.add('on'); }, { once: true });
     heroBg.insertBefore(v, heroBg.querySelector('.grain'));
-    var pr = v.play(); if(pr && pr.catch) pr.catch(function(){});
+    /* SAFARI: su heurística rechaza seguido el PRIMER play() programático (reporte de
+       Sebastián: el hero quedaba estático) — y como el fade-in dependía de 'playing',
+       el video quedaba invisible para siempre, sin reintento. Reintentamos cuando hay
+       data y, como red final, en la primera interacción (un play() dentro de un gesto
+       del usuario está permitido hasta en el Safari más estricto). */
+    var tryPlay = function(){ if(v.paused){ var p = v.play(); if(p && p.catch) p.catch(function(){}); } };
+    tryPlay();
+    v.addEventListener('loadeddata', tryPlay, { once: true });
+    v.addEventListener('canplaythrough', tryPlay, { once: true });
+    ['pointermove', 'touchstart', 'click', 'scroll'].forEach(function(e){
+      window.addEventListener(e, tryPlay, { once: true, passive: true });
+    });
     return;
   }
   var f = document.createElement('iframe');
