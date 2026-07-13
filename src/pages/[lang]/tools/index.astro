@@ -1,0 +1,90 @@
+---
+import Base from '../../../layouts/Base.astro';
+import ToolCard from '../../../components/ToolCard.astro';
+import { langPaths, localePath } from '../../../i18n.js';
+export const getStaticPaths = langPaths;
+const { lang } = Astro.params;
+const p = (s) => localePath(lang, s);
+
+const title = {
+  en: 'Free Video Production Tools — Cost Calculator & Brief | Viven',
+  de: 'Kostenlose Tools für Videoproduktion — Kostenrechner & Briefing | Viven',
+  es: 'Herramientas gratis de producción de video — Calculadora y Brief | Viven',
+};
+const description = {
+  en: 'Free tools to plan your video project: an instant cost calculator and a guided project brief. Built by the team that produces for UBS, Siemens and Porsche.',
+  de: 'Kostenlose Tools zur Planung Ihres Videoprojekts: ein sofortiger Kostenrechner und ein geführtes Projekt-Briefing. Vom Team hinter Produktionen für UBS, Siemens und Porsche.',
+  es: 'Herramientas gratis para planear tu proyecto de video: una calculadora de costos instantánea y un brief guiado. Del equipo que produce para UBS, Siemens y Porsche.',
+};
+
+const crumbsLbl = { en: 'Tools', de: 'Tools', es: 'Herramientas' };
+const heroH1 = {
+  en: 'Free tools, <span class="hl">real answers.</span>',
+  de: 'Kostenlose Tools, <span class="hl">echte Antworten.</span>',
+  es: 'Herramientas gratis, <span class="hl">respuestas reales.</span>',
+};
+const heroLead = {
+  en: 'No form, no sales call required — plan your project on your own time. Built from real budgets and real briefs from 187 brands.',
+  de: 'Kein Formular, kein Verkaufsgespräch nötig — planen Sie Ihr Projekt in Ihrem eigenen Tempo. Basierend auf echten Budgets und Briefings von 187 Marken.',
+  es: 'Sin formularios ni llamadas de venta — planeá tu proyecto a tu ritmo. Basado en presupuestos y briefs reales de 187 marcas.',
+};
+
+const calcHref = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' };
+const calcTitle = { en: 'Video cost calculator', de: 'Kostenrechner für Videoproduktion', es: 'Calculadora de costos de video' };
+const calcDesc = {
+  en: 'Answer a few questions, get an instant price range for your project. No form, no waiting.',
+  de: 'Ein paar Fragen beantworten, sofort eine Preisspanne für Ihr Projekt erhalten. Kein Formular, kein Warten.',
+  es: 'Respondé unas preguntas y conseguí un rango de precio al instante. Sin formulario, sin esperas.',
+};
+const calcCta = { en: 'Try the calculator', de: 'Rechner ausprobieren', es: 'Probar la calculadora' };
+const calcIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m3 0h2m-7 4h2m3 0h2"/></svg>';
+
+const briefTitle = { en: 'Project brief', de: 'Projekt-Briefing', es: 'Brief de proyecto' };
+const briefDesc = {
+  en: 'Answer a few quick questions about your project and we will get back to you with next steps.',
+  de: 'Beantworten Sie ein paar kurze Fragen zu Ihrem Projekt — wir melden uns mit den nächsten Schritten.',
+  es: 'Respondé unas preguntas rápidas sobre tu proyecto y te contactamos con los próximos pasos.',
+};
+const briefCta = { en: 'Start your brief', de: 'Briefing starten', es: 'Empezar el brief' };
+const briefIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>';
+
+const moreLbl = {
+  en: 'More free tools are on the way — check back soon.',
+  de: 'Weitere kostenlose Tools sind unterwegs — schauen Sie bald wieder vorbei.',
+  es: 'Más herramientas gratis están en camino — volvé pronto.',
+};
+const ctaLbl = { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un proyecto' };
+---
+<Base lang={lang} slug="tools" active="tools" title={title} description={description}>
+  <section class="page-hero">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p('')}>{lang === 'es' ? 'Inicio' : 'Home'}</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <span>{crumbsLbl[lang]}</span>
+      </nav>
+      <span class="eyebrow">{crumbsLbl[lang]}</span>
+      <h1 set:html={heroH1[lang]}></h1>
+      <p class="lead">{heroLead[lang]}</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="tools-grid">
+        <ToolCard href={calcHref[lang]} icon={calcIcon} title={calcTitle[lang]} desc={calcDesc[lang]} cta={calcCta[lang]} />
+        <ToolCard href={'/brief/?lang=' + lang} icon={briefIcon} title={briefTitle[lang]} desc={briefDesc[lang]} cta={briefCta[lang]} />
+      </div>
+      <p class="tools-more">{moreLbl[lang]}</p>
+      <div class="rsrc-cta">
+        <a class="btn btn-primary" href={p('contact')}>{ctaLbl[lang]}</a>
+      </div>
+    </div>
+  </section>
+
+  <style is:global>
+    .tools-grid{display:grid;gap:16px}
+    .tools-more{color:var(--muted-2);font-size:13.5px;margin-top:22px;text-align:center}
+    .rsrc-cta{text-align:center;margin-top:22px}
+  </style>
+</Base>

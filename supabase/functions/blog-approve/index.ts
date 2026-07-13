@@ -43,6 +43,7 @@ function buildAstro(b: Record<string, unknown>, sibs: Record<string, string> = {
 import Base from '../../../../layouts/Base.astro';
 import { localePath } from '../../../../i18n.js';
 import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
 const lang = "${lang}";
 const p = (s) => localePath(lang, s);
 const title = {"${lang}":${JSON.stringify(title + " | Viven")}};
@@ -95,6 +96,8 @@ ${heroImg}${body}${videoBlock}
     </div>
   </div>
 </section>
+
+<CalcBanner lang={lang} />
 
 <!-- ============ CTA / FORM ============ -->
 <section class="cta" id="start" style="padding-top:0">

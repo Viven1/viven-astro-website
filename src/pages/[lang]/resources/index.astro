@@ -2,6 +2,7 @@
 // Hub de conocimiento /resources/ — las preguntas reales que la gente busca
 // (reconstruidas desde los ~94 slugs Q&A del sitio viejo: keyword research validado).
 import Base from '../../../layouts/Base.astro';
+import ToolCard from '../../../components/ToolCard.astro';
 import { langPaths, localePath } from '../../../i18n.js';
 import resources from '../../../data/resources.json';
 export const getStaticPaths = langPaths;
@@ -49,22 +50,14 @@ const heroLead = {
 const ctaLbl = { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un proyecto' };
 
 const toolsLbl = { en: 'Free tools', de: 'Kostenlose Tools', es: 'Herramientas gratis' };
-const calcHref = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' };
-const calcTitle = { en: 'Video cost calculator', de: 'Kostenrechner für Videoproduktion', es: 'Calculadora de costos de video' };
-const calcDesc = {
-  en: 'Answer a few questions, get an instant price range for your project. No form, no waiting.',
-  de: 'Ein paar Fragen beantworten, sofort eine Preisspanne für Ihr Projekt erhalten. Kein Formular, kein Warten.',
-  es: 'Respondé unas preguntas y conseguí un rango de precio al instante. Sin formulario, sin esperas.',
+const toolsTitle = { en: 'Cost calculator & project brief', de: 'Kostenrechner & Projekt-Briefing', es: 'Calculadora de costos y brief de proyecto' };
+const toolsDesc = {
+  en: 'Get an instant price range or start a guided brief — no form, no sales call required.',
+  de: 'Holen Sie sich sofort eine Preisspanne oder starten Sie ein geführtes Briefing — kein Formular, kein Verkaufsgespräch nötig.',
+  es: 'Conseguí un rango de precio al instante o empezá un brief guiado — sin formularios ni llamadas de venta.',
 };
-const calcCta = { en: 'Try the calculator', de: 'Rechner ausprobieren', es: 'Probar la calculadora' };
-
-const briefTitle = { en: 'Project brief', de: 'Projekt-Briefing', es: 'Brief de proyecto' };
-const briefDesc = {
-  en: 'Answer a few quick questions about your project and we will get back to you with next steps.',
-  de: 'Beantworten Sie ein paar kurze Fragen zu Ihrem Projekt — wir melden uns mit den nächsten Schritten.',
-  es: 'Respondé unas preguntas rápidas sobre tu proyecto y te contactamos con los próximos pasos.',
-};
-const briefCta = { en: 'Start your brief', de: 'Briefing starten', es: 'Empezar el brief' };
+const toolsCta = { en: 'See all free tools', de: 'Alle kostenlosen Tools ansehen', es: 'Ver todas las herramientas gratis' };
+const toolsIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m3 0h2m-7 4h2m3 0h2"/></svg>';
 ---
 <Base lang={lang} slug="resources" active="resources" title={title} description={description}>
   <section class="page-hero">
@@ -83,22 +76,7 @@ const briefCta = { en: 'Start your brief', de: 'Briefing starten', es: 'Empezar 
   <section class="section" style="padding-bottom:0">
     <div class="wrap">
       <span class="rsrc-tools-eyebrow">{toolsLbl[lang]}</span>
-      <a class="rsrc-tool-card" href={calcHref[lang]}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m3 0h2m-7 4h2m3 0h2"/></svg>
-        <div>
-          <span class="rsrc-tool-title">{calcTitle[lang]}</span>
-          <span class="rsrc-tool-desc">{calcDesc[lang]}</span>
-        </div>
-        <span class="rsrc-tool-cta">{calcCta[lang]} →</span>
-      </a>
-      <a class="rsrc-tool-card" href={'/brief/?lang=' + lang}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
-        <div>
-          <span class="rsrc-tool-title">{briefTitle[lang]}</span>
-          <span class="rsrc-tool-desc">{briefDesc[lang]}</span>
-        </div>
-        <span class="rsrc-tool-cta">{briefCta[lang]} →</span>
-      </a>
+      <ToolCard href={p('tools')} icon={toolsIcon} title={toolsTitle[lang]} desc={toolsDesc[lang]} cta={toolsCta[lang]} />
     </div>
   </section>
 
@@ -125,14 +103,6 @@ const briefCta = { en: 'Start your brief', de: 'Briefing starten', es: 'Empezar 
 
   <style is:global>
     .rsrc-tools-eyebrow{display:block;font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--acid);text-transform:uppercase;margin-bottom:10px}
-    .rsrc-tool-card{display:flex;align-items:center;gap:16px;border:1px solid var(--line);border-radius:14px;background:var(--navy-800);padding:18px 20px;color:var(--text);text-decoration:none;transition:border-color .2s,transform .15s;margin-bottom:44px}
-    .rsrc-tool-card:hover{border-color:var(--acid);transform:translateY(-1px)}
-    .rsrc-tool-card svg{flex:none;width:26px;height:26px;color:var(--acid)}
-    .rsrc-tool-card > div{flex:1;min-width:0}
-    .rsrc-tool-title{display:block;font-size:16px;font-weight:600;margin-bottom:3px}
-    .rsrc-tool-desc{display:block;font-size:13.5px;color:var(--muted-2)}
-    .rsrc-tool-cta{flex:none;font-size:14px;font-weight:600;color:var(--acid)}
-    @media(max-width:600px){.rsrc-tool-card{flex-wrap:wrap}.rsrc-tool-cta{margin-left:42px}}
     .rsrc-group{margin-bottom:44px}
     .rsrc-cat{font-size:clamp(19px,2.6vw,24px);margin-bottom:16px}
     .rsrc-cat .rsrc-n{color:var(--muted-2);font-size:14px;font-weight:400}
