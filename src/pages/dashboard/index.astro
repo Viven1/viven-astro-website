@@ -2320,6 +2320,17 @@ const stillsPool = projects
     // video analytics con profundidad (plays + hitos de retención + conversión)
     const plays = (videosQ && !videosQ.error) ? (videosQ.data || []) : [];
     renderVideoAna(plays, allLeads);
+    // Deals/Ofertas/Propuestas/Companies ya se refrescan arriba en memoria (dealsList/offersList/
+    // propsAll/coMeta), pero antes solo se volvían a DIBUJAR en pantalla si estabas en Home o
+    // volvías a entrar al tab — si te quedabas parado en Pipeline/Ofertas/Propuestas/Companies,
+    // el cambio de otra persona (Sofia/Sebastián) no aparecía hasta recargar la página entera.
+    // Re-renderizar acá también, cada corrida de loadAll, para que se actualice solo donde sea
+    // que estés mirando.
+    renderPipeline();
+    if (!$('co-ed-save')) renderCompanies(); // no pisar el form de "Editar empresa" si está abierto (co-ed-save solo existe en modo edición)
+    renderOffersList();
+    renderPropList();
+    licLoad(); // licencias no entraba en loadAll — se sumó para que también se mantenga al día sola
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     loadBell();
     subscribeRealtime();
@@ -2465,13 +2476,15 @@ const stillsPool = projects
     list.querySelectorAll('.bell-dis').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); dismissBellItem(b.dataset.k); }));
   }
   function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
-  // re-evaluar cada 4 min: cuando una task cruza su hora, el badge salta solo
-  setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadBell(); }, 240000);
+  // re-evaluar cada 2 min: cuando una task cruza su hora, el badge salta solo
+  setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadBell(); }, 120000);
   /* Analytics/Home mostraban una FOTO fija del momento en que cargó la página (sin
      recargar, el número no se movía nunca) — eso hacía parecer "raro" cualquier
-     comparación. Ahora se refresca solo cada 3 min (mientras la pestaña esté visible)
-     y siempre se ve hace cuánto es el dato, para no confundir una foto vieja con el vivo. */
-  setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadAll(); }, 180000);
+     comparación. A pedido de Sebastián (con Sofia usando el dashboard al mismo tiempo,
+     lo que cambia una la tiene que ver la otra rápido): se refresca cada 2 min, en
+     TODOS los tabs (no solo Home) — mientras la pestaña esté visible — y siempre se
+     ve hace cuánto es el dato, para no confundir una foto vieja con el vivo. */
+  setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadAll(); }, 120000);
   setInterval(() => {
     const el = $('data-fresh'); if (!el || !window.__vvLoadedAt) return;
     const s2 = Math.round((Date.now() - window.__vvLoadedAt) / 1000);
