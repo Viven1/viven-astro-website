@@ -2393,12 +2393,9 @@ const stillsPool = projects
       notes.filter((n) => meEmail && String(n.mention || '').toLowerCase() === meEmail).slice(0, 8).forEach((n) => {
         bellItems.push({ kind: 'mention', id: n.id, lead_id: n.lead_id, title: (n.body || '').slice(0, 80), due: null, bucket: 'mention', overdue: false });
       });
-      // ruido de cuentas internas/propias (probando el CRM con nuestro propio email) —
-      // mismo patrón que ya usan Ads/Newsletter para no confundir tests con negocio real
-      // "test" acotado por no-letras a los dos lados — evita falsos positivos
-      // reales como testimonial@empresa.com o contest@empresa.com
-      const BELL_TEST = /@viven\.ch$|@entropia|@example\.|(^|[^a-z])test([^a-z]|$)/i;
-      const bellSkip = (em) => BELL_TEST.test(em || '') || (em || '').toLowerCase() === 'cepeda.sebastian@gmail.com';
+      // ya estamos live con Sofia — @viven.ch es tráfico real entre nosotros, no test.
+      // Las notificaciones siempre muestran todo, sin filtrar nada.
+      const bellSkip = () => false;
       // leads nuevos sin contactar (últimas 72h) — lo mismo que llega por push
       const cutoff = Date.now() - 72 * 36e5;
       (allLeads || []).filter((l) => isNew(l.status) && !/^claude-/.test(l.session_id || '') && Date.parse(l.created_at) > cutoff && !bellSkip(l.email))
