@@ -1009,13 +1009,39 @@ const stillsPool = projects
   .hk-t.up{color:#7ed957}
   .hk-t.down{color:#ff8b8b}
   .hk-t.muted{color:var(--muted-2);font-weight:400}
-  .home-panels{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:16px}
-  .home-att{display:flex;flex-direction:column;gap:2px}
-  .home-att .att{display:flex;align-items:center;gap:11px;padding:10px 6px;border-radius:10px;cursor:pointer;font-size:14px;color:var(--text)}
-  .home-att .att:hover{background:var(--navy-900)}
-  .home-att .att .ai{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
-  .home-att .att b{margin-left:auto;font-family:'Space Grotesk';font-weight:700}
-  @media(max-width:920px){.home-kpis{grid-template-columns:repeat(2,1fr)}.home-panels{grid-template-columns:1fr}}
+  /* HOME "Hoy": centro de comando — header + 3 columnas (Para hoy / Señales / stack) */
+  .hm-head{margin:0 0 18px}
+  .hm-head .home-h{margin:0 0 4px}
+  .hm-sub{color:var(--muted-2);font-size:13px}
+  .hm-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:16px;margin-top:16px;align-items:start}
+  .hm-grid .panel{margin-bottom:0}
+  .hm-stack{display:grid;gap:16px}
+  .hm-list{display:flex;flex-direction:column}
+  /* fila accionable: barra de severidad a la izquierda (rojo/ámbar/azul) */
+  .hm-item{position:relative;display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:10px 6px 10px 14px;cursor:pointer;text-align:left;color:var(--text);font-family:inherit}
+  .hm-item:first-child{border-top:0}
+  .hm-item:hover{background:var(--navy-900)}
+  .hm-item::before{content:'';position:absolute;left:2px;top:13px;bottom:13px;width:3px;border-radius:2px;background:var(--muted-2)}
+  .hm-item.rojo::before{background:#ff6b6b}
+  .hm-item.ambar::before{background:#f0c060}
+  .hm-item.azul::before{background:#8ab4ff}
+  .hm-item.hot::before{background:#ff8b5e}
+  .hm-item .ic{flex:none;font-size:15px}
+  .hm-item .tx{flex:1;min-width:0}
+  .hm-item .tx b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hm-item .tx small{display:block;color:var(--muted);font-size:12px;margin-top:1px;line-height:1.35}
+  .hm-item .go{flex:none;color:var(--acid);font-size:11.5px;font-weight:700;white-space:nowrap}
+  .hm-more{width:100%;background:none;border:0;border-top:1px solid var(--line);color:var(--acid);font-family:inherit;font-weight:600;font-size:12.5px;padding:10px 6px;cursor:pointer;text-align:left}
+  .hm-spark{display:flex;align-items:flex-end;gap:5px;height:62px}
+  .hm-spark i{flex:1;background:color-mix(in srgb,var(--acid) 28%,transparent);border-radius:3px 3px 0 0;min-height:3px}
+  .hm-spark i.on{background:var(--acid)}
+  .hm-spark-cap{color:var(--muted);font-size:12px;margin-top:8px}
+  .hm-ads-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .hm-ads-grid div b{display:block;font-family:'Space Grotesk';font-size:16px}
+  .hm-ads-grid div span{color:var(--muted);font-size:11.5px}
+  .hm-verdict{font-weight:700;font-size:12.5px;margin-top:10px}
+  @media(max-width:1280px){.hm-grid{grid-template-columns:1fr 1fr}.hm-stack{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:920px){.home-kpis{grid-template-columns:repeat(2,1fr)}.hm-grid{grid-template-columns:1fr}.hm-stack{grid-column:auto;grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1101,20 +1127,35 @@ const stillsPool = projects
     </aside>
     <div class="dash-main">
 
-  <!-- ============ TAB: HOME ============ -->
+  <!-- ============ TAB: HOME "Hoy" ============ -->
   <div id="tab-home">
-    <h2 class="home-h">Hola 👋 <span class="home-sub">últimos 7 días · vs semana anterior</span></h2>
-    <div class="home-kpis">
-      <div class="hk"><div class="hk-l">Nuevos leads</div><div class="hk-n" id="h-leads">–</div><div class="hk-t" id="h-leads-t"></div></div>
-      <div class="hk"><div class="hk-l">Ganados</div><div class="hk-n" id="h-won">–</div><div class="hk-t" id="h-won-t"></div></div>
-      <div class="hk"><div class="hk-l">Ingresos ganados</div><div class="hk-n" id="h-rev">–</div><div class="hk-t" id="h-rev-t"></div></div>
-      <div class="hk"><div class="hk-l">Sesiones web</div><div class="hk-n" id="h-sess">–</div><div class="hk-t" id="h-sess-t"></div></div>
-      <div class="hk"><div class="hk-l">Valor pipeline (abierto)</div><div class="hk-n" id="h-pipe">–</div><div class="hk-t muted">ofertas enviadas</div></div>
-      <div class="hk"><div class="hk-l">Tasa de conversión</div><div class="hk-n" id="h-conv">–</div><div class="hk-t muted">ganado / decidido</div></div>
+    <div class="hm-head">
+      <h2 class="home-h" id="hm-greet">Buen día 👋</h2>
+      <div class="hm-sub" id="hm-sub"></div>
     </div>
-    <div class="home-panels">
-      <div class="panel"><h2>Funnel de ventas <span class="count">(últimos 30 días)</span></h2><div class="funnel" id="home-funnel"></div></div>
-      <div class="panel"><h2>Necesita atención</h2><div class="home-att" id="home-att"></div></div>
+    <div class="home-kpis hm-kpis">
+      <div class="hk"><div class="hk-l">Pipeline abierto</div><div class="hk-n" id="hm-pipe">–</div><div class="hk-t muted" id="hm-pipe-t"></div></div>
+      <div class="hk"><div class="hk-l">Ponderado</div><div class="hk-n" id="hm-weight">–</div><div class="hk-t muted">valor × probabilidad</div></div>
+      <div class="hk"><div class="hk-l">Ganado (30 días)</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div></div>
+      <div class="hk"><div class="hk-l">Win rate (90 días)</div><div class="hk-n" id="hm-wr">–</div><div class="hk-t muted" id="hm-wr-t">ganado / decidido</div></div>
+      <div class="hk"><div class="hk-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div></div>
+      <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
+    </div>
+    <div class="hm-grid">
+      <div class="panel hm-card">
+        <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
+        <div class="hm-list" id="hm-today"></div>
+      </div>
+      <div class="panel hm-card">
+        <h2>🔥 Señales calientes</h2>
+        <div class="hm-list" id="hm-signals"></div>
+      </div>
+      <div class="hm-stack">
+        <div class="panel hm-card"><h2>📅 Agenda <span class="count">(próximos 7 días)</span></h2><div class="hatt-calls" id="hm-agenda"></div></div>
+        <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
+        <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
+        <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
+      </div>
     </div>
   </div>
 
@@ -3048,59 +3089,365 @@ const stillsPool = projects
   $('seo-reload') && $('seo-reload').addEventListener('click', loadSeo);
   $('ps-act').addEventListener('change', (e) => { psAct = e.target.value; renderPeopleList(); });
 
-  /* ---------- HOME: KPIs globales + tendencia vs semana anterior ---------- */
+  /* ---------- HOME "Hoy": centro de comando accionable (KPIs + Para hoy + señales + agenda/ads/IA) ----------
+     Caches en módulo: loadAll corre cada 2 min y re-llama renderHome — sin estos TTLs cada
+     render dispararía fetches nuevos (sparkline, gads-stats, IA) y martillaría las APIs. */
+  let hmViews60 = null, hmViews60At = 0, hmViews60Busy = false;   // pageviews 60d: sparkline semanal + KPI visitas
+  let hmAds = null, hmAdsBusy = false;                            // gasto de Ads: gads-stats 1 sola vez por día
+  let hmAiTried = false, hmTodayCur = [], hmSigCur = [];
+  const HM_AI_LS = 'vv_home_ai', HM_ADS_LS = 'vv_home_gads';
+
+  // KPIs de deals con las MISMAS fórmulas que el board (renderPipeline) — números idénticos en todos lados
+  function hmDealKpis(){
+    const now = Date.now(), D = 864e5;
+    const all = (dealsList || []).filter((d) => !d.archived);
+    const open = all.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
+    const weighted = open.reduce((a, d) => a + dealValue(d) * ((STAGES.find((s) => s.key === stageOf(d.stage)) || {}).prob || 0), 0);
+    const wonAge = (d) => { const t = Date.parse(d.won_at || d.last_stage_at || ''); return t ? now - t : Infinity; };
+    const wonAll = all.filter((d) => stageOf(d.stage) === 'ganado');
+    const won30 = wonAll.filter((d) => wonAge(d) <= 30 * D);
+    const won3060 = wonAll.filter((d) => { const a = wonAge(d); return a > 30 * D && a <= 60 * D; });
+    const won90 = wonAll.filter((d) => wonAge(d) <= 90 * D).length;
+    const lost90 = all.filter((d) => { if (stageOf(d.stage) !== 'perdido') return false; const t = Date.parse(d.lost_at || d.last_stage_at || ''); return t && now - t <= 90 * D; }).length;
+    const dec90 = won90 + lost90;
+    return { openVal: dealsValue(open), openN: open.length, weighted, won30Val: dealsValue(won30), prev30Val: dealsValue(won3060),
+      winRate: dec90 ? Math.round(won90 / dec90 * 100) : null, won90, dec90 };
+  }
+
+  // Ads en memoria: leads con gclid (30d, sin tests/spam/excluidos — mismos patrones que el tab de Ads)
+  const HM_ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+  const hmAdsOk = (r) => r.gclid && !r.ads_exclude && !HM_ADS_TEST.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
+  function hmAdsStats(){
+    const now = Date.now(), D30 = 30 * 864e5;
+    const leads30 = (allLeads || []).filter((r) => hmAdsOk(r) && (now - Date.parse(r.created_at)) <= D30).length;
+    const gset = new Set((allLeads || []).filter(hmAdsOk).map((r) => String(r.id)));
+    const wonDeals = (dealsList || []).filter((d) => !d.archived && stageOf(d.stage) === 'ganado' && d.won_at && (now - Date.parse(d.won_at)) <= D30 && gset.has(String(d.lead_id)));
+    return { leads: leads30, wonVal: wonDeals.reduce((a, d) => a + dealValue(d), 0), wonN: wonDeals.length };
+  }
+
+  // "🎯 Para hoy": UNA lista por urgencia — cada fila sabe abrir lo suyo (openLead/openOffer/gotoTab)
+  function hmTodayItems(){
+    const now = Date.now(), D = 864e5, items = [];
+    const busyLeads = new Set();   // leads ya cubiertos por (a)/(b): no repetir al mismo cliente en (c)
+    // (a) ofertas enviadas esperando >10d (si abrió el email hace poco → seguir HOY)
+    (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent').forEach((o) => {
+      const ref = Date.parse(o.sent_at || o.updated_at); if (!ref) return;
+      const days = Math.floor((now - ref) / D); if (days <= 10) return;
+      const l = leadById(o.lead_id) || {};
+      const opened = o.last_open_at && (now - Date.parse(o.last_open_at)) < 2 * D;
+      if (o.lead_id) busyLeads.add(String(o.lead_id));
+      items.push({ rank: opened ? -1 : 0, sev: 'rojo', icon: '🧾', at: ref,
+        t: o.title || ('Oferta ' + (o.number || '#' + o.id)),
+        ctx: [l.name || l.email || o.client || '', 'esperando hace ' + days + ' d'].filter(Boolean).join(' · ') +
+          (opened ? ' · abrió el email hace ' + timeAgo(o.last_open_at) + ' → seguir HOY' : ''),
+        hint: 'Follow-up →', go: () => { gotoTab('offers'); openOffer(o.id); } });
+    });
+    // (b) propuestas publicadas: >8d sin respuesta (rojo) / >2d con 0 vistas (azul: ¿le llegó el link?)
+    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent').forEach((p) => {
+      const ref = Date.parse(p.published_at || p.updated_at); if (!ref) return;
+      const days = Math.floor((now - ref) / D);
+      const l = leadById(p.lead_id) || {};
+      const goP = p.lead_id ? () => openLead(p.lead_id) : () => gotoTab('props');
+      if (days > 8){
+        if (p.lead_id) busyLeads.add(String(p.lead_id));
+        items.push({ rank: 1, sev: 'rojo', icon: '🌐', at: ref, t: p.title || 'Propuesta',
+          ctx: [l.name || l.email || '', 'publicada hace ' + days + ' d sin respuesta'].filter(Boolean).join(' · '),
+          hint: 'Follow-up →', go: goP });
+      } else if (days > 2 && !p.last_view_at){
+        items.push({ rank: 5, sev: 'azul', icon: '👁', at: ref, t: p.title || 'Propuesta',
+          ctx: [l.name || l.email || '', 'publicada hace ' + days + ' d · 0 vistas — ¿le llegó el link?'].filter(Boolean).join(' · '),
+          hint: 'Reenviar →', go: goP });
+      }
+    });
+    // (c) deals estancados >14d SIN próximo paso — solo con el cache de tasks ya cargado
+    //     (si no, marcaría "sin próximo paso" a todos en el primer render)
+    if (dlTasksAt){
+      (dealsList || []).filter((d) => !d.archived && DL_OPEN.includes(stageOf(d.stage))).forEach((d) => {
+        const days = dealStageDays(d); if (days <= 14) return;
+        if (busyLeads.has(String(d.lead_id))) return;
+        const r = leadById(d.lead_id) || {};
+        if (dlTasksMap[String(d.lead_id)] || r.next_follow_up_at) return;
+        const stLabel = (STAGES.find((s) => s.key === stageOf(d.stage)) || {}).label || '';
+        items.push({ rank: 2, sev: 'rojo', icon: '🤝', at: now - days * D, t: d.title || r.name || r.email || '(deal)',
+          ctx: days + ' d en ' + stLabel + ' · sin próximo paso',
+          hint: 'Definir paso →', go: () => (d.lead_id ? openLead(d.lead_id) : gotoTab('deals')) });
+      });
+    }
+    // (d) leads nuevos sin contactar <72h (los manuales los cargamos nosotros — no urgen)
+    (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && isNew(l.status) && l.channel !== 'manual' && (now - Date.parse(l.created_at)) < 72 * 36e5).forEach((l) => {
+      items.push({ rank: 3, sev: 'ambar', icon: '📥', at: Date.parse(l.created_at), t: l.name || l.email || '(lead)',
+        ctx: 'lead nuevo hace ' + timeAgo(l.created_at) + ' · sin contactar', hint: 'Contactar →', go: () => openLead(l.id) });
+    });
+    // (e) tasks para hoy o vencidas, mías o sin asignar (mismo criterio que la campana)
+    if (dlTasksAt){
+      const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+      const tEnd = t0.getTime() + D;
+      const mine = (t) => !meEmail || !t.assignee || String(t.assignee).toLowerCase() === meEmail;
+      Object.keys(dlTasksMap).forEach((lid) => {
+        const t = dlTasksMap[lid];
+        if (!t || !t.due_date || !mine(t)) return;
+        const due = new Date(t.due_date + 'T' + (t.due_time || '23:59') + ':00').getTime();
+        if (!(due < tEnd)) return;   // hoy o vencida
+        const overdue = due < (t.due_time ? now : t0.getTime());
+        const l = leadById(lid) || {};
+        items.push({ rank: 4, sev: 'ambar', icon: '✅', at: due, t: t.title,
+          ctx: [l.name || l.email || '', (overdue ? 'vencida' : 'para hoy') + (t.due_time ? ' · ' + t.due_time : '')].filter(Boolean).join(' · '),
+          hint: 'Hacer →', go: () => openLead(lid) });
+      });
+    }
+    return items.sort((a, b) => (a.rank - b.rank) || (a.at - b.at));
+  }
+
+  // "🔥 Señales calientes": aperturas de propuesta/oferta <48h + leads conocidos que volvieron a la web <24h
+  function hmSignalItems(){
+    const now = Date.now(), H48 = 48 * 36e5, sig = [];
+    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.last_view_at && now - Date.parse(p.last_view_at) < H48).forEach((p) => {
+      const l = leadById(p.lead_id) || {};
+      const who = l.name || l.email || 'Alguien';
+      const nth = Number(p.view_count) > 1 ? ' · ' + p.view_count + 'ª vista' : '';
+      sig.push({ at: Date.parse(p.last_view_at), icon: '🌐', lead: p.lead_id, t: who + ' abrió la propuesta',
+        ctx: (p.title || '(sin título)') + ' · hace ' + timeAgo(p.last_view_at) + nth,
+        plain: who + ' abrió la propuesta «' + (p.title || '') + '» hace ' + timeAgo(p.last_view_at) });
+    });
+    (offersList || []).filter((o) => !o.archived && !o.is_template && o.last_open_at && now - Date.parse(o.last_open_at) < H48).forEach((o) => {
+      const l = leadById(o.lead_id) || {};
+      const who = l.name || l.email || o.client || 'Alguien';
+      sig.push({ at: Date.parse(o.last_open_at), icon: '🧾', lead: o.lead_id, t: who + ' abrió el email de la oferta',
+        ctx: (o.title || o.number || '(sin título)') + ' · hace ' + timeAgo(o.last_open_at),
+        plain: who + ' abrió el email de la oferta «' + (o.title || '') + '» hace ' + timeAgo(o.last_open_at) });
+    });
+    // web: sesiones de lastViews que pertenecen al session_id de un lead conocido (últimas 24h)
+    const byS = {}; (allLeads || []).forEach((l) => { if (l.session_id && !/^claude-/.test(l.session_id)) byS[l.session_id] = l; });
+    const acc = {};
+    (lastViews || []).forEach((v) => {
+      const l = v.session_id && byS[v.session_id]; if (!l) return;
+      const t = Date.parse(v.created_at); if (!t || now - t > 864e5) return;
+      const k = String(l.id); acc[k] = acc[k] || { l, n: 0, at: 0 };
+      acc[k].n++; if (t > acc[k].at) acc[k].at = t;
+    });
+    Object.values(acc).forEach((c) => {
+      const who = c.l.name || c.l.email || 'Un contacto';
+      sig.push({ at: c.at, icon: '👀', lead: c.l.id, t: who + ' volvió a la web',
+        ctx: c.n + ' página' + (c.n === 1 ? '' : 's') + ' · hace ' + timeAgo(new Date(c.at).toISOString()),
+        plain: who + ' volvió a la web (' + c.n + ' páginas) hace ' + timeAgo(new Date(c.at).toISOString()) });
+    });
+    return sig.sort((a, b) => b.at - a.at);
+  }
+
+  function hmRenderToday(items){
+    const box = $('hm-today'); if (!box) return;
+    hmTodayCur = items;
+    box.innerHTML = items.slice(0, 8).map((it, i) =>
+      '<button class="hm-item ' + it.sev + '" type="button" data-i="' + i + '">' +
+      '<span class="ic">' + it.icon + '</span>' +
+      '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
+      '<span class="go">' + it.hint + '</span></button>'
+    ).join('') || '<p class="muted-note">Todo al día 🎉</p>';
+    if (items.length > 8) box.innerHTML += '<button class="hm-more" id="hm-today-more" type="button">ver todo (' + items.length + ') →</button>';
+    box.querySelectorAll('.hm-item').forEach((b) => b.addEventListener('click', () => { const it = hmTodayCur[+b.dataset.i]; if (it && it.go) it.go(); }));
+    const more = $('hm-today-more'); if (more) more.addEventListener('click', () => gotoTab('deals'));
+  }
+
+  function hmRenderSignals(){
+    const box = $('hm-signals'); if (!box) return;
+    hmSigCur = hmSignalItems();
+    box.innerHTML = hmSigCur.slice(0, 8).map((s, i) =>
+      '<button class="hm-item hot" type="button" data-i="' + i + '">' +
+      '<span class="ic">' + s.icon + '</span>' +
+      '<span class="tx"><b>' + esc(s.t) + '</b><small>' + esc(s.ctx) + '</small></span>' +
+      '<span class="go">Abrir →</span></button>'
+    ).join('') || '<p class="muted-note">Sin señales por ahora — acá aparecen aperturas de ofertas y propuestas y visitas a la web de contactos conocidos (tracking).</p>';
+    box.querySelectorAll('.hm-item').forEach((b) => b.addEventListener('click', () => { const s = hmSigCur[+b.dataset.i]; if (s && s.lead) openLead(s.lead); }));
+  }
+
+  function hmRenderAgenda(){
+    const box = $('hm-agenda'); if (!box) return;
+    const lim = Date.now() + 7 * 864e5;
+    const rows = (upBookings || []).filter((b) => Date.parse(b.start_at) <= lim);
+    box.innerHTML = rows.map((b) => {
+      const dt = new Date(b.start_at);
+      const when = dt.toLocaleDateString('es-CH', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + dt.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+      return '<div class="hatt-call">' +
+        '<span class="hc-when">📅 ' + esc(when) + '</span>' +
+        '<button class="hc-who" type="button"' + (b.lead_id ? ' data-lead="' + esc(String(b.lead_id)) + '"' : '') + '>' + esc(b.name || b.email) + '</button>' +
+        '<span class="hc-dur">' + (b.duration_m || 15) + ' min</span>' +
+        (b.meet_url ? '<a class="hc-meet" href="' + esc(b.meet_url) + '" target="_blank" rel="noopener">Meet ↗</a>' : '') +
+      '</div>';
+    }).join('') || '<p class="muted-note">Sin video calls en los próximos 7 días.</p>';
+    box.querySelectorAll('.hc-who[data-lead]').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.lead)));
+  }
+
+  // sparkline: 8 semanas ISO (lunes a lunes), última barra = semana en curso (ácida)
+  function hmRenderSpark(){
+    const box = $('hm-spark'), cap = $('hm-spark-cap'); if (!box) return;
+    if (!hmViews60){ box.innerHTML = ''; if (cap) cap.textContent = 'cargando…'; return; }
+    const w0 = (() => { const x = new Date(); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x.getTime(); })();
+    const b = Array(8).fill(0);
+    hmViews60.forEach((v) => {
+      const t = Date.parse(v.created_at); if (!t) return;
+      const i = 7 + Math.floor((t - w0) / (7 * 864e5));   // 7 = semana actual, 0 = hace 7 semanas
+      if (i >= 0 && i <= 7) b[i]++;
+    });
+    const max = Math.max(1, ...b);
+    box.innerHTML = b.map((n, i) => '<i class="' + (i === 7 ? 'on' : '') + '" style="height:' + Math.max(4, Math.round(n / max * 100)) + '%" title="' + n + ' vistas"></i>').join('');
+    if (cap) cap.textContent = 'esta semana: ' + b[7].toLocaleString('de-CH');
+  }
+
+  function hmRenderAds(){
+    const box = $('hm-ads'); if (!box) return;
+    const spend = hmAds ? (+hmAds.spend || 0) : 0;
+    if (!spend){
+      box.innerHTML = '<p class="muted-note">' + (hmAds ? 'Sin datos de Ads — cargá la inversión en Analytics → Google Ads.' : 'Cargando datos de Ads…') + '</p>';
+      return;
+    }
+    const st = hmAdsStats();
+    const roas = st.wonVal / spend;
+    box.innerHTML = '<div class="hm-ads-grid">' +
+      '<div><b>' + fmtChf(spend) + '</b><span>Inversión' + (hmAds.official ? '' : ' (manual)') + '</span></div>' +
+      '<div><b>' + st.leads + '</b><span>Leads desde Ads</span></div>' +
+      '<div><b>' + (st.leads ? fmtChf(Math.round(spend / st.leads)) : '–') + '</b><span>Costo por lead</span></div>' +
+      '<div><b>×' + roas.toFixed(1) + '</b><span>ROAS</span></div></div>' +
+      '<div class="hm-verdict" style="color:' + (roas >= 1 ? '#7ed957' : '#ff8b8b') + '">' +
+      (roas >= 1 ? 'Cada franco invertido volvió ×' + roas.toFixed(1) + ' ✓' : 'Cada franco invertido volvió ×' + roas.toFixed(1) + ' ✗ — todavía no se recupera') + '</div>';
+  }
+
+  // pageviews de 60 días (solo created_at): UNA vez por ciclo, TTL 10 min — alimenta sparkline y KPI visitas
+  async function hmFetchWeeks(){
+    if (hmViews60Busy || (hmViews60 && Date.now() - hmViews60At < 6e5)) return;
+    hmViews60Busy = true;
+    try {
+      const { data, error } = await fetchAllRows('pageviews', 'created_at', new Date(Date.now() - 60 * 864e5).toISOString(), new Date().toISOString());
+      if (!error && data){ hmViews60 = data; hmViews60At = Date.now(); if (!$('tab-home').hidden) renderHome(); }
+    } catch (e) { /* best-effort */ }
+    finally { hmViews60Busy = false; }
+  }
+
+  // gasto de Ads: gads-stats UNA vez por día por navegador (cache en localStorage) + fallback manual
+  async function hmFetchAds(){
+    const today = new Date().toISOString().slice(0, 10);
+    if (hmAds && hmAds.date === today) return;
+    try {
+      const c = JSON.parse(localStorage.getItem(HM_ADS_LS) || 'null');
+      if (c && c.date === today){ hmAds = c; if (!$('tab-home').hidden) renderHome(); return; }
+    } catch (e) { /* cache corrupto → refetch */ }
+    if (hmAdsBusy) return;
+    hmAdsBusy = true;
+    let spend = 0, official = false;
+    try { const { data: gs } = await supabase.functions.invoke('gads-stats', { body: { days: 30 } }); if (gs && gs.ok){ spend = Math.round(gs.total.cost); official = true; } } catch (e) { /* función no deployada / token pendiente */ }
+    // mismos fallbacks que el tab de Ads: inversión manual (ads_settings → localStorage)
+    if (!spend){ try { const { data: st } = await supabase.from('ads_settings').select('spend').eq('id', 1).maybeSingle(); spend = +((st || {}).spend || 0); } catch (e) { /* tabla pendiente (SQL 0037) */ } }
+    if (!spend) spend = +(localStorage.getItem('vv_ads_spend') || 0);
+    hmAds = { date: today, spend, official };
+    try { localStorage.setItem(HM_ADS_LS, JSON.stringify(hmAds)); } catch (e) { /* sin espacio */ }
+    hmAdsBusy = false;
+    if (!$('tab-home').hidden) renderHome();
+  }
+
+  // resumen IA del día: 1 invoke por día por navegador (cache vv_home_ai) — ↻ regenera
+  function hmAiRender(i){
+    $('hm-ai').innerHTML = '<div class="ai-insight"><span class="ico">' + esc(i.icon || '🪄') + '</span>' +
+      '<div class="txt"><h4>' + esc(i.title || '') + '</h4><p>' + esc(i.detail || '') + '</p></div></div>';
+  }
+  function hmAiSummary(){
+    const k = hmDealKpis();
+    const ads = hmAdsStats();
+    const spend = hmAds ? (+hmAds.spend || 0) : 0;
+    return {
+      contexto: 'Arranque del día en Viven (productora de video, Zúrich). Con estos pendientes, señales de compra y KPIs, devolvé UNA sola prioridad del día, concreta y accionable, en 2 líneas máximo, en español.',
+      fecha: new Date().toISOString().slice(0, 10),
+      para_hoy: hmTodayItems().slice(0, 8).map((i) => i.t + ' — ' + i.ctx),
+      senales_calientes: hmSignalItems().slice(0, 6).map((s) => s.plain),
+      kpis: {
+        pipeline_abierto_chf: Math.round(k.openVal), deals_abiertos: k.openN,
+        ponderado_chf: Math.round(k.weighted), ganado_30d_chf: Math.round(k.won30Val),
+        win_rate_90d_pct: k.winRate, roas_ads_30d: spend ? +(hmAdsStats().wonVal / spend).toFixed(2) : null,
+        leads_ads_30d: ads.leads,
+      },
+    };
+  }
+  async function hmAi(force){
+    const body = $('hm-ai'); if (!body) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (!force){
+      try {
+        const c = JSON.parse(localStorage.getItem(HM_AI_LS) || 'null');
+        if (c && c.date === today && c.insight){ hmAiRender(c.insight); return; }
+      } catch (e) { /* cache corrupto → regenerar */ }
+      if (hmAiTried) return;   // ya falló hoy en esta sesión: no martillar la función
+    }
+    hmAiTried = true;
+    const btn = $('hm-ai-btn'); if (btn) btn.disabled = true;
+    body.innerHTML = '<p class="ai-loading">La IA está eligiendo la prioridad del día…</p>';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-insights', { body: { summary: hmAiSummary(), lang: 'es' } });
+      const ins = data && Array.isArray(data.insights) && data.insights[0];
+      if (error || !ins) throw new Error(data?.error || error?.message || 'sin respuesta');
+      try { localStorage.setItem(HM_AI_LS, JSON.stringify({ date: today, insight: ins })); } catch (e) { /* sin espacio */ }
+      hmAiRender(ins);
+    } catch (e) {
+      body.innerHTML = '<p class="muted-note">No se pudo generar (¿deployaste ai-insights y hay crédito en Anthropic?): ' + esc(e.message) + '</p>';
+    } finally { if (btn) btn.disabled = false; }
+  }
+  $('hm-ai-btn').addEventListener('click', () => hmAi(true));
+
   function renderHome(){
-    const now = Date.now(), W = 7 * 864e5;
-    const real = (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || ''));
-    const inA = (d) => { if (!d) return false; const t = new Date(d).getTime(); return t >= now - W && t <= now; };
-    const inB = (d) => { if (!d) return false; const t = new Date(d).getTime(); return t >= now - 2 * W && t < now - W; };
-    const cnt = (arr, p) => arr.filter(p).length;
-    const tr = (a, b) => { if (b === 0) return a > 0 ? { t: '▲ nuevo', up: true } : { t: '—', muted: true }; const p = Math.round((a - b) / b * 100); return { t: (p >= 0 ? '▲ ' : '▼ ') + Math.abs(p) + '%', up: p >= 0 }; };
-    const setT = (id, x) => { const el = $(id); if (!el) return; el.textContent = x.t + ' vs sem. ant.'; el.className = 'hk-t ' + (x.muted ? 'muted' : (x.up ? 'up' : 'down')); };
+    const now = Date.now(), D = 864e5;
+    // saludo: quién está logueado (meEmail), con fallback al remitente elegido en la ficha
+    const who = /sebastian/.test(meEmail || '') ? 'Sebastián' : /sofia/.test(meEmail || '') ? 'Sofia' : (sender === 'sebastian' ? 'Sebastián' : 'Sofia');
+    $('hm-greet').textContent = 'Buen día, ' + who + ' 👋';
 
-    const leadsA = cnt(real, (l) => inA(l.created_at)), leadsB = cnt(real, (l) => inB(l.created_at));
-    const wonA = cnt(real, (l) => inA(l.won_at) && stageOf(l.status) === 'ganado'), wonB = cnt(real, (l) => inB(l.won_at) && stageOf(l.status) === 'ganado');
-    const activeOf = (offersList || []).filter((o) => !o.archived && !o.is_template);
-    const revOf = (pred) => activeOf.filter((o) => o.status === 'won' && pred(o.updated_at)).reduce((a, o) => a + offerNet(o), 0);
-    const revProps = (pred) => acceptedProps().filter((p) => !propCovered(p) && pred(p.accepted_at || p.updated_at)).reduce((a, p) => a + propNet(p), 0);
-    const revA = revOf(inA) + revProps(inA), revB = revOf(inB) + revProps(inB);
-    const sess = (pred) => new Set((lastViews || []).filter((v) => pred(v.created_at) && !/^claude-/.test(v.session_id || '')).map((v) => v.session_id)).size;
-    const sessA = sess(inA), sessB = sess(inB);
-    const pipe = activeOf.filter((o) => o.status === 'sent').reduce((a, o) => a + offerNet(o), 0);
-    const won = real.filter((l) => stageOf(l.status) === 'ganado').length, lost = real.filter((l) => stageOf(l.status) === 'perdido').length;
+    /* --- KPIs --- */
+    const k = hmDealKpis();
+    $('hm-pipe').textContent = fmtChf(k.openVal);
+    $('hm-pipe-t').textContent = k.openN + (k.openN === 1 ? ' deal abierto' : ' deals abiertos');
+    $('hm-weight').textContent = fmtChf(Math.round(k.weighted));
+    $('hm-won30').textContent = fmtChf(k.won30Val);
+    setDelta('hm-won30-d', k.won30Val, k.prev30Val);
+    $('hm-wr').textContent = k.winRate === null ? '–' : k.winRate + '%';
+    $('hm-wr-t').textContent = k.dec90 ? 'ganado / decidido: ' + k.won90 + '/' + k.dec90 : 'sin decididos en 90 d';
+    // visitas 30d: con el rango global en 30d uso lastViews/prevViews (ya en memoria); si no, el cache de 60d
+    let visCur = null, visPrev = null;
+    if (!rangeDay && rangeDays === 30){
+      visCur = (lastViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
+      visPrev = (prevViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
+    } else if (hmViews60){
+      visCur = hmViews60.filter((v) => now - Date.parse(v.created_at) <= 30 * D).length;
+      visPrev = hmViews60.filter((v) => { const a = now - Date.parse(v.created_at); return a > 30 * D && a <= 60 * D; }).length;
+    }
+    $('hm-vis').textContent = visCur == null ? '–' : visCur.toLocaleString('de-CH');
+    if (visCur == null){ const d = $('hm-vis-d'); if (d){ d.textContent = ''; d.className = 'kdelta'; } }
+    else setDelta('hm-vis-d', visCur, visPrev);
+    // ROAS Ads: verde ≥1×, rojo <1×, '–' sin datos de gasto
+    const ads = hmAdsStats();
+    const spend = hmAds ? (+hmAds.spend || 0) : 0;
+    const roasEl = $('hm-roas');
+    if (spend){
+      const x = ads.wonVal / spend;
+      roasEl.textContent = '×' + x.toFixed(1);
+      roasEl.style.color = x >= 1 ? '#7ed957' : '#ff8b8b';
+      $('hm-roas-t').textContent = fmtChf(spend) + ' invertidos (30 d)';
+    } else {
+      roasEl.textContent = '–'; roasEl.style.color = '';
+      $('hm-roas-t').textContent = 'sin datos de Ads';
+    }
 
-    $('h-leads').textContent = leadsA; setT('h-leads-t', tr(leadsA, leadsB));
-    $('h-won').textContent = wonA; setT('h-won-t', tr(wonA, wonB));
-    $('h-rev').textContent = fmtChf(revA); setT('h-rev-t', tr(revA, revB));
-    // total histórico = lo mismo que suma la columna Ganado del board (ofertas won + propuestas aceptadas)
-    const revTotal = revOf(() => true) + revProps(() => true);
-    if (revTotal) $('h-rev-t').textContent += ' · histórico ' + fmtChf(revTotal);
-    $('h-sess').textContent = sessA.toLocaleString('de-CH'); setT('h-sess-t', tr(sessA, sessB));
-    $('h-pipe').textContent = fmtChf(pipe);
-    $('h-conv').textContent = (won + lost) ? Math.round(won / (won + lost) * 100) + '%' : '–';
+    /* --- listas --- */
+    const items = hmTodayItems();
+    $('hm-sub').textContent = new Date().toLocaleDateString('es-CH', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' +
+      (items.length ? items.length + (items.length === 1 ? ' cosa pide' : ' cosas piden') + ' atención hoy' : 'todo al día');
+    $('hm-today-n').textContent = items.length ? '(' + items.length + ')' : '';
+    hmRenderToday(items);
+    hmRenderSignals();
+    hmRenderAgenda();
+    hmRenderSpark();
+    hmRenderAds();
 
-    renderFunnel(real.filter((l) => new Date(l.created_at).getTime() >= now - 30 * 864e5), 'home-funnel');
-
-    const in7 = now + W;
-    const att = (c, ic, txt, n, tab) => '<div class="att" data-tab="' + tab + '"><span class="ai" style="background:color-mix(in srgb,' + c + ' 18%,transparent);color:' + c + '">' + ic + '</span>' + txt + '<b>' + n + '</b></div>';
-    $('home-att').innerHTML =
-      att('#8ab4ff', '📥', 'Leads sin contactar', cnt(real, (l) => isNew(l.status)), 'leads') +
-      att('#f0c060', '⏰', 'Follow-ups esta semana', cnt(real, (l) => l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() <= in7), 'leads') +
-      att('#7ed957', '🧾', 'Ofertas esperando respuesta', (offersList || []).filter((o) => o.status === 'sent').length, 'offers') +
-      att('#c58af9', '🌐', 'Propuestas enviadas', (real.filter((l) => stageOf(l.status) === 'propuesta').length), 'props') +
-      att('#5ec7d1', '📅', 'Video calls agendadas', upBookings.length, 'deals') +
-      (upBookings.length ? '<div class="hatt-calls">' + upBookings.map((b) => {
-        const dt = new Date(b.start_at);
-        const when = dt.toLocaleDateString('es-CH', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + dt.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
-        return '<div class="hatt-call">' +
-          '<span class="hc-when">📅 ' + esc(when) + '</span>' +
-          '<button class="hc-who" type="button"' + (b.lead_id ? ' data-lead="' + esc(String(b.lead_id)) + '"' : '') + '>' + esc(b.name || b.email) + '</button>' +
-          '<span class="hc-dur">' + (b.duration_m || 15) + ' min</span>' +
-          (b.meet_url ? '<a class="hc-meet" href="' + esc(b.meet_url) + '" target="_blank" rel="noopener">Meet ↗</a>' : '') +
-        '</div>';
-      }).join('') + '</div>' : '');
-    $('home-att').querySelectorAll('.att').forEach((a) => a.addEventListener('click', () => gotoTab(a.dataset.tab)));
-    $('home-att').querySelectorAll('.hc-who[data-lead]').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.lead)));
+    /* --- datos async con cache (los TTLs evitan refetch en cada auto-refresh) --- */
+    hmFetchWeeks();
+    hmFetchAds();
+    hmAi(false);
+    // tasks abiertas por lead (mismo cache que el board de Deals) — alimenta (c) y (e) de Para hoy
+    dlFetchNextTasks([...new Set((dealsList || []).filter((d) => !d.archived && DL_OPEN.includes(stageOf(d.stage))).map((d) => String(d.lead_id)).filter((x) => x && x !== 'undefined' && x !== 'null'))]);
   }
 
   /* ---------- Pipeline kanban (drag & drop entre etapas) ---------- */
@@ -3431,14 +3778,19 @@ const stillsPool = projects
     if (dlTasksBusy || !ids.length || Date.now() - dlTasksAt < 60000) return;
     dlTasksBusy = true;
     try {
-      const { data, error } = await supabase.from('lead_tasks').select('lead_id,title,due_date')
+      // due_time/assignee: los usa el Home ("Para hoy": tasks vencidas/de hoy mías) — el board solo lee title/due_date
+      let { data, error } = await supabase.from('lead_tasks').select('lead_id,title,due_date,due_time,assignee')
         .eq('done', false).in('lead_id', ids).order('due_date', { ascending: true, nullsFirst: false }).limit(500);
+      // resiliente: sin la migración de due_time (SQL 0012) cae al select viejo
+      if (error && /due_time|assignee/.test(error.message || '')) ({ data, error } = await supabase.from('lead_tasks').select('lead_id,title,due_date')
+        .eq('done', false).in('lead_id', ids).order('due_date', { ascending: true, nullsFirst: false }).limit(500));
       dlTasksAt = Date.now();
       if (!error){
         const m = {};
         (data || []).forEach((t) => { const k = String(t.lead_id); if (!m[k]) m[k] = t; });   // ya viene ordenado: la primera es la más cercana
         dlTasksMap = m;
         renderPipeline();   // re-pinta con los próximos pasos ya cargados (el TTL corta el loop)
+        if (!$('tab-home').hidden) renderHome();   // el Home también usa este cache (el TTL corta la recursión)
       }
     } catch (e) { /* best-effort: sin tabla de tasks el card cae al follow-up automático */ }
     finally { dlTasksBusy = false; }
