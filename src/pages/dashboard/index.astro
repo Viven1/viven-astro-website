@@ -5229,7 +5229,8 @@
       if (data.title && !$('of-title').value.trim()) { $('of-title').value = data.title; ofCur.title = data.title; }
       if (lead && !$('of-client').value.trim()) { $('of-client').value = lead.name || ''; }
       renderRows();
-      $('of-ai-note').textContent = '✨ Oferta propuesta (' + ofCur.items.length + ' posiciones) — revisá y ajustá antes de guardar.' + (data.summary ? ' ' + data.summary : '');
+      await saveOffer();
+      $('of-ai-note').textContent = '✨ Oferta generada y guardada (' + ofCur.items.length + ' posiciones) — revisá y ajustá lo que haga falta.' + (data.summary ? ' ' + data.summary : '');
     } catch (e) {
       $('of-ai-note').textContent = 'No se pudo generar (¿deployaste ai-offer? ¿hay crédito Anthropic?): ' + e.message;
     } finally {
@@ -5841,7 +5842,7 @@
         '<textarea class="t-inc" placeholder="Qué incluye (uno por línea)">' + esc((t.includes || []).join('\n')) + '</textarea></div>';
     }).join('') || '<p class="muted-note">Sin paquetes. Generá con IA, agregá uno, o alineá ofertas existentes con "usar oferta".</p>';
     $('pp-tiers-list').querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.tiers.splice(+b.dataset.i, 1); renderTierRows(); }));
-    $('pp-tiers-list').querySelectorAll('.pp-oflink').forEach((b) => b.addEventListener('click', () => { gotoTab('offers'); openOffer(b.dataset.oid); }));
+    $('pp-tiers-list').querySelectorAll('.pp-oflink').forEach((b) => b.addEventListener('click', () => { window.open(location.pathname + '?offer=' + b.dataset.oid, '_blank'); }));
     $('pp-tiers-list').querySelectorAll('.t-from').forEach((s) => s.addEventListener('change', () => {
       const o = (offersList || []).find((x) => String(x.id) === String(s.value));
       if (!o) return;
@@ -6074,7 +6075,8 @@
       } catch (e) { /* sin ofertas ligadas no bloqueamos la propuesta */ }
       renderTierRows();
       ppCur.addons = (data.addon_groups || []).flatMap((g) => g.items || []).map((it) => ({ name: it.name, note: it.note || '', price: Math.round((Number(it.qty) || 1) * (Number(it.price) || 0)) })); renderAddonRows();
-      $('pp-ai-note').textContent = '✨ Propuesta generada — revisá todo, ajustá precios/textos, poné password y publicá.';
+      await saveProp(false);
+      $('pp-ai-note').textContent = '✨ Propuesta generada y guardada — revisá todo, ajustá precios/textos, poné password y publicá.';
     } catch (e) { $('pp-ai-note').textContent = 'No se pudo generar (¿deployaste ai-proposal + crédito Anthropic?): ' + e.message; }
     finally { btn.disabled = false; btn.textContent = prev; }
   }
@@ -7312,12 +7314,17 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
 
   /* ---------- Sesión persistente ---------- */
   // si venimos de una notificación push (/dashboard/?lead=12), abrir ese lead directo
+  // — o del link "🧾 oferta ↗" de una propuesta (/dashboard/?offer=34), que abre en
+  // pestaña nueva para no perder lo que estabas editando en Propuestas
   function openFromQuery(){
     try {
-      const lid = new URLSearchParams(location.search).get('lead');
-      if (!lid) return;
+      const qs = new URLSearchParams(location.search);
+      const lid = qs.get('lead');
+      const oid = qs.get('offer');
+      if (!lid && !oid) return;
       history.replaceState({}, '', location.pathname);
-      gotoTab('leads'); openLead(lid);
+      if (lid) { gotoTab('leads'); openLead(lid); }
+      else if (oid) { gotoTab('offers'); openOffer(oid); }
     } catch (e) {}
   }
   supabase.auth.getSession().then(({ data }) => {
