@@ -331,7 +331,6 @@ function renderLeadForm(mount){
       '<div class="hp-field" aria-hidden="true"><label>Website</label><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>' +
       '<button type="submit" data-en="Send message" data-de="Nachricht senden" data-es="Enviar mensaje">Send message</button>' +
       '<p class="form-error" data-en="Something went wrong — please email us at info@viven.ch" data-de="Etwas ist schiefgelaufen — bitte schreiben Sie uns an info@viven.ch" data-es="Algo sali&oacute; mal — escr&iacute;benos a info@viven.ch">Something went wrong — please email us at info@viven.ch</p>' +
-      '<p class="form-note lead-alt-note" data-en=\'Just exploring? Get an instant estimate with our <a href="/en/video-cost-calculator/" style="color:var(--acid)">free video cost calculator</a> →\' data-de=\'Nur am Sondieren? Holen Sie sich eine sofortige Sch&auml;tzung mit unserem <a href="/de/videoproduktion-kosten-rechner/" style="color:var(--acid)">kostenlosen Rechner</a> →\' data-es=\'&iquest;Solo explorando? Conseg&iacute; una estimaci&oacute;n instant&aacute;nea con nuestra <a href="/es/calculadora-costos-video/" style="color:var(--acid)">calculadora gratuita</a> →\'></p>' +
     '</form>' +
     '<div class="form-ok">' +
       '<div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg></div>' +
