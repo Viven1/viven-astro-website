@@ -6209,7 +6209,7 @@
     $('ob-list').innerHTML = obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
       const srcTag = o.kind === 'nurture' ? '🌱 Nurture · paso ' + o.step : '⚙️ Workflow';
-      return '<div class="au-step" data-ob="' + o.id + '">' +
+      return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
         '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b><span class="muted-note">' + esc(srcTag) + (l.company ? ' · ' + esc(l.company) : '') + '</span></div>' +
         '<label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>' +
         '<label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" />' +
@@ -6223,10 +6223,13 @@
       if (act === 'lead'){ gotoTab('leads'); openLead(b.dataset.id); return; }
       const card = b.closest('.au-step');
       if (act === 'ok'){
-        const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: card.querySelector('.ob-subject').value, body: card.querySelector('.ob-body').value };
+        const subj = card.querySelector('.ob-subject').value;
+        const bodyPreview = card.querySelector('.ob-body').value.trim().slice(0, 220);
+        if (!confirm('¿Mandar este email a ' + card.dataset.to + '?\n\nAsunto: ' + subj + '\n\n' + bodyPreview + (bodyPreview.length >= 220 ? '…' : '') + '\n\nRevisá que esté todo bien — no se puede deshacer.')) return;
+        const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: subj, body: card.querySelector('.ob-body').value };
         const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.id);
         if (e2){ toast(e2.message); return; }
-        toast('✅ Aprobado — sale en la próxima corrida (≤20 min)');
+        toast('✅ Aprobado — sale en la próxima corrida');
       } else {
         await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.id);
         toast('🗑 Descartado');
@@ -6473,7 +6476,7 @@
     dor: { name: '😴 Reactivación de clientes dormidos', trigger: 'inactivity', cfg: { stage: 'ganado', scope: 'dormant', days: 365, source: 'any', lang: 'any' }, ab: '0',
       steps: [{ type: 'ai_email', from: 'sebastian', prompt: 'Reactivar a un cliente que ganamos hace más de un año y no tiene proyecto nuevo. Referenciar su proyecto/mensaje original si existe. Ángulo: su video ya tiene tiempo — ¿sigue representando lo que hace la empresa hoy? Ofrecer un refresh o una idea nueva. CTA: responder este email o agendar 15 min en https://www.viven.ch/book/' }, { type: 'wait', days: 7 }, { type: 'ai_email', from: 'sebastian', prompt: 'Follow-up suave del email anterior de reactivación. Muy corto, sin presión, con una idea concreta nueva (p. ej. video para reclutamiento o social cut-downs del material existente). Mismo CTA.' }] },
     wel: { name: '👋 Bienvenida VIP calculadora', trigger: 'lead_new', cfg: { stage: 'ganado', source: 'calculator', lang: 'any' }, ab: '0',
-      steps: [{ type: 'email', from: 'sofia', subject: 'Dein Video-Budget — nächster Schritt in 48h', body: 'Hallo {{first_name}},\n\ndanke für deine Berechnung! Dein Rahmen ist bei uns angekommen und einer von uns beiden meldet sich innert 48 Stunden (werktags) mit drei Konzeptideen und einer Fixofferte.\n\nWenn du es eilig hast: https://www.viven.ch/book/ — 15 Minuten, direkt mit uns.\n\nBis gleich!' }] },
+      steps: [{ type: 'email', from: 'sofia', subject: 'Dein Video-Budget — nächster Schritt in 48h', body: 'Hallo {{first_name}},\n\ndanke für deine Berechnung! Dein Rahmen ist bei uns angekommen und einer von uns beiden meldet sich innert 48 Stunden (werktags) mit einer Fixofferte.\n\nWenn du es eilig hast: https://www.viven.ch/book/ — 15 Minuten, direkt mit uns.\n\nBis gleich!' }] },
   };
   function auPreset(k){
     const p = AU_PRESETS[k]; auCur = null;
@@ -6844,7 +6847,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       <div>
         <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
         <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
-        <p class="lead" data-en="Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit drei Konzeptideen, Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tres ideas de concepto, tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with three concept ideas, timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
         <ul>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
