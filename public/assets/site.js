@@ -375,7 +375,8 @@ function renderLeadForm(mount){
       message: fMsg.value.trim() || null,
       form_path: location.pathname   /* en qué página convirtió (servicio > contact) */
     };
-    if(window.__vvAB) row.ab = window.__vvAB;   /* variantes A/B que vio (conversión por variante) */
+    var abTags = window.vvAbTags ? window.vvAbTags() : window.__vvAB;   /* variantes A/B que vio, en esta u otras páginas */
+    if(abTags) row.ab = abTags;
     if(extra){
       row.session_id = extra.session_id;
       row.lang = extra.lang;
@@ -637,14 +638,41 @@ function vvAbApply(changes){
           if(bucket === 'b') vvAbApply(t.changes);
         });
         window.__vvAB = tags.join(',');
+        /* atribución CROSS-PÁGINA (hallazgo de la auditoría A/B): __vvAB vivía solo en
+           memoria de la página testeada — si el visitante veía la variante acá y
+           convertía en OTRA página (contact, calculadora), el lead quedaba sin tag y
+           la conversión de la variante se subcontaba. Persistimos los tags y el form
+           los levanta desde cualquier página. */
+        try{
+          if(tags.length){
+            var prev = {};
+            try{ prev = JSON.parse(localStorage.getItem('vv_ab_tags') || '{}'); }catch(e){}
+            tags.forEach(function(tg){ var p = tg.split(':'); prev[p[0]] = p[1]; });
+            localStorage.setItem('vv_ab_tags', JSON.stringify(prev));
+          }
+        }catch(e){}
       };
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
-      /* anti-carrera: si el swap de idioma pisa la variante, la re-aplicamos */
+      /* anti-carrera: si el swap de idioma pisa la variante, la re-aplicamos.
+         done_b (ganador desplegado) también se re-aplica: no depende del sorteo */
       setTimeout(run2, 700);
-      function run2(){ tests.forEach(function(t){ var b2 = force && force.id === t.id ? force.b : (function(){ try{ return localStorage.getItem('vv_ab_' + t.id); }catch(e){ return null; } })(); if(b2 === 'b') vvAbApply(t.changes); }); }
+      function run2(){ tests.forEach(function(t){ if(t.status === 'done_b'){ vvAbApply(t.changes); return; } var b2 = force && force.id === t.id ? force.b : (function(){ try{ return localStorage.getItem('vv_ab_' + t.id); }catch(e){ return null; } })(); if(b2 === 'b') vvAbApply(t.changes); }); }
     }).catch(function(){});
   }catch(e){}
 })();
+/* tags A/B completos para atribuir la conversión: lo visto en ESTA página (memoria)
+   + lo visto en páginas anteriores (localStorage) — así el lead queda taggeado aunque
+   convierta en una página distinta a la del test */
+window.vvAbTags = function(){
+  var parts = (window.__vvAB || '') ? window.__vvAB.split(',') : [];
+  try{
+    var st = JSON.parse(localStorage.getItem('vv_ab_tags') || '{}');
+    var seen = {};
+    parts.forEach(function(t){ seen[t.split(':')[0]] = true; });
+    Object.keys(st).forEach(function(id){ if(!seen[id]) parts.push(id + ':' + st[id]); });
+  }catch(e){}
+  return parts.join(',');
+};
 
 
 /* Insert de lead a prueba de fallos: si a la tabla le falta una columna nueva
