@@ -3294,7 +3294,7 @@
           '<div class="lm-dealrow-t">' + esc(d.title || '(proyecto)') + '<b>' + (v ? fmtChf(v) : '—') + '</b></div>' +
           '<select class="lm-stage-sel lm-deal-st" data-did="' + esc(String(d.id)) + '" style="color:' + st2.color + ';border-color:' + st2.color + '">' +
           STAGES.map((x) => '<option value="' + x.key + '"' + (x.key === stageOf(d.stage) ? ' selected' : '') + '>' + x.label + '</option>').join('') + '</select>' +
-          (won ? '<details class="lm-portal" data-did="' + esc(String(d.id)) + '"><summary style="cursor:pointer;font-size:11.5px;color:var(--muted-2);margin-top:6px">📺 Portal del cliente</summary>' +
+          (won && FEATURE_PORTAL ? '<details class="lm-portal" data-did="' + esc(String(d.id)) + '"><summary style="cursor:pointer;font-size:11.5px;color:var(--muted-2);margin-top:6px">📺 Portal del cliente</summary>' +
             '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">' +
               '<select class="lm-portal-status" style="font-size:12.5px;padding:6px 8px">' + PORTAL_STATUSES.map((s) => '<option value="' + s[0] + '"' + ((d.production_status || 'pre_production') === s[0] ? ' selected' : '') + '>' + s[1] + '</option>').join('') + '</select>' +
               '<input class="lm-portal-video" placeholder="Link del video (Vimeo/YouTube)" value="' + esc(d.deliverable_url || '') + '" style="font-size:12.5px;padding:6px 8px" />' +
@@ -4389,6 +4389,12 @@
   const PHASES = Object.keys(RATECARD);   // Development · Pre-Production · Production · Post-Production · Delivery
   const fmtM = (n) => 'CHF ' + (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Facturación y Portal del cliente: pausadas a pedido de Sebastián (2026-07-12)
+  // — demasiadas features nuevas juntas, las retomamos más adelante mejor
+  // pulidas. El código y las tablas quedan intactos, solo se ocultan los
+  // botones/paneles — reactivar es cambiar estos dos a true.
+  const FEATURE_INVOICING = false;
+  const FEATURE_PORTAL = false;
   let offersList = [], ofCur = null, offersBuilt = false, inquiryFromLead = '', showArchived = false, curInvoice = null;
 
   function offersInit(){ buildPresetSelect(); if (!offersBuilt){ offersBuilt = true; bindOffers(); } showEditor(false); offersLoad(); }
@@ -5127,6 +5133,7 @@
   async function refreshInvoiceBtn(){
     const btn = $('of-invoice'), paidBtn = $('of-invoice-paid');
     if (!btn) return;
+    if (!FEATURE_INVOICING){ btn.hidden = true; paidBtn.hidden = true; return; }
     const show = ofCur.status === 'won' && !!ofCur.id;
     btn.hidden = !show; paidBtn.hidden = true;
     if (!show) return;
