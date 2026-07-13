@@ -4356,7 +4356,7 @@ const stillsPool = projects
     const order = filteredLeads().map((l) => String(l.id));
     const oi = order.indexOf(String(r.id));
     $('lm2-hd').innerHTML =
-      '<div class="lm2-nav"><button id="lm2-prev" title="Contacto anterior"' + (oi <= 0 ? ' disabled' : '') + '>←</button><button id="lm2-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>→</button></div>' +
+      '<div class="lm2-nav"><button id="lm2-nav-prev" title="Contacto anterior"' + (oi <= 0 ? ' disabled' : '') + '>←</button><button id="lm2-nav-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>→</button></div>' +
       '<div class="lm2-avatar">' + esc(((first[0] || '?') + (last[0] || '')).toUpperCase()) + '</div>' +
       '<div class="lm2-who"><div class="nm">' + esc(r.name || '(sin nombre)') + '<span class="lm-score" id="lm2-score"></span></div>' +
       '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div></div>' +
@@ -4370,8 +4370,8 @@ const stillsPool = projects
       '</div>';
     // score: mismo pill que la clásica (renderLeadScore escribe en lm-score → lo copio a mano)
     try { renderLeadScore(r); const s0 = $('lm-score'); const s2 = $('lm2-score'); if (s0 && s2) { s2.textContent = s0.textContent; s2.title = s0.title; s2.style.cssText = s0.style.cssText; } } catch (e) {}
-    $('lm2-prev') && $('lm2-prev').addEventListener('click', () => oi > 0 && openLeadV2(order[oi - 1]));
-    $('lm2-next') && $('lm2-next').addEventListener('click', () => oi < order.length - 1 && openLeadV2(order[oi + 1]));
+    $('lm2-nav-prev') && $('lm2-nav-prev').addEventListener('click', () => oi > 0 && openLeadV2(order[oi - 1]));
+    $('lm2-nav-next') && $('lm2-nav-next').addEventListener('click', () => oi < order.length - 1 && openLeadV2(order[oi + 1]));
     // etapa: clic en el pipeline = mismo flujo que el select de la clásica
     $('lm2-hd').querySelectorAll('.lm2-pipe span').forEach((sp) => sp.addEventListener('click', async () => {
       const key = sp.dataset.st; if (key === cur) return;
@@ -4572,10 +4572,62 @@ const stillsPool = projects
     const open = (tasks || []).filter((t) => !t.done);
     const dated = open.filter((t) => t.due_date).sort((a, b) => (a.due_date + (a.due_time || '')) < (b.due_date + (b.due_time || '')) ? -1 : 1);
     const pick = dated[0] || open[0];
-    if (pick) el.innerHTML = '<div class="t">Próximo paso</div><div class="v">' + esc(pick.title) + '<small>' + [pick.due_date ? 'vence ' + pick.due_date + (pick.due_time ? ' ' + pick.due_time : '') : 'sin fecha', pick.assignee ? teamName(pick.assignee) : ''].filter(Boolean).join(' · ') + '</small></div>';
-    else if (r.next_follow_up_at) el.innerHTML = '<div class="t">Próximo paso</div><div class="v">Follow-up automático<small>' + new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</small></div>';
-    else el.innerHTML = '<div class="t">Próximo paso</div><div class="v" style="color:var(--muted)">Sin próximo paso definido<small><a href="#" id="lm2-next-add" style="color:var(--acid)">➕ crear una task</a></small></div>';
-    const na = $('lm2-next-add'); if (na) na.addEventListener('click', (e) => { e.preventDefault(); lm2Tab = 'task'; lm2RenderComposer(); const inp = $('lm2-task-t'); if (inp) inp.focus(); });
+    let head = '';
+    if (pick) head = '<div class="v">' + esc(pick.title) + '<small>' + [pick.due_date ? 'vence ' + pick.due_date + (pick.due_time ? ' ' + pick.due_time : '') : 'sin fecha', pick.assignee ? teamName(pick.assignee) : ''].filter(Boolean).join(' · ') + '</small></div>';
+    else if (r.next_follow_up_at) head = '<div class="v">Follow-up automático<small>' + new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</small></div>';
+    el.innerHTML = '<div class="t">Próximo paso <a href="#" id="lm2-next-ai" style="float:right;color:var(--acid);font-weight:700;text-decoration:none" title="La IA sugiere el próximo paso según la etapa, los mensajes y la actividad">✨ IA</a></div>' +
+      head + '<div id="lm2-ai-sug"></div>';
+    const aiBtn = $('lm2-next-ai');
+    aiBtn.addEventListener('click', (e) => { e.preventDefault(); lm2AiNext(r, true); });
+    // sin task ni follow-up → la IA sugiere sola (cacheado por contacto para no re-pagar en cada apertura)
+    if (!pick && !r.next_follow_up_at) lm2AiNext(r, false);
+  }
+  /* Sugerencias IA de próximo paso: usa ai-insights (ya deployada) con un resumen del
+     contacto — etapa, días sin actividad, brief, ofertas y los últimos eventos de la
+     timeline. Cada sugerencia se convierte en task con un click. */
+  const lm2AiCache = {};
+  async function lm2AiNext(r, force){
+    const box = $('lm2-ai-sug'); if (!box) return;
+    if (!force && lm2AiCache[r.id]) { lm2AiPaint(r, lm2AiCache[r.id]); return; }
+    box.innerHTML = '<div style="font-size:11.5px;color:var(--muted);margin-top:6px">✨ La IA está pensando el próximo paso…</div>';
+    const evs = (lm2Events || []).slice(0, 10).map((e) => '[' + e.chip[1] + '] ' + String(e.title || '').replace(/<[^>]+>/g, '').slice(0, 90) + (e.meta ? ' (' + String(e.meta).replace(/<[^>]+>/g, '').slice(0, 60) + ')' : ''));
+    const lastAct = lm2Events && lm2Events.length ? Math.round((Date.now() - new Date(lm2Events[0].t)) / 864e5) : null;
+    const ofs = offersForLead(r.id);
+    const summary = {
+      contexto: 'CRM de Viven (productora de video en Zúrich). Sugerí el PRÓXIMO PASO DE VENTA concreto para este contacto — una acción específica y accionable (llamar, mandar X, agendar Y), no consejos genéricos. Máximo 3 sugerencias, la mejor primero.',
+      contacto: { nombre: r.name || r.email, empresa: r.company || companyName(leadDomain(r)) || null, idioma: r.lang, canal: r.channel },
+      etapa: stageOf(r.status),
+      dias_desde_ultima_actividad: lastAct,
+      presupuesto_y_brief: null,   // se completa abajo si hay brief en la timeline
+      ofertas: ofs.map((o) => ({ titulo: o.title, estado: o.status, neto: offerNet(o) })),
+      ultimos_eventos: evs,
+    };
+    const br = (lm2Events || []).find((e) => e.ty === 'brief');
+    if (br) summary.presupuesto_y_brief = String(br.title || '').replace(/<[^>]+>/g, '') + ' · ' + String(br.meta || '');
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-insights', { body: { summary, lang: 'es' } });
+      if (error || !data || !Array.isArray(data.insights) || !data.insights.length) throw new Error(data?.error || error?.message || 'sin respuesta');
+      lm2AiCache[r.id] = data.insights.slice(0, 3);
+      if (lm2Lead && String(lm2Lead.id) === String(r.id)) lm2AiPaint(r, lm2AiCache[r.id]);
+    } catch (e) {
+      box.innerHTML = '<div style="font-size:11.5px;color:var(--muted);margin-top:6px">No se pudo sugerir: ' + esc(e.message) + '</div>';
+    }
+  }
+  function lm2AiPaint(r, sugs){
+    const box = $('lm2-ai-sug'); if (!box) return;
+    box.innerHTML = sugs.map((s, i) =>
+      '<div style="display:flex;gap:7px;align-items:flex-start;margin-top:8px;font-size:12px">' +
+        '<span style="flex:none">' + esc(s.icon || '💡') + '</span>' +
+        '<div style="min-width:0"><b>' + esc(s.title || '') + '</b><div style="color:var(--muted);font-size:11px;margin-top:1px">' + esc(s.detail || '') + '</div>' +
+        '<a href="#" class="lm2-sug-task" data-i="' + i + '" style="color:var(--acid);font-size:11px;text-decoration:none">➕ crear task</a></div></div>').join('');
+    box.querySelectorAll('.lm2-sug-task').forEach((a) => a.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const s = sugs[Number(a.dataset.i)]; if (!s) return;
+      const { error } = await supabase.from('lead_tasks').insert({ lead_id: String(r.id), title: s.title, due_date: null, assignee: null });
+      if (error) { toast('No se pudo: ' + error.message); return; }
+      toast('✅ Task creada desde la sugerencia'); loadBell();
+      lm2LoadTimeline(r); lm2RenderRight(r);
+    }));
   }
 
   /* --- columna derecha: próximo paso + negocio --- */
