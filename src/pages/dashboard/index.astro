@@ -416,6 +416,40 @@ const stillsPool = projects
   .deals-sum .ds .dv{font-family:'Space Grotesk';font-weight:700;font-size:21px;letter-spacing:-.02em}
   .deals-sum .ds .dl{font-size:11.5px;color:var(--muted);margin-top:2px}
   .pipe-empty{color:var(--muted-2);font-size:12px;text-align:center;padding:16px 6px;border:1px dashed var(--line);border-radius:10px;margin-top:10px}
+  /* ---- Deals V2: toolbar propia, semáforo de días, chip de documento, drop-zones y vista Lista ---- */
+  .dl-chip{background:transparent;border:1px solid var(--line-strong);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;padding:9px 15px;border-radius:100px;cursor:pointer;transition:.2s;white-space:nowrap}
+  .dl-chip:hover{border-color:var(--acid);color:var(--acid)}
+  .dl-chip.active{background:var(--acid);border-color:var(--acid);color:#142033}
+  .dl-views{display:flex;border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;flex:none}
+  .dl-views button{background:transparent;border:0;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;padding:9px 14px;cursor:pointer}
+  .dl-views button.on{background:var(--acid);color:#142033}
+  .pc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+  .pc-head .pc-name{margin-bottom:0;flex:1;min-width:0}
+  .pc-dots{background:transparent;border:1px solid var(--line-strong);border-radius:7px;color:var(--muted);font-size:14px;line-height:1;padding:2px 7px;cursor:pointer;flex:none}
+  .pc-dots:hover{color:var(--text);border-color:var(--acid)}
+  .pc-sub{font-size:11.5px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+  .pc-amt{font-weight:700;font-family:'Space Grotesk';font-size:13.5px}
+  .pc-next{font-size:11.5px;color:var(--muted);margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pc-next.warn{color:#f0c060}
+  .pc-doc{display:inline-block;font-size:11px;font-weight:600;border:1px solid var(--line-strong);border-radius:999px;padding:3px 9px;margin-top:7px;color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pc-doc.ok{color:#7ed957;border-color:rgba(126,217,87,.5)}
+  .pc-doc.hot{color:var(--acid);border-color:rgba(221,249,143,.55)}
+  .pc-doc.warn{color:#f0c060;border-color:rgba(240,192,96,.5)}
+  /* borde de alerta según los días en etapa (ámbar 7-14d, rojo >14d) */
+  .pipe-card.pc-mid{border-color:rgba(240,192,96,.5)}
+  .pipe-card.pc-bad{border-color:rgba(255,107,107,.55)}
+  .pipeline[hidden]{display:none!important}   /* la vista Lista lo esconde; sin esto el display:flex le gana al hidden */
+  .pipe-drops{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap}
+  .pipe-drops[hidden]{display:none!important}
+  .pipe-drop{flex:1;min-width:230px;border:2px dashed;border-radius:12px;padding:13px 16px;text-align:center;cursor:pointer;font-family:'Space Grotesk';font-weight:600;font-size:13.5px;transition:.2s;background:transparent}
+  .pipe-drop .pd-sum{display:block;font-family:'Inter',sans-serif;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:3px}
+  .pipe-drop.win{border-color:rgba(126,217,87,.45);color:#7ed957}
+  .pipe-drop.lose{border-color:rgba(255,107,107,.45);color:#ff8b8b}
+  .pipe-drop.win.drop{background:rgba(126,217,87,.1);border-color:#7ed957}
+  .pipe-drop.lose.drop{background:rgba(255,107,107,.1);border-color:#ff6b6b}
+  .dl-lbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .dl-lbar select{margin-left:auto}
 
   /* ---------- Insights con IA ---------- */
   .ai-panel{background:linear-gradient(135deg,rgba(221,249,143,.06),var(--navy-800))}
@@ -852,15 +886,21 @@ const stillsPool = projects
     .pipe-col{flex:0 0 85vw;min-width:85vw;max-height:68dvh;touch-action:pan-x pan-y}
     .pipe-list{touch-action:pan-x pan-y}
     .pipe-card{cursor:default;touch-action:pan-x pan-y}
-    /* tabla de Personas → cards apiladas (nada de scroll horizontal) */
+    /* tabla de Personas/Empresas → cards apiladas (nada de scroll horizontal).
+       OJO: el mapeo es POSICIONAL y la 1ª celda ahora es el CHECKBOX de selección (batch delete)
+       — antes era el nombre y el card quedaba sin título. El nombre vive en la 2ª celda;
+       el checkbox va absoluto arriba a la derecha (el "seleccionar todos" del thead se pierde
+       en móvil, aceptado). */
     .lead-table-hs table{min-width:0;width:100%}
     .lead-table-hs thead{display:none}
-    .lead-table-hs tbody tr{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .lead-table-hs tbody tr{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;padding:12px 44px 12px 14px;border-bottom:1px solid var(--line)}
     .lead-table-hs tbody td{display:none;padding:0;border:0;white-space:normal}
-    .lead-table-hs tbody td:nth-child(1){display:block;flex:1 1 100%}
-    .lead-table-hs tbody td:nth-child(4){display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:12px}
-    .lead-table-hs tbody td:nth-child(5){display:block}
-    .lead-table-hs tbody td:nth-child(6){display:block;font-weight:700;font-family:'Space Grotesk'}
+    .lead-table-hs tbody td.lt-chk{display:block;position:absolute;top:12px;right:12px;width:auto;padding:0}
+    .lead-table-hs tbody td:nth-child(2){display:block;flex:1 1 100%}   /* nombre (persona/empresa): título del card */
+    .lead-table-hs tbody td:nth-child(2) .lt-name{font-size:14.5px}
+    .lead-table-hs tbody td:nth-child(5){display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:12px}
+    .lead-table-hs tbody td:nth-child(6){display:block}
+    .lead-table-hs tbody td.lt-val{display:block;font-weight:700;font-family:'Space Grotesk';font-size:13px;color:var(--text)}
     /* contacto apilado en orden útil: conversación → proyectos/ofertas → ficha */
     .lm-center{order:1}
     .lm-right{order:2}
@@ -1115,6 +1155,15 @@ const stillsPool = projects
       </div>
       <button class="btn btn-primary small" id="dl-new-btn" type="button">➕ Nuevo deal</button>
     </div>
+    <!-- toolbar propia de Deals: el board deja de depender de los filtros de Personas -->
+    <div class="pipe-bar dl-toolbar">
+      <input type="search" id="dl-search" placeholder="Buscar por deal, persona o empresa…" />
+      <button class="dl-chip" id="dl-stuck" type="button" title="Solo deals con más de 14 días en la misma etapa">🔥 Estancados +14d (<span id="dl-stuck-n">0</span>)</button>
+      <div class="dl-views">
+        <button id="dl-view-board" type="button">Board</button>
+        <button id="dl-view-list" type="button">Lista</button>
+      </div>
+    </div>
     <div class="panel crm-form" id="dl-form" hidden>
       <h2 style="margin-top:0">➕ Nuevo deal (proyecto)</h2>
       <div class="crm-grid">
@@ -1136,6 +1185,12 @@ const stillsPool = projects
       <button id="pgr-next" type="button" aria-label="Etapa siguiente">›</button>
     </div>
     <div class="pipeline" id="pipeline"></div>
+    <!-- Ganado/Perdido salen del board como columnas: son destino de drop + resumen 30d -->
+    <div class="pipe-drops" id="pipe-drops"></div>
+    <!-- vista Lista (toggle Board/Lista) -->
+    <div id="deals-list" hidden></div>
+    <!-- popover ⋯ de las tarjetas (mismo patrón que pp-menu: fixed para que el overflow no lo recorte) -->
+    <div class="lm2-menu" id="dl-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
     <p class="muted-note" id="leads-empty" hidden>No hay deals que coincidan. Envía el formulario del sitio para testear.</p>
 
     <!-- análisis del pipeline (secundario, debajo del board) -->
@@ -2002,7 +2057,9 @@ const stillsPool = projects
    Scoped a #lead-modal2: la clásica no se toca. fixed+inset 0 con width 100% (no 100vw,
    que sumaría el ancho del scrollbar y daría scroll horizontal). */
 #lead-modal2{padding:0;overflow:hidden}
-#lead-modal2 .lead-card{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:none;max-height:none;border-radius:0;margin:0}
+/* padding:0 es CLAVE: .lead-card-wide trae padding interno (16px 26px + safe-area en móvil) que
+   dejaba aire arriba del header sticky y a los costados — el fullscreen es del header a los bordes */
+#lead-modal2 .lead-card{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:none;max-height:none;border-radius:0!important;margin:0;padding:0}
 #lead-modal2 .close{z-index:8} /* por encima del header sticky (z-index 6) */
 .lm2-card{display:flex;flex-direction:column;height:100%;max-height:none;overflow:hidden}
 .lm2-hd{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--navy-800);flex-wrap:wrap}
@@ -2099,7 +2156,8 @@ const stillsPool = projects
   .lm2-pipe span{padding:6px 8px}
   /* móvil menos crowded (feedback de Sebastián): header comprimido, chips y pipeline en una sola
      fila scrolleable, timeline más densa, y el botón Crear pierde el texto (queda ➕ ▾) */
-  .lm2-hd{padding:10px 12px;gap:8px}
+  /* sin el padding del card, el header sticky toca el borde: que respete el notch él mismo */
+  .lm2-hd{padding:calc(10px + env(safe-area-inset-top)) 12px 10px;gap:8px}
   .lm2-avatar{width:36px;height:36px;font-size:13px}
   .lm2-who .nm{font-size:15px}
   .lm2-who .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 120px)}
@@ -2974,6 +3032,51 @@ const stillsPool = projects
       return created ? created.id : null;
     } catch (e) { toast('No se pudo crear la persona: ' + e.message); return null; }
   }
+  // días que el deal lleva en su etapa actual (last_stage_at se sella en cada movimiento; fallback created_at)
+  function dealStageDays(d){
+    const t = Date.parse(d.last_stage_at || d.created_at || '');
+    return t ? Math.max(0, Math.floor((Date.now() - t) / 864e5)) : 0;
+  }
+  // semáforo: verde <7d, ámbar 7-14d, rojo >14d
+  const dealStageSem = (days) => days > 14 ? 'bad' : days >= 7 ? 'mid' : 'ok';
+  const dealDaysChip = (days) => '<span class="pp2-sem ' + dealStageSem(days) + '">' + days + 'd en etapa</span>';
+  // próximo paso del deal: task abierta más cercana de su persona (dlTasksMap), sino el follow-up automático
+  function dealNextStep(d, asHTML){
+    const r = leadById(d.lead_id) || {};
+    const t = dlTasksMap[String(d.lead_id)];
+    if (t) { const txt = '→ ' + t.title + (t.due_date ? ' · ' + fmtDMY(t.due_date) : ''); return asHTML ? '<div class="pc-next">' + esc(txt) + '</div>' : esc(txt); }
+    if (r.next_follow_up_at) { const txt = '→ Follow-up automático ' + fmtDMY(r.next_follow_up_at); return asHTML ? '<div class="pc-next">' + esc(txt) + '</div>' : esc(txt); }
+    return asHTML ? '<div class="pc-next warn">⚠ sin próximo paso</div>' : '<span class="pc-next warn" style="margin-top:0">⚠ sin próximo paso</span>';
+  }
+  // chip de DOCUMENTO: estado del papel de venta pendiente (propuesta web u oferta PDF) — el pipeline
+  // como overview completo: qué le mandamos al cliente y si lo miró (last_view_at / last_open_at)
+  function dealDocChip(d, stKey){
+    const newest = (arr) => arr.slice().sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))[0];
+    const ofs = offersForDeal(d).filter((o) => o.status !== 'tier');
+    const props = (propsAll || []).filter((p) => !p.archived && !p.is_template && p.lead_id && String(p.lead_id) === String(d.lead_id));
+    const pAcc = newest(props.filter((p) => p.status === 'accepted'));
+    if (pAcc) return '<div class="pc-doc ok">✅ Propuesta aceptada</div>';   // raro acá: el deal debería estar en Ganado
+    const pSent = newest(props.filter((p) => p.status === 'sent'));
+    if (pSent){
+      if (pSent.last_view_at){
+        const hot = (Date.now() - Date.parse(pSent.last_view_at)) < 864e5;   // la miró hace <24h → caliente
+        return '<div class="pc-doc' + (hot ? ' hot' : '') + '">🌐 publicada · 👁 vista hace ' + timeAgo(pSent.last_view_at) + '</div>';
+      }
+      return '<div class="pc-doc">🌐 publicada · sin vistas</div>';
+    }
+    const oSent = newest(ofs.filter((o) => o.status === 'sent'));
+    if (oSent){
+      if (oSent.last_open_at) return '<div class="pc-doc">🧾 enviada · 👁 abrió hace ' + timeAgo(oSent.last_open_at) + '</div>';
+      const ref = oSent.sent_at || oSent.updated_at;
+      return '<div class="pc-doc">🧾 enviada' + (ref ? ' hace ' + timeAgo(ref) : '') + '</div>';
+    }
+    const oDraft = newest(ofs.filter((o) => o.status === 'draft'));
+    const pDraft = newest(props.filter((p) => p.status === 'draft'));
+    if (oDraft || pDraft) return '<div class="pc-doc">' + (oDraft ? '🧾' : '🌐') + ' borrador listo para enviar</div>';
+    // en etapas tempranas todavía no hace falta la alarma
+    if (stKey === 'videocall' || stKey === 'propuesta') return '<div class="pc-doc warn">⚠ sin documento</div>';
+    return '';
+  }
   function cardHTML(d, st){
     const r = leadById(d.lead_id) || {};
     const PRIO = { won: 0, sent: 1, draft: 2, lost: 3 };
@@ -2981,32 +3084,23 @@ const stillsPool = projects
     let total = st.key === 'perdido' ? dealLostValue(d) : dealValue(d);
     let est = '';
     if (!ofs.some((o) => o.status !== 'lost') && Number(d.deal_value)) est = ' <span style="font-weight:400;font-size:10px;color:var(--muted-2)">est.</span>';
-    const ost = ofs.length ? '<span class="pc-ost" style="color:' + (OF_COLOR[ofs[0].status] || '#8ab4ff') + '">' + (OF_ST[ofs[0].status] || '') + '</span>' : '';
     // nombre del deal: su título, o el de la oferta más relevante, o el de la persona
     const dealName = d.title || ((ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)'));
-    const field = (k, v, cls) => v ? '<div class="pc-field"><span class="k">' + k + '</span><span class="v ' + (cls || '') + '">' + v + '</span></div>' : '';
-    // empresa asociada con chip de logo
+    // empresa · persona en una sola línea (el detalle vive en la ficha)
     const dom = leadDomain(r);
-    let coField = '';
-    if (dom) { const cn = companyName(dom); coField = '<div class="pc-field"><span class="k">Empresa:</span><span class="v"><span class="pc-co" style="background:' + coColor(cn) + '">' + esc(cn.slice(0, 2).toUpperCase()) + '</span>' + esc(cn) + '</span></div>'; }
-    const ownerF = r.owner ? field('Owner:', esc(teamName(r.owner))) : '';
-    // última actividad real con el cliente (web, email, oferta, nota…) + próximo paso
-    const la = lastActivity(r);
-    let act = la ? '<div class="pc-act">' + esc(actLabel(la)) + '</div>' : '';
-    if (st.key === 'contactado' && r.next_follow_up_at) act += '<div class="pc-act">⏰ Follow-up: ' + fmtDMY(r.next_follow_up_at) + '</div>';
-    else if (st.key === 'perdido' && (d.lost_reason || r.lost_reason)) act += '<div class="pc-lost">✕ ' + esc(d.lost_reason || r.lost_reason) + '</div>';
-    const ch = r.channel ? '<span class="pc-badge">' + esc(r.channel) + '</span>' : '';
-    const ads = r.gclid ? '<span class="pc-ads">Ads</span>' : '';
-    const scP = leadScore(r); const scChip = '<span class="pc-score" style="color:' + scP.tier.c + ';border-color:' + scP.tier.c + '" title="AI lead score ' + scP.score + '/100">' + (scP.tier.t === 'Hot' ? '🔥' : '') + scP.score + '</span>';
-    const nDeals = dealsForLead(d.lead_id).length;
-    const multi = nDeals > 1 ? '<span class="pc-badge" title="Esta persona tiene ' + nDeals + ' proyectos">' + nDeals + ' proyectos</span>' : '';
-    return '<div class="pipe-card" draggable="' + (PIPE_DRAG ? 'true' : 'false') + '" data-id="' + esc(String(d.id)) + '" data-lead="' + esc(String(d.lead_id)) + '" style="--stage:' + st.color + '">' +
-      '<div class="pc-name">' + esc(dealName) + '</div>' +
-      field('Importe:', total ? fmtChf(total) + est : '—', 'amt') +
-      coField + ownerF +
-      field('Creado:', fmtDMY(d.created_at)) +
-      act +
-      '<div class="pc-foot"><div class="pc-tags">' + ch + ads + scChip + multi + ost + '</div>' + ownerAvatar(r) + '</div>' +
+    const co = (dom && companyName(dom)) || r.company || '';
+    const who = [co, r.name || r.first_name || ''].filter(Boolean).join(' · ');
+    const days = dealStageDays(d);
+    const sem = dealStageSem(days);
+    const alarm = sem === 'bad' ? ' pc-bad' : sem === 'mid' ? ' pc-mid' : '';
+    const lost = st.key === 'perdido' && (d.lost_reason || r.lost_reason) ? '<div class="pc-lost">✕ ' + esc(d.lost_reason || r.lost_reason) + '</div>' : '';
+    return '<div class="pipe-card' + alarm + '" draggable="' + (PIPE_DRAG ? 'true' : 'false') + '" data-id="' + esc(String(d.id)) + '" data-lead="' + esc(String(d.lead_id)) + '" style="--stage:' + st.color + '">' +
+      '<div class="pc-head"><div class="pc-name">' + esc(dealName) + '</div><button class="pc-dots" type="button" data-id="' + esc(String(d.id)) + '" title="Acciones">⋯</button></div>' +
+      (who ? '<div class="pc-sub">' + esc(who) + '</div>' : '') +
+      '<div class="pc-row"><span class="pc-amt">' + (total ? fmtChf(total) + est : '—') + '</span>' + dealDaysChip(days) + '</div>' +
+      dealNextStep(d, true) +
+      dealDocChip(d, st.key) +
+      lost +
     '</div>';
   }
   /* PROPUESTAS ACEPTADAS = plata ganada aunque no haya oferta ligada.
@@ -3178,37 +3272,97 @@ const stillsPool = projects
     return true;
   }
 
+  /* ---- Deals V2: estado propio del tab (búsqueda, filtro de estancados, vista board/lista) ---- */
+  let dlSearch = '', dlStuck = false, dlSort = 'value', dlListStage = 'open';
+  let dlView = localStorage.getItem('vv_deals_view') === 'lista' ? 'lista' : 'board';
+  const DL_OPEN = ['nuevo', 'contactado', 'videocall', 'propuesta'];
+  // próximo paso: cache de la task abierta más cercana por lead. UNA sola query .in() por ciclo de
+  // loadAll: TTL de 60s (loadAll corre cada 120s y llama renderPipeline hasta 2 veces — la segunda
+  // pasada y los re-renders por drag/filtros usan el cache; el flag busy evita fetches en paralelo).
+  let dlTasksMap = {}, dlTasksAt = 0, dlTasksBusy = false;
+  async function dlFetchNextTasks(ids){
+    if (dlTasksBusy || !ids.length || Date.now() - dlTasksAt < 60000) return;
+    dlTasksBusy = true;
+    try {
+      const { data, error } = await supabase.from('lead_tasks').select('lead_id,title,due_date')
+        .eq('done', false).in('lead_id', ids).order('due_date', { ascending: true, nullsFirst: false }).limit(500);
+      dlTasksAt = Date.now();
+      if (!error){
+        const m = {};
+        (data || []).forEach((t) => { const k = String(t.lead_id); if (!m[k]) m[k] = t; });   // ya viene ordenado: la primera es la más cercana
+        dlTasksMap = m;
+        renderPipeline();   // re-pinta con los próximos pasos ya cargados (el TTL corta el loop)
+      }
+    } catch (e) { /* best-effort: sin tabla de tasks el card cae al follow-up automático */ }
+    finally { dlTasksBusy = false; }
+  }
+  // deals visibles del tab: TODOS los no archivados (ya no depende de los filtros de Personas) + su búsqueda propia
+  function dlDeals(){
+    return (dealsList || []).filter((d) => {
+      if (d.archived) return false;
+      if (dlSearch){
+        const r = leadById(d.lead_id) || {};
+        const hay = ((d.title || '') + ' ' + (r.name || '') + ' ' + (r.first_name || '') + ' ' + (r.email || '') + ' ' + (r.company || '') + ' ' + (companyName(leadDomain(r)) || '')).toLowerCase();
+        if (hay.indexOf(dlSearch) === -1) return false;
+      }
+      return true;
+    });
+  }
   function renderPipeline(){
-    // el board muestra DEALS (proyectos) — los filtros/búsqueda siguen filtrando por persona
-    const rowsL = filteredLeads();
-    const okLead = new Set(rowsL.map((r) => String(r.id)));
-    const rows = (dealsList || []).filter((d) => !d.archived && okLead.has(String(d.lead_id)));
-    $('leads-empty').hidden = rows.length > 0;
-    const byStage = {}; STAGES.forEach((s) => byStage[s.key] = []);
-    rows.forEach((d) => byStage[stageOf(d.stage)].push(d));
-    Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
-    // resumen: TOTAL del pipeline → abierto → ganado (con % del decidido) → perdido (para que duela y no se repita)
-    const OPEN = ['nuevo', 'contactado', 'videocall', 'propuesta'];
-    const openVal = OPEN.reduce((a, k) => a + dealsValue(byStage[k]), 0);
-    const openCnt = OPEN.reduce((a, k) => a + byStage[k].length, 0);
-    const weighted = OPEN.reduce((a, k) => a + dealsValue(byStage[k]) * (STAGES.find((s) => s.key === k).prob), 0);
-    const wonVal = dealsValue(byStage['ganado']);
-    const lostVal = dealsLostValue(byStage['perdido']);
-    const totalVal = openVal + wonVal + lostVal;
-    const decided = wonVal + lostVal;
-    const winPct = decided ? Math.round(wonVal / decided * 100) : null;
+    // el refresh automático re-dibuja todo: cerrar el ⋯ para que no quede flotando sobre cards viejas
+    const menu = $('dl-menu'); if (menu) menu.hidden = true;
+    const all = (dealsList || []).filter((d) => !d.archived);
+    const rows = dlDeals();
+    const now = Date.now();
+    const isOpen = (d) => DL_OPEN.includes(stageOf(d.stage));
+    /* ---- KPIs re-enfocados (sobre TODOS los deals no archivados, sin búsqueda: números estables) ---- */
+    const openAll = all.filter(isOpen);
+    const openVal = dealsValue(openAll);
+    const weighted = openAll.reduce((a, d) => a + dealValue(d) * ((STAGES.find((s) => s.key === stageOf(d.stage)) || {}).prob || 0), 0);
+    const in30 = (iso) => iso && (now - Date.parse(iso)) <= 30 * 864e5;
+    const in90 = (iso) => iso && (now - Date.parse(iso)) <= 90 * 864e5;
+    const won30 = all.filter((d) => stageOf(d.stage) === 'ganado' && in30(d.won_at || d.last_stage_at));
+    const won90 = all.filter((d) => stageOf(d.stage) === 'ganado' && in90(d.won_at || d.last_stage_at)).length;
+    const lost90 = all.filter((d) => stageOf(d.stage) === 'perdido' && in90(d.lost_at || d.last_stage_at)).length;
+    const winRate = (won90 + lost90) ? Math.round(won90 / (won90 + lost90) * 100) : null;
     const sum = $('deals-sum');
     if (sum) sum.innerHTML =
-      '<div class="ds"><div class="dv">' + fmtChf(totalVal) + '</div><div class="dl">Pipeline TOTAL · ' + rows.length + ' deals</div></div>' +
-      '<div class="ds"><div class="dv">' + fmtChf(openVal) + '</div><div class="dl">Abierto (' + openCnt + ') · pond. ' + fmtChf(Math.round(weighted)) + '</div></div>' +
-      '<div class="ds"><div class="dv" style="color:#7ed957">' + fmtChf(wonVal) + '</div><div class="dl">Ganado (' + byStage['ganado'].length + ')' + (winPct !== null ? ' · <b style="color:#7ed957">' + winPct + '%</b> del decidido' : '') + '</div></div>' +
-      '<div class="ds"><div class="dv" style="color:#ff6b6b">' + fmtChf(lostVal) + '</div><div class="dl">Perdido (' + byStage['perdido'].length + ')' + (winPct !== null ? ' · ' + (100 - winPct) + '% — que no se repita' : '') + '</div></div>';
-    const pipe = $('pipeline');
+      '<div class="ds"><div class="dv">' + fmtChf(openVal) + '</div><div class="dl">Pipeline abierto · ' + openAll.length + ' deal' + (openAll.length === 1 ? '' : 's') + '</div></div>' +
+      '<div class="ds"><div class="dv">' + fmtChf(Math.round(weighted)) + '</div><div class="dl">Ponderado (valor × probabilidad)</div></div>' +
+      '<div class="ds"><div class="dv" style="color:#7ed957">' + fmtChf(dealsValue(won30)) + '</div><div class="dl">Ganado (30 días) · ' + won30.length + '</div></div>' +
+      '<div class="ds"><div class="dv">' + (winRate === null ? '–' : winRate + '<small>%</small>') + '</div><div class="dl">Win rate (decididos 90 días' + ((won90 + lost90) ? ': ' + won90 + '/' + (won90 + lost90) : '') + ')</div></div>';
+    // contador del chip de estancados (sobre los abiertos que matchean la búsqueda, sin el propio filtro)
+    const stuckN = rows.filter((d) => isOpen(d) && dealStageDays(d) > 14).length;
+    const nEl = $('dl-stuck-n'); if (nEl) nEl.textContent = stuckN;
+    const stuckBtn = $('dl-stuck'); if (stuckBtn) stuckBtn.classList.toggle('active', dlStuck);
+    /* ---- toggle de vista ---- */
+    const board = dlView !== 'lista';
+    const bBtn = $('dl-view-board'), lBtn = $('dl-view-list');
+    if (bBtn) bBtn.classList.toggle('on', board);
+    if (lBtn) lBtn.classList.toggle('on', !board);
+    const pipe = $('pipeline'), drops = $('pipe-drops'), list = $('deals-list');
+    if (!board){
+      if (pipe) { pipe.hidden = true; pipe.innerHTML = ''; }
+      if (drops) { drops.hidden = true; drops.innerHTML = ''; }
+      const pager = $('pipe-pager'); if (pager) pager.hidden = true;
+      if (list) { list.hidden = false; renderDealsList(rows); }
+      return;
+    }
+    if (list) { list.hidden = true; list.innerHTML = ''; }
+    if (pipe) pipe.hidden = false;
+    if (drops) drops.hidden = false;
+    /* ---- board: solo las 4 columnas de trabajo; ganado/perdido son drop-zones abajo ---- */
+    let open = rows.filter(isOpen);
+    if (dlStuck) open = open.filter((d) => dealStageDays(d) > 14);
+    $('leads-empty').hidden = open.length > 0;
+    const byStage = {}; DL_OPEN.forEach((k) => byStage[k] = []);
+    open.forEach((d) => byStage[stageOf(d.stage)].push(d));
+    Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
     pipe.className = 'pipeline';
-    pipe.innerHTML = STAGES.map((s) => {
+    pipe.innerHTML = STAGES.filter((s) => DL_OPEN.includes(s.key)).map((s) => {
       const n = byStage[s.key].length;
       const cards = byStage[s.key].map((d) => cardHTML(d, s)).join('') || '<div class="pipe-empty">Sin deals</div>';
-      const val = s.key === 'perdido' ? dealsLostValue(byStage[s.key]) : dealsValue(byStage[s.key]);
+      const val = dealsValue(byStage[s.key]);
       const wt = Math.round(val * s.prob);
       return '<div class="pipe-col" data-stage="' + s.key + '">' +
         '<div class="pipe-col-head"><span class="bar" style="background:' + s.color + '"></span><span class="st">' + s.label + '</span><span class="cnt">' + n + '</span></div>' +
@@ -3216,9 +3370,98 @@ const stillsPool = projects
         '<div class="pipe-list">' + cards + '</div>' +
       '</div>';
     }).join('');
+    // drop-zones de cierre con resumen 30d (soltar acá = mismo setDealStage que las columnas)
+    const won30r = rows.filter((d) => stageOf(d.stage) === 'ganado' && in30(d.won_at || d.last_stage_at));
+    const lost30r = rows.filter((d) => stageOf(d.stage) === 'perdido' && in30(d.lost_at || d.last_stage_at));
+    if (drops) drops.innerHTML =
+      '<div class="pipe-drop win" data-stage="ganado" title="Ver los ganados en la vista Lista">🏆 Soltá acá para GANADO<span class="pd-sum">últimos 30d: ' + won30r.length + ' · ' + fmtChf(dealsValue(won30r)) + '</span></div>' +
+      '<div class="pipe-drop lose" data-stage="perdido" title="Ver los perdidos en la vista Lista">✖ PERDIDO<span class="pd-sum">últimos 30d: ' + lost30r.length + ' · ' + fmtChf(dealsLostValue(lost30r)) + '</span></div>';
     bindPipeline();
     pipePager();
+    // próximo paso: task abierta más cercana por persona visible (1 query cacheada, ver dlFetchNextTasks)
+    dlFetchNextTasks([...new Set(rows.map((d) => String(d.lead_id)).filter((x) => x && x !== 'undefined' && x !== 'null'))]);
   }
+  /* ---- vista Lista: tabla con semáforo, próximo paso y última actividad ---- */
+  function renderDealsList(rows){
+    const cont = $('deals-list'); if (!cont) return;
+    let ds = rows.slice();
+    if (dlStuck) ds = ds.filter((d) => DL_OPEN.includes(stageOf(d.stage)) && dealStageDays(d) > 14);
+    if (dlListStage === 'open') ds = ds.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
+    else if (dlListStage === 'ganado' || dlListStage === 'perdido') ds = ds.filter((d) => stageOf(d.stage) === dlListStage);
+    const rowVal = (d) => stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
+    const CMP = {
+      value: (a, b) => rowVal(b) - rowVal(a),
+      days: (a, b) => dealStageDays(b) - dealStageDays(a),
+      recent: (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    };
+    ds.sort(CMP[dlSort] || CMP.value);
+    $('leads-empty').hidden = ds.length > 0;
+    const chip = (k, l) => '<button class="dl-chip' + (dlListStage === k ? ' active' : '') + '" data-st="' + k + '" type="button">' + l + '</button>';
+    const body = ds.map((d) => {
+      const r = leadById(d.lead_id) || {};
+      const s = STAGES.find((x) => x.key === stageOf(d.stage)) || STAGES[0];
+      const val = rowVal(d);
+      const days = dealStageDays(d);
+      const dom = leadDomain(r);
+      const co = (dom && companyName(dom)) || r.company || '';
+      const ofs = offersForDeal(d);
+      const dealName = d.title || ((ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)'));
+      return '<tr data-lead="' + esc(String(d.lead_id)) + '">' +
+        '<td><div class="lt-name">' + esc(dealName) + '</div>' + (stageOf(d.stage) === 'perdido' && (d.lost_reason || r.lost_reason) ? '<div class="lt-sub">✕ ' + esc(d.lost_reason || r.lost_reason) + '</div>' : '') + '</td>' +
+        '<td>' + esc(co || '—') + (r.name || r.first_name ? '<div class="lt-sub">' + esc(r.name || r.first_name) + '</div>' : '') + '</td>' +
+        '<td><span class="lt-pill" style="color:' + s.color + ';background:color-mix(in srgb,' + s.color + ' 14%,transparent);border-color:color-mix(in srgb,' + s.color + ' 40%,transparent)">' + s.label + '</span></td>' +
+        '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') + '</td>' +
+        '<td>' + dealDaysChip(days) + '</td>' +
+        '<td class="lt-act">' + dealNextStep(d, false) + '</td>' +
+        '<td class="lt-act">' + esc(actLabel(lastActivity(r))) + '</td></tr>';
+    }).join('');
+    cont.innerHTML =
+      '<div class="dl-lbar">' + chip('all', 'Todas') + chip('open', 'Abiertas') + chip('ganado', 'Ganadas') + chip('perdido', 'Perdidas') +
+        '<select id="dl-sort" class="status" title="Ordenar">' +
+          '<option value="value"' + (dlSort === 'value' ? ' selected' : '') + '>Valor ↓</option>' +
+          '<option value="days"' + (dlSort === 'days' ? ' selected' : '') + '>Días en etapa ↓</option>' +
+          '<option value="recent"' + (dlSort === 'recent' ? ' selected' : '') + '>Recientes</option>' +
+        '</select></div>' +
+      (ds.length ? '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+        '<th>Deal</th><th>Empresa · Contacto</th><th>Etapa</th><th>Valor</th><th>Días en etapa</th><th>Próximo paso</th><th>Última actividad</th>' +
+        '</tr></thead><tbody>' + body + '</tbody></table></div>'
+        : '<p class="muted-note" style="padding:10px 2px">Sin deals en esta vista.</p>');
+    cont.querySelectorAll('.dl-lbar .dl-chip').forEach((b) => b.addEventListener('click', () => { dlListStage = b.dataset.st; renderPipeline(); }));
+    const sel = cont.querySelector('#dl-sort'); if (sel) sel.addEventListener('change', () => { dlSort = sel.value; renderPipeline(); });
+    cont.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.lead)));
+  }
+  /* ---- ⋯ de la tarjeta (mismo patrón que ppOpenMenu: fixed, pegado al botón) ---- */
+  function dlOpenMenu(btn){
+    const menu = $('dl-menu'); if (!menu) return;
+    if (!menu.hidden && menu.dataset.id === String(btn.dataset.id)){ menu.hidden = true; return; }
+    const d = (dealsList || []).find((x) => String(x.id) === String(btn.dataset.id)); if (!d) return;
+    menu.dataset.id = String(d.id);
+    menu.innerHTML =
+      '<button data-act="won" type="button">🏆 Ganado</button>' +
+      '<button data-act="lost" type="button">✖ Perdido</button>' +
+      '<button data-act="task" type="button">➕ Task</button>' +
+      '<hr /><button data-act="open" type="button">👤 Abrir contacto</button>';
+    menu.hidden = false;
+    const r = btn.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = Math.min(r.bottom + 6, window.innerHeight - menu.offsetHeight - 8) + 'px';
+    menu.querySelectorAll('button').forEach((mb) => mb.addEventListener('click', async (ev) => {
+      ev.stopPropagation(); menu.hidden = true;
+      const act = mb.dataset.act;
+      if (act === 'won'){ const ok = await setDealStage(d.id, 'ganado'); if (ok) toast('🏆 Deal ganado'); }
+      else if (act === 'lost'){ const ok = await setDealStage(d.id, 'perdido'); if (ok) toast('✖ Deal perdido'); }   // setDealStage ya pregunta el motivo
+      else if (act === 'task'){ lm2Tab = 'task'; lm2CompCollapsed = false; openLead(d.lead_id); }   // en ficha V2 abre con el composer en Task
+      else if (act === 'open') openLead(d.lead_id);
+    }));
+  }
+  // cerrar el ⋯ al clickear afuera (registro único, como el de pp-menu)
+  document.addEventListener('click', (e) => { const m = $('dl-menu'); if (m && !m.hidden && !e.target.closest('#dl-menu') && !e.target.closest('.pc-dots')) m.hidden = true; });
+  /* ---- toolbar de Deals: búsqueda propia + estancados + toggle de vista (bind único: HTML estático) ---- */
+  $('dl-search') && $('dl-search').addEventListener('input', (e) => { dlSearch = e.target.value.toLowerCase().trim(); renderPipeline(); });
+  $('dl-stuck') && $('dl-stuck').addEventListener('click', () => { dlStuck = !dlStuck; renderPipeline(); });
+  function setDealsView(v){ dlView = v; localStorage.setItem('vv_deals_view', v); renderPipeline(); }
+  $('dl-view-board') && $('dl-view-board').addEventListener('click', () => setDealsView('board'));
+  $('dl-view-list') && $('dl-view-list').addEventListener('click', () => setDealsView('lista'));
   // orden de la tabla de Personas: click en el encabezado alterna ↑/↓
   let psSort = { k: 'created', dir: -1 }, psStage = 'all', psAct = 'all';
   function leadsListHTML(rows){
@@ -3350,7 +3593,10 @@ const stillsPool = projects
       card.addEventListener('dragend', () => { card.classList.remove('dragging'); dragId = null; });
       card.addEventListener('click', () => openLead(card.dataset.lead || card.dataset.id));
     });
-    document.querySelectorAll('.pipe-col').forEach((col) => {
+    // el ⋯ no debe abrir la ficha (la card entera es clickeable)
+    document.querySelectorAll('.pipe-card .pc-dots').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); dlOpenMenu(btn); }));
+    // columnas Y drop-zones de cierre comparten el mismo drop → setDealStage
+    document.querySelectorAll('.pipe-col, .pipe-drop').forEach((col) => {
       col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drop'); });
       col.addEventListener('dragleave', () => col.classList.remove('drop'));
       col.addEventListener('drop', async (e) => {
@@ -3358,6 +3604,8 @@ const stillsPool = projects
         if (dragId) setDealStage(dragId, col.dataset.stage);
       });
     });
+    // click en una zona de cierre = ver esa lista (vista Lista filtrada a ganado/perdido)
+    document.querySelectorAll('.pipe-drop').forEach((z) => z.addEventListener('click', () => { dlListStage = z.dataset.stage; setDealsView('lista'); }));
   }
   // Cambia la etapa de un lead (desde el board o desde el contacto): pregunta motivo
   // si es Perdido, sella el hito de la etapa y persiste. Devuelve true si movió.
