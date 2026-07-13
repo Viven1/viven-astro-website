@@ -41,6 +41,10 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const r = body.record ?? body; // webhook trae { type, table, record }
 
+    // 'manual' = lo cargó el equipo mismo desde Personas → no es un lead nuevo real,
+    // avisarnos de algo que acabamos de hacer nosotros no tiene sentido
+    if (r.channel === "manual") return new Response(JSON.stringify({ ok: true, skipped: "manual" }), { headers: { "Content-Type": "application/json" } });
+
     const name = r.name || `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "—";
     const rows: [string, unknown][] = [
       ["Nombre", name],

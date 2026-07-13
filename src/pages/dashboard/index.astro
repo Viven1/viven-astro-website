@@ -68,6 +68,7 @@ const stillsPool = projects
   .bell-item .bi-t{font-size:13.5px;font-weight:600}
   .bell-item .bi-s{font-size:11.5px;color:var(--muted)}
   .bell-item .bi-due{font-size:11px;font-weight:600;color:var(--muted-2)}
+  .bell-item .bi-at{font-size:10.5px;color:var(--muted-2);opacity:.8}
   .bell-item .bi-due.od{color:#ff5a5a}
   .bell-row{display:flex;align-items:stretch}
   .bell-row .bell-item{flex:1;min-width:0}
@@ -2348,7 +2349,8 @@ const stillsPool = projects
         allLeads.unshift(r);
         renderLeads();
         renderAnalytics(lastViews, allLeads);
-        toast('🎬 Nuevo lead: ' + (r.name || r.email));
+        // manual = lo cargamos nosotros desde Personas — no es una novedad, sin toast
+        if (r.channel !== 'manual') toast('🎬 Nuevo lead: ' + (r.name || r.email));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const i = allLeads.findIndex((l) => l.id === payload.new.id);
@@ -2412,40 +2414,41 @@ const stillsPool = projects
         let bucket = 'later', overdue = false;
         if (due) { if (t.due_time ? due.getTime() < nowTs : due < t0) { bucket = 'overdue'; overdue = true; } else if (due < tEnd) bucket = 'today'; else bucket = 'later'; }
         else bucket = 'nodate';
-        bellItems.push({ kind: 'task', id: t.id, lead_id: t.lead_id, title: t.title, due, time: t.due_time || '', bucket, overdue });
+        bellItems.push({ kind: 'task', id: t.id, lead_id: t.lead_id, title: t.title, due, time: t.due_time || '', bucket, overdue, at: t.created_at });
       });
       // notas donde me mencionaron a mí (últimas 24-72h no filtramos, mostramos como aviso)
       notes.filter((n) => meEmail && String(n.mention || '').toLowerCase() === meEmail).slice(0, 8).forEach((n) => {
-        bellItems.push({ kind: 'mention', id: n.id, lead_id: n.lead_id, title: (n.body || '').slice(0, 80), due: null, bucket: 'mention', overdue: false });
+        bellItems.push({ kind: 'mention', id: n.id, lead_id: n.lead_id, title: (n.body || '').slice(0, 80), due: null, bucket: 'mention', overdue: false, at: n.created_at });
       });
       // ya estamos live con Sofia — @viven.ch es tráfico real entre nosotros, no test.
       // Las notificaciones siempre muestran todo, sin filtrar nada.
       const bellSkip = () => false;
-      // leads nuevos sin contactar (últimas 72h) — lo mismo que llega por push
+      // leads nuevos sin contactar (últimas 72h) — lo mismo que llega por push. 'manual' = lo
+      // cargamos nosotros mismos desde Personas → no es una novedad, no hace falta avisarnos
       const cutoff = Date.now() - 72 * 36e5;
-      (allLeads || []).filter((l) => isNew(l.status) && !/^claude-/.test(l.session_id || '') && Date.parse(l.created_at) > cutoff && !bellSkip(l.email))
+      (allLeads || []).filter((l) => isNew(l.status) && !/^claude-/.test(l.session_id || '') && l.channel !== 'manual' && Date.parse(l.created_at) > cutoff && !bellSkip(l.email))
         .slice(0, 8).forEach((l) => {
-          bellItems.push({ kind: 'lead', id: 'l' + l.id, lead_id: l.id, title: '🎬 Lead nuevo: ' + (l.name || l.email || ''), due: null, bucket: 'newlead', overdue: false });
+          bellItems.push({ kind: 'lead', id: 'l' + l.id, lead_id: l.id, title: '🎬 Lead nuevo: ' + (l.name || l.email || ''), due: null, bucket: 'newlead', overdue: false, at: l.created_at });
         });
       // 🔔 EVENTOS DE NEGOCIO (últimos 7 días): videollamadas, briefs, ganadas
       const evCut = Date.now() - 7 * 864e5;
       const fmtDT = (iso) => new Date(iso).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
       (upBookings || []).filter((b) => !bellSkip(b.email)).slice(0, 6).forEach((b) => {
-        bellItems.push({ kind: 'event', id: 'bk' + b.id, lead_id: b.lead_id, title: '📅 Videollamada: ' + (b.name || b.email || '') + ' · ' + fmtDT(b.start_at), due: null, bucket: 'event', overdue: false });
+        bellItems.push({ kind: 'event', id: 'bk' + b.id, lead_id: b.lead_id, title: '📅 Videollamada: ' + (b.name || b.email || '') + ' · ' + fmtDT(b.start_at), due: null, bucket: 'event', overdue: false, at: b.created_at || b.start_at });
       });
       briefs.filter((b) => Date.parse(b.created_at) > evCut && !bellSkip(b.email)).slice(0, 6).forEach((b) => {
         const lid = b.lead_id || ((allLeads || []).find((l) => l.email && b.email && l.email.toLowerCase() === b.email.toLowerCase()) || {}).id;
-        bellItems.push({ kind: 'event', id: 'br' + b.id, lead_id: lid, title: '📋 Brief recibido: ' + (b.email || '') + (b.goal ? ' · ' + b.goal : ''), due: null, bucket: 'event', overdue: false });
+        bellItems.push({ kind: 'event', id: 'br' + b.id, lead_id: lid, title: '📋 Brief recibido: ' + (b.email || '') + (b.goal ? ' · ' + b.goal : ''), due: null, bucket: 'event', overdue: false, at: b.created_at });
       });
       (offersList || []).filter((o) => o.status === 'won' && !o.archived && !o.is_template && Date.parse(o.updated_at) > evCut && !bellSkip((leadById(o.lead_id) || {}).email)).slice(0, 6).forEach((o) => {
-        bellItems.push({ kind: 'event', id: 'ow' + o.id, lead_id: o.lead_id, title: '🏆 Oferta ganada: ' + (o.title || '') + ' · ' + fmtM(offerNet(o)), due: null, bucket: 'event', overdue: false });
+        bellItems.push({ kind: 'event', id: 'ow' + o.id, lead_id: o.lead_id, title: '🏆 Oferta ganada: ' + (o.title || '') + ' · ' + fmtM(offerNet(o)), due: null, bucket: 'event', overdue: false, at: o.updated_at });
       });
       acceptedProps().filter((p) => Date.parse(p.accepted_at || p.updated_at) > evCut && !bellSkip((leadById(p.lead_id) || {}).email)).slice(0, 6).forEach((p) => {
-        bellItems.push({ kind: 'event', id: 'pw' + p.id, lead_id: p.lead_id, title: '🏆 Propuesta aceptada: ' + (p.title || '') + (Number(p.accepted_total) ? ' · ' + fmtM(p.accepted_total) : ''), due: null, bucket: 'event', overdue: false });
+        bellItems.push({ kind: 'event', id: 'pw' + p.id, lead_id: p.lead_id, title: '🏆 Propuesta aceptada: ' + (p.title || '') + (Number(p.accepted_total) ? ' · ' + fmtM(p.accepted_total) : ''), due: null, bucket: 'event', overdue: false, at: p.accepted_at || p.updated_at });
       });
       (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut && !bellSkip((leadById(d.lead_id) || {}).email)).forEach((d) => {
         const l = leadById(d.lead_id) || {};
-        bellItems.push({ kind: 'event', id: 'dw' + d.id, lead_id: d.lead_id, title: '🎉 Deal ganado: ' + (d.title || l.name || l.email || '') + ' · ' + fmtM(dealValue(d)), due: null, bucket: 'event', overdue: false });
+        bellItems.push({ kind: 'event', id: 'dw' + d.id, lead_id: d.lead_id, title: '🎉 Deal ganado: ' + (d.title || l.name || l.email || '') + ' · ' + fmtM(dealValue(d)), due: null, bucket: 'event', overdue: false, at: d.won_at });
       });
       bellItems = bellItems.filter((i) => !bellDismissed.has(i.kind + ':' + i.id));
       renderBell();
@@ -2467,7 +2470,7 @@ const stillsPool = projects
       const [lbl, od] = labels[b] || [b, false];
       html += '<div class="bell-grp' + (od ? ' od' : '') + '">' + lbl + ' (' + grouped[b].length + ')</div>';
       grouped[b].forEach((i) => {
-        html += '<div class="bell-row"><button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span></button>' +
+        html += '<div class="bell-row"><button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span>' + (i.at ? '<span class="bi-at">hace ' + timeAgo(i.at) + '</span>' : '') + '</button>' +
           '<button class="bell-dis" data-k="' + esc(i.kind + ':' + i.id) + '" type="button" title="Descartar esta notificación" aria-label="Descartar">✕</button></div>';
       });
     });
