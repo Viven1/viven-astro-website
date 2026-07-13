@@ -1968,6 +1968,8 @@ const stillsPool = projects
 .lm2-kv .k{color:var(--muted-2);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
 .lm2-kv .v{font-weight:600;word-break:break-word}
 .lm2-kv .v a{color:var(--acid);text-decoration:none}
+.lm2-edit{cursor:pointer;border-radius:6px;margin:-2px -5px;padding:2px 5px}
+.lm2-edit:hover{background:rgba(255,255,255,.05);outline:1px dashed var(--line-strong)}
 .lm2-morefields{margin-top:12px;font-size:11.5px;color:var(--muted)}
 .lm2-morefields summary{cursor:pointer;text-decoration:underline dotted}
 .lm2-morefields .lm2-kv{margin-top:10px}
@@ -4431,35 +4433,7 @@ const stillsPool = projects
         })));
     });
 
-    // IZQUIERDA: 6 campos + resto colapsado
-    const kv = (k, v) => v ? '<div><div class="k">' + k + '</div><div class="v">' + v + '</div></div>' : '';
-    const fmtD2 = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
-    $('lm2-l').innerHTML =
-      '<div class="lm2-sech">Sobre este contacto</div>' +
-      '<div class="lm2-kv">' +
-        kv('Email', '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>') +
-        kv('Teléfono', r.phone ? '<a href="tel:' + esc((r.phone || '').replace(/[^\d+]/g, '')) + '">' + esc(r.phone) + '</a>' : '') +
-        kv('Empresa', ldom ? '<a href="#" id="lm2-colink">' + esc(companyName(ldom)) + '</a>' : esc(company)) +
-        kv('Cargo', esc(r.job_title || '')) +
-        kv('Idioma', (r.lang || '—').toUpperCase()) +
-        kv('Canal', esc(r.channel || 'direct')) +
-      '</div>' +
-      (() => {
-        // acá se muestran TODOS los campos, con "—" si están vacíos — que se vea qué
-        // datos existen y cuáles faltan (antes los vacíos desaparecían y parecía roto)
-        const kvA = (k, v) => '<div><div class="k">' + k + '</div><div class="v">' + (v || '<span style="color:var(--muted-2)">—</span>') + '</div></div>';
-        return '<details class="lm2-morefields"><summary>Ver todos los campos ▾</summary><div class="lm2-kv">' +
-          kvA('Fuente (UTM)', esc(r.utm_source || '')) + kvA('Campaña (UTM)', esc(r.utm_campaign || '')) +
-          kvA('Google Ads', r.gclid ? 'sí (gclid)' : '') + kvA('Página de entrada', esc(r.landing_path || '')) +
-          kvA('Convirtió en', esc(r.form_path || '')) +
-          kvA('Sesión web', r.session_id ? 'sí — actividad en la timeline (chip 🌐 Web)' : 'sin sesión conocida') +
-          kvA('Creado', fmtD2(r.created_at)) + kvA('Contactado', fmtD2(r.contacted_at)) +
-          kvA('Video call', fmtD2(r.videocall_at)) + kvA('Propuesta', fmtD2(r.proposal_at)) +
-          kvA('Ganado', fmtD2(r.won_at)) + kvA('Perdido', fmtD2(r.lost_at)) +
-          kvA('ID', esc(String(r.id))) +
-        '</div></details>';
-      })();
-    const cl = $('lm2-colink'); if (cl) cl.addEventListener('click', (e) => { e.preventDefault(); closeLead2(); gotoTab('companies'); openCompany(ldom); });
+    lm2RenderLeft(r);
 
     lm2RenderComposer();
     lm2RenderRight(r);   // pinta al toque con lo que hay en memoria; el brief/followups llegan async
@@ -4468,6 +4442,84 @@ const stillsPool = projects
     modal2.classList.add('open');
     modal2.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+  }
+
+  /* --- izquierda: campos SIEMPRE visibles (— si están vacíos) y editables inline,
+     como HubSpot — clic en el valor → input → Enter guarda, Esc cancela. Sin esto,
+     a un contacto nuevo no se le podía cargar empresa/teléfono/idioma desde la V2 --- */
+  function lm2RenderLeft(r){
+    const box = $('lm2-l'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
+    const ldom = leadDomain(r);
+    const fmtD2 = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
+    const FIELDS = [
+      ['name', 'Nombre'], ['email', 'Email'], ['phone', 'Teléfono'],
+      ['company', 'Empresa'], ['job_title', 'Cargo'], ['lang', 'Idioma'],
+    ];
+    const disp = (f) => {
+      if (f === 'company') return esc(r.company || (ldom && companyName(ldom)) || '');
+      if (f === 'lang') return esc((r.lang || '').toUpperCase());
+      return esc(r[f] || '');
+    };
+    const kvA = (k, v) => '<div><div class="k">' + k + '</div><div class="v">' + (v || '<span style="color:var(--muted-2)">—</span>') + '</div></div>';
+    box.innerHTML =
+      '<div class="lm2-sech">Sobre este contacto</div>' +
+      '<div class="lm2-kv">' +
+        FIELDS.map(([f, label]) =>
+          '<div><div class="k">' + label + (f === 'company' && ldom ? ' <a href="#" id="lm2-colink" title="Abrir la empresa" style="color:var(--acid);text-decoration:none">↗</a>' : '') + '</div>' +
+          '<div class="v lm2-edit" data-f="' + f + '" title="Clic para editar">' + (disp(f) || '<span style="color:var(--muted-2)">— agregar</span>') + '</div></div>').join('') +
+        kvA('Canal', esc(r.channel || 'direct')) +
+      '</div>' +
+      '<details class="lm2-morefields"><summary>Ver todos los campos ▾</summary><div class="lm2-kv">' +
+        kvA('Fuente (UTM)', esc(r.utm_source || '')) + kvA('Campaña (UTM)', esc(r.utm_campaign || '')) +
+        kvA('Google Ads', r.gclid ? 'sí (gclid)' : '') + kvA('Página de entrada', esc(r.landing_path || '')) +
+        kvA('Convirtió en', esc(r.form_path || '')) +
+        kvA('Sesión web', r.session_id ? 'sí — actividad en la timeline (chip 🌐 Web)' : 'sin sesión conocida') +
+        kvA('Creado', fmtD2(r.created_at)) + kvA('Contactado', fmtD2(r.contacted_at)) +
+        kvA('Video call', fmtD2(r.videocall_at)) + kvA('Propuesta', fmtD2(r.proposal_at)) +
+        kvA('Ganado', fmtD2(r.won_at)) + kvA('Perdido', fmtD2(r.lost_at)) +
+        kvA('ID', esc(String(r.id))) +
+      '</div></details>';
+    const cl = $('lm2-colink'); if (cl) cl.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeLead2(); gotoTab('companies'); openCompany(ldom); });
+    box.querySelectorAll('.lm2-edit').forEach((el) => el.addEventListener('click', () => {
+      if (el.querySelector('input,select')) return;   // ya está en edición
+      const f = el.dataset.f;
+      const cur = f === 'company' ? (r.company || (ldom && companyName(ldom)) || '') : f === 'lang' ? (r.lang || 'en') : (r[f] || '');
+      let inp;
+      if (f === 'lang') {
+        inp = document.createElement('select');
+        ['en', 'de', 'es'].forEach((l) => { const o = document.createElement('option'); o.value = l; o.textContent = l.toUpperCase(); if (l === cur) o.selected = true; inp.appendChild(o); });
+      } else {
+        inp = document.createElement('input');
+        inp.type = f === 'email' ? 'email' : f === 'phone' ? 'tel' : 'text';
+        inp.value = cur;
+      }
+      inp.style.cssText = 'width:100%;background:var(--navy-900);border:1px solid var(--acid);border-radius:7px;color:var(--text);font:600 12.5px Inter,sans-serif;padding:5px 7px';
+      el.innerHTML = ''; el.appendChild(inp); inp.focus();
+      if (inp.select) try { inp.select(); } catch (e) {}
+      let done = false;
+      const save = async () => {
+        if (done) return; done = true;
+        const v = inp.value.trim();
+        let patch;
+        if (f === 'name') { const parts = v.split(/\s+/).filter(Boolean); patch = { name: v || null, first_name: parts[0] || null, last_name: parts.slice(1).join(' ') || null }; }
+        else if (f === 'email') { if (v && !/\S+@\S+\.\S+/.test(v)) { toast('Email inválido'); lm2RenderLeft(r); return; } patch = { email: v || null }; }
+        else { patch = {}; patch[f] = v || null; }
+        const { error } = await updateLeadResilient(r.id, patch);
+        if (error) { toast('No se pudo guardar: ' + error.message); lm2RenderLeft(r); return; }
+        Object.assign(r, patch);
+        const i = allLeads.findIndex((l) => String(l.id) === String(r.id)); if (i > -1) Object.assign(allLeads[i], patch);
+        toast('💾 Guardado');
+        renderLeads();
+        // nombre/email también viven en el header → redibujar la ficha entera
+        if (f === 'name' || f === 'email') openLeadV2(r.id); else lm2RenderLeft(r);
+      };
+      inp.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); inp.blur(); }
+        if (ev.key === 'Escape') { done = true; lm2RenderLeft(r); }
+      });
+      inp.addEventListener('blur', save);
+      if (f === 'lang') inp.addEventListener('change', () => inp.blur());
+    }));
   }
 
   /* --- composer: Nota / Task / Email en un solo lugar --- */
