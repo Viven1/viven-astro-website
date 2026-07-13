@@ -292,7 +292,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   <div class="brief-card brief-ok" id="brief-ok" hidden>
     <div class="big">✅</div>
     <h1 data-en="Got it — thank you!" data-de="Erhalten — danke!" data-es="¡Recibido — gracias!">Got it — thank you!</h1>
-    <p class="lead" data-en="Perfect — now we can come well prepared. See you on the call!" data-de="Perfekt — so kommen wir bestens vorbereitet. Bis zum Call!" data-es="Perfecto — así llegamos bien preparados. ¡Nos vemos en la llamada!">Perfect — now we can come well prepared. See you on the call!</p>
+    <p class="lead" id="brief-ok-lead-call" data-en="Perfect — now we can come well prepared. See you on the call!" data-de="Perfekt — so kommen wir bestens vorbereitet. Bis zum Call!" data-es="Perfecto — así llegamos bien preparados. ¡Nos vemos en la llamada!" hidden>Perfect — now we can come well prepared. See you on the call!</p>
+    <p class="lead" id="brief-ok-lead-tool" data-en="We'll take a look and come back with next steps — usually within one business day." data-de="Wir sehen uns das an und melden uns mit den nächsten Schritten — meist innerhalb eines Werktags." data-es="Lo vamos a revisar y te contactamos con los próximos pasos — normalmente dentro de un día hábil." hidden>We'll take a look and come back with next steps — usually within one business day.</p>
     <div class="brief-actions no-print">
       <button type="button" id="brief-print">🖨️ <span data-en="Print / Save as PDF" data-de="Drucken / Als PDF speichern" data-es="Imprimir / Guardar como PDF">Print / Save as PDF</span></button>
       <button type="button" id="brief-email-btn">✉️ <span data-en="Email me a copy" data-de="Kopie per E-Mail senden" data-es="Enviarme una copia por email">Email me a copy</span></button>
@@ -308,6 +309,10 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   var leadId = qs.get('lead') || null;
   var topic = qs.get('topic') || '';
   document.documentElement.lang = lang;
+
+  // dos versiones del mensaje final: "nos vemos en la llamada" solo si ya reservó un call
+  // (llega acá con ?lead=<id> desde booking-create) — si es alguien que encontró /brief/ como tool suelto, sin call agendado
+  document.getElementById(leadId ? 'brief-ok-lead-call' : 'brief-ok-lead-tool').hidden = false;
 
   // aplicar idioma a todo lo que tenga data-<lang> (re-invocable desde el switcher)
   function applyLang(){
