@@ -1,0 +1,87 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Batch-Videoproduktion: So senkst du die Kosten pro Video | Viven"};
+const description = {"de":"Erfahre, wie du mit Batch-Produktion aus einem Dreh zehn verschiedene Videos erstellst und die Produktionskosten pro Asset um bis zu 70% senkst."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "batch-videoproduktion-kosten-senken";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/batch-videoproduktion-kosten-senken" active="blog" singleLang={true} langUrls={{"en":"/en/blog/batch-video-production-cost-per-video/","de":"/de/blog/batch-videoproduktion-kosten-senken/","es":"/es/blog/produccion-video-por-lotes-costes/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/batch-videoproduktion-kosten-senken/\"},\"headline\":\"Batch-Videoproduktion: So senkst du die Kosten pro Video\",\"description\":\"Erfahre, wie du mit Batch-Produktion aus einem Dreh zehn verschiedene Videos erstellst und die Produktionskosten pro Asset um bis zu 70% senkst.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/batch-videoproduktion-kosten-senken/\",\"datePublished\":\"2026-07-13T12:51:55.950Z\",\"image\":\"https://www.viven.ch/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Batch-Videoproduktion: So senkst du die Kosten pro Video\",\"item\":\"https://www.viven.ch/de/blog/batch-videoproduktion-kosten-senken/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie viele Videos sollte ich mindestens planen, damit Batch-Produktion wirtschaftlich ist?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Mindestens fünf Assets sollten es sein – besser sieben bis zehn. Bei weniger als fünf sind die Einsparungen marginal, weil der Verwaltungsaufwand nicht sinkt. Bei zehn oder mehr wird die Rendite exponentiell besser.\"}},{\"@type\":\"Question\",\"name\":\"Wie lange dauert ein typischer Batch-Dreh für zehn Videos?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Je nach Komplexität, Locations und Talent zwischen drei und fünf Tage. Ein einfaches Batch-Projekt (z.B. fünf Testimonials in einem Studio) dauert 1–2 Tage. Ein aufwendiges Projekt mit Aussen-Drehorten und Produktszenen dauert 4–5 Tage.\"}},{\"@type\":\"Question\",\"name\":\"Können wir im Nachhinein noch Videos aus altem Rohmaterial neu schneiden?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Nur bedingt. Deshalb ist die Planung vor dem Dreh so wichtig. Wir halten immer redundante Takes fest und filmen in mehreren Formaten, aber echte Flexibilität hast du nur, wenn du schon beim Dreh weisst, welche Assets entstehen sollen.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Batch-Videoproduktion: So senkst du die Kosten pro Video</span></nav>
+  <span class="eyebrow">Produktionseffizienz</span>
+  <h1>Batch-Videoproduktion: So senkst du die Kosten pro Video</h1>
+  <p class="lead">Die Produktionskosten pro Video sind oft der grösste Hindernis für Unternehmen, die ihre Video-Marketing-Strategie skalieren möchten. Batch-Videoproduktion löst dieses Problem: Indem du mehrere Assets in einem einzigen Dreh-Termin erstellst, verteilst du die Fixkosten – Studio, Kamera, Crew, Talent – auf zehn Videos statt auf eines. Das Ergebnis: bis zu 70% niedrigere Kosten pro Asset bei gleichbleibender oder sogar besserer Qualität.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>13. Juli 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg" alt="Batch-Videoproduktion: So senkst du die Kosten pro Video" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Was ist Batch-Videoproduktion?</h2><p>Batch-Produktion bedeutet, mehrere Videos – sogenannte Assets – an einem oder wenigen zusammenhängenden Drehtagen zu filmen. Statt fünf separate Termine für fünf 30-Sekünder zu buchen, filmst du alle Szenen, Reden und Produktaufnahmen an einem Tag. In der Post-Produktion werden diese Rohaufnahmen dann in verschiedene Formate, Längen und Varianten geschnitten: YouTube-Videos, Social-Media-Clips, Website-Hero-Videos, Testimonials, How-To-Inhalte.</p><p>Das ist nicht neu, aber es ist für viele Schweizer Unternehmen immer noch eine untergenutzte Strategie.</p><h2>Wo liegen die Kosteneinsparungen?</h2><p>Die Ersparnis ergibt sich aus drei Faktoren:</p><ul><li><strong>Fixkosten verteilen:</strong> Kameraausrüstung, Licht, Ton, Drohne und Steadicam müssen nur einmal auf- und abgebaut werden.</li><li><strong>Crew-Effizienz:</strong> Ein Film-Team (Kameramann, Tonmeister, Beleuchter) arbeitet vier bis fünf Tage statt an fünf verschiedenen Drehtagen.</li><li><strong>Standortlogistik:</strong> Eine Location, ein Hotel-Aufenthalt, ein Catering-Budget.</li></ul><p>Bei UBS, Siemens und ON haben wir regelmässig erlebt, dass Batch-Produktion die Kosten pro Minute Video von CHF 8'000–12'000 auf CHF 2'500–4'000 senkt, je nach Komplexität und Talent-Involvement.</p><h2>Wie planst du einen Batch-Dreh richtig?</h2><p>Erfolgreiche Batch-Produktion erfordert exakte Vorbereitung:</p><ul><li><strong>Drehplan clustern:</strong> Gruppiere Szenen nach Location, Talent und Beleuchtungssetup. Alle Büro-Szenen zusammen, alle Aussen-Aufnahmen zusammen, alle Nahaufnahmen von Produkten nacheinander.</li><li><strong>Storyboards für jedes Asset:</strong> Auch wenn fünf Videos entstehen, muss der Creative-Director wissen, welche Takes in welches Video gehören.</li><li><strong>Redundanz einplanen:</strong> Filme jede Szene in mehreren Längen und Winkeln. Eine Take kann später als 60er-YouTube-Video und als 15er-Social-Clip verwendet werden.</li><li><strong>Talent-Slots reservieren:</strong> Wenn dein CEO in fünf verschiedenen Videos sprechen soll, plane diese Sequenzen an zwei bis drei Stunden an Tag 1 und 2, nicht über alle vier Tage verteilt.</li></ul><p><a href={p("services/corporate-video")}>Corporate Videos</a> profitieren besonders stark von dieser Methode, weil Executives meist nur begrenzt Zeit haben.</p><h2>Von einem Dreh zu zehn Assets</h2><p>Ein typisches Batch-Projekt bei Viven könnte so aussehen:</p><ul><li>1 × 2-minütiges Brand-Video für Website</li><li>3 × 30-Sekünder für LinkedIn, Instagram, YouTube</li><li>4 × 15-Sekünder für Social Stories und Ads</li><li>2 × Testimonial-Clips für Case Studies</li></ul><p>Alle entstehen aus demselben Rohmaterial. Die Post-Production ist intelligent strukturiert: nicht fünf separate Schnitte, sondern ein modulares Projekt mit Hauptschnitt + vier spezialisierte Varianten-Schnitte.</p><p>Für <a href={p("services/product-video")}>Produktvideos</a> heisst das: eine Produktdemonstration wird an einem Tag gefilmt, ergibt aber später ein How-To-Erklärvideo, ein Produktteaser, ein Feature-Fokus-Video und Social-Clips.</p><h2>Batch-Produktion und <a href={p("services/social-media-video")}>Social-Media-Strategie</a></h2><p>Social Media ist ein Content-Appetit, den einzelne Produktionen nie sättigen. Mit Batch-Videoproduktion hast du nach einem Dreh-Tag Material für zwei bis drei Monate Post.</p><p>Marken wie ON und Philips nutzen diesen Ansatz, um konsistent zu posten, ohne jede Woche eine neue Location und Crew zu buchen. Das macht Video-Marketing nicht nur günstiger, sondern auch planbarer und nachhaltiger.</p><h2>Wann lohnt sich Batch-Produktion nicht?</h2><p>Wichtig: Batch-Produktion funktioniert nicht für breaking news, spontane Kampagnen oder einzelne 30-Sekünder, die morgen online sein müssen. Sie lohnt sich, wenn du einen bekannten Bedarf an fünf bis zehn Videos in den nächsten 3–6 Monaten hast.</p><p><a href={p("services/employer-branding")}>Employer-Branding-Videos</a> sind ein Paradebeispiel: Fünf Mitarbeiterporträts aus verschiedenen Abteilungen können problemlos an einem Tag gefilmt und später einzeln oder als Serie geschnitten werden.</p><p>Wenn dein Unternehmen regelmässig Videos produziert – für Website, Social, Events, Schulungen – dann ist Batch-Produktion nicht eine Option, sondern die Standardstrategie. Die Rechnung ist einfach: Mit der richtigen Planung senkst du die Kosten pro Video um 60–70% und erhältst gleichzeitig eine konsistentere, professionellere Output-Pipeline.</p><p>Möchtest du eine Batch-Videoproduktion für dein Unternehmen planen? Kontaktiere uns – wir beraten dich gerne, wie viele Assets du realistische skalieren kannst und wo die nächsten Einsparungen liegen. <a href={p("contact")}>Schreib uns eine Nachricht</a> oder <a href={p("faq")}>sieh dir unsere FAQ an</a>.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="batch-videoproduktion-kosten-senken" />
+  </div></section>
+</Base>
