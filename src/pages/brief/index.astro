@@ -60,6 +60,29 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .brief-alt{text-align:center;color:var(--muted);font-size:14px;margin-top:22px}
   .brief-alt a{color:var(--acid)}
   .berr{color:#ff8b8b;font-size:13.5px;margin-top:10px;text-align:center;display:none}
+  .brief-actions{display:flex;gap:10px;justify-content:center;margin:22px 0 4px;flex-wrap:wrap}
+  .brief-actions button{font-family:inherit;font-size:14px;font-weight:700;border-radius:100px;padding:11px 20px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--navy-900);color:var(--text)}
+  .brief-actions button:hover{border-color:var(--muted)}
+  .brief-actions button:disabled{opacity:.6;cursor:default}
+  .brief-email-msg{text-align:center;font-size:13px;color:var(--acid);margin-top:10px;min-height:1em}
+  .brief-summary{margin-top:24px;text-align:left;border-top:1px solid var(--line);padding-top:20px}
+  .bs-meta{font-size:13px;color:var(--muted);margin-bottom:12px;text-align:center}
+  .bs-table{width:100%;border-collapse:collapse}
+  .bs-table td{padding:8px 6px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
+  .bs-table .bs-k{color:var(--muted-2);width:44%;padding-right:10px}
+  .bs-table .bs-v{color:var(--text);font-weight:500}
+  @media print{
+    body{background:#fff}
+    .brief-langs,.brief-alt,.no-print{display:none !important}
+    .brief-wrap{max-width:none;padding:0 24px}
+    .brief-card{border:none;background:#fff;padding:0}
+    .brief-ok .big{display:none}
+    h1,.brief-ok h1{color:#0f1826}
+    .lead{color:#555}
+    .bs-meta{color:#555}
+    .bs-table td{color:#111;border-bottom:1px solid #ddd}
+    .bs-table .bs-k{color:#666}
+  }
 </style>
 </head>
 <body>
@@ -270,6 +293,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     <div class="big">✅</div>
     <h1 data-en="Got it — thank you!" data-de="Erhalten — danke!" data-es="¡Recibido — gracias!">Got it — thank you!</h1>
     <p class="lead" data-en="Perfect — now we can come well prepared. See you on the call!" data-de="Perfekt — so kommen wir bestens vorbereitet. Bis zum Call!" data-es="Perfecto — así llegamos bien preparados. ¡Nos vemos en la llamada!">Perfect — now we can come well prepared. See you on the call!</p>
+    <div class="brief-actions no-print">
+      <button type="button" id="brief-print">🖨️ <span data-en="Print / Save as PDF" data-de="Drucken / Als PDF speichern" data-es="Imprimir / Guardar como PDF">Print / Save as PDF</span></button>
+      <button type="button" id="brief-email-btn">✉️ <span data-en="Email me a copy" data-de="Kopie per E-Mail senden" data-es="Enviarme una copia por email">Email me a copy</span></button>
+    </div>
+    <div class="brief-email-msg no-print" id="brief-email-msg"></div>
+    <div class="brief-summary" id="brief-summary"></div>
   </div>
 </div>
 
@@ -345,6 +374,57 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     return vals;
   }
 
+  // resumen legible (idioma del usuario) para el print/PDF y el email — misma fuente que ve el usuario en pantalla
+  function buildSummaryPairs(){
+    var pairs = [];
+    form.querySelectorAll('.q[data-key]').forEach(function(q){
+      var qh = q.querySelector('.qh');
+      if (!qh) return;
+      var vals = [];
+      q.querySelectorAll('.opt.sel').forEach(function(o){
+        var txt = [];
+        o.querySelectorAll('span').forEach(function(s){
+          if (s.classList.contains('em') || s.classList.contains('tick')) return;
+          if (s.textContent.trim()) txt.push(s.textContent.trim());
+        });
+        if (txt.length) vals.push(txt.join(' '));
+      });
+      pairs.push([qh.textContent.trim(), vals.length ? vals.join(', ') : '—']);
+    });
+    return pairs;
+  }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  var L_REF = { en: 'References', de: 'Referenzen', es: 'Referencias' };
+  var L_NOTES = { en: 'Anything else', de: 'Sonstiges', es: 'Otros comentarios' };
+  var L_SENT = { en: '✓ Sent — check your inbox', de: '✓ Gesendet — E-Mails prüfen', es: '✓ Enviado — revisá tu bandeja' };
+  var L_FAIL = { en: 'Could not send — try again later', de: 'Konnte nicht gesendet werden — später erneut versuchen', es: 'No se pudo enviar — probá más tarde' };
+  function renderSummary(data){
+    var rows = data.pairs.map(function(p){ return '<tr><td class="bs-k">' + escapeHtml(p[0]) + '</td><td class="bs-v">' + escapeHtml(p[1]) + '</td></tr>'; }).join('');
+    if (data.references) rows += '<tr><td class="bs-k">' + (L_REF[lang] || L_REF.en) + '</td><td class="bs-v">' + escapeHtml(data.references) + '</td></tr>';
+    if (data.extra) rows += '<tr><td class="bs-k">' + (L_NOTES[lang] || L_NOTES.en) + '</td><td class="bs-v">' + escapeHtml(data.extra) + '</td></tr>';
+    document.getElementById('brief-summary').innerHTML =
+      '<div class="bs-meta">' + escapeHtml(data.name) + ' · ' + escapeHtml(data.to) + '</div>' +
+      '<table class="bs-table">' + rows + '</table>';
+  }
+  var lastBrief = null;
+  document.getElementById('brief-print').addEventListener('click', function(){ window.print(); });
+  document.getElementById('brief-email-btn').addEventListener('click', function(){
+    if (!lastBrief) return;
+    var btn = document.getElementById('brief-email-btn');
+    var msg = document.getElementById('brief-email-msg');
+    btn.disabled = true; msg.textContent = '';
+    fetch(SB_URL + '/functions/v1/brief-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+      body: JSON.stringify(lastBrief)
+    }).then(function(r){ return r.ok; }).catch(function(){ return false; }).then(function(ok){
+      msg.textContent = ok ? (L_SENT[lang] || L_SENT.en) : (L_FAIL[lang] || L_FAIL.en);
+      btn.disabled = false;
+    });
+  });
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if (form.company_url.value) return; // honeypot
@@ -370,15 +450,25 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     };
     var first = form.first_name.value.trim();
     var last = form.last_name.value.trim();
+    var references = form.references.value.trim();
+    var extra = form.extra.value.trim();
     var row = {
       lead_id: leadId, lang: lang,
       name: (first + ' ' + last).trim() || null, first_name: first || null, last_name: last || null,
       email: form.email.value.trim(),
       goal: goal, distribution: distribution || null,
       timeline: timeline || null, budget: budget || null,
-      extra: form.extra.value.trim() || null,
+      extra: extra || null,
       answers: answers
     };
+    lastBrief = { to: row.email, name: row.name, lang: lang, pairs: buildSummaryPairs(), references: references || null, extra: extra || null };
+
+    function showSuccess(){
+      document.getElementById('brief-form-card').hidden = true;
+      document.getElementById('brief-ok').hidden = false;
+      renderSummary(lastBrief);
+      window.scrollTo(0, 0);
+    }
 
     var btn = form.querySelector('button.submit'); btn.disabled = true;
     fetch(SB_URL + '/rest/v1/briefs', {
@@ -386,7 +476,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(row)
     }).then(function(r){
-      if (r.ok) { document.getElementById('brief-form-card').hidden = true; document.getElementById('brief-ok').hidden = false; window.scrollTo(0,0); return; }
+      if (r.ok) { showSuccess(); return; }
       // columna answers y/o first_name/last_name ausentes (SQL 0027/0047 sin correr) → plegar al extra y reintentar
       var flat = Object.keys(answers).map(function(k){ var v = answers[k]; if (Array.isArray(v)) v = v.join(', '); return v ? k + ': ' + v : ''; }).filter(Boolean).join(' · ');
       delete row.answers; delete row.first_name; delete row.last_name;
@@ -396,7 +486,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify(row)
       }).then(function(r2){
-        if (r2.ok) { document.getElementById('brief-form-card').hidden = true; document.getElementById('brief-ok').hidden = false; window.scrollTo(0,0); }
+        if (r2.ok) { showSuccess(); }
         else { btn.disabled = false; errBox.style.display = 'block'; }
       });
     }).catch(function(){ btn.disabled = false; errBox.style.display = 'block'; });

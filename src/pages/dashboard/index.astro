@@ -3065,7 +3065,9 @@ const stillsPool = projects
   }
   $('ps-del-sel') && $('ps-del-sel').addEventListener('click', async () => {
     const ids = [...psSelected]; if (!ids.length) return;
-    if (!confirm('¿Borrar definitivamente ' + ids.length + ' persona' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
+    const won = ids.map((id) => leadById(id)).filter((l) => l && stageOf(l.status) === 'ganado');
+    const warn = won.length ? '\n\n⚠️ ' + won.length + ' ' + (won.length === 1 ? 'es un cliente GANADO' : 'son clientes GANADOS') + ' (' + won.map((l) => l.name || l.email).join(', ') + ') — sus ofertas/propuestas/deals quedan en la base pero YA NO se van a contar en los totales de Home/Pipeline, porque quedan huérfanos sin la persona. Esa facturación desaparece de los reportes para siempre.' : '';
+    if (!confirm('¿Borrar definitivamente ' + ids.length + ' persona' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.' + warn)) return;
     const { error } = await supabase.from('leads').delete().in('id', ids);
     if (error) { alert('No se pudo borrar: ' + error.message); return; }
     allLeads = allLeads.filter((l) => !ids.includes(String(l.id)));
