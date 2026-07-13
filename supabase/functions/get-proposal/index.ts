@@ -41,8 +41,11 @@ Deno.serve(async (req) => {
     if (data.password && String(password || "") !== String(data.password)) {
       return json({ error: "wrong_password", locked: true }, 401);
     }
-    // contar la vista (best-effort)
-    await admin.from("proposals").update({ views: (data.views || 0) + 1 }).eq("id", data.id);
+    // contar la vista + CUÁNDO fue (best-effort) — "vista hace 3 h" en el dashboard
+    // es la señal de que el cliente la está mirando; si la columna falta (SQL 0058
+    // sin correr), reintenta solo con el contador para no romper la carga
+    const { error: vErr } = await admin.from("proposals").update({ views: (data.views || 0) + 1, last_view_at: new Date().toISOString() }).eq("id", data.id);
+    if (vErr) await admin.from("proposals").update({ views: (data.views || 0) + 1 }).eq("id", data.id);
     return json({
       ok: true,
       title: data.title,
