@@ -19,7 +19,10 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <meta name="theme-color" content="#0f1826" />
 <link rel="stylesheet" href="/assets/site.css" />
 <style is:global>
-  .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px}
+  .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px;transition:max-width .3s ease}
+  /* post-envío: el documento del brief merece aire — 660px está bien para FORMULARIOS
+     (convierten mejor angostos), pero quedaba ridículamente flaco para leer el resumen */
+  .brief-wrap.wide{max-width:960px}
   .brief-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
   .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em;display:block;text-decoration:none}
   .brief-langs{display:flex;gap:4px}
@@ -549,6 +552,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     function showSuccess(){
       document.getElementById('brief-form-card').hidden = true;
       document.getElementById('brief-ok').hidden = false;
+      // el documento respira: el wrap pasa de 660px (ancho de formulario) a 960px
+      var w = document.querySelector('.brief-wrap'); if (w) w.classList.add('wide');
       renderSummary(lastBrief);
       window.scrollTo(0, 0);
     }
