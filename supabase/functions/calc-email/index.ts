@@ -17,9 +17,39 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
 const T: Record<string, Record<string, string>> = {
-  en: { subject: "Your video estimate: CHF", hi: "Hi", intro: "Based on what you told us, here's your personalized range:", basedOn: "Your configuration:", note: "No two projects are the same — this price adapts to what YOU actually need, not the other way round. We shape the concept together to fit your real budget, free, in a short call.", cta: "Book a free 15-min call →", bye: "Prefer email? Just reply to this message — a real human (me) will read it.", sign: "Sofia", foot: "You're receiving this because you used our video cost calculator." },
-  de: { subject: "Ihre Videokosten-Schätzung: CHF", hi: "Hallo", intro: "Basierend auf Ihren Angaben, hier Ihre persönliche Preisspanne:", basedOn: "Ihre Angaben:", note: "Kein Projekt ist wie das andere — dieser Preis richtet sich nach dem, was SIE wirklich brauchen, nicht umgekehrt. Das Konzept gestalten wir gemeinsam passend zu Ihrem tatsächlichen Budget, kostenlos, in einem kurzen Call.", cta: "Gratis 15-Min-Call buchen →", bye: "Lieber per E-Mail? Einfach auf diese Nachricht antworten — ein echter Mensch (ich) liest mit.", sign: "Sofia", foot: "Sie erhalten dies, weil Sie unseren Videokosten-Rechner genutzt haben." },
-  es: { subject: "Tu estimación de video: CHF", hi: "Hola", intro: "Según lo que nos contaste, acá tenés tu rango personalizado:", basedOn: "Tu configuración:", note: "Ningún proyecto es igual a otro — este precio se adapta a lo que VOS necesitás, no al revés. Armamos el concepto juntos para llegar a tu presupuesto real, gratis, en una llamada corta.", cta: "Reservar llamada gratis de 15 min →", bye: "¿Preferís por email? Respondé este mensaje — un humano de verdad (yo) lo lee.", sign: "Sofia", foot: "Recibís esto porque usaste nuestra calculadora de costos de video." },
+  en: {
+    subject: "Your video cost estimate: CHF",
+    hi: "Hi",
+    intro: "Thank you for your enquiry — here is the cost estimate you requested, based on real budgets from over 100 Swiss productions for brands like UBS, Siemens and FIFA.",
+    basedOn: "Your cost breakdown:",
+    note: "Every project is different, and these figures are an honest starting point — not a fixed quote. If the estimate sits above your budget, we can usually help bring the costs down: adjusting shoot days, scope or format, without compromising the result. If you'd like to go through the details, don't hesitate to contact us — we're happy to think along with you.",
+    cta: "Book a free 15-min call →",
+    bye: "Prefer email? Just reply to this message — it lands directly with me.",
+    sign: "Sofia Treviño, Producer",
+    foot: "You're receiving this because you used our video cost calculator.",
+  },
+  de: {
+    subject: "Ihre Videokosten-Schätzung: CHF",
+    hi: "Guten Tag",
+    intro: "vielen Dank für Ihre Anfrage — hier ist die gewünschte Kostenschätzung, basierend auf echten Budgets aus über 100 Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.",
+    basedOn: "Ihre Kostenaufstellung:",
+    note: "Jedes Projekt ist anders — diese Zahlen sind ein ehrlicher Richtwert, keine fixe Offerte. Liegt die Schätzung über Ihrem Budget, helfen wir gerne, die Kosten zu senken: über Drehtage, Umfang oder Format, ohne Kompromisse beim Resultat. Möchten Sie ins Detail gehen? Kontaktieren Sie uns jederzeit — wir denken gerne mit.",
+    cta: "Gratis 15-Min-Call buchen →",
+    bye: "Lieber per E-Mail? Antworten Sie einfach auf diese Nachricht — sie landet direkt bei mir.",
+    sign: "Sofia Treviño, Producerin",
+    foot: "Sie erhalten dies, weil Sie unseren Videokosten-Rechner genutzt haben.",
+  },
+  es: {
+    subject: "Tu estimación de costos de video: CHF",
+    hi: "Hola",
+    intro: "gracias por tu consulta — acá tenés la estimación de costos que pediste, basada en presupuestos reales de más de 100 producciones suizas para marcas como UBS, Siemens y FIFA.",
+    basedOn: "Tu desglose de costos:",
+    note: "Cada proyecto es distinto y estos números son un punto de partida honesto, no una oferta cerrada. Si la estimación queda por encima de tu presupuesto, normalmente podemos ayudarte a bajar los costos: ajustando días de rodaje, alcance o formato, sin comprometer el resultado. Si querés entrar en más detalle, no dudes en contactarnos — pensamos el proyecto con vos.",
+    cta: "Reservar llamada gratis de 15 min →",
+    bye: "¿Preferís por email? Respondé este mensaje — me llega directo a mí.",
+    sign: "Sofia Treviño, Producer",
+    foot: "Recibís esto porque usaste nuestra calculadora de costos de video.",
+  },
 };
 
 Deno.serve(async (req) => {
@@ -48,15 +78,18 @@ Deno.serve(async (req) => {
     <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#555">${t.note}</p>
     <p style="margin:0 0 20px"><a href="https://www.viven.ch/book/" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:14.5px;padding:12px 22px;border-radius:100px;display:inline-block">${t.cta}</a></p>
     <p style="margin:0;font-size:13.5px;color:#777">${t.bye}</p>
-    <p style="margin:22px 0 0;font-size:14px;color:#444">— ${t.sign}, VIVEN AG</p>
+    <p style="margin:22px 0 0;font-size:14px;color:#444">— ${t.sign} · VIVEN AG</p>
   </div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a><br>${t.foot}</p>
 </div></body>`;
 
+    const textLines = (Array.isArray(lines) ? lines : []).map((l: [string, number]) => `  ${l[0]}: ${fmt(l[1])}`).join("\n");
+    const text = `${t.hi}${first ? " " + first : ""},\n\n${t.intro}\n\n${fmt(lo)} – ${fmt(hi)}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${textLines ? t.basedOn + "\n" + textLines + "\n\n" : ""}${t.note}\n\n${t.cta.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
+
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: `${t.subject} ${fmt(lo)}–${fmt(hi)}`, html }),
+      body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: `${t.subject} ${fmt(lo)}–${fmt(hi)}`, html, text }),
     });
     if (!res.ok) { console.error("RESEND_FAIL", await res.text()); return json({ error: "send_failed" }, 502); }
     return json({ ok: true });
