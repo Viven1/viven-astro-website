@@ -2,24 +2,56 @@
 const { lang = 'en' } = Astro.props;
 const href = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' }[lang] || '/en/video-cost-calculator/';
 const T = {
-  text: { en: 'Not sure what your video will cost?', de: 'Nicht sicher, was Ihr Video kostet?', es: '¿No sabés cuánto puede costar tu video?' },
-  cta: { en: 'Free cost calculator', de: 'Kostenloser Kostenrechner', es: 'Calculadora gratis de costos' },
+  eyebrow: { en: 'Free tool', de: 'Kostenloses Tool', es: 'Herramienta gratis' },
+  h2: { en: 'Not sure what your video will cost?', de: 'Nicht sicher, was Ihr Video kostet?', es: '¿No sabés cuánto puede costar tu video?' },
+  lead: {
+    en: 'Answer four quick questions and get an instant, honest CHF range — based on real budgets from 100+ Swiss productions.',
+    de: 'Beantworten Sie vier kurze Fragen und erhalten Sie sofort eine ehrliche CHF-Preisspanne — basierend auf echten Budgets von über 100 Schweizer Produktionen.',
+    es: 'Respondé cuatro preguntas rápidas y conseguí un rango de precio honesto en CHF al instante — basado en presupuestos reales de más de 100 producciones suizas.',
+  },
+  cta: { en: 'Try the free calculator', de: 'Kostenlosen Rechner ausprobieren', es: 'Probar la calculadora gratis' },
 };
 const t = (o) => o[lang] || o.en;
 ---
-<section class="sec" style="padding-top:0;padding-bottom:0">
+<section class="sec">
   <div class="wrap">
-    <a href={href} class="calc-banner reveal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m3 0h2m-7 4h2m3 0h2"/></svg>
-      <span class="calc-banner-txt">{t(T.text)}</span>
-      <span class="calc-banner-cta">{t(T.cta)} →</span>
-    </a>
+    <div class="calc-hero reveal">
+      <div class="calc-hero-copy">
+        <span class="eyebrow">{t(T.eyebrow)}</span>
+        <h2>{t(T.h2)}</h2>
+        <p class="lead">{t(T.lead)}</p>
+        <a href={href} class="btn btn-primary">{t(T.cta)} →</a>
+      </div>
+      <div class="calc-hero-visual" aria-hidden="true">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="100" r="92" stroke="currentColor" stroke-opacity=".18" stroke-width="1.5"/>
+          <circle cx="100" cy="100" r="70" stroke="currentColor" stroke-opacity=".28" stroke-width="1.5"/>
+          <rect x="62" y="46" width="76" height="108" rx="10" stroke="currentColor" stroke-width="3" fill="var(--navy-900)"/>
+          <rect x="74" y="60" width="52" height="18" rx="3" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="80" cy="98" r="5" fill="currentColor"/>
+          <circle cx="100" cy="98" r="5" fill="currentColor"/>
+          <circle cx="120" cy="98" r="5" fill="currentColor"/>
+          <circle cx="80" cy="116" r="5" fill="currentColor"/>
+          <circle cx="100" cy="116" r="5" fill="currentColor"/>
+          <circle cx="120" cy="116" r="5" fill="currentColor"/>
+          <circle cx="80" cy="134" r="5" fill="currentColor"/>
+          <rect x="94" y="129" width="32" height="10" rx="5" fill="currentColor"/>
+        </svg>
+      </div>
+    </div>
   </div>
 </section>
 <style>
-  .calc-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--line);border-radius:14px;background:var(--navy-800);padding:14px 20px;color:var(--text);text-decoration:none;transition:border-color .2s,transform .15s}
-  .calc-banner:hover{border-color:var(--acid);transform:translateY(-1px)}
-  .calc-banner svg{flex:none;width:22px;height:22px;color:var(--acid)}
-  .calc-banner-txt{flex:1;min-width:200px;font-size:14.5px;font-weight:500}
-  .calc-banner-cta{flex:none;font-size:14px;font-weight:600;color:var(--acid)}
+  .calc-hero{border:1px solid var(--line-strong);border-radius:26px;background:
+      radial-gradient(100% 120% at 100% 0%,rgba(221,249,143,.12),transparent 55%),
+      radial-gradient(100% 120% at 0% 100%,rgba(52,110,255,.14),transparent 55%),
+      var(--navy-800);
+    padding:clamp(32px,5vw,56px);display:grid;grid-template-columns:1.3fr .8fr;gap:40px;align-items:center}
+  .calc-hero-copy .eyebrow{margin-bottom:14px;display:block}
+  .calc-hero-copy h2{font-size:clamp(24px,3vw,36px);font-weight:700;line-height:1.15}
+  .calc-hero-copy .lead{color:var(--muted);font-size:16.5px;margin-top:16px;max-width:460px}
+  .calc-hero-copy .btn{margin-top:28px}
+  .calc-hero-visual{display:flex;align-items:center;justify-content:center;color:var(--acid)}
+  .calc-hero-visual svg{width:100%;max-width:200px;height:auto}
+  @media(max-width:760px){.calc-hero{grid-template-columns:1fr}.calc-hero-visual{order:-1;max-width:150px;margin:0 auto}}
 </style>
