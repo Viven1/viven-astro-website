@@ -1,0 +1,128 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"One Shoot, Ten Assets: Batch Video Production | Viven"};
+const description = {"en":"Learn how batch video production reduces cost per video by 60–70%. Maximize ROI by shooting multiple assets in one day with Viven AG."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "batch-video-production-cost-per-video";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/batch-video-production-cost-per-video" active="blog" singleLang={true} langUrls={{"en":"/en/blog/batch-video-production-cost-per-video/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/batch-video-production-cost-per-video/\"},\"headline\":\"One Shoot, Ten Assets: Batch Video Production\",\"description\":\"Learn how batch video production reduces cost per video by 60–70%. Maximize ROI by shooting multiple assets in one day with Viven AG.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/batch-video-production-cost-per-video/\",\"datePublished\":\"2026-07-13T12:50:59.817Z\",\"image\":\"https://www.viven.ch/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"One Shoot, Ten Assets: Batch Video Production\",\"item\":\"https://www.viven.ch/en/blog/batch-video-production-cost-per-video/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How many assets can you realistically create in one shoot day?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Typically 8–15 finished assets (including long-form videos, short clips, and stills) from a single well-planned day with one location, 2–3 crew, and clear shot lists. The exact number depends on complexity, talent availability, and your post-production timeline.\"}},{\"@type\":\"Question\",\"name\":\"Does batch production lower video quality?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"No. The same crew, equipment, and lighting that serve one video serve ten. Quality actually improves because you're using professional-grade setups efficiently rather than rushing individual shoots. Consistency is the biggest quality gain.\"}},{\"@type\":\"Question\",\"name\":\"What's the minimum budget for a batch shoot?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"A basic batch shoot with one location, simple interview setup, and basic editing starts around CHF 4,500–5,500. Premium shoots (multiple locations, post-production colour, motion graphics) run CHF 8,000–12,000, but per-asset costs remain 60–70% lower than separate shoots.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>One Shoot, Ten Assets: Batch Video Production</span></nav>
+  <span class="eyebrow">Industry insight</span>
+  <h1>One Shoot, Ten Assets: Batch Video Production</h1>
+  <p class="lead">Batch video production—shooting multiple finished videos or social assets in a single day—cuts your cost per video by 60–70%. Instead of scheduling ten separate shoots, you light once, reset twice, and walk away with ten distinct pieces of content. This model works for product launches, employer branding, thought leadership, and social media, and it's how leading brands like UBS, Siemens, and Porsche maximize production efficiency. Here's how it works, why it matters, and how to structure your shoot for maximum yield.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>July 13, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg" alt="One Shoot, Ten Assets: Batch Video Production" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Batch Production Cuts Costs So Dramatically</h2>
+<p>Video production fixed costs—crew, equipment, location rental, lighting setup—remain roughly the same whether you shoot one piece of content or five. A typical shoot day costs CHF 3,500–5,500 before post-production. When you amortize that across ten assets instead of one, your per-asset cost drops from CHF 3,500 to CHF 350–550. That's the core math.</p>
+<p>The hidden benefit is consistency. Multiple videos shot the same day share identical lighting, colour grading, and talent performance, creating a cohesive campaign feel. Your social media feed looks planned. Your internal communications feel unified. Your brand voice stays tight.</p>
+
+<h2>What 'One Shoot, Ten Assets' Actually Means</h2>
+<p>Batch production doesn't mean filming one long video and chopping it into ten clips (though that's part of it). It means planning your shoot day to generate multiple <strong>finished formats</strong>:</p>
+<ul>
+<li>3–4 long-form videos (2–5 minutes each) for YouTube, LinkedIn, or your website</li>
+<li>6–8 short-form clips (15–30 seconds) for Instagram Reels, TikTok, LinkedIn carousel</li>
+<li>5–10 still photography assets for web and email</li>
+<li>2–3 behind-the-scenes sequences for authenticity</li>
+<li>Motion graphics and title cards that work across all formats</li>
+</ul>
+<p>A single day with one subject, one set, and one crew can yield twenty distinct pieces of content when planned properly. <a href={p("services/social-media-video")}>Social media videos</a> in particular benefit because the same interview footage becomes a LinkedIn thought leadership piece, three Instagram Stories, a YouTube Shorts clip, and an email thumbnail—all tailored to their platform's specs and audience.</p>
+
+<h2>Which Projects Suit Batch Production Best</h2>
+<p><strong>Product launches:</strong> Film your product from six angles, shoot 3–4 spokesperson videos explaining different features, capture lifestyle footage, and generate both long and short cuts. One shoot day yields your entire launch toolkit.</p>
+<p><strong>Employer branding:</strong> Spend one day interviewing four employees, filming office environments, and capturing team moments. You'll have enough material for 8–12 recruiting videos, career page content, and glassdoor assets. <a href={p("services/employer-branding")}>Employer branding videos</a> are particularly cost-effective at scale.</p>
+<p><strong>Thought leadership:</strong> One executive, one interview location, 30 minutes of on-camera dialogue split into 10–15 distinct topic clips. Each clip becomes a separate LinkedIn video or newsletter asset.</p>
+<p><strong>How-to and tutorial series:</strong> Instead of scheduling five separate shoots for a five-part series, film all five episodes in one day. Reset the set, change the demo prop, and run take two. Your per-episode cost plummets. <a href={p("services/how-to-video")}>How-to videos</a> scale beautifully this way.</p>
+
+<h2>Planning a Batch Shoot: The Pre-Production Blueprint</h2>
+<p>Batch production only works with ruthless planning. Here's the framework:</p>
+<ul>
+<li><strong>Lock your creative brief first.</strong> Know exactly which assets you need, their duration, format, and platform before you book the shoot day.</li>
+<li><strong>Build a shot list by location and setup.</strong> Group all interviews at one location, all product shots at another. Minimize setup changes.</li>
+<li><strong>Script loosely.</strong> Tight scripts for branded content, loose interview guides for authenticity—but always prepare talking points so talent doesn't waste time thinking.</li>
+<li><strong>Assign a shoot producer on set.</strong> Someone must track which asset each take belongs to, confirm all formats are covered, and manage the schedule so you don't run over.</li>
+<li><strong>Bring backup props, wardrobe, and setups.</strong> One wardrobe change per talent creates visual variety without eating shoot time.</li>
+<li><strong>Schedule post ruthlessly.</strong> Edit in order of deadline. Multi-format projects need a clear edit assembly line (long-form first, then cuts from long-form for short-form).</li>
+</ul>
+
+<h2>The ROI: Real Numbers</h2>
+<p>A typical single-video shoot costs CHF 4,000–6,000 including crew, location, and two days of editing. A batch shoot costs CHF 5,000–7,000 for the same setup, but yields ten finished assets. That's CHF 500–700 per asset—a 70–80% cost reduction.</p>
+<p>Even accounting for longer edit timelines (editing ten assets takes 3–4 days instead of 2), your fully-loaded cost per video drops from CHF 5,500–7,500 to CHF 1,200–1,800. And because batch content ships faster and hits your calendar consistently, engagement and lead quality both improve.</p>
+<p>For a <a href={p("services/corporate-video")}>corporate video</a> campaign across departments, the math is even stronger: one branded shoot day becomes content for HR, marketing, and product teams simultaneously.</p>
+
+<h2>When Batch Production Doesn't Work</h2>
+<p>High-end narrative films, scripted dramas, or location shoots that require significant permits and travel don't compress into batch production. Photorealistic product CGI and animation also demand singular focus. But for B2B content, employee interviews, thought leadership, social media, and product education—batch production is standard practice among efficient teams.</p>
+
+<h2>Getting Started</h2>
+<p>Start with your highest-volume content need. If you publish 12 LinkedIn videos a year, batch-produce three months' worth in one day. If you need 20 social clips for a campaign, shoot them in two focused days instead of ten scattered sessions. <a href={p("contact")}>Contact Viven AG</a> to audit your content roadmap and design a batch production calendar that fits your budget and timeline.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="batch-video-production-cost-per-video" />
+  </div></section>
+</Base>

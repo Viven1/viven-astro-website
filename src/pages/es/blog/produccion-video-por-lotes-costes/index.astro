@@ -1,0 +1,87 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Producción de video por lotes: cómo reducir costes | Viven"};
+const description = {"es":"Descubre cómo la producción de video por lotes permite crear múltiples activos desde una sola grabación. Reduce costes sin sacrificar calidad."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "produccion-video-por-lotes-costes";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/produccion-video-por-lotes-costes" active="blog" singleLang={true} langUrls={{"en":"/en/blog/batch-video-production-cost-per-video/","de":"/de/blog/","es":"/es/blog/produccion-video-por-lotes-costes/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/produccion-video-por-lotes-costes/\"},\"headline\":\"Producción de video por lotes: cómo reducir costes\",\"description\":\"Descubre cómo la producción de video por lotes permite crear múltiples activos desde una sola grabación. Reduce costes sin sacrificar calidad.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/produccion-video-por-lotes-costes/\",\"datePublished\":\"2026-07-13T12:51:38.814Z\",\"image\":\"https://www.viven.ch/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Producción de video por lotes: cómo reducir costes\",\"item\":\"https://www.viven.ch/es/blog/produccion-video-por-lotes-costes/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto se reduce realmente el coste por video con producción de lotes?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Típicamente entre 40% y 60%, dependiendo de cuántos activos generes en una sesión. Si produces 10 videos de una sola grabación, el coste fijo se divide entre 10 en lugar de distribuirse en 10 sesiones separadas. Para una empresa mediana, esto puede significar ahorros de CHF 30,000–80,000 anuales.\"}},{\"@type\":\"Question\",\"name\":\"¿Pierdo calidad al grabar múltiples videos en una sola sesión?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"No, si está bien planificado. De hecho, la consistencia visual mejora porque todos los videos comparten la misma iluminación, color grading y estética. El riesgo real es la mala planificación logística, que es por eso que trabajamos con un brief de pre-producción detallado.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuáles son los videos que menos se prestan para grabación de lotes?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Campañas comerciales muy específicas, documentales o contenido narrativo que requiere locations muy distintas. La producción por lotes brilla con testimonios, how-to, contenido educativo y comunicación corporativa.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Producción de video por lotes: cómo reducir costes</span></nav>
+  <span class="eyebrow">Estrategia de producción</span>
+  <h1>Producción de video por lotes: cómo reducir costes</h1>
+  <p class="lead">Cuando una empresa decide invertir en video, el mayor reto no es la grabación en sí, sino maximizar el retorno de esa inversión. La producción de video por lotes —grabar múltiples activos en una sola sesión— es la estrategia que empresas como UBS, Siemens y Porsche utilizan para reducir el coste por video hasta un 60% mientras generan contenido reutilizable para redes sociales, web, email y presentaciones internas.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>13 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg" alt="Producción de video por lotes: cómo reducir costes" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>¿Qué es la producción de video por lotes y por qué funciona?</h2><p>La producción por lotes (batch production) consiste en planificar una única sesión de grabación donde se capturan múltiples videos o variantes simultáneamente. En lugar de hacer tres sesiones separadas para un video corporativo, un clip para LinkedIn y un testimonio de cliente, se hace todo en una mañana. Esto reduce gastos de equipo, equipo técnico, locación y coordinación logística.</p><p>El principio es simple: si ya tienes el set armado, la iluminación calibrada y tu talento presente, el coste marginal de grabar cinco minutos más es mínimo. Pero el valor es exponencial: esos cinco minutos adicionales pueden convertirse en 10 o 15 activos editados.</p><h2>Los beneficios económicos reales</h2><ul><li><strong>Reducción de costes fijos:</strong> Equipo de producción, camarógrafo, director y técnico de sonido se amortizan entre más activos, no uno solo.</li><li><strong>Menor tiempo de coordinación:</strong> Un calendario, una locación, una reunión de pre-producción. El ahorro administrativo es significativo en equipos multinacionales.</li><li><strong>Consistencia visual:</strong> Todos los videos comparten la misma estética, iluminación y branding, lo que fortalece la identidad corporativa sin inversión adicional en rebranding.</li><li><strong>Escalabilidad del contenido:</strong> Tienes materia prima para alimentar tus canales de comunicación durante meses sin grabaciones adicionales.</li></ul><h2>Cómo planificar una sesión de grabación efectiva</h2><p>Una sesión de lotes exitosa requiere planificación estricta. Desde VIVEN AG hemos optimizado este proceso con clientes suizos y europeos:</p><ul><li><strong>Define los formatos antes de grabar:</strong> Video vertical para Instagram Reels, horizontal para YouTube, cuadrado para LinkedIn. Genera el shot list para cada uno.</li><li><strong>Agrupa por talento y locación:</strong> Graba todas las escenas con el mismo actor o en el mismo espacio antes de cambiar de setup.</li><li><strong>Crea una matriz de contenidos:</strong> Un testimonio de 3 minutos puede ser: 1 video completo de 3 min, 3 clips de 30 segundos, 5 quotes de texto con B-roll, y 2 gráficos animados. Planifica esto antes de encender cámaras.</li></ul><p>En Viven trabajamos con <a href={p("services/corporate-video")}>videos corporativos</a> y <a href={p("services/employer-branding")}>contenido de employer branding</a> donde esta metodología es particularmente efectiva porque los accionistas, empleados y candidatos necesitan narrativas complementarias a partir del mismo mensaje.</p><h2>Casos reales: de una grabación a diez activos</h2><p>Supongamos que grabes un testimonio de cliente. Con planificación:</p><ul><li>1 video testimonial completo (2 min) para website</li><li>3 clips de 15 segundos para redes sociales</li><li>1 transcripción para blog con pull quotes</li><li>2 gráficos de datos extraídos de la entrevista</li><li>1 versión de audio para podcast corporativo</li><li>2 carruseles de LinkedIn con testimonios clave</li></ul><p>Coste unitario: CHF 400–600 por activo si los haces separadamente. Coste por lotes: CHF 200–300 por activo, amortizado. La diferencia anual puede superar los CHF 50,000 para una empresa que produce 50 videos al año.</p><h2>Herramientas y procesos que agilizan la producción</h2><p>No es solo conceptual. El equipo técnico debe estar preparado:</p><ul><li>Múltiples cámaras capturando ángulos distintos simultáneamente</li><li>Grabación de audio multipista para máxima flexibilidad en edición</li><li>Notas detalladas de cada toma para el editor (toma 3, minuto 0:45, mejor para LinkedIn; toma 7, minuto 2:10, mejor para email)</li><li>Almacenamiento en la nube con acceso inmediato a proxy de edición</li></ul><p>Esto es donde la experiencia cuenta. En nuestros estudios Zurich trabajamos con equipos que dominan estos flujos. Ver nuestro portafolio de <a href={p("projects")}>proyectos recientes</a> te dará claridad sobre cómo manejamos la escala sin perder calidad.</p><h2>Cuándo tiene sentido la producción por lotes</h2><p>No todos los videos se prestan. Funciona mejor para:</p><ul><li>Testimonios de clientes o empleados</li><li>Contenido educativo (tutorials, how-to)</li><li>Comunicaciones internas (valores, cultura)</li><li>Lanzamientos de productos con múltiples perspectivas</li></ul><p>No es ideal para campañas promocionales de un único mensaje o documentales que requieren narrativa linear única. Pero para estrategia de contenido sostenible, es prácticamente obligatorio.</p><h2>El siguiente paso</h2><p>Si tu empresa invierte en video regularmente pero sientes que los costes no escalan bien, es momento de replantear tu calendario de grabación. Una sesión de lotes bien ejecutada puede triplicar tu producción de contenido manteniendo presupuesto constante.</p><p>En Viven AG ayudamos a empresas suizas y del Eespacio DACH a diseñar estrategias de contenido video que funcionen. Si quieres explorar cómo la producción por lotes puede funcionar para tu organización, <a href={p("contact")}>contáctanos para una consulta sin compromiso</a>. Revisaremos tu roadmap de contenido y te mostraremos un plan concreto con cifras reales para tu sector.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="produccion-video-por-lotes-costes" />
+  </div></section>
+</Base>
