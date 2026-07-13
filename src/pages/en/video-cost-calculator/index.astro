@@ -20,7 +20,7 @@ const description = {"en":"Get an instant CHF price range for your video project
     <div class="calc-chips" data-group="days"><button type="button" data-v="0">1 shoot day</button><button type="button" data-v="1">2 days</button><button type="button" data-v="2">3+ days</button></div>
     <div class="calc-chips" data-group="locs" style="margin-top:10px"><button type="button" data-v="0">1 location</button><button type="button" data-v="1">2 locations</button><button type="button" data-v="2">3+ locations</button></div></div>
   <div class="calc-q"><h2>4. Who's on camera?</h2><div class="calc-chips" data-group="talent"><button type="button" data-v="emp">👥 Our own employees</button><button type="button" data-v="mod">💃 Models</button><button type="button" data-v="act">🎭 Professional actors</button><button type="button" data-v="none">🚫 No people on camera</button></div>
-    <div id="calc-lic" hidden style="margin-top:12px"><p style="font-size:14px;margin:0 0 8px;opacity:.85">🪪 Image-usage license (buyout) — how long will the video be in use?</p><div class="calc-chips" data-group="lic"><button type="button" data-v="y1">🪪 1 year</button><button type="button" data-v="y2">🪪 2 years</button><button type="button" data-v="y3">🪪 3 years</button><button type="button" data-v="unl">🪪 Unlimited</button></div></div></div>
+    <div id="calc-lic" hidden style="margin-top:12px"><p style="font-size:14px;margin:0 0 8px;opacity:.85">📡 Where will the video run? (select all that apply)</p><div class="calc-chips calc-multi" data-group="chan"><button type="button" data-v="tv">📺 TV</button><button type="button" data-v="online">💻 Online & social ads (paid)</button><button type="button" data-v="owned">🌐 Own website & social channels</button><button type="button" data-v="cine">🎦 Cinema</button></div><p style="font-size:14px;margin:14px 0 8px;opacity:.85">🪪 Usage license (buyout) — for how long?</p><div class="calc-chips" data-group="lic"><button type="button" data-v="y1">🪪 1 year</button><button type="button" data-v="y2">🪪 2 years</button><button type="button" data-v="y3">🪪 3 years</button><button type="button" data-v="unl">🪪 Unlimited</button></div><p style="font-size:12.5px;margin:12px 0 0;opacity:.6">ℹ️ Talent minimums per the official <a href="https://www.ssfv.ch/de/cast/schauspielgagen-werbung" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">SSFV / SzeneSchweiz guidelines</a> — industry rates, not ours, calculated for 1 lead role. The final cost depends on the cast.</p></div></div>
   <div class="calc-q"><h2>5. Extras</h2><div class="calc-chips calc-multi" data-group="extras"><button type="button" data-v="anim">✨ Animation / motion graphics</button><button type="button" data-v="drone">🚁 Drone footage</button><button type="button" data-v="ml">🌍 Extra language version</button><button type="button" data-v="subs">💬 Subtitles</button><button type="button" data-v="fotos">📸 Photo stills</button><button type="button" data-v="testi">⭐ Client testimonial add-on</button></div></div>
 
   <div class="calc-est" id="calc-est" hidden>
@@ -78,25 +78,28 @@ const description = {"en":"Get an instant CHF price range for your video project
 (function(){
   var PRICE = { types:{brand:6500,product:5000,eb:7500,howto:4000,social:3500,corporate:5500},
     durs:{s:.9,m:1,l:1.15,xl:1.3}, days:[0,2500,5000], locs:[0,600,1200],
-    talent:{emp:0,mod:800,act:1200,none:0}, lic:{y1:.5,y2:.8,y3:1.2,unl:2},
+    talent:{emp:0,mod:800,act:1500,none:0}, chan:{tv:1,online:1,owned:.5,cine:.75}, lic:{y1:1,y2:1.8,y3:2.4,unl:3},
     extras:{anim:1300,drone:650,ml:350,subs:200,fotos:400,testi:1000} };
   var ITEMS = {"base": "Base production", "dur": "Length adjustment", "days": "Extra shoot days", "locs": "Extra locations", "anim": "Animation / motion", "drone": "Drone", "ml": "Extra language", "subs": "Subtitles", "fotos": "Photo stills", "testi": "Testimonial add-on"};
   var TAL = {"mod": "Models", "act": "Professional actors"};
-  var LICL = {"y1": "Image-usage license (1 year)", "y2": "Image-usage license (2 years)", "y3": "Image-usage license (3 years)", "unl": "Image-usage license (unlimited)"};
-  var sel = { type:null, dur:null, days:0, locs:0, talent:null, lic:null, extras:{} };
+  var LICL = {"y1": "1 year", "y2": "2 years", "y3": "3 years", "unl": "unlimited"}; var CHANL = {"tv": "TV", "online": "online ads", "owned": "owned media", "cine": "cinema"};
+  var sel = { type:null, dur:null, days:0, locs:0, talent:null, lic:null, chan:{}, extras:{} };
   function round500(n){ return Math.round(n/500)*500; }
   function calc(){
     if(!sel.type || !sel.dur || !sel.talent) return null;
-    if(PRICE.talent[sel.talent] && !sel.lic) return null;
+    var chansOn = []; for(var c in sel.chan){ if(sel.chan[c]) chansOn.push(c); }
+    if(PRICE.talent[sel.talent] && (!sel.lic || !chansOn.length)) return null;
     var lines = [];
     var base = PRICE.types[sel.type]; lines.push([ITEMS.base, base]);
     var t = base * PRICE.durs[sel.dur];
     if(PRICE.durs[sel.dur] !== 1) lines.push([ITEMS.dur + ' (' + {"s": "under 1 min", "m": "1\u20132 min", "l": "2\u20135 min", "xl": "5+ min"}[sel.dur] + ')', Math.round(base*(PRICE.durs[sel.dur]-1))]);
     if(PRICE.days[sel.days]){ t += PRICE.days[sel.days]; lines.push([ITEMS.days, PRICE.days[sel.days]]); }
     if(PRICE.locs[sel.locs]){ t += PRICE.locs[sel.locs]; lines.push([ITEMS.locs, PRICE.locs[sel.locs]]); }
-    if(PRICE.talent[sel.talent]){ var nd = [1,2,3][sel.days], tc = PRICE.talent[sel.talent]*nd;
+    if(PRICE.talent[sel.talent]){ var rate = PRICE.talent[sel.talent], nd = [1,2,3][sel.days], tc = rate*nd;
       t += tc; lines.push([TAL[sel.talent] + ' (' + nd + (nd>1?' shoot days':' shoot day') + ')', tc]);
-      var lc = Math.round(tc*PRICE.lic[sel.lic]); t += lc; lines.push([LICL[sel.lic], lc]); }
+      var pct = 0, cn = []; chansOn.forEach(function(c){ pct += PRICE.chan[c]; cn.push(CHANL[c]); });
+      var lc = Math.round(rate*pct*PRICE.lic[sel.lic]); t += lc;
+      lines.push(['Buyout / usage license ' + cn.join(' + ') + ' (' + LICL[sel.lic] + ')', lc]); }
     for(var k in sel.extras){ if(sel.extras[k]){ t += PRICE.extras[k]; lines.push([ITEMS[k], PRICE.extras[k]]); } }
     return { lo: round500(t*.9), hi: round500(t*1.15), lines: lines, total: Math.round(t) };
   }
@@ -111,14 +114,14 @@ const description = {"en":"Get an instant CHF price range for your video project
     var group = g.dataset.group, multi = g.classList.contains('calc-multi');
     g.querySelectorAll('button').forEach(function(b){
       b.addEventListener('click', function(){
-        if(multi){ b.classList.toggle('on'); sel.extras[b.dataset.v] = b.classList.contains('on'); }
+        if(multi){ b.classList.toggle('on'); (group==='chan' ? sel.chan : sel.extras)[b.dataset.v] = b.classList.contains('on'); }
         else { g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on');
           if(group==='type') sel.type = b.dataset.v; if(group==='dur') sel.dur = b.dataset.v;
           if(group==='days') sel.days = +b.dataset.v; if(group==='locs') sel.locs = +b.dataset.v;
           if(group==='talent'){ sel.talent = b.dataset.v;
             var lq = document.getElementById('calc-lic'), need = !!PRICE.talent[sel.talent];
             lq.hidden = !need;
-            if(!need){ sel.lic = null; lq.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); } }
+            if(!need){ sel.lic = null; sel.chan = {}; lq.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); } }
           if(group==='lic') sel.lic = b.dataset.v; }
         refresh();
         var est = document.getElementById('calc-est'); if(est && !est.hidden) est.scrollIntoView({behavior:'smooth', block:'nearest'});
