@@ -531,8 +531,12 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     var last = form.last_name.value.trim();
     var references = form.references.value.trim();
     var extra = form.extra.value.trim();
+    // sesión web del visitante (la crea site.js al navegar el sitio; mismo sessionStorage,
+    // mismo origen) — conecta el brief con su historial: páginas vistas, landing, videos
+    var sessionId = null;
+    try { sessionId = sessionStorage.getItem('viven-session'); } catch (e) {}
     var row = {
-      lead_id: leadId, lang: lang,
+      lead_id: leadId, lang: lang, session_id: sessionId,
       name: (first + ' ' + last).trim() || null, first_name: first || null, last_name: last || null,
       email: form.email.value.trim(),
       goal: goal, distribution: distribution || null,
@@ -556,9 +560,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       body: JSON.stringify(row)
     }).then(function(r){
       if (r.ok) { showSuccess(); return; }
-      // columna answers y/o first_name/last_name ausentes (SQL 0027/0047 sin correr) → plegar al extra y reintentar
+      // columna answers/first_name/last_name/session_id ausente (SQL 0027/0047/0056 sin correr) → plegar al extra y reintentar
       var flat = Object.keys(answers).map(function(k){ var v = answers[k]; if (Array.isArray(v)) v = v.join(', '); return v ? k + ': ' + v : ''; }).filter(Boolean).join(' · ');
-      delete row.answers; delete row.first_name; delete row.last_name;
+      delete row.answers; delete row.first_name; delete row.last_name; delete row.session_id;
       row.extra = ((row.extra || '') + (flat ? '\n[brief] ' + flat : '')).trim() || null;
       return fetch(SB_URL + '/rest/v1/briefs', {
         method: 'POST',

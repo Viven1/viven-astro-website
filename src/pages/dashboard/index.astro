@@ -4436,15 +4436,21 @@ const stillsPool = projects
         kv('Idioma', (r.lang || '—').toUpperCase()) +
         kv('Canal', esc(r.channel || 'direct')) +
       '</div>' +
-      '<details class="lm2-morefields"><summary>Ver todos los campos ▾</summary><div class="lm2-kv">' +
-        kv('Fuente (UTM)', esc(r.utm_source || '')) + kv('Campaña (UTM)', esc(r.utm_campaign || '')) +
-        kv('Google Ads', r.gclid ? 'sí (gclid)' : '') + kv('Página de entrada', esc(r.landing_path || '')) +
-        kv('Convirtió en', esc(r.form_path || '')) +
-        kv('Creado', fmtD2(r.created_at)) + kv('Contactado', fmtD2(r.contacted_at)) +
-        kv('Video call', fmtD2(r.videocall_at)) + kv('Propuesta', fmtD2(r.proposal_at)) +
-        kv('Ganado', fmtD2(r.won_at)) + kv('Perdido', fmtD2(r.lost_at)) +
-        kv('ID', esc(String(r.id))) +
-      '</div></details>';
+      (() => {
+        // acá se muestran TODOS los campos, con "—" si están vacíos — que se vea qué
+        // datos existen y cuáles faltan (antes los vacíos desaparecían y parecía roto)
+        const kvA = (k, v) => '<div><div class="k">' + k + '</div><div class="v">' + (v || '<span style="color:var(--muted-2)">—</span>') + '</div></div>';
+        return '<details class="lm2-morefields"><summary>Ver todos los campos ▾</summary><div class="lm2-kv">' +
+          kvA('Fuente (UTM)', esc(r.utm_source || '')) + kvA('Campaña (UTM)', esc(r.utm_campaign || '')) +
+          kvA('Google Ads', r.gclid ? 'sí (gclid)' : '') + kvA('Página de entrada', esc(r.landing_path || '')) +
+          kvA('Convirtió en', esc(r.form_path || '')) +
+          kvA('Sesión web', r.session_id ? 'sí — actividad en la timeline (chip 🌐 Web)' : 'sin sesión conocida') +
+          kvA('Creado', fmtD2(r.created_at)) + kvA('Contactado', fmtD2(r.contacted_at)) +
+          kvA('Video call', fmtD2(r.videocall_at)) + kvA('Propuesta', fmtD2(r.proposal_at)) +
+          kvA('Ganado', fmtD2(r.won_at)) + kvA('Perdido', fmtD2(r.lost_at)) +
+          kvA('ID', esc(String(r.id))) +
+        '</div></details>';
+      })();
     const cl = $('lm2-colink'); if (cl) cl.addEventListener('click', (e) => { e.preventDefault(); closeLead2(); gotoTab('companies'); openCompany(ldom); });
 
     lm2RenderComposer();
@@ -4587,8 +4593,10 @@ const stillsPool = projects
       head + '<div id="lm2-ai-sug"></div>';
     const aiBtn = $('lm2-next-ai');
     aiBtn.addEventListener('click', (e) => { e.preventDefault(); lm2AiNext(r, true); });
-    // sin task ni follow-up → la IA sugiere sola (cacheado por contacto para no re-pagar en cada apertura)
-    if (!pick && !r.next_follow_up_at) lm2AiNext(r, false);
+    // sin una TASK concreta → la IA sugiere sola (el follow-up automático no cuenta como
+    // "próximo paso pensado": mostrarlo solo hacía que la tarjeta dijera siempre lo mismo).
+    // Cacheado por contacto para no re-pagar tokens en cada apertura.
+    if (!pick) lm2AiNext(r, false);
   }
   /* Sugerencias IA de próximo paso: usa ai-insights (ya deployada) con un resumen del
      contacto — etapa, días sin actividad, brief, ofertas y los últimos eventos de la
