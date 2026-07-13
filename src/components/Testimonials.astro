@@ -2,13 +2,23 @@
 import data from '../data/reviews.json';
 import { pick, SITE } from '../i18n.js';
 const { lang = 'en', cat = '', client = '' } = Astro.props;
-/* client (case study): la reseña de ESE cliente va primera. Si no, por categoría (servicios). */
+/* client (case study): la reseña de ESE cliente va primera. Si no, por categoría (servicios).
+   Además, ROTACIÓN por página: hay 40 reseñas pero solo se muestran 12 — antes eran las
+   mismas 12 calcadas en todo el sitio (contenido duplicado interno y 28 reseñas nunca
+   vistas). El offset sale del path de la página (determinístico: cada URL muestra siempre
+   SU tanda, pero páginas distintas muestran tandas distintas). La prioridad se mantiene:
+   el cliente del case primero, la categoría del servicio primero — la rotación es dentro
+   de cada grupo. */
+const seed = [...Astro.url.pathname].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const rot = (arr) => { if (arr.length < 2) return arr; const k = seed % arr.length; return [...arr.slice(k), ...arr.slice(0, k)]; };
 let pool = data.reviews || [];
 if (client) {
   const m = (r) => (((r.company || '') + ' ' + r.text).toLowerCase().includes(client.toLowerCase()));
-  pool = [...pool.filter(m), ...pool.filter((r) => !m(r))];
+  pool = [...pool.filter(m), ...rot(pool.filter((r) => !m(r)))];
 } else if (cat) {
-  pool = [...pool.filter((r) => r.cat === cat), ...pool.filter((r) => r.cat !== cat)];
+  pool = [...rot(pool.filter((r) => r.cat === cat)), ...rot(pool.filter((r) => r.cat !== cat))];
+} else {
+  pool = rot(pool);
 }
 const reviews = pool.slice(0, 12);
 const rating = data.rating || 5;
