@@ -46,7 +46,8 @@ Reglas:
 - Podés agregar como máximo 2 ítems fuera del catálogo si son imprescindibles; en ese caso estimá price y cost coherentes (costo = lo que pagamos a freelancer/rental).
 - Un proyecto típico de Viven va de CHF 3'000 a 12'000 netos. No exageres.
 - Cubrí las fases que correspondan: Development, Pre-Production, Production, Post-Production, Delivery.
-- Si el brief trae "answers", USALO: formats con 9:16/1:1 → agregá "Social cutdowns"; cada idioma extra o "Subtitles needed" → una posición de "Untertitel / Subtitles" por idioma; quantity de varios videos → escalá días de producción/edición en proporción; "Animation (no shoot)" o "No shoot needed" → sin crew de rodaje, más Motion/VFX; "Multiple locations" → más días de producción y Van; el budget del brief es el techo orientativo del total neto.
+- Si el brief trae "answers", USALO: formats con 9:16/1:1 → agregá "Social cutdowns"; cada idioma extra o "Subtitles needed" → una posición de "Untertitel / Subtitles" por idioma; quantity de varios videos → escalá días de producción/edición en proporción; "Animation (no shoot)" o "No shoot needed" → sin crew de rodaje, más Motion/VFX; "Multiple locations" → más días de producción y Van.
+- IMPORTANTE — presupuesto del brief (answers.budget): si existe y NO es "Not sure yet", es un TECHO DURO, no orientativo. Tomá el extremo SUPERIOR del rango como límite ("< CHF 5k" → 5'000; "CHF 5–15k" → 15'000; "CHF 15–40k" → 40'000; "CHF 40k+" → tratalo como ~45'000) y el TOTAL NETO de la oferta (suma qty×price) NUNCA puede superar ese número. Quedar por debajo está perfecto (ideal si los costos reales dan más bajo). Superarlo NO — le pedimos ese dato al cliente justamente para no ofertarle algo que no puede pagar; si hace falta, bajá días/posiciones hasta entrar en el rango.
 - El "title" corto y claro (cliente + tipo de video). El "summary" en ${language}, 1-2 frases sobre el enfoque.
 
 Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:

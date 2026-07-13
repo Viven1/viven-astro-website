@@ -365,6 +365,8 @@ const stillsPool = projects
   .lead-table .lt-val{font-family:'Space Grotesk';font-weight:700;white-space:nowrap}
   .lead-table .lt-act{color:var(--muted);font-size:12.5px;white-space:nowrap}
   .lead-table .lt-num{text-align:right;white-space:nowrap;color:var(--muted)}
+  .lead-table .lt-chk{width:1%;white-space:nowrap;padding:12px 6px 12px 14px}
+  .lead-table .lt-chk input{width:16px;height:16px;accent-color:var(--acid);cursor:pointer}
   .lead-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
   .pipe-list{display:flex;flex-direction:column;gap:9px;overflow-y:auto;min-height:50px;padding:11px}
   .pipe-card{background:var(--navy-700);border:1px solid var(--line);border-left:3px solid var(--stage,#8ab4ff);border-radius:8px;padding:11px 12px;cursor:grab;transition:transform .12s,border-color .2s,box-shadow .2s}
@@ -1071,6 +1073,7 @@ const stillsPool = projects
         <option value="stage">🔁 Cambio de etapa</option>
       </select>
       <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
+      <button class="btn btn-danger small" id="ps-del-sel" type="button" hidden>🗑 Borrar seleccionados</button>
     </div>
     <div id="leads-list"></div>
   </div>
@@ -1180,7 +1183,7 @@ const stillsPool = projects
       <div class="of-bar"><button class="btn btn-ghost small" id="co-back" type="button">← Volver</button></div>
       <div class="lm-top">
         <div class="lm-id"><div class="lm-avatar" id="co-avatar"></div><div class="lm-idtext"><h3 id="co-name"></h3><div class="lm-sub" id="co-domain"></div></div></div>
-        <div class="lm-quick"><button class="lm-qbtn" id="co-edit-btn" type="button">✏️ Editar</button><a class="lm-qbtn" id="co-web" target="_blank" rel="noopener" hidden>🌐 Web</a></div>
+        <div class="lm-quick"><button class="lm-qbtn" id="co-edit-btn" type="button">✏️ Editar</button><a class="lm-qbtn" id="co-web" target="_blank" rel="noopener" hidden>🌐 Web</a><button class="lm-qbtn" id="co-del-btn" type="button" style="color:#ff8b8b">🗑 Borrar empresa</button></div>
       </div>
       <div class="lm-grid">
         <aside class="lm-left" id="co-about"></aside>
@@ -2601,6 +2604,7 @@ const stillsPool = projects
     if (psAct !== 'all') rows = rows.filter((r) => (lastActivity(r) || {}).kind === psAct);
     cont.innerHTML = leadsListHTML(rows);
     cont.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id)));
+    bindPsSelection(); updatePsDelBtn();
     cont.querySelectorAll('.lead-table th[data-k]').forEach((th) => th.addEventListener('click', () => {
       const k = th.dataset.k;
       if (psSort.k === k) psSort.dir *= -1;
@@ -3022,6 +3026,7 @@ const stillsPool = projects
       const co = (dom && companyName(dom)) || r.company || '';
       const nd = dealsForLead(r.id).length;
       return '<tr data-id="' + esc(r.id) + '">' +
+        '<td class="lt-chk"><input type="checkbox" class="ps-row-chk" data-id="' + esc(r.id) + '"' + (psSelected.has(String(r.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
         '<td><div class="lt-person"><span class="lt-av" style="background:' + avColor(nm) + '">' + esc(ini) + '</span><div><div class="lt-name">' + esc(nm) + '</div>' + (r.job_title ? '<div class="lt-sub">' + esc(r.job_title) + '</div>' : '') + '</div></div></td>' +
         '<td class="lt-mail2">' + (r.email ? '<a href="mailto:' + esc(r.email) + '" onclick="event.stopPropagation()">' + esc(r.email) + '</a>' : '—') + '</td>' +
         '<td class="lt-ph">' + esc(r.phone || '—') + '</td>' +
@@ -3033,10 +3038,40 @@ const stillsPool = projects
         '<td class="lt-num">' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) + '</td></tr>';
     }).join('');
     const TH = (k, l) => '<th data-k="' + k + '" class="lt-sort' + (psSort.k === k ? ' on' : '') + '" title="Ordenar por ' + l.toLowerCase() + '">' + l + (psSort.k === k ? (psSort.dir === 1 ? ' ↑' : ' ↓') : '') + '</th>';
+    const allChecked = sorted.length > 0 && sorted.every((r) => psSelected.has(String(r.id)));
     return '<div class="lead-table-wrap lead-table-hs"><table class="lead-table"><thead><tr>' +
+      '<th class="lt-chk"><input type="checkbox" id="ps-chk-all"' + (allChecked ? ' checked' : '') + ' title="Seleccionar todos los visibles" /></th>' +
       TH('name', 'Persona') + TH('email', 'Email') + '<th>Teléfono</th>' + TH('company', 'Empresa') + TH('stage', 'Etapa') + TH('score', 'Score') + TH('value', 'Valor') + TH('activity', 'Última actividad') + TH('created', 'Creado') +
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
+  // Personas: selección múltiple para borrar en batch
+  let psSelected = new Set();
+  function updatePsDelBtn(){
+    const btn = $('ps-del-sel'); if (!btn) return;
+    btn.hidden = psSelected.size === 0;
+    btn.textContent = '🗑 Borrar seleccionados (' + psSelected.size + ')';
+  }
+  function bindPsSelection(){
+    document.querySelectorAll('.ps-row-chk').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) psSelected.add(cb.dataset.id); else psSelected.delete(cb.dataset.id);
+      updatePsDelBtn();
+      const all = $('ps-chk-all'); if (all) all.checked = [...document.querySelectorAll('.ps-row-chk')].every((c) => c.checked);
+    }));
+    const allBox = $('ps-chk-all');
+    if (allBox) allBox.addEventListener('change', () => {
+      document.querySelectorAll('.ps-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) psSelected.add(cb.dataset.id); else psSelected.delete(cb.dataset.id); });
+      updatePsDelBtn();
+    });
+  }
+  $('ps-del-sel') && $('ps-del-sel').addEventListener('click', async () => {
+    const ids = [...psSelected]; if (!ids.length) return;
+    if (!confirm('¿Borrar definitivamente ' + ids.length + ' persona' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
+    const { error } = await supabase.from('leads').delete().in('id', ids);
+    if (error) { alert('No se pudo borrar: ' + error.message); return; }
+    allLeads = allLeads.filter((l) => !ids.includes(String(l.id)));
+    psSelected.clear();
+    renderLeads();
+  });
   function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id))); }
   // en táctil el drag nativo secuestra el scroll (iOS): ahí la etapa se cambia desde el contacto
   const PIPE_DRAG = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
@@ -7012,8 +7047,22 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       $('co-back').addEventListener('click', () => { coCur = null; $('co-detail').hidden = true; $('co-list-view').hidden = false; });
       $('co-search').addEventListener('input', renderCompaniesList);
       $('co-edit-btn').addEventListener('click', editCompany);
+      $('co-del-btn').addEventListener('click', deleteCompany);
     }
     if (coCur) renderCompanyDetail(); else { $('co-detail').hidden = true; $('co-list-view').hidden = false; renderCompaniesList(); }
+  }
+  async function deleteCompany(){
+    const domain = coCur; if (!domain) return;
+    const data = companiesData().find((c) => c.domain === domain);
+    const n = data ? data.contacts.length : 0;
+    const warn = n ? '\n\nOjo: tiene ' + n + ' contacto' + (n === 1 ? '' : 's') + ' — la tarjeta va a seguir apareciendo (agrupada por dominio), pero sin la ficha/notas que cargaste.' : '';
+    if (!confirm('¿Borrar la empresa "' + (data ? data.name : domain) + '"?' + warn)) return;
+    const { error } = await supabase.from('companies').delete().eq('domain', domain);
+    if (error) { alert('No se pudo borrar: ' + error.message); return; }
+    delete coMeta[domain];
+    coCur = null;
+    toast('🗑 Empresa borrada');
+    renderCompanies();
   }
   function renderCompaniesList(){
     let data = companiesData();

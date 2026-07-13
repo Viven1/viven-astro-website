@@ -41,6 +41,8 @@ ${catLines || "(no catalog)"}
 
 Produce THREE packages (tiers), increasing in scope/price (e.g. Lite / Plus / Premium — name them fittingly). Differentiate them clearly: more shooting days, more outputs/videos, more crew, extra formats. Mark ONE as recommended (usually the middle). A typical Viven project is CHF 3'000–20'000 net. Prices/costs of catalog items must be their catalog values; adjust quantities. You may add up to 2 custom items per tier if essential (estimate price & cost).
 
+IMPORTANT — brief budget (answers.budget): if present and NOT "Not sure yet", take the UPPER end of that bracket as a number ("< CHF 5k" → 5'000; "CHF 5–15k" → 15'000; "CHF 15–40k" → 40'000; "CHF 40k+" → treat as ~45'000). Your FIRST tier (the entry-level one, matching what they actually asked for) must have a net total (sum of qty×price) AT OR BELOW that number — never above it; we asked for their budget specifically so we don't come back pricier than what they said they can spend. Tier 2 and 3 CAN go above it, but only because they visibly include more than the client asked for (extra deliverables, more days, more formats) — make that "more for more" clearly visible in their "includes" bullets, not just a price bump on the same scope.
+
 Client: ${client_name || "the client"}${client_company ? " at " + client_company : ""}.
 
 Respond ONLY with valid JSON, no extra text, exactly this shape:
