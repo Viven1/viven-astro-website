@@ -21,7 +21,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <style is:global>
   .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px}
   .brief-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
-  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em}
+  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em;display:block;text-decoration:none}
   .brief-langs{display:flex;gap:4px}
   .brief-langs button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 9px;cursor:pointer;transition:.15s}
   .brief-langs button:hover{color:var(--text)}
@@ -103,7 +103,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <body>
 <div class="brief-wrap">
   <div class="brief-top">
-    <div class="brief-logo"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" style="height:22px;width:auto;display:block" /></div>
+    <a class="brief-logo" id="brief-home-link" href="/" aria-label="VIVEN — Home"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" style="height:22px;width:auto;display:block" /></a>
     <div class="brief-langs" id="brief-langs">
       <button type="button" data-lang="en">EN</button>
       <button type="button" data-lang="de">DE</button>
@@ -320,6 +320,11 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     </div>
     <div class="brief-email-msg no-print" id="brief-email-msg"></div>
     <div class="brief-summary" id="brief-summary"></div>
+    <p class="brief-alt no-print">
+      <a href="/" id="brief-back-link" data-en="← Back to viven.ch" data-de="← Zurück zu viven.ch" data-es="← Volver a viven.ch">← Back to viven.ch</a>
+      &nbsp;·&nbsp;
+      <a href="/" id="brief-work-link" data-en="See our work →" data-de="Unsere Arbeiten ansehen →" data-es="Ver nuestro trabajo →">See our work →</a>
+    </p>
   </div>
 </div>
 
@@ -345,6 +350,11 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     });
     document.documentElement.lang = lang;
     document.querySelectorAll('#brief-langs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
+    // el logo y los links de "volver"/"ver más" no son un callejón sin salida — llevan al home/portfolio del idioma actual
+    var home = '/' + lang + '/';
+    var work = '/' + lang + '/projects/';
+    ['brief-home-link', 'brief-back-link'].forEach(function(id){ var a = document.getElementById(id); if (a) a.href = home; });
+    var w = document.getElementById('brief-work-link'); if (w) w.href = work;
   }
   applyLang();
   document.querySelectorAll('#brief-langs button').forEach(function(b){
