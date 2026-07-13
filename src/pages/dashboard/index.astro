@@ -1930,6 +1930,93 @@ const stillsPool = projects
 </div>
 
 <!-- ============ LEAD DETAIL MODAL ============ -->
+<style is:global>
+/* ============ FICHA DE CONTACTO V2 (test) — estilo HubSpot/Keap ============
+   Convive con la clásica: se activa con "✨ Ficha nueva" y queda guardada por
+   navegador (localStorage vv_ficha2). Cuando esté madura, se hace default. */
+.lm2-card{display:flex;flex-direction:column;max-height:92vh;overflow:hidden}
+.lm2-hd{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--navy-800);flex-wrap:wrap}
+.lm2-avatar{width:42px;height:42px;border-radius:50%;background:var(--acid);color:#142033;display:grid;place-items:center;font-weight:800;font-family:'Space Grotesk';font-size:15px;flex:none}
+.lm2-who{min-width:0}
+.lm2-who .nm{font-family:'Space Grotesk';font-weight:700;font-size:16.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lm2-who .sub{font-size:12px;color:var(--muted)}
+.lm2-nav{display:flex;gap:4px}
+.lm2-nav button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--muted);cursor:pointer;font-size:13px}
+.lm2-nav button:hover{color:var(--text)}
+.lm2-pipe{display:flex;border:1px solid var(--line-strong);border-radius:100px;overflow:hidden;font-size:10.5px;font-weight:700}
+.lm2-pipe span{padding:6px 11px;color:var(--muted-2);cursor:pointer;white-space:nowrap}
+.lm2-pipe span.done{color:#142033;background:var(--acid)}
+.lm2-pipe span.cur{color:var(--acid);background:rgba(221,249,143,.13)}
+.lm2-pipe span:hover:not(.done):not(.cur){color:var(--text)}
+.lm2-lost{font-size:10.5px;font-weight:700;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:100px;padding:6px 11px}
+.lm2-actions{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative}
+.lm2-menu{position:absolute;right:0;top:40px;z-index:9;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:12px;padding:6px;width:230px;box-shadow:0 18px 50px -12px rgba(0,0,0,.8);font-size:12.5px}
+.lm2-menu button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--text);font:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+.lm2-menu button:hover{background:rgba(255,255,255,.06)}
+.lm2-menu button.danger{color:#ff8b8b}
+.lm2-menu hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+.lm2-grid{display:grid;grid-template-columns:240px 1fr 280px;gap:0;overflow-y:auto;flex:1}
+.lm2-l{border-right:1px solid var(--line);padding:16px}
+.lm2-c{padding:16px 20px;background:rgba(0,0,0,.12);min-width:0}
+.lm2-r{border-left:1px solid var(--line);padding:16px}
+.lm2-sech{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:0 0 10px}
+.lm2-kv{display:grid;gap:9px;font-size:12.5px}
+.lm2-kv .k{color:var(--muted-2);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.lm2-kv .v{font-weight:600;word-break:break-word}
+.lm2-kv .v a{color:var(--acid);text-decoration:none}
+.lm2-morefields{margin-top:12px;font-size:11.5px;color:var(--muted)}
+.lm2-morefields summary{cursor:pointer;text-decoration:underline dotted}
+.lm2-morefields .lm2-kv{margin-top:10px}
+.lm2-composer{border:1px solid var(--line-strong);border-radius:13px;background:var(--navy-800);margin-bottom:16px;overflow:hidden}
+.lm2-ctabs{display:flex;border-bottom:1px solid var(--line);font-size:12px;font-weight:700}
+.lm2-ctabs button{background:transparent;border:0;color:var(--muted);font:inherit;font-weight:700;padding:9px 14px;cursor:pointer}
+.lm2-ctabs button.on{color:var(--acid);box-shadow:inset 0 -2px var(--acid)}
+.lm2-cbody{padding:10px 12px}
+.lm2-cbody textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font:13px/1.5 Inter,sans-serif;padding:9px 11px;min-height:64px;resize:vertical}
+.lm2-cbody input,.lm2-cbody select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font:12.5px Inter,sans-serif;padding:7px 9px}
+.lm2-crow{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.lm2-crow .sp{flex:1}
+.lm2-chips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.lm2-chips button{background:transparent;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:600 11px Inter,sans-serif;padding:5px 11px;cursor:pointer}
+.lm2-chips button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
+.lm2-tl{position:relative;padding-left:18px}
+.lm2-tl::before{content:"";position:absolute;left:4px;top:6px;bottom:6px;width:1.5px;background:var(--line-strong)}
+.lm2-ev{position:relative;padding:0 0 14px 10px}
+.lm2-ev::before{content:"";position:absolute;left:-18px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--navy-800);border:2px solid var(--muted-2)}
+.lm2-ev.hot::before{border-color:var(--acid);background:var(--acid)}
+.lm2-ev .when{font-size:10px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.05em}
+.lm2-ev .card{margin-top:4px;border:1px solid var(--line);border-radius:11px;background:var(--navy-800);padding:9px 12px;font-size:12.5px;word-break:break-word}
+.lm2-ev .card .meta{color:var(--muted);font-size:11.5px;margin-top:3px}
+.lm2-ev .card details summary{cursor:pointer;color:var(--muted);font-size:11.5px;margin-top:4px}
+.lm2-ev .card details div{margin-top:6px;white-space:pre-wrap;color:var(--text);font-size:12.5px}
+.lm2-chip{display:inline-block;font-size:9.5px;font-weight:700;border-radius:20px;padding:1px 7px;margin-right:6px;vertical-align:1px}
+.lm2-chip.email{background:rgba(138,180,255,.15);color:#8ab4ff}
+.lm2-chip.nota{background:rgba(240,192,96,.15);color:#f0c060}
+.lm2-chip.brief{background:rgba(221,249,143,.14);color:var(--acid)}
+.lm2-chip.sys{background:rgba(255,255,255,.08);color:var(--muted)}
+.lm2-chip.task{background:rgba(126,217,87,.15);color:#7ed957}
+.lm2-chip.web{background:rgba(94,199,209,.15);color:#5ec7d1}
+.lm2-next{border:1px solid rgba(221,249,143,.4);border-radius:12px;background:rgba(221,249,143,.07);padding:11px 13px;margin-bottom:12px}
+.lm2-next .t{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid);font-weight:700}
+.lm2-next .v{font-size:12.5px;font-weight:600;margin-top:4px}
+.lm2-next .v small{display:block;color:var(--muted);font-weight:400;font-size:11px;margin-top:2px}
+.lm2-as{border:1px solid var(--line);border-radius:12px;background:var(--navy-800);margin-bottom:11px;overflow:hidden}
+.lm2-as .top{display:flex;align-items:center;gap:7px;padding:10px 13px;font-weight:700;font-size:12.5px}
+.lm2-as .top .n{margin-left:auto;font-size:10.5px;color:var(--muted);font-weight:600}
+.lm2-as .row{border-top:1px solid var(--line);padding:9px 13px;font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer;background:transparent;width:100%;border-left:0;border-right:0;border-bottom:0;color:var(--text);font-family:inherit;text-align:left}
+.lm2-as .row:hover{background:rgba(255,255,255,.03)}
+.lm2-as .row .amt{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lm2-as .row .stb{font-size:9.5px;font-weight:700;border:1px solid;border-radius:20px;padding:1px 6px;white-space:nowrap}
+.lm2-as .add{border-top:1px solid var(--line);padding:8px 13px;font-size:11.5px;color:var(--acid);cursor:pointer;font-weight:600;background:transparent;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:left;font-family:inherit}
+.lm2-as .row select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:7px;color:var(--text);font:600 10.5px Inter,sans-serif;padding:3px 5px;max-width:110px}
+@media(max-width:960px){
+  .lm2-grid{display:flex;flex-direction:column}
+  .lm2-l{order:3;border:none;border-top:1px solid var(--line)}
+  .lm2-c{order:1}
+  .lm2-r{order:2;border:none;border-top:1px solid var(--line)}
+  .lm2-pipe span{padding:6px 8px}
+}
+</style>
 <div class="lead-modal" id="lead-modal" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="backdrop" data-close></div>
   <div class="lead-card lead-card-wide">
@@ -1951,6 +2038,7 @@ const stillsPool = projects
         <button class="lm-qbtn" id="lm-review" type="button" title="Enviar pedido de reseña de Google (solo cuando el proyecto está ENTREGADO)" hidden>⭐ Pedir reseña</button>
         <button class="lm-qbtn" id="lm-ads-x" type="button" title="Incluir/excluir este lead de las conversiones que se reportan a Google Ads" hidden>🎯</button>
         <button class="lm-qbtn" id="lm-replied" type="button" title="Marcar que el contacto respondió — lo saca de todas las secuencias automáticas activas">✉️ Respondió</button>
+        <button class="lm-qbtn" id="lm-try-v2" type="button" style="border-color:var(--acid);color:var(--acid)" title="Probar la ficha nueva (estilo HubSpot) — se puede volver cuando quieras">✨ Ficha nueva</button>
       </div>
     </div>
 
@@ -2010,6 +2098,24 @@ const stillsPool = projects
     <div class="lead-actions">
       <div class="left"><span class="muted-note">ID: <span id="lm-id-txt"></span></span></div>
       <button class="btn btn-danger small" id="lm-delete" type="button">🗑 Borrar lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- FICHA V2 (test): mismo overlay .lead-modal, contenido nuevo -->
+<div class="lead-modal" id="lead-modal2" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="backdrop" data-close2></div>
+  <div class="lead-card lead-card-wide lm2-card">
+    <button class="close" type="button" data-close2 aria-label="Cerrar">&times;</button>
+    <div class="lm2-hd" id="lm2-hd"></div>
+    <div class="lm2-grid">
+      <aside class="lm2-l" id="lm2-l"></aside>
+      <main class="lm2-c">
+        <div class="lm2-composer" id="lm2-composer"></div>
+        <div class="lm2-chips" id="lm2-chips"></div>
+        <div class="lm2-tl" id="lm2-tl"><p class="muted-note">Cargando actividad…</p></div>
+      </main>
+      <aside class="lm2-r" id="lm2-r"></aside>
     </div>
   </div>
 </div>
@@ -3304,7 +3410,10 @@ const stillsPool = projects
     es: 'Tu proyecto de video — Viven'
   };
 
-  function openLead(id){
+  /* Dispatcher ficha clásica / ficha nueva (V2, test) — preferencia por navegador */
+  const ficha2On = () => localStorage.getItem('vv_ficha2') === '1';
+  function openLead(id){ if (ficha2On()) openLeadV2(id); else openLeadClassic(id); }
+  function openLeadClassic(id){
     const r = allLeads.find((l) => String(l.id) === String(id));
     if (!r) return;
     currentLead = r;
@@ -4209,6 +4318,305 @@ const stillsPool = projects
     closeLead();
     renderLeads();
   });
+
+  /* ============ FICHA V2 (test) — estilo HubSpot/Keap ============
+     Una timeline unificada (emails+notas+tasks+briefs+web+etapas), composer con
+     pestañas, próximo paso siempre visible, y el negocio en tarjetas a la derecha.
+     Acciones raras → menú ⋯. Editar/IA/reseña siguen en la clásica por ahora. */
+  const modal2 = $('lead-modal2');
+  let lm2Lead = null, lm2Filter = 'all', lm2Events = [], lm2Tab = 'nota';
+  function closeLead2(){ modal2.classList.remove('open'); modal2.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; lm2Lead = null; currentLead = null; }
+  modal2.querySelectorAll('[data-close2]').forEach((el) => el.addEventListener('click', closeLead2));
+  $('lm-try-v2') && $('lm-try-v2').addEventListener('click', () => {
+    localStorage.setItem('vv_ficha2', '1');
+    const id = currentLead && currentLead.id;
+    closeLead();
+    if (id) openLeadV2(id);
+    toast('✨ Ficha nueva activada — «⋯ → Volver a la clásica» para deshacer');
+  });
+
+  function lm2FmtDT(d){ return d ? new Date(d).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''; }
+
+  function openLeadV2(id){
+    const r = allLeads.find((l) => String(l.id) === String(id));
+    if (!r) return;
+    lm2Lead = r; currentLead = r; lm2Filter = 'all';
+    const ldom = leadDomain(r);
+    const company = (ldom && companyName(ldom)) || r.company || '';
+    const first = r.first_name || (r.name || '').trim().split(/\s+/)[0] || '';
+    const last = r.last_name || (r.name || '').trim().split(/\s+/).slice(1).join(' ') || '';
+    const cur = stageOf(r.status);
+    const lost = cur === 'perdido';
+    const linear = STAGES.filter((s) => s.key !== 'perdido');
+    const curIdx = linear.findIndex((s) => s.key === cur);
+    const pipe = '<div class="lm2-pipe">' + linear.map((s, i) =>
+      '<span class="' + (lost ? '' : i < curIdx ? 'done' : i === curIdx ? 'cur' : '') + '" data-st="' + s.key + '" title="Pasar a ' + s.label + '">' + s.label + '</span>').join('') + '</div>' +
+      (lost ? '<span class="lm2-lost" title="' + esc(r.lost_reason || '') + '">Perdido</span>' : '');
+    // orden de navegación ←→: la misma lista filtrada que ve Personas
+    const order = filteredLeads().map((l) => String(l.id));
+    const oi = order.indexOf(String(r.id));
+    $('lm2-hd').innerHTML =
+      '<div class="lm2-nav"><button id="lm2-prev" title="Contacto anterior"' + (oi <= 0 ? ' disabled' : '') + '>←</button><button id="lm2-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>→</button></div>' +
+      '<div class="lm2-avatar">' + esc(((first[0] || '?') + (last[0] || '')).toUpperCase()) + '</div>' +
+      '<div class="lm2-who"><div class="nm">' + esc(r.name || '(sin nombre)') + '<span class="lm-score" id="lm2-score"></span></div>' +
+      '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div></div>' +
+      pipe +
+      '<div class="lm2-actions">' +
+        '<a class="btn btn-primary small" href="mailto:' + esc(r.email) + '" style="text-decoration:none">✉️ Email</a>' +
+        (r.phone ? '<a class="btn btn-ghost small" href="tel:' + esc((r.phone || '').replace(/[^\d+]/g, '')) + '" style="text-decoration:none">📞</a>' : '') +
+        '<button class="btn btn-ghost small" id="lm2-crear" type="button">➕ Crear ▾</button>' +
+        '<button class="btn btn-ghost small" id="lm2-dots" type="button" title="Más acciones">⋯</button>' +
+        '<div class="lm2-menu" id="lm2-menu" hidden></div>' +
+      '</div>';
+    // score: mismo pill que la clásica (renderLeadScore escribe en lm-score → lo copio a mano)
+    try { renderLeadScore(r); const s0 = $('lm-score'); const s2 = $('lm2-score'); if (s0 && s2) { s2.textContent = s0.textContent; s2.title = s0.title; s2.style.cssText = s0.style.cssText; } } catch (e) {}
+    $('lm2-prev') && $('lm2-prev').addEventListener('click', () => oi > 0 && openLeadV2(order[oi - 1]));
+    $('lm2-next') && $('lm2-next').addEventListener('click', () => oi < order.length - 1 && openLeadV2(order[oi + 1]));
+    // etapa: clic en el pipeline = mismo flujo que el select de la clásica
+    $('lm2-hd').querySelectorAll('.lm2-pipe span').forEach((sp) => sp.addEventListener('click', async () => {
+      const key = sp.dataset.st; if (key === cur) return;
+      const top = latestDealOf(r.id);
+      const ok = top ? await setDealStage(top.id, key) : await setLeadStage(r.id, key);
+      if (ok) { toast('Etapa → ' + (STAGES.find((s) => s.key === key) || {}).label); openLeadV2(r.id); }
+    }));
+    // popover compartido (⋯ y ➕ Crear): se re-arma el contenido en cada apertura
+    const menu = $('lm2-menu');
+    function lm2Menu(html, wire){
+      menu.innerHTML = html; menu.hidden = false;
+      wire(menu);
+      setTimeout(() => document.addEventListener('click', () => { menu.hidden = true; }, { once: true }), 0);
+    }
+    $('lm2-dots').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!menu.hidden) { menu.hidden = true; return; }
+      lm2Menu(
+        (r.phone ? '<button data-act="wa">💬 WhatsApp</button>' : '') +
+        '<button data-act="classic">🧰 Abrir ficha clásica (editar, IA, reseña…)</button>' +
+        '<button data-act="volver">↩️ Volver a la ficha clásica (siempre)</button>' +
+        '<hr /><button data-act="del" class="danger">🗑 Borrar contacto</button>',
+        (m) => m.querySelectorAll('button').forEach((b) => b.addEventListener('click', async (ev) => {
+          ev.stopPropagation(); m.hidden = true;
+          const act = b.dataset.act;
+          if (act === 'wa') window.open('https://wa.me/' + (r.phone || '').replace(/[^\d+]/g, '').replace(/^\+/, ''), '_blank');
+          if (act === 'classic') { closeLead2(); openLeadClassic(r.id); }
+          if (act === 'volver') { localStorage.removeItem('vv_ficha2'); closeLead2(); openLeadClassic(r.id); toast('Ficha clásica de nuevo como default'); }
+          if (act === 'del') {
+            if (!confirm('¿Borrar definitivamente el contacto "' + (r.name || r.email) + '"? Esta acción no se puede deshacer.')) return;
+            const { error } = await supabase.from('leads').delete().eq('id', r.id);
+            if (error) { alert('No se pudo borrar: ' + error.message); return; }
+            allLeads = allLeads.filter((l) => l.id !== r.id);
+            closeLead2(); renderLeads();
+          }
+        })));
+    });
+    $('lm2-crear').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!menu.hidden) { menu.hidden = true; return; }
+      lm2Menu('<button data-c="offer">🧾 Oferta</button><button data-c="prop">🌐 Propuesta</button><button data-c="deal">🤝 Proyecto</button><button data-c="task">✅ Task</button>',
+        (m) => m.querySelectorAll('button').forEach((cb) => cb.addEventListener('click', async (ev) => {
+          ev.stopPropagation(); m.hidden = true;
+          const c = cb.dataset.c;
+          if (c === 'offer') { closeLead2(); makeOfferForLead(r); }
+          if (c === 'prop') { closeLead2(); makePropForLead(r); }
+          if (c === 'deal') { const t = prompt('Nombre del nuevo proyecto:', 'Nuevo proyecto — ' + (r.name || r.email || '')); if (t === null) return; const d = await newDealForLead(r.id, t.trim() || 'Nuevo proyecto', 'nuevo'); if (d) { toast('🤝 Proyecto creado'); openLeadV2(r.id); } }
+          if (c === 'task') { lm2Tab = 'task'; lm2RenderComposer(); const inp = $('lm2-task-t'); if (inp) inp.focus(); }
+        })));
+    });
+
+    // IZQUIERDA: 6 campos + resto colapsado
+    const kv = (k, v) => v ? '<div><div class="k">' + k + '</div><div class="v">' + v + '</div></div>' : '';
+    const fmtD2 = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
+    $('lm2-l').innerHTML =
+      '<div class="lm2-sech">Sobre este contacto</div>' +
+      '<div class="lm2-kv">' +
+        kv('Email', '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>') +
+        kv('Teléfono', r.phone ? '<a href="tel:' + esc((r.phone || '').replace(/[^\d+]/g, '')) + '">' + esc(r.phone) + '</a>' : '') +
+        kv('Empresa', ldom ? '<a href="#" id="lm2-colink">' + esc(companyName(ldom)) + '</a>' : esc(company)) +
+        kv('Cargo', esc(r.job_title || '')) +
+        kv('Idioma', (r.lang || '—').toUpperCase()) +
+        kv('Canal', esc(r.channel || 'direct')) +
+      '</div>' +
+      '<details class="lm2-morefields"><summary>Ver todos los campos ▾</summary><div class="lm2-kv">' +
+        kv('Fuente (UTM)', esc(r.utm_source || '')) + kv('Campaña (UTM)', esc(r.utm_campaign || '')) +
+        kv('Google Ads', r.gclid ? 'sí (gclid)' : '') + kv('Página de entrada', esc(r.landing_path || '')) +
+        kv('Convirtió en', esc(r.form_path || '')) +
+        kv('Creado', fmtD2(r.created_at)) + kv('Contactado', fmtD2(r.contacted_at)) +
+        kv('Video call', fmtD2(r.videocall_at)) + kv('Propuesta', fmtD2(r.proposal_at)) +
+        kv('Ganado', fmtD2(r.won_at)) + kv('Perdido', fmtD2(r.lost_at)) +
+        kv('ID', esc(String(r.id))) +
+      '</div></details>';
+    const cl = $('lm2-colink'); if (cl) cl.addEventListener('click', (e) => { e.preventDefault(); closeLead2(); gotoTab('companies'); openCompany(ldom); });
+
+    lm2RenderComposer();
+    lm2RenderRight(r);   // pinta al toque con lo que hay en memoria; el brief/followups llegan async
+    lm2LoadTimeline(r);
+
+    modal2.classList.add('open');
+    modal2.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  /* --- composer: Nota / Task / Email en un solo lugar --- */
+  function lm2RenderComposer(){
+    const r = lm2Lead; if (!r) return;
+    const box = $('lm2-composer');
+    const tab = (k, l) => '<button data-t="' + k + '" class="' + (lm2Tab === k ? 'on' : '') + '">' + l + '</button>';
+    let body = '';
+    if (lm2Tab === 'nota') body =
+      '<textarea id="lm2-note-b" placeholder="Agregar una nota… (contexto, objeción, próximo paso)"></textarea>' +
+      '<div class="lm2-crow"><select id="lm2-note-m">' + teamOptions('', 'Avisar a…') + '</select><span class="sp"></span><button class="btn btn-primary small" id="lm2-note-save" type="button">Guardar nota</button></div>';
+    else if (lm2Tab === 'task') body =
+      '<input id="lm2-task-t" placeholder="Nueva task…" style="width:100%" />' +
+      '<div class="lm2-crow"><input id="lm2-task-d" type="date" /><input id="lm2-task-h" type="time" /><select id="lm2-task-a">' + teamOptions('', 'Responsable') + '</select><span class="sp"></span><button class="btn btn-primary small" id="lm2-task-save" type="button">+ Task</button></div>';
+    else body =
+      '<textarea id="lm2-mail-b" style="min-height:110px">' + esc(buildDraft(r)) + '</textarea>' +
+      '<div class="lm2-crow"><label style="font-size:12px;color:var(--muted)">De: <select id="lm2-mail-de"><option value="sofia"' + (sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option></select></label><span class="sp"></span><button class="btn btn-primary small" id="lm2-mail-send" type="button">📨 Enviar al lead</button></div>';
+    box.innerHTML = '<div class="lm2-ctabs">' + tab('nota', '📝 Nota') + tab('task', '✅ Task') + tab('email', '✉️ Email') + '</div><div class="lm2-cbody">' + body + '</div>';
+    box.querySelectorAll('.lm2-ctabs button').forEach((b) => b.addEventListener('click', () => { lm2Tab = b.dataset.t; lm2RenderComposer(); }));
+    const nb = $('lm2-note-save'); if (nb) nb.addEventListener('click', async () => {
+      const bodyTxt = $('lm2-note-b').value.trim(); if (!bodyTxt) { toast('Escribí la nota'); return; }
+      const mention = $('lm2-note-m').value || null;
+      const author = teamName(sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
+      const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body: bodyTxt, mention, author });
+      if (error) { toast('No se pudo: ' + error.message); return; }
+      if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó:\n\n"' + bodyTxt + '"', r.id);
+      toast('Nota guardada'); lm2RenderComposer(); lm2LoadTimeline(r);
+    });
+    const tb = $('lm2-task-save'); if (tb) tb.addEventListener('click', async () => {
+      const title = $('lm2-task-t').value.trim(); if (!title) { toast('Escribí la task'); return; }
+      const due = $('lm2-task-d').value || null, time = $('lm2-task-h').value || null, assignee = $('lm2-task-a').value || null;
+      const row = { lead_id: String(r.id), title, due_date: due, due_time: time, assignee };
+      let { error } = await supabase.from('lead_tasks').insert(row);
+      if (error && /due_time/.test(error.message || '')) { delete row.due_time; ({ error } = await supabase.from('lead_tasks').insert(row)); }
+      if (error) { toast('No se pudo: ' + error.message); return; }
+      if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron: "' + title + '"', r.id);
+      toast('Task creada'); loadBell(); lm2RenderComposer(); lm2LoadTimeline(r); lm2RenderRight(r);
+    });
+    const mb = $('lm2-mail-send'); if (mb) mb.addEventListener('click', async () => {
+      const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
+      const bodyTxt = $('lm2-mail-b').value.trim(); if (!bodyTxt) return;
+      const de = $('lm2-mail-de').value;
+      if (!confirm('¿Enviar este email a ' + r.email + '? Sale desde info@viven.ch.')) return;
+      mb.disabled = true; mb.textContent = '📨 Enviando…';
+      try {
+        const { data, error } = await supabase.functions.invoke('send-outreach', {
+          body: { to: r.email, subject: SUBJECTS[lang], body: bodyTxt, lead_id: r.id, mark_contacted: true, fromName: (SENDERS[de] || SENDERS.sofia).name }
+        });
+        if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
+        r.status = 'contactado'; renderLeads();
+        toast('✓ Enviado — el lead pasó a Contactado');
+        lm2Tab = 'nota'; lm2RenderComposer(); lm2LoadTimeline(r); openLeadV2(r.id);
+      } catch (e) { toast('No se pudo enviar: ' + e.message); }
+      finally { mb.disabled = false; mb.textContent = '📨 Enviar al lead'; }
+    });
+  }
+
+  /* --- timeline unificada --- */
+  async function lm2LoadTimeline(r){
+    const box = $('lm2-tl'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
+    const q = (t) => t.then((x) => (x && !x.error && x.data) || []).catch(() => []);
+    const [emails, notes, tasks, briefs1, briefs2, pv, vp] = await Promise.all([
+      q(supabase.from('email_log').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
+      q(supabase.from('lead_notes').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
+      q(supabase.from('lead_tasks').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
+      q(supabase.from('briefs').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(10)),
+      r.email ? q(supabase.from('briefs').select('*').ilike('email', r.email).order('created_at', { ascending: false }).limit(10)) : Promise.resolve([]),
+      r.session_id ? q(supabase.from('pageviews').select('path,created_at,duration').eq('session_id', r.session_id).order('created_at').limit(200)) : Promise.resolve([]),
+      r.session_id ? q(supabase.from('video_plays').select('video_id,label,created_at').eq('session_id', r.session_id).order('created_at').limit(100)) : Promise.resolve([]),
+    ]);
+    if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;   // cambió de contacto mientras cargaba
+    const briefSeen = new Set(); const briefs = [...briefs1, ...briefs2].filter((b) => !briefSeen.has(b.id) && briefSeen.add(b.id));
+    const ev = [];
+    if (r.message) ev.push({ t: r.created_at, ty: 'nota', chip: ['nota', '💬 Consulta'], title: '<b>Mensaje original del lead</b>', body: r.message });
+    emails.forEach((e2) => ev.push({ t: e2.created_at, ty: 'email', chip: ['email', e2.direction === 'in' ? '📥 Recibido' : '✉️ Enviado'], title: '<b>' + esc(e2.subject || '(sin asunto)') + '</b>', meta: esc(e2.sender_label || ''), body: String(e2.body || '').replace(/<[^>]+>/g, ' ') }));
+    notes.forEach((n) => ev.push({ t: n.created_at, ty: 'nota', chip: ['nota', '📝 Nota'], title: esc((n.body || '').slice(0, 140)) + ((n.body || '').length > 140 ? '…' : ''), meta: esc(n.author || '') }));
+    tasks.forEach((t) => ev.push({ t: t.created_at, ty: 'task', chip: ['task', t.done ? '✅ Task hecha' : '⏳ Task'], title: '<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" class="lm2-tk" data-id="' + esc(String(t.id)) + '"' + (t.done ? ' checked' : '') + ' /> <span' + (t.done ? ' style="text-decoration:line-through;color:var(--muted)"' : '') + '>' + esc(t.title) + '</span></label>', meta: [t.due_date ? 'vence ' + t.due_date + (t.due_time ? ' ' + t.due_time : '') : '', t.assignee ? teamName(t.assignee) : ''].filter(Boolean).join(' · ') }));
+    briefs.forEach((b) => { const a = b.answers || {}; const quote = /QUIERE COTIZACIÓN/.test(b.extra || '');
+      ev.push({ t: b.created_at, ty: 'brief', chip: ['brief', '📋 Brief'], title: '<b>' + (quote ? '🔔 Pidió cotización — ' : 'Brief recibido — ') + esc(b.goal || '') + '</b>', meta: [b.budget, b.timeline, a.quantity].filter(Boolean).map(esc).join(' · '), body: b.extra || '' }); });
+    [['contacted_at', 'Contactado'], ['videocall_at', 'Video call'], ['proposal_at', 'Propuesta enviada'], ['won_at', '🎉 Ganado'], ['lost_at', 'Perdido']].forEach(([f, l]) => { if (r[f]) ev.push({ t: r[f], ty: 'sys', chip: ['sys', '⚙️ Etapa'], title: l }); });
+    // web: agrupar pageviews por día (200 sueltos ahogarían la timeline)
+    const byDay = {};
+    pv.forEach((p) => { const d = (p.created_at || '').slice(0, 10); (byDay[d] = byDay[d] || []).push(p); });
+    Object.keys(byDay).forEach((d) => { const ps = byDay[d]; const top = ps.slice(0, 3).map((p) => esc(p.path || '/')).join(', ');
+      ev.push({ t: ps[ps.length - 1].created_at, ty: 'web', chip: ['web', '🌐 Web'], title: 'Visitó ' + ps.length + ' página' + (ps.length === 1 ? '' : 's'), meta: top + (ps.length > 3 ? '…' : '') }); });
+    vp.forEach((v) => ev.push({ t: v.created_at, ty: 'web', chip: ['web', '🎬 Video'], title: 'Vio: ' + esc(v.label || v.video_id) }));
+    ev.sort((a, b) => new Date(b.t) - new Date(a.t));
+    lm2Events = ev;
+    lm2RenderChips();
+    lm2RenderTl();
+    lm2RenderNext(r, tasks);
+  }
+  function lm2RenderChips(){
+    const CH = [['all', 'Todo'], ['email', '✉️ Emails'], ['nota', '📝 Notas'], ['task', '✅ Tasks'], ['web', '🌐 Web'], ['sys', '⚙️ Etapas']];
+    $('lm2-chips').innerHTML = CH.map(([k, l]) => { const n = k === 'all' ? lm2Events.length : lm2Events.filter((e) => e.ty === k || (k === 'nota' && e.ty === 'brief')).length;
+      return '<button data-f="' + k + '" class="' + (lm2Filter === k ? 'on' : '') + '">' + l + (n ? ' ' + n : '') + '</button>'; }).join('');
+    $('lm2-chips').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { lm2Filter = b.dataset.f; lm2RenderChips(); lm2RenderTl(); }));
+  }
+  function lm2RenderTl(){
+    const box = $('lm2-tl');
+    const list = lm2Filter === 'all' ? lm2Events : lm2Events.filter((e) => e.ty === lm2Filter || (lm2Filter === 'nota' && e.ty === 'brief'));
+    if (!list.length) { box.innerHTML = '<p class="muted-note">Sin actividad todavía — las notas, emails y tasks van a aparecer acá.</p>'; return; }
+    box.innerHTML = list.map((e, i) =>
+      '<div class="lm2-ev' + (i === 0 && lm2Filter === 'all' ? ' hot' : '') + '"><div class="when">' + lm2FmtDT(e.t) + ' · hace ' + timeAgo(e.t) + '</div>' +
+      '<div class="card"><span class="lm2-chip ' + e.chip[0] + '">' + e.chip[1] + '</span>' + e.title +
+      (e.meta ? '<div class="meta">' + e.meta + '</div>' : '') +
+      (e.body ? '<details><summary>ver completo</summary><div>' + esc(e.body) + '</div></details>' : '') +
+      '</div></div>').join('');
+    box.querySelectorAll('.lm2-tk').forEach((cb) => cb.addEventListener('change', async () => {
+      await supabase.from('lead_tasks').update({ done: cb.checked, done_at: cb.checked ? new Date().toISOString() : null }).eq('id', cb.dataset.id);
+      loadBell(); if (lm2Lead) { lm2LoadTimeline(lm2Lead); lm2RenderRight(lm2Lead); }
+    }));
+  }
+  function lm2RenderNext(r, tasks){
+    const el = $('lm2-next'); if (!el) return;
+    const open = (tasks || []).filter((t) => !t.done);
+    const dated = open.filter((t) => t.due_date).sort((a, b) => (a.due_date + (a.due_time || '')) < (b.due_date + (b.due_time || '')) ? -1 : 1);
+    const pick = dated[0] || open[0];
+    if (pick) el.innerHTML = '<div class="t">Próximo paso</div><div class="v">' + esc(pick.title) + '<small>' + [pick.due_date ? 'vence ' + pick.due_date + (pick.due_time ? ' ' + pick.due_time : '') : 'sin fecha', pick.assignee ? teamName(pick.assignee) : ''].filter(Boolean).join(' · ') + '</small></div>';
+    else if (r.next_follow_up_at) el.innerHTML = '<div class="t">Próximo paso</div><div class="v">Follow-up automático<small>' + new Date(r.next_follow_up_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</small></div>';
+    else el.innerHTML = '<div class="t">Próximo paso</div><div class="v" style="color:var(--muted)">Sin próximo paso definido<small><a href="#" id="lm2-next-add" style="color:var(--acid)">➕ crear una task</a></small></div>';
+    const na = $('lm2-next-add'); if (na) na.addEventListener('click', (e) => { e.preventDefault(); lm2Tab = 'task'; lm2RenderComposer(); const inp = $('lm2-task-t'); if (inp) inp.focus(); });
+  }
+
+  /* --- columna derecha: próximo paso + negocio --- */
+  async function lm2RenderRight(r){
+    if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
+    const ldeals = dealsForLead(r.id).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const ofs = offersForLead(r.id);
+    const props = (typeof propsAll !== 'undefined' ? propsAll : []).filter((p) => p.lead_id && String(p.lead_id) === String(r.id) && !p.is_template);
+    const stB = (key) => { const s = STAGES.find((x) => x.key === stageOf(key)) || STAGES[0]; return '<span class="stb" style="color:' + s.color + ';border-color:' + s.color + '">' + s.label + '</span>'; };
+    const ofB = (st) => { const b = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'], accepted: ['Aceptada', '#7ed957'], published: ['Publicada', '#f0c060'] }[st] || ['Borrador', '#8ab4ff']; return '<span class="stb" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span>'; };
+    $('lm2-r').innerHTML =
+      '<div class="lm2-next" id="lm2-next"><div class="t">Próximo paso</div><div class="v" style="color:var(--muted)">Cargando…</div></div>' +
+      '<div class="lm2-as"><div class="top">🤝 Proyectos <span class="n">' + ldeals.length + '</span></div>' +
+        ldeals.map((d) => { const v = stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
+          return '<div class="row" style="cursor:default">' + esc(d.title || '(proyecto)') + ' ' + stB(d.stage) + '<span class="amt">' + (v ? fmtChf(v) : '—') + '</span></div>'; }).join('') +
+        '<button class="add" id="lm2-add-deal" type="button">➕ Nuevo proyecto</button></div>' +
+      '<div class="lm2-as"><div class="top">🧾 Ofertas y propuestas <span class="n">' + (ofs.length + props.length) + '</span></div>' +
+        ofs.map((o) => '<button class="row lm2-of" data-oid="' + o.id + '" type="button">' + esc(o.title || '(sin título)') + ' ' + ofB(o.status) + '<span class="amt">' + fmtM(offerNet(o)) + '</span></button>').join('') +
+        props.map((p) => '<button class="row lm2-pp" data-pid="' + p.id + '" type="button">🌐 ' + esc(p.title || '(propuesta)') + ' ' + ofB(p.status) + '</button>').join('') +
+        '<button class="add" id="lm2-add-of" type="button">➕ Oferta · 🌐 Propuesta</button></div>' +
+      '<div class="lm2-as" id="lm2-brief-card" hidden><div class="top">📋 Brief <span class="n" id="lm2-brief-when"></span></div><div class="row" id="lm2-brief-row" style="color:var(--muted)"></div></div>' +
+      '<div class="lm2-as" id="lm2-fu-card" hidden><div class="top">📬 Automación <span class="n" id="lm2-fu-n"></span></div><div class="row" id="lm2-fu-row" style="color:var(--muted);cursor:default"></div></div>';
+    $('lm2-add-deal').addEventListener('click', async () => { const t = prompt('Nombre del nuevo proyecto:', 'Nuevo proyecto — ' + (r.name || r.email || '')); if (t === null) return; const d = await newDealForLead(r.id, t.trim() || 'Nuevo proyecto', 'nuevo'); if (d) { toast('🤝 Proyecto creado'); openLeadV2(r.id); } });
+    $('lm2-add-of').addEventListener('click', () => { closeLead2(); makeOfferForLead(r); });
+    $('lm2-r').querySelectorAll('.lm2-of').forEach((b) => b.addEventListener('click', () => { closeLead2(); gotoTab('offers'); openOffer(b.dataset.oid); }));
+    $('lm2-r').querySelectorAll('.lm2-pp').forEach((b) => b.addEventListener('click', () => { closeLead2(); gotoTab('props'); }));
+    // brief y automación llegan async
+    latestBriefFor(r).then((b) => { if (!b || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
+      $('lm2-brief-card').hidden = false;
+      $('lm2-brief-when').textContent = new Date(b.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
+      $('lm2-brief-row').textContent = [b.goal, b.budget, b.timeline].filter(Boolean).join(' · ') || 'ver en la timeline';
+    });
+    supabase.from('lead_followups').select('status,send_at').eq('lead_id', String(r.id)).order('send_at').then(({ data }) => {
+      if (!data || !data.length || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
+      const appr = data.filter((f) => f.status === 'approved'), draft = data.filter((f) => f.status === 'draft');
+      if (!appr.length && !draft.length) return;
+      $('lm2-fu-card').hidden = false;
+      $('lm2-fu-n').textContent = appr.length ? 'activa' : 'borradores';
+      $('lm2-fu-row').textContent = appr.length ? (appr.length + ' programado' + (appr.length === 1 ? '' : 's') + ' · próximo: ' + new Date(appr[0].send_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' })) : (draft.length + ' borrador' + (draft.length === 1 ? '' : 'es') + ' sin aprobar — ver en ficha clásica');
+    });
+  }
 
   /* ---------- Export CSV ---------- */
   /* toggle Board / Lista */
