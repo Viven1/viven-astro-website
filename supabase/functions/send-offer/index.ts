@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { to, subject, html, text, reply_to } = await req.json();
+    const { to, subject, html, text, reply_to, offer_id } = await req.json();
     if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(to))) return json({ error: "email del cliente inválido" }, 400);
     if (!subject || !html) return json({ error: "faltan subject/html" }, 400);
 
@@ -38,9 +38,19 @@ Deno.serve(async (req) => {
         to: [to],
         reply_to: reply_to && /@viven\.ch$/i.test(reply_to) ? reply_to : "info@viven.ch",
         subject, html, text: text || "",
+        // tag con el id de la oferta → el webhook resend-events puede mapear cada
+        // apertura del email de vuelta a SU oferta y estampar last_open_at
+        ...(offer_id ? { tags: [{ name: "offer_id", value: String(offer_id) }] } : {}),
       }),
     });
     if (!res.ok) { const t = await res.text(); console.error("RESEND_ERROR", res.status, t); return json({ error: `Resend ${res.status}: ${t.slice(0, 200)}` }); }
+    // enviada de verdad → status 'sent' + sent_at (el semáforo de "esperando hace" mide
+    // desde acá, no desde updated_at que se pisa con cada save). Best-effort: si la
+    // columna sent_at falta (SQL 0059 sin correr), al menos queda el status.
+    if (offer_id) {
+      const { error: uErr } = await supabase.from("offers").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", offer_id);
+      if (uErr) await supabase.from("offers").update({ status: "sent" }).eq("id", offer_id);
+    }
     return json({ ok: true });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
