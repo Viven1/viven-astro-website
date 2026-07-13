@@ -117,7 +117,7 @@ function heroVideoAllowed(){
   var c = navigator.connection || {};
   if(c.saveData) return false;                                   /* Data Saver activo */
   if(c.effectiveType && !/(^|\s)4g/.test(c.effectiveType)) return false; /* 2g/3g → no */
-  if(navigator.deviceMemory && navigator.deviceMemory < 4) return false; /* poca RAM → no */
+  if(navigator.deviceMemory && navigator.deviceMemory < 2) return false; /* solo gama MUY baja → no (antes <4 bloqueaba media gama entera) */
   /* Llegamos acá solo si NO hay señal de conexión mala (ni saveData, ni 2g/3g, ni poca RAM).
      Permitimos el video en desktop y mobile. iOS Safari no tiene Network API → igual carga. */
   return true;
@@ -133,21 +133,37 @@ function loadHeroVideo(){
     v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('autoplay', '');
     v.preload = 'auto';
     v.src = heroMp4;
-    /* fade-in: el video aparece suave sobre el póster — sin salto de color al navegar */
+    /* fade-in: el video aparece suave sobre el póster. 'timeupdate' es respaldo de
+       'playing' (algunos WebKit no disparan 'playing' de forma confiable). */
     v.addEventListener('playing', function(){ v.classList.add('on'); }, { once: true });
+    var fadeChk = function(){ if(v.currentTime > 0){ v.classList.add('on'); v.removeEventListener('timeupdate', fadeChk); } };
+    v.addEventListener('timeupdate', fadeChk);
     heroBg.insertBefore(v, heroBg.querySelector('.grain'));
-    /* SAFARI: su heurística rechaza seguido el PRIMER play() programático (reporte de
-       Sebastián: el hero quedaba estático) — y como el fade-in dependía de 'playing',
-       el video quedaba invisible para siempre, sin reintento. Reintentamos cuando hay
-       data y, como red final, en la primera interacción (un play() dentro de un gesto
-       del usuario está permitido hasta en el Safari más estricto). */
+    /* SAFARI/iOS: la heurística de autoplay rechaza seguido el play() programático
+       (reporte de Sebastián: hero estático en Safari Y en mobile). Reintentamos:
+       (a) cuando llega data, (b) diferido (la heurística puede aflojar post-carga),
+       (c) al volver a la pestaña, (d) en el primer GESTO REAL del usuario.
+       BUG previo: el retry escuchaba 'pointermove'/'scroll'/'touchstart' con
+       {once:true} — en Safari esos NO cuentan como "user activation" para
+       levantar el bloqueo de autoplay (solo click/touchend/mousedown/keydown sí).
+       Como scroll ocurre solitos en mobile, el listener {once:true} se consumía
+       de gratis y el video quedaba mudo para siempre, incluso ante un tap real
+       después. Ahora solo gestos que SÍ otorgan activación, sin 'once' (persiste
+       hasta que el video realmente arranque). */
     var tryPlay = function(){ if(v.paused){ var p = v.play(); if(p && p.catch) p.catch(function(){}); } };
     tryPlay();
     v.addEventListener('loadeddata', tryPlay, { once: true });
     v.addEventListener('canplaythrough', tryPlay, { once: true });
-    ['pointermove', 'touchstart', 'click', 'scroll'].forEach(function(e){
-      window.addEventListener(e, tryPlay, { once: true, passive: true });
-    });
+    setTimeout(tryPlay, 700);
+    setTimeout(tryPlay, 2500);
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) tryPlay(); });
+    var gestos = ['touchend', 'pointerdown', 'mousedown', 'keydown', 'click'];
+    var gestoPlay = function(){
+      if(v.paused){ var p = v.play(); if(p && p.catch) p.catch(function(){}); }
+      if(!v.paused) limpiarGestos();
+    };
+    function limpiarGestos(){ gestos.forEach(function(e){ window.removeEventListener(e, gestoPlay); }); }
+    gestos.forEach(function(e){ window.addEventListener(e, gestoPlay, { passive: true }); });
     return;
   }
   var f = document.createElement('iframe');
