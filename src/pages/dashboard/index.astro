@@ -368,6 +368,22 @@ const stillsPool = projects
   .lead-table .lt-num{text-align:right;white-space:nowrap;color:var(--muted)}
   .lead-table .lt-chk{width:1%;white-space:nowrap;padding:12px 6px 12px 14px}
   .lead-table .lt-chk input{width:16px;height:16px;accent-color:var(--acid);cursor:pointer}
+  /* Empresas rediseñadas: segment control sobre la tabla + detalle en 3 zonas (misma gramática que la Ficha V2) */
+  .co-seg{display:flex;gap:6px;flex-wrap:wrap}
+  .co-seg button{background:transparent;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:600 11px Inter,sans-serif;padding:6px 11px;cursor:pointer;white-space:nowrap}
+  .co-seg button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
+  .co2-tav{width:28px;height:28px;border-radius:8px;color:#0f1826;display:grid;place-items:center;font-weight:800;font-size:11px;font-family:'Space Grotesk';flex:none}
+  .co2-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;background:var(--navy-800)}
+  .co2-grid{display:grid;grid-template-columns:240px 1fr 300px;border:1px solid var(--line);border-radius:0 0 14px 14px;overflow:hidden;background:var(--navy-800)}
+  .co2-l{border-right:1px solid var(--line);padding:16px}
+  .co2-c{padding:16px 20px;background:rgba(0,0,0,.12);min-width:0}
+  .co2-r{border-left:1px solid var(--line);padding:16px}
+  @media(max-width:960px){
+    .co2-grid{display:flex;flex-direction:column}
+    .co2-l{order:2;border-right:0;border-top:1px solid var(--line)}
+    .co2-c{order:1}
+    .co2-r{order:3;border-left:0;border-top:1px solid var(--line)}
+  }
   .lead-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
   .pipe-list{display:flex;flex-direction:column;gap:9px;overflow-y:auto;min-height:50px;padding:11px}
   .pipe-card{background:var(--navy-700);border:1px solid var(--line);border-left:3px solid var(--stage,#8ab4ff);border-radius:8px;padding:11px 12px;cursor:grab;transition:transform .12s,border-color .2s,box-shadow .2s}
@@ -1175,24 +1191,43 @@ const stillsPool = projects
         <div class="kpi"><div class="n" id="co-k-value">–</div><div class="l">Valor en ofertas</div></div>
         <div class="kpi"><div class="n" id="co-k-multi">–</div><div class="l">Con 2+ contactos</div></div>
       </div>
-      <div class="pipe-bar"><input type="search" id="co-search" placeholder="Buscar empresa…" /></div>
+      <div class="pipe-bar">
+        <div class="co-seg" id="co-seg"></div>
+        <input type="search" id="co-search" placeholder="Buscar empresa…" />
+        <button class="btn btn-danger small" id="co-del-sel" type="button" hidden>🗑 Borrar seleccionadas</button>
+      </div>
       <div id="co-list" class="of-list"></div>
       <p class="muted-note" id="co-empty" hidden>Sin empresas todavía. Aparecen solas cuando entran leads con email corporativo.</p>
     </div>
 
+    <!-- Detalle de empresa rediseñado: misma gramática de 3 zonas que la Ficha V2 (header · rail izq · centro · rail der) -->
     <div id="co-detail" hidden>
-      <div class="of-bar"><button class="btn btn-ghost small" id="co-back" type="button">← Volver</button></div>
-      <div class="lm-top">
-        <div class="lm-id"><div class="lm-avatar" id="co-avatar"></div><div class="lm-idtext"><h3 id="co-name"></h3><div class="lm-sub" id="co-domain"></div></div></div>
-        <div class="lm-quick"><button class="lm-qbtn" id="co-edit-btn" type="button">✏️ Editar</button><a class="lm-qbtn" id="co-web" target="_blank" rel="noopener" hidden>🌐 Web</a><button class="lm-qbtn" id="co-del-btn" type="button" style="color:#ff8b8b">🗑 Borrar empresa</button></div>
+      <div class="co2-hd">
+        <button class="lm2-back" id="co-back" type="button">← Empresas</button>
+        <div class="co-av" id="co-avatar"></div>
+        <div class="lm2-who"><div class="nm"><span id="co-name"></span><span id="co-status"></span></div><div class="sub" id="co-subline"></div></div>
+        <div class="lm2-actions" id="co-actions">
+          <a class="lm-qbtn" id="co-web" target="_blank" rel="noopener" hidden>🌐 Web</a>
+          <button class="lm-qbtn" id="co-create-btn" type="button">➕ Crear ▾</button>
+          <button class="lm-qbtn" id="co-more-btn" type="button" title="Más acciones">⋯</button>
+          <div class="lm2-menu" id="co-create-menu" hidden>
+            <button id="co-new-person" type="button">👤 Persona en esta empresa</button>
+            <button id="co-new-offer" type="button">🧾 Oferta</button>
+            <button id="co-new-prop" type="button">🌐 Propuesta</button>
+          </div>
+          <div class="lm2-menu" id="co-more-menu" hidden>
+            <button id="co-del-btn" class="danger" type="button">🗑 Borrar empresa</button>
+          </div>
+        </div>
       </div>
-      <div class="lm-grid">
-        <aside class="lm-left" id="co-about"></aside>
-        <main class="lm-center">
-          <div class="lm-block"><div class="lm-block-h">👥 Contactos <span class="count" id="co-contacts-n"></span></div><div id="co-contacts"></div></div>
-          <div class="lm-block"><div class="lm-block-h">🧾 Ofertas <span class="count" id="co-deals-n"></span></div><div id="co-deals"></div></div>
+      <div class="co2-grid">
+        <aside class="co2-l" id="co-about"></aside>
+        <main class="co2-c">
+          <div class="kpis four" id="co-kpis"></div>
+          <div class="lm2-sech" style="margin-top:18px">Actividad de toda la empresa</div>
+          <div id="co-tl"><p class="muted-note">Cargando…</p></div>
         </main>
-        <aside class="lm-right" id="co-right"></aside>
+        <aside class="co2-r" id="co-right"></aside>
       </div>
     </div>
   </div>
@@ -1934,7 +1969,13 @@ const stillsPool = projects
 /* ============ FICHA DE CONTACTO V2 (test) — estilo HubSpot/Keap ============
    Convive con la clásica: se activa con "✨ Ficha nueva" y queda guardada por
    navegador (localStorage vv_ficha2). Cuando esté madura, se hace default. */
-.lm2-card{display:flex;flex-direction:column;max-height:92vh;overflow:hidden}
+/* Ficha V2 a pantalla COMPLETA (pedido de Sebastián: "abajo y los costados no lo son").
+   Scoped a #lead-modal2: la clásica no se toca. fixed+inset 0 con width 100% (no 100vw,
+   que sumaría el ancho del scrollbar y daría scroll horizontal). */
+#lead-modal2{padding:0;overflow:hidden}
+#lead-modal2 .lead-card{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:none;max-height:none;border-radius:0;margin:0}
+#lead-modal2 .close{z-index:8} /* por encima del header sticky (z-index 6) */
+.lm2-card{display:flex;flex-direction:column;height:100%;max-height:none;overflow:hidden}
 .lm2-hd{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--navy-800);flex-wrap:wrap}
 .lm2-avatar{width:42px;height:42px;border-radius:50%;background:var(--acid);color:#142033;display:grid;place-items:center;font-weight:800;font-family:'Space Grotesk';font-size:15px;flex:none}
 .lm2-who{min-width:0}
@@ -2002,6 +2043,12 @@ const stillsPool = projects
 .lm2-chip.sys{background:rgba(255,255,255,.08);color:var(--muted)}
 .lm2-chip.task{background:rgba(126,217,87,.15);color:#7ed957}
 .lm2-chip.web{background:rgba(94,199,209,.15);color:#5ec7d1}
+/* hilos de notas estilo chat: raíz arriba, respuestas con sangría y borde (feedback: el quoteo anidado era ilegible) */
+.lm2-msg{margin-top:7px}
+.lm2-msg .a{font-size:11px;font-weight:700}
+.lm2-msg .a .w{color:var(--muted-2);font-weight:400;font-size:10px}
+.lm2-msg .b{font-size:12.5px;white-space:pre-wrap;word-break:break-word;margin-top:1px}
+.lm2-msg.rep{border-left:2px solid var(--line-strong);padding-left:9px;margin-left:4px;margin-top:9px}
 .lm2-next{border:1px solid rgba(221,249,143,.4);border-radius:12px;background:rgba(221,249,143,.07);padding:11px 13px;margin-bottom:12px}
 .lm2-next .t{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--acid);font-weight:700}
 .lm2-next .v{font-size:12.5px;font-weight:600;margin-top:4px}
@@ -2021,7 +2068,29 @@ const stillsPool = projects
   .lm2-c{order:1}
   .lm2-r{order:2;border:none;border-top:1px solid var(--line)}
   .lm2-pipe span{padding:6px 8px}
+  /* móvil menos crowded (feedback de Sebastián): header comprimido, chips y pipeline en una sola
+     fila scrolleable, timeline más densa, y el botón Crear pierde el texto (queda ➕ ▾) */
+  .lm2-hd{padding:10px 12px;gap:8px}
+  .lm2-avatar{width:36px;height:36px;font-size:13px}
+  .lm2-who .nm{font-size:15px}
+  .lm2-who .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 120px)}
+  .lm2-actions .btn{padding:7px 10px}
+  #lm2-crear .lbl{display:none}
+  .lm2-chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+  .lm2-chips::-webkit-scrollbar{display:none}
+  .lm2-chips button{padding:5px 10px;flex:none}
+  .lm2-pipe{overflow-x:auto;max-width:100%;flex-wrap:nowrap;scrollbar-width:none}
+  .lm2-pipe::-webkit-scrollbar{display:none}
+  .lm2-ev{padding-bottom:11px}
+  .lm2-ev .card{padding:8px 10px}
+  .lm2-ev .when{font-size:9.5px}
+  .lm2-l-fold>summary{display:block}
 }
+/* rail izquierdo plegable en móvil: en desktop el summary se oculta y el details queda abierto */
+.lm2-l-fold>summary{display:none;cursor:pointer;font-size:12.5px;font-weight:700;padding:4px 0;list-style:none}
+.lm2-l-fold>summary::-webkit-details-marker{display:none}
+/* composer colapsado en móvil: una sola barra finita hasta que lo tocás */
+.lm2-cbar{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--muted);font:600 12.5px Inter,sans-serif;padding:12px 14px;cursor:pointer}
 </style>
 <div class="lead-modal" id="lead-modal" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="backdrop" data-close></div>
@@ -2440,7 +2509,8 @@ const stillsPool = projects
     // Re-renderizar acá también, cada corrida de loadAll, para que se actualice solo donde sea
     // que estés mirando.
     renderPipeline();
-    if (!$('co-ed-save')) renderCompanies(); // no pisar el form de "Editar empresa" si está abierto (co-ed-save solo existe en modo edición)
+    // no pisar la edición inline de la ficha de empresa (antes el guard miraba el form co-ed-save; ahora la edición es un input dentro de #co-about)
+    if (!document.querySelector('#co-about input')) renderCompanies();
     renderOffersList();
     renderPropList();
     licLoad(); // licencias no entraba en loadAll — se sumó para que también se mantenga al día sola
@@ -4331,6 +4401,8 @@ const stillsPool = projects
      Acciones raras → menú ⋯. Editar/IA/reseña siguen en la clásica por ahora. */
   const modal2 = $('lead-modal2');
   let lm2Lead = null, lm2Filter = 'all', lm2Events = [], lm2Tab = 'nota';
+  const lm2Mobile = () => window.matchMedia('(max-width:960px)').matches;
+  let lm2CompCollapsed = false; // móvil: el composer arranca plegado (una barra) para descomprimir la ficha
   function closeLead2(){ modal2.classList.remove('open'); modal2.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; lm2Lead = null; currentLead = null; }
   modal2.querySelectorAll('[data-close2]').forEach((el) => el.addEventListener('click', closeLead2));
   $('lm-try-v2') && $('lm-try-v2').addEventListener('click', () => {
@@ -4373,12 +4445,14 @@ const stillsPool = projects
       '<div class="lm2-actions">' +
         '<a class="btn btn-primary small" href="mailto:' + esc(r.email) + '" style="text-decoration:none">✉️ Email</a>' +
         (r.phone ? '<a class="btn btn-ghost small" href="tel:' + esc((r.phone || '').replace(/[^\d+]/g, '')) + '" style="text-decoration:none">📞</a>' : '') +
-        '<button class="btn btn-ghost small" id="lm2-crear" type="button">➕ Crear ▾</button>' +
+        '<button class="btn btn-ghost small" id="lm2-crear" type="button">➕<span class="lbl"> Crear</span> ▾</button>' +
         '<button class="btn btn-ghost small" id="lm2-dots" type="button" title="Más acciones">⋯</button>' +
         '<div class="lm2-menu" id="lm2-menu" hidden></div>' +
       '</div>';
     // score: mismo pill que la clásica (renderLeadScore escribe en lm-score → lo copio a mano)
     try { renderLeadScore(r); const s0 = $('lm-score'); const s2 = $('lm2-score'); if (s0 && s2) { s2.textContent = s0.textContent; s2.title = s0.title; s2.style.cssText = s0.style.cssText; } } catch (e) {}
+    // móvil: el pipeline de etapas scrollea horizontal — centrar la etapa actual para que no quede cortada
+    if (lm2Mobile()){ const curSp = $('lm2-hd').querySelector('.lm2-pipe .cur'); if (curSp && curSp.scrollIntoView) curSp.scrollIntoView({ inline: 'center', block: 'nearest' }); }
     $('lm2-back').addEventListener('click', () => { closeLead2(); gotoTab('leads'); });
     $('lm2-nav-prev') && $('lm2-nav-prev').addEventListener('click', () => oi > 0 && openLeadV2(order[oi - 1]));
     $('lm2-nav-next') && $('lm2-nav-next').addEventListener('click', () => oi < order.length - 1 && openLeadV2(order[oi + 1]));
@@ -4463,12 +4537,13 @@ const stillsPool = projects
           if (c === 'offer') { closeLead2(); makeOfferForLead(r); }
           if (c === 'prop') { closeLead2(); makePropForLead(r); }
           if (c === 'deal') { const t = prompt('Nombre del nuevo proyecto:', 'Nuevo proyecto — ' + (r.name || r.email || '')); if (t === null) return; const d = await newDealForLead(r.id, t.trim() || 'Nuevo proyecto', 'nuevo'); if (d) { toast('🤝 Proyecto creado'); openLeadV2(r.id); } }
-          if (c === 'task') { lm2Tab = 'task'; lm2RenderComposer(); const inp = $('lm2-task-t'); if (inp) inp.focus(); }
+          if (c === 'task') { lm2Tab = 'task'; lm2CompCollapsed = false; lm2RenderComposer(); const inp = $('lm2-task-t'); if (inp) inp.focus(); }
         })));
     });
 
     lm2RenderLeft(r);
 
+    lm2CompCollapsed = lm2Mobile(); // en móvil arranca plegado; en desktop siempre abierto
     lm2RenderComposer();
     lm2RenderRight(r);   // pinta al toque con lo que hay en memoria; el brief/followups llegan async
     lm2LoadTimeline(r);
@@ -4495,7 +4570,10 @@ const stillsPool = projects
       return esc(r[f] || '');
     };
     const kvA = (k, v) => '<div><div class="k">' + k + '</div><div class="v">' + (v || '<span style="color:var(--muted-2)">—</span>') + '</div></div>';
+    // móvil: todo el rail dentro de un acordeón para que la ficha termine compacta; en desktop
+    // el summary se oculta por CSS y el details se renderiza con open → siempre visible
     box.innerHTML =
+      '<details class="lm2-l-fold"' + (lm2Mobile() ? '' : ' open') + '><summary>👤 Datos del contacto ▾</summary>' +
       '<div class="lm2-sech">Sobre este contacto</div>' +
       '<div class="lm2-kv">' +
         FIELDS.map(([f, label]) =>
@@ -4512,7 +4590,7 @@ const stillsPool = projects
         kvA('Video call', fmtD2(r.videocall_at)) + kvA('Propuesta', fmtD2(r.proposal_at)) +
         kvA('Ganado', fmtD2(r.won_at)) + kvA('Perdido', fmtD2(r.lost_at)) +
         kvA('ID', esc(String(r.id))) +
-      '</div></details>';
+      '</div></details></details>';
     const cl = $('lm2-colink'); if (cl) cl.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeLead2(); gotoTab('companies'); openCompany(ldom); });
     box.querySelectorAll('.lm2-edit').forEach((el) => el.addEventListener('click', () => {
       if (el.querySelector('input,select')) return;   // ya está en edición
@@ -4560,6 +4638,16 @@ const stillsPool = projects
   function lm2RenderComposer(){
     const r = lm2Lead; if (!r) return;
     const box = $('lm2-composer');
+    box.className = 'lm2-composer' + (lm2CompCollapsed ? ' collapsed' : '');
+    // móvil: plegado = una barra finita; al tocarla se expande y se enfoca el campo del tab activo
+    if (lm2CompCollapsed){
+      box.innerHTML = '<button class="lm2-cbar" type="button">➕ Nota, task o email…</button>';
+      box.querySelector('.lm2-cbar').addEventListener('click', () => {
+        lm2CompCollapsed = false; lm2RenderComposer();
+        const inp = $(lm2Tab === 'nota' ? 'lm2-note-b' : lm2Tab === 'task' ? 'lm2-task-t' : 'lm2-mail-b'); if (inp) inp.focus();
+      });
+      return;
+    }
     const tab = (k, l) => '<button data-t="' + k + '" class="' + (lm2Tab === k ? 'on' : '') + '">' + l + '</button>';
     let body = '';
     if (lm2Tab === 'nota') body =
@@ -4580,6 +4668,7 @@ const stillsPool = projects
       const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body: bodyTxt, mention, author });
       if (error) { toast('No se pudo: ' + error.message); return; }
       if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó:\n\n"' + bodyTxt + '"', r.id);
+      if (lm2Mobile()) lm2CompCollapsed = true; // móvil: guardó → el composer vuelve a plegarse
       toast('Nota guardada'); lm2RenderComposer(); lm2LoadTimeline(r);
     });
     const tb = $('lm2-task-save'); if (tb) tb.addEventListener('click', async () => {
@@ -4590,6 +4679,7 @@ const stillsPool = projects
       if (error && /due_time/.test(error.message || '')) { delete row.due_time; ({ error } = await supabase.from('lead_tasks').insert(row)); }
       if (error) { toast('No se pudo: ' + error.message); return; }
       if (assignee) notifyUser(assignee, '✅ Task nueva — ' + (r.name || r.email), 'Te asignaron: "' + title + '"', r.id);
+      if (lm2Mobile()) lm2CompCollapsed = true; // móvil: guardó → el composer vuelve a plegarse
       toast('Task creada'); loadBell(); lm2RenderComposer(); lm2LoadTimeline(r); lm2RenderRight(r);
     });
     /* ✨ IA en el email V2: misma edge function ai-suggest que $('lm-ai') de la clásica —
@@ -4660,8 +4750,18 @@ const stillsPool = projects
     const ev = [];
     if (r.message) ev.push({ t: r.created_at, ty: 'nota', chip: ['nota', '💬 Consulta'], title: '<b>Mensaje original del lead</b>', body: r.message });
     emails.forEach((e2) => ev.push({ t: e2.created_at, ty: 'email', chip: ['email', e2.direction === 'in' ? '📥 Recibido' : '✉️ Enviado'], title: '<b>' + esc(e2.subject || '(sin asunto)') + '</b>', meta: esc(e2.sender_label || ''), body: String(e2.body || '').replace(/<[^>]+>/g, ' ') }));
-    // nid/nauthor/nbody: solo las notas REALES (no el mensaje original del lead) — habilitan el «↩︎ Responder» en la timeline
-    notes.forEach((n) => ev.push({ t: n.created_at, ty: 'nota', chip: ['nota', '📝 Nota'], title: esc((n.body || '').slice(0, 140)) + ((n.body || '').length > 140 ? '…' : ''), meta: esc(n.author || ''), nid: n.id, nauthor: n.author || '', nbody: n.body || '' }));
+    // notas agrupadas en HILOS estilo chat (0057: parent_id apunta a la nota RAÍZ, hilo plano de 1 nivel).
+    // Un solo evento por hilo, fechado por el ÚLTIMO mensaje — las conversaciones activas flotan arriba.
+    // Las respuestas viejas con cita en el body (empiezan con '↩') no tienen parent_id → quedan como raíces sueltas, sin parsear.
+    const thrMap = new Map();
+    notes.filter((n) => !n.parent_id).forEach((n) => thrMap.set(n.id, { root: n, replies: [] }));
+    notes.filter((n) => n.parent_id).forEach((n) => { const t2 = thrMap.get(n.parent_id); if (t2) t2.replies.push(n); else thrMap.set(n.id, { root: n, replies: [] }); }); // raíz fuera del límite de fetch → mostrar la respuesta suelta
+    thrMap.forEach((t2) => {
+      t2.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const last = t2.replies.length ? t2.replies[t2.replies.length - 1] : t2.root;
+      // nid/nauthor/nbody habilitan el «↩︎ Responder»; title solo alimenta el resumen para la IA (el render usa e.thread)
+      ev.push({ t: last.created_at, ty: 'nota', chip: ['nota', t2.replies.length ? '💬 Hilo (' + (t2.replies.length + 1) + ')' : '📝 Nota'], title: esc((last.body || '').slice(0, 90)), thread: t2, nid: t2.root.id, nauthor: t2.root.author || '', nbody: t2.root.body || '' });
+    });
     tasks.forEach((t) => ev.push({ t: t.created_at, ty: 'task', chip: ['task', t.done ? '✅ Task hecha' : '⏳ Task'], title: '<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" class="lm2-tk" data-id="' + esc(String(t.id)) + '"' + (t.done ? ' checked' : '') + ' /> <span' + (t.done ? ' style="text-decoration:line-through;color:var(--muted)"' : '') + '>' + esc(t.title) + '</span></label>', meta: [t.due_date ? 'vence ' + t.due_date + (t.due_time ? ' ' + t.due_time : '') : '', t.assignee ? teamName(t.assignee) : ''].filter(Boolean).join(' · ') }));
     briefs.forEach((b) => { const a = b.answers || {}; const quote = /QUIERE COTIZACIÓN/.test(b.extra || '');
       // el brief completo, legible, en el desplegable — sin esto el evento no sirve de mucho
@@ -4696,13 +4796,20 @@ const stillsPool = projects
     const box = $('lm2-tl');
     const list = lm2Filter === 'all' ? lm2Events : lm2Events.filter((e) => e.ty === lm2Filter || (lm2Filter === 'nota' && e.ty === 'brief'));
     if (!list.length) { box.innerHTML = '<p class="muted-note">Sin actividad todavía — las notas, emails y tasks van a aparecer acá.</p>'; return; }
-    box.innerHTML = list.map((e, i) =>
-      '<div class="lm2-ev' + (i === 0 && lm2Filter === 'all' ? ' hot' : '') + '"><div class="when">' + lm2FmtDT(e.t) + ' · hace ' + timeAgo(e.t) + '</div>' +
-      '<div class="card"><span class="lm2-chip ' + e.chip[0] + '">' + e.chip[1] + '</span>' + e.title +
-      (e.meta ? '<div class="meta">' + e.meta + '</div>' : '') +
-      (e.body ? '<details><summary>ver completo</summary><div>' + esc(e.body) + '</div></details>' : '') +
-      (e.nid ? '<div><a href="#" class="lm2-nreply" data-i="' + i + '" style="color:var(--acid);font-size:11px;text-decoration:none">↩︎ Responder</a><div class="lm2-nreply-box" hidden></div></div>' : '') +
-      '</div></div>').join('');
+    const replyLink = (i) => '<div><a href="#" class="lm2-nreply" data-i="' + i + '" style="color:var(--acid);font-size:11px;text-decoration:none">↩︎ Responder</a><div class="lm2-nreply-box" hidden></div></div>';
+    box.innerHTML = list.map((e, i) => {
+      const head = '<div class="lm2-ev' + (i === 0 && lm2Filter === 'all' ? ' hot' : '') + '"><div class="when">' + lm2FmtDT(e.t) + ' · hace ' + timeAgo(e.t) + '</div><div class="card">';
+      if (e.thread){
+        // hilo de notas estilo chat: la raíz arriba, las respuestas colgando abajo con sangría, UN solo «Responder» al pie del hilo
+        const msg = (n, isRep) => '<div class="lm2-msg' + (isRep ? ' rep' : '') + '"><div class="a">' + esc(n.author || '¿?') + ' <span class="w">hace ' + timeAgo(n.created_at) + '</span></div><div class="b">' + esc(n.body || '') + '</div></div>';
+        return head + '<span class="lm2-chip nota">' + e.chip[1] + '</span>' + msg(e.thread.root, false) + e.thread.replies.map((n) => msg(n, true)).join('') + replyLink(i) + '</div></div>';
+      }
+      return head + '<span class="lm2-chip ' + e.chip[0] + '">' + e.chip[1] + '</span>' + e.title +
+        (e.meta ? '<div class="meta">' + e.meta + '</div>' : '') +
+        (e.body ? '<details><summary>ver completo</summary><div>' + esc(e.body) + '</div></details>' : '') +
+        (e.nid ? replyLink(i) : '') +
+        '</div></div>';
+    }).join('');
     box.querySelectorAll('.lm2-tk').forEach((cb) => cb.addEventListener('change', async () => {
       await supabase.from('lead_tasks').update({ done: cb.checked, done_at: cb.checked ? new Date().toISOString() : null }).eq('id', cb.dataset.id);
       loadBell(); if (lm2Lead) { lm2LoadTimeline(lm2Lead); lm2RenderRight(lm2Lead); }
@@ -4728,17 +4835,27 @@ const stillsPool = projects
         const r = lm2Lead; if (!r) return;
         const replyTxt = ta.value.trim(); if (!replyTxt) { toast('Escribí la respuesta'); return; }
         const okBtn = holder.querySelector('.lm2-nreply-ok'); okBtn.disabled = true;
-        // el email del autor original: primero por el mapeo del TEAM, si no por el nombre (notas viejas)
-        const an = String(ev.nauthor || '');
-        let mention = teamEmailByName(an) || (/sofia/i.test(an) ? 'sofia@viven.ch' : /sebastian/i.test(an) ? 'sebastian@viven.ch' : null);
-        if (mention === myEmail()) mention = null;   // no auto-notificarse al responderse a uno mismo
-        const quote = (ev.nbody || '').slice(0, 60) + ((ev.nbody || '').length > 60 ? '…' : '');
         const author = teamName(myEmail());
-        const bodyTxt = '↩︎ En respuesta a ' + (an || 'una nota') + ' («' + quote + '»): ' + replyTxt;
-        const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body: bodyTxt, mention, author });
+        // nombre → email: por el mapeo del TEAM, si no por heurística de nombre (notas viejas sin autor mapeado)
+        const toEmail = (n) => teamEmailByName(String(n || '')) || (/sofia/i.test(n) ? 'sofia@viven.ch' : /sebastian/i.test(n) ? 'sebastian@viven.ch' : null);
+        // avisar a TODOS los participantes del hilo (autor raíz + todos los que respondieron) menos al que
+        // escribe — antes solo se avisaba al autor raíz y saltearse el propio hacía parecer que nunca llegaban
+        const partNames = [ev.nauthor, ...((ev.thread && ev.thread.replies) || []).map((n) => n.author || '')];
+        const recipients = [...new Set(partNames.map(toEmail).filter(Boolean))].filter((e3) => e3 !== myEmail());
+        // mention (columna existente): el autor raíz si no soy yo; si no, el primer otro participante
+        const rootEmail = toEmail(ev.nauthor);
+        const mention = (rootEmail && rootEmail !== myEmail()) ? rootEmail : (recipients[0] || null);
+        // hilo real (0057): body limpio + parent_id = nota RAÍZ (responder a una respuesta también cuelga de la raíz)
+        let { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body: replyTxt, author, parent_id: Number(ev.nid), mention });
+        if (error && /parent_id/.test(error.message || '')){
+          // sin el SQL 0057 corrido: caer al formato viejo con cita para no perder la respuesta
+          const quote = (ev.nbody || '').slice(0, 60) + ((ev.nbody || '').length > 60 ? '…' : '');
+          ({ error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body: '↩︎ En respuesta a ' + (ev.nauthor || 'una nota') + ' («' + quote + '»): ' + replyTxt, author, mention }));
+        }
         if (error) { toast('No se pudo: ' + error.message); okBtn.disabled = false; return; }
-        if (mention) { notifyUser(mention, '↩︎ Respuesta a tu nota — ' + (r.name || r.email), author + ' respondió a tu nota:\n\n«' + quote + '»\n\n' + replyTxt, r.id); loadBell(); }
-        toast('↩︎ Respuesta guardada' + (mention ? ' · avisado a ' + teamName(mention) : ''));
+        recipients.forEach((to) => notifyUser(to, '💬 ' + author + ' respondió en un hilo — ' + (r.name || r.email), author + ' escribió en el hilo de notas de ' + (r.name || r.email) + ':\n\n' + replyTxt, r.id));
+        if (recipients.length) loadBell();
+        toast('↩︎ Respuesta guardada' + (recipients.length ? ' · avisado a ' + recipients.map((e3) => teamName(e3)).join(', ') : ''));
         lm2LoadTimeline(r);
       });
     }));
@@ -7729,12 +7846,37 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       won: contacts.some((l) => stageOf(l.status) === 'ganado'), meta: coMeta[domain] || null
     })).sort((a, b) => b.value - a.value || b.contacts.length - a.contacts.length || a.name.localeCompare(b.name));
   }
+  // estado comercial de la empresa, derivado de sus contactos (no se guarda: se calcula siempre)
+  function coStatus(c){
+    if (!c.contacts.length) return { k: 'empty', label: 'Sin contactos', color: '#f0c060' };
+    if (c.won) return { k: 'client', label: 'Cliente', color: '#7ed957' };
+    if (c.contacts.every((l) => stageOf(l.status) === 'perdido')) return { k: 'lost', label: 'Perdido', color: '#9aa4b5' };
+    return { k: 'prospect', label: 'Prospecto', color: '#8ab4ff' };
+  }
+  // plata de la empresa: en juego (draft+sent) y ganado (won) sobre las ofertas de todos sus
+  // contactos — los paquetes de propuesta (status 'tier') quedan afuera, como en el pipeline
+  function coMoney(c){
+    const ofs = c.contacts.flatMap((l) => offersForLead(l.id)).filter((o) => o.status !== 'tier');
+    return {
+      open: ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((a, o) => a + offerNet(o), 0),
+      won: ofs.filter((o) => o.status === 'won').reduce((a, o) => a + offerNet(o), 0),
+      offers: ofs
+    };
+  }
+  let coSeg = 'all'; // segmento activo del filtro de la lista (all/client/prospect/empty)
   function renderCompanies(){
     if (!coBound){ coBound = true;
       $('co-back').addEventListener('click', () => { coCur = null; $('co-detail').hidden = true; $('co-list-view').hidden = false; });
       $('co-search').addEventListener('input', renderCompaniesList);
-      $('co-edit-btn').addEventListener('click', editCompany);
       $('co-del-btn').addEventListener('click', deleteCompany);
+      $('co-del-sel').addEventListener('click', deleteSelectedCompanies);
+      // popovers del header (➕ Crear / ⋯): cada botón togglea el suyo y cierra el otro; click afuera cierra los dos
+      $('co-create-btn').addEventListener('click', () => { $('co-more-menu').hidden = true; $('co-create-menu').hidden = !$('co-create-menu').hidden; });
+      $('co-more-btn').addEventListener('click', () => { $('co-create-menu').hidden = true; $('co-more-menu').hidden = !$('co-more-menu').hidden; });
+      document.addEventListener('click', (e) => { if (!e.target.closest('#co-actions')){ $('co-create-menu').hidden = true; $('co-more-menu').hidden = true; } });
+      $('co-new-person').addEventListener('click', coNewPerson);
+      $('co-new-offer').addEventListener('click', () => coNewOfferProp('offer'));
+      $('co-new-prop').addEventListener('click', () => coNewOfferProp('prop'));
     }
     if (coCur) renderCompanyDetail(); else { $('co-detail').hidden = true; $('co-list-view').hidden = false; renderCompaniesList(); }
   }
@@ -7759,18 +7901,78 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     $('co-k-contacts').textContent = data.reduce((a, c) => a + c.contacts.length, 0);
     $('co-k-value').textContent = fmtChf(data.reduce((a, c) => a + c.value, 0));
     $('co-k-multi').textContent = data.filter((c) => c.contacts.length >= 2).length;
+    // segment control con contadores vivos (sobre lo que quedó de la búsqueda)
+    const segN = (k) => k === 'all' ? data.length : data.filter((c) => coStatus(c).k === k).length;
+    $('co-seg').innerHTML = [['all', 'Todas'], ['client', 'Clientes'], ['prospect', 'Prospectos'], ['empty', 'Sin contactos']]
+      .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (coSeg === k ? 'on' : '') + '">' + l + ' ' + segN(k) + '</button>').join('');
+    $('co-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { coSeg = b.dataset.k; renderCompaniesList(); }));
+    if (coSeg !== 'all') data = data.filter((c) => coStatus(c).k === coSeg);
     $('co-empty').hidden = data.length > 0;
-    $('co-list').className = 'co-grid';
-    $('co-list').innerHTML = data.map((c) => {
-      const m = c.meta || {};
-      return '<button class="co-card" data-d="' + esc(c.domain) + '" type="button">' +
-        '<div class="co-card-top"><div class="co-av" style="background:' + coColor(c.name) + '">' + esc(c.name.slice(0, 2).toUpperCase()) + '</div>' +
-          '<div class="co-card-id"><div class="co-card-name">' + esc(c.name) + (c.won ? '<span class="of-badge" style="color:#7ed957;border-color:#7ed957;font-size:10px">cliente</span>' : '') + '</div>' +
-          '<div class="co-card-dom">' + esc(c.domain) + (m.industry ? ' · ' + esc(m.industry) : '') + '</div></div></div>' +
-        '<div class="co-card-stats"><span>👥 ' + c.contacts.length + ' contacto' + (c.contacts.length !== 1 ? 's' : '') + '</span>' +
-          '<span class="co-card-val' + (c.value ? '' : ' zero') + '">' + (c.value ? fmtChf(c.value) : 'sin ofertas') + '</span></div>' +
-      '</button>'; }).join('');
-    $('co-list').querySelectorAll('.co-card').forEach((c) => c.addEventListener('click', () => openCompany(c.dataset.d)));
+    $('co-list').className = '';
+    // tabla estilo Personas (lead-table-hs mantiene todas las columnas en móvil con scroll horizontal)
+    const allChecked = data.length > 0 && data.every((c) => coSelected.has(c.domain));
+    $('co-list').innerHTML = data.length ? '<div class="lead-table-wrap lead-table-hs"><table class="lead-table"><thead><tr>' +
+      '<th class="lt-chk"><input type="checkbox" id="co-chk-all"' + (allChecked ? ' checked' : '') + ' title="Seleccionar todas las visibles" /></th>' +
+      '<th>Empresa</th><th>Estado</th><th class="lt-num">Contactos</th><th class="lt-num">En juego</th><th class="lt-num">Ganado</th><th>Última actividad</th>' +
+      '</tr></thead><tbody>' + data.map((c) => {
+        const st = coStatus(c), mo = coMoney(c);
+        // última actividad de la empresa = la más reciente entre todos sus contactos
+        const act = c.contacts.map((l) => lastActivity(l)).filter(Boolean).sort((a, b) => b.t - a.t)[0] || null;
+        return '<tr data-d="' + esc(c.domain) + '">' +
+          '<td class="lt-chk"><input type="checkbox" class="co-row-chk" data-domain="' + esc(c.domain) + '"' + (coSelected.has(c.domain) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
+          '<td><div class="lt-person"><span class="co2-tav" style="background:' + coColor(c.name) + '">' + esc(c.name.slice(0, 2).toUpperCase()) + '</span><div><div class="lt-name">' + esc(c.name) + '</div><div class="lt-sub">' + esc(c.domain) + '</div></div></div></td>' +
+          '<td><span class="of-badge" style="color:' + st.color + ';border-color:' + st.color + '">' + st.label + '</span></td>' +
+          '<td class="lt-num">' + c.contacts.length + '</td>' +
+          '<td class="lt-val" style="text-align:right">' + (mo.open ? fmtChf(mo.open) : '<span class="lt-num">—</span>') + '</td>' +
+          '<td class="lt-val" style="text-align:right;color:#7ed957">' + (mo.won ? fmtChf(mo.won) : '<span class="lt-num" style="color:var(--muted)">—</span>') + '</td>' +
+          '<td class="lt-act">' + esc(actLabel(act)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' : '';
+    $('co-list').querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openCompany(tr.dataset.d)));
+    bindCoSelection(); updateCoDelBtn();
+  }
+  // Empresas: selección múltiple para borrar en batch (espejo del patrón de Personas)
+  let coSelected = new Set();
+  function updateCoDelBtn(){
+    const btn = $('co-del-sel'); if (!btn) return;
+    btn.hidden = coSelected.size === 0;
+    btn.textContent = '🗑 Borrar seleccionadas (' + coSelected.size + ')';
+  }
+  function bindCoSelection(){
+    document.querySelectorAll('.co-row-chk').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) coSelected.add(cb.dataset.domain); else coSelected.delete(cb.dataset.domain);
+      updateCoDelBtn();
+      const all = $('co-chk-all'); if (all) all.checked = [...document.querySelectorAll('.co-row-chk')].every((c) => c.checked);
+    }));
+    // el "todas" vive en el header de la tabla (se re-renderiza con cada lista, igual que en Personas)
+    const allBox = $('co-chk-all');
+    if (allBox) allBox.addEventListener('change', () => {
+      document.querySelectorAll('.co-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) coSelected.add(cb.dataset.domain); else coSelected.delete(cb.dataset.domain); });
+      updateCoDelBtn();
+    });
+  }
+  async function deleteSelectedCompanies(){
+    const doms = [...coSelected]; if (!doms.length) return;
+    // (a) con ficha manual en la tabla companies → borrable; (b) solo agrupadas por dominio → no hay fila en DB,
+    // la tarjeta existe porque sus contactos comparten dominio y solo desaparece borrando esos contactos
+    const withMeta = doms.filter((d) => coMeta[d]);
+    const grouped = doms.filter((d) => !coMeta[d]);
+    if (!withMeta.length){
+      toast('Nada que borrar: esas empresas solo están agrupadas por dominio (sin ficha manual) — para que desaparezcan hay que borrar sus contactos en Personas');
+      return;
+    }
+    const byDom = new Map(companiesData().map((c) => [c.domain, c]));
+    const regen = withMeta.filter((d) => { const c = byDom.get(d); return c && c.contacts.length > 0; });
+    let msg = '¿Borrar ' + withMeta.length + ' ficha' + (withMeta.length === 1 ? '' : 's') + ' manual' + (withMeta.length === 1 ? '' : 'es') + ' de empresa? Esta acción no se puede deshacer.';
+    if (regen.length) msg += '\n\n⚠️ ' + regen.length + ' todavía ' + (regen.length === 1 ? 'tiene' : 'tienen') + ' contactos: su tarjeta va a seguir apareciendo (agrupada por dominio), pero sin la ficha/notas que cargaste.';
+    if (grouped.length) msg += '\n\nℹ️ ' + grouped.length + ' seleccionada' + (grouped.length === 1 ? ' se salta' : 's se saltan') + ': solo ' + (grouped.length === 1 ? 'está agrupada' : 'están agrupadas') + ' por dominio, sin ficha manual en la base — para que ' + (grouped.length === 1 ? 'desaparezca' : 'desaparezcan') + ' hay que borrar sus contactos en Personas.';
+    if (!confirm(msg)) return;
+    const { error } = await supabase.from('companies').delete().in('domain', withMeta);
+    if (error) { alert('No se pudo borrar: ' + error.message); return; }
+    withMeta.forEach((d) => { delete coMeta[d]; });
+    if (coCur && withMeta.includes(coCur)) coCur = null; // si el detalle abierto era una borrada, volver a la lista
+    coSelected.clear();
+    toast('🗑 ' + withMeta.length + ' ficha' + (withMeta.length === 1 ? ' borrada' : 's borradas'));
+    renderCompanies();
   }
   function openCompany(domain){ coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false; renderCompanyDetail(); window.scrollTo(0, 0); }
   const OFBADGE = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
@@ -7800,84 +8002,119 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   function renderCompanyDetail(){
     const domain = coCur; const data = companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0, won: false };
     const m = coMeta[domain] || {};
+    const st = coStatus(data), mo = coMoney(data);
     $('co-avatar').textContent = data.name.slice(0, 2).toUpperCase();
     $('co-avatar').style.background = coColor(data.name); $('co-avatar').style.color = '#0f1826';
-    $('co-name').textContent = data.name; $('co-domain').textContent = domain;
+    $('co-name').textContent = data.name;
+    $('co-status').innerHTML = '<span class="of-badge" style="color:' + st.color + ';border-color:' + st.color + '">' + st.label + '</span>';
+    $('co-subline').textContent = [domain, m.industry, m.city].filter(Boolean).join(' · ');
     // normalizar la URL: sin https:// el navegador la trataría como ruta interna (404)
     let web = m.website || ('https://' + domain);
     if (!/^https?:\/\//i.test(web)) web = 'https://' + web;
     const wb = $('co-web'); wb.hidden = false; wb.href = web;
-    const row = (k, v) => v ? '<div class="ab-row"><span class="ab-k">' + k + '</span><span class="ab-v">' + v + '</span></div>' : '';
-    const ofs = data.contacts.flatMap((l) => offersForLead(l.id));
-    const wonSum = ofs.filter((o) => o.status === 'won').reduce((a, o) => a + offerNet(o), 0);
-    $('co-about').innerHTML =
-      '<div class="ab-sec"><div class="ab-h">Sobre la empresa</div>' +
-        row('Nombre', esc(m.name || data.name)) + row('Dominio', esc(domain)) + row('Tipo', esc(m.type || (data.won ? 'Cliente' : ''))) + row('Industria', esc(m.industry || '')) +
-        row('Web', '<a href="' + esc(web) + '" target="_blank" rel="noopener">' + esc(m.website || domain) + '</a>') +
-        (m.linkedin ? row('LinkedIn', '<a href="' + esc(m.linkedin) + '" target="_blank" rel="noopener">Perfil ↗</a>') : '') +
-        row('Ciudad', esc(m.city || '')) + row('Empleados', esc(m.employees || '')) + row('Teléfono', esc(m.phone || '')) + row('Owner', esc(m.owner || '')) + '</div>' +
-      (m.notes ? '<div class="ab-sec"><div class="ab-h">Descripción</div><div style="font-size:13px;color:var(--muted);white-space:pre-wrap">' + esc(m.notes) + '</div></div>' : '') +
-      '<div class="ab-sec"><div class="ab-h">Resumen</div>' + row('Contactos', data.contacts.length) + row('Ofertas', ofs.length) + row('Valor en ofertas', fmtChf(data.value)) + (wonSum ? row('Ganado', '<span style="color:#7ed957">' + fmtChf(wonSum) + '</span>') : '') + '</div>';
-    // contactos (personas) — tabla estilo HubSpot
-    $('co-contacts-n').textContent = '(' + data.contacts.length + ')';
-    $('co-contacts').innerHTML = data.contacts.length
-      ? '<div class="co-tbl"><div class="co-th"><span>Contacto</span><span>Etapa</span></div>' + data.contacts.map((l) => { const stg = STAGES.find((s) => s.key === stageOf(l.status)) || {};
-          return '<button class="co-tr co-contact" data-id="' + esc(l.id) + '" type="button"><span class="co-td-name">' + esc(l.name || l.email) + '<span class="co-role">' + esc([l.job_title, l.email].filter(Boolean).join(' · ')) + '</span></span><span><span class="of-badge" style="color:' + (stg.color || 'var(--muted)') + ';border-color:' + (stg.color || 'var(--line-strong)') + '">' + esc(stg.label || l.status || '') + '</span></span></button>'; }).join('') + '</div>'
-      : '<p class="muted-note">Sin contactos.</p>';
-    $('co-contacts').querySelectorAll('.co-contact').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.id)));
-    // ofertas (deals) de todos los contactos — tabla con importe
-    $('co-deals-n').textContent = '(' + ofs.length + ')';
-    $('co-deals').innerHTML = ofs.length
-      ? '<div class="co-tbl"><div class="co-th co-th-deals"><span>Oferta</span><span>Importe</span><span>Estado</span></div>' + ofs.map((o) => { const b = OFBADGE[o.status] || OFBADGE.draft;
-          return '<button class="co-tr co-tr-deals" data-oid="' + o.id + '" type="button"><span class="co-td-name">' + esc(o.title || '(sin título)') + '</span><span class="co-td-amt">' + fmtM(offerNet(o)) + '</span><span><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></span></button>'; }).join('') + '</div>'
-      : '<p class="muted-note">Sin ofertas todavía.</p>';
-    $('co-deals').querySelectorAll('[data-oid]').forEach((d) => d.addEventListener('click', () => { gotoTab('offers'); openOffer(d.dataset.oid); }));
-    // actividad agregada de toda la empresa (tasks + notas de todos los contactos)
-    $('co-right').innerHTML = '<div class="lm-block"><div class="lm-block-h">📌 Actividad de la empresa</div><div id="co-activity"><p class="muted-note">Cargando…</p></div></div>';
-    loadCompanyActivity(data.contacts);
+    // rail izquierdo: ficha editable inline
+    coRenderAbout(domain);
+    // KPIs del centro
+    const nDeals = data.contacts.reduce((a, l) => a + dealsForLead(l.id).length, 0);
+    $('co-kpis').innerHTML =
+      '<div class="kpi"><div class="n">' + data.contacts.length + '</div><div class="l">Contactos</div></div>' +
+      '<div class="kpi"><div class="n">' + (mo.open ? fmtChf(mo.open) : '—') + '</div><div class="l">En juego</div></div>' +
+      '<div class="kpi"><div class="n" style="color:#7ed957">' + (mo.won ? fmtChf(mo.won) : '—') + '</div><div class="l">Ganado</div></div>' +
+      '<div class="kpi"><div class="n">' + nDeals + '</div><div class="l">Proyectos</div></div>';
+    // rail derecho: contactos + ofertas/propuestas (mismos cards apilables de la Ficha V2)
+    const stgB = (l) => { const s = STAGES.find((x) => x.key === stageOf(l.status)) || {}; return '<span class="stb" style="color:' + (s.color || 'var(--muted)') + ';border-color:' + (s.color || 'var(--line-strong)') + '">' + esc(s.label || l.status || '') + '</span>'; };
+    $('co-right').innerHTML =
+      '<div class="lm2-as"><div class="top">👥 Contactos <span class="n">' + data.contacts.length + '</span></div>' +
+        data.contacts.map((l) => '<button class="row co2-ct" data-id="' + esc(String(l.id)) + '" type="button"><span style="min-width:0"><span style="display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(l.name || l.email) + '</span>' + (l.job_title ? '<span style="display:block;font-size:10.5px;color:var(--muted)">' + esc(l.job_title) + '</span>' : '') + '</span><span style="margin-left:auto">' + stgB(l) + '</span></button>').join('') +
+        '<button class="add" id="co-add-person" type="button">➕ Nueva persona en esta empresa</button></div>' +
+      '<div class="lm2-as"><div class="top">🧾 Ofertas y propuestas <span class="n">' + mo.offers.length + '</span></div>' +
+        (mo.offers.length ? mo.offers.map((o) => { const b = OFBADGE[o.status] || OFBADGE.draft;
+          return '<button class="row co2-of" data-oid="' + esc(String(o.id)) + '" type="button"><span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(o.title || '(sin título)') + '</span><span class="amt">' + fmtM(offerNet(o)) + '</span><span class="stb" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></button>'; }).join('') : '<div class="row" style="cursor:default;color:var(--muted)">Sin ofertas todavía.</div>') +
+        '<div style="display:flex"><button class="add" id="co-add-offer" type="button">➕ Oferta</button><button class="add" id="co-add-prop" type="button" style="border-left:1px solid var(--line)">🌐 Propuesta</button></div></div>';
+    $('co-right').querySelectorAll('.co2-ct').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.id)));
+    $('co-right').querySelectorAll('.co2-of').forEach((b) => b.addEventListener('click', () => { gotoTab('offers'); openOffer(b.dataset.oid); }));
+    $('co-add-person').addEventListener('click', coNewPerson);
+    $('co-add-offer').addEventListener('click', () => coNewOfferProp('offer'));
+    $('co-add-prop').addEventListener('click', () => coNewOfferProp('prop'));
+    // timeline agregada de toda la empresa (async)
+    $('co-tl').innerHTML = '<p class="muted-note">Cargando actividad…</p>';
+    coLoadTimeline(data);
   }
-  async function loadCompanyActivity(contacts){
-    const box = $('co-activity'); if (!box) return;
-    const ids = contacts.map((l) => String(l.id));
-    if (!ids.length) { box.innerHTML = '<p class="muted-note">Sin contactos.</p>'; return; }
-    const nmeOf = (id) => { const l = contacts.find((c) => String(c.id) === String(id)); return l ? (l.name || l.email) : ''; };
-    try {
-      const [tq, nq] = await Promise.all([
-        supabase.from('lead_tasks').select('*').in('lead_id', ids).eq('done', false).order('due_date', { ascending: true }).limit(8),
-        supabase.from('lead_notes').select('*').in('lead_id', ids).order('created_at', { ascending: false }).limit(6)
-      ]);
-      const tasks = (tq && !tq.error && tq.data) || [], notes = (nq && !nq.error && nq.data) || [];
-      const fmtDue = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '';
-      let html = '';
-      html += '<div class="co-act-h">✅ Tareas abiertas <span>(' + tasks.length + ')</span></div>';
-      html += tasks.length ? tasks.map((t) => { const overdue = t.due_date && new Date(t.due_date) < new Date(new Date().toDateString());
-        return '<div class="co-act-item"><span class="co-act-t">' + esc(t.title) + '<span class="co-act-who">' + esc(nmeShort(nmeOf(t.lead_id))) + (t.assignee ? ' · ' + esc(teamName(t.assignee)) : '') + '</span></span>' + (t.due_date ? '<span class="co-act-due' + (overdue ? ' od' : '') + '">' + fmtDue(t.due_date) + '</span>' : '') + '</div>'; }).join('') : '<p class="muted-note" style="margin:2px 0 10px">Ninguna.</p>';
-      html += '<div class="co-act-h" style="margin-top:12px">📝 Notas recientes <span>(' + notes.length + ')</span></div>';
-      html += notes.length ? notes.map((n) => '<div class="co-act-note"><div class="co-act-nb">' + esc((n.body || '').slice(0, 160)) + ((n.body || '').length > 160 ? '…' : '') + '</div><div class="co-act-who">' + esc(nmeShort(nmeOfNote(n, contacts))) + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>').join('') : '<p class="muted-note" style="margin:2px 0">Ninguna.</p>';
-      box.innerHTML = html;
-    } catch (e) { box.innerHTML = '<p class="muted-note">No se pudo cargar la actividad (¿SQL 0010?).</p>'; }
+  // timeline agregada: emails + notas + tasks (por DB, sobre TODOS los contactos) + ofertas ganadas (memoria)
+  async function coLoadTimeline(data){
+    const box = $('co-tl'); if (!box) return;
+    const ids = data.contacts.map((l) => String(l.id));
+    if (!ids.length){ box.innerHTML = '<p class="muted-note">Sin contactos — la actividad de sus personas va a aparecer acá.</p>'; return; }
+    const nameOf = (id) => { const l = data.contacts.find((c) => String(c.id) === String(id)); return l ? (l.name || l.email) : ''; };
+    const q = (t) => t.then((x) => (x && !x.error && x.data) || []).catch(() => []);
+    const [emails, notes, tasks] = await Promise.all([
+      q(supabase.from('email_log').select('*').in('lead_id', ids).order('created_at', { ascending: false }).limit(100)),
+      q(supabase.from('lead_notes').select('*').in('lead_id', ids).order('created_at', { ascending: false }).limit(100)),
+      q(supabase.from('lead_tasks').select('*').in('lead_id', ids).order('created_at', { ascending: false }).limit(100)),
+    ]);
+    if (coCur !== data.domain) return; // cambió de empresa mientras cargaba
+    const ev = [];
+    emails.forEach((e2) => ev.push({ t: e2.created_at, chip: ['email', e2.direction === 'in' ? '📥 Recibido' : '✉️ Enviado'], title: '<b>' + esc(e2.subject || '(sin asunto)') + '</b>', meta: esc(e2.sender_label || ''), who: nameOf(e2.lead_id) }));
+    notes.forEach((n) => ev.push({ t: n.created_at, chip: ['nota', '📝 Nota'], title: esc((n.body || '').slice(0, 140)) + ((n.body || '').length > 140 ? '…' : ''), meta: esc(n.author || ''), who: nameOf(n.lead_id) }));
+    tasks.forEach((t) => ev.push({ t: t.created_at, chip: ['task', t.done ? '✅ Task hecha' : '⏳ Task'], title: esc(t.title), who: nameOf(t.lead_id) }));
+    data.contacts.forEach((l) => offersForLead(l.id).filter((o) => o.status === 'won').forEach((o) => ev.push({ t: o.updated_at || o.created_at, chip: ['sys', '🏆 Ganada'], title: '<b>' + esc(o.title || 'Oferta') + '</b> · ' + fmtChf(offerNet(o)), who: l.name || l.email })));
+    ev.sort((a, b) => new Date(b.t) - new Date(a.t));
+    box.innerHTML = ev.length
+      ? '<div class="lm2-tl">' + ev.slice(0, 100).map((e2) => '<div class="lm2-ev"><div class="when">hace ' + timeAgo(e2.t) + '</div><div class="card"><span class="lm2-chip ' + e2.chip[0] + '">' + e2.chip[1] + '</span>' + e2.title + ((e2.meta || e2.who) ? '<div class="meta">' + [e2.meta, e2.who ? 'en ' + esc(e2.who) : ''].filter(Boolean).join(' · ') + '</div>' : '') + '</div></div>').join('') + '</div>'
+      : '<p class="muted-note">Sin actividad todavía — los emails, notas y tasks de sus contactos van a aparecer acá.</p>';
   }
-  function nmeShort(s){ return (s || '').split(/\s+/)[0] || s || ''; }
-  function nmeOfNote(n, contacts){ const l = contacts.find((c) => String(c.id) === String(n.lead_id)); return l ? (l.name || l.email) : ''; }
-  function editCompany(){
-    const domain = coCur; if (!domain) return; const m = coMeta[domain] || {};
-    const fld = (l, id, v) => '<div class="ab-row"><span class="ab-k">' + l + '</span><span class="ab-v"><input class="ed-inp" id="' + id + '" value="' + esc(v || '') + '"/></span></div>';
-    $('co-about').innerHTML = '<div class="ab-sec"><div class="ab-h">✏️ Editar empresa</div>' +
-      fld('Nombre', 'co-ed-name', m.name || companyName(domain)) + fld('Tipo', 'co-ed-type', m.type) + fld('Industria', 'co-ed-ind', m.industry) + fld('Web', 'co-ed-web', m.website) + fld('LinkedIn', 'co-ed-linkedin', m.linkedin) + fld('Dirección', 'co-ed-addr', m.address) + fld('CP y ciudad', 'co-ed-zip', m.zip_city || m.city) + fld('Ciudad', 'co-ed-city', m.city) + fld('Empleados', 'co-ed-emp', m.employees) + fld('Teléfono', 'co-ed-phone', m.phone) + fld('Owner', 'co-ed-owner', m.owner) +
-      '<div style="margin:6px 0"><span class="ab-k">Descripción / notas</span><textarea class="ed-inp" id="co-ed-notes" style="min-height:70px;margin-top:5px">' + esc(m.notes || '') + '</textarea></div>' +
-      '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary xs" id="co-ed-save" type="button">Guardar</button><button class="btn btn-ghost xs" id="co-ed-cancel" type="button">Cancelar</button></div></div>';
-    $('co-ed-save').addEventListener('click', saveCompanyMeta);
-    $('co-ed-cancel').addEventListener('click', renderCompanyDetail);
+  // rail izquierdo: ficha editable inline (click en el valor → input; Enter guarda, Esc cancela).
+  // Reemplaza al viejo modo "✏️ Editar empresa" de formulario completo.
+  const CO_FIELDS = [['name', 'Nombre'], ['industry', 'Industria'], ['city', 'Ciudad'], ['employees', 'Empleados'], ['phone', 'Teléfono'], ['website', 'Web'], ['linkedin', 'LinkedIn'], ['notes', 'Notas']];
+  function coRenderAbout(domain){
+    const m = coMeta[domain] || {};
+    $('co-about').innerHTML = '<div class="lm2-sech">Sobre la empresa</div><div class="lm2-kv">' +
+      CO_FIELDS.map(([k, l]) => '<div><div class="k">' + l + '</div><div class="v lm2-edit co2-fld" data-f="' + k + '" title="Click para editar">' + (m[k] ? esc(String(m[k])) : '<span style="color:var(--muted-2)">—</span>') + '</div></div>').join('') + '</div>' +
+      (!coMeta[domain] ? '<p class="muted-note" style="margin-top:12px;font-size:11px">Empresa agrupada por dominio: al editar un campo se crea su ficha en la base.</p>' : '');
+    $('co-about').querySelectorAll('.co2-fld').forEach((el) => el.addEventListener('click', () => coEditField(domain, el)));
   }
-  async function saveCompanyMeta(){
-    const domain = coCur; if (!domain) return;
-    const g = (id) => { const el = $(id); return el && el.value.trim() ? el.value.trim() : null; };
-    const patch = { domain, name: g('co-ed-name'), type: g('co-ed-type'), industry: g('co-ed-ind'), website: g('co-ed-web'), linkedin: g('co-ed-linkedin'), address: g('co-ed-addr'), zip_city: g('co-ed-zip'), city: g('co-ed-city'), employees: g('co-ed-emp'), phone: g('co-ed-phone'), owner: g('co-ed-owner'), notes: g('co-ed-notes') };
-    let { data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single();
-    // columnas nuevas sin migrar (SQL 0023) → sacar y reintentar
-    if (error && /address|zip_city/.test(error.message || '')) { delete patch.address; delete patch.zip_city; ({ data, error } = await supabase.from('companies').upsert(patch, { onConflict: 'domain' }).select().single()); }
-    if (error){ toast('No se pudo guardar (¿corriste el SQL 0011?): ' + error.message); return; }
-    coMeta[domain] = data; toast('Empresa guardada'); renderCompaniesList(); renderCompanyDetail();
+  function coEditField(domain, el){
+    if (el.querySelector('input')) return; // ya está en edición
+    const f = el.dataset.f; const cur = String((coMeta[domain] || {})[f] || '');
+    el.innerHTML = '<input class="ed-inp" value="' + esc(cur) + '" style="width:100%;font-size:12.5px;padding:5px 7px" />';
+    const inp = el.querySelector('input'); inp.focus(); inp.select();
+    let done = false;
+    // Enter guarda, Esc cancela; blur también guarda para no perder lo tipeado
+    const finish = async (save) => {
+      if (done) return; done = true;
+      const v = inp.value.trim();
+      if (save && v !== cur){
+        if (await coSaveMeta(domain, { [f]: v || null })) toast('Empresa guardada');
+        renderCompanyDetail(); renderCompaniesList(); // nombre/industria/ciudad afectan header, subline y lista
+        return;
+      }
+      coRenderAbout(domain);
+    };
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+    inp.addEventListener('blur', () => finish(true));
+  }
+  // guarda un patch parcial en companies (upsert por domain) y refresca coMeta — reemplaza al viejo saveCompanyMeta
+  async function coSaveMeta(domain, patch){
+    const row = { domain, ...patch };
+    const { data, error } = await supabase.from('companies').upsert(row, { onConflict: 'domain' }).select().single();
+    if (error){ toast('No se pudo guardar (¿corriste el SQL 0011?): ' + error.message); return false; }
+    coMeta[domain] = data; return true;
+  }
+  // ➕ Crear desde la empresa: persona → alta de Personas con la empresa pre-llenada
+  function coNewPerson(){
+    const nm = companyName(coCur || '') || coCur || '';
+    $('co-create-menu').hidden = true;
+    gotoTab('leads');
+    openPsForm();
+    $('psf-company').value = nm;
+  }
+  // oferta/propuesta: van ligadas a una persona — usamos el primer contacto de la empresa
+  function coNewOfferProp(kind){
+    $('co-create-menu').hidden = true;
+    const data = companiesData().find((c) => c.domain === coCur);
+    const l = data && data.contacts[0];
+    if (!l){ toast('Sin contactos: creá primero una persona en esta empresa'); return; }
+    if (kind === 'offer') makeOfferForLead(l); else makePropForLead(l);
   }
 
   /* ================= CRM: alta manual + importar CSV (como HubSpot) ================= */
