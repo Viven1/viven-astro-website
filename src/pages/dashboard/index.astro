@@ -128,6 +128,18 @@ const stillsPool = projects
   .chart-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   .chart-legend .s{background:var(--acid)}
   .chart-legend .c{border-radius:50%;background:#ff9ec9}
+  .chart-legend .p{background:#8ab4ff;opacity:.55}
+  /* línea punteada del período anterior en el gráfico diario */
+  .g-prev{fill:none;stroke:#8ab4ff;stroke-width:1.5;stroke-dasharray:5 4;opacity:.5}
+  /* ▲▼ vs período anterior en los KPIs */
+  .kdelta{font-size:11px;font-weight:700;margin-top:4px;min-height:13px}
+  .kdelta.up{color:#7ed957}
+  .kdelta.down{color:#ff8b8b}
+  .kdelta.flat{color:var(--muted-2)}
+  /* sub-tabs de Analytics: pills en UNA fila, scrolleables en móvil */
+  .ana-seg{margin:0 0 18px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .ana-seg::-webkit-scrollbar{display:none}
+  .ana-seg button{flex:none;font-size:12px;padding:7px 14px}
 
   /* insight banner */
   .insights{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
@@ -374,13 +386,32 @@ const stillsPool = projects
   .co-seg button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
   .co2-tav{width:28px;height:28px;border-radius:8px;color:#0f1826;display:grid;place-items:center;font-weight:800;font-size:11px;font-family:'Space Grotesk';flex:none}
   .co2-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;background:var(--navy-800)}
-  .co2-grid{display:grid;grid-template-columns:240px 1fr 300px;border:1px solid var(--line);border-radius:0 0 14px 14px;overflow:hidden;background:var(--navy-800)}
-  .co2-l{border-right:1px solid var(--line);padding:16px}
+  /* detalle de empresa: el CENTRO (KPIs + actividad) manda — rails angostos para su contenido */
+  .co2-grid{display:grid;grid-template-columns:200px minmax(0,1fr) 260px;border:1px solid var(--line);border-radius:0 0 14px 14px;overflow:hidden;background:var(--navy-800)}
+  .co2-l{border-right:1px solid var(--line);padding:14px}
   .co2-c{padding:16px 20px;background:rgba(0,0,0,.12);min-width:0}
-  .co2-r{border-left:1px solid var(--line);padding:16px}
+  .co2-r{border-left:1px solid var(--line);padding:14px}
+  /* el detalle necesita todo el ancho: solo cuando está abierto, el wrap crece (los demás tabs no cambian) */
+  .dash-wrap:has(#tab-companies:not([hidden]) #co-detail:not([hidden])){max-width:1600px}
+  /* KPIs del centro más densos: números chicos, menos padding → la timeline gana alto */
+  #co-kpis{gap:10px;margin-bottom:14px}
+  #co-kpis .kpi{padding:8px 12px}
+  #co-kpis .kpi .n{font-size:15px}
+  #co-kpis .kpi .l{margin-top:2px;font-size:11px}
+  /* rail izquierdo compacto: los campos vacíos (—) no se comen una fila alta cada uno */
+  .co2-l .lm2-kv{gap:6px;font-size:12px}
+  .co2-l .lm2-kv .k{font-size:9.5px}
+  /* fold de la ficha: en desktop el summary no existe (siempre abierta) */
+  .co2-lfold>summary{display:none}
+  @media(max-width:1199px){
+    /* tablet ancha: la ficha se pliega arriba a lo ancho y el centro + rail derecho se reparten el resto */
+    .co2-grid{grid-template-columns:minmax(0,1fr) 260px}
+    .co2-l{grid-column:1/-1;border-right:0;border-bottom:1px solid var(--line);padding:10px 16px}
+    .co2-lfold>summary{display:block}
+  }
   @media(max-width:960px){
     .co2-grid{display:flex;flex-direction:column}
-    .co2-l{order:2;border-right:0;border-top:1px solid var(--line)}
+    .co2-l{order:2;border-right:0;border-bottom:0;border-top:1px solid var(--line)}
     .co2-c{order:1}
     .co2-r{order:3;border-left:0;border-top:1px solid var(--line)}
   }
@@ -1051,7 +1082,6 @@ const stillsPool = projects
         <div class="side-group-items">
           <button class="side-item" data-tab="analytics" type="button"><span class="si-ic">📊</span>Analytics</button>
           <button class="side-item" data-tab="ab" type="button"><span class="si-ic">🧪</span>A/B Tests</button>
-          <button class="side-item" data-tab="gads" type="button"><span class="si-ic">🎯</span>Google Ads</button>
         </div>
       </div>
       <div class="side-group" data-group="content">
@@ -1059,7 +1089,6 @@ const stillsPool = projects
         <div class="side-group-items">
           <button class="side-item" data-tab="blog" type="button"><span class="si-ic">📝</span>Blog</button>
           <button class="side-item" data-tab="news" type="button"><span class="si-ic">📰</span>Newsletter</button>
-          <button class="side-item" data-tab="seo" type="button"><span class="si-ic">🔎</span>Search Console</button>
           <button class="side-item disabled" type="button" title="Fase 2"><span class="si-ic">🧲</span>Lead Magnets</button>
         </div>
       </div>
@@ -1290,7 +1319,13 @@ const stillsPool = projects
         </div>
       </div>
       <div class="co2-grid">
-        <aside class="co2-l" id="co-about"></aside>
+        <!-- <1200px la ficha arranca plegada (JS ajusta open según el ancho); en desktop el summary se oculta -->
+        <aside class="co2-l">
+          <details class="co2-lfold" id="co-lfold" open>
+            <summary class="of-more-sum">🏢 Ficha de la empresa ▾</summary>
+            <div id="co-about"></div>
+          </details>
+        </aside>
         <main class="co2-c">
           <div class="kpis four" id="co-kpis"></div>
           <div class="lm2-sech" style="margin-top:18px">Actividad de toda la empresa</div>
@@ -1301,12 +1336,12 @@ const stillsPool = projects
     </div>
   </div>
 
-  <!-- ============ TAB: ANALYTICS ============ -->
+  <!-- ============ TAB: ANALYTICS (un solo destino: Web / Search Console / Google Ads / Videos) ============ -->
   <div id="tab-analytics" hidden>
     <div class="of-bar" style="margin-bottom:14px">
       <div>
         <h2 style="margin:0">Analytics</h2>
-        <p class="muted-note" style="margin:2px 0 0">Tráfico y conversión del sitio en el período elegido.</p>
+        <p class="muted-note" style="margin:2px 0 0">Tráfico, buscadores, Ads y videos — todo del período elegido, comparado con el período anterior.</p>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <select id="range-sel" class="status" title="Período">
@@ -1320,66 +1355,167 @@ const stillsPool = projects
         <span class="muted-note" id="data-fresh" title="Estos números se recargan solos cada 3 min mientras tenés la pestaña abierta"></span>
       </div>
     </div>
-    <div class="kpis">
-      <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="l">Sesiones (visitantes)</div></div>
-      <div class="kpi"><div class="n" id="ka-views">–</div><div class="l">Páginas vistas</div></div>
-      <div class="kpi"><div class="n" id="ka-time">–</div><div class="l">Tiempo medio en página</div></div>
-      <div class="kpi"><div class="n" id="ka-conv">–</div><div class="l">Leads (conversiones)</div></div>
-      <div class="kpi"><div class="n" id="ka-rate">–</div><div class="l">Tasa de conversión</div></div>
+
+    <!-- sub-tabs: un solo período manda sobre los 4 -->
+    <div class="co-seg ana-seg" id="ana-seg">
+      <button data-sub="web" class="on" type="button">🌐 Web</button>
+      <button data-sub="seo" type="button">🔍 Search Console</button>
+      <button data-sub="gads" type="button">🎯 Google Ads</button>
+      <button data-sub="videos" type="button">🎬 Videos</button>
     </div>
 
-    <!-- Insights con IA: recomendaciones de mejora -->
-    <div class="panel ai-panel">
-      <div class="ai-head">
-        <h2>🧠 Insights con IA <span class="count">recomendaciones para vender más</span></h2>
-        <button class="btn btn-primary small" id="ai-insights-btn" type="button">✨ Generar</button>
+    <!-- ============ SUB: WEB ============ -->
+    <div id="ana-sub-web">
+      <div class="kpis">
+        <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l">Sesiones (visitantes)</div></div>
+        <div class="kpi"><div class="n" id="ka-views">–</div><div class="kdelta" id="ka-views-d"></div><div class="l">Páginas vistas</div></div>
+        <div class="kpi"><div class="n" id="ka-time">–</div><div class="kdelta" id="ka-time-d"></div><div class="l">Tiempo medio en página</div></div>
+        <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l">Leads (conversiones)</div></div>
+        <div class="kpi"><div class="n" id="ka-rate">–</div><div class="kdelta" id="ka-rate-d"></div><div class="l">Tasa de conversión</div></div>
       </div>
-      <div class="ai-body" id="ai-insights-body">
-        <p class="muted-note">Apretá <strong>✨ Generar</strong> para que la IA analice tu tráfico, canales y conversión, y te dé 3–5 mejoras concretas y accionables.</p>
-      </div>
-    </div>
 
-    <!-- Titulares automáticos: qué está funcionando -->
-    <div class="insights" id="insights"></div>
-
-    <div class="panel">
-      <h2>Tráfico y leads por día <span class="count">(últimos 30 días)</span></h2>
-      <div class="chart" id="daily-chart"></div>
-      <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
-      <div class="chart-legend"><span><i class="s"></i>Sesiones</span><span><i class="c"></i>Leads</span></div>
-    </div>
-
-    <div class="grid-2">
       <div class="panel">
-        <h2>¿Qué canales traen leads? <span class="count">(sesiones → leads)</span></h2>
-        <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Canal</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-channel"></tbody></table></div>
+        <h2>Tráfico y leads por día <span class="count" id="daily-label">(en el período)</span></h2>
+        <div class="chart" id="daily-chart"></div>
+        <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
+        <div class="chart-legend"><span><i class="s"></i>Sesiones</span><span><i class="c"></i>Leads</span><span><i class="p"></i>Período anterior</span></div>
       </div>
+
       <div class="panel">
-        <h2>¿Qué páginas convierten? <span class="count">(entrada → leads)</span></h2>
-        <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-landing"></tbody></table></div>
+        <h2>Funnel del período <span class="count">(sesiones → ganado)</span></h2>
+        <div class="funnel" id="ana-funnel"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>¿Qué canales traen leads? <span class="count">(sesiones → leads)</span></h2>
+          <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Canal</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-channel"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <h2>¿De dónde llegan? <span class="count">(referrers externos)</span></h2>
+          <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Sitio de origen</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-ref"></tbody></table></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>¿Qué páginas convierten? <span class="count">(entrada → leads)</span></h2>
+          <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-landing"></tbody></table></div>
+        </div>
+        <!-- Insights con IA: se generan solos 1 vez por día (cache por navegador) -->
+        <div class="panel ai-panel">
+          <div class="ai-head">
+            <h2>🧠 Insights con IA <span class="count">se generan solos 1×/día</span></h2>
+            <button class="btn btn-ghost small" id="ai-insights-btn" type="button" title="Regenerar ahora">↻</button>
+          </div>
+          <div class="ai-body" id="ai-insights-body">
+            <p class="muted-note">Los insights del día se generan solos en cuanto hay datos del período.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- detalle secundario plegado: no se come media pantalla -->
+      <details style="margin-top:2px">
+        <summary class="of-more-sum">Más detalle: páginas vistas, dispositivos e idiomas ▾</summary>
+        <div class="panel" style="margin-top:12px">
+          <h2>Páginas más vistas <span class="count">(visitas · cuánto se quedan)</span></h2>
+          <div class="bars" id="bars-pages"></div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <h2>Dispositivos <span class="count">(páginas vistas)</span></h2>
+            <div class="bars" id="bars-device"></div>
+          </div>
+          <div class="panel">
+            <h2>Idiomas del navegador <span class="count">(sesiones)</span></h2>
+            <div class="bars" id="bars-lang"></div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ============ SUB: SEARCH CONSOLE (antes tab propio) ============ -->
+    <div id="ana-sub-seo" hidden>
+      <div class="of-bar" style="margin-bottom:14px">
+        <div>
+          <h2 style="margin:0">Search Console</h2>
+          <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentra Google: clicks, impresiones y las búsquedas reales del período elegido (mín. 7, máx. 90 días).</p>
+        </div>
+        <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
+      </div>
+      <div id="seo-body"><p class="muted-note">Cargando…</p></div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="draft-head">
+          <h2 style="margin:0">🎯 Oportunidades de keywords <span class="count">GSC × competencia × IA</span></h2>
+          <button class="btn btn-primary small" id="kw-run" type="button">✨ Buscar oportunidades</button>
+        </div>
+        <p class="muted-note" style="margin:6px 0 10px">Cruza tus búsquedas REALES de Search Console con lo que rankea la competencia suiza (búsqueda web en vivo) y devuelve acciones concretas: qué reforzar, qué escribir, qué title cambiar. Los temas nuevos van directo a la cola del motor con ⚡.</p>
+        <div id="kw-out"></div>
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Páginas más vistas <span class="count">(visitas · cuánto se quedan)</span></h2>
-      <div class="bars" id="bars-pages"></div>
+    <!-- ============ SUB: GOOGLE ADS (antes tab propio) ============ -->
+    <div id="ana-sub-gads" hidden>
+      <div class="panel">
+        <h2>🎯 Google Ads</h2>
+        <p class="muted-note" style="margin:6px 0 12px">Sesiones que aterrizaron con gclid ≈ clicks reales. El gasto exacto y los clicks oficiales llegan cuando Google apruebe el developer token de la API; mientras tanto cargá la inversión abajo y el ROI se calcula solo. Spam y tests quedan excluidos de todo.</p>
+        <div class="gads-kpis">
+          <div class="gads-kpi"><b id="gads-sess">–</b><span>Sesiones desde Ads</span></div>
+          <div class="gads-kpi"><b id="gads-leads">–</b><span>Leads</span></div>
+          <div class="gads-kpi"><b id="gads-cr">–</b><span>Sesión → lead</span></div>
+          <div class="gads-kpi"><b id="gads-won">–</b><span>Ganados</span></div>
+          <div class="gads-kpi"><b id="gads-wonval">–</b><span>Valor ganado</span></div>
+          <div class="gads-kpi"><b id="gads-pipe">–</b><span>Pipeline abierto (Ads)</span></div>
+        </div>
+        <div class="gads-roi">
+          <div class="bf" style="margin:0;max-width:250px"><label>Inversión total en Ads (CHF)</label>
+            <div style="display:flex;gap:8px"><input id="gads-spend-in" type="number" min="0" step="50" placeholder="p. ej. 2000" /><button class="btn btn-ghost small" id="gads-spend-save" type="button" title="Guardar">💾</button></div>
+          </div>
+          <div class="gads-kpi"><b id="gads-cpl">–</b><span>Costo por lead</span></div>
+          <div class="gads-kpi"><b id="gads-cpa">–</b><span>Costo por ganado</span></div>
+          <div class="gads-kpi"><b id="gads-roas">–</b><span>ROAS (× la inversión)</span></div>
+        </div>
+        <!-- veredicto en cristiano: ¿la plata vuelve o no? -->
+        <p id="gads-verdict" style="margin:10px 0 0;font-weight:700;font-size:13.5px"></p>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>📡 Datos oficiales de Google Ads <span class="count" id="gads-off-days">(en el período)</span></h2>
+        <div id="gads-official"><p class="muted-note">Cargando…</p></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>Campañas <span class="count">(según nuestro analytics, por utm_campaign)</span></h2>
+        <div id="gads-camps" style="overflow-x:auto"><p class="muted-note">Sin datos todavía.</p></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>🎯 Google Ads — conversiones offline</h2>
+        <p class="muted-note" style="margin:6px 0 12px">Le devolvemos a Google qué clicks terminaron en CLIENTES: así el algoritmo optimiza por ganados, no por formularios. Estado: <b id="ads-n-leads">–</b> leads con gclid · <b id="ads-n-won">–</b> ganados · <b id="ads-won-val">–</b>.</p>
+        <div class="ab-urlrow">
+          <button class="btn btn-ghost small" id="ads-csv-won" type="button">⬇️ CSV de ganados</button>
+          <button class="btn btn-ghost small" id="ads-csv-all" type="button">⬇️ CSV de todos los leads Ads</button>
+        </div>
+        <p class="muted-note" style="margin-top:10px">Setup una sola vez en Google Ads: <b>Objetivos → Conversiones → Nueva acción de conversión → Importar → Conversiones de clientes potenciales → Cargar un archivo</b>. Creá dos acciones con estos nombres EXACTOS: <code>Lead ganado (CRM)</code> y <code>Lead (CRM)</code>. Después cada carga va en <b>Conversiones → Cargas</b>. Cuando quieras la subida 100% automática por API, pedime y te guío para solicitar el developer token (Google tarda unos días en aprobarlo).</p>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <details class="bg-group" style="border:0;padding:0;margin:0">
+          <summary>👥 Contactos que van a Google Ads <span class="count" id="gads-nlist">0</span></summary>
+          <p class="muted-note" style="margin:4px 0 10px">Todos los que llegaron con gclid. Los 🚫 (excluidos a mano, tests o spam) NO se reportan — se cambia con el botón 🎯/🚫 en la ficha.</p>
+          <div id="gads-list"></div>
+        </details>
+      </div>
     </div>
 
-    <div class="grid-2">
+    <!-- ============ SUB: VIDEOS (antes al final del flujo Web) ============ -->
+    <div id="ana-sub-videos" hidden>
       <div class="panel">
-        <h2>Dispositivos <span class="count">(páginas vistas)</span></h2>
-        <div class="bars" id="bars-device"></div>
+        <h2>🎬 Video analytics <span class="count">(en el período)</span></h2>
+        <p class="muted-note" style="margin:6px 0 10px">Plays = veces abierto · los hitos 25/50/75/✅ muestran hasta dónde miran (dropoff) · Ø visto = promedio por sesión · <b>Leads</b> = contactos cuya sesión vio ese video antes de convertir. Los hitos se llenan con las vistas nuevas (SQL 0038).</p>
+        <div id="ka-video-table" style="overflow-x:auto"><p class="muted-note">Sin reproducciones en el período.</p></div>
       </div>
-      <div class="panel">
-        <h2>Idiomas del navegador <span class="count">(sesiones)</span></h2>
-        <div class="bars" id="bars-lang"></div>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <h2>🎬 Video analytics <span class="count">(en el período)</span></h2>
-      <p class="muted-note" style="margin:6px 0 10px">Plays = veces abierto · los hitos 25/50/75/✅ muestran hasta dónde miran (dropoff) · Ø visto = promedio por sesión · <b>Leads</b> = contactos cuya sesión vio ese video antes de convertir. Los hitos se llenan con las vistas nuevas (SQL 0038).</p>
-      <div id="ka-video-table" style="overflow-x:auto"><p class="muted-note">Sin reproducciones en el período.</p></div>
     </div>
 
   </div>
@@ -1502,58 +1638,6 @@ const stillsPool = projects
         <button class="btn btn-ghost small danger" id="au-del" type="button" hidden>🗑 Borrar</button>
         <button class="btn btn-ghost small" id="au-close" type="button">Cerrar</button>
       </div>
-    </div>
-  </div>
-
-  <!-- ============ TAB: GOOGLE ADS ============ -->
-  <div id="tab-gads" hidden>
-    <div class="panel">
-      <h2>🎯 Google Ads</h2>
-      <p class="muted-note" style="margin:6px 0 12px">Sesiones que aterrizaron con gclid ≈ clicks reales. El gasto exacto y los clicks oficiales llegan cuando Google apruebe el developer token de la API; mientras tanto cargá la inversión abajo y el ROI se calcula solo. Spam y tests quedan excluidos de todo.</p>
-      <div class="gads-kpis">
-        <div class="gads-kpi"><b id="gads-sess">–</b><span>Sesiones desde Ads</span></div>
-        <div class="gads-kpi"><b id="gads-leads">–</b><span>Leads</span></div>
-        <div class="gads-kpi"><b id="gads-cr">–</b><span>Sesión → lead</span></div>
-        <div class="gads-kpi"><b id="gads-won">–</b><span>Ganados</span></div>
-        <div class="gads-kpi"><b id="gads-wonval">–</b><span>Valor ganado</span></div>
-        <div class="gads-kpi"><b id="gads-pipe">–</b><span>Pipeline abierto (Ads)</span></div>
-      </div>
-      <div class="gads-roi">
-        <div class="bf" style="margin:0;max-width:250px"><label>Inversión total en Ads (CHF)</label>
-          <div style="display:flex;gap:8px"><input id="gads-spend-in" type="number" min="0" step="50" placeholder="p. ej. 2000" /><button class="btn btn-ghost small" id="gads-spend-save" type="button" title="Guardar">💾</button></div>
-        </div>
-        <div class="gads-kpi"><b id="gads-cpl">–</b><span>Costo por lead</span></div>
-        <div class="gads-kpi"><b id="gads-cpa">–</b><span>Costo por ganado</span></div>
-        <div class="gads-kpi"><b id="gads-roas">–</b><span>ROAS (× la inversión)</span></div>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <h2>📡 Datos oficiales de Google Ads <span class="count">(últimos 30 días)</span></h2>
-      <div id="gads-official"><p class="muted-note">Cargando…</p></div>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <h2>Campañas <span class="count">(según nuestro analytics, por utm_campaign)</span></h2>
-      <div id="gads-camps" style="overflow-x:auto"><p class="muted-note">Sin datos todavía.</p></div>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <h2>🎯 Google Ads — conversiones offline</h2>
-      <p class="muted-note" style="margin:6px 0 12px">Le devolvemos a Google qué clicks terminaron en CLIENTES: así el algoritmo optimiza por ganados, no por formularios. Estado: <b id="ads-n-leads">–</b> leads con gclid · <b id="ads-n-won">–</b> ganados · <b id="ads-won-val">–</b>.</p>
-      <div class="ab-urlrow">
-        <button class="btn btn-ghost small" id="ads-csv-won" type="button">⬇️ CSV de ganados</button>
-        <button class="btn btn-ghost small" id="ads-csv-all" type="button">⬇️ CSV de todos los leads Ads</button>
-      </div>
-      <p class="muted-note" style="margin-top:10px">Setup una sola vez en Google Ads: <b>Objetivos → Conversiones → Nueva acción de conversión → Importar → Conversiones de clientes potenciales → Cargar un archivo</b>. Creá dos acciones con estos nombres EXACTOS: <code>Lead ganado (CRM)</code> y <code>Lead (CRM)</code>. Después cada carga va en <b>Conversiones → Cargas</b>. Cuando quieras la subida 100% automática por API, pedime y te guío para solicitar el developer token (Google tarda unos días en aprobarlo).</p>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <details class="bg-group" style="border:0;padding:0;margin:0">
-        <summary>👥 Contactos que van a Google Ads <span class="count" id="gads-nlist">0</span></summary>
-        <p class="muted-note" style="margin:4px 0 10px">Todos los que llegaron con gclid. Los 🚫 (excluidos a mano, tests o spam) NO se reportan — se cambia con el botón 🎯/🚫 en la ficha.</p>
-        <div id="gads-list"></div>
-      </details>
     </div>
   </div>
 
@@ -2015,25 +2099,6 @@ const stillsPool = projects
     <div id="lic-list"><p class="muted-note">Cargando…</p></div>
   </div>
 
-  <div id="tab-seo" hidden>
-    <div class="of-bar" style="margin-bottom:14px">
-      <div>
-        <h2 style="margin:0">Search Console</h2>
-        <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentra Google: clicks, impresiones y las búsquedas reales de los últimos 28 días.</p>
-      </div>
-      <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
-    </div>
-    <div id="seo-body"><p class="muted-note">Cargando…</p></div>
-
-    <div class="panel" style="margin-top:16px">
-      <div class="draft-head">
-        <h2 style="margin:0">🎯 Oportunidades de keywords <span class="count">GSC × competencia × IA</span></h2>
-        <button class="btn btn-primary small" id="kw-run" type="button">✨ Buscar oportunidades</button>
-      </div>
-      <p class="muted-note" style="margin:6px 0 10px">Cruza tus búsquedas REALES de Search Console con lo que rankea la competencia suiza (búsqueda web en vivo) y devuelve acciones concretas: qué reforzar, qué escribir, qué title cambiar. Los temas nuevos van directo a la cola del motor con ⚡.</p>
-      <div id="kw-out"></div>
-    </div>
-  </div>
     </div><!-- /.dash-main -->
   </div><!-- /.dash-body -->
 
@@ -2046,11 +2111,9 @@ const stillsPool = projects
     <button data-tab="licenses" type="button">📄 Licencias</button>
     <button data-tab="analytics" type="button">📊 Analytics</button>
     <button data-tab="ab" type="button">🧪 A/B Tests</button>
-    <button data-tab="gads" type="button">🎯 Google Ads</button>
     <button data-tab="blog" type="button">📝 Blog</button>
     <button data-tab="news" type="button">📰 Newsletter</button>
     <button data-tab="auto" type="button">⚙️ Workflows</button>
-    <button data-tab="seo" type="button">🔎 Search Console</button>
     <div class="mob-ver" id="mob-ver"></div>
   </div>
   <nav class="mob-nav" id="mob-nav" aria-label="Navegación">
@@ -2326,7 +2389,8 @@ const stillsPool = projects
   }
 
   /* ---------- Navegación (sidebar) ---------- */
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'seo', 'booking', 'services', 'licenses', 'ab', 'gads', 'news', 'auto'];
+  // 'seo' y 'gads' ya no son tabs propios: viven como sub-tabs dentro de Analytics
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'auto'];
   // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
@@ -2338,9 +2402,11 @@ const stillsPool = projects
     } catch (e) { /* si falla, seguimos con lo que ya había en memoria */ }
   }
   async function gotoTab(tab){
+    // alias para deep links / botones viejos: 'seo' y 'gads' abren Analytics en su sub-tab
+    if (tab === 'seo' || tab === 'gads'){ anaSetSub(tab); tab = 'analytics'; }
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'seo', 'services', 'licenses', 'ab', 'gads', 'news', 'auto'];
+    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'auto'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -2352,15 +2418,29 @@ const stillsPool = projects
     if (tab === 'offers') offersInit();
     if (tab === 'props') proposalsInit();
     if (tab === 'blog') blogInit();
-    if (tab === 'seo') seoInit();
+    if (tab === 'analytics') anaSetSub(anaSub); // re-aplica el sub-tab guardado y dispara su carga
     if (tab === 'booking') bookingInit();
     if (tab === 'services') servicesInit();
     if (tab === 'licenses') licensesInit();
     if (tab === 'ab') abInit();
-    if (tab === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
     if (tab === 'news') newsInit();
     if (tab === 'auto') autoInit();
   }
+
+  /* ---------- Analytics: sub-tabs (Web / Search Console / Google Ads / Videos) ---------- */
+  // estado en módulo + localStorage: sobrevive al auto-refresh y a recargar la página
+  let anaSub = localStorage.getItem('vv_ana_sub') || 'web';
+  if (!['web', 'seo', 'gads', 'videos'].includes(anaSub)) anaSub = 'web';
+  function anaSetSub(sub){
+    anaSub = sub;
+    try { localStorage.setItem('vv_ana_sub', sub); } catch (e) { /* modo privado */ }
+    ['web', 'seo', 'gads', 'videos'].forEach((k) => { const el = $('ana-sub-' + k); if (el) el.hidden = k !== sub; });
+    document.querySelectorAll('#ana-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
+    // cargas perezosas de cada sub-tab (Web y Videos ya se renderizan en loadAll)
+    if (sub === 'seo') seoInit();
+    if (sub === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
+  }
+  document.querySelectorAll('#ana-seg button').forEach((b) => b.addEventListener('click', () => anaSetSub(b.dataset.sub)));
   // grupos del sidebar: colapsables, con memoria por navegador (localStorage)
   document.querySelectorAll('.side-group').forEach((g) => {
     const key = 'vv_side_' + g.dataset.group;
@@ -2409,10 +2489,12 @@ const stillsPool = projects
   $('range-sel').addEventListener('change', (e) => {
     rangeDays = parseInt(e.target.value, 10) || 30;
     rangeDay = null; $('range-day').value = '';
+    seoLoaded = false; // el período cambió: Search Console debe refetchear con los días nuevos
     loadAll();
   });
   $('range-day').addEventListener('change', (e) => {
     rangeDay = e.target.value || null;
+    seoLoaded = false;
     loadAll();
   });
 
@@ -2484,9 +2566,42 @@ const stillsPool = projects
     };
   }
 
-  $('ai-insights-btn').addEventListener('click', () => runInsights('ai-insights-btn', 'ai-insights-body',
-    () => insightsData ? { ...insightsData, ...leadsSummary(), contexto: 'Tráfico web + funnel de leads de Viven.' } : null,
-    'La IA está analizando tu tráfico, canales y conversión…'));
+  /* Insights de Analytics: automáticos, 1 vez por día por navegador (cache en localStorage).
+     El ↻ fuerza una regeneración; si el invoke falla, no se reintenta solo hasta recargar. */
+  const AI_AUTO_LS = 'vv_ai_insights';
+  let aiAutoTried = false;
+  function renderAiCards(list){
+    $('ai-insights-body').innerHTML = list.map((i) =>
+      '<div class="ai-insight"><span class="ico">' + esc(i.icon || '💡') + '</span>' +
+      '<div class="txt"><h4>' + esc(i.title || '') + '</h4><p>' + esc(i.detail || '') + '</p></div></div>'
+    ).join('') || '<p class="muted-note">La IA no devolvió sugerencias.</p>';
+  }
+  async function autoInsights(force){
+    const today = new Date().toISOString().slice(0, 10);
+    // cache del día: render instantáneo, cero llamadas
+    if (!force){
+      try {
+        const c = JSON.parse(localStorage.getItem(AI_AUTO_LS) || 'null');
+        if (c && c.date === today && Array.isArray(c.insights)){ renderAiCards(c.insights); return; }
+      } catch (e) { /* cache corrupto → regenerar */ }
+      if (aiAutoTried) return; // ya falló hoy en esta sesión: no martillar la función
+    }
+    if (!insightsData) return;
+    aiAutoTried = true;
+    const btn = $('ai-insights-btn'), body = $('ai-insights-body');
+    btn.disabled = true;
+    body.innerHTML = '<p class="ai-loading">La IA está analizando tu tráfico, canales y conversión…</p>';
+    try {
+      const summary = { ...insightsData, ...leadsSummary(), contexto: 'Tráfico web + funnel de leads de Viven.' };
+      const { data, error } = await supabase.functions.invoke('ai-insights', { body: { summary, lang: 'es' } });
+      if (error || !data || !Array.isArray(data.insights)) throw new Error(data?.error || error?.message || 'sin respuesta');
+      try { localStorage.setItem(AI_AUTO_LS, JSON.stringify({ date: today, insights: data.insights })); } catch (e) { /* sin espacio */ }
+      renderAiCards(data.insights);
+    } catch (e) {
+      body.innerHTML = '<p class="muted-note">No se pudo generar (¿deployaste ai-insights y hay crédito en Anthropic?): ' + esc(e.message) + '</p>';
+    } finally { btn.disabled = false; }
+  }
+  $('ai-insights-btn').addEventListener('click', () => autoInsights(true));
   $('ai-leads-btn').addEventListener('click', () => runInsights('ai-leads-btn', 'ai-leads-body', leadsSummary,
     'La IA está analizando tu funnel de leads…'));
   $('ai-offers-btn').addEventListener('click', () => runInsights('ai-offers-btn', 'ai-offers-body', offersSummary,
@@ -2531,8 +2646,17 @@ const stillsPool = projects
     return { data: all, error: null };
   }
 
+  // ventana ANTERIOR de igual longitud: pageviews para los ▲▼ de KPIs y la línea punteada
+  // del gráfico. Se trae UNA vez por corrida de loadAll (misma Promise.all) y queda cacheada
+  // en módulo para los re-render intermedios (realtime, cambio de sub-tab).
+  let prevViews = [];
+  let prevWin = { start: 0, end: 0 };
+
   async function loadAll(){
-    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ, bookQ] = await Promise.all([
+    // límites congelados ACÁ (rangeStart usa Date.now — llamarlo dos veces derivaría ventanas distintas)
+    const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
+    prevWin = { start: winStart - winLen, end: winStart - 1 };
+    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ, bookQ, prevQ] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
       fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
       fetchAllRows('video_plays', '*', since(), until()),
@@ -2543,7 +2667,9 @@ const stillsPool = projects
       supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
       supabase.from('proposals').select('*').limit(1000),
       supabase.from('deals').select('*').order('created_at', { ascending: false }),
-      supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8)
+      supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8),
+      // ventana anterior (solo columnas que usan los comparativos)
+      fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString())
     ]);
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
@@ -2552,6 +2678,7 @@ const stillsPool = projects
     allLeads = leadsQ.data || [];
     window.__vvLoadedAt = Date.now();
     lastViews = viewsQ.data || [];
+    prevViews = (prevQ && !prevQ.error) ? (prevQ.data || []) : [];
     // ofertas: best-effort (si no corrió el SQL 0003 todavía, seguimos sin romper el dashboard)
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
     // DEALS (SQL 0022): la entidad REAL del pipeline (varios proyectos por persona).
@@ -2614,6 +2741,12 @@ const stillsPool = projects
     if (!document.querySelector('#co-about input')) renderCompanies();
     renderOffersList();
     renderPropList();
+    // sub-tabs de Analytics: si estás mirando SC o Ads, que también se refresquen solos
+    // (SC solo si el gate se reseteó — Google no cambia minuto a minuto y la cuota duele)
+    if (!$('tab-analytics').hidden){
+      if (anaSub === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
+      if (anaSub === 'seo' && !seoLoaded) loadSeo();
+    }
     licLoad(); // licencias no entraba en loadAll — se sumó para que también se mantenga al día sola
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     loadBell();
@@ -4177,7 +4310,9 @@ const stillsPool = projects
     const el = $('seo-body');
     el.innerHTML = '<p class="muted-note">Consultando Search Console…</p>';
     try {
-      const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: 28 } });
+      // el período global manda (la función clampa igual: mín 7, máx 90 — límite razonable de GSC)
+      const gscDays = Math.max(7, Math.min(90, rangeSpanDays()));
+      const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: gscDays } });
       if (error || (data && data.error)) throw new Error((data && data.error) || error.message);
       const t = data.totals || {};
       const fmtN = (n) => (n || 0).toLocaleString('de-CH');
@@ -4186,7 +4321,7 @@ const stillsPool = projects
       const TBL = (title, rows) => '<div class="panel" style="margin-top:14px"><h2>' + title + '</h2><div class="lead-table-wrap"><table class="lead-table seo-table"><thead><tr><th>' + (title.indexOf('quer') > -1 || title.indexOf('úsq') > -1 ? 'Búsqueda' : 'Página') + '</th><th>Clicks</th><th>Impresiones</th><th>CTR</th><th>Posición</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="muted-note">Sin datos todavía</td></tr>') + '</tbody></table></div></div>';
       el.innerHTML =
         '<div class="kpis four">' +
-        '<div class="kpi"><div class="n">' + fmtN(t.clicks) + '</div><div class="l">Clicks (28 días)</div></div>' +
+        '<div class="kpi"><div class="n">' + fmtN(t.clicks) + '</div><div class="l">Clicks (' + gscDays + ' días)</div></div>' +
         '<div class="kpi"><div class="n">' + fmtN(t.impressions) + '</div><div class="l">Impresiones</div></div>' +
         '<div class="kpi"><div class="n">' + ((t.ctr || 0) * 100).toFixed(1) + '%</div><div class="l">CTR</div></div>' +
         '<div class="kpi"><div class="n">' + (t.position || 0).toFixed(1) + '</div><div class="l">Posición media</div></div></div>' +
@@ -5370,6 +5505,17 @@ const stillsPool = projects
     $(targetId || 'funnel').innerHTML = html;
   }
 
+  /* ▲▼% vs período anterior: verde sube / rojo baja / gris sin cambio */
+  function setDelta(id, cur, prev){
+    const el = $(id); if (!el) return;
+    if (!prev && !cur){ el.textContent = '='; el.className = 'kdelta flat'; return; }
+    if (!prev){ el.textContent = '▲ nuevo'; el.className = 'kdelta up'; return; }
+    const pct = (cur - prev) / prev * 100;
+    if (Math.abs(pct) < 0.05){ el.textContent = '='; el.className = 'kdelta flat'; return; }
+    el.textContent = (pct > 0 ? '▲ +' : '▼ ') + pct.toFixed(Math.abs(pct) >= 10 ? 0 : 1) + '%';
+    el.className = 'kdelta ' + (pct > 0 ? 'up' : 'down');
+  }
+
   function renderAnalytics(rows, leads){
     /* fuera las sesiones/leads de prueba */
     const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
@@ -5387,38 +5533,62 @@ const stillsPool = projects
     $('ka-conv').textContent = periodLeads.length;
     $('ka-rate').textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
 
+    /* ▲▼ vs el período anterior de igual longitud (pageviews de prevViews, leads por created_at) */
+    const pReal = (prevViews || []).filter((r) => !/^claude-/.test(r.session_id || ''));
+    const pSessions = new Set(pReal.map((r) => r.session_id));
+    const pLeads = (leads || []).filter((l) => {
+      if (/^claude-/.test(l.session_id || '')) return false;
+      const t = new Date(l.created_at).getTime();
+      return t >= prevWin.start && t <= prevWin.end;
+    });
+    const pDurs = pReal.filter((r) => r.duration > 0);
+    const pAvg = pDurs.length ? pDurs.reduce((a, r) => a + r.duration, 0) / pDurs.length : 0;
+    setDelta('ka-sessions-d', sessions.size, pSessions.size);
+    setDelta('ka-views-d', real.length, pReal.length);
+    setDelta('ka-time-d', avg, pAvg);
+    setDelta('ka-conv-d', periodLeads.length, pLeads.length);
+    setDelta('ka-rate-d', sessions.size ? periodLeads.length / sessions.size : 0, pSessions.size ? pLeads.length / pSessions.size : 0);
+
     /* tráfico + leads por día (anclado al fin de la ventana) */
     const span = rangeSpanDays();
     const anchor = rangeEnd();
+    const dl = $('daily-label'); if (dl) dl.textContent = '(' + rangeLabel().toLowerCase() + ' vs anterior)';
+    const spanMs = span * 864e5; // corrimiento para alinear día a día con la ventana previa
     const days = [];
     for (let i = span - 1; i >= 0; i--) {
       const d = new Date(anchor - i * 864e5);
-      days.push({ key: d.toISOString().slice(0, 10), label: d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), set: new Set(), leads: 0 });
+      days.push({ key: d.toISOString().slice(0, 10), pkey: new Date(d.getTime() - spanMs).toISOString().slice(0, 10), label: d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), set: new Set(), pset: new Set(), leads: 0 });
     }
     const dayMap = new Map(days.map((d) => [d.key, d]));
+    const prevDayMap = new Map(days.map((d) => [d.pkey, d]));
     real.forEach((r) => { const d = dayMap.get(r.created_at.slice(0, 10)); if (d) d.set.add(r.session_id); });
+    pReal.forEach((r) => { const d = prevDayMap.get(r.created_at.slice(0, 10)); if (d) d.pset.add(r.session_id); });
     periodLeads.forEach((l) => { const d = dayMap.get(l.created_at.slice(0, 10)); if (d) d.leads++; });
-    /* gráfico SVG real: área + línea de sesiones, puntos de leads */
+    /* gráfico SVG real: área + línea de sesiones, puntos de leads, línea punteada del período anterior */
     const n = days.length, W = 1000, H = 260, padL = 42, padR = 14, padT = 16, padB = 28;
     const pw = W - padL - padR, ph = H - padT - padB, baseY = padT + ph;
-    const maxS = Math.max(1, ...days.map((d) => d.set.size));
+    const maxS = Math.max(1, ...days.map((d) => d.set.size), ...days.map((d) => d.pset.size));
     const X = (i) => padL + (n <= 1 ? pw / 2 : (i / (n - 1)) * pw);
     const Y = (v) => padT + (1 - v / maxS) * ph;
     const pts = days.map((d, i) => [X(i), Y(d.set.size)]);
     const linePath = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
     const areaPath = 'M' + X(0).toFixed(1) + ' ' + baseY + ' ' + pts.map((p) => 'L' + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' L' + X(n - 1).toFixed(1) + ' ' + baseY + ' Z';
+    const prevPath = days.map((d, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(d.pset.size).toFixed(1)).join(' ');
     const grid = [0, 0.5, 1].map((t) => {
       const v = Math.round(maxS * t), y = Y(v);
       return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" class="g-grid"/>' +
         '<text x="' + (padL - 8) + '" y="' + (y + 4).toFixed(1) + '" class="g-yl">' + v + '</text>';
     }).join('');
     const leadDots = days.map((d, i) => d.leads ? '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="' + (3 + Math.min(4, d.leads)) + '" class="g-lead"><title>' + d.label + ': ' + d.leads + ' leads</title></circle>' : '').join('');
-    const hover = days.map((d, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="11" fill="transparent"><title>' + d.label + ' — ' + d.set.size + ' sesiones · ' + d.leads + ' leads</title></circle>').join('');
+    const hover = days.map((d, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="11" fill="transparent"><title>' + d.label + ' — ' + d.set.size + ' sesiones · ' + d.leads + ' leads · período anterior: ' + d.pset.size + '</title></circle>').join('');
     const step = Math.max(1, Math.ceil(n / 7));
     const xls = days.map((d, i) => ((i % step === 0) || i === n - 1) ? '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" class="g-xl" text-anchor="middle">' + d.label + '</text>' : '').join('');
     $('daily-chart').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gsvg">' +
       '<defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ddf98f" stop-opacity=".28"/><stop offset="1" stop-color="#ddf98f" stop-opacity="0"/></linearGradient></defs>' +
-      grid + '<path d="' + areaPath + '" fill="url(#gfill)"/><path d="' + linePath + '" class="g-line"/>' + leadDots + hover + xls + '</svg>';
+      grid + '<path d="' + prevPath + '" class="g-prev"/><path d="' + areaPath + '" fill="url(#gfill)"/><path d="' + linePath + '" class="g-line"/>' + leadDots + hover + xls + '</svg>';
+
+    /* funnel del período: del tráfico al cierre */
+    renderAnaFunnel(sessions.size, periodLeads);
 
     /* rendimiento por CANAL: sesiones vs leads */
     const chSessions = new Map();
@@ -5438,6 +5608,25 @@ const stillsPool = projects
     const landingPerf = [...lpKeys].map((k) => ({ key: k, label: k, sessions: lpSessions.get(k) || 0, leads: lpLeads.get(k) || 0 }));
     perfTable($('perf-landing'), landingPerf);
 
+    /* REFERRERS externos: hostname del referrer de la ENTRADA de cada sesión.
+       La atribución de leads es por session_id (igual espíritu que la tabla de canales). */
+    const refBySess = new Map();
+    entries.forEach((e) => {
+      if (!e.referrer || !e.session_id || refBySess.has(e.session_id)) return;
+      let h = '';
+      try { h = new URL(e.referrer).hostname.replace(/^www\./, ''); } catch (err) { return; }
+      if (!h || h === 'viven.ch' || h.endsWith('.viven.ch')) return; // navegación interna no cuenta
+      refBySess.set(e.session_id, h);
+    });
+    const refSessN = new Map();
+    refBySess.forEach((h) => refSessN.set(h, (refSessN.get(h) || 0) + 1));
+    const refLeadsN = new Map();
+    periodLeads.forEach((l) => { const h = l.session_id && refBySess.get(l.session_id); if (h) refLeadsN.set(h, (refLeadsN.get(h) || 0) + 1); });
+    const refPerf = [...refSessN.keys()]
+      .map((h) => ({ key: h, label: h, sessions: refSessN.get(h) || 0, leads: refLeadsN.get(h) || 0 }))
+      .sort((a, b) => (b.leads - a.leads) || (b.sessions - a.sessions)).slice(0, 10);
+    perfTable($('perf-ref'), refPerf);
+
     /* resumen compacto para los insights con IA */
     insightsData = {
       periodo: rangeLabel(),
@@ -5448,10 +5637,11 @@ const stillsPool = projects
       tasa_conversion_pct: sessions.size ? +(periodLeads.length / sessions.size * 100).toFixed(2) : 0,
       canales: channelPerf.map((c) => ({ canal: c.label, sesiones: c.sessions, leads: c.leads })).slice(0, 8),
       paginas_entrada: landingPerf.map((p) => ({ path: p.label, sesiones: p.sessions, leads: p.leads })).slice(0, 8),
+      referrers: refPerf.map((r) => ({ sitio: r.label, sesiones: r.sessions, leads: r.leads })).slice(0, 8),
     };
 
-    /* titulares automáticos */
-    renderInsights(channelPerf, landingPerf, entries, periodLeads, sessions.size);
+    /* insights automáticos (cache diario por navegador; el ↻ los fuerza) */
+    autoInsights(false);
 
     /* dispositivos / idiomas */
     bars($('bars-device'), countBy(real, 'device'), 3);
@@ -5471,42 +5661,28 @@ const stillsPool = projects
     bars($('bars-pages'), pages, 15, (v, t) => v + ' <small>· ' + fmtTime(t) + '</small>');
   }
 
-  function renderInsights(channelPerf, landingPerf, entries, periodLeads, sessionCount){
-    const cards = [];
-    /* 1 — mejor canal para leads */
-    const chLeaders = channelPerf.filter((c) => c.leads > 0).sort((a, b) => b.leads - a.leads);
-    if (chLeaders.length) {
-      const c = chLeaders[0];
-      cards.push({ t: '🏆 Canal que más convierte', v: '<em>' + esc(c.label) + '</em>',
-        d: c.leads + ' lead' + (c.leads > 1 ? 's' : '') + ' · ' + (c.sessions ? (c.leads / c.sessions * 100).toFixed(1) + '% de sus sesiones' : '') });
-    } else {
-      const top = [...channelPerf].sort((a, b) => b.sessions - a.sessions)[0];
-      cards.push({ t: '📡 Mayor fuente de tráfico', v: top ? '<em>' + esc(top.label) + '</em>' : '—',
-        d: top ? top.sessions + ' sesiones · aún sin leads atribuidos' : 'Sin tráfico todavía' });
-    }
-    /* 2 — página que más convierte */
-    const lpLeaders = landingPerf.filter((p) => p.leads > 0).sort((a, b) => b.leads - a.leads);
-    if (lpLeaders.length) {
-      const p = lpLeaders[0];
-      cards.push({ t: '🎯 Página que más convierte', v: '<em>' + esc(p.label) + '</em>',
-        d: p.leads + ' lead' + (p.leads > 1 ? 's' : '') + ' desde esta entrada' });
-    } else {
-      cards.push({ t: '🎯 Página que más convierte', v: '<em>—</em>', d: 'Aún sin leads. Comparte el sitio o lanza una campaña.' });
-    }
-    /* 3 — oportunidad: página con mucho tráfico y 0 leads */
-    const opp = [...landingPerf].filter((p) => p.leads === 0 && p.sessions >= 3).sort((a, b) => b.sessions - a.sessions)[0];
-    if (opp) {
-      cards.push({ t: '⚠️ Oportunidad a revisar', v: '<em>' + esc(opp.label) + '</em>',
-        d: opp.sessions + ' sesiones y 0 leads — ¿mejorar el CTA o el mensaje?' });
-    } else {
-      cards.push({ t: '📈 Conversión global', v: '<em>' + (sessionCount ? (periodLeads.length / sessionCount * 100).toFixed(1) + '%' : '—') + '</em>',
-        d: periodLeads.length + ' leads de ' + sessionCount + ' sesiones (30 días)' });
-    }
-    $('insights').innerHTML = cards.map((c) =>
-      '<div class="insight"><div class="t">' + c.t + '</div><div class="v">' + c.v + '</div><div class="d">' + esc0html(c.d) + '</div></div>'
-    ).join('');
+  /* Funnel del período (sub-tab Web): arranca en SESIONES (tráfico) y baja hasta ganado.
+     Adaptado de renderFunnel (Home/Personas) SIN tocarlo — acá la base es el tráfico y
+     los pasos se cuentan sobre los leads CREADOS en el período (sus timestamps de etapa). */
+  function renderAnaFunnel(sessionCount, periodLeads){
+    const el = $('ana-funnel'); if (!el) return;
+    const stColor = (k) => (STAGES.find((x) => x.key === k) || {}).color || '#8ab4ff';
+    const steps = [
+      { label: 'Sesiones',   n: sessionCount, color: '#8ab4ff' },
+      { label: 'Leads',      n: periodLeads.length, color: stColor('lead') },
+      { label: 'Video Call', n: periodLeads.filter((l) => l.videocall_at).length, color: stColor('videocall') },
+      { label: 'Propuesta',  n: periodLeads.filter((l) => l.proposal_at).length, color: stColor('propuesta') },
+      { label: 'Ganado',     n: periodLeads.filter((l) => l.won_at).length, color: stColor('ganado') },
+    ];
+    const top = Math.max(1, steps[0].n);
+    el.innerHTML = steps.map((s, i) => {
+      const prev = i ? steps[i - 1].n : s.n;
+      const conv = i ? (prev ? Math.round(s.n / prev * 100) : 0) : 100;
+      return '<div class="fn-row"><div class="fn-label">' + s.label + '</div>' +
+        '<div class="fn-bar-wrap"><div class="fn-bar" style="width:' + Math.max(5, Math.round(s.n / top * 100)) + '%;background:' + s.color + '"><span class="fn-n">' + s.n + '</span></div></div>' +
+        '<div class="fn-meta">' + (i ? '<b>' + conv + '%</b><span>del paso previo</span>' : '<b>100%</b><span>base</span>') + '</div></div>';
+    }).join('') + '<div class="fn-foot">Cada % es sobre el paso anterior · leads creados en ' + esc(rangeLabel().toLowerCase()) + '</div>';
   }
-  const esc0html = (s) => String(s ?? '');
 
   /* =================== OFFER TOOL (Kostenkalkulation) =================== */
   /* Rate card con tarifas reales de Viven (Moco). price = precio al cliente, cost = costo externo (freelancer/rental). */
@@ -5602,11 +5778,14 @@ const stillsPool = projects
         $('gads-wonval').textContent = chf(wonVal);
         $('gads-pipe').textContent = chf(openVal);
         // datos oficiales de la API (si el token ya fue aprobado, mandan sobre lo manual)
+        // — el período global manda también acá (la función clampa 7–365 por su lado)
+        const gadsDays = Math.max(7, Math.min(365, rangeSpanDays()));
+        const offDaysEl = $('gads-off-days'); if (offDaysEl) offDaysEl.textContent = '(últimos ' + gadsDays + ' días)';
         let official = null;
-        try { const { data: gs } = await supabase.functions.invoke('gads-stats', { body: {} }); if (gs && gs.ok) official = gs; else if (gs && gs.pending && $('gads-official')) $('gads-official').innerHTML = '<p class="muted-note">⏳ Esperando la aprobación del developer token por parte de Google (' + esc(gs.reason || 'Basic access pendiente') + '). Este bloque se enciende solo cuando llegue el mail — sin tocar nada.</p>'; } catch (e) { /* función aún no deployada */ }
+        try { const { data: gs } = await supabase.functions.invoke('gads-stats', { body: { days: gadsDays } }); if (gs && gs.ok) official = gs; else if (gs && gs.pending && $('gads-official')) $('gads-official').innerHTML = '<p class="muted-note">⏳ Esperando la aprobación del developer token por parte de Google (' + esc(gs.reason || 'Basic access pendiente') + '). Este bloque se enciende solo cuando llegue el mail — sin tocar nada.</p>'; } catch (e) { /* función aún no deployada */ }
         if (official && $('gads-official')){
           $('gads-official').innerHTML = '<div class="gads-kpis" style="margin-bottom:12px">' +
-            '<div class="gads-kpi"><b>' + chf(Math.round(official.total.cost)) + '</b><span>Gasto (30d)</span></div>' +
+            '<div class="gads-kpi"><b>' + chf(Math.round(official.total.cost)) + '</b><span>Gasto (' + gadsDays + 'd)</span></div>' +
             '<div class="gads-kpi"><b>' + official.total.clicks.toLocaleString('de-CH') + '</b><span>Clicks</span></div>' +
             '<div class="gads-kpi"><b>' + official.total.impressions.toLocaleString('de-CH') + '</b><span>Impresiones</span></div>' +
             '<div class="gads-kpi"><b>' + (official.total.clicks ? chf((official.total.cost / official.total.clicks).toFixed(2)) : '–') + '</b><span>CPC medio</span></div>' +
@@ -5623,6 +5802,17 @@ const stillsPool = projects
         $('gads-cpl').textContent = spend && rows.length ? chf(Math.round(spend / rows.length)) : '–';
         $('gads-cpa').textContent = spend && won.length ? chf(Math.round(spend / won.length)) : '–';
         $('gads-roas').textContent = spend ? (wonVal / spend).toFixed(1) + '×' : '–';
+        // veredicto ROAS en una línea: ¿la inversión vuelve? (gasto oficial o manual vs valor ganado)
+        const gv = $('gads-verdict');
+        if (gv){
+          if (!spend) gv.innerHTML = '';
+          else {
+            const x = wonVal / spend;
+            gv.innerHTML = x >= 1
+              ? '<span style="color:#7ed957">Cada franco invertido volvió ×' + x.toFixed(1) + ' ✓</span>'
+              : '<span style="color:#ff8b8b">Cada franco invertido volvió ×' + x.toFixed(1) + ' ✗ — todavía no se recupera la inversión</span>';
+          }
+        }
         const camps = {};
         rows.forEach((r) => { const c = r.utm_campaign || '(sin campaña)'; camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; camps[c].leads++; if (adsIsWon(r)){ camps[c].won++; camps[c].val += (+r.deal_value || 0); } });
         Object.keys(sessByCamp).forEach((c) => { camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; });
@@ -8466,7 +8656,13 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     toast('🗑 ' + withMeta.length + ' ficha' + (withMeta.length === 1 ? ' borrada' : 's borradas'));
     renderCompanies();
   }
-  function openCompany(domain){ coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false; renderCompanyDetail(); window.scrollTo(0, 0); }
+  function openCompany(domain){
+    coCur = domain; $('co-list-view').hidden = true; $('co-detail').hidden = false;
+    // ficha del rail izquierdo: plegada por defecto en pantallas angostas para que el centro respire
+    // (solo al ABRIR la empresa — el refresh de loadAll no pisa lo que el usuario abrió/cerró)
+    const lf = $('co-lfold'); if (lf) lf.open = window.innerWidth >= 1200;
+    renderCompanyDetail(); window.scrollTo(0, 0);
+  }
   const OFBADGE = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
   // términos por defecto (de las ofertas reales de Viven) — editables por oferta/propuesta
   const DEFAULT_TERMS = 'Payment Terms\n50% in advance after confirmation, 50% after delivery.\n\nShooting Day Duration\nA shooting day is nine hours brutto and includes travel time, setup & shooting time, and one hour lunch. Overtime excluded.\n\nCancelation Terms\nOnce the project is approved, pre-production costs are due regardless of the cancelation date. If canceled less than 10 days before the shoot, the total production costs are due.';
