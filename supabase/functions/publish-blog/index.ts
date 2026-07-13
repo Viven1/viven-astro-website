@@ -11,6 +11,9 @@ import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 
 const GH_TOKEN = Deno.env.get("GITHUB_TOKEN")!;
 const REPO = Deno.env.get("GITHUB_REPO") || "Viven1/viven-astro-website";
+// PRODUCCIÓN deploya desde "dev" en Cloudflare Pages (no "main" como cuando era Netlify)
+// — con main hardcodeado, los posts se commiteaban pero NUNCA salían al aire.
+const BRANCH = Deno.env.get("GITHUB_BRANCH") || "dev";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -48,7 +51,7 @@ Deno.serve(async (req) => {
     };
     // si el archivo ya existe necesitamos su sha para actualizarlo
     let sha: string | undefined;
-    const getRes = await fetch(api + "?ref=main", { headers: ghHeaders });
+    const getRes = await fetch(api + "?ref=" + BRANCH, { headers: ghHeaders });
     if (getRes.ok) { const j = await getRes.json(); sha = j.sha; }
 
     const putRes = await fetch(api, {
@@ -57,7 +60,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         message: message || `blog: publicar ${path}`,
         content: encodeBase64(content),
-        branch: "main",
+        branch: BRANCH,
         ...(sha ? { sha } : {}),
       }),
     });
@@ -74,13 +77,13 @@ Deno.serve(async (req) => {
     if (liveUrl) {
       try {
         const sApi = `https://api.github.com/repos/${REPO}/contents/public/sitemap.xml`;
-        const sg = await fetch(sApi + "?ref=main", { headers: ghHeaders });
+        const sg = await fetch(sApi + "?ref=" + BRANCH, { headers: ghHeaders });
         if (sg.ok) {
           const sj = await sg.json();
           const xml = new TextDecoder().decode(decodeBase64(String(sj.content).replace(/\n/g, "")));
           if (!xml.includes(liveUrl)) {
             const entry = `  <url><loc>${liveUrl}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod></url>\n</urlset>`;
-            await fetch(sApi, { method: "PUT", headers: ghHeaders, body: JSON.stringify({ message: "sitemap: + " + liveUrl, content: encodeBase64(xml.replace(/<\/urlset>\s*$/, entry)), branch: "main", sha: sj.sha }) });
+            await fetch(sApi, { method: "PUT", headers: ghHeaders, body: JSON.stringify({ message: "sitemap: + " + liveUrl, content: encodeBase64(xml.replace(/<\/urlset>\s*$/, entry)), branch: BRANCH, sha: sj.sha }) });
           }
         }
         await fetch("https://api.indexnow.org/indexnow", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ host: "www.viven.ch", key: "f5d336eabbd541e0ae3c7683bb4b149a", keyLocation: "https://www.viven.ch/f5d336eabbd541e0ae3c7683bb4b149a.txt", urlList: [liveUrl] }) });
