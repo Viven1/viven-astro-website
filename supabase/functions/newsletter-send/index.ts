@@ -77,8 +77,17 @@ Deno.serve(async (req) => {
         if (nl.segment_stage === "won" && !isWon(st)) continue;
         if (nl.segment_stage === "open" && isWon(st)) continue;
         if (nl.segment_lang !== "all" && String(r.lang || "en") !== nl.segment_lang) continue;
+        if ((nl.exclude_ids || []).includes(r.id)) continue;   // sacado a mano en "Ver destinatarios"
         seen.add(em);
         recips.push({ id: r.id as number, email: em, name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""), lang: String(r.lang || "en") });
+      }
+      // agregados a mano en "Ver destinatarios" — no tienen que estar en el segmento
+      for (const raw of (nl.extra_emails || []) as string[]) {
+        const em = String(raw || "").toLowerCase().trim();
+        if (!em || seen.has(em) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) continue;
+        seen.add(em);
+        const { data: matchLead } = await service.from("leads").select("id,first_name,name,lang").ilike("email", em).maybeSingle();
+        recips.push({ id: matchLead?.id, email: em, name: String(matchLead?.first_name || String(matchLead?.name || "").split(" ")[0] || ""), lang: String(matchLead?.lang || "en") });
       }
     }
     if (!recips.length) return json({ error: "el segmento quedó vacío (0 destinatarios)" }, 400);

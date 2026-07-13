@@ -4502,19 +4502,13 @@
       });
 
       // Newsletter
-      $('nw-count') && $('nw-count').addEventListener('click', async () => {
-        let q = await supabase.from('leads').select('email,status,lang,unsubscribed').not('email', 'is', null);
-        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('email,status,lang').not('email', 'is', null);
-        const seen = new Set();
-        const n = (q.data || []).filter((r) => { const e2 = (r.email || '').toLowerCase(); if (seen.has(e2)) return false; seen.add(e2); return nwSegFilter(r); }).length;
-        $('nw-note').textContent = '👥 ' + n + ' destinatarios en este segmento.';
-      });
+      $('nw-count') && $('nw-count').addEventListener('click', nwShowRecipients);
       $('nw-blog') && $('nw-blog').addEventListener('click', async () => {
         const { data } = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
         const b = (data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
         $('nw-subject').value = b.title; if (b.lang) $('nw-lang').value = b.lang;
         $('nw-body').value = (b.lead || '') + '\n\n' + ((b.lang === 'de' ? 'Weiterlesen: ' : b.lang === 'es' ? 'Leé el artículo completo: ' : 'Read the full article: ') + (b.published_url || 'https://www.viven.ch/blog/'));
-        nwCur = null; $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
+        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
       });
       $('nw-test') && $('nw-test').addEventListener('click', async () => {
         const id = await nwSave(); if (!id) return;
@@ -4550,7 +4544,7 @@
         $('nw-send').disabled = false;
         if (error || (data && data.error)){ $('nw-note').textContent = '⚠️ ' + (error ? error.message : data.error); return; }
         $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + data.sent + ' contactos' + (data.failed ? ' (' + data.failed + ' fallaron)' : '') + '.';
-        nwCur = null; $('nw-subject').value = ''; $('nw-body').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; newsInit();
+        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-body').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; newsInit();
       });
       // Automatizaciones — cada handler blindado: si algo falla, se ve en un toast (nunca "no pasa nada" en silencio)
       const auGuard = (fn) => (...args) => { try { const r = fn(...args); if (r && r.catch) r.catch((e) => toast('⚠️ ' + (e && e.message || e))); } catch (e) { toast('⚠️ ' + (e && e.message || e)); } };
@@ -6494,7 +6488,7 @@
     auCfgVis(); auRenderFlow(); $('au-editor').scrollIntoView({ behavior: 'smooth' });
   }
 
-  let nwCur = null, nwList = [];
+  let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [];
   async function nurLoad(){
     const box = $('nur-roster-list'), n = $('nur-roster-n'), sel = $('nur-add-lead');
     if (!box) return;
@@ -6569,12 +6563,13 @@
       const n = nwList.find((x) => x.id === c.dataset.nw); if (!n) return;
       nwCur = n.status === 'sent' ? null : n;
       $('nw-subject').value = n.subject; $('nw-body').value = n.body; $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
+      nwExcludeIds = new Set((n.exclude_ids || []).map(String)); nwExtraEmails = (n.extra_emails || []).slice();
       $('nw-note').textContent = n.status === 'sent' ? 'Cargada como COPIA (la original ya se envió) — al enviar se crea una campaña nueva.' : 'Borrador cargado.';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }));
   }
   async function nwSave(){
-    const row = { subject: $('nw-subject').value.trim(), body: $('nw-body').value, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, updated_at: new Date().toISOString() };
+    const row = { subject: $('nw-subject').value.trim(), body: $('nw-body').value, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
     if (!row.subject || !row.body.trim()){ toast('Falta asunto o contenido'); return null; }
     if (nwCur && nwCur.id){ const { error } = await supabase.from('newsletters').update(row).eq('id', nwCur.id); if (error){ toast(error.message); return null; } return nwCur.id; }
     const { data, error } = await supabase.from('newsletters').insert(row).select().single();
@@ -6589,6 +6584,54 @@
     const st = $('nw-stage').value; if (st === 'won' && !won) return false; if (st === 'open' && won) return false;
     const lg = $('nw-lang').value; if (lg !== 'all' && (r.lang || 'en') !== lg) return false;
     return true;
+  }
+  async function nwShowRecipients(){
+    let q = await supabase.from('leads').select('id,name,first_name,email,status,lang,unsubscribed').not('email', 'is', null);
+    if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('id,name,first_name,email,status,lang').not('email', 'is', null);
+    const seen = new Set();
+    const matched = (q.data || []).filter((r) => {
+      const e2 = (r.email || '').toLowerCase(); if (seen.has(e2) || !nwSegFilter(r)) return false;
+      seen.add(e2); return true;
+    }).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
+
+    let ov = $('nw-recip-composer');
+    if (!ov){ ov = document.createElement('div'); ov.id = 'nw-recip-composer'; document.body.appendChild(ov); }
+    ov.className = 'of-composer';
+    const renderList = () => {
+      const rows = matched.map((r) => {
+        const excluded = nwExcludeIds.has(String(r.id));
+        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px' + (excluded ? ';opacity:.45' : '') + '"><input type="checkbox" data-lid="' + r.id + '"' + (excluded ? '' : ' checked') + ' style="flex:none" /><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.name || r.email) + '</span><span class="muted-note">' + esc((r.lang || 'en').toUpperCase()) + '</span></label>';
+      }).join('') || '<p class="muted-note">Nadie matchea este segmento.</p>';
+      const extraRows = nwExtraEmails.map((em, i) => '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><span style="flex:1">' + esc(em) + '</span><span class="muted-note">agregado a mano</span><button type="button" class="nw-recip-x" data-i="' + i + '" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px">✕</button></div>').join('');
+      const total = matched.length - nwExcludeIds.size + nwExtraEmails.length;
+      ov.querySelector('#nw-recip-total').textContent = total + ' destinatario' + (total === 1 ? '' : 's') + ' (de ' + matched.length + ' en el segmento' + (nwExtraEmails.length ? ' + ' + nwExtraEmails.length + ' agregados' : '') + ')';
+      ov.querySelector('#nw-recip-list').innerHTML = rows;
+      ov.querySelector('#nw-recip-extra').innerHTML = extraRows;
+      ov.querySelectorAll('[data-lid]').forEach((cb) => cb.addEventListener('change', () => {
+        const lid = cb.dataset.lid;
+        if (cb.checked) nwExcludeIds.delete(lid); else nwExcludeIds.add(lid);
+        renderList();
+      }));
+      ov.querySelectorAll('.nw-recip-x').forEach((b) => b.addEventListener('click', () => { nwExtraEmails.splice(+b.dataset.i, 1); renderList(); }));
+    };
+    ov.innerHTML = '<div class="ofc-card" style="max-width:480px">' +
+      '<h3 style="margin:0 0 4px">👥 Destinatarios</h3>' +
+      '<p class="muted-note" style="margin:0 0 10px" id="nw-recip-total"></p>' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px"><input id="nw-recip-add" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div>' +
+      '<div id="nw-recip-extra"></div>' +
+      '<div id="nw-recip-list" style="max-height:320px;overflow-y:auto;margin-top:6px"></div>' +
+      '<p class="muted-note" style="margin-top:10px">Destildar saca a esa persona de este envío. La selección se guarda con el borrador.</p>' +
+      '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary small" id="nw-recip-close" type="button">Listo</button></div>' +
+      '</div>';
+    renderList();
+    ov.querySelector('#nw-recip-close').addEventListener('click', async () => { if ($('nw-subject').value.trim() && $('nw-body').value.trim()) await nwSave(); ov.remove(); });
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('#nw-recip-add-btn').addEventListener('click', () => {
+      const inp = ov.querySelector('#nw-recip-add'); const em = inp.value.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Poné un email válido'); return; }
+      if (matched.some((r) => (r.email || '').toLowerCase() === em) || nwExtraEmails.includes(em)){ toast('Ese email ya está en la lista'); return; }
+      nwExtraEmails.push(em); inp.value = ''; renderList();
+    });
   }
   function renderVideoAna(plays, leadsArr){
     const box = $('ka-video-table'); if (!box) return;
