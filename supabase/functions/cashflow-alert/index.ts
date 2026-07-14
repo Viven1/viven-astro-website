@@ -16,9 +16,9 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // fix (auditoría 2026-07-14): deployada con --no-verify-jwt y sin ningún chequeo propio,
 // esta función era invocable por cualquiera sin login — filtraba una señal financiera
 // parcial (si hay o no un mes en rojo) y podía mutar last_alerted_period/disparar el
-// email fuera de horario. Mismo patrón que ya usa lead-followup (CRON_SECRET). Queda
-// INERTE (no bloquea nada) hasta que el secret CASHFLOW_CRON_SECRET exista de verdad.
-const CASHFLOW_CRON_SECRET = Deno.env.get("CASHFLOW_CRON_SECRET") ?? "";
+// email fuera de horario. Ahora exige el mismo CRON_SECRET compartido que el resto de
+// los crons internos del proyecto (ya seteado — Sebastián dio el OK 2026-07-14).
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 type Entry = { kind: "income" | "expense"; amount_chf: number; due_date: string; status: string };
 type Template = {
@@ -86,7 +86,7 @@ function projectMonthly(startBalance: number, entries: Entry[], templates: Templ
 }
 
 Deno.serve(async (req) => {
-  if (CASHFLOW_CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CASHFLOW_CRON_SECRET}`) {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
     return new Response("forbidden", { status: 403 });
   }
   try {

@@ -13,6 +13,8 @@ import webpush from "npm:web-push@3.6.7";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const MILESTONES = [90, 30, 0];
+// fix (auditoría 2026-07-14): invocable sin auth — cron-only, exige el secret compartido
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 async function pushAll(title: string, body: string, url: string) {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -26,7 +28,10 @@ async function pushAll(title: string, body: string, url: string) {
   }
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const today = new Date().toLocaleString("sv-SE", { timeZone: "Europe/Zurich" }).slice(0, 10);
     const todayMs = Date.parse(today + "T00:00:00Z");

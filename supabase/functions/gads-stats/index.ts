@@ -17,6 +17,16 @@
 // Secrets:  GOOGLE_ADS_DEV_TOKEN, GOOGLE_ADS_MANAGER_ID (login-customer-id),
 //           GOOGLE_ADS_CUSTOMER_ID (cuenta operativa), GOOGLE_REFRESH_TOKEN
 //           (scope adwords incluido). Opcional: GOOGLE_ADS_API_VERSION.
+//
+// fix (auditoría 2026-07-14): invocable sin auth por cualquiera — filtraba gasto/
+// performance real de Google Ads. A diferencia de content-engine, ningún cron llama
+// a esta función (solo el tab 🎯 del dashboard) → exige SIEMPRE un usuario real logueado,
+// sin bypass de CRON_SECRET.
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +86,9 @@ function monthRange() {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const supabaseAuth = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return json({ error: "unauthorized" }, 401);
   try {
     const devToken = Deno.env.get("GOOGLE_ADS_DEV_TOKEN") || "";
     const cid = (Deno.env.get("GOOGLE_ADS_CUSTOMER_ID") || "").replace(/-/g, "");

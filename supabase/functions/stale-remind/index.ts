@@ -13,6 +13,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// fix (auditoría 2026-07-14): invocable sin auth — cron-only, exige el secret compartido
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 const STALE_DAYS = 35;          // 5 semanas
 const MAX_PER_RUN = 10;         // tope por corrida (que el primer día no sea un aluvión)
@@ -30,7 +32,10 @@ async function pushAll(title: string, body: string, url: string) {
   }
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const now = Date.now();
     const cutoff = now - STALE_DAYS * 864e5;
@@ -59,7 +64,11 @@ Deno.serve(async (_req) => {
     await src("offers", ["updated_at"]);
     await src("proposals", ["updated_at"]);
     await src("bookings", ["created_at"]);
-    await src("lead_followups", ["sent_at", "updated_at"]);
+    // fix (auditoría 2026-07-14): lead_followups NO tiene columna updated_at (solo
+    // sent_at) — pedirla hacía que PostgREST devolviera error y la función lo tragaba
+    // en silencio (if (e) return), perdiendo esta fuente de actividad por completo.
+    // Alguien con un follow-up recién mandado podía marcarse igual como "sin contacto".
+    await src("lead_followups", ["sent_at"]);
 
     // tasks de recordatorio abiertas → no duplicar el aviso
     const { data: openT } = await service.from("lead_tasks").select("lead_id,title").eq("done", false).ilike("title", TASK_PREFIX + "%");

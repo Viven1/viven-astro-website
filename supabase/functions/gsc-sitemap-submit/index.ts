@@ -23,6 +23,8 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// fix (auditoría 2026-07-14): invocable sin auth — cron-only, exige el secret compartido
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -47,6 +49,9 @@ async function googleToken(): Promise<string> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const token = await googleToken();
     // propiedad: GSC_SITE o autodetección (dominio > www > apex), igual que gsc-stats

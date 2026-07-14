@@ -13,6 +13,13 @@ import webpush from "npm:web-push@3.6.7";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+// fix (auditoría 2026-07-14): invocable sin auth, gastaba ANTHROPIC_API_KEY por llamada
+// y vaciaba content_queue en loop. El botón ⚡ del dashboard llama con el JWT real del
+// usuario logueado; el cron llama pelado con el secret compartido — se acepta cualquiera
+// de los dos, nunca una llamada anónima.
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
 // Media por categoría: MUCHAS imágenes reales por categoría (no una sola) +
@@ -364,6 +371,13 @@ Respond ONLY with valid minified JSON, no markdown fences:
 }
 
 Deno.serve(async (req) => {
+  const authHdr = req.headers.get("Authorization") ?? "";
+  const isCron = !!CRON_SECRET && authHdr === `Bearer ${CRON_SECRET}`;
+  if (!isCron) {
+    const supabaseAuth = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: authHdr } } });
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) return json({ error: "unauthorized" }, 401);
+  }
   try {
     // modo WRITE NOW: body {queue_id} escribe ESE tema ya (botón ⚡ del dashboard);
     // sin body: el cron toma el próximo pendiente por prioridad

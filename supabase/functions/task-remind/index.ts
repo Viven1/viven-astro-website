@@ -11,6 +11,8 @@ import webpush from "npm:web-push@3.6.7";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// fix (auditoría 2026-07-14): invocable sin auth cada 5 min — cron-only, exige el secret
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 async function pushTo(email: string | null, title: string, body: string, url: string) {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -26,7 +28,10 @@ async function pushTo(email: string | null, title: string, body: string, url: st
   }
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     // "ahora" en hora suiza como 'YYYY-MM-DD HH:MM' (las tasks se cargan en hora local)
     const nowCH = new Date().toLocaleString("sv-SE", { timeZone: "Europe/Zurich" }).slice(0, 16);

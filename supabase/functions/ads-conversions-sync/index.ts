@@ -26,6 +26,10 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// fix (auditoría 2026-07-14): invocable sin auth, y sheet_id venía del body público —
+// cualquiera podía hacer que el REFRESH_TOKEN de la empresa sobrescribiera cualquier
+// spreadsheet. Ahora exige el secret compartido de los crons internos.
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -110,6 +114,9 @@ async function syncDailySnapshot(gToken: string): Promise<{ ok: boolean; days?: 
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const token = await googleToken();
@@ -127,7 +134,9 @@ Deno.serve(async (req) => {
       return json({ ok: true, spreadsheetId: j.spreadsheetId, url: j.spreadsheetUrl });
     }
 
-    const sheetId = body.sheet_id || Deno.env.get("ADS_SHEET_ID") || "";
+    // fix: ya no se acepta sheet_id del body público — solo el secret real, así nadie
+    // puede apuntar el sync a un spreadsheet ajeno
+    const sheetId = Deno.env.get("ADS_SHEET_ID") || "";
     if (!sheetId) return json({ error: "Falta ADS_SHEET_ID (creá el sheet con {\"create_sheet\":true} y setealo como secret)." }, 400);
 
     // todas las conversiones: lead (form) y lead ganado (con valor) — Google Ads

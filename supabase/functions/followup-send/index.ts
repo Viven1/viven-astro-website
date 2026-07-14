@@ -21,6 +21,9 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// fix (auditoría 2026-07-14): sin auth, mismo riesgo que automations-run/nurture — cron
+// pausado (migración 0060) pero función directamente invocable. Exige el secret compartido.
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
@@ -72,7 +75,10 @@ function brandHtml(bodyText: string, cta: string): string {
     </div></div>`;
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     let drafted = 0, canceled = 0, sent = 0, failed = 0;
 

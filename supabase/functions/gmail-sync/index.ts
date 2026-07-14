@@ -16,6 +16,10 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
+// fix (auditoría 2026-07-14): invocable sin auth cada 5 min por cualquiera — quema
+// cuota de la API de Gmail y puede forzar rate-limiting de Google sobre las cuentas
+// reales conectadas. Cron-only, exige el secret compartido.
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
 const MAILBOXES = [
   { key: "sebastian", email: "sebastian@viven.ch", refreshSecret: "GMAIL_REFRESH_TOKEN_SEBASTIAN" },
@@ -62,7 +66,10 @@ function parseFrom(headerVal: string): { name: string; email: string } {
   return { name: "", email: headerVal.trim().toLowerCase() };
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const out: Record<string, unknown> = {};
     const { data: leads } = await service.from("leads").select("id,email").not("email", "is", null);

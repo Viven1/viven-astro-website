@@ -14,6 +14,11 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// fix (auditoría 2026-07-14): sin auth. El cron de esta función está pausado (migración
+// 0060) pero la función en sí sigue invocable directo por cualquiera — un atacante podía
+// forzar el motor completo de automations fuera de horario, incluyendo el envío real de
+// borradores ya aprobados en el outbox. Exige el secret compartido de los crons internos.
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
@@ -89,6 +94,9 @@ function wrap(bodyText: string, unsub: string, lang: string, sender: string): st
 }
 
 Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const { data: autos, error: aerr } = await service.from("automations").select("*").eq("enabled", true);
@@ -101,10 +109,15 @@ Deno.serve(async (req) => {
       let cands: Record<string, unknown>[] = [];
       const since = new Date(Date.now() - 10 * 864e5).toISOString();
       if (au.trigger === "lead_new") {
-        const q = await service.from("leads").select("id,email,name,first_name,company,lang,status,channel,source,message,created_at,unsubscribed").gte("created_at", since).not("email", "is", null);
+        // fix (auditoría 2026-07-14): pedía leads.source, columna que NUNCA existió —
+        // PostgREST devolvía error, q.data quedaba undefined, y con `?? []` esto hacía
+        // que CUALQUIER automation con trigger "Nuevo Lead" jamás inscribiera a nadie,
+        // en silencio. El heurístico real (mensaje de la calculadora) no dependía de
+        // esa columna, así que queda solo esa señal.
+        const q = await service.from("leads").select("id,email,name,first_name,company,lang,status,channel,message,created_at,unsubscribed").gte("created_at", since).not("email", "is", null);
         cands = (q.data ?? []).filter((r) => {
-          if (cfg.source === "calculator" && !String(r.message || "").includes("CALCULADORA") && r.source !== "calculator") return false;
-          if (cfg.source === "form" && (String(r.message || "").includes("CALCULADORA") || r.source === "calculator")) return false;
+          if (cfg.source === "calculator" && !String(r.message || "").includes("CALCULADORA")) return false;
+          if (cfg.source === "form" && String(r.message || "").includes("CALCULADORA")) return false;
           if (cfg.lang && cfg.lang !== "any" && (r.lang || "en") !== cfg.lang) return false;
           if (cfg.channel === "paid" && !r.channel?.toString().includes("paid")) return false;
           if (cfg.channel === "organic" && !/organic|search/.test(String(r.channel || ""))) return false;
