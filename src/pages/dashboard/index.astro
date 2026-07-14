@@ -10256,18 +10256,37 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     const box = $('co3-tl'); if (!box) return;
     const list = co3Filter === 'all' ? co3Events : co3Events.filter((e) => e.ty === co3Filter);
     if (!list.length) { box.innerHTML = '<p class="muted-note">Sin actividad todavía — los emails, notas y tasks de sus contactos van a aparecer acá.</p>'; return; }
-    const replyLink = (i) => '<div><a href="#" class="co3-nreply" data-i="' + i + '" style="color:var(--acid);font-size:11px;text-decoration:none">↩︎ Responder</a><div class="co3-nreply-box" hidden></div></div>';
+    const when = (t) => lm2FmtDT(t) + ' · hace ' + timeAgo(t);
+    const replyLink = (i) => '<div class="lm-note-m"><button class="lm-reply-btn co3-nreply" data-i="' + i + '" type="button">↩ Responder</button><div class="co3-nreply-box" hidden style="width:100%"></div></div>';
+    // mismos componentes que la ficha de persona: emails = .lm-email (click expande),
+    // notas = .lm-note con respuestas .lm-reply, tasks = .lm-task con checkbox
     box.innerHTML = list.map((e, i) => {
-      const head = '<div class="lm2-ev' + (i === 0 && co3Filter === 'all' ? ' hot' : '') + '"><div class="when">' + lm2FmtDT(e.t) + ' · hace ' + timeAgo(e.t) + '</div><div class="card">';
       if (e.thread){
-        const msg = (n, isRep) => '<div class="lm2-msg' + (isRep ? ' rep' : '') + '"><div class="a">' + esc(n.author || '¿?') + ' <span class="w">hace ' + timeAgo(n.created_at) + '</span></div><div class="b">' + esc(n.body || '') + '</div></div>';
-        return head + '<span class="lm2-chip nota">' + e.chip[1] + '</span>' + (e.who ? '<span style="font-size:10.5px;color:var(--muted-2)">en ' + esc(e.who) + '</span>' : '') + msg(e.thread.root, false) + e.thread.replies.map((n) => msg(n, true)).join('') + replyLink(i) + '</div></div>';
+        const msg = (n, isRep) => '<div class="lm-note' + (isRep ? ' lm-reply' : '') + '" style="border-bottom:0;padding:' + (isRep ? '6px 0 2px 10px' : '4px 0 0') + '">' +
+          '<div class="lm-note-b">' + esc(n.body || '') + '</div>' +
+          '<div class="lm-note-m">' + esc(n.author || '¿?') + ' · hace ' + timeAgo(n.created_at) + '</div></div>';
+        return '<div class="lm-email" style="cursor:default">' +
+          '<div class="lm-email-h"><span class="lm-email-subj">' + e.chip[1] + (e.who ? ' <span style="font-weight:400;color:var(--muted-2)">en ' + esc(e.who) + '</span>' : '') + '</span><span class="lm-email-meta">' + when(e.t) + '</span></div>' +
+          msg(e.thread.root, false) + e.thread.replies.map((n) => msg(n, true)).join('') + replyLink(i) + '</div>';
       }
-      return head + '<span class="lm2-chip ' + e.chip[0] + '">' + e.chip[1] + '</span>' + e.title +
-        (e.meta ? '<div class="meta">' + e.meta + '</div>' : '') +
-        (e.body ? '<details><summary>ver completo</summary><div>' + esc(e.body) + '</div></details>' : '') +
-        '</div></div>';
+      if (e.ty === 'task'){
+        const t = e.task || {};
+        return '<div class="lm-task' + (t.done ? ' done' : '') + '"><input type="checkbox" class="co3-tk" data-id="' + esc(String(t.id)) + '"' + (t.done ? ' checked' : '') + '/>' +
+          '<div class="lm-task-txt"><div>' + esc(t.title || '') + '</div>' +
+          '<div class="lm-task-meta">' + (e.meta || '') + ' · ' + when(e.t) + '</div></div></div>';
+      }
+      if (e.ty === 'email'){
+        const inbound = /Recibido/.test(e.chip[1]);
+        return '<div class="lm-email' + (inbound ? ' lm-email-in' : '') + '">' +
+          '<div class="lm-email-h"><span class="lm-email-subj">' + (inbound ? '📥 ' : '') + e.title + '</span><span class="lm-email-meta">' + when(e.t) + '</span></div>' +
+          (e.meta ? '<div class="lm-email-snip">' + e.meta + '</div>' : '') +
+          '<div class="lm-email-body">' + esc(e.body || '') + (e.meta ? '<p class="muted-note" style="margin-top:8px">' + e.meta + '</p>' : '') + '</div></div>';
+      }
+      // sys (🏆 oferta ganada) y cualquier otro evento simple
+      return '<div class="lm-note"><div class="lm-note-b">' + e.chip[1] + ' — ' + e.title + '</div>' +
+        '<div class="lm-note-m">' + (e.meta ? e.meta + ' · ' : '') + when(e.t) + '</div></div>';
     }).join('');
+    box.querySelectorAll('.lm-email').forEach((el) => { if (el.querySelector('.lm-email-body')) el.addEventListener('click', (e3) => { if (!e3.target.closest('button,textarea,a,input')) el.classList.toggle('open'); }); });
     box.querySelectorAll('.co3-tk').forEach((cb) => cb.addEventListener('change', async () => {
       await supabase.from('lead_tasks').update({ done: cb.checked, done_at: cb.checked ? new Date().toISOString() : null }).eq('id', cb.dataset.id);
       loadBell(); if (co3Cur) co3LoadTimeline(co3Cur);
