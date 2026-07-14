@@ -737,6 +737,33 @@ const stillsPool = projects
   .gads-table{width:100%;border-collapse:collapse;font-size:13px;min-width:460px}
   .gads-table th,.gads-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
   .gads-table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+
+  /* ---- rediseño tab Google Ads: veredicto, settings, pacing, search terms ---- */
+  .warnbox{background:rgba(255,210,127,.08);border:1px solid rgba(255,210,127,.35);border-radius:12px;padding:12px 16px;font-size:13px;color:#ffd27f;margin-bottom:14px}
+  :root[data-theme="light"] .warnbox{color:#8a5a00;background:rgba(255,180,60,.12);border-color:rgba(255,180,60,.5)}
+  .gads-verdict{background:linear-gradient(135deg,color-mix(in srgb,var(--acid) 12%,transparent),color-mix(in srgb,var(--acid) 5%,transparent));border:1px solid var(--acid);border-radius:12px;padding:12px 16px;font-size:14px;margin:0}
+  .gads-settings-pop{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:12px;padding:14px 16px;margin:10px 0;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+  .gads-settings-pop .bf{margin:0;min-width:220px;flex:1}
+  #ana-sub-gads .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  #ana-sub-gads .bf input{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
+  .gads-two{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:14px;align-items:start}
+  @media(max-width:900px){.gads-two{grid-template-columns:1fr}}
+  .gads-pace b{font-size:13.5px}
+  .gads-pacebar{height:10px;background:var(--navy-900);border-radius:999px;border:1px solid var(--line);overflow:hidden;margin:9px 0 5px}
+  .gads-pacebar i{display:block;height:100%;background:var(--acid);transition:width .3s}
+  .gads-pacebar i.over{background:#ff8b8b}
+  .gads-sem{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;flex:none}
+  .gads-sem.ok{background:#7ed957}.gads-sem.mid{background:#ffd27f}.gads-sem.bad{background:#ff8b8b}
+  .gads-roas-ok{color:#7ed957;font-weight:800}
+  .gads-roas-bad{color:#ff8b8b;font-weight:800}
+  .gads-negflag{color:#ff8b8b;font-size:12px;white-space:nowrap}
+  .gads-okflag{color:#7ed957;font-size:12px;white-space:nowrap}
+  .gads-spark-svg{width:100%;height:64px;display:block;overflow:visible}
+  .gads-camp-acts{display:flex;gap:4px;justify-content:flex-end}
+  .gads-camp-acts button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:12px;padding:4px 7px;cursor:pointer;line-height:1}
+  .gads-camp-acts button:hover{border-color:var(--acid);color:var(--acid)}
+  .gads-lead-x{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:11px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+  .gads-lead-x:hover{border-color:var(--acid);color:var(--acid)}
   .au-flow-wrap{border:1px solid var(--line);border-radius:14px;padding:20px 16px;margin-top:14px;overflow-x:auto}
   .au-flow{display:flex;flex-direction:column;align-items:center;min-width:280px}
   .au-trig-node{background:color-mix(in srgb,var(--acid) 16%,transparent);border:1px solid var(--acid);color:var(--acid);font-weight:700;font-size:13px;border-radius:100px;padding:9px 18px;white-space:nowrap;max-width:100%;text-align:center}
@@ -1639,55 +1666,80 @@ const stillsPool = projects
       </div>
     </div>
 
-    <!-- ============ SUB: GOOGLE ADS (antes tab propio) ============ -->
+    <!-- ============ SUB: GOOGLE ADS (antes tab propio) — rediseño: ROAS canónico, ============ -->
+    <!-- ============ 1 tabla de campañas (Google + CRM), search terms y pacing ============ -->
     <div id="ana-sub-gads" hidden>
+      <div class="warnbox" id="gads-pending" hidden></div>
+
       <div class="panel">
-        <h2>🎯 Google Ads</h2>
-        <p class="muted-note" style="margin:6px 0 12px">Sesiones que aterrizaron con gclid ≈ clicks reales. El gasto exacto y los clicks oficiales llegan cuando Google apruebe el developer token de la API; mientras tanto cargá la inversión abajo y el ROI se calcula solo. Spam y tests quedan excluidos de todo.</p>
-        <div class="gads-kpis">
-          <div class="gads-kpi"><b id="gads-sess">–</b><span>Sesiones desde Ads</span></div>
-          <div class="gads-kpi"><b id="gads-leads">–</b><span>Leads</span></div>
-          <div class="gads-kpi"><b id="gads-cr">–</b><span>Sesión → lead</span></div>
-          <div class="gads-kpi"><b id="gads-won">–</b><span>Ganados</span></div>
-          <div class="gads-kpi"><b id="gads-wonval">–</b><span>Valor ganado</span></div>
-          <div class="gads-kpi"><b id="gads-pipe">–</b><span>Pipeline abierto (Ads)</span></div>
-        </div>
-        <div class="gads-roi">
-          <div class="bf" style="margin:0;max-width:250px"><label>Inversión total en Ads (CHF)</label>
-            <div style="display:flex;gap:8px"><input id="gads-spend-in" type="number" min="0" step="50" placeholder="p. ej. 2000" /><button class="btn btn-ghost small" id="gads-spend-save" type="button" title="Guardar">💾</button></div>
+        <div class="of-bar" style="margin-bottom:2px">
+          <div>
+            <h2 style="margin:0">🎯 Google Ads</h2>
+            <p class="muted-note" style="margin:2px 0 0">"¿Lo que pagamos vale la pena?" — un solo cálculo de ROAS (leads con gclid → deals ganados), igual acá y en Home. El período lo manda el selector de arriba.</p>
           </div>
-          <div class="gads-kpi"><b id="gads-cpl">–</b><span>Costo por lead</span></div>
-          <div class="gads-kpi"><b id="gads-cpa">–</b><span>Costo por ganado</span></div>
-          <div class="gads-kpi"><b id="gads-roas">–</b><span>ROAS (× la inversión)</span></div>
+          <button class="btn btn-ghost small" id="gads-settings-btn" type="button" title="Inversión manual y presupuesto mensual">⚙️ Configurar</button>
         </div>
-        <!-- veredicto en cristiano: ¿la plata vuelve o no? -->
-        <p id="gads-verdict" style="margin:10px 0 0;font-weight:700;font-size:13.5px"></p>
-      </div>
-
-      <div class="panel" style="margin-top:14px">
-        <h2>📡 Datos oficiales de Google Ads <span class="count" id="gads-off-days">(en el período)</span></h2>
-        <div id="gads-official"><p class="muted-note">Cargando…</p></div>
-      </div>
-
-      <div class="panel" style="margin-top:14px">
-        <h2>Campañas <span class="count">(según nuestro analytics, por utm_campaign)</span></h2>
-        <div id="gads-camps" style="overflow-x:auto"><p class="muted-note">Sin datos todavía.</p></div>
-      </div>
-
-      <div class="panel" style="margin-top:14px">
-        <h2>🎯 Google Ads — conversiones offline</h2>
-        <p class="muted-note" style="margin:6px 0 12px">Le devolvemos a Google qué clicks terminaron en CLIENTES: así el algoritmo optimiza por ganados, no por formularios. Estado: <b id="ads-n-leads">–</b> leads con gclid · <b id="ads-n-won">–</b> ganados · <b id="ads-won-val">–</b>.</p>
-        <div class="ab-urlrow">
-          <button class="btn btn-ghost small" id="ads-csv-won" type="button">⬇️ CSV de ganados</button>
-          <button class="btn btn-ghost small" id="ads-csv-all" type="button">⬇️ CSV de todos los leads Ads</button>
+        <div class="gads-settings-pop" id="gads-settings-pop" hidden>
+          <div class="bf"><label>Inversión manual (CHF) — se usa solo mientras Google no manda el gasto oficial</label><input id="gads-spend-in" type="number" min="0" step="50" placeholder="p. ej. 2000" /></div>
+          <div class="bf"><label>Presupuesto mensual (CHF) — para el pacing de abajo</label><input id="gads-budget-in" type="number" min="0" step="50" placeholder="p. ej. 2000" /></div>
+          <div style="display:flex;gap:8px;margin-top:2px">
+            <button class="btn btn-primary small" id="gads-settings-save" type="button">💾 Guardar</button>
+            <button class="btn btn-ghost small" id="gads-settings-cancel" type="button">Cancelar</button>
+          </div>
         </div>
-        <p class="muted-note" style="margin-top:10px">Setup una sola vez en Google Ads: <b>Objetivos → Conversiones → Nueva acción de conversión → Importar → Conversiones de clientes potenciales → Cargar un archivo</b>. Creá dos acciones con estos nombres EXACTOS: <code>Lead ganado (CRM)</code> y <code>Lead (CRM)</code>. Después cada carga va en <b>Conversiones → Cargas</b>. Cuando quieras la subida 100% automática por API, pedime y te guío para solicitar el developer token (Google tarda unos días en aprobarlo).</p>
+
+        <p id="gads-verdict" class="gads-verdict" hidden></p>
+
+        <div class="kpis four" style="margin-top:10px">
+          <div class="kpi"><div class="n" id="gads-k-spend">–</div><div class="kdelta" id="gads-k-spend-d"></div><div class="l">Gasto</div></div>
+          <div class="kpi"><div class="n" id="gads-k-leads">–</div><div class="kdelta" id="gads-k-leads-d"></div><div class="l">Leads <span class="muted-note">CPL <span id="gads-k-cpl">–</span></span></div></div>
+          <div class="kpi"><div class="n" id="gads-k-won">–</div><div class="kdelta" id="gads-k-won-d"></div><div class="l">Ganados <span class="muted-note">CPA <span id="gads-k-cpa">–</span></span></div></div>
+          <div class="kpi"><div class="n" id="gads-k-roas">–</div><div class="kdelta" id="gads-k-roas-d"></div><div class="l">ROAS</div></div>
+        </div>
+
+        <div id="gads-spark"></div>
+        <p class="muted-note" id="gads-spark-note" style="margin-top:2px"></p>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>Campañas <span class="count">Google (gasto/clicks) + tu CRM (leads/ganados/ROAS) — una sola tabla</span></h2>
+        <div class="lead-table-wrap" id="gads-camps" style="overflow-x:auto"><p class="muted-note">Cargando…</p></div>
+      </div>
+
+      <div class="gads-two">
+        <div class="panel" style="margin:0">
+          <h2>🔎 Search terms <span class="count" id="gads-st-note">búsquedas reales que dispararon los anuncios</span></h2>
+          <div class="lead-table-wrap" id="gads-searchterms"><p class="muted-note">Cargando…</p></div>
+          <button class="btn btn-ghost small" id="gads-st-copy" type="button" style="margin-top:10px" hidden>📋 Copiar negativas sugeridas</button>
+        </div>
+        <div>
+          <div class="of-card gads-pace" id="gads-pace-card">
+            <b>📊 Budget pacing<span id="gads-pace-month"></span></b>
+            <div class="gads-pacebar"><i id="gads-pace-fill"></i></div>
+            <div class="muted-note" id="gads-pace-txt" style="margin-top:4px"></div>
+            <div id="gads-pace-warn" style="margin-top:6px;font-size:12.5px"></div>
+          </div>
+          <div class="of-card" style="padding:16px 18px;margin-top:12px">
+            <b>🔁 Conversiones offline</b>
+            <p class="muted-note" style="margin:6px 0 10px">Le devolvemos a Google qué clicks terminaron en CLIENTES vía un Google Sheet que Ads importa a diario — así el algoritmo optimiza por ganados, no por formularios.</p>
+            <div class="muted-note" id="gads-sync-status">Estado: <b id="ads-n-leads">–</b> leads con gclid · <b id="ads-n-won">–</b> ganados · <b id="ads-won-val">–</b>. Último sync: <b id="gads-sync-at">–</b>.</div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+              <button class="btn btn-ghost small" id="gads-sync-now" type="button">🔁 Sync ahora</button>
+              <button class="btn btn-ghost small" id="ads-csv-won" type="button">⬇️ CSV ganados</button>
+              <button class="btn btn-ghost small" id="ads-csv-all" type="button">⬇️ CSV todos</button>
+            </div>
+            <details style="margin-top:10px">
+              <summary class="muted-note" style="cursor:pointer">Setup una vez en Google Ads ▾</summary>
+              <p class="muted-note" style="margin-top:8px">En Google Ads: <b>Objetivos → Conversiones → Nueva acción de conversión → Importar → Conversiones de clientes potenciales → Cargar un archivo</b>. Creá dos acciones con estos nombres EXACTOS: <code>Lead ganado (CRM)</code> y <code>Lead (CRM)</code>. Después cada carga va en <b>Conversiones → Cargas</b>.</p>
+            </details>
+          </div>
+        </div>
       </div>
 
       <div class="panel" style="margin-top:14px">
         <details class="bg-group" style="border:0;padding:0;margin:0">
           <summary>👥 Contactos que van a Google Ads <span class="count" id="gads-nlist">0</span></summary>
-          <p class="muted-note" style="margin:4px 0 10px">Todos los que llegaron con gclid. Los 🚫 (excluidos a mano, tests o spam) NO se reportan — se cambia con el botón 🎯/🚫 en la ficha.</p>
+          <p class="muted-note" style="margin:4px 0 10px">Todos los que llegaron con gclid. Los 🚫 (excluidos a mano, tests o spam) no se reportan — tocá 🎯/🚫 en la fila para cambiarlo, sin entrar a la ficha.</p>
           <div id="gads-list"></div>
         </details>
       </div>
@@ -3439,15 +3491,39 @@ const stillsPool = projects
       winRate: dec90 ? Math.round(won90 / dec90 * 100) : null, won90, dec90 };
   }
 
-  // Ads en memoria: leads con gclid (30d, sin tests/spam/excluidos — mismos patrones que el tab de Ads)
-  const HM_ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
-  const hmAdsOk = (r) => r.gclid && !r.ads_exclude && !HM_ADS_TEST.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
+  /* ======= ROAS de Ads: CÁLCULO CANÓNICO ÚNICO (Home + Analytics·Google Ads) =======
+     Antes había 3 implementaciones que podían contradecirse: esta (Home), la del
+     tab de Ads (fetch propio a `leads` + won leído directo de leads.status/deal_value,
+     sin pasar por dealsList/dealValue) y, implícitamente, ads-conversions-sync.
+     Ahora TODO el frontend usa esta única función: lead con gclid (limpio de
+     tests/spam/exclusión manual) → su deal, con la MISMA regla de valor que el
+     pipeline (dealValue: ofertas ganadas > ofertas abiertas > deal_value crudo).
+     `offsetDays` corre la ventana hacia atrás para poder comparar vs el período
+     anterior (mismo patrón que setDelta/renderAnalytics). */
+  const ADS_LEAD_TEST_RE = /@viven\.ch$|@entropia|@example\.|test/i;
+  const adsLeadOk = (r) => !!r.gclid && !r.ads_exclude && !ADS_LEAD_TEST_RE.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
+  function adsRoasFor(days, offsetDays){
+    const end = Date.now() - (offsetDays || 0) * 864e5, win = (days || 30) * 864e5, start = end - win;
+    const inWin = (iso) => { const t = Date.parse(iso || ''); return t && t > start && t <= end; };
+    const leads = (allLeads || []).filter((r) => adsLeadOk(r) && inWin(r.created_at));
+    const gset = new Set(leads.map((r) => String(r.id)));
+    const leadFor = (d) => leads.find((r) => String(r.id) === String(d.lead_id));
+    const won = (dealsList || []).filter((d) => !d.archived && gset.has(String(d.lead_id)) && stageOf(d.stage) === 'ganado' && inWin(d.won_at || d.last_stage_at));
+    const openDeals = (dealsList || []).filter((d) => !d.archived && gset.has(String(d.lead_id)) && DL_OPEN.includes(stageOf(d.stage)));
+    const wonVal = won.reduce((a, d) => a + dealValue(d), 0);
+    const openVal = openDeals.reduce((a, d) => a + dealValue(d), 0);
+    // desglose por campaña (utm_campaign del lead) — para la tabla merge Google+CRM
+    const byCamp = {};
+    const campOf = (l) => (l && l.utm_campaign) || '(sin campaña)';
+    leads.forEach((r) => { const c = campOf(r); byCamp[c] = byCamp[c] || { leads: 0, won: 0, wonVal: 0, openVal: 0 }; byCamp[c].leads++; });
+    won.forEach((d) => { const c = campOf(leadFor(d)); byCamp[c] = byCamp[c] || { leads: 0, won: 0, wonVal: 0, openVal: 0 }; byCamp[c].won++; byCamp[c].wonVal += dealValue(d); });
+    openDeals.forEach((d) => { const c = campOf(leadFor(d)); byCamp[c] = byCamp[c] || { leads: 0, won: 0, wonVal: 0, openVal: 0 }; byCamp[c].openVal += dealValue(d); });
+    return { days: days || 30, leads, won, wonVal, openVal, byCamp };
+  }
+  // compat: Home usa esta forma reducida hace tiempo — misma fuente canónica ahora
   function hmAdsStats(){
-    const now = Date.now(), D30 = 30 * 864e5;
-    const leads30 = (allLeads || []).filter((r) => hmAdsOk(r) && (now - Date.parse(r.created_at)) <= D30).length;
-    const gset = new Set((allLeads || []).filter(hmAdsOk).map((r) => String(r.id)));
-    const wonDeals = (dealsList || []).filter((d) => !d.archived && stageOf(d.stage) === 'ganado' && d.won_at && (now - Date.parse(d.won_at)) <= D30 && gset.has(String(d.lead_id)));
-    return { leads: leads30, wonVal: wonDeals.reduce((a, d) => a + dealValue(d), 0), wonN: wonDeals.length };
+    const r = adsRoasFor(30, 0);
+    return { leads: r.leads.length, wonVal: r.wonVal, wonN: r.won.length };
   }
 
   // "🎯 Para hoy": UNA lista por urgencia — cada fila sabe abrir lo suyo (openLead/openOffer/gotoTab)
@@ -6517,93 +6593,320 @@ const stillsPool = projects
 
       // Google Ads — conversiones offline (CSV con el formato exacto del import oficial)
       const adsIsWon = (r) => /ganado|won|cerrado/i.test(r.status || '');
-      const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;   // mismos patrones anti-test que review-request
-      const adsOk = (r) => !r.ads_exclude && !ADS_TEST.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
+      const adsOk = (r) => !r.ads_exclude && !ADS_LEAD_TEST_RE.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
       const adsFetch = async () => {
         let q = await supabase.from('leads').select('id,gclid,name,email,deal_value,status,created_at,won_at,last_stage_at,utm_campaign,ads_exclude').not('gclid', 'is', null);
         if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('id,gclid,name,email,deal_value,status,created_at,won_at,last_stage_at,utm_campaign').not('gclid', 'is', null);
         return q;
       };
       const chf = (n) => 'CHF ' + (+n || 0).toLocaleString('de-CH');
+
+      /* ======= tabla ÚNICA de campañas: merge Google (gasto/clicks) + CRM (leads/ganados/ROAS) =======
+         Junta por nombre normalizado (Google `campaign.name` vs `leads.utm_campaign`) — coincidencia
+         exacta o contención (evita duplicar filas cuando el nombre no es carácter-por-carácter igual). */
+      const normCamp = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+      function mergeCampaigns(googleCamps, byCamp){
+        const used = new Set(), rows = [];
+        (googleCamps || []).forEach((g) => {
+          const gn = normCamp(g.name);
+          let matchKey = null;
+          Object.keys(byCamp).forEach((k) => {
+            if (matchKey || used.has(k) || k === '(sin campaña)') return;
+            const kn = normCamp(k);
+            if (kn && (kn === gn || (kn.length > 3 && gn.includes(kn)) || (gn.length > 3 && kn.includes(gn)))) matchKey = k;
+          });
+          const crm = matchKey ? byCamp[matchKey] : null;
+          if (matchKey) used.add(matchKey);
+          rows.push({ name: g.name, id: g.id, status: g.status, spend: g.cost, clicks: g.clicks, cpc: g.clicks ? g.cost / g.clicks : 0,
+            leads: crm ? crm.leads : 0, won: crm ? crm.won : 0, wonVal: crm ? crm.wonVal : 0, openVal: crm ? crm.openVal : 0, hasGoogle: true, campKey: matchKey || g.name });
+        });
+        Object.keys(byCamp).forEach((k) => {
+          if (used.has(k)) return;
+          const crm = byCamp[k];
+          rows.push({ name: k, id: null, status: '', spend: 0, clicks: 0, cpc: 0, leads: crm.leads, won: crm.won, wonVal: crm.wonVal, openVal: crm.openVal, hasGoogle: false, campKey: k });
+        });
+        return rows;
+      }
+      let gadsMergedRows = [], gadsCampSort = { k: 'spend', dir: -1 };
+      function gadsRenderCamps(){
+        const cont = $('gads-camps'); if (!cont) return;
+        const rows = gadsMergedRows.slice(), k = gadsCampSort.k, dir = gadsCampSort.dir;
+        const val = (r) => k === 'name' ? r.name.toLowerCase() : k === 'cpl' ? (r.leads ? r.spend / r.leads : Infinity) : k === 'roas' ? (r.spend ? r.wonVal / r.spend : (r.wonVal ? Infinity : -1)) : (r[k] || 0);
+        rows.sort((a, b) => { const av = val(a), bv = val(b); return av < bv ? -dir : av > bv ? dir : 0; });
+        if (!rows.length){ cont.innerHTML = '<p class="muted-note">Sin datos todavía — aparecen solas cuando lleguen clicks o leads con gclid.</p>'; return; }
+        const sortTh = (label, key, num) => '<th class="lt-sort' + (num ? ' lt-num' : '') + (gadsCampSort.k === key ? ' on' : '') + '" data-k="' + key + '">' + label + (gadsCampSort.k === key ? (dir > 0 ? ' ▲' : ' ▼') : '') + '</th>';
+        let html = '<table class="lead-table"><thead><tr>' +
+          sortTh('Campaña', 'name') + sortTh('Gasto', 'spend', 1) + sortTh('Clicks', 'clicks', 1) + sortTh('CPC', 'cpc', 1) +
+          sortTh('Leads', 'leads', 1) + sortTh('CPL', 'cpl', 1) + sortTh('Ganado', 'wonVal', 1) + sortTh('ROAS', 'roas', 1) + '<th></th></tr></thead><tbody>';
+        rows.forEach((r) => {
+          const roas = r.spend ? r.wonVal / r.spend : null;
+          const sem = !r.leads ? 'bad' : ((roas != null && roas >= 1) || (!r.spend && r.wonVal)) ? 'ok' : 'mid';
+          const roasTxt = r.spend ? (roas >= 1 ? '<span class="gads-roas-ok">' + roas.toFixed(1) + '×</span>' : '<span class="gads-roas-bad">' + roas.toFixed(1) + '×</span>') :
+            (r.openVal ? '<span class="muted-note">pipeline ' + chf(r.openVal) + '</span>' : '—');
+          html += '<tr><td><span class="gads-sem ' + sem + '"></span>' + esc(r.name) + (r.hasGoogle ? '' : ' <span class="muted-note">(solo CRM)</span>') + '</td>' +
+            '<td class="lt-num">' + (r.spend ? chf(Math.round(r.spend)) : '—') + '</td>' +
+            '<td class="lt-num">' + (r.hasGoogle ? r.clicks : '—') + '</td>' +
+            '<td class="lt-num">' + (r.clicks ? chf(r.cpc.toFixed(2)) : '—') + '</td>' +
+            '<td class="lt-num">' + r.leads + '</td>' +
+            '<td class="lt-num">' + (r.leads ? chf(Math.round(r.spend / r.leads)) : '—') + '</td>' +
+            '<td class="lt-num">' + (r.wonVal ? chf(r.wonVal) : '—') + '</td>' +
+            '<td class="lt-num">' + roasTxt + '</td>' +
+            '<td><div class="gads-camp-acts">' +
+              '<button type="button" data-camp-leads="' + esc(r.campKey) + '" title="Ver leads de esta campaña">👁</button>' +
+              (r.id ? '<button type="button" data-camp-st="' + esc(r.id) + '" title="Ver search terms de esta campaña">🔎</button>' : '') +
+            '</div></td></tr>';
+        });
+        cont.innerHTML = html + '</tbody></table>';
+        cont.querySelectorAll('th.lt-sort').forEach((th) => th.addEventListener('click', () => {
+          const k2 = th.dataset.k;
+          gadsCampSort = gadsCampSort.k === k2 ? { k: k2, dir: -gadsCampSort.dir } : { k: k2, dir: k2 === 'name' ? 1 : -1 };
+          gadsRenderCamps();
+        }));
+        cont.querySelectorAll('[data-camp-leads]').forEach((b) => b.addEventListener('click', () => {
+          gadsContactsFilter = b.dataset.campLeads; gadsRenderList();
+          const det = document.querySelector('#ana-sub-gads details.bg-group'); if (det) det.open = true;
+          $('gads-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }));
+        cont.querySelectorAll('[data-camp-st]').forEach((b) => b.addEventListener('click', () => {
+          gadsStCampFilter = b.dataset.campSt; gadsRenderSearchTerms();
+          $('gads-searchterms').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }));
+      }
+
+      // sparkline de gasto diario (ads_daily) + puntos de leads — reusa .g-line/.g-lead del chart grande
+      function gadsRenderSpark(dailyRows, curLeads){
+        const box = $('gads-spark'), note = $('gads-spark-note');
+        if (!dailyRows || !dailyRows.length){
+          if (box) box.innerHTML = '';
+          if (note) note.textContent = 'Todavía no hay historia diaria guardada — arranca sola con el próximo sync de las 06:50 (SQL 0066). El gasto de arriba es en vivo desde Google mientras tanto.';
+          return;
+        }
+        const byDate = {};
+        dailyRows.forEach((r) => { byDate[r.date] = (byDate[r.date] || 0) + (+r.spend || 0); });
+        const leadsByDate = {};
+        (curLeads || []).forEach((l) => { const d = (l.created_at || '').slice(0, 10); leadsByDate[d] = (leadsByDate[d] || 0) + 1; });
+        const dates = Object.keys(byDate).sort();
+        const n = dates.length, W = 700, H = 64, pad = 4;
+        const maxV = Math.max(1, ...dates.map((d) => byDate[d]));
+        const X = (i) => n <= 1 ? W / 2 : pad + (i / (n - 1)) * (W - 2 * pad);
+        const Y = (v) => H - 6 - (v / maxV) * (H - 14);
+        const pts = dates.map((d, i) => [X(i), Y(byDate[d])]);
+        const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+        const dots = dates.map((d, i) => leadsByDate[d] ? '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(byDate[d]).toFixed(1) + '" r="' + (2.5 + Math.min(3, leadsByDate[d])) + '" class="g-lead"><title>' + d + ': ' + chf(Math.round(byDate[d])) + ' · ' + leadsByDate[d] + ' leads</title></circle>' : '').join('');
+        if (box) box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gads-spark-svg" preserveAspectRatio="none"><path d="' + line + '" class="g-line" fill="none"/>' + dots + '</svg>';
+        if (note) note.textContent = 'Gasto diario (línea) + leads (puntos) · últimos ' + n + ' días guardados en ads_daily';
+      }
+
+      // pacing de presupuesto: gasto mes-a-la-fecha (GAQL en vivo) vs presupuesto mensual (manual u oficial)
+      function gadsRenderPacing(official, settings){
+        const fill = $('gads-pace-fill'), txt = $('gads-pace-txt'), warn = $('gads-pace-warn'), mo = $('gads-pace-month');
+        const now = new Date();
+        if (mo) mo.textContent = ' — ' + now.toLocaleDateString('es-CH', { month: 'long' });
+        const officialMonthly = (official && official.budget && official.month) ? official.budget.daily_total * official.month.daysInMonth : 0;
+        const monthly = +((settings || {}).monthly_budget) || officialMonthly;
+        if (!official || !official.month || !monthly){
+          if (fill){ fill.style.width = '0%'; fill.className = ''; }
+          if (txt) txt.textContent = (official && official.month) ? 'Completá el presupuesto mensual en ⚙️ Configurar para ver el pacing.' : 'Necesita el gasto oficial de Google (developer token aprobado) o un presupuesto manual en ⚙️ Configurar.';
+          if (warn) warn.textContent = '';
+          return;
+        }
+        const spendSoFar = official.month.cost, de = official.month.daysElapsed, dm = official.month.daysInMonth;
+        const pct = Math.min(100, Math.round((spendSoFar / monthly) * 100));
+        const projected = de ? (spendSoFar / de) * dm : spendSoFar;
+        const over = projected > monthly;
+        if (fill){ fill.style.width = pct + '%'; fill.className = over ? 'over' : ''; }
+        if (txt) txt.textContent = chf(Math.round(spendSoFar)) + ' de ' + chf(monthly) + ' (' + pct + '%) · día ' + de + ' de ' + dm + ' (' + Math.round(de / dm * 100) + '%)';
+        if (warn) warn.innerHTML = over
+          ? '<span style="color:#ff8b8b">⚠ A este ritmo terminás el mes en ' + chf(Math.round(projected)) + ' — ' + chf(Math.round(projected - monthly)) + ' sobre presupuesto</span>'
+          : '<span style="color:#7ed957">✓ A este ritmo terminás el mes en ' + chf(Math.round(projected)) + ', dentro del presupuesto</span>';
+      }
+
+      // search terms reales — negativa sugerida: clicks≥2 + término de bajo intento (job/gratis/tutorial/…);
+      // no hay forma de unir un search term puntual a un lead/sesión con el esquema actual, así que va por heurística
+      const GADS_NEG_RE = /gratis|kostenlos|\bfree\b|\blehre\b|ausbildung|gehalt|praktikum|\bjobs?\b|stelle(n)?|vorlage|\btemplate\b|\bdownload\b|tutorial|anleitung|\bkurs\b|schule|\bapp\b|selber machen|\bdiy\b/i;
+      let gadsStRows = [], gadsStSort = { k: 'clicks', dir: -1 }, gadsStCampFilter = null;
+      function gadsRenderSearchTerms(){
+        const cont = $('gads-searchterms'), copyBtn = $('gads-st-copy'); if (!cont) return;
+        let rows = gadsStRows.slice();
+        if (gadsStCampFilter) rows = rows.filter((r) => r.campaign_id === gadsStCampFilter);
+        if (!rows.length){
+          cont.innerHTML = '<p class="muted-note">' + (gadsStCampFilter ? 'Sin search terms para esta campaña en el período. ' : 'Sin datos todavía en este período — llegan cuando Google apruebe el developer token. ') +
+            (gadsStCampFilter ? '<a href="#" id="gads-st-clear" style="color:var(--acid)">ver todas</a>' : '') + '</p>';
+          if (copyBtn) copyBtn.hidden = true;
+          const clr = $('gads-st-clear'); if (clr) clr.addEventListener('click', (ev) => { ev.preventDefault(); gadsStCampFilter = null; gadsRenderSearchTerms(); });
+          return;
+        }
+        const k = gadsStSort.k, dir = gadsStSort.dir;
+        rows.sort((a, b) => { const av = a[k], bv = b[k]; return av < bv ? -dir : av > bv ? dir : 0; });
+        const sortTh = (label, key) => '<th class="lt-sort lt-num' + (gadsStSort.k === key ? ' on' : '') + '" data-k="' + key + '">' + label + (gadsStSort.k === key ? (dir > 0 ? ' ▲' : ' ▼') : '') + '</th>';
+        let html = (gadsStCampFilter ? '<p class="muted-note" style="margin-bottom:8px">Filtrado por campaña · <a href="#" id="gads-st-clear" style="color:var(--acid)">ver todas</a></p>' : '') +
+          '<table class="lead-table"><thead><tr><th>Search term</th>' + sortTh('Clicks', 'clicks') + sortTh('CHF', 'cost') + '<th></th></tr></thead><tbody>';
+        const negatives = [];
+        rows.forEach((r) => {
+          const neg = r.clicks >= 2 && GADS_NEG_RE.test(r.term);
+          if (neg) negatives.push(r.term);
+          html += '<tr><td>' + esc(r.term) + (r.campaign ? ' <span class="muted-note">· ' + esc(r.campaign) + '</span>' : '') + '</td>' +
+            '<td class="lt-num">' + r.clicks + '</td><td class="lt-num">' + Math.round(r.cost) + '</td>' +
+            '<td>' + (neg ? '<span class="gads-negflag">🗑 negativa sugerida</span>' : '<span class="gads-okflag">✓ trae clicks limpios</span>') + '</td></tr>';
+        });
+        cont.innerHTML = html + '</tbody></table>';
+        cont.querySelectorAll('th.lt-sort').forEach((th) => th.addEventListener('click', () => {
+          const k2 = th.dataset.k;
+          gadsStSort = gadsStSort.k === k2 ? { k: k2, dir: -gadsStSort.dir } : { k: k2, dir: -1 };
+          gadsRenderSearchTerms();
+        }));
+        const clr = $('gads-st-clear'); if (clr) clr.addEventListener('click', (ev) => { ev.preventDefault(); gadsStCampFilter = null; gadsRenderSearchTerms(); });
+        if (copyBtn){
+          copyBtn.hidden = !negatives.length;
+          copyBtn.onclick = () => { navigator.clipboard.writeText(negatives.join('\n')).then(() => toast('📋 ' + negatives.length + ' negativas copiadas — pegalas en Google Ads')).catch(() => toast('No se pudo copiar')); };
+        }
+      }
+
+      // contactos: misma lista de siempre + toggle 🎯/🚫 inline (antes solo se podía desde la ficha)
+      let gadsContactsFilter = null;
+      function gadsRenderList(){
+        const cont = $('gads-list'); if (!cont) return;
+        let all = (allLeads || []).filter((r) => r.gclid);
+        if (gadsContactsFilter) all = all.filter((r) => (r.utm_campaign || '(sin campaña)') === gadsContactsFilter);
+        $('gads-nlist').textContent = all.length;
+        cont.innerHTML = (gadsContactsFilter ? '<p class="muted-note" style="margin-bottom:8px">Filtrado por campaña: <b>' + esc(gadsContactsFilter) + '</b> · <a href="#" id="gads-clear-filter" style="color:var(--acid)">quitar filtro</a></p>' : '') +
+          (all.map((r) => {
+            const out = !adsOk(r);
+            return '<div class="of-card"><div class="of-card-open" data-glead="' + r.id + '">' +
+              '<div class="of-card-main"><div class="of-card-title">' + (out ? '🚫 ' : '🎯 ') + esc(r.name || r.email || '(sin nombre)') + (adsIsWon(r) ? ' <span class="of-badge" style="color:#7ed957;border-color:#7ed957">Ganado</span>' : '') + '</div>' +
+              '<div class="of-card-sub">' + esc(r.email || '') + ' · ' + esc(r.utm_campaign || 'sin campaña') + ' · ' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (out ? ' · <b>no se reporta</b>' : '') + '</div></div>' +
+              '<span class="of-badge">' + chf(r.deal_value) + '</span>' +
+              '<button type="button" class="gads-lead-x" data-toggle-x="' + r.id + '">' + (out ? '🎯 incluir' : '🚫 excluir') + '</button>' +
+              '</div></div>';
+          }).join('') || '<p class="muted-note">Todavía no llegó ningún lead desde Ads.</p>');
+        cont.querySelectorAll('[data-glead]').forEach((c) => c.addEventListener('click', () => { gotoTab('leads'); openLead(c.dataset.glead); }));
+        cont.querySelectorAll('[data-toggle-x]').forEach((b) => b.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const id = b.dataset.toggleX, l = (allLeads || []).find((x) => String(x.id) === String(id)); if (!l) return;
+          const nv = !l.ads_exclude;
+          const { error } = await supabase.from('leads').update({ ads_exclude: nv }).eq('id', id);
+          if (error){ toast(/column/.test(error.message || '') ? 'Falta correr el SQL 0036 (columna ads_exclude)' : 'No se pudo: ' + error.message); return; }
+          l.ads_exclude = nv;
+          if (typeof currentLead !== 'undefined' && currentLead && String(currentLead.id) === String(id)) currentLead.ads_exclude = nv;
+          toast(nv ? '🚫 Excluido del ROAS de Ads' : '🎯 Incluido de nuevo');
+          window.gadsLoad();
+        }));
+        const clearBtn = $('gads-clear-filter');
+        if (clearBtn) clearBtn.addEventListener('click', (ev) => { ev.preventDefault(); gadsContactsFilter = null; gadsRenderList(); });
+      }
+
       window.gadsLoad = async () => {
         adsInfoLoad();
-        const { data } = await adsFetch();
-        const all = data || [];
-        const rows = all.filter(adsOk), won = rows.filter(adsIsWon);
-        const wonVal = won.reduce((a2, r) => a2 + (+r.deal_value || 0), 0);
-        const openVal = rows.filter((r) => !adsIsWon(r) && !/perdido|lost/i.test(r.status || '')).reduce((a2, r) => a2 + (+r.deal_value || 0), 0);
-        let sess = 0; const sessByCamp = {};
-        try {
-          const { data: pv } = await supabase.from('pageviews').select('session_id,utm_campaign,gclid,channel').or('channel.eq.paid_search,gclid.not.is.null').limit(20000);
-          const seen = new Set();
-          (pv || []).forEach((p) => { if (p.session_id && !seen.has(p.session_id)){ seen.add(p.session_id); sess++; const c = p.utm_campaign || '(sin campaña)'; sessByCamp[c] = (sessByCamp[c] || 0) + 1; } });
-        } catch (e) { /* pageviews aún sin esas columnas */ }
-        $('gads-sess').textContent = sess || '–';
-        $('gads-leads').textContent = rows.length;
-        $('gads-cr').textContent = sess ? Math.round((rows.length / sess) * 100) + '%' : '–';
-        $('gads-won').textContent = won.length;
-        $('gads-wonval').textContent = chf(wonVal);
-        $('gads-pipe').textContent = chf(openVal);
-        // datos oficiales de la API (si el token ya fue aprobado, mandan sobre lo manual)
-        // — el período global manda también acá (la función clampa 7–365 por su lado)
+        // el período global manda también acá (adsRoasFor clampa por su lado en gads-stats)
         const gadsDays = Math.max(7, Math.min(365, rangeSpanDays()));
-        const offDaysEl = $('gads-off-days'); if (offDaysEl) offDaysEl.textContent = '(últimos ' + gadsDays + ' días)';
-        let official = null;
-        try { const { data: gs } = await supabase.functions.invoke('gads-stats', { body: { days: gadsDays } }); if (gs && gs.ok) official = gs; else if (gs && gs.pending && $('gads-official')) $('gads-official').innerHTML = '<p class="muted-note">⏳ Esperando la aprobación del developer token por parte de Google (' + esc(gs.reason || 'Basic access pendiente') + '). Este bloque se enciende solo cuando llegue el mail — sin tocar nada.</p>'; } catch (e) { /* función aún no deployada */ }
-        if (official && $('gads-official')){
-          $('gads-official').innerHTML = '<div class="gads-kpis" style="margin-bottom:12px">' +
-            '<div class="gads-kpi"><b>' + chf(Math.round(official.total.cost)) + '</b><span>Gasto (' + gadsDays + 'd)</span></div>' +
-            '<div class="gads-kpi"><b>' + official.total.clicks.toLocaleString('de-CH') + '</b><span>Clicks</span></div>' +
-            '<div class="gads-kpi"><b>' + official.total.impressions.toLocaleString('de-CH') + '</b><span>Impresiones</span></div>' +
-            '<div class="gads-kpi"><b>' + (official.total.clicks ? chf((official.total.cost / official.total.clicks).toFixed(2)) : '–') + '</b><span>CPC medio</span></div>' +
-          '</div>' +
-          '<table class="gads-table"><thead><tr><th>Campaña</th><th>Estado</th><th>Gasto</th><th>Clicks</th><th>Impresiones</th><th>Conv.</th></tr></thead><tbody>' +
-          official.campaigns.map((c) => '<tr><td>' + esc(c.name) + '</td><td>' + (c.status === 'ENABLED' ? '🟢' : '⏸') + '</td><td>' + chf(Math.round(c.cost)) + '</td><td>' + c.clicks + '</td><td>' + c.impressions.toLocaleString('de-CH') + '</td><td>' + c.conversions + '</td></tr>').join('') +
-          '</tbody></table>';
+
+        // 1) CRM canónico — MISMA función que usa Home (adsRoasFor): período actual y anterior
+        const cur = adsRoasFor(gadsDays, 0), prev = adsRoasFor(gadsDays, gadsDays);
+
+        // 2) datos oficiales de Google (gasto/clicks + mes-a-la-fecha + presupuesto + search terms)
+        let official = null, pendingReason = null;
+        try {
+          const { data: gs } = await supabase.functions.invoke('gads-stats', { body: { days: gadsDays, month: true, budget: true, search_terms: true } });
+          if (gs && gs.ok) official = gs; else if (gs && gs.pending) pendingReason = gs.reason || 'Basic access pendiente';
+        } catch (e) { /* función aún no deployada */ }
+        const pendEl = $('gads-pending');
+        if (pendEl){
+          pendEl.hidden = !pendingReason;
+          if (pendingReason) pendEl.innerHTML = '⏳ El developer token de Google Ads sigue pendiente de aprobación de Google (' + esc(pendingReason) + ') — hasta entonces el gasto/clicks/search terms "oficiales" no llegan. Mientras tanto el tab funciona completo con tus datos propios (sesiones gclid, leads, ganados) + el gasto manual. Cuando Google apruebe, se enciende todo solo, sin tocar nada.';
         }
-        let spend = 0;
-        if (official) spend = Math.round(official.total.cost);
-        if (!spend){ try { const { data: st } = await supabase.from('ads_settings').select('spend').eq('id', 1).maybeSingle(); spend = +((st || {}).spend || 0); } catch (e) { /* tabla pendiente (SQL 0037) */ } }
-        if (!spend) spend = +(localStorage.getItem('vv_ads_spend') || 0);
-        if ($('gads-spend-in') && document.activeElement !== $('gads-spend-in')) $('gads-spend-in').value = spend || '';
-        $('gads-cpl').textContent = spend && rows.length ? chf(Math.round(spend / rows.length)) : '–';
-        $('gads-cpa').textContent = spend && won.length ? chf(Math.round(spend / won.length)) : '–';
-        $('gads-roas').textContent = spend ? (wonVal / spend).toFixed(1) + '×' : '–';
-        // veredicto ROAS en una línea: ¿la inversión vuelve? (gasto oficial o manual vs valor ganado)
+
+        // 3) inversión: gasto oficial manda; si no hay, cae a la inversión manual guardada
+        let settings = {};
+        try { const { data: st } = await supabase.from('ads_settings').select('spend,monthly_budget,last_sync_at,last_sync_leads,last_sync_won,last_sync_error').eq('id', 1).maybeSingle(); settings = st || {}; } catch (e) { /* tabla pendiente (SQL 0037/0067) */ }
+        let spend = official ? Math.round(official.total.cost) : 0;
+        if (!spend) spend = +settings.spend || +(localStorage.getItem('vv_ads_spend') || 0) || 0;
+        if ($('gads-spend-in') && document.activeElement !== $('gads-spend-in')) $('gads-spend-in').value = settings.spend || '';
+        if ($('gads-budget-in') && document.activeElement !== $('gads-budget-in')) $('gads-budget-in').value = settings.monthly_budget || '';
+
+        // 4) historia diaria (ads_daily, SQL 0066) — sparkline + gasto real del período anterior (una vez que haya data)
+        let dailyRows = [];
+        try {
+          const fromD = new Date(Date.now() - gadsDays * 2 * 864e5).toISOString().slice(0, 10);
+          const { data: dd } = await supabase.from('ads_daily').select('date,spend,clicks,impressions').gte('date', fromD).order('date');
+          dailyRows = dd || [];
+        } catch (e) { /* tabla pendiente (SQL 0066) */ }
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const curFromStr = new Date(Date.now() - gadsDays * 864e5).toISOString().slice(0, 10);
+        const prevFromStr = new Date(Date.now() - gadsDays * 2 * 864e5).toISOString().slice(0, 10);
+        const curDaily = dailyRows.filter((r) => r.date >= curFromStr && r.date <= todayStr);
+        const prevDaily = dailyRows.filter((r) => r.date >= prevFromStr && r.date < curFromStr);
+        const prevSpend = prevDaily.reduce((a2, r) => a2 + (+r.spend || 0), 0);
+
+        // KPIs + deltas vs período anterior (mismo helper que Analytics·Web)
+        $('gads-k-spend').textContent = spend ? chf(spend) : '–';
+        setDelta('gads-k-spend-d', spend, prevSpend);
+        $('gads-k-leads').textContent = cur.leads.length;
+        $('gads-k-cpl').textContent = spend && cur.leads.length ? chf(Math.round(spend / cur.leads.length)) : '–';
+        setDelta('gads-k-leads-d', cur.leads.length, prev.leads.length);
+        $('gads-k-won').textContent = cur.won.length;
+        $('gads-k-cpa').textContent = spend && cur.won.length ? chf(Math.round(spend / cur.won.length)) : '–';
+        setDelta('gads-k-won-d', cur.won.length, prev.won.length);
+        const roas = spend ? cur.wonVal / spend : null, roasPrev = prevSpend ? prev.wonVal / prevSpend : null;
+        $('gads-k-roas').textContent = roas != null ? roas.toFixed(1) + '×' : '–';
+        setDelta('gads-k-roas-d', roas || 0, roasPrev || 0);
+
+        // veredicto: ¿la plata vuelve o no? (gasto oficial o manual vs valor ganado — cálculo canónico)
         const gv = $('gads-verdict');
         if (gv){
-          if (!spend) gv.innerHTML = '';
-          else {
-            const x = wonVal / spend;
-            gv.innerHTML = x >= 1
-              ? '<span style="color:#7ed957">Cada franco invertido volvió ×' + x.toFixed(1) + ' ✓</span>'
-              : '<span style="color:#ff8b8b">Cada franco invertido volvió ×' + x.toFixed(1) + ' ✗ — todavía no se recupera la inversión</span>';
+          gv.hidden = !spend;
+          if (spend){
+            const ok = roas >= 1;
+            gv.innerHTML = (ok ? '✅ ' : '⚠️ ') + '<b>' + (ok ? 'Ads está pagando' : 'Ads todavía no se paga solo') + ':</b> cada CHF 1 invertido volvió como CHF ' + roas.toFixed(2) + ' en deals ganados — ' + chf(spend) + ' gastados → ' + chf(Math.round(cur.wonVal)) + ' ganados' + (cur.openVal ? ' + ' + chf(Math.round(cur.openVal)) + ' en pipeline abierto' : '') + '.';
           }
         }
-        const camps = {};
-        rows.forEach((r) => { const c = r.utm_campaign || '(sin campaña)'; camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; camps[c].leads++; if (adsIsWon(r)){ camps[c].won++; camps[c].val += (+r.deal_value || 0); } });
-        Object.keys(sessByCamp).forEach((c) => { camps[c] = camps[c] || { leads: 0, won: 0, val: 0 }; });
-        const names = Object.keys(camps);
-        $('gads-camps').innerHTML = !names.length ? '<p class="muted-note">Sin datos todavía — aparecen solos cuando lleguen sesiones o leads con gclid.</p>' :
-          '<table class="gads-table"><thead><tr><th>Campaña</th><th>Sesiones</th><th>Leads</th><th>Ganados</th><th>Valor</th></tr></thead><tbody>' +
-          names.sort((a2, b2) => (camps[b2].leads - camps[a2].leads) || ((sessByCamp[b2] || 0) - (sessByCamp[a2] || 0))).map((c) =>
-            '<tr><td>' + esc(c) + '</td><td>' + (sessByCamp[c] || 0) + '</td><td>' + camps[c].leads + '</td><td>' + camps[c].won + '</td><td>' + chf(camps[c].val) + '</td></tr>').join('') +
-          '</tbody></table>';
-        $('gads-nlist').textContent = all.length;
-        $('gads-list').innerHTML = all.map((r) => {
-          const out = !adsOk(r);
-          return '<div class="of-card"><div class="of-card-open" data-glead="' + r.id + '">' +
-            '<div class="of-card-main"><div class="of-card-title">' + (out ? '🚫 ' : '🎯 ') + esc(r.name || r.email || '(sin nombre)') + (adsIsWon(r) ? ' <span class="of-badge" style="color:#7ed957;border-color:#7ed957">Ganado</span>' : '') + '</div>' +
-            '<div class="of-card-sub">' + esc(r.email || '') + ' · ' + esc(r.utm_campaign || 'sin campaña') + ' · ' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (out ? ' · <b>no se reporta</b>' : '') + '</div></div>' +
-            '<span class="of-badge">' + chf(r.deal_value) + '</span></div></div>';
-        }).join('') || '<p class="muted-note">Todavía no llegó ningún lead desde Ads.</p>';
-        $('gads-list').querySelectorAll('[data-glead]').forEach((c) => c.addEventListener('click', () => { gotoTab('leads'); openLead(c.dataset.glead); }));
+
+        gadsRenderSpark(curDaily, cur.leads);
+
+        // 5) UNA tabla: Google + CRM merge por campaña
+        gadsMergedRows = mergeCampaigns(official ? official.campaigns : [], cur.byCamp);
+        gadsRenderCamps();
+
+        // 6) search terms (campaign_id → nombre, cruzado con los campaigns oficiales)
+        gadsStRows = (official && official.search_terms) ? official.search_terms.map((t) => {
+          const camp = (official.campaigns || []).find((c) => c.id === t.campaign_id);
+          return { term: t.term, clicks: t.clicks, cost: t.cost, campaign_id: t.campaign_id, campaign: camp ? camp.name : '' };
+        }) : [];
+        gadsRenderSearchTerms();
+
+        // 7) budget pacing
+        gadsRenderPacing(official, settings);
+
+        // 8) conversiones offline: estado del último sync (lo escribe ads-conversions-sync, SQL 0067)
+        const syncAt = $('gads-sync-at');
+        if (syncAt) syncAt.textContent = settings.last_sync_at ? timeAgo(settings.last_sync_at) : 'nunca todavía';
+
+        // 9) contactos
+        gadsRenderList();
       };
-      $('gads-spend-save') && $('gads-spend-save').addEventListener('click', async () => {
-        const v = +($('gads-spend-in').value || 0);
+
+      $('gads-settings-btn') && $('gads-settings-btn').addEventListener('click', () => { const p = $('gads-settings-pop'); if (p) p.hidden = !p.hidden; });
+      $('gads-settings-cancel') && $('gads-settings-cancel').addEventListener('click', () => { $('gads-settings-pop').hidden = true; });
+      $('gads-settings-save') && $('gads-settings-save').addEventListener('click', async () => {
+        const v = +($('gads-spend-in').value || 0), b = +($('gads-budget-in').value || 0);
         localStorage.setItem('vv_ads_spend', String(v));
-        try { const { error } = await supabase.from('ads_settings').upsert({ id: 1, spend: v, updated_at: new Date().toISOString() }); if (error) throw error; toast('💾 Inversión guardada'); }
-        catch (e) { toast('Guardada en este dispositivo (corré el SQL 0037 para sincronizarla entre dispositivos)'); }
+        try {
+          const { error } = await supabase.from('ads_settings').upsert({ id: 1, spend: v, monthly_budget: b || null, updated_at: new Date().toISOString() });
+          if (error) throw error;
+          toast('💾 Guardado');
+        } catch (e) { toast(/column/.test(e.message || '') ? 'Corré el SQL 0067 (monthly_budget) — se guardó solo en este dispositivo' : 'Guardado en este dispositivo (corré el SQL 0037/0067 para sincronizar)'); }
+        $('gads-settings-pop').hidden = true;
+        window.gadsLoad();
+      });
+      $('gads-sync-now') && $('gads-sync-now').addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget, prevTxt = btn.textContent;
+        btn.disabled = true; btn.textContent = '🔁 Sincronizando…';
+        try {
+          const { data, error } = await supabase.functions.invoke('ads-conversions-sync', { body: {} });
+          if (error) throw error;
+          if (data && data.error) throw new Error(data.error);
+          toast('🔁 Sincronizado: ' + (data.lead_rows || 0) + ' leads · ' + (data.won_rows || 0) + ' ganados');
+        } catch (e) { toast('⚠️ ' + (e.message || 'No se pudo sincronizar')); }
+        btn.disabled = false; btn.textContent = prevTxt;
         window.gadsLoad();
       });
 
@@ -9315,12 +9618,36 @@ const stillsPool = projects
      acá para cuando se sume el lookup del lado del edge function (follow-up).
      ========================================================================= */
   const TMPL_TOUCHPOINTS = [
-    { key: 'nurture_step1', label: '🌱 Nurture — Paso 1 (bienvenida)', wired: true, vars: ['first_name', 'calc_range'] },
-    { key: 'nurture_step2', label: '🌱 Nurture — Paso 2 (case study)', wired: false, vars: ['first_name'] },
-    { key: 'nurture_step3', label: '🌱 Nurture — Paso 3 (último toque)', wired: false, vars: ['first_name'] },
-    { key: 'calc_result', label: '🧮 Calculadora — resultado', wired: true, vars: ['first_name', 'range'] },
-    { key: 'booking_confirmation', label: '📅 Booking — confirmación de call', wired: true, vars: ['first_name', 'when', 'duration'] },
-    { key: 'review_request', label: '⭐ Pedido de reseña Google', wired: false, vars: ['first_name'] },
+    { key: 'nurture_step1', label: '🌱 Nurture — Paso 1 (bienvenida)', wired: true, vars: ['first_name', 'calc_range'], defaults: {
+      en: { subject: 'We got your request — concept & quote within 48h', body: "Thanks for reaching out to Viven. A real human (one of us two) is already looking at your request — you'll get three concept directions, timing and a clear fixed quote within 48 hours on business days.\n\nYour calculator estimate ({{calc_range}}) came through with your selections — we'll refine it into an exact quote.\n\nMeanwhile, 90 seconds of what we do: watch our showreel at vimeo.com/1057568537.\n\nIn a hurry? Grab a free 15-min slot at viven.ch/book/ and let's talk it through." },
+      de: { subject: 'Anfrage erhalten — Konzept & Offerte innert 48h', body: 'Danke für Ihre Anfrage bei Viven. Ein echter Mensch (einer von uns beiden) schaut sie sich bereits an — Sie erhalten innert 48 Stunden (werktags) drei Konzeptrichtungen, Timing und eine klare Fixofferte.\n\nIhre Rechner-Schätzung ({{calc_range}}) ist mit Ihren Angaben angekommen — wir verfeinern sie zu einer exakten Offerte.\n\nIn der Zwischenzeit: 90 Sekunden, was wir tun — Showreel auf vimeo.com/1057568537.\n\nEilig? Buchen Sie einen gratis 15-Min-Slot auf viven.ch/book/ und wir besprechen es direkt.' },
+      es: { subject: 'Recibimos tu consulta — concepto y presupuesto en 48h', body: 'Gracias por escribirle a Viven. Un humano de verdad (uno de nosotros dos) ya está mirando tu consulta — en 48 horas hábiles vas a tener tres direcciones de concepto, tiempos y un presupuesto fijo claro.\n\nTu estimación de la calculadora ({{calc_range}}) llegó con tu configuración — la vamos a afinar a un presupuesto exacto.\n\nMientras tanto, 90 segundos de lo que hacemos: mirá nuestro showreel en vimeo.com/1057568537.\n\n¿Apuro? Reservá 15 minutos gratis en viven.ch/book/ y lo hablamos directo.' },
+    } },
+    { key: 'nurture_step2', label: '🌱 Nurture — Paso 2 (case study)', wired: false, vars: ['first_name'], defaults: {
+      en: { subject: 'How brands like Siemens use video (2-min read)', body: "While your project idea is fresh: here's a story close to what you're planning — goal, approach and what it changed.\n\nAnd if you want the receipts: every single Google review is 5 stars (viven.ch/en/testimonials/)." },
+      de: { subject: 'Wie Marken wie Siemens Video einsetzen (2 Min.)', body: 'Solange Ihre Projektidee frisch ist: eine Geschichte nah an dem, was Sie planen — Ziel, Vorgehen und was sie bewirkt hat.\n\nUnd wer Beweise will: jede einzelne Google-Bewertung hat 5 Sterne (viven.ch/de/testimonials/).' },
+      es: { subject: 'Cómo marcas como Siemens usan el video (2 min)', body: 'Mientras tu idea sigue fresca: una historia parecida a lo que estás planeando — objetivo, enfoque y qué cambió.\n\nY si querés pruebas: todas nuestras reseñas de Google son de 5 estrellas (viven.ch/es/testimonios/).' },
+    } },
+    { key: 'nurture_step3', label: '🌱 Nurture — Paso 3 (último toque)', wired: false, vars: ['first_name'], defaults: {
+      en: { subject: 'Should we keep your video project warm?', body: "No pressure — projects have their own timing. If it's still on your mind, two easy ways forward: book a free 15-min call at viven.ch/book/.\n\nOr get an instant number: calculate your video cost in 60 seconds at viven.ch/en/video-cost-calculator/. If now isn't the moment, just ignore this — we won't keep nudging." },
+      de: { subject: 'Sollen wir Ihr Videoprojekt warmhalten?', body: 'Kein Druck — Projekte haben ihr eigenes Timing. Falls es noch aktuell ist, zwei einfache Wege: gratis 15-Min-Call buchen auf viven.ch/book/.\n\nOder sofort eine Zahl: Videokosten in 60 Sekunden berechnen auf viven.ch/de/videoproduktion-kosten-rechner/. Falls es gerade nicht passt, einfach ignorieren — wir haken nicht weiter nach.' },
+      es: { subject: '¿Mantenemos tu proyecto de video en el radar?', body: 'Sin presión — los proyectos tienen su propio timing. Si sigue en tu cabeza, dos caminos fáciles: reservar llamada gratis de 15 min en viven.ch/book/.\n\nO un número al instante: calculá el costo de tu video en 60 segundos en viven.ch/es/calculadora-costos-video/. Si no es el momento, ignorá este mail — no vamos a insistir.' },
+    } },
+    { key: 'calc_result', label: '🧮 Calculadora — resultado', wired: true, vars: ['first_name', 'range'], defaults: {
+      en: { subject: 'Your video cost estimate: CHF', body: "Thank you for your enquiry — here is the cost estimate you requested, based on real budgets from over 100 Swiss productions for brands like UBS, Siemens and FIFA.\n\nYour range: {{range}}\n\nEvery project is different, and these figures are an honest starting point — not a fixed quote. If the estimate sits above your budget, we can usually help bring the costs down: adjusting shoot days, scope or format, without compromising the result. If you'd like to go through the details, don't hesitate to contact us — we're happy to think along with you.\n\nBook a free 15-min call at viven.ch/book/.\n\nPrefer email? Just reply to this message — it lands directly with me." },
+      de: { subject: 'Ihre Videokosten-Schätzung: CHF', body: 'vielen Dank für Ihre Anfrage — hier ist die gewünschte Kostenschätzung, basierend auf echten Budgets aus über 100 Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.\n\nIhre Spanne: {{range}}\n\nJedes Projekt ist anders — diese Zahlen sind ein ehrlicher Richtwert, keine fixe Offerte. Liegt die Schätzung über Ihrem Budget, helfen wir gerne, die Kosten zu senken: über Drehtage, Umfang oder Format, ohne Kompromisse beim Resultat. Möchten Sie ins Detail gehen? Kontaktieren Sie uns jederzeit — wir denken gerne mit.\n\nGratis 15-Min-Call buchen auf viven.ch/book/.\n\nLieber per E-Mail? Antworten Sie einfach auf diese Nachricht — sie landet direkt bei mir.' },
+      es: { subject: 'Tu estimación de costos de video: CHF', body: 'gracias por tu consulta — acá tenés la estimación de costos que pediste, basada en presupuestos reales de más de 100 producciones suizas para marcas como UBS, Siemens y FIFA.\n\nTu rango: {{range}}\n\nCada proyecto es distinto y estos números son un punto de partida honesto, no una oferta cerrada. Si la estimación queda por encima de tu presupuesto, normalmente podemos ayudarte a bajar los costos: ajustando días de rodaje, alcance o formato, sin comprometer el resultado. Si querés entrar en más detalle, no dudes en contactarnos — pensamos el proyecto con vos.\n\nReservar llamada gratis de 15 min en viven.ch/book/.\n\n¿Preferís por email? Respondé este mensaje — me llega directo a mí.' },
+    } },
+    { key: 'booking_confirmation', label: '📅 Booking — confirmación de call', wired: true, vars: ['first_name', 'when', 'duration'], defaults: {
+      en: { subject: 'Your call with Viven is booked — {{when}}', body: 'Your {{duration}}-minute call is confirmed for {{when}} (Zurich time). The Google Calendar invite is on its way too.\n\nJoin with Google Meet using the link in the calendar invite.\n\nOne more thing: fill in the 2-min brief so we come prepared.' },
+      de: { subject: 'Ihr Call mit Viven ist gebucht — {{when}}', body: 'Ihr {{duration}}-Minuten-Call ist bestätigt: {{when}} (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.\n\nMit Google Meet beitreten über den Link in der Kalendereinladung.\n\nNoch etwas: Mit dem kurzen Projekt-Briefing (2 Min.) kommen wir bestens vorbereitet.' },
+      es: { subject: 'Tu llamada con Viven está reservada — {{when}}', body: 'Tu llamada de {{duration}} minutos está confirmada: {{when}} (hora de Zúrich). La invitación de Google Calendar también va en camino.\n\nEntrar con Google Meet usando el link de la invitación del calendario.\n\nUna cosa más: completá el brief de 2 min para que lleguemos preparados.' },
+    } },
+    { key: 'review_request', label: '⭐ Pedido de reseña Google', wired: false, vars: ['first_name'], defaults: {
+      en: { subject: 'How was working with Viven? 🌟', body: 'Hi {{first_name}},\n\nIt was a pleasure producing your video — we hope it\'s already working hard for you.\n\nIf you have 60 seconds, a short Google review would mean a lot to our small team (and helps other companies find us).\n\nThank you — and see you on the next project!\nSebastian & the Viven team' },
+      de: { subject: 'Wie war die Zusammenarbeit mit Viven? 🌟', body: 'Guten Tag {{first_name}},\n\nEs war uns eine Freude, Ihr Video zu produzieren — wir hoffen, es arbeitet bereits fleissig für Sie.\n\nWenn Sie 60 Sekunden haben: Eine kurze Google-Bewertung würde unserem kleinen Team enorm helfen.\n\nHerzlichen Dank — bis zum nächsten Projekt!\nSebastian & das Viven-Team' },
+      es: { subject: '¿Cómo fue trabajar con Viven? 🌟', body: 'Hola {{first_name}}:\n\nFue un placer producir tu video — esperamos que ya esté trabajando duro para vos.\n\nSi tenés 60 segundos, una reseña corta en Google ayuda muchísimo a nuestro equipo.\n\n¡Gracias — y hasta el próximo proyecto!\nSebastian y el equipo de Viven' },
+    } },
   ];
   let tmplRows = {};       // 'key|lang' → fila de email_templates
   let tmplCurKey = null, tmplCurLang = 'en';
@@ -9346,8 +9673,13 @@ const stillsPool = projects
     tmplCurLang = lg;
     $('tmpl-ed-langs').querySelectorAll('.tmpl-lang-btn').forEach((b) => b.classList.toggle('btn-primary', b.dataset.lg === lg));
     const row = tmplRows[tmplCurKey + '|' + lg];
-    $('tmpl-ed-subject').value = row ? row.subject : '';
-    $('tmpl-ed-body').value = row ? row.body : '';
+    // sin fila guardada en email_templates → precargar el texto REAL que se manda hoy
+    // (TMPL_TOUCHPOINTS[].defaults), no un campo en blanco — el badge "editada/original"
+    // sigue reflejando solo si hay fila en la DB, no qué texto se ve acá.
+    const t = TMPL_TOUCHPOINTS.find((x) => x.key === tmplCurKey);
+    const def = (t && t.defaults && t.defaults[lg]) || { subject: '', body: '' };
+    $('tmpl-ed-subject').value = row ? row.subject : def.subject;
+    $('tmpl-ed-body').value = row ? row.body : def.body;
     $('tmpl-ed-restore').hidden = !row;
     $('tmpl-ed-preview').style.display = 'none';
   }
