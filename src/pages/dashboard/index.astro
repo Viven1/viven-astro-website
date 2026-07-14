@@ -1191,6 +1191,11 @@ const newsCases = [
   .hatt-call .hc-who[data-lead]:hover{color:var(--acid);text-decoration:underline}
   .hatt-call .hc-dur{color:var(--muted-2);font-size:11.5px}
   .hatt-call .hc-meet{margin-left:auto;color:var(--acid);font-weight:600;text-decoration:none;font-size:12px}
+  .hatt-call .hc-host{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--navy-700);color:var(--muted-2);white-space:nowrap}
+  /* toggle Mías/Todas — SOLO superadmin (Sofia siempre ve nada más que las suyas, sin toggle) */
+  .hm-agenda-seg{display:inline-flex;gap:4px;margin-left:10px;vertical-align:middle}
+  .hm-agenda-seg button{background:none;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:600 10.5px Inter,sans-serif;padding:3px 10px;cursor:pointer}
+  .hm-agenda-seg button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
   .ps-stats{font-size:13px;color:var(--muted);margin:2px 0 12px}
   .ps-stats b{color:var(--text);font-variant-numeric:tabular-nums}
   .ps-toolbar input[type="search"]{flex:1;min-width:220px}
@@ -1644,7 +1649,7 @@ const newsCases = [
         <div class="hm-list" id="hm-signals"></div>
       </div>
       <div class="hm-stack">
-        <div class="panel hm-card"><h2>📅 Agenda <span class="count">(próximos 7 días)</span></h2><div class="hatt-calls" id="hm-agenda"></div></div>
+        <div class="panel hm-card"><h2>📅 Agenda <span class="count">(próximos 7 días)</span><span id="hm-agenda-seg" class="hm-agenda-seg"></span></h2><div class="hatt-calls" id="hm-agenda"></div></div>
         <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
         <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
         <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
@@ -3940,6 +3945,10 @@ const newsCases = [
   let hmViews60 = null, hmViews60At = 0, hmViews60Busy = false;   // pageviews 60d: sparkline semanal + KPI visitas
   let hmAds = null, hmAdsBusy = false;                            // gasto de Ads: gads-stats 1 sola vez por día
   let hmAiTried = false, hmTodayCur = [], hmSigCur = [];
+  // Agenda: 'mine' filtra por host_email===meEmail (default para todos, incluida Sofia).
+  // Solo superadmin puede pasar a 'all' para overview — sin esto, todos veían las
+  // reuniones de todo el equipo mezcladas (reporte: "asi uno se confunde y toca la equivocada").
+  let hmAgendaScope = 'mine';
   const HM_AI_LS = 'vv_home_ai', HM_ADS_LS = 'vv_home_gads';
 
   // KPIs de deals con las MISMAS fórmulas que el board (renderPipeline) — números idénticos en todos lados
@@ -4131,18 +4140,33 @@ const newsCases = [
 
   function hmRenderAgenda(){
     const box = $('hm-agenda'); if (!box) return;
+    const seg = $('hm-agenda-seg');
+    // el toggle Mías/Todas solo existe para superadmin — cualquier otra persona
+    // (Sofia incluida) siempre queda forzada a 'mine', sin opción de ver la ajena
+    if (seg){
+      if (!isSuperadmin){ seg.innerHTML = ''; hmAgendaScope = 'mine'; }
+      else {
+        seg.innerHTML = ['mine', 'all'].map((k) =>
+          '<button type="button" data-k="' + k + '" class="' + (hmAgendaScope === k ? 'on' : '') + '">' + (k === 'mine' ? 'Mías' : 'Todas') + '</button>').join('');
+        seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { hmAgendaScope = b.dataset.k; hmRenderAgenda(); }));
+      }
+    }
     const lim = Date.now() + 7 * 864e5;
-    const rows = (upBookings || []).filter((b) => Date.parse(b.start_at) <= lim);
+    const mine = (b) => (b.host_email || '').toLowerCase() === (meEmail || '').toLowerCase();
+    const rows = (upBookings || []).filter((b) => Date.parse(b.start_at) <= lim && (hmAgendaScope === 'all' ? true : mine(b)));
     box.innerHTML = rows.map((b) => {
       const dt = new Date(b.start_at);
       const when = dt.toLocaleDateString('es-CH', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + dt.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+      // el badge de host solo aparece en la vista "Todas" — en "Mías" es redundante (ya sabés que son tuyas)
+      const hostBadge = (hmAgendaScope === 'all' && b.host_email) ? '<span class="hc-host">' + esc(teamName(b.host_email).split(/\s+/)[0] || b.host_email) + '</span>' : '';
       return '<div class="hatt-call">' +
         '<span class="hc-when">📅 ' + esc(when) + '</span>' +
         '<button class="hc-who" type="button"' + (b.lead_id ? ' data-lead="' + esc(String(b.lead_id)) + '"' : '') + '>' + esc(b.name || b.email) + '</button>' +
+        hostBadge +
         '<span class="hc-dur">' + (b.duration_m || 15) + ' min</span>' +
         (b.meet_url ? '<a class="hc-meet" href="' + esc(b.meet_url) + '" target="_blank" rel="noopener">Meet ↗</a>' : '') +
       '</div>';
-    }).join('') || '<p class="muted-note">Sin video calls en los próximos 7 días.</p>';
+    }).join('') || '<p class="muted-note">' + (hmAgendaScope === 'all' ? 'Sin video calls del equipo en los próximos 7 días.' : 'Sin video calls tuyos en los próximos 7 días.') + '</p>';
     box.querySelectorAll('.hc-who[data-lead]').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.lead)));
   }
 
