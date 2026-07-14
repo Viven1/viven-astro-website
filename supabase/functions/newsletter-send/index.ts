@@ -150,14 +150,23 @@ async function resendPost(path: string, payload: unknown, attempts = 4): Promise
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
+    // fix CRÍTICO (auditoría 2026-07-14): el gate anterior confiaba en un campo
+    // `internal:true` MANDADO POR EL CALLER en el body — cualquiera podía forjarlo
+    // y disparar el envío real de una campaña a todo el segmento de leads, o filtrar
+    // el contenido de un borrador a cualquier email vía `test_to`, sin login. El
+    // dispatcher real (newsletter-dispatch) manda el SERVICE ROLE KEY real como
+    // Authorization — eso es lo único que no se puede forjar sin tener el secret.
     const auth = req.headers.get("Authorization") ?? "";
-    const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
-    const { data: { user } } = await supabase.auth.getUser();
-    // el dispatcher (newsletter-dispatch) invoca con el service role y sin usuario:
-    // en ese caso viene { internal: true } y confiamos en la auth de función.
+    const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isInternal = !!SERVICE_ROLE_KEY && auth === `Bearer ${SERVICE_ROLE_KEY}`;
+    let user: { id: string } | null = null;
+    if (!isInternal) {
+      const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
+      ({ data: { user } } = await supabase.auth.getUser());
+    }
     const bodyReq = await req.json();
-    const { id, test_to, mark_sent, internal } = bodyReq;
-    if (!user && !internal) return json({ error: "unauthorized" }, 401);
+    const { id, test_to, mark_sent } = bodyReq;
+    if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
     if (!id) return json({ error: "falta id" }, 400);
 
     const { data: nl } = await service.from("newsletters").select("*").eq("id", id).maybeSingle();
