@@ -567,8 +567,20 @@ const newsCases = [
   #ob-list .ob-row .ob-f{flex:1;min-width:180px}
   /* ---- editor de propuestas ---- */
   #pp-editor .bf,#tab-blog .bf,#tab-services .bf{margin-bottom:14px}
-  #pp-editor .bf label,#tab-blog .bf label,#tab-services .bf label,#tab-licenses .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  #pp-editor .bf input,#pp-editor .bf select,#pp-editor .bf textarea,#tab-blog .bf input,#tab-blog .bf select,#tab-blog .bf textarea,#tab-licenses .bf input,#tab-licenses .bf select,#tab-licenses .bf textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
+  #pp-editor .bf label,#tab-blog .bf label,#tab-services .bf label,#tab-licenses .bf label,#tab-cashflow .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  #pp-editor .bf input,#pp-editor .bf select,#pp-editor .bf textarea,#tab-blog .bf input,#tab-blog .bf select,#tab-blog .bf textarea,#tab-licenses .bf input,#tab-licenses .bf select,#tab-licenses .bf textarea,#tab-cashflow .bf input,#tab-cashflow .bf select,#tab-cashflow .bf textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
+  /* ---------- Cash Flow (SQL 0077/0078/0079) ---------- */
+  .cf-tag{display:inline-block;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:600;white-space:nowrap}
+  .cf-tag.rec{color:var(--acid);background:rgba(221,249,143,.12)}
+  .cf-tag.loan{color:#8fb8ff;background:rgba(143,184,255,.12)}
+  .cf-tag.bexio{color:#7ed957;background:rgba(126,217,87,.12)}
+  .cf-tag.manual{color:var(--muted);background:rgba(255,255,255,.06)}
+  .cf-amt{font-weight:700;white-space:nowrap}
+  .cf-amt.pos{color:#7ed957}
+  .cf-amt.neg{color:#ff8b8b}
+  .cf-loan-bar{background:var(--navy-900);border-radius:8px;height:6px;overflow:hidden;margin:8px 0 6px}
+  .cf-loan-bar i{display:block;height:100%;background:var(--acid);border-radius:8px}
+  #tab-cashflow .of-card-sub{margin-top:4px}
   .lic-days{font-size:11px;font-weight:700;letter-spacing:.3px;padding:3px 10px;border-radius:20px;flex:none}
   .lic-days.ok{color:#7ed957;border:1px solid #7ed957}
   .lic-days.soon{color:#f0c060;border:1px solid #f0c060}
@@ -1484,6 +1496,16 @@ const newsCases = [
         <div class="side-group-items">
           <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Workflows <span class="pill" id="tab-ob-count" hidden></span></button>
           <button class="side-item" data-tab="tmpl" type="button"><span class="si-ic">📚</span>Plantillas</button>
+        </div>
+      </div>
+      <!-- Cash Flow: SOLO superadmin. Arranca hidden — checkRole() la desoculta si
+           corresponde, o la saca del DOM del todo (.remove(), no solo hidden) para
+           cualquier otro usuario autenticado. La seguridad real la da RLS
+           (public.is_superadmin(), SQL 0077/0078) — esto es solo UX. -->
+      <div class="side-group" data-group="finance" id="side-group-finance" hidden>
+        <button class="side-sec" type="button">Finanzas<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="cashflow" type="button"><span class="si-ic">💰</span>Cash Flow</button>
         </div>
       </div>
       <div class="side-group" data-group="cuenta">
@@ -2802,6 +2824,95 @@ const newsCases = [
     <div id="lic-list"><p class="muted-note">Cargando…</p></div>
   </div>
 
+  <!-- ============ TAB: CASH FLOW (solo superadmin) ============ -->
+  <div id="tab-cashflow" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">💰 Cash Flow <span class="badge" style="color:#f0c060;border:1px solid #f0c060;background:rgba(240,192,96,.08);margin-left:6px">🔒 Solo superadmin</span></h2>
+        <p class="muted-note" style="margin:2px 0 0">Proyección de liquidez de Viven AG (CHF). Carga manual hoy — Bexio queda listo para conectar como fuente automática más adelante.</p>
+      </div>
+      <button class="btn btn-primary small" id="cf-entry-add" type="button">➕ Agregar partida</button>
+    </div>
+
+    <div class="kpis four" id="cf-kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="n" id="cf-k-balance">–</div><div class="l">Saldo actual</div></div>
+      <div class="kpi"><div class="n" id="cf-k-runway">–</div><div class="l">Runway</div></div>
+      <div class="kpi"><div class="n" id="cf-k-redmonth">–</div><div class="l">Próximo mes en rojo</div></div>
+      <div class="kpi"><div class="n" id="cf-k-out30">–</div><div class="l">Salidas próximas 30 días</div></div>
+    </div>
+
+    <div class="panel">
+      <h2 style="justify-content:space-between">📈 Proyección <span id="cf-seg" class="co-seg"></span></h2>
+      <div id="cf-chart"><p class="muted-note">Cargando…</p></div>
+      <div class="muted-note" id="cf-chart-cap" style="margin-top:6px"></div>
+    </div>
+
+    <div class="panel" id="cf-entry-form" hidden>
+      <h2>➕ Nueva partida</h2>
+      <div class="pp-grid" style="grid-template-columns:2fr 1fr 1fr 1fr;gap:10px">
+        <div class="bf"><label>Descripción</label><input id="cf-entry-desc" placeholder="p. ej. Pago proveedor edición" /></div>
+        <div class="bf"><label>Monto (CHF)</label><input id="cf-entry-amount" type="number" min="0" step="10" /></div>
+        <div class="bf"><label>Fecha</label><input id="cf-entry-date" type="date" /></div>
+        <div class="bf"><label>Tipo</label><select id="cf-entry-kind"><option value="expense">Salida</option><option value="income">Entrada</option></select></div>
+      </div>
+      <div class="ab-urlrow">
+        <button class="btn btn-primary small" id="cf-entry-save" type="button">💾 Guardar</button>
+        <button class="btn btn-ghost small" id="cf-entry-cancel" type="button">Cancelar</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>📋 Detalle por período</h2>
+      <div id="cf-table"><p class="muted-note">Cargando…</p></div>
+    </div>
+
+    <div class="panel">
+      <h2 style="justify-content:space-between">🔁 Recurrentes <button class="btn btn-ghost small" id="cf-rec-add" type="button">➕ Agregar</button></h2>
+      <div class="pp-grid" id="cf-rec-form" hidden style="grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="bf"><label>Descripción</label><input id="cf-rec-desc" placeholder="p. ej. Alquiler oficina" /></div>
+        <div class="bf"><label>Monto (CHF)/período</label><input id="cf-rec-amount" type="number" min="0" step="10" /></div>
+        <div class="bf"><label>Frecuencia</label><select id="cf-rec-freq"><option value="monthly">Mensual</option><option value="quarterly">Trimestral</option><option value="yearly">Anual</option></select></div>
+        <div class="bf"><label>Día del mes</label><input id="cf-rec-day" type="number" min="1" max="28" value="1" /></div>
+        <div class="bf"><label>Tipo</label><select id="cf-rec-kind"><option value="expense">Salida</option><option value="income">Entrada</option></select></div>
+        <div class="bf" style="align-self:end"><button class="btn btn-primary small" id="cf-rec-save" type="button">💾 Guardar</button> <button class="btn btn-ghost small" id="cf-rec-cancel" type="button">Cancelar</button></div>
+      </div>
+      <div id="cf-rec-list"><p class="muted-note">Cargando…</p></div>
+    </div>
+
+    <div class="panel">
+      <h2 style="justify-content:space-between">🏦 Préstamos y leasing <button class="btn btn-ghost small" id="cf-loan-add" type="button">➕ Agregar</button></h2>
+      <div class="pp-grid" id="cf-loan-form" hidden style="grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="bf"><label>Nombre</label><input id="cf-loan-name" placeholder="p. ej. Leasing cámara" /></div>
+        <div class="bf"><label>Principal (CHF)</label><input id="cf-loan-principal" type="number" min="0" step="100" /></div>
+        <div class="bf"><label>Cuota mensual (CHF)</label><input id="cf-loan-payment" type="number" min="0" step="10" /></div>
+        <div class="bf"><label>Inicio</label><input id="cf-loan-start" type="date" /></div>
+        <div class="bf"><label>Fin</label><input id="cf-loan-end" type="date" /></div>
+        <div class="bf"><label>Notas</label><input id="cf-loan-notes" /></div>
+      </div>
+      <div class="ab-urlrow" id="cf-loan-actions" hidden style="margin-bottom:10px">
+        <button class="btn btn-primary small" id="cf-loan-save" type="button">💾 Guardar</button>
+        <button class="btn btn-ghost small" id="cf-loan-cancel" type="button">Cancelar</button>
+      </div>
+      <div id="cf-loan-list"><p class="muted-note">Cargando…</p></div>
+    </div>
+
+    <div class="panel">
+      <h2>⚙️ Configuración</h2>
+      <div class="pp-grid" style="grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <div class="bf"><label>Nuevo saldo bancario (CHF)</label><input id="cf-cfg-balance" type="number" min="0" step="10" /></div>
+          <button class="btn btn-primary small" id="cf-cfg-balance-save" type="button">💾 Guardar saldo</button>
+          <p class="muted-note" id="cf-cfg-balance-cap" style="margin-top:8px"></p>
+        </div>
+        <div>
+          <div class="bf"><label>Umbral mínimo de alerta (CHF)</label><input id="cf-cfg-threshold" type="number" min="0" step="500" /></div>
+          <button class="btn btn-primary small" id="cf-cfg-threshold-save" type="button">💾 Guardar umbral</button>
+          <p class="muted-note" style="margin-top:8px">Se avisa por email a sebastian@viven.ch cuando el saldo proyectado cae bajo este valor (cron diario).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
     </div><!-- /.dash-main -->
   </div><!-- /.dash-body -->
 
@@ -2819,6 +2930,7 @@ const newsCases = [
     <button data-tab="auto" type="button">⚙️ Workflows</button>
     <button data-tab="tmpl" type="button">📚 Plantillas</button>
     <button data-tab="profile" type="button">👤 Mi perfil</button>
+    <button data-tab="cashflow" type="button" id="mob-cashflow" hidden>💰 Cash Flow</button>
     <div class="mob-ver" id="mob-ver"></div>
   </div>
   <nav class="mob-nav" id="mob-nav" aria-label="Navegación">
@@ -3066,7 +3178,7 @@ const newsCases = [
 
   /* ---------- Navegación (sidebar) ---------- */
   // 'seo' y 'gads' ya no son tabs propios: viven como sub-tabs dentro de Analytics
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile', 'cashflow'];
   // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
@@ -3082,7 +3194,7 @@ const newsCases = [
     if (tab === 'seo' || tab === 'gads'){ anaSetSub(tab); tab = 'analytics'; }
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile'];
+    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile', 'cashflow'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -3104,6 +3216,7 @@ const newsCases = [
     if (tab === 'auto') autoInit();
     if (tab === 'tmpl') tmplInit();
     if (tab === 'profile') profileInit();
+    if (tab === 'cashflow') cfInit();
   }
 
   /* ---------- Analytics: sub-tabs (Web / Search Console / Google Ads / Videos) ---------- */
@@ -3149,6 +3262,7 @@ const newsCases = [
     });
     if (error) { f.classList.add('has-error'); return; }
     meEmail = (f.email.value.trim() || '').toLowerCase();
+    await checkRole();
     show('dash');
     loadAll().then(openFromQuery);
   });
@@ -10301,6 +10415,369 @@ const newsCases = [
     toast('💾 Perfil guardado');
   });
 
+  /* ---------- Roles (SQL 0077) — gate de superadmin para el tab Cash Flow ----------
+     La seguridad REAL la da RLS (public.is_superadmin()); esto es solo UX: si no
+     sos superadmin, el nav item y el contenido del tab se sacan del DOM del todo
+     (no solo hidden) apenas se resuelve el rol. */
+  let isSuperadmin = false;
+  async function checkRole(){
+    isSuperadmin = false;
+    if (meEmail){
+      try {
+        const { data } = await supabase.from('user_roles').select('role').eq('email', meEmail).maybeSingle();
+        isSuperadmin = !!(data && data.role === 'superadmin');
+      } catch (e) { isSuperadmin = false; }
+    }
+    const grp = $('side-group-finance'), mob = $('mob-cashflow'), tabEl = $('tab-cashflow');
+    if (isSuperadmin){
+      if (grp) grp.hidden = false;
+      if (mob) mob.hidden = false;
+    } else {
+      if (grp) grp.remove();
+      if (mob) mob.remove();
+      if (tabEl) tabEl.remove();
+    }
+  }
+
+  /* ---------- Cash Flow (SQL 0077/0078/0079) ----------
+     Proyección de liquidez de Viven AG, SOLO CHF, SOLO superadmin. Motor
+     client-side: saldo actual (cashflow_bank_balance) + partidas manuales/Bexio
+     (cashflow_entries) + recurrentes activos expandidos (cashflow_recurring_templates)
+     + préstamos/leasing expandidos como cuota mensual (cashflow_loans), 12 meses
+     hacia adelante. La MISMA lógica está portada a TS en la edge function
+     cashflow-alert (cron diario, SQL 0079) para el aviso por email. */
+  let cfBuilt = false, cfPeriod = 'monthly';
+  let cfBalance = null, cfSettings = { min_balance_threshold_chf: 15000, alert_email: 'sebastian@viven.ch', enabled: true };
+  let cfEntries = [], cfTemplates = [], cfLoans = [], cfEvents = [], cfMonths = [], cfWeeks = [];
+  let cfRecEditing = null, cfLoanEditing = null;
+  const cfCHF = (n) => 'CHF ' + Math.round(Number(n) || 0).toLocaleString('de-CH');
+
+  function cfInit(){
+    if (!isSuperadmin) return;   // no debería ser alcanzable sin esto (el nav item no existe), pero por las dudas
+    if (!cfBuilt){
+      cfBuilt = true;
+      $('cf-entry-add').addEventListener('click', () => {
+        const f = $('cf-entry-form'); f.hidden = !f.hidden;
+        if (!f.hidden){ $('cf-entry-date').value = new Date().toISOString().slice(0, 10); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      });
+      $('cf-entry-cancel').addEventListener('click', () => { $('cf-entry-form').hidden = true; });
+      $('cf-entry-save').addEventListener('click', cfSaveEntry);
+      $('cf-rec-add').addEventListener('click', () => { cfRecEditing = null; cfOpenRecForm(); });
+      $('cf-rec-cancel').addEventListener('click', () => { $('cf-rec-form').hidden = true; });
+      $('cf-rec-save').addEventListener('click', cfSaveRec);
+      $('cf-loan-add').addEventListener('click', () => { cfLoanEditing = null; cfOpenLoanForm(); });
+      $('cf-loan-cancel').addEventListener('click', () => { $('cf-loan-form').hidden = true; $('cf-loan-actions').hidden = true; });
+      $('cf-loan-save').addEventListener('click', cfSaveLoan);
+      $('cf-cfg-balance-save').addEventListener('click', cfSaveBalance);
+      $('cf-cfg-threshold-save').addEventListener('click', cfSaveThreshold);
+    }
+    cfLoad();
+  }
+
+  async function cfLoad(){
+    const [balQ, setQ, entQ, tplQ, loanQ] = await Promise.all([
+      supabase.from('cashflow_bank_balance').select('*').order('as_of_date', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('cashflow_alert_settings').select('*').eq('id', 1).maybeSingle(),
+      supabase.from('cashflow_entries').select('*').order('due_date', { ascending: true }),
+      supabase.from('cashflow_recurring_templates').select('*').order('created_at', { ascending: false }),
+      supabase.from('cashflow_loans').select('*').order('end_date', { ascending: true }),
+    ]);
+    const firstError = balQ.error || setQ.error || entQ.error || tplQ.error || loanQ.error;
+    if (firstError){
+      $('cf-table').innerHTML = '<p class="muted-note">⚠️ ' + esc(firstError.message) + ' (¿corriste las SQL 0077/0078?)</p>';
+      return;
+    }
+    cfBalance = balQ.data || null;
+    cfSettings = setQ.data || cfSettings;
+    cfEntries = entQ.data || [];
+    cfTemplates = tplQ.data || [];
+    cfLoans = loanQ.data || [];
+    $('cf-cfg-balance-cap').textContent = cfBalance ? ('Último registrado: ' + cfCHF(cfBalance.balance_chf) + ' (al ' + cfBalance.as_of_date + ')') : 'Todavía no cargaste un saldo — cargalo abajo en Configuración.';
+    $('cf-cfg-threshold').value = cfSettings.min_balance_threshold_chf ?? 15000;
+    cfProject();
+    cfRenderKpis();
+    cfRenderSeg();
+    cfRenderChart();
+    cfRenderTable();
+    cfRenderRec();
+    cfRenderLoans();
+  }
+
+  // expande entries + recurrentes + préstamos a una lista plana de eventos (fecha + delta),
+  // horizonte de 12 meses desde hoy — es la base tanto de la tabla de detalle como de las
+  // series semanal/mensual del gráfico y de los KPIs (runway / próximo mes en rojo)
+  function cfExpandEvents(){
+    const events = [];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today); horizon.setMonth(horizon.getMonth() + 12);
+
+    (cfEntries || []).forEach((e) => {
+      const d = new Date(e.due_date + 'T00:00:00');
+      if (d < today || d > horizon) return;
+      events.push({ date: d, delta: e.kind === 'income' ? Number(e.amount_chf) : -Number(e.amount_chf), label: e.description, tag: e.source === 'bexio' ? 'bexio' : 'manual' });
+    });
+
+    (cfTemplates || []).filter((t) => t.active).forEach((t) => {
+      const s = new Date(t.start_date + 'T00:00:00');
+      const endT = t.end_date ? new Date(t.end_date + 'T00:00:00') : null;
+      for (let m = 0; m < 13; m++){
+        const monthCursor = new Date(today.getFullYear(), today.getMonth() + m, 1);
+        if (monthCursor > horizon) break;
+        if (monthCursor.getFullYear() < s.getFullYear() || (monthCursor.getFullYear() === s.getFullYear() && monthCursor.getMonth() < s.getMonth())) continue;
+        const occurs = t.frequency === 'monthly'
+          || (t.frequency === 'quarterly' && ((monthCursor.getFullYear() * 12 + monthCursor.getMonth()) - (s.getFullYear() * 12 + s.getMonth())) % 3 === 0)
+          || (t.frequency === 'yearly' && monthCursor.getMonth() === s.getMonth());
+        if (!occurs) continue;
+        const occDate = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), t.day_of_month);
+        if (occDate < today || occDate < s || occDate > horizon) continue;
+        if (endT && occDate > endT) continue;
+        events.push({ date: occDate, delta: t.kind === 'income' ? Number(t.amount_chf) : -Number(t.amount_chf), label: t.description, tag: 'rec' });
+      }
+    });
+
+    (cfLoans || []).forEach((l) => {
+      const s = new Date(l.start_date + 'T00:00:00');
+      const e = new Date(l.end_date + 'T00:00:00');
+      const day = Math.min(s.getDate(), 28);
+      for (let m = 0; m < 13; m++){
+        const monthCursor = new Date(today.getFullYear(), today.getMonth() + m, 1);
+        if (monthCursor > horizon) break;
+        const occDate = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), day);
+        if (occDate < today || occDate < s || occDate > e || occDate > horizon) continue;
+        events.push({ date: occDate, delta: -Number(l.monthly_payment_chf), label: l.name, tag: 'loan' });
+      }
+    });
+
+    events.sort((a, b) => a.date - b.date);
+    return events;
+  }
+
+  function cfMonthlySeries(events){
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let running = cfBalance ? Number(cfBalance.balance_chf) : 0;
+    const months = [];
+    for (let m = 0; m < 12; m++){
+      const mStart = new Date(today.getFullYear(), today.getMonth() + m, 1);
+      const mEnd = new Date(today.getFullYear(), today.getMonth() + m + 1, 1);
+      const delta = events.filter((ev) => ev.date >= mStart && ev.date < mEnd).reduce((a, ev) => a + ev.delta, 0);
+      running += delta;
+      months.push({ label: mStart.toLocaleDateString('es-CH', { month: 'short', year: '2-digit' }), delta, balance: running });
+    }
+    return months;
+  }
+  function cfWeeklySeries(events){
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let running = cfBalance ? Number(cfBalance.balance_chf) : 0;
+    const dow = (today.getDay() + 6) % 7;   // 0 = lunes
+    const weekStart0 = new Date(today); weekStart0.setDate(today.getDate() - dow);
+    const horizon = new Date(today); horizon.setMonth(horizon.getMonth() + 12);
+    const weeks = [];
+    for (let w = 0; w < 53; w++){
+      const wStart = new Date(weekStart0); wStart.setDate(weekStart0.getDate() + w * 7);
+      if (wStart > horizon) break;
+      const wEnd = new Date(wStart); wEnd.setDate(wStart.getDate() + 7);
+      const delta = events.filter((ev) => ev.date >= wStart && ev.date < wEnd).reduce((a, ev) => a + ev.delta, 0);
+      running += delta;
+      weeks.push({ label: wStart.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), delta, balance: running });
+    }
+    return weeks;
+  }
+  function cfProject(){
+    cfEvents = cfExpandEvents();
+    cfMonths = cfMonthlySeries(cfEvents);
+    cfWeeks = cfWeeklySeries(cfEvents);
+  }
+
+  function cfRenderKpis(){
+    const bal = cfBalance ? Number(cfBalance.balance_chf) : null;
+    $('cf-k-balance').textContent = bal != null ? cfCHF(bal) : '—';
+    const zeroIdx = cfMonths.findIndex((m) => m.balance < 0);
+    const rw = $('cf-k-runway');
+    if (zeroIdx === -1){ rw.textContent = '12+ meses'; rw.style.color = '#7ed957'; }
+    else { rw.textContent = (zeroIdx + 1) + (zeroIdx === 0 ? ' mes' : ' meses'); rw.style.color = '#ff8b8b'; }
+    const threshold = Number((cfSettings && cfSettings.min_balance_threshold_chf) || 0);
+    const redIdx = cfMonths.findIndex((m) => m.balance < threshold);
+    const rm = $('cf-k-redmonth');
+    if (redIdx === -1){ rm.textContent = 'Ninguno ✅'; rm.style.color = '#7ed957'; }
+    else { rm.textContent = cfMonths[redIdx].label; rm.style.color = '#ff8b8b'; }
+    const today = new Date(), in30 = new Date(today.getTime() + 30 * 864e5);
+    const todayS = today.toISOString().slice(0, 10), in30S = in30.toISOString().slice(0, 10);
+    const out30 = (cfEntries || []).filter((e) => e.kind === 'expense' && e.due_date >= todayS && e.due_date <= in30S).reduce((a, e) => a + Number(e.amount_chf), 0);
+    $('cf-k-out30').textContent = cfCHF(out30);
+  }
+
+  function cfRenderSeg(){
+    const seg = $('cf-seg'); if (!seg) return;
+    seg.innerHTML = [['monthly', 'Mensual'], ['weekly', 'Semanal']].map(([k, lbl]) => '<button data-p="' + k + '" class="' + (cfPeriod === k ? 'on' : '') + '" type="button">' + lbl + '</button>').join('');
+    seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { cfPeriod = b.dataset.p; cfRenderSeg(); cfRenderChart(); }));
+  }
+
+  // gráfico SVG — reusa las mismas clases .gsvg/.g-grid/.g-yl/.g-xl/.g-line del chart de Analytics,
+  // + línea punteada roja del umbral mínimo (no existe en Analytics, se agrega inline)
+  function cfRenderChart(){
+    const series = cfPeriod === 'weekly' ? cfWeeks : cfMonths;
+    const box = $('cf-chart'); if (!box) return;
+    if (!series.length){ box.innerHTML = '<p class="muted-note">Sin datos suficientes — cargá un saldo bancario en Configuración.</p>'; return; }
+    const n = series.length, W = 1000, H = 260, padL = 66, padR = 14, padT = 16, padB = 28;
+    const pw = W - padL - padR, ph = H - padT - padB;
+    const threshold = Number((cfSettings && cfSettings.min_balance_threshold_chf) || 0);
+    const vals = series.map((s) => s.balance);
+    const minV = Math.min(0, threshold, ...vals), maxV = Math.max(threshold, ...vals, 1);
+    const range = (maxV - minV) || 1;
+    const X = (i) => padL + (n <= 1 ? pw / 2 : (i / (n - 1)) * pw);
+    const Y = (v) => padT + (1 - (v - minV) / range) * ph;
+    const pts = series.map((s, i) => [X(i), Y(s.balance)]);
+    const linePath = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const thY = Y(threshold);
+    const grid = [minV, (minV + maxV) / 2, maxV].map((v) => {
+      const y = Y(v);
+      return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" class="g-grid"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y + 4).toFixed(1) + '" class="g-yl">' + cfCHF(v) + '</text>';
+    }).join('');
+    const step = Math.max(1, Math.ceil(n / 8));
+    const xls = series.map((s, i) => ((i % step === 0) || i === n - 1) ? '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" class="g-xl" text-anchor="middle">' + s.label + '</text>' : '').join('');
+    const hover = series.map((s, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(s.balance).toFixed(1) + '" r="10" fill="transparent"><title>' + s.label + ': ' + cfCHF(s.balance) + '</title></circle>').join('');
+    box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gsvg">' + grid +
+      '<line x1="' + padL + '" y1="' + thY.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + thY.toFixed(1) + '" stroke="#ff8b8b" stroke-width="1.5" stroke-dasharray="5,4"/>' +
+      '<path d="' + linePath + '" class="g-line"/>' + hover + xls + '</svg>';
+    $('cf-chart-cap').textContent = 'Línea punteada roja = umbral mínimo (' + cfCHF(threshold) + ') · saldo proyectado en verde';
+  }
+
+  function cfRenderTable(){
+    const box = $('cf-table'); if (!box) return;
+    if (!cfEvents.length){ box.innerHTML = '<p class="muted-note">Sin partidas futuras — agregá una con ➕ Agregar partida, o cargá recurrentes/préstamos abajo.</p>'; return; }
+    let running = cfBalance ? Number(cfBalance.balance_chf) : 0;
+    const TAGS = { rec: ['recurrente', 'rec'], loan: ['préstamo', 'loan'], bexio: ['Bexio', 'bexio'], manual: ['manual', 'manual'] };
+    const rows = cfEvents.slice(0, 300).map((ev) => {
+      running += ev.delta;
+      const [tagLbl, tagCls] = TAGS[ev.tag] || TAGS.manual;
+      return '<tr><td>' + ev.date.toLocaleDateString('es-CH') + '</td><td>' + esc(ev.label || '—') + '</td>' +
+        '<td><span class="cf-tag ' + tagCls + '">' + tagLbl + '</span></td>' +
+        '<td class="cf-amt ' + (ev.delta >= 0 ? 'pos' : 'neg') + '">' + (ev.delta >= 0 ? '+' : '−') + cfCHF(Math.abs(ev.delta)) + '</td>' +
+        '<td>' + cfCHF(running) + '</td></tr>';
+    }).join('');
+    box.innerHTML = '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Monto</th><th>Saldo corrido</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  async function cfSaveEntry(){
+    const desc = $('cf-entry-desc').value.trim();
+    const amount = +$('cf-entry-amount').value;
+    const date = $('cf-entry-date').value;
+    const kind = $('cf-entry-kind').value;
+    if (!desc || !amount || !date){ toast('Completá descripción, monto y fecha'); return; }
+    const { error } = await supabase.from('cashflow_entries').insert({ kind, description: desc, amount_chf: amount, due_date: date, source: 'manual', created_by: meEmail || null });
+    if (error){ toast('⚠️ ' + error.message); return; }
+    toast('💾 Partida guardada'); $('cf-entry-form').hidden = true;
+    $('cf-entry-desc').value = ''; $('cf-entry-amount').value = '';
+    cfLoad();
+  }
+
+  function cfOpenRecForm(t){
+    $('cf-rec-desc').value = t ? t.description : '';
+    $('cf-rec-amount').value = t ? t.amount_chf : '';
+    $('cf-rec-freq').value = t ? t.frequency : 'monthly';
+    $('cf-rec-day').value = t ? t.day_of_month : 1;
+    $('cf-rec-kind').value = t ? t.kind : 'expense';
+    $('cf-rec-form').hidden = false;
+    $('cf-rec-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  async function cfSaveRec(){
+    const desc = $('cf-rec-desc').value.trim();
+    const amount = +$('cf-rec-amount').value;
+    if (!desc || !amount){ toast('Completá descripción y monto'); return; }
+    const row = { description: desc, amount_chf: amount, frequency: $('cf-rec-freq').value, day_of_month: +$('cf-rec-day').value || 1, kind: $('cf-rec-kind').value };
+    let error;
+    if (cfRecEditing){ ({ error } = await supabase.from('cashflow_recurring_templates').update(row).eq('id', cfRecEditing.id)); }
+    else { ({ error } = await supabase.from('cashflow_recurring_templates').insert(row)); }
+    if (error){ toast('⚠️ ' + error.message); return; }
+    toast('💾 Recurrente guardado'); $('cf-rec-form').hidden = true; cfLoad();
+  }
+  function cfRenderRec(){
+    const box = $('cf-rec-list'); if (!box) return;
+    if (!cfTemplates.length){ box.innerHTML = '<p class="muted-note">Sin recurrentes todavía — agregá el primero con ➕.</p>'; return; }
+    const FREQ = { monthly: 'mensual', quarterly: 'trimestral', yearly: 'anual' };
+    box.innerHTML = cfTemplates.map((t) => '<div class="of-card" data-id="' + t.id + '"><div class="of-card-open"><div class="of-card-main">' +
+      '<div class="of-card-title">' + esc(t.description) + '</div>' +
+      '<div class="of-card-sub">' + (t.kind === 'income' ? '+ ' : '− ') + cfCHF(t.amount_chf) + ' · ' + (FREQ[t.frequency] || t.frequency) + ' · día ' + t.day_of_month + '</div></div>' +
+      '<span class="cf-tag ' + (t.active ? 'rec' : 'manual') + '">' + (t.active ? 'activo' : 'inactivo') + '</span></div>' +
+      '<div class="of-actions"><button class="of-act" data-act="edit" type="button">✏️ Editar</button>' +
+      '<button class="of-act" data-act="toggle" type="button">' + (t.active ? '⏸ Desactivar' : '▶️ Activar') + '</button></div></div>').join('');
+    box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+      const card = btn.closest('[data-id]'); const id = card.dataset.id; const t = cfTemplates.find((x) => String(x.id) === id); if (!t) return;
+      if (btn.dataset.act === 'edit'){ cfRecEditing = t; cfOpenRecForm(t); }
+      else if (btn.dataset.act === 'toggle'){ await supabase.from('cashflow_recurring_templates').update({ active: !t.active }).eq('id', t.id); cfLoad(); }
+    }));
+  }
+
+  function cfOpenLoanForm(l){
+    $('cf-loan-name').value = l ? l.name : '';
+    $('cf-loan-principal').value = l && l.principal_chf != null ? l.principal_chf : '';
+    $('cf-loan-payment').value = l ? l.monthly_payment_chf : '';
+    $('cf-loan-start').value = l ? l.start_date : '';
+    $('cf-loan-end').value = l ? l.end_date : '';
+    $('cf-loan-notes').value = l ? (l.notes || '') : '';
+    $('cf-loan-form').hidden = false;
+    $('cf-loan-actions').hidden = false;
+    $('cf-loan-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  async function cfSaveLoan(){
+    const name = $('cf-loan-name').value.trim();
+    const payment = +$('cf-loan-payment').value;
+    const start = $('cf-loan-start').value, end = $('cf-loan-end').value;
+    if (!name || !payment || !start || !end){ toast('Completá nombre, cuota mensual, inicio y fin'); return; }
+    const row = { name, principal_chf: +$('cf-loan-principal').value || 0, monthly_payment_chf: payment, start_date: start, end_date: end, notes: $('cf-loan-notes').value.trim() || null };
+    let error;
+    if (cfLoanEditing){ ({ error } = await supabase.from('cashflow_loans').update(row).eq('id', cfLoanEditing.id)); }
+    else { ({ error } = await supabase.from('cashflow_loans').insert(row)); }
+    if (error){ toast('⚠️ ' + error.message); return; }
+    toast('💾 Préstamo guardado'); $('cf-loan-form').hidden = true; $('cf-loan-actions').hidden = true; cfLoad();
+  }
+  // barra + badge estilo Licencias (.lic-days): verde si falta mucho, ámbar si se acerca el fin
+  function cfLoanBadge(l){
+    const now = new Date(), start = new Date(l.start_date + 'T00:00:00'), end = new Date(l.end_date + 'T00:00:00');
+    const totalMonths = Math.max(1, Math.round((end - start) / (30.44 * 864e5)));
+    const elapsed = Math.min(totalMonths, Math.max(0, Math.round((now - start) / (30.44 * 864e5))));
+    const remaining = Math.max(0, totalMonths - elapsed);
+    const pct = Math.min(100, Math.max(0, Math.round((elapsed / totalMonths) * 100)));
+    let cls;
+    if (remaining <= 0) cls = 'past'; else if (remaining <= 3) cls = 'due'; else if (remaining <= 6) cls = 'soon'; else cls = 'ok';
+    const txt = remaining > 0 ? remaining + ' cuota' + (remaining === 1 ? '' : 's') + ' restantes' : 'finalizado';
+    return { html: '<span class="lic-days ' + cls + '">' + txt + '</span>', pct };
+  }
+  function cfRenderLoans(){
+    const box = $('cf-loan-list'); if (!box) return;
+    if (!cfLoans.length){ box.innerHTML = '<p class="muted-note">Sin préstamos/leasing cargados.</p>'; return; }
+    box.innerHTML = cfLoans.map((l) => {
+      const b = cfLoanBadge(l);
+      return '<div class="of-card" data-id="' + l.id + '"><div class="of-card-open"><div class="of-card-main">' +
+        '<div class="of-card-title">' + esc(l.name) + '</div>' +
+        '<div class="of-card-sub">' + cfCHF(l.monthly_payment_chf) + '/mes · desde ' + esc(l.start_date) + ' hasta ' + esc(l.end_date) + (l.notes ? ' · ' + esc(l.notes) : '') + '</div>' +
+        '<div class="cf-loan-bar"><i style="width:' + b.pct + '%"></i></div></div>' + b.html + '</div>' +
+        '<div class="of-actions"><button class="of-act" data-act="edit" type="button">✏️ Editar</button>' +
+        '<button class="of-act danger" data-act="del" type="button">🗑 Borrar</button></div></div>';
+    }).join('');
+    box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+      const card = btn.closest('[data-id]'); const id = card.dataset.id; const l = cfLoans.find((x) => String(x.id) === id); if (!l) return;
+      if (btn.dataset.act === 'edit'){ cfLoanEditing = l; cfOpenLoanForm(l); }
+      else if (btn.dataset.act === 'del'){ if (!confirm('¿Borrar este préstamo/leasing?')) return; await supabase.from('cashflow_loans').delete().eq('id', l.id); cfLoad(); }
+    }));
+  }
+
+  async function cfSaveBalance(){
+    const v = $('cf-cfg-balance').value === '' ? NaN : +$('cf-cfg-balance').value;
+    if (Number.isNaN(v)){ toast('Ingresá un saldo'); return; }
+    const { error } = await supabase.from('cashflow_bank_balance').insert({ balance_chf: v, as_of_date: new Date().toISOString().slice(0, 10), created_by: meEmail || null });
+    if (error){ toast('⚠️ ' + error.message); return; }
+    toast('💾 Saldo actualizado'); $('cf-cfg-balance').value = ''; cfLoad();
+  }
+  async function cfSaveThreshold(){
+    const v = $('cf-cfg-threshold').value === '' ? NaN : +$('cf-cfg-threshold').value;
+    if (Number.isNaN(v)){ toast('Ingresá un umbral'); return; }
+    const { error } = await supabase.from('cashflow_alert_settings').update({ min_balance_threshold_chf: v }).eq('id', 1);
+    if (error){ toast('⚠️ ' + error.message); return; }
+    toast('💾 Umbral actualizado'); cfLoad();
+  }
+
   const AU_TYPE_META = {
     email: { ic: '📧', tag: 'EMAIL' }, ai_email: { ic: '🤖', tag: 'EMAIL IA → BANDEJA' }, wait: { ic: '⏱', tag: 'ESPERAR' },
     task: { ic: '✅', tag: 'TAREA' }, push: { ic: '🔔', tag: 'PUSH' }, status: { ic: '🔀', tag: 'CAMBIAR ETAPA' },
@@ -12411,8 +12888,12 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       else if (oid) { gotoTab('offers'); openOffer(oid); }
     } catch (e) {}
   }
-  supabase.auth.getSession().then(({ data }) => {
-    if (data.session) { meEmail = (data.session.user?.email || '').toLowerCase(); show('dash'); loadAll().then(openFromQuery); }
+  supabase.auth.getSession().then(async ({ data }) => {
+    if (data.session) {
+      meEmail = (data.session.user?.email || '').toLowerCase();
+      await checkRole();
+      show('dash'); loadAll().then(openFromQuery);
+    }
     else show('login');
   });
 </script>
