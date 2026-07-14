@@ -398,7 +398,12 @@ const { preHost = null } = Astro.props;
     } catch (e) { hosts = []; }
     if (preHost){ startCal(preHost, false); return; }      // /book/[persona] → agenda directa, sin selector
     if (hosts.length >= 2){ renderPicker(); }               // 2+ visibles → selector primero
-    else { startCal(null, false); }                         // 0 o 1 visible → default (idéntico a hoy)
+    // fix: con 1 solo visible, ANTES caía a HOST=null → fila legacy id=1 (booking_settings sin
+    // email), que muestra un host_name viejo pero usa el calendario COMPARTIDO original — con
+    // el sistema por-persona ya andando eso es un mismatch real (nombre de una persona, agenda
+    // de otra). Ahora, con 1 visible, usa DIRECTAMENTE su calendario propio.
+    else if (hosts.length === 1){ startCal(hosts[0].slug, false); }
+    else { startCal(null, false); }                         // 0 visibles → default legacy (nadie configurado todavía)
   }
 
   $('bk-confirm').addEventListener('click', async () => {
