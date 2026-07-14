@@ -109,17 +109,21 @@ if(document.documentElement.hasAttribute('data-fixed-lang')){
 var heroBg = document.querySelector('.hero-bg');
 var heroId = heroBg && (heroBg.dataset.vimeo || '').trim();
 var heroMp4 = heroBg && (heroBg.dataset.mp4 || '').trim();   /* self-hosted: autoplay instantáneo, iOS incluido */
-/* ¿vale la pena autoplay del video pesado? En desktop siempre; en mobile SOLO
-   con buena conexión y sin ahorro de datos (si no, se queda el póster ligero). */
+/* Pedido explícito de Sebastián: el hero SIEMPRE debe autoplayear solo, sin
+   tocar nada, en Safari incluido. Antes esta función bloqueaba el video entero
+   (ni se cargaba) por señales que resultaron ser la causa real de "no
+   autoplay" persistente pese a los fixes de gestos: (a) prefers-reduced-motion
+   — si el visitante (o Sebastián en su propio Mac) tiene "Reducir movimiento"
+   activado en Accesibilidad, el video NUNCA se cargaba, sin importar ningún
+   reintento de play() más abajo — el bug no estaba ahí sino acá arriba;
+   (b) effectiveType/deviceMemory son heurísticas de Chrome que no existen en
+   Safari (navigator.connection es undefined ahí) pero SÍ bloqueaban Android
+   de gama media/baja. Se deja solo el respeto a Data Saver (señal explícita y
+   deliberada del usuario, no una heurística nuestra) — todo lo demás, siempre
+   sí. */
 function heroVideoAllowed(){
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-  var desktop = window.matchMedia('(min-width: 768px)').matches;
   var c = navigator.connection || {};
-  if(c.saveData) return false;                                   /* Data Saver activo */
-  if(c.effectiveType && !/(^|\s)4g/.test(c.effectiveType)) return false; /* 2g/3g → no */
-  if(navigator.deviceMemory && navigator.deviceMemory < 2) return false; /* solo gama MUY baja → no (antes <4 bloqueaba media gama entera) */
-  /* Llegamos acá solo si NO hay señal de conexión mala (ni saveData, ni 2g/3g, ni poca RAM).
-     Permitimos el video en desktop y mobile. iOS Safari no tiene Network API → igual carga. */
+  if(c.saveData) return false;   /* Data Saver activo: única razón real para no cargar */
   return true;
 }
 function loadHeroVideo(){
