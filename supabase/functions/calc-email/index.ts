@@ -6,8 +6,17 @@
 //
 // Deploy: supabase functions deploy calc-email --no-verify-jwt
 // Usa:    RESEND_API_KEY (ya seteado)
+//
+// 📚 Plantillas (SQL 0062, dashboard → Workflows → 📚 Plantillas): si existe
+// una fila email_templates(key='calc_result', lang), su subject/body pisan el
+// intro+nota de abajo (tokens {{first_name}}/{{range}}). Sin fila → default
+// hardcodeado de siempre. Lookup defensivo: tabla ausente = mismo camino que
+// "sin fila".
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
+const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -15,6 +24,14 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+async function getTemplate(key: string, lang: string): Promise<{ subject: string; body: string } | null> {
+  try {
+    const { data, error } = await service.from("email_templates").select("subject,body").eq("key", key).eq("lang", lang).maybeSingle();
+    if (error || !data || !data.subject || !data.body) return null;
+    return data as { subject: string; body: string };
+  } catch (_e) { return null; }
+}
 
 const T: Record<string, Record<string, string>> = {
   en: {
@@ -63,19 +80,30 @@ Deno.serve(async (req) => {
     const fmt = (n: number) => "CHF " + Math.round(+n || 0).toLocaleString("de-CH");
     const rows = (Array.isArray(lines) ? lines : []).map((l: [string, number]) => `<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;font-size:13.5px;color:#333">${esc(l[0])}</td><td style="padding:6px 4px;border-bottom:1px solid #eee;font-size:13.5px;color:#333;text-align:right">${fmt(l[1])}</td></tr>`).join("");
     const cfgLine = Array.isArray(config) ? config.map(esc).join(" · ") : "";
+    const range = `${fmt(lo)} – ${fmt(hi)}`;
+
+    // template opcional (📚 Plantillas) — pisa subject + intro/nota; el resto
+    // (desglose, botón, firma, footer) sigue siendo estructura fija del código
+    const tmpl = await getTemplate("calc_result", lang);
+    const tok = (s: string) => s.replaceAll("{{first_name}}", first).replaceAll("{{range}}", range);
+    const subject = tmpl ? tok(tmpl.subject) : `${t.subject} ${fmt(lo)}–${fmt(hi)}`;
+    const bodyParas = tmpl
+      ? tok(tmpl.body).trim().split(/\n{2,}/).map((p) => `<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#222">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")
+      : `<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#222">${t.intro}</p>`;
+    const noteHtml = tmpl ? "" : `<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#555">${t.note}</p>`;
 
     const html = `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
   <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">
     <p style="margin:0 0 15px;font-size:15px;color:#222">${t.hi}${first ? " " + esc(first) : ""},</p>
-    <p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#222">${t.intro}</p>
+    ${bodyParas}
     <div style="background:#f4f5f7;border-radius:14px;padding:22px;text-align:center;margin:0 0 18px">
       <div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#888">${cfgLine ? esc(cfgLine) : ""}</div>
-      <div style="font-size:30px;font-weight:800;color:#0f1826;margin-top:6px">${fmt(lo)} – ${fmt(hi)}</div>
+      <div style="font-size:30px;font-weight:800;color:#0f1826;margin-top:6px">${range}</div>
     </div>
     ${rows ? `<p style="margin:0 0 6px;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:#888">${esc(t.basedOn)}</p><table style="width:100%;border-collapse:collapse;margin-bottom:18px">${rows}</table>` : ""}
-    <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#555">${t.note}</p>
+    ${noteHtml}
     <p style="margin:0 0 20px"><a href="https://www.viven.ch/book/" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:14.5px;padding:12px 22px;border-radius:100px;display:inline-block">${t.cta}</a></p>
     <p style="margin:0;font-size:13.5px;color:#777">${t.bye}</p>
     <p style="margin:22px 0 0;font-size:14px;color:#444">— ${t.sign} · VIVEN AG</p>
@@ -84,12 +112,12 @@ Deno.serve(async (req) => {
 </div></body>`;
 
     const textLines = (Array.isArray(lines) ? lines : []).map((l: [string, number]) => `  ${l[0]}: ${fmt(l[1])}`).join("\n");
-    const text = `${t.hi}${first ? " " + first : ""},\n\n${t.intro}\n\n${fmt(lo)} – ${fmt(hi)}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${textLines ? t.basedOn + "\n" + textLines + "\n\n" : ""}${t.note}\n\n${t.cta.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
+    const text = `${t.hi}${first ? " " + first : ""},\n\n${tmpl ? tok(tmpl.body) : t.intro}\n\n${range}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${textLines ? t.basedOn + "\n" + textLines + "\n\n" : ""}${tmpl ? "" : t.note + "\n\n"}${t.cta.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: `${t.subject} ${fmt(lo)}–${fmt(hi)}`, html, text }),
+      body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject, html, text }),
     });
     if (!res.ok) { console.error("RESEND_FAIL", await res.text()); return json({ error: "send_failed" }, 502); }
     return json({ ok: true });

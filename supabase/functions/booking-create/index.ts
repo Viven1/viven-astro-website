@@ -10,6 +10,18 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+// 📚 Plantillas (SQL 0062): si existe email_templates(key='booking_confirmation',
+// lang), su subject/body pisan el saludo+parrafo de confirmación de abajo
+// (tokens {{first_name}}/{{when}}/{{duration}}). Sin fila → default de siempre.
+// Lookup defensivo: tabla ausente/error = mismo camino que "sin fila".
+async function getTemplate(key: string, lang: string): Promise<{ subject: string; body: string } | null> {
+  try {
+    const { data, error } = await service.from("email_templates").select("subject,body").eq("key", key).eq("lang", lang).maybeSingle();
+    if (error || !data || !data.subject || !data.body) return null;
+    return data as { subject: string; body: string };
+  } catch (_e) { return null; }
+}
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -151,6 +163,12 @@ Deno.serve(async (req) => {
           de: { sub: `Ihr Call mit Viven ist gebucht — ${when}`, hi: `Hallo ${esc(name.split(/\s+/)[0])},`, p: `Ihr ${duration}-Minuten-Call ist bestätigt: <b>${when}</b> (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.`, join: "→ Mit Google Meet beitreten", brief: "2-Min-Briefing ausfüllen", bp: "Noch etwas: Mit dem kurzen Projekt-Briefing kommen wir bestens vorbereitet." },
           es: { sub: `Tu llamada con Viven está reservada — ${when}`, hi: `Hola ${esc(name.split(/\s+/)[0])},`, p: `Tu llamada de ${duration} minutos está confirmada: <b>${when}</b> (hora de Zúrich). La invitación de Google Calendar también va en camino.`, join: "→ Entrar con Google Meet", brief: "Completar el brief de 2 min", bp: "Una cosa más: el brief corto nos ayuda a llegar preparados." },
         }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
+        // template opcional pisa asunto + párrafo de confirmación; saludo/botones/firma siguen fijos
+        const tmpl = await getTemplate("booking_confirmation", lang);
+        const first = esc(name.split(/\s+/)[0]);
+        const tok = (s: string) => s.replaceAll("{{first_name}}", first).replaceAll("{{when}}", when).replaceAll("{{duration}}", String(duration));
+        const subject = tmpl ? tok(tmpl.subject) : E.sub;
+        const pHtml = tmpl ? tok(tmpl.body).trim().split(/\n{2,}/).map((p) => `<p style="font-size:15px;line-height:1.7;margin:0 0 6px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("") : `<p style="font-size:15px;line-height:1.7;margin:0 0 6px">${E.p}</p>`;
         const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230">
           <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:22px 28px">
             <span style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#ddf98f">viven</span>
@@ -158,7 +176,7 @@ Deno.serve(async (req) => {
           </div>
           <div style="border:1px solid #e8eaef;border-top:0;border-radius:0 0 14px 14px;padding:26px 28px">
             <p style="font-size:15px;line-height:1.7;margin:0 0 8px">${E.hi}</p>
-            <p style="font-size:15px;line-height:1.7;margin:0 0 6px">${E.p}</p>
+            ${pHtml}
             <div style="text-align:center;margin:24px 0 8px"><a href="${meet}" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">${E.join}</a></div>
             <p style="font-size:13.5px;line-height:1.7;color:#5b6472;margin:18px 0 6px">${E.bp}</p>
             <div style="text-align:center;margin:8px 0 4px"><a href="${briefUrl}" style="border:1px solid #d5d9e2;color:#1a2230;font-weight:600;font-size:13px;text-decoration:none;border-radius:100px;padding:10px 20px;display:inline-block">${E.brief}</a></div>
@@ -167,9 +185,9 @@ Deno.serve(async (req) => {
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: "Sebastian Cepeda — VIVEN AG <info@viven.ch>", to: [email], reply_to: "sebastian@viven.ch", subject: E.sub, html }),
+          body: JSON.stringify({ from: "Sebastian Cepeda — VIVEN AG <info@viven.ch>", to: [email], reply_to: "sebastian@viven.ch", subject, html }),
         });
-        if (leadId) await service.from("email_log").insert({ lead_id: String(leadId), to_addr: email, subject: E.sub, body: html, sender_label: "Sebastian", source: "booking-create" }).then(() => {}, () => {});
+        if (leadId) await service.from("email_log").insert({ lead_id: String(leadId), to_addr: email, subject, body: html, sender_label: "Sebastian", source: "booking-create" }).then(() => {}, () => {});
       }
     } catch (_e) { /* email de confirmación best-effort — el evento ya existe */ }
 

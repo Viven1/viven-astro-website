@@ -44,6 +44,16 @@ async function unsubToken(id: string | number): Promise<string> {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
 }
 
+// avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify) —
+// best-effort: si falla, el borrador ya quedó pendiente en el dashboard igual.
+function notifyOutbox(id: string | number) {
+  fetch(`${SB_URL}/functions/v1/outbox-notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
+
 // case study según el interés detectado en el mensaje
 function caseFor(lang: string, msg: string): { url: string; label: Record<string, string> } {
   const m = (msg || "").toLowerCase();
@@ -73,7 +83,20 @@ function wrap(inner: string, unsub: string, lang: string, signer: string): strin
 const P = (t: string) => `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:#222">${t}</p>`;
 const BTN = (url: string, label: string) => `<p style="margin:20px 0"><a href="${url}" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:14.5px;padding:12px 22px;border-radius:100px;display:inline-block">${label}</a></p>`;
 
-function mailFor(step: number, lead: Record<string, unknown>): { subject: string; html: string } {
+// 📚 Plantillas (SQL 0062): si existe email_templates(key='nurture_step1',
+// lang), su subject/body pisan ENTERO el mail de bienvenida (paso 1) — tokens
+// {{first_name}}/{{calc_range}}. Pasos 2/3 quedan listados en el editor del
+// dashboard pero sin wiring server-side todavía (ver TODO al final del archivo).
+// Lookup defensivo: tabla ausente/error = mismo camino que "sin fila".
+async function getTemplate(key: string, lang: string): Promise<{ subject: string; body: string } | null> {
+  try {
+    const { data, error } = await service.from("email_templates").select("subject,body").eq("key", key).eq("lang", lang).maybeSingle();
+    if (error || !data || !data.subject || !data.body) return null;
+    return data as { subject: string; body: string };
+  } catch (_e) { return null; }
+}
+
+async function mailFor(step: number, lead: Record<string, unknown>): Promise<{ subject: string; html: string }> {
   const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
   const first = esc(String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim());
   const hi = { en: `Hi${first ? " " + first : ""},`, de: `Hallo${first ? " " + first : ""}`, es: `Hola${first ? " " + first : ""}:` }[lang]!;
@@ -82,6 +105,12 @@ function mailFor(step: number, lead: Record<string, unknown>): { subject: string
   const cs = caseFor(lang, msg);
 
   if (step === 1) {
+    const tmpl = await getTemplate("nurture_step1", lang);
+    if (tmpl) {
+      const tok = (s: string) => s.replaceAll("{{first_name}}", first).replaceAll("{{calc_range}}", calc || "");
+      const bodyHtml = P(hi) + tok(tmpl.body).trim().split(/\n{2,}/).map((p) => P(esc(p).replace(/\n/g, "<br>"))).join("");
+      return { subject: tok(tmpl.subject), html: bodyHtml };
+    }
     const sub = { en: "We got your request — concept & quote within 48h", de: "Anfrage erhalten — Konzept & Offerte innert 48h", es: "Recibimos tu consulta — concepto y presupuesto en 48h" }[lang]!;
     const inner = P(hi) +
       P({ en: "Thanks for reaching out to Viven. A real human (one of us two) is already looking at your request — you'll get three concept directions, timing and a clear fixed quote within 48 hours on business days.",
@@ -177,9 +206,10 @@ Deno.serve(async (req) => {
       else if (steps23 && age > 7 * 864e5 && age < 21 * 864e5 && isNuevo(r.status) && sent.has(r.id + ":2") && !sent.has(r.id + ":3") && !hasDraft.has(r.id + ":3")) step = 3;
       if (!step) continue;
       if (body.dry_run) { out["s" + step as "s1"]++; continue; }
-      const { subject, html } = mailFor(step, r as Record<string, unknown>);
+      const { subject, html } = await mailFor(step, r as Record<string, unknown>);
       // se arma el borrador — nada sale sin aprobación en 📤 Bandeja de salida
-      await service.from("outbox").insert({ lead_id: r.id, kind: "nurture", step, sender: "sofia", subject, body: html, status: "pending" });
+      const { data: obIns } = await service.from("outbox").insert({ lead_id: r.id, kind: "nurture", step, sender: "sofia", subject, body: html, status: "pending" }).select("id").maybeSingle();
+      if (obIns?.id) notifyOutbox(obIns.id);
       out["s" + step as "s1"]++;
     }
 

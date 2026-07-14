@@ -55,6 +55,15 @@ async function unsubToken(id: string | number): Promise<string> {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
 }
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+// avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify) —
+// best-effort: si falla, el borrador ya quedó pendiente en el dashboard igual.
+function notifyOutbox(id: string | number) {
+  fetch(`${SB_URL}/functions/v1/outbox-notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ id }),
+  }).catch(() => {});
+}
 function fill(t: string, lead: Record<string, unknown>): string {
   const first = String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim();
   const refCode = String(lead.referral_code || "");
@@ -161,25 +170,22 @@ Deno.serve(async (req) => {
         if (step.type === "wait") {
           nextAt = new Date(Date.now() + (Math.max(0, +step.days || 1)) * 864e5);
         } else if (step.type === "email") {
-          const F = FROMS[step.from] || FROMS.team;
-          const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
-          const sender = (FROMS[step.from] ? (step.from === "team" ? "Sofia" : step.from === "sofia" ? "Sofia" : "Sebastian") : "Sofia");
-          const subjectFilled = fill(step.subject, lead);
-          const htmlFilled = wrap(fill(step.body, lead), unsub, String(lead.lang || "en"), sender); // wrap() escapea los campos del lead sustituidos — nunca guardar fill() crudo
-          const res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-            body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: subjectFilled, html: htmlFilled }),
-          });
-          if (res.ok) {
-            out.emails++;
-            await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
-            await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: subjectFilled, body: htmlFilled, sender_label: sender, source: "automations-run" }).then(() => {}, () => {});
-          } else console.error("RESEND_FAIL", lead.email, res.status);
+          // A pedido de Sebastián: TODO email automatizado pasa por la Bandeja
+          // de salida, sin excepciones — antes esto mandaba directo por Resend
+          // (bypaseaba la aprobación humana que sí tenían los pasos ai_email).
+          // Se guarda CRUDO (con tokens {{first_name}} etc.) — la sección 3 más
+          // abajo hace fill()+wrap() recién al aprobar/enviar, con el lead fresco.
+          const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: step.subject || "", body: step.body || "", status: "pending" }).select("id").maybeSingle();
+          if (obIns?.id) notifyOutbox(obIns.id);
+          out.drafts = (out.drafts || 0) + 1;
         } else if (step.type === "ai_email") {
           // borrador IA → BANDEJA DE SALIDA (nunca sale sin aprobación humana)
           const draft = await aiDraft(lead, String(step.prompt || "Short friendly follow-up about their video project."), step.from || "team");
-          if (draft) { await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, sender: step.from || "team", subject: draft.subject, body: draft.body }); out.drafts = (out.drafts || 0) + 1; }
+          if (draft) {
+            const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: draft.subject, body: draft.body }).select("id").maybeSingle();
+            if (obIns?.id) notifyOutbox(obIns.id);
+            out.drafts = (out.drafts || 0) + 1;
+          }
         } else if (step.type === "task") {
           await service.from("lead_tasks").insert({ lead_id: lead.id, title: "⚙️ " + fill(step.title, lead), due_date: new Date().toISOString().slice(0, 10), done: false });
         } else if (step.type === "push") {

@@ -1244,7 +1244,14 @@ const stillsPool = projects
       <div class="side-group" data-group="automations">
         <button class="side-sec" type="button">Automations<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="side-group-items">
-          <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Workflows</button>
+          <button class="side-item" data-tab="auto" type="button"><span class="si-ic">⚙️</span>Workflows <span class="pill" id="tab-ob-count" hidden></span></button>
+          <button class="side-item" data-tab="tmpl" type="button"><span class="si-ic">📚</span>Plantillas</button>
+        </div>
+      </div>
+      <div class="side-group" data-group="cuenta">
+        <button class="side-sec" type="button">Cuenta<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="side-group-items">
+          <button class="side-item" data-tab="profile" type="button"><span class="si-ic">👤</span>Mi perfil</button>
         </div>
       </div>
     </aside>
@@ -1759,7 +1766,7 @@ const stillsPool = projects
         <h2 style="margin:0">📤 Bandeja de salida <span class="count" id="ob-count"></span></h2>
         <button class="btn btn-ghost small" id="ob-approve-all" type="button" hidden>✅ Aprobar todos</button>
       </div>
-      <p class="muted-note" style="margin:6px 0 10px">Acá caen los borradores de los workflows (🤖 Email IA) y del 🌱 nurture automático — los tres pasos, incluida la bienvenida. Nada sale sin tu OK — editá, cambiá el remitente o descartá. Los aprobados salen en la próxima corrida del motor correspondiente (nurture: cada hora · workflows: máx. 20 min).</p>
+      <p class="muted-note" style="margin:6px 0 10px">Acá caen TODOS los borradores automáticos — workflows (📧/🤖), 🌱 nurture y 📬 follow-ups — sin excepción, ninguno sale solo. Editá, cambiá el remitente, posponé o descartá. Los aprobados salen en la próxima corrida del motor correspondiente (nurture: cada hora · workflows/follow-ups: máx. 30 min).</p>
       <div id="ob-list"><p class="muted-note">Bandeja vacía.</p></div>
     </div>
 
@@ -1801,6 +1808,59 @@ const stillsPool = projects
         <button class="btn btn-ghost small" id="au-dup" type="button" hidden>📋 Duplicar</button>
         <button class="btn btn-ghost small danger" id="au-del" type="button" hidden>🗑 Borrar</button>
         <button class="btn btn-ghost small" id="au-close" type="button">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: 📚 PLANTILLAS (SQL 0062 email_templates) ============ -->
+  <div id="tab-tmpl" hidden>
+    <div class="panel">
+      <div class="draft-head">
+        <h2 style="margin:0">📚 Plantillas de emails automatizados</h2>
+      </div>
+      <p class="muted-note" style="margin:8px 0 14px">Acá se ven todos los touchpoints automáticos de email. Editá la base (asunto + cuerpo, por idioma) y esa versión se usa desde la próxima vez que se dispare — sin fila editada, sigue el texto original de siempre.</p>
+      <div id="tmpl-list"><p class="muted-note">Cargando…</p></div>
+    </div>
+    <div class="panel" id="tmpl-editor" style="margin-top:14px" hidden>
+      <h2 id="tmpl-ed-title">Editar plantilla</h2>
+      <p class="muted-note" id="tmpl-ed-vars" style="margin:4px 0 12px"></p>
+      <div class="ab-urlrow" id="tmpl-ed-langs" style="margin-bottom:10px"></div>
+      <div class="bf"><label>Asunto</label><input id="tmpl-ed-subject" /></div>
+      <div class="bf"><label>Cuerpo (párrafos separados por línea en blanco)</label><textarea id="tmpl-ed-body" rows="10" style="width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px"></textarea></div>
+      <div id="tmpl-ed-preview" class="panel" style="margin:12px 0;background:var(--navy-900);display:none"></div>
+      <div class="ab-urlrow">
+        <button class="btn btn-ghost small" id="tmpl-ed-preview-btn" type="button">👁 Preview</button>
+        <button class="btn btn-primary small" id="tmpl-ed-save" type="button">💾 Guardar</button>
+        <button class="btn btn-ghost small danger" id="tmpl-ed-restore" type="button" hidden>↺ Restaurar original</button>
+        <button class="btn btn-ghost small" id="tmpl-ed-close" type="button">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: 👤 MI PERFIL (SQL 0064 team_profiles) ============ -->
+  <div id="tab-profile" hidden>
+    <div class="panel" style="max-width:640px">
+      <h2 style="margin:0 0 4px">👤 Mi perfil</h2>
+      <p class="muted-note" style="margin:0 0 16px">Tu foto y firma — se usan en el compositor de emails y en la 📤 Bandeja de salida cuando salís vos como remitente. Solo vos podés editar tu propio perfil acá.</p>
+      <p class="muted-note" id="profile-who" style="margin:0 0 14px"></p>
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
+        <div id="profile-avatar-preview" style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;background:#8ab4ff"></div>
+        <div>
+          <input type="file" id="profile-avatar-file" accept="image/*" style="display:none" />
+          <button class="btn btn-ghost small" id="profile-avatar-btn" type="button">📷 Cambiar foto</button>
+          <p class="muted-note" style="margin-top:6px">Sube a Supabase Storage (bucket <code>team-avatars</code>).</p>
+        </div>
+      </div>
+      <div class="pp-grid" style="grid-template-columns:1fr 1fr;gap:10px">
+        <div class="bf"><label>Nombre</label><input id="profile-name" /></div>
+        <div class="bf"><label>Rol</label><input id="profile-role" placeholder="p. ej. Producer" /></div>
+        <div class="bf"><label>Teléfono</label><input id="profile-phone" placeholder="+41 …" /></div>
+      </div>
+      <div class="bf"><label>Firma (texto libre)</label><textarea id="profile-signature" rows="3" style="width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px" placeholder="p. ej. Sofia Treviño&#10;Producer, Viven AG&#10;+41 …"></textarea></div>
+      <p class="muted-note" style="margin:6px 0 4px">Vista previa de la firma:</p>
+      <div id="profile-sign-preview" class="panel" style="background:var(--navy-900);white-space:pre-wrap;font-size:14px"></div>
+      <div class="ab-urlrow" style="margin-top:14px">
+        <button class="btn btn-primary small" id="profile-save" type="button">💾 Guardar</button>
       </div>
     </div>
   </div>
@@ -2351,6 +2411,8 @@ const stillsPool = projects
     <button data-tab="blog" type="button">📝 Blog</button>
     <button data-tab="news" type="button">📰 Newsletter</button>
     <button data-tab="auto" type="button">⚙️ Workflows</button>
+    <button data-tab="tmpl" type="button">📚 Plantillas</button>
+    <button data-tab="profile" type="button">👤 Mi perfil</button>
     <div class="mob-ver" id="mob-ver"></div>
   </div>
   <nav class="mob-nav" id="mob-nav" aria-label="Navegación">
@@ -2647,6 +2709,29 @@ const stillsPool = projects
   // última actividad por lead (notas/tasks/propuestas/web) — se llena en loadAll
   let actNotes = {}, actTasks = {}, actProps = {}, actWeb = {};
 
+  /* ---- helpers globales de avatar (mismo esquema que la tabla de Personas) ---- */
+  const AV_COLORS_G = ['#8ab4ff', '#c58af9', '#7ed957', '#f0c060', '#ff8b5e', '#5ec7d1', '#e08ac5'];
+  const avColorG = (n) => { let h = 0; const x = String(n || '?'); for (let i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) >>> 0; return AV_COLORS_G[h % AV_COLORS_G.length]; };
+
+  /* ---- 👤 Mi perfil (SQL 0064 team_profiles) — cache client-side, keyed por email en minúscula.
+     Fuente de verdad progresiva: si hay fila, pisa a los mapas hardcodeados SENDERS/TEAM. ---- */
+  let teamProfiles = {};
+  async function loadTeamProfiles(){
+    try {
+      const { data, error } = await supabase.from('team_profiles').select('*');
+      if (!error && data) teamProfiles = Object.fromEntries(data.map((p) => [String(p.email || '').toLowerCase(), p]));
+    } catch (e) { /* tabla pendiente (SQL 0064) — sigue con hardcode */ }
+  }
+  const profileFor = (email) => teamProfiles[String(email || '').toLowerCase()] || null;
+  // mini-avatar: foto de team_profiles si hay, si no círculo con inicial (mismo patrón que Personas)
+  function teamAvatarHtml(email, fallbackName){
+    const p = profileFor(email);
+    const nm = (p && p.name) || fallbackName || email || '?';
+    const ini = esc((nm[0] || '?').toUpperCase());
+    if (p && p.avatar_url) return '<img class="lt-av" src="' + esc(p.avatar_url) + '" alt="" style="object-fit:cover" />';
+    return '<span class="lt-av" style="background:' + avColorG(nm) + '">' + ini + '</span>';
+  }
+
   function show(view){
     $('login-view').hidden = view !== 'login';
     $('dash-view').hidden = view !== 'dash';
@@ -2654,7 +2739,7 @@ const stillsPool = projects
 
   /* ---------- Navegación (sidebar) ---------- */
   // 'seo' y 'gads' ya no son tabs propios: viven como sub-tabs dentro de Analytics
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'auto'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'auto', 'tmpl', 'profile'];
   // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
@@ -2670,7 +2755,7 @@ const stillsPool = projects
     if (tab === 'seo' || tab === 'gads'){ anaSetSub(tab); tab = 'analytics'; }
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'auto'];
+    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'auto', 'tmpl', 'profile'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -2689,6 +2774,8 @@ const stillsPool = projects
     if (tab === 'ab') abInit();
     if (tab === 'news') newsInit();
     if (tab === 'auto') autoInit();
+    if (tab === 'tmpl') tmplInit();
+    if (tab === 'profile') profileInit();
   }
 
   /* ---------- Analytics: sub-tabs (Web / Search Console / Google Ads / Videos) ---------- */
@@ -2961,6 +3048,8 @@ const stillsPool = projects
     actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
     propsAll = (propsQ && !propsQ.error) ? (propsQ.data || []) : [];
     servicesLoad();   // catálogo de servicios (best-effort; sin tabla → RATECARD)
+    loadTeamProfiles();   // 👤 Mi perfil (best-effort; sin tabla → sigue con SENDERS/TEAM hardcodeados)
+    obBadgeRefresh();     // 📤 badge de pendientes en el sidebar (visible sin entrar a Workflows)
     // SELF-HEAL de ganados: los syncs (deal→ofertas, oferta→deal) existen desde hoy,
     // pero los datos viejos quedaron a medias — esta pasada los reconcilia y de ahí
     // en más Propuestas, Home y Deals muestran SIEMPRE los mismos números.
@@ -4119,6 +4208,9 @@ const stillsPool = projects
     ds.sort(CMP[dlSort] || CMP.value);
     $('leads-empty').hidden = ds.length > 0;
     const chip = (k, l) => '<button class="dl-chip' + (dlListStage === k ? ' active' : '') + '" data-st="' + k + '" type="button">' + l + '</button>';
+    // borrado en batch: solo deals REALES (no synthetic — esos no tienen fila en `deals`)
+    const selectable = ds.filter((d) => !d.synthetic);
+    const allChecked = selectable.length > 0 && selectable.every((d) => dlSelected.has(String(d.id)));
     const body = ds.map((d) => {
       const r = leadById(d.lead_id) || {};
       const s = STAGES.find((x) => x.key === stageOf(d.stage)) || STAGES[0];
@@ -4129,6 +4221,7 @@ const stillsPool = projects
       const ofs = offersForDeal(d);
       const dealName = d.title || ((ofs[0] && ofs[0].title) ? ofs[0].title : (r.name || r.first_name || '(sin nombre)'));
       return '<tr data-lead="' + esc(String(d.lead_id)) + '">' +
+        '<td class="lt-chk">' + (d.synthetic ? '' : '<input type="checkbox" class="dl-row-chk" data-id="' + esc(d.id) + '"' + (dlSelected.has(String(d.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" />') + '</td>' +
         '<td><div class="lt-name">' + esc(dealName) + '</div>' + (stageOf(d.stage) === 'perdido' && (d.lost_reason || r.lost_reason) ? '<div class="lt-sub">✕ ' + esc(d.lost_reason || r.lost_reason) + '</div>' : '') + '</td>' +
         '<td>' + esc(co || '—') + (r.name || r.first_name ? '<div class="lt-sub">' + esc(r.name || r.first_name) + '</div>' : '') + '</td>' +
         '<td><span class="lt-pill" style="color:' + s.color + ';background:color-mix(in srgb,' + s.color + ' 14%,transparent);border-color:color-mix(in srgb,' + s.color + ' 40%,transparent)">' + s.label + '</span></td>' +
@@ -4143,14 +4236,46 @@ const stillsPool = projects
           '<option value="value"' + (dlSort === 'value' ? ' selected' : '') + '>Valor ↓</option>' +
           '<option value="days"' + (dlSort === 'days' ? ' selected' : '') + '>Días en etapa ↓</option>' +
           '<option value="recent"' + (dlSort === 'recent' ? ' selected' : '') + '>Recientes</option>' +
-        '</select></div>' +
+        '</select>' +
+        '<button class="btn btn-danger small" id="dl-del-sel" type="button" hidden>🗑 Borrar seleccionados</button></div>' +
       (ds.length ? '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+        '<th class="lt-chk">' + (selectable.length ? '<input type="checkbox" id="dl-chk-all"' + (allChecked ? ' checked' : '') + ' title="Seleccionar todos los deals reales visibles" />' : '') + '</th>' +
         '<th>Deal</th><th>Empresa · Contacto</th><th>Etapa</th><th>Valor</th><th>Días en etapa</th><th>Próximo paso</th><th>Última actividad</th>' +
         '</tr></thead><tbody>' + body + '</tbody></table></div>'
         : '<p class="muted-note" style="padding:10px 2px">Sin deals en esta vista.</p>');
     cont.querySelectorAll('.dl-lbar .dl-chip').forEach((b) => b.addEventListener('click', () => { dlListStage = b.dataset.st; renderPipeline(); }));
     const sel = cont.querySelector('#dl-sort'); if (sel) sel.addEventListener('change', () => { dlSort = sel.value; renderPipeline(); });
     cont.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.lead)));
+    bindDlSelection(); updateDlDelBtn();
+  }
+  // Deals: selección múltiple para borrar en batch (mismo patrón que Personas/psSelected)
+  let dlSelected = new Set();
+  function updateDlDelBtn(){
+    const btn = $('dl-del-sel'); if (!btn) return;
+    btn.hidden = dlSelected.size === 0;
+    btn.textContent = '🗑 Borrar seleccionados (' + dlSelected.size + ')';
+  }
+  function bindDlSelection(){
+    document.querySelectorAll('.dl-row-chk').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) dlSelected.add(cb.dataset.id); else dlSelected.delete(cb.dataset.id);
+      updateDlDelBtn();
+      const all = $('dl-chk-all'); if (all) all.checked = [...document.querySelectorAll('.dl-row-chk')].every((c) => c.checked);
+    }));
+    const allBox = $('dl-chk-all');
+    if (allBox) allBox.addEventListener('change', () => {
+      document.querySelectorAll('.dl-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) dlSelected.add(cb.dataset.id); else dlSelected.delete(cb.dataset.id); });
+      updateDlDelBtn();
+    });
+    const delBtn = $('dl-del-sel');
+    if (delBtn) delBtn.onclick = async () => {
+      const ids = [...dlSelected]; if (!ids.length) return;
+      if (!confirm('¿Borrar definitivamente ' + ids.length + ' deal' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
+      const { error } = await supabase.from('deals').delete().in('id', ids);
+      if (error) { toast('⚠️ ' + error.message); return; }
+      dealsList = (dealsList || []).filter((d) => !ids.includes(String(d.id)));
+      dlSelected.clear();
+      renderPipeline();
+    };
   }
   /* ---- ⋯ de la tarjeta (mismo patrón que ppOpenMenu: fixed, pegado al botón) ---- */
   function dlOpenMenu(btn){
@@ -4162,7 +4287,8 @@ const stillsPool = projects
       '<button data-act="won" type="button">🏆 Ganado</button>' +
       '<button data-act="lost" type="button">✖ Perdido</button>' +
       '<button data-act="task" type="button">➕ Task</button>' +
-      '<hr /><button data-act="open" type="button">👤 Abrir contacto</button>';
+      '<hr /><button data-act="open" type="button">👤 Abrir contacto</button>' +
+      (d.synthetic ? '' : '<hr /><button data-act="del" type="button" class="danger">🗑 Borrar</button>');
     menu.hidden = false;
     const r = btn.getBoundingClientRect();
     menu.style.left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)) + 'px';
@@ -4174,6 +4300,13 @@ const stillsPool = projects
       else if (act === 'lost'){ const ok = await setDealStage(d.id, 'perdido'); if (ok) toast('✖ Deal perdido'); }   // setDealStage ya pregunta el motivo
       else if (act === 'task'){ lm2Tab = 'task'; lm2CompCollapsed = false; openLead(d.lead_id); }   // en ficha V2 abre con el composer en Task
       else if (act === 'open') openLead(d.lead_id);
+      else if (act === 'del'){
+        if (!confirm('¿Borrar este deal? No se puede deshacer.')) return;
+        const { error } = await supabase.from('deals').delete().eq('id', d.id);
+        if (error) { toast('⚠️ ' + error.message); return; }
+        dealsList = (dealsList || []).filter((x) => String(x.id) !== String(d.id));
+        toast('🗑 Deal borrado'); renderPipeline();
+      }
     }));
   }
   // cerrar el ⋯ al clickear afuera (registro único, como el de pp-menu)
@@ -4436,8 +4569,8 @@ const stillsPool = projects
 
   /* quién firma/envía — configurable (Sofia o Sebastian). Se guarda en el navegador. */
   const SENDERS = {
-    sofia:     { name: 'Sofia Treviño',   book: 'https://www.viven.ch/book/' },
-    sebastian: { name: 'Sebastian Cepeda', book: 'https://www.viven.ch/book/' },
+    sofia:     { name: 'Sofia Treviño',   book: 'https://www.viven.ch/book/', email: 'sofia@viven.ch' },
+    sebastian: { name: 'Sebastian Cepeda', book: 'https://www.viven.ch/book/', email: 'sebastian@viven.ch' },
   };
   let sender = localStorage.getItem('viven_sender') || 'sofia';
   const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en') + '&topic=' + detectTopic(r.message);
@@ -4450,7 +4583,10 @@ const stillsPool = projects
     const proof = customProof || PROOF[lang][detectTopic(r.message)];
     const S = SENDERS[sender] || SENDERS.sofia;
     const BOOK_URL = S.book;
-    const SIGN = S.name + '\nViven — viven.ch · +41 43 508 33 81';
+    // 👤 Mi perfil (SQL 0064): si esa persona ya configuró su firma, se usa esa —
+    // si no, sigue el default de siempre (nombre + línea fija de contacto).
+    const prof = profileFor(S.email);
+    const SIGN = (prof && prof.signature_text) || (S.name + '\nViven — viven.ch · +41 43 508 33 81');
     if (lang === 'de') return 'Guten Tag ' + first + '\n\n' +
       'Vielen Dank für Ihre Anfrage — gerne helfen wir weiter.\n\n' +
       'Zur Einordnung: ' + proof + '.\n\n' +
@@ -4921,7 +5057,8 @@ const stillsPool = projects
     { email: 'sebastian@viven.ch', name: 'Sebastian Cepeda' },
     { email: 'info@viven.ch', name: 'Info (buzón)' },
   ];
-  const teamName = (e) => (TEAM.find((t) => t.email === e) || {}).name || e || '';
+  // 👤 Mi perfil (SQL 0064): nombre elegido por la persona pisa al hardcodeado.
+  const teamName = (e) => (profileFor(e) || {}).name || (TEAM.find((t) => t.email === e) || {}).name || e || '';
   const teamEmailByName = (n) => (TEAM.find((t) => t.name === n) || {}).email || '';
   const myEmail = () => (sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
   const teamOptions = (sel, ph) => '<option value="">' + (ph || '—') + '</option>' + TEAM.map((t) => '<option value="' + t.email + '"' + (t.email === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>').join('');
@@ -7003,7 +7140,9 @@ const stillsPool = projects
     });
     const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'], tier: ['Paquete propuesta', '#c58af9'] };
     const fmtD = (iso) => new Date(iso).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
-    box.innerHTML = rows.length ? '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+    const ofAllChecked = rows.length > 0 && rows.every((o) => ofSelected.has(String(o.id)));
+    box.innerHTML = rows.length ? '<div class="ab-urlrow" style="margin-bottom:8px"><button class="btn btn-danger small" id="of-del-sel" type="button" hidden>🗑 Borrar seleccionadas</button></div><div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+      '<th class="lt-chk"><input type="checkbox" id="of-chk-all"' + (ofAllChecked ? ' checked' : '') + ' title="Seleccionar todas las visibles" /></th>' +
       '<th>Oferta</th><th>Cliente</th><th>Estado</th><th>Esperando hace</th><th>Interés</th><th class="lt-num">Neto</th><th class="lt-num">Margen</th><th></th>' +
       '</tr></thead><tbody>' + rows.map((o) => {
         const b = badge[o.status] || badge.draft, net = offerNet(o), mp = offerMarginPct(o), lname = leadNm(o);
@@ -7028,6 +7167,7 @@ const stillsPool = projects
           else eye = '<span class="pp2-eye">sin aperturas aún</span>';
         }
         return '<tr data-id="' + o.id + '">' +
+          '<td class="lt-chk"><input type="checkbox" class="of-row-chk" data-id="' + esc(o.id) + '"' + (ofSelected.has(String(o.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
           '<td><div class="lt-name">' + (o.number ? '<span style="color:var(--acid);font-size:12px;margin-right:7px">' + esc(o.number) + '</span>' : '') + esc(o.title || '(sin título)') + '</div><div class="lt-sub">' + sub + '</div></td>' +
           '<td>' + esc(o.client || lname || '—') + (lname && o.client ? '<div class="lt-sub">' + esc(lname) + '</div>' : '') + '</td>' +
           '<td><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></td>' +
@@ -7038,6 +7178,36 @@ const stillsPool = projects
       }).join('') + '</tbody></table></div>' : '';
     box.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openOffer(tr.dataset.id)));
     box.querySelectorAll('.of2-dots').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); ofOpenMenu(btn); }));
+    bindOfSelection(); updateOfDelBtn();
+  }
+  // Ofertas: selección múltiple para borrar en batch (mismo patrón que Personas/psSelected)
+  let ofSelected = new Set();
+  function updateOfDelBtn(){
+    const btn = $('of-del-sel'); if (!btn) return;
+    btn.hidden = ofSelected.size === 0;
+    btn.textContent = '🗑 Borrar seleccionadas (' + ofSelected.size + ')';
+  }
+  function bindOfSelection(){
+    document.querySelectorAll('.of-row-chk').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) ofSelected.add(cb.dataset.id); else ofSelected.delete(cb.dataset.id);
+      updateOfDelBtn();
+      const all = $('of-chk-all'); if (all) all.checked = [...document.querySelectorAll('.of-row-chk')].every((c) => c.checked);
+    }));
+    const allBox = $('of-chk-all');
+    if (allBox) allBox.addEventListener('change', () => {
+      document.querySelectorAll('.of-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) ofSelected.add(cb.dataset.id); else ofSelected.delete(cb.dataset.id); });
+      updateOfDelBtn();
+    });
+    const delBtn = $('of-del-sel');
+    if (delBtn) delBtn.onclick = async () => {
+      const ids = [...ofSelected]; if (!ids.length) return;
+      if (!confirm('¿Borrar definitivamente ' + ids.length + ' oferta' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
+      const { error } = await supabase.from('offers').delete().in('id', ids);
+      if (error) { toast('⚠️ ' + error.message); return; }
+      offersList = offersList.filter((o) => !ids.includes(String(o.id)));
+      ofSelected.clear();
+      renderOffersList();
+    };
   }
   // popover ⋯ por fila (mismo patrón que ppOpenMenu: fixed, pegado al botón, sin salirse de la pantalla)
   function ofOpenMenu(btn){
@@ -8156,7 +8326,9 @@ const stillsPool = projects
     });
     const BDG = { draft: ['Borrador', '#8ab4ff'], sent: ['Publicada', '#f0c060'], accepted: ['Aceptada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
     const fmtD = (iso) => new Date(iso).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
-    box.innerHTML = pool.length ? '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+    const ppAllChecked = pool.length > 0 && pool.every((p) => ppSelected.has(String(p.id)));
+    box.innerHTML = pool.length ? '<div class="ab-urlrow" style="margin-bottom:8px"><button class="btn btn-danger small" id="pp-del-sel" type="button" hidden>🗑 Borrar seleccionadas</button></div><div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+      '<th class="lt-chk"><input type="checkbox" id="pp-chk-all"' + (ppAllChecked ? ' checked' : '') + ' title="Seleccionar todas las visibles" /></th>' +
       '<th>Propuesta</th><th>Cliente</th><th>Estado</th><th>Esperando hace</th><th>Interés</th><th class="lt-num">Valor</th><th></th>' +
       '</tr></thead><tbody>' + pool.map((p) => {
         const b = BDG[p.status] || BDG.draft, v = propVal(p), tiers = ((p.content || {}).tiers || []);
@@ -8183,6 +8355,7 @@ const stillsPool = projects
         }
         const val = v ? '<span' + (p.status === 'accepted' ? ' style="color:#7ed957"' : '') + '>' + fmtM(v) + '</span><div class="lt-sub">' + (p.status === 'accepted' ? 'aceptado' : (tiers.find((t) => t.recommended) ? 'recomendado' : 'paquete 1')) + '</div>' : '<span class="lt-num">—</span>';
         return '<tr data-id="' + p.id + '">' +
+          '<td class="lt-chk"><input type="checkbox" class="pp-row-chk" data-id="' + esc(p.id) + '"' + (ppSelected.has(String(p.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
           '<td><div class="lt-name">' + esc(p.title || '(sin título)') + '</div><div class="lt-sub">' + sub + '</div>' + firma + '</td>' +
           '<td>' + esc(p.client_name || '—') + (p.lead_id ? '<div class="lt-sub">' + esc(leadName(p.lead_id)) + '</div>' : '') + '</td>' +
           '<td><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></td>' +
@@ -8192,6 +8365,36 @@ const stillsPool = projects
       }).join('') + '</tbody></table></div>' : '';
     box.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openProp(tr.dataset.id)));
     box.querySelectorAll('.pp2-dots').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); ppOpenMenu(btn); }));
+    bindPpSelection(); updatePpDelBtn();
+  }
+  // Propuestas: selección múltiple para borrar en batch (mismo patrón que Personas/psSelected)
+  let ppSelected = new Set();
+  function updatePpDelBtn(){
+    const btn = $('pp-del-sel'); if (!btn) return;
+    btn.hidden = ppSelected.size === 0;
+    btn.textContent = '🗑 Borrar seleccionadas (' + ppSelected.size + ')';
+  }
+  function bindPpSelection(){
+    document.querySelectorAll('.pp-row-chk').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) ppSelected.add(cb.dataset.id); else ppSelected.delete(cb.dataset.id);
+      updatePpDelBtn();
+      const all = $('pp-chk-all'); if (all) all.checked = [...document.querySelectorAll('.pp-row-chk')].every((c) => c.checked);
+    }));
+    const allBox = $('pp-chk-all');
+    if (allBox) allBox.addEventListener('change', () => {
+      document.querySelectorAll('.pp-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) ppSelected.add(cb.dataset.id); else ppSelected.delete(cb.dataset.id); });
+      updatePpDelBtn();
+    });
+    const delBtn = $('pp-del-sel');
+    if (delBtn) delBtn.onclick = async () => {
+      const ids = [...ppSelected]; if (!ids.length) return;
+      if (!confirm('¿Borrar definitivamente ' + ids.length + ' propuesta' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
+      const { error } = await supabase.from('proposals').delete().in('id', ids);
+      if (error) { toast('⚠️ ' + error.message); return; }
+      ppList = ppList.filter((p) => !ids.includes(String(p.id)));
+      ppSelected.clear();
+      renderPropList();
+    };
   }
   // popover ⋯ por fila (mismo patrón que lm2Menu; fixed porque dentro del wrap con overflow lo recortaría)
   function ppOpenMenu(btn){
@@ -8203,7 +8406,7 @@ const stillsPool = projects
       (p.slug ? '<button data-act="link" type="button">🔗 Copiar link</button>' : '') +
       '<button data-act="prev" type="button">👁 Vista previa</button>' +
       '<button data-act="dup" type="button">⧉ Duplicar</button>' +
-      (p.status === 'accepted' || p.status === 'lost' ? '' : '<button data-act="lost" type="button">✖ Marcar perdida</button>') +
+      (p.status === 'accepted' || p.status === 'lost' ? '' : '<button data-act="won" type="button">✓ Marcar ganada</button><button data-act="lost" type="button">✖ Marcar perdida</button>') +
       '<button data-act="arch" type="button">' + (p.archived ? '↩ Desarchivar' : '🗄 Archivar') + '</button>' +
       '<hr /><button data-act="del" class="danger" type="button">🗑 Borrar</button>';
     menu.hidden = false;
@@ -8217,10 +8420,44 @@ const stillsPool = projects
       if (act === 'link') copyPropLink(p);
       else if (act === 'prev') previewPropRow(p);
       else if (act === 'dup') dupProp(p);
+      else if (act === 'won') markPropWon(p);
       else if (act === 'lost') markPropLost(p);
       else if (act === 'arch') archProp(p);
       else if (act === 'del') delPropById(p.id);
     }));
+  }
+  // Marcar ganada A MANO (el vendedor cerró por llamada/email, sin pasar por el
+  // link público) — dispara la MISMA cascada que cuando el cliente acepta desde
+  // la página (accept-proposal): gana el deal ligado, archiva paquetes/ofertas
+  // hermanas, marca a la persona como ganada. Se reusa el edge function en vez
+  // de duplicar esa lógica acá.
+  async function markPropWon(p){
+    if (!confirm('¿Marcar esta propuesta como GANADA? Esto gana el deal ligado, archiva las ofertas/propuestas hermanas y marca a la persona como ganada — igual que cuando el cliente acepta desde la página pública.')) return;
+    try {
+      if (p.slug){
+        const tiers = ((p.content || {}).tiers || []);
+        const chosen = tiers.find((t) => t.recommended) || tiers[0] || null;
+        const lead = p.lead_id ? allLeads.find((l) => String(l.id) === String(p.lead_id)) : null;
+        const name = p.client_name || (lead && lead.name) || 'Cliente';
+        const email = p.client_email || (lead && lead.email) || '';
+        const total = (chosen && chosen.total) || propVal(p);
+        const { data, error } = await supabase.functions.invoke('accept-proposal', { body: {
+          slug: p.slug, password: p.password || '', name, email,
+          tier: chosen ? chosen.name : undefined, total, agreed_terms: true,
+        } });
+        if (error) throw error;
+        if (data && data.error) throw new Error(data.error);
+      } else {
+        // nunca se publicó (sin slug) → no hay nada que aceptar del lado público;
+        // replicamos mínimamente lo que accept-proposal haría con el deal/persona
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase.from('proposals').update({ status: 'accepted', accepted_at: nowIso }).eq('id', p.id);
+        if (error) throw error;
+        if (p.deal_id) await supabase.from('deals').update({ stage: 'ganado', won_at: nowIso, last_stage_at: nowIso }).eq('id', p.deal_id);
+        if (p.lead_id) await setLeadStage(p.lead_id, 'ganado');
+      }
+      toast('🏆 Propuesta marcada como ganada'); ppLoad();
+    } catch (e) { toast('⚠️ ' + (e && e.message || e)); }
   }
   // vista previa desde la LISTA: mismo mecanismo que previewProp (localStorage + ?preview=1) pero con el
   // contenido ya guardado en la fila — no pasa por el editor, así no arrastra campos de otra propuesta abierta
@@ -8987,25 +9224,45 @@ const stillsPool = projects
     }));
    } catch (e) { $('au-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
   }
+  const SENDER_EMAIL_G = { sofia: 'sofia@viven.ch', sebastian: 'sebastian@viven.ch', team: 'info@viven.ch' };
+  // 📤 badge de pendientes visible sin entrar a Workflows (Task B.3)
+  async function obBadgeRefresh(){
+    try {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase.from('outbox').select('id,scheduled_at').eq('status', 'pending');
+      const n = error ? 0 : (data || []).filter((o) => !o.scheduled_at || o.scheduled_at <= nowIso).length;
+      const b = $('tab-ob-count'); if (!b) return;
+      b.textContent = n || ''; b.hidden = !n;
+    } catch (e) { /* best-effort */ }
+  }
   async function obLoad(){
    try {
+    const nowIso = new Date().toISOString();
     const { data, error } = await supabase.from('outbox').select('*').eq('status', 'pending').order('created_at');
     if (error){ $('ob-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; return; }
-    const obs = data || [];
+    // "⏰ Más tarde" oculta el borrador hasta scheduled_at — no lo borra de la bandeja real
+    const obs = (data || []).filter((o) => !o.scheduled_at || o.scheduled_at <= nowIso);
+    const snoozed = (data || []).length - obs.length;
     $('ob-count').textContent = obs.length || '';
     $('ob-approve-all').hidden = obs.length < 2;
+    obBadgeRefresh();
     $('ob-list').innerHTML = obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
-      const srcTag = o.kind === 'nurture' ? '🌱 Nurture · paso ' + o.step : '⚙️ Workflow';
+      const srcTag = o.kind === 'nurture' ? '🌱 Nurture · paso ' + o.step : o.kind === 'followup' ? '📬 Follow-up' : '⚙️ Workflow';
+      const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
+      const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b><span class="muted-note">' + esc(srcTag) + (l.company ? ' · ' + esc(l.company) : '') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">' +
+        '<div style="display:flex;gap:8px;align-items:center">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b></div>' +
+        '<span class="muted-note">' + esc(srcTag) + (l.company ? ' · ' + esc(l.company) : '') + '</span></div>' +
         '<label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>' +
         '<label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" />' +
         '<label>Cuerpo</label><textarea class="ob-body">' + esc(o.body) + '</textarea>' +
         '<div class="ab-urlrow" style="margin-top:10px"><button class="btn btn-primary small" data-obact="ok" data-id="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
         '<button class="btn btn-ghost small" data-obact="lead" data-id="' + o.lead_id + '" type="button">👤 Ver ficha</button>' +
-        '<button class="btn btn-ghost small danger" data-obact="no" data-id="' + o.id + '" type="button">🗑 Descartar</button></div></div>';
-    }).join('') || '<p class="muted-note">Bandeja vacía — los pasos 🤖 Email IA de tus workflows dejan acá sus borradores.</p>';
+        '<button class="btn btn-ghost small" data-obact="later" data-id="' + o.id + '" type="button">⏰ Más tarde</button>' +
+        '<button class="btn btn-ghost small danger" data-obact="no" data-id="' + o.id + '" type="button">✕ No enviar</button></div></div>';
+    }).join('') || '<p class="muted-note">Bandeja vacía' + (snoozed ? ' (' + snoozed + ' pospuesto' + (snoozed > 1 ? 's' : '') + ' para más tarde)' : ' — los pasos 🤖 Email IA de tus workflows dejan acá sus borradores.') + '</p>';
     $('ob-list').querySelectorAll('[data-obact]').forEach((b) => b.addEventListener('click', async () => {
       const act = b.dataset.obact;
       if (act === 'lead'){ gotoTab('leads'); openLead(b.dataset.id); return; }
@@ -9018,9 +9275,14 @@ const stillsPool = projects
         const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.id);
         if (e2){ toast(e2.message); return; }
         toast('✅ Aprobado — sale en la próxima corrida');
+      } else if (act === 'later'){
+        const when = new Date(Date.now() + 4 * 3600e3).toISOString();
+        const { error: e2 } = await supabase.from('outbox').update({ scheduled_at: when }).eq('id', b.dataset.id);
+        if (e2){ toast('⚠️ ' + e2.message + ' (¿corriste la SQL 0063?)'); return; }
+        toast('⏰ Pospuesto 4 horas');
       } else {
         await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.id);
-        toast('🗑 Descartado');
+        toast('✕ No se envía');
       }
       obLoad();
     }));
@@ -9033,6 +9295,140 @@ const stillsPool = projects
     };
    } catch (e) { $('ob-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
   }
+
+  /* =========================================================================
+     📚 PLANTILLAS (SQL 0062 email_templates) — Task A. Lista TODOS los
+     touchpoints conocidos; "wired" marca cuáles ya leen la tabla server-side
+     (calc-email, booking-create, nurture paso 1) — los demás quedan editables
+     acá para cuando se sume el lookup del lado del edge function (follow-up).
+     ========================================================================= */
+  const TMPL_TOUCHPOINTS = [
+    { key: 'nurture_step1', label: '🌱 Nurture — Paso 1 (bienvenida)', wired: true, vars: ['first_name', 'calc_range'] },
+    { key: 'nurture_step2', label: '🌱 Nurture — Paso 2 (case study)', wired: false, vars: ['first_name'] },
+    { key: 'nurture_step3', label: '🌱 Nurture — Paso 3 (último toque)', wired: false, vars: ['first_name'] },
+    { key: 'calc_result', label: '🧮 Calculadora — resultado', wired: true, vars: ['first_name', 'range'] },
+    { key: 'booking_confirmation', label: '📅 Booking — confirmación de call', wired: true, vars: ['first_name', 'when', 'duration'] },
+    { key: 'review_request', label: '⭐ Pedido de reseña Google', wired: false, vars: ['first_name'] },
+  ];
+  let tmplRows = {};       // 'key|lang' → fila de email_templates
+  let tmplCurKey = null, tmplCurLang = 'en';
+  async function tmplInit(){
+    tmplRows = {};
+    try {
+      const { data, error } = await supabase.from('email_templates').select('*');
+      if (error) throw error;
+      (data || []).forEach((r) => { tmplRows[r.key + '|' + r.lang] = r; });
+    } catch (e) { /* tabla pendiente (SQL 0062) — todo queda "original" */ }
+    $('tmpl-list').innerHTML = TMPL_TOUCHPOINTS.map((t) => {
+      const badges = ['en', 'de', 'es'].map((lg) => {
+        const has = !!tmplRows[t.key + '|' + lg];
+        return '<span class="pill" style="margin-right:6px;' + (has ? 'background:rgba(126,217,87,.18);color:#7ed957' : 'background:rgba(255,255,255,.06);color:var(--muted)') + '">' + lg.toUpperCase() + (has ? ' ✏️ editada' : ' · original') + '</span>';
+      }).join('');
+      return '<div class="of-card"><div class="of-card-open" data-tk="' + t.key + '">' +
+        '<div class="of-card-main"><div class="of-card-title">' + esc(t.label) + '</div>' +
+        '<div class="of-card-sub">' + badges + (t.wired ? '' : ' <span class="muted-note">— edición lista, envío server-side pendiente</span>') + '</div></div></div></div>';
+    }).join('') || '<p class="muted-note">Sin touchpoints.</p>';
+    $('tmpl-list').querySelectorAll('[data-tk]').forEach((c) => c.addEventListener('click', () => tmplOpen(c.dataset.tk)));
+  }
+  function tmplSwitchLang(lg){
+    tmplCurLang = lg;
+    $('tmpl-ed-langs').querySelectorAll('.tmpl-lang-btn').forEach((b) => b.classList.toggle('btn-primary', b.dataset.lg === lg));
+    const row = tmplRows[tmplCurKey + '|' + lg];
+    $('tmpl-ed-subject').value = row ? row.subject : '';
+    $('tmpl-ed-body').value = row ? row.body : '';
+    $('tmpl-ed-restore').hidden = !row;
+    $('tmpl-ed-preview').style.display = 'none';
+  }
+  function tmplOpen(key){
+    tmplCurKey = key;
+    const t = TMPL_TOUCHPOINTS.find((x) => x.key === key);
+    $('tmpl-ed-title').textContent = t.label;
+    $('tmpl-ed-vars').innerHTML = 'Variables disponibles: ' + t.vars.map((v) => '<code>{{' + v + '}}</code>').join(' · ') + ' — el resto del email (logo, botones, firma) es estructura fija.';
+    $('tmpl-ed-langs').innerHTML = ['en', 'de', 'es'].map((lg) => '<button type="button" class="btn btn-ghost small tmpl-lang-btn" data-lg="' + lg + '">' + lg.toUpperCase() + '</button>').join('');
+    $('tmpl-ed-langs').querySelectorAll('.tmpl-lang-btn').forEach((b) => b.addEventListener('click', () => tmplSwitchLang(b.dataset.lg)));
+    $('tmpl-editor').hidden = false;
+    tmplSwitchLang('en');
+    $('tmpl-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const TMPL_SAMPLE = { first_name: 'Alex', name: 'Alex Muster', company: 'Acme AG', range: "CHF 8'000 – 14'000", calc_range: "CHF 8'000 – 14'000", when: 'Montag, 14. Juli, 10:00', duration: '15' };
+  $('tmpl-ed-preview-btn') && $('tmpl-ed-preview-btn').addEventListener('click', () => {
+    const tok = (s) => String(s || '').replace(/\{\{(\w+)\}\}/g, (m, k) => (TMPL_SAMPLE[k] !== undefined ? TMPL_SAMPLE[k] : m));
+    const subj = tok($('tmpl-ed-subject').value);
+    const bodyHtml = tok($('tmpl-ed-body').value).trim().split(/\n{2,}/).map((p) => '<p style="margin:0 0 10px">' + esc(p).replace(/\n/g, '<br>') + '</p>').join('');
+    $('tmpl-ed-preview').innerHTML = '<p class="muted-note">Asunto</p><p><b>' + esc(subj) + '</b></p><p class="muted-note" style="margin-top:10px">Cuerpo</p>' + (bodyHtml || '<p class="muted-note">(vacío)</p>');
+    $('tmpl-ed-preview').style.display = 'block';
+  });
+  $('tmpl-ed-save') && $('tmpl-ed-save').addEventListener('click', async () => {
+    const subject = $('tmpl-ed-subject').value.trim(), body = $('tmpl-ed-body').value.trim();
+    if (!subject || !body){ toast('Completá asunto y cuerpo'); return; }
+    const { error } = await supabase.from('email_templates').upsert({ key: tmplCurKey, lang: tmplCurLang, subject, body, updated_at: new Date().toISOString() });
+    if (error){ toast('⚠️ ' + error.message + ' (¿corriste la SQL 0062?)'); return; }
+    tmplRows[tmplCurKey + '|' + tmplCurLang] = { key: tmplCurKey, lang: tmplCurLang, subject, body };
+    $('tmpl-ed-restore').hidden = false;
+    toast('💾 Guardado'); tmplInit();
+  });
+  $('tmpl-ed-restore') && $('tmpl-ed-restore').addEventListener('click', async () => {
+    if (!confirm('¿Restaurar el original? Se borra tu edición para ' + tmplCurLang.toUpperCase() + '.')) return;
+    await supabase.from('email_templates').delete().eq('key', tmplCurKey).eq('lang', tmplCurLang);
+    delete tmplRows[tmplCurKey + '|' + tmplCurLang];
+    toast('↺ Restaurado'); tmplSwitchLang(tmplCurLang); tmplInit();
+  });
+  $('tmpl-ed-close') && $('tmpl-ed-close').addEventListener('click', () => { $('tmpl-editor').hidden = true; });
+
+  /* =========================================================================
+     👤 MI PERFIL (SQL 0064 team_profiles) — Task C. Foto + firma del usuario
+     LOGUEADO (meEmail) — no un admin de todo el team. Foto vía Supabase
+     Storage bucket "team-avatars" (crear a mano una vez, ver migración 0064).
+     ========================================================================= */
+  let profileAvatarPendingUrl = null;
+  function profileRenderAvatar(url, name){
+    const el = $('profile-avatar-preview'); if (!el) return;
+    if (url) { el.style.background = 'transparent'; el.innerHTML = '<img src="' + esc(url) + '" style="width:100%;height:100%;object-fit:cover" />'; }
+    else { const nm = name || meEmail || '?'; el.style.background = avColorG(nm); el.innerHTML = esc((nm[0] || '?').toUpperCase()); }
+  }
+  function profileRenderSignPreview(){
+    $('profile-sign-preview').textContent = $('profile-signature').value.trim() || '(sin firma configurada — el compositor sigue usando el nombre elegido con el toggle Sofia/Sebastian)';
+  }
+  function profileInit(){
+    $('profile-who').textContent = meEmail ? 'Editando el perfil de: ' + meEmail : '⚠️ No se detectó tu email de sesión — entrá de nuevo si esto persiste.';
+    const p = profileFor(meEmail) || {};
+    $('profile-name').value = p.name || '';
+    $('profile-role').value = p.role || '';
+    $('profile-phone').value = p.phone || '';
+    $('profile-signature').value = p.signature_text || '';
+    profileAvatarPendingUrl = p.avatar_url || null;
+    profileRenderAvatar(p.avatar_url, p.name);
+    profileRenderSignPreview();
+  }
+  $('profile-signature') && $('profile-signature').addEventListener('input', profileRenderSignPreview);
+  $('profile-avatar-btn') && $('profile-avatar-btn').addEventListener('click', () => $('profile-avatar-file').click());
+  $('profile-avatar-file') && $('profile-avatar-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (!meEmail){ toast('Sin sesión detectada'); return; }
+    try {
+      const safeName = file.name.replace(/[^a-z0-9.\-_]/gi, '_');
+      const path = meEmail.toLowerCase().replace(/[^a-z0-9@._-]/gi, '_') + '/' + Date.now() + '-' + safeName;
+      const { error } = await supabase.storage.from('team-avatars').upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from('team-avatars').getPublicUrl(path);
+      profileAvatarPendingUrl = pub && pub.publicUrl;
+      profileRenderAvatar(profileAvatarPendingUrl, $('profile-name').value);
+      toast('📷 Foto subida — tocá 💾 Guardar para confirmar');
+    } catch (err) { toast('⚠️ ' + (err && err.message || err) + ' (¿existe el bucket público "team-avatars" en Supabase Storage?)'); }
+  });
+  $('profile-save') && $('profile-save').addEventListener('click', async () => {
+    if (!meEmail){ toast('Sin sesión detectada'); return; }
+    const patch = {
+      email: meEmail, name: $('profile-name').value.trim() || null, role: $('profile-role').value.trim() || null,
+      phone: $('profile-phone').value.trim() || null, signature_text: $('profile-signature').value.trim() || null,
+      avatar_url: profileAvatarPendingUrl || null, updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('team_profiles').upsert(patch);
+    if (error){ toast('⚠️ ' + error.message + ' (¿corriste la SQL 0064?)'); return; }
+    teamProfiles[meEmail.toLowerCase()] = patch;
+    toast('💾 Perfil guardado');
+  });
+
   const AU_TYPE_META = {
     email: { ic: '📧', tag: 'EMAIL' }, ai_email: { ic: '🤖', tag: 'EMAIL IA → BANDEJA' }, wait: { ic: '⏱', tag: 'ESPERAR' },
     task: { ic: '✅', tag: 'TAREA' }, push: { ic: '🔔', tag: 'PUSH' }, status: { ic: '🔀', tag: 'CAMBIAR ETAPA' },
