@@ -54,7 +54,11 @@ Deno.serve(async (req) => {
     const { days = 28 } = await req.json().catch(() => ({}));
     const d = Math.max(7, Math.min(90, Number(days) || 28));
     const end = new Date(Date.now() - 2 * 864e5);         // GSC llega con ~2 días de lag
-    const start = new Date(end.getTime() - d * 864e5);
+    // fix (auditoría 2026-07-14): startDate/endDate de GSC son AMBOS inclusive —
+    // `end - d días` daba un período de d+1 días (start incluido de más), mientras
+    // que el período anterior sí quedaba en d días exactos. Esa asimetría sesgaba
+    // el delta ▲▼ sistemáticamente a favor de "mejoró" (~1/d, ~3.6% con d=28).
+    const start = new Date(end.getTime() - (d - 1) * 864e5);
     const ymd = (x: Date) => x.toISOString().slice(0, 10);
     const token = await googleToken();
     // Propiedad: GSC_SITE si está seteado; si no, autodetectar entre las propiedades

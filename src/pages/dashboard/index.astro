@@ -7065,7 +7065,14 @@ const newsCases = [
         const pendEl = $('gads-pending');
         if (pendEl){
           pendEl.hidden = !pendingReason;
-          if (pendingReason) pendEl.innerHTML = '⏳ El developer token de Google Ads sigue pendiente de aprobación de Google (' + esc(pendingReason) + ') — hasta entonces el gasto/clicks/search terms "oficiales" no llegan. Mientras tanto el tab funciona completo con tus datos propios (sesiones gclid, leads, ganados) + el gasto manual. Cuando Google apruebe, se enciende todo solo, sin tocar nada.';
+          // "faltan secrets" = nadie conectó Google Ads todavía (config faltante);
+          // cualquier otro reason = credenciales SÍ están, Google está revisando el
+          // developer token. Son estados bien distintos, no el mismo mensaje.
+          if (/faltan secrets/i.test(pendingReason || '')){
+            pendEl.innerHTML = '⚙️ Google Ads todavía no está conectado (' + esc(pendingReason) + ') — el tab funciona con tus datos propios (sesiones gclid, leads, ganados) + el gasto manual hasta que se configuren las credenciales GOOGLE_ADS_*.';
+          } else if (pendingReason){
+            pendEl.innerHTML = '⏳ El developer token de Google Ads sigue pendiente de aprobación de Google (' + esc(pendingReason) + ') — hasta entonces el gasto/clicks/search terms "oficiales" no llegan. Mientras tanto el tab funciona completo con tus datos propios (sesiones gclid, leads, ganados) + el gasto manual. Cuando Google apruebe, se enciende todo solo, sin tocar nada.';
+          }
         }
 
         // 3) inversión: gasto oficial manda; si no hay, cae a la inversión manual guardada
