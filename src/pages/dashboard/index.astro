@@ -764,6 +764,17 @@ const stillsPool = projects
   .gads-camp-acts button:hover{border-color:var(--acid);color:var(--acid)}
   .gads-lead-x{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:11px;padding:4px 8px;cursor:pointer;white-space:nowrap}
   .gads-lead-x:hover{border-color:var(--acid);color:var(--acid)}
+
+  /* ---- rediseño sub-tab Search Console: oportunidades de CTR, tendencia, canibalización, indexación ---- */
+  #ana-sub-seo .seo-money{color:var(--acid);font-weight:700;white-space:nowrap}
+  #ana-sub-seo .up{color:#7ed957;font-weight:700}
+  #ana-sub-seo .down{color:#ff8b8b;font-weight:700}
+  #ana-sub-seo .seo-okline{color:#7ed957;font-size:13px;margin-bottom:4px}
+  #ana-sub-seo .seo-warnline{color:#f0c060;font-size:13px;margin-bottom:4px}
+  #ana-sub-seo .seo-badline{color:#ff8b8b;font-size:13px;margin-bottom:4px}
+  #ana-sub-seo .seo-title-box{background:var(--navy-900);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin:6px 0;font-size:12.5px;line-height:1.65}
+  #ana-sub-seo td.seo-cannib-pages{white-space:normal;font-size:12px;color:var(--muted);line-height:1.6}
+  #ana-sub-seo tr.seo-opp-detail td{border-bottom:1px solid var(--line);padding-top:0}
   .au-flow-wrap{border:1px solid var(--line);border-radius:14px;padding:20px 16px;margin-top:14px;overflow-x:auto}
   .au-flow{display:flex;flex-direction:column;align-items:center;min-width:280px}
   .au-trig-node{background:color-mix(in srgb,var(--acid) 16%,transparent);border:1px solid var(--acid);color:var(--acid);font-weight:700;font-size:13px;border-radius:100px;padding:9px 18px;white-space:nowrap;max-width:100%;text-align:center}
@@ -1645,7 +1656,9 @@ const stillsPool = projects
       </details>
     </div>
 
-    <!-- ============ SUB: SEARCH CONSOLE (antes tab propio) ============ -->
+    <!-- ============ SUB: SEARCH CONSOLE (antes tab propio) — rediseño: deltas ▲▼, ============ -->
+    <!-- ============ oportunidades de CTR calculadas, tendencia por keyword (gsc_daily), ============ -->
+    <!-- ============ canibalización query×página y estado de indexación real ============ -->
     <div id="ana-sub-seo" hidden>
       <div class="of-bar" style="margin-bottom:14px">
         <div>
@@ -1654,7 +1667,51 @@ const stillsPool = projects
         </div>
         <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
       </div>
+
+      <div class="panel">
+        <p class="muted-note" id="seo-verdict" style="font-size:14px;line-height:1.55;margin:0 0 12px"></p>
+        <div class="kpis four">
+          <div class="kpi"><div class="n" id="seo-k-clicks">–</div><div class="kdelta" id="seo-k-clicks-d"></div><div class="l">Clicks</div></div>
+          <div class="kpi"><div class="n" id="seo-k-impr">–</div><div class="kdelta" id="seo-k-impr-d"></div><div class="l">Impresiones</div></div>
+          <div class="kpi"><div class="n" id="seo-k-ctr">–</div><div class="kdelta" id="seo-k-ctr-d"></div><div class="l">CTR</div></div>
+          <div class="kpi"><div class="n" id="seo-k-pos">–</div><div class="kdelta" id="seo-k-pos-d"></div><div class="l">Posición media</div></div>
+        </div>
+      </div>
+
       <div id="seo-body"><p class="muted-note">Cargando…</p></div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>💸 Oportunidades de CTR <span class="count">calculado de los datos reales — sin IA</span></h2>
+        <p class="muted-note" style="margin:6px 0 10px">Queries con impresiones de sobra pero CTR bien por debajo de lo esperable para su posición (curva estándar de la industria: #1≈28%, #2≈15%, #3≈11%, #4-5≈8%, #6-10≈4%, #11+≈2%) — reescribir title/description ahí es el click gratis más rápido de conseguir. Ordenado por clicks perdidos estimados al mes.</p>
+        <div id="seo-opp-wrap"><p class="muted-note">Cargando…</p></div>
+      </div>
+
+      <div class="gads-two">
+        <div class="panel" style="margin:0">
+          <h2>📈 Keywords que se mueven <span class="count" id="seo-trend-note">28d vs anteriores</span></h2>
+          <div id="seo-trend-wrap"><p class="muted-note">Cargando…</p></div>
+        </div>
+        <div class="panel" style="margin:0">
+          <h2>⚔️ Canibalización <span class="count">2+ páginas, misma query</span></h2>
+          <p class="muted-note" style="margin:4px 0 10px">Detectado con la dimensión query×página (antes nunca se consultaba). Acción sugerida: linkear la página más débil a la fuerte con anchor exacto, o canonical.</p>
+          <div id="seo-cannib-wrap"><p class="muted-note">Cargando…</p></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>🗂 Estado de indexación</h2>
+        <p class="muted-note" style="margin:6px 0 10px">El sitemap se reenvía a diario y IndexNow pinguea al publicar en el blog — antes era todo a ciegas, acá la foto real de si funcionó (<code>gsc-sitemap-submit</code>, cron diario).</p>
+        <div class="gads-two">
+          <div class="of-card" style="padding:14px 16px">
+            <b>Reenvío de sitemaps</b>
+            <div id="seo-idx-sitemap" style="margin-top:8px">Cargando…</div>
+          </div>
+          <div class="of-card" style="padding:14px 16px">
+            <b>Spot-check (URL Inspection API)</b>
+            <div id="seo-idx-urlcheck" style="margin-top:8px">Cargando…</div>
+          </div>
+        </div>
+      </div>
 
       <div class="panel" style="margin-top:16px">
         <div class="draft-head">
@@ -5105,6 +5162,228 @@ const stillsPool = projects
   }
   function seoInit(){
     kwInit(); if (!seoLoaded) loadSeo(); }
+
+  // ---- estado de sort + cache de la última respuesta de gsc-stats (para re-ordenar sin refetch) ----
+  let seoData = null;
+  let seoQSort = { k: 'clicks', dir: -1 };
+  let seoPSort = { k: 'clicks', dir: -1 };
+  let seoOppSort = { k: 'lost', dir: -1 };
+  let seoOppRows = [];
+  function seoSortTh(state, label, key, num){
+    return '<th class="lt-sort' + (num ? ' lt-num' : '') + (state.k === key ? ' on' : '') + '" data-k="' + key + '">' + label + (state.k === key ? (state.dir > 0 ? ' ▲' : ' ▼') : '') + '</th>';
+  }
+  function seoBindSort(cont, state, renderFn){
+    cont.querySelectorAll('th.lt-sort').forEach((th) => th.addEventListener('click', () => {
+      const k2 = th.dataset.k;
+      if (state.k === k2) state.dir = -state.dir; else { state.k = k2; state.dir = -1; }
+      renderFn();
+    }));
+  }
+
+  // curva estándar de CTR esperado por posición (industria — no exacta, sirve para priorizar)
+  function seoExpectedCtr(pos){
+    if (pos <= 1.5) return 0.28;
+    if (pos <= 2.5) return 0.15;
+    if (pos <= 3.5) return 0.11;
+    if (pos <= 5.5) return 0.08;
+    if (pos <= 10.5) return 0.04;
+    return 0.02;
+  }
+
+  function seoRenderQP(kind){
+    const cont = $(kind === 'q' ? 'seo-q-wrap' : 'seo-p-wrap');
+    const cnt = $(kind === 'q' ? 'seo-q-count' : 'seo-p-count');
+    if (!cont || !seoData) return;
+    const state = kind === 'q' ? seoQSort : seoPSort;
+    const src = (kind === 'q' ? seoData.queries : seoData.pages) || [];
+    if (cnt) cnt.textContent = src.length ? '(' + src.length + ')' : '';
+    if (!src.length){ cont.innerHTML = '<p class="muted-note">Sin datos todavía</p>'; return; }
+    const val = (r, k) => k === 'key' ? (r.key || '').toLowerCase() : (r[k] || 0);
+    const rows = src.slice().sort((a, b) => { const av = val(a, state.k), bv = val(b, state.k); return av < bv ? -state.dir : av > bv ? state.dir : 0; });
+    const fmtN = (n) => (n || 0).toLocaleString('de-CH');
+    let html = '<table class="lead-table seo-table"><thead><tr>' +
+      seoSortTh(state, kind === 'q' ? 'Búsqueda' : 'Página', 'key') + seoSortTh(state, 'Clicks', 'clicks', 1) +
+      seoSortTh(state, 'Impresiones', 'impressions', 1) + seoSortTh(state, 'CTR', 'ctr', 1) + seoSortTh(state, 'Posición', 'position', 1) +
+      '</tr></thead><tbody>';
+    rows.forEach((q) => {
+      const label = kind === 'q' ? esc(q.key) : '<span style="white-space:normal;word-break:break-all">' + esc(q.key.replace(/^https?:\/\/[^/]+/, '')) + '</span>';
+      html += '<tr><td>' + label + '</td><td class="lt-num">' + fmtN(q.clicks) + '</td><td class="lt-num">' + fmtN(q.impressions) + '</td><td class="lt-num">' + (q.ctr * 100).toFixed(1) + '%</td><td class="lt-num">' + q.position.toFixed(1) + '</td></tr>';
+    });
+    cont.innerHTML = html + '</tbody></table>';
+    seoBindSort(cont, state, () => seoRenderQP(kind));
+  }
+
+  // oportunidad de CTR: 100% determinístico a partir de lo que ya trae gsc-stats (sin IA, sin llamada extra)
+  function seoComputeOpp(data){
+    const days = data.days || Math.max(7, Math.min(90, rangeSpanDays()));
+    const scale = 30 / days; // clicks perdidos escalados a "por mes"
+    return (data.queries || [])
+      .filter((q) => q.impressions >= 50)
+      .map((q) => {
+        const exp = seoExpectedCtr(q.position);
+        const lost = Math.max(0, exp * q.impressions - q.clicks) * scale;
+        return { query: q.key, impressions: q.impressions, position: q.position, ctr: q.ctr, expCtr: exp, lost, page: q.page || '' };
+      })
+      .filter((r) => r.lost > 0.5 && r.ctr < r.expCtr * 0.75) // "meaningfully" por debajo de lo esperado
+      .sort((a, b) => b.lost - a.lost)
+      .slice(0, 15);
+  }
+  function seoRenderOpp(){
+    const cont = $('seo-opp-wrap'); if (!cont) return;
+    if (!seoOppRows.length){ cont.innerHTML = '<p class="muted-note">Sin oportunidades claras en este período — buena señal, tus CTR están cerca de lo esperado para cada posición (o todavía no hay suficiente volumen de impresiones).</p>'; return; }
+    const rows = seoOppRows.slice();
+    const val = (r, k) => k === 'query' ? r.query.toLowerCase() : (r[k] || 0);
+    rows.sort((a, b) => { const av = val(a, seoOppSort.k), bv = val(b, seoOppSort.k); return av < bv ? -seoOppSort.dir : av > bv ? seoOppSort.dir : 0; });
+    let html = '<table class="lead-table"><thead><tr>' +
+      seoSortTh(seoOppSort, 'Búsqueda', 'query') + seoSortTh(seoOppSort, 'Impresiones', 'impressions', 1) + seoSortTh(seoOppSort, 'Pos.', 'position', 1) +
+      seoSortTh(seoOppSort, 'CTR', 'ctr', 1) + seoSortTh(seoOppSort, 'CTR esperado', 'expCtr', 1) + seoSortTh(seoOppSort, 'Clicks perdidos/mes', 'lost', 1) +
+      '<th>Página</th><th></th></tr></thead><tbody>';
+    rows.forEach((r, i) => {
+      html += '<tr><td>' + esc(r.query) + '</td><td class="lt-num">' + r.impressions.toLocaleString('de-CH') + '</td>' +
+        '<td class="lt-num">' + r.position.toFixed(1) + '</td><td class="lt-num">' + (r.ctr * 100).toFixed(1) + '%</td>' +
+        '<td class="lt-num">' + (r.expCtr * 100).toFixed(1) + '%</td><td class="lt-num seo-money">~' + Math.round(r.lost) + '</td>' +
+        '<td style="white-space:normal;word-break:break-all;font-size:11.5px">' + (r.page ? esc(r.page.replace(/^https?:\/\/[^/]+/, '')) : '<span class="muted-note">—</span>') + '</td>' +
+        '<td>' + (r.page ? '<button type="button" class="btn btn-ghost small seo-opp-title" data-i="' + i + '">✏️ ver title</button>' : '') + '</td></tr>' +
+        '<tr class="seo-opp-detail" id="seo-opp-detail-' + i + '" hidden><td colspan="8"></td></tr>';
+    });
+    cont.innerHTML = html + '</tbody></table>';
+    seoBindSort(cont, seoOppSort, seoRenderOpp);
+    cont.querySelectorAll('.seo-opp-title').forEach((b) => b.addEventListener('click', () => seoShowTitle(+b.dataset.i, rows[+b.dataset.i])));
+  }
+  // "✏️ ver title actual": fetch client-side de la página real (mismo origen — sin CORS) +
+  // extracción de <title>/meta description + sugerencia estática (sin IA — v1 rápido y gratis).
+  async function seoShowTitle(i, row){
+    const tr = $('seo-opp-detail-' + i); if (!tr) return;
+    const td = tr.querySelector('td');
+    tr.hidden = false;
+    td.innerHTML = '<div class="seo-title-box">Leyendo ' + esc(row.page) + '…</div>';
+    try {
+      const res = await fetch(row.page, { cache: 'no-store' });
+      const html = await res.text();
+      const tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
+      const title = tm ? tm[1].trim() : '(sin title)';
+      const desc = dm ? dm[1].trim() : '(sin meta description)';
+      td.innerHTML = '<div class="seo-title-box">' +
+        '<div><b>Title actual</b> <span class="muted-note">(' + title.length + ' car.)</span>: ' + esc(title) + '</div>' +
+        '<div style="margin-top:6px"><b>Meta description actual</b> <span class="muted-note">(' + desc.length + ' car.)</span>: ' + esc(desc) + '</div>' +
+        '<div style="margin-top:8px;color:var(--acid)">💡 Meté «' + esc(row.query) + '» cerca del inicio del title (≤60 car.) y un beneficio/CTA claro en la description (≤155 car.) — editalo directo en el <code>.astro</code> de la página.</div>' +
+        '</div>';
+    } catch (e) {
+      td.innerHTML = '<div class="seo-title-box">No pude leer la página en vivo: ' + esc(e.message || String(e)) + '</div>';
+    }
+  }
+
+  function seoRenderCannib(data){
+    const cont = $('seo-cannib-wrap'); if (!cont) return;
+    const rows = data.cannibalization || [];
+    if (!rows.length){ cont.innerHTML = '<p class="muted-note">Sin canibalización detectada — cada búsqueda top tiene una sola página dominante.</p>'; return; }
+    cont.innerHTML = '<table class="lead-table"><thead><tr><th>Query</th><th>Páginas compitiendo</th></tr></thead><tbody>' +
+      rows.map((r) => '<tr><td>' + esc(r.query) + '</td><td class="seo-cannib-pages">' +
+        r.pages.map((p) => esc(p.page.replace(/^https?:\/\/[^/]+/, '')) + ' (pos ' + p.position.toFixed(1) + ', ' + p.impressions + ' impr.)').join('<br>') +
+        '</td></tr>').join('') + '</tbody></table>';
+  }
+
+  // tendencia por keyword: lee la historia diaria guardada en gsc_daily (SQL 0069, la llena
+  // gsc-sitemap-submit por cron) para las top keywords del período — sin eso, cero tendencia.
+  async function loadSeoTrend(queries){
+    const wrap = $('seo-trend-wrap'); if (!wrap) return;
+    const topQ = (queries || []).slice(0, 10).map((q) => q.key).filter(Boolean);
+    if (!topQ.length){ wrap.innerHTML = '<p class="muted-note">Sin búsquedas en el período.</p>'; return; }
+    try {
+      const since = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+      const { data, error } = await supabase.from('gsc_daily').select('date,query,position').in('query', topQ).gte('date', since).order('date', { ascending: true });
+      if (error) throw error;
+      if (!data || !data.length){ wrap.innerHTML = '<p class="muted-note">Sin historia guardada todavía — arranca sola con el próximo cron diario de <code>gsc-sitemap-submit</code> (¿corriste el SQL 0069?). Necesita al menos 2 días de datos por keyword.</p>'; return; }
+      const byQ = new Map();
+      data.forEach((r) => { if (!byQ.has(r.query)) byQ.set(r.query, []); byQ.get(r.query).push(r); });
+      const rows = [];
+      byQ.forEach((pts, q) => {
+        if (pts.length < 2) return;
+        const mid = Math.max(1, Math.floor(pts.length / 2));
+        const older = pts.slice(0, mid), recent = pts.slice(mid).length ? pts.slice(mid) : pts.slice(-1);
+        const avg = (arr) => arr.reduce((a, r) => a + (+r.position || 0), 0) / arr.length;
+        rows.push({ query: q, posNew: avg(recent), posOld: avg(older), delta: avg(older) - avg(recent), n: pts.length });
+      });
+      if (!rows.length){ wrap.innerHTML = '<p class="muted-note">Todavía no hay suficiente historia (mín. 2 días) para calcular tendencia.</p>'; return; }
+      rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      wrap.innerHTML = '<table class="lead-table"><thead><tr><th>Keyword</th><th class="lt-num">Pos.</th><th></th></tr></thead><tbody>' +
+        rows.slice(0, 8).map((r) => {
+          const up = r.delta > 0.3, down = r.delta < -0.3;
+          const cls = up ? 'up' : down ? 'down' : '';
+          const arrow = up ? '▲' : down ? '▼' : '=';
+          const warn = down && Math.abs(r.delta) > 3 ? ' ⚠' : '';
+          return '<tr><td>' + esc(r.query) + '</td><td class="lt-num">' + r.posNew.toFixed(1) + '</td>' +
+            '<td class="' + cls + '">' + arrow + (Math.abs(r.delta) > 0.3 ? ' desde ' + r.posOld.toFixed(1) : '') + warn + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    } catch (e) {
+      wrap.innerHTML = '<p class="muted-note">¿Corriste el SQL 0069 (gsc_daily)? ' + esc(e.message || String(e)) + '</p>';
+    }
+  }
+
+  // estado de indexación: última corrida de gsc-sitemap-submit (resubmit + spot-check URL Inspection), gsc_status (SQL 0069)
+  async function loadSeoIndex(){
+    const stEl = $('seo-idx-sitemap'), ckEl = $('seo-idx-urlcheck');
+    if (!stEl || !ckEl) return;
+    try {
+      const { data, error } = await supabase.from('gsc_status').select('*').eq('id', 1).maybeSingle();
+      if (error) throw error;
+      if (!data){
+        const msg = '<p class="muted-note">Sin datos todavía — se completa solo con la próxima corrida del cron diario (¿corriste el SQL 0069?).</p>';
+        stEl.innerHTML = msg; ckEl.innerHTML = msg;
+        return;
+      }
+      if (data.last_sitemap_at){
+        const results = data.last_sitemap_results || {};
+        stEl.innerHTML = Object.entries(results).map(([url, status]) => {
+          const ok = status === 200 || status === 204;
+          return '<div class="' + (ok ? 'seo-okline' : 'seo-badline') + '">' + (ok ? '✅' : '⚠') + ' ' + esc(String(url).replace(/^https?:\/\/[^/]+\//, '')) + ' — HTTP ' + esc(String(status)) + '</div>';
+        }).join('') + '<div class="muted-note" style="margin-top:6px">Último envío: ' + new Date(data.last_sitemap_at).toLocaleString('es-CH') + '</div>';
+      } else stEl.innerHTML = '<p class="muted-note">Todavía sin corridas.</p>';
+      if (data.last_urlcheck_at && Array.isArray(data.last_urlcheck_results)){
+        ckEl.innerHTML = data.last_urlcheck_results.map((c) => {
+          const ok = c.verdict === 'PASS';
+          return '<div class="' + (ok ? 'seo-okline' : 'seo-warnline') + '">' + (ok ? '✅' : '⏳') + ' ' + esc(c.url) + ' — ' + esc(c.verdict) + (c.coverageState ? ' (' + esc(c.coverageState) + ')' : '') + '</div>';
+        }).join('') + '<div class="muted-note" style="margin-top:6px">Último spot-check: ' + new Date(data.last_urlcheck_at).toLocaleString('es-CH') + '</div>';
+      } else ckEl.innerHTML = '<p class="muted-note">Sin spot-check todavía.</p>';
+    } catch (e) {
+      const msg = '<p class="muted-note">¿Corriste el SQL 0069 (gsc_status)? ' + esc(e.message || String(e)) + '</p>';
+      stEl.innerHTML = msg; ckEl.innerHTML = msg;
+    }
+  }
+
+  // delta de posición: BAJAR es mejorar (al revés que clicks/impresiones) — verde cuando mejora
+  function seoPosDelta(cur, prev){
+    const el = $('seo-k-pos-d'); if (!el) return;
+    if (!prev && !cur){ el.textContent = '='; el.className = 'kdelta flat'; return; }
+    if (!prev){ el.textContent = '▲ nuevo'; el.className = 'kdelta up'; return; }
+    const diff = prev - cur;
+    if (Math.abs(diff) < 0.15){ el.textContent = '='; el.className = 'kdelta flat'; return; }
+    el.textContent = (diff > 0 ? '▲ mejoró ' : '▼ empeoró ') + Math.abs(diff).toFixed(1);
+    el.className = 'kdelta ' + (diff > 0 ? 'up' : 'down');
+  }
+
+  function seoRenderKpis(data){
+    const t = data.totals || {}, pt = data.prevTotals || {};
+    const fmtN = (n) => (n || 0).toLocaleString('de-CH');
+    $('seo-k-clicks').textContent = fmtN(t.clicks);
+    $('seo-k-impr').textContent = fmtN(t.impressions);
+    $('seo-k-ctr').textContent = ((t.ctr || 0) * 100).toFixed(1) + '%';
+    $('seo-k-pos').textContent = (t.position || 0).toFixed(1);
+    setDelta('seo-k-clicks-d', t.clicks, pt.clicks);
+    setDelta('seo-k-impr-d', t.impressions, pt.impressions);
+    setDelta('seo-k-ctr-d', t.ctr, pt.ctr);
+    seoPosDelta(t.position || 0, pt.position || 0);
+    const dClicks = pt.clicks ? ((t.clicks - pt.clicks) / pt.clicks * 100) : null;
+    const verdict = $('seo-verdict');
+    if (verdict) {
+      verdict.innerHTML = '📈 <b>SEO en los últimos ' + (data.days || '') + ' días:</b> clicks ' +
+        (dClicks == null ? 'sin período anterior para comparar' : ((dClicks >= 0 ? '+' : '') + dClicks.toFixed(0) + '% vs el período anterior')) +
+        ' · ' + (data.queries || []).length + ' búsquedas distintas' +
+        (data.cannibalization && data.cannibalization.length ? ' · ⚠ ' + data.cannibalization.length + ' casos de canibalización (ver abajo)' : '');
+    }
+  }
+
   async function loadSeo(){
     seoLoaded = true;
     const el = $('seo-body');
@@ -5114,18 +5393,17 @@ const stillsPool = projects
       const gscDays = Math.max(7, Math.min(90, rangeSpanDays()));
       const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: gscDays } });
       if (error || (data && data.error)) throw new Error((data && data.error) || error.message);
-      const t = data.totals || {};
-      const fmtN = (n) => (n || 0).toLocaleString('de-CH');
-      const rowsQ = (data.queries || []).map((q) => '<tr><td>' + esc(q.key) + '</td><td class="lt-num">' + fmtN(q.clicks) + '</td><td class="lt-num">' + fmtN(q.impressions) + '</td><td class="lt-num">' + (q.ctr * 100).toFixed(1) + '%</td><td class="lt-num">' + q.position.toFixed(1) + '</td></tr>').join('');
-      const rowsP = (data.pages || []).map((q) => '<tr><td style="white-space:normal;word-break:break-all">' + esc(q.key.replace(/^https?:\/\/[^/]+/, '')) + '</td><td class="lt-num">' + fmtN(q.clicks) + '</td><td class="lt-num">' + fmtN(q.impressions) + '</td><td class="lt-num">' + (q.ctr * 100).toFixed(1) + '%</td><td class="lt-num">' + q.position.toFixed(1) + '</td></tr>').join('');
-      const TBL = (title, rows) => '<div class="panel" style="margin-top:14px"><h2>' + title + '</h2><div class="lead-table-wrap"><table class="lead-table seo-table"><thead><tr><th>' + (title.indexOf('quer') > -1 || title.indexOf('úsq') > -1 ? 'Búsqueda' : 'Página') + '</th><th>Clicks</th><th>Impresiones</th><th>CTR</th><th>Posición</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="muted-note">Sin datos todavía</td></tr>') + '</tbody></table></div></div>';
+      seoData = data;
+      seoRenderKpis(data);
       el.innerHTML =
-        '<div class="kpis four">' +
-        '<div class="kpi"><div class="n">' + fmtN(t.clicks) + '</div><div class="l">Clicks (' + gscDays + ' días)</div></div>' +
-        '<div class="kpi"><div class="n">' + fmtN(t.impressions) + '</div><div class="l">Impresiones</div></div>' +
-        '<div class="kpi"><div class="n">' + ((t.ctr || 0) * 100).toFixed(1) + '%</div><div class="l">CTR</div></div>' +
-        '<div class="kpi"><div class="n">' + (t.position || 0).toFixed(1) + '</div><div class="l">Posición media</div></div></div>' +
-        TBL('🔎 Top búsquedas', rowsQ) + TBL('📄 Top páginas', rowsP);
+        '<div class="panel" style="margin-top:14px"><h2>🔎 Top búsquedas <span class="count" id="seo-q-count"></span></h2><div class="lead-table-wrap" id="seo-q-wrap"></div></div>' +
+        '<div class="panel" style="margin-top:14px"><h2>📄 Top páginas <span class="count" id="seo-p-count"></span></h2><div class="lead-table-wrap" id="seo-p-wrap"></div></div>';
+      seoRenderQP('q'); seoRenderQP('p');
+      seoOppRows = seoComputeOpp(data);
+      seoRenderOpp();
+      seoRenderCannib(data);
+      loadSeoTrend(data.queries);   // best-effort, en paralelo — no bloquea lo de arriba
+      loadSeoIndex();               // idem
     } catch (e) {
       el.innerHTML = '<div class="panel"><h2>Conectar Search Console</h2>' +
         '<p class="muted-note" style="line-height:1.7">No pude leer Search Console: <b>' + esc(e.message || e) + '</b><br><br>' +
@@ -5136,6 +5414,10 @@ const stillsPool = projects
         '3. Actualizá el secret: <code>supabase secrets set GOOGLE_REFRESH_TOKEN=…</code> (el nuevo token sirve para el booking Y para esto)<br>' +
         '4. La propiedad debe existir en Search Console con la cuenta autorizada (default: <code>sc-domain:viven.ch</code>; otra → <code>supabase secrets set GSC_SITE=…</code>)</p>' +
         '<button class="btn btn-ghost small" onclick="loadSeo()" type="button">↻ Reintentar</button></div>';
+      const oppEl = $('seo-opp-wrap'); if (oppEl) oppEl.innerHTML = '<p class="muted-note">Esperando datos de Search Console.</p>';
+      const cannibEl = $('seo-cannib-wrap'); if (cannibEl) cannibEl.innerHTML = '<p class="muted-note">Esperando datos de Search Console.</p>';
+      const trendEl = $('seo-trend-wrap'); if (trendEl) trendEl.innerHTML = '<p class="muted-note">Esperando datos de Search Console.</p>';
+      loadSeoIndex(); // esto no depende de gsc-stats — se puede mostrar igual
     }
   }
   window.loadSeo = loadSeo;
