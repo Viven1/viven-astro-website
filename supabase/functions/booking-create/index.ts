@@ -67,8 +67,25 @@ Deno.serve(async (req) => {
     const calId = Deno.env.get("GCAL_ID") || "primary";
 
     // lead existente (si hay) ANTES de crear el evento → el link al brief va ligado
-    const { data: preLead } = await service.from("leads").select("id").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: preLead } = await service.from("leads").select("id,owner").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const briefUrl = BRIEF_URL + "?lang=" + encodeURIComponent(lang) + (preLead?.id ? "&lead=" + preLead.id : "");
+
+    // Anfitrión correcto (SQL 0073): dueño del lead → email de la fila de settings → default.
+    // La identidad visible (nombre/rol/tel/firma) sale de team_profiles de esa persona.
+    // NOTA: el evento sigue yendo al ÚNICO Google Calendar compartido (GCAL_ID/GOOGLE_REFRESH_TOKEN);
+    // acá solo se nombra al host correcto en el email y en el texto del evento.
+    const hostEmail: string = String(preLead?.owner || (cfg as { email?: string }).email || "sebastian@viven.ch").toLowerCase();
+    const host = { email: hostEmail, name: String(cfg.host_name || "Sebastian Cepeda"), role: String(cfg.host_role || "Founder — Viven AG, Zürich"), phone: "", signature: "" };
+    try {
+      const { data: tp } = await service.from("team_profiles").select("name,role,phone,signature_text").eq("email", hostEmail).maybeSingle();
+      if (tp) {
+        if (tp.name) host.name = tp.name;
+        if (tp.role) host.role = tp.role;
+        if (tp.phone) host.phone = tp.phone;
+        if (tp.signature_text) host.signature = tp.signature_text;
+      }
+    } catch (_e) { /* sin team_profiles → default de settings */ }
+    const hostFirst = host.name.split(/\s+/)[0];
 
     // 1) revalidar que el slot siga libre (carrera entre dos clientes)
     const fb = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
@@ -80,10 +97,12 @@ Deno.serve(async (req) => {
     if (busy.length) return json({ error: "slot_taken" }, 409);
 
     // 2) crear el evento con Meet + invitación al cliente (Google manda el email con calendario)
+    const hostLabel = { en: "Your host", de: "Ihr Gastgeber", es: "Tu anfitrión" }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
+    const hostLine = `${hostLabel}: ${host.name}${host.role ? " — " + host.role : ""}`;
     const T = {
-      en: { title: "Viven — Intro call with", desc: "Looking forward to talking about your video project!\n\nTo make the most of the call, you can fill in the short project brief beforehand:\n" + briefUrl },
-      de: { title: "Viven — Kennenlern-Call mit", desc: "Wir freuen uns auf das Gespräch über Ihr Videoprojekt!\n\nDamit wir das Maximum aus dem Call holen, füllen Sie vorab gern das kurze Projekt-Briefing aus:\n" + briefUrl },
-      es: { title: "Viven — Llamada con", desc: "¡Ganas de hablar de tu proyecto de video!\n\nPara aprovechar la llamada al máximo, podés completar antes el brief corto del proyecto:\n" + briefUrl },
+      en: { title: "Viven — Intro call with", desc: hostLine + "\n\nLooking forward to talking about your video project!\n\nTo make the most of the call, you can fill in the short project brief beforehand:\n" + briefUrl },
+      de: { title: "Viven — Kennenlern-Call mit", desc: hostLine + "\n\nWir freuen uns auf das Gespräch über Ihr Videoprojekt!\n\nDamit wir das Maximum aus dem Call holen, füllen Sie vorab gern das kurze Projekt-Briefing aus:\n" + briefUrl },
+      es: { title: "Viven — Llamada con", desc: hostLine + "\n\n¡Ganas de hablar de tu proyecto de video!\n\nPara aprovechar la llamada al máximo, podés completar antes el brief corto del proyecto:\n" + briefUrl },
     }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
     const ev = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?conferenceDataVersion=1&sendUpdates=all`, {
       method: "POST",
@@ -148,7 +167,7 @@ Deno.serve(async (req) => {
     }
     // nota en el historial + registro del booking (best-effort)
     if (leadId) await service.from("lead_notes").insert({ lead_id: String(leadId), author: "Booking", body: `📅 Call agendada por el cliente: ${new Date(startMs).toLocaleString("de-CH", { timeZone: "Europe/Zurich" })} (${duration} min)` + (meet ? `\n${meet}` : "") }).then(() => {}, () => {});
-    await service.from("bookings").insert({ name, email, phone: phone || null, message: message || null, start_at: new Date(startMs).toISOString(), end_at: new Date(endMs).toISOString(), duration_m: duration, lang, lead_id: leadId, gcal_event: event.id || null, meet_url: meet }).then(() => {}, () => {});
+    await service.from("bookings").insert({ name, email, phone: phone || null, message: message || null, start_at: new Date(startMs).toISOString(), end_at: new Date(endMs).toISOString(), duration_m: duration, lang, lead_id: leadId, gcal_event: event.id || null, meet_url: meet, host_email: hostEmail }).then(() => {}, () => {});
 
     // 4) email de confirmación PROPIO vía Resend — la invitación de Google Calendar
     // a veces no genera email (auto-add silencioso); el cliente SIEMPRE recibe el nuestro.
@@ -159,10 +178,15 @@ Deno.serve(async (req) => {
           lang === "de" ? "de-CH" : lang === "es" ? "es-ES" : "en-GB",
           { timeZone: "Europe/Zurich", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
         const E = {
-          en: { sub: `Your call with Viven is booked — ${when}`, hi: `Hi ${esc(name.split(/\s+/)[0])},`, p: `Your ${duration}-minute call is confirmed for <b>${when}</b> (Zurich time). The Google Calendar invite is on its way too.`, join: "→ Join with Google Meet", brief: "Fill in the 2-min brief", bp: "One more thing: the short project brief helps us come prepared." },
-          de: { sub: `Ihr Call mit Viven ist gebucht — ${when}`, hi: `Hallo ${esc(name.split(/\s+/)[0])},`, p: `Ihr ${duration}-Minuten-Call ist bestätigt: <b>${when}</b> (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.`, join: "→ Mit Google Meet beitreten", brief: "2-Min-Briefing ausfüllen", bp: "Noch etwas: Mit dem kurzen Projekt-Briefing kommen wir bestens vorbereitet." },
-          es: { sub: `Tu llamada con Viven está reservada — ${when}`, hi: `Hola ${esc(name.split(/\s+/)[0])},`, p: `Tu llamada de ${duration} minutos está confirmada: <b>${when}</b> (hora de Zúrich). La invitación de Google Calendar también va en camino.`, join: "→ Entrar con Google Meet", brief: "Completar el brief de 2 min", bp: "Una cosa más: el brief corto nos ayuda a llegar preparados." },
+          en: { sub: `Your call with Viven is booked — ${when}`, hi: `Hi ${esc(name.split(/\s+/)[0])},`, p: `Your ${duration}-minute call with ${esc(hostFirst)} is confirmed for <b>${when}</b> (Zurich time). The Google Calendar invite is on its way too.`, join: "→ Join with Google Meet", brief: "Fill in the 2-min brief", bp: "One more thing: the short project brief helps us come prepared.", see: "See you soon," },
+          de: { sub: `Ihr Call mit Viven ist gebucht — ${when}`, hi: `Hallo ${esc(name.split(/\s+/)[0])},`, p: `Ihr ${duration}-Minuten-Call mit ${esc(hostFirst)} ist bestätigt: <b>${when}</b> (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.`, join: "→ Mit Google Meet beitreten", brief: "2-Min-Briefing ausfüllen", bp: "Noch etwas: Mit dem kurzen Projekt-Briefing kommen wir bestens vorbereitet.", see: "Bis bald," },
+          es: { sub: `Tu llamada con Viven está reservada — ${when}`, hi: `Hola ${esc(name.split(/\s+/)[0])},`, p: `Tu llamada de ${duration} minutos con ${esc(hostFirst)} está confirmada: <b>${when}</b> (hora de Zúrich). La invitación de Google Calendar también va en camino.`, join: "→ Entrar con Google Meet", brief: "Completar el brief de 2 min", bp: "Una cosa más: el brief corto nos ayuda a llegar preparados.", see: "¡Nos vemos pronto!" },
         }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
+        // firma personal del host correcto (team_profiles → default de settings)
+        const signoffHtml = host.signature
+          ? esc(host.signature).replace(/\n/g, "<br>")
+          : `${esc(host.name)}${host.role ? "<br>" + esc(host.role) : ""}${host.phone ? "<br>" + esc(host.phone) : ""}`;
+        const replyTo = /@viven\.ch$/i.test(hostEmail) ? hostEmail : "sebastian@viven.ch";
         // template opcional pisa asunto + párrafo de confirmación; saludo/botones/firma siguen fijos
         const tmpl = await getTemplate("booking_confirmation", lang);
         const first = esc(name.split(/\s+/)[0]);
@@ -180,14 +204,16 @@ Deno.serve(async (req) => {
             <div style="text-align:center;margin:24px 0 8px"><a href="${meet}" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;padding:13px 26px;display:inline-block">${E.join}</a></div>
             <p style="font-size:13.5px;line-height:1.7;color:#5b6472;margin:18px 0 6px">${E.bp}</p>
             <div style="text-align:center;margin:8px 0 4px"><a href="${briefUrl}" style="border:1px solid #d5d9e2;color:#1a2230;font-weight:600;font-size:13px;text-decoration:none;border-radius:100px;padding:10px 20px;display:inline-block">${E.brief}</a></div>
+            <p style="font-size:14px;line-height:1.7;margin:20px 0 2px;color:#1a2230">${E.see}</p>
+            <p style="font-size:14px;line-height:1.6;margin:0;color:#1a2230">${signoffHtml}</p>
             <p style="font-size:11px;color:#8a94a8;text-align:center;margin:22px 0 0;border-top:1px solid #e8eaef;padding-top:14px"><b style="color:#1a2230">VIVEN AG</b> · Film Production · Zeughausstrasse 31, 8004 Zürich<br>viven.ch · ★★★★★ 5.0 on Google (47 reviews)</p>
           </div></div>`;
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: "Sebastian Cepeda — VIVEN AG <info@viven.ch>", to: [email], reply_to: "sebastian@viven.ch", subject, html }),
+          body: JSON.stringify({ from: `${host.name} — VIVEN AG <info@viven.ch>`, to: [email], reply_to: replyTo, subject, html }),
         });
-        if (leadId) await service.from("email_log").insert({ lead_id: String(leadId), to_addr: email, subject, body: html, sender_label: "Sebastian", source: "booking-create" }).then(() => {}, () => {});
+        if (leadId) await service.from("email_log").insert({ lead_id: String(leadId), to_addr: email, subject, body: html, sender_label: hostFirst, source: "booking-create" }).then(() => {}, () => {});
       }
     } catch (_e) { /* email de confirmación best-effort — el evento ya existe */ }
 
