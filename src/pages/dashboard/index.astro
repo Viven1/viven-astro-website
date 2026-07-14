@@ -536,6 +536,19 @@ const stillsPool = projects
   .of-more-sum::-webkit-details-marker{display:none}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .of-arch-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  /* ---- 📤 Bandeja de salida (outbox) ---- */
+  #ob-list{display:flex;flex-direction:column;gap:14px}
+  #ob-list .au-step{background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  #ob-list .ob-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  #ob-list .ob-who{display:flex;gap:10px;align-items:center}
+  #ob-list .ob-kind{font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--acid);background:color-mix(in srgb,var(--acid) 14%,transparent);border:1px solid color-mix(in srgb,var(--acid) 40%,transparent);border-radius:20px;padding:3px 11px;flex:none}
+  #ob-list .ob-f{margin-bottom:10px}
+  #ob-list .ob-f label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+  #ob-list .ob-f input,#ob-list .ob-f select,#ob-list .ob-f textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px}
+  #ob-list .ob-f select{cursor:pointer;max-width:220px}
+  #ob-list .ob-body{min-height:130px;line-height:1.55;resize:vertical}
+  #ob-list .ob-row{display:flex;gap:14px;flex-wrap:wrap}
+  #ob-list .ob-row .ob-f{flex:1;min-width:180px}
   /* ---- editor de propuestas ---- */
   #pp-editor .bf,#tab-blog .bf,#tab-services .bf{margin-bottom:14px}
   #pp-editor .bf label,#tab-blog .bf label,#tab-services .bf label,#tab-licenses .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
@@ -9252,13 +9265,12 @@ const stillsPool = projects
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">' +
-        '<div style="display:flex;gap:8px;align-items:center">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b></div>' +
-        '<span class="muted-note">' + esc(srcTag) + (l.company ? ' · ' + esc(l.company) : '') + '</span></div>' +
-        '<label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>' +
-        '<label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" />' +
-        '<label>Cuerpo</label><textarea class="ob-body">' + esc(o.body) + '</textarea>' +
-        '<div class="ab-urlrow" style="margin-top:10px"><button class="btn btn-primary small" data-obact="ok" data-id="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
+        '<div class="ob-hd"><div class="ob-who">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b>' + (l.company ? '<span class="muted-note">' + esc(l.company) + '</span>' : '') + '</div>' +
+        '<span class="ob-kind">' + esc(srcTag) + '</span></div>' +
+        '<div class="ob-row"><div class="ob-f"><label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select></div>' +
+        '<div class="ob-f" style="flex:3"><label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" /></div></div>' +
+        '<div class="ob-f"><label>Cuerpo</label><textarea class="ob-body">' + esc(o.body) + '</textarea></div>' +
+        '<div class="ab-urlrow" style="margin-top:4px"><button class="btn btn-primary small" data-obact="ok" data-id="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
         '<button class="btn btn-ghost small" data-obact="lead" data-id="' + o.lead_id + '" type="button">👤 Ver ficha</button>' +
         '<button class="btn btn-ghost small" data-obact="later" data-id="' + o.id + '" type="button">⏰ Más tarde</button>' +
         '<button class="btn btn-ghost small danger" data-obact="no" data-id="' + o.id + '" type="button">✕ No enviar</button></div></div>';
