@@ -19,10 +19,14 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <meta name="theme-color" content="#0f1826" />
 <link rel="stylesheet" href="/assets/site.css" />
 <style is:global>
-  .brief-wrap{max-width:660px;margin:0 auto;padding:44px 22px 90px;transition:max-width .3s ease}
-  /* post-envío: el documento del brief merece aire — 660px está bien para FORMULARIOS
-     (convierten mejor angostos), pero quedaba ridículamente flaco para leer el resumen */
-  .brief-wrap.wide{max-width:960px}
+  /* mismo --maxw que TODO el resto del sitio — consistencia real, pedido explícito
+     de Sebastián ("porq es tan angosto comparado con todas las otras paginas? siempre
+     consistency please, this is key"). El formulario en sí se mantiene legible con
+     .brief-card angosta y centrada DENTRO de este wrap ancho — el "respirar" del
+     documento post-envío ahora es la card la que crece, no el wrap. */
+  .brief-wrap{max-width:var(--maxw);margin:0 auto;padding:44px 24px 90px}
+  .brief-card{max-width:680px;margin:0 auto;transition:max-width .3s ease}
+  .brief-card.wide{max-width:960px}
   .brief-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
   .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em;display:block;text-decoration:none}
   .brief-langs{display:flex;gap:4px}
@@ -99,7 +103,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     body{background:#fff}
     .brief-top,.brief-langs,.brief-alt,.no-print{display:none !important}
     .brief-wrap{max-width:none;padding:0}
-    .brief-card{border:none;background:#fff;padding:0;box-shadow:none}
+    .brief-card{max-width:none;border:none;background:#fff;padding:0;box-shadow:none}
     /* en el PDF no hace falta el "gracias" ni los botones — solo el documento en sí */
     .brief-ok .big,.brief-ok h1,.brief-ok>.lead{display:none}
     .brief-summary{margin-top:0}
@@ -552,8 +556,10 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     function showSuccess(){
       document.getElementById('brief-form-card').hidden = true;
       document.getElementById('brief-ok').hidden = false;
-      // el documento respira: el wrap pasa de 660px (ancho de formulario) a 960px
-      var w = document.querySelector('.brief-wrap'); if (w) w.classList.add('wide');
+      // el documento respira: la card pasa de 680px (ancho de formulario) a 960px
+      // — el wrap exterior ya es --maxw fijo, igual que el resto del sitio.
+      // OJO: hay DOS .brief-card (form + ok) — apuntar al que se está mostrando
+      var w = document.getElementById('brief-ok'); if (w) w.classList.add('wide');
       renderSummary(lastBrief);
       window.scrollTo(0, 0);
     }
