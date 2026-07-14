@@ -1484,6 +1484,7 @@ const stillsPool = projects
         <option value="propuesta">Propuesta</option>
         <option value="ganado">Ganado</option>
         <option value="perdido">Perdido</option>
+        <option value="spam">🚫 Spam</option>
       </select>
       <select id="ps-act" class="status" title="Filtrar por última actividad">
         <option value="all">Cualquier actividad</option>
@@ -1497,6 +1498,7 @@ const stillsPool = projects
         <option value="stage">🔁 Cambio de etapa</option>
       </select>
       <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
+      <button class="btn btn-ghost small" id="ps-mark-spam" type="button" hidden>🚫 Marcar como spam</button>
       <button class="btn btn-danger small" id="ps-del-sel" type="button" hidden>🗑 Borrar seleccionados</button>
     </div>
     <div id="leads-list"></div>
@@ -2897,7 +2899,7 @@ const stillsPool = projects
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
+  let allLeads = [], statusFilter = 'all', searchTerm = '', channelFilter = null, insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
   // última actividad por lead (notas/tasks/propuestas/web) — se llena en loadAll
   let actNotes = {}, actTasks = {}, actProps = {}, actWeb = {};
 
@@ -3526,10 +3528,16 @@ const stillsPool = projects
 
   function filteredLeads(){
     return allLeads.filter((r) => {
+      // spam queda afuera de todas las vistas salvo que se pida explícitamente
+      // (psStage==='spam') — "para que quede mas limpio" (pedido de Sebastián)
+      const isSpam = /^spam$/i.test(r.status || '');
+      if (isSpam && psStage !== 'spam') return false;
+      if (!isSpam && psStage === 'spam') return false;
       if (!inRange(r.created_at)) return false;
       if (statusFilter === 'new' && !isNew(r.status)) return false;
       if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
       if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
+      if (channelFilter && (r.channel || 'direct') !== channelFilter) return false;
       if (searchTerm) {
         const hay = ((r.name || '') + ' ' + (r.email || '') + ' ' + (r.message || '') + ' ' + (r.company || '') + ' ' + (companyName(leadDomain(r)) || '')).toLowerCase();
         if (hay.indexOf(searchTerm) === -1) return false;
@@ -3578,9 +3586,13 @@ const stillsPool = projects
   function renderPeopleList(){
     const cont = $('leads-list'); if (!cont) return;
     let rows = filteredLeads();
-    if (psStage !== 'all') rows = rows.filter((r) => stageOf(r.status) === psStage);
+    // 'spam' no es una etapa del pipeline (stageOf nunca la devuelve) — filteredLeads()
+    // ya separó spam/no-spam por r.status directo, acá no hay que filtrar de nuevo
+    if (psStage !== 'all' && psStage !== 'spam') rows = rows.filter((r) => stageOf(r.status) === psStage);
     if (psAct !== 'all') rows = rows.filter((r) => (lastActivity(r) || {}).kind === psAct);
-    cont.innerHTML = leadsListHTML(rows);
+    const chNote = channelFilter ? '<p class="muted-note" style="margin-bottom:8px">Filtrado por canal: <b>' + esc(channelFilter) + '</b> · <a href="#" id="ps-clear-channel" style="color:var(--acid)">quitar filtro</a></p>' : '';
+    cont.innerHTML = chNote + leadsListHTML(rows);
+    const clearCh = $('ps-clear-channel'); if (clearCh) clearCh.addEventListener('click', (ev) => { ev.preventDefault(); channelFilter = null; renderPeopleList(); });
     cont.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id)));
     bindPsSelection(); updatePsDelBtn();
     cont.querySelectorAll('.lead-table th[data-k]').forEach((th) => th.addEventListener('click', () => {
@@ -4592,6 +4604,9 @@ const stillsPool = projects
     const btn = $('ps-del-sel'); if (!btn) return;
     btn.hidden = psSelected.size === 0;
     btn.textContent = '🗑 Borrar seleccionados (' + psSelected.size + ')';
+    const spamBtn = $('ps-mark-spam'); if (!spamBtn) return;
+    spamBtn.hidden = psSelected.size === 0;
+    spamBtn.textContent = '🚫 Marcar como spam (' + psSelected.size + ')';
   }
   function bindPsSelection(){
     document.querySelectorAll('.ps-row-chk').forEach((cb) => cb.addEventListener('change', () => {
@@ -4605,6 +4620,16 @@ const stillsPool = projects
       updatePsDelBtn();
     });
   }
+  $('ps-mark-spam') && $('ps-mark-spam').addEventListener('click', async () => {
+    const ids = [...psSelected]; if (!ids.length) return;
+    if (!confirm('¿Marcar ' + ids.length + ' persona' + (ids.length === 1 ? '' : 's') + ' como spam? Se sacan de todas las vistas (se pueden ver de nuevo filtrando por etapa 🚫 Spam) — no se borran.')) return;
+    const { error } = await supabase.from('leads').update({ status: 'spam' }).in('id', ids);
+    if (error) { alert('No se pudo marcar: ' + error.message); return; }
+    ids.forEach((id) => { const l = leadById(id); if (l) l.status = 'spam'; });
+    psSelected.clear();
+    renderLeads();
+    toast('🚫 Marcado' + (ids.length === 1 ? '' : 's') + ' como spam');
+  });
   $('ps-del-sel') && $('ps-del-sel').addEventListener('click', async () => {
     const ids = [...psSelected]; if (!ids.length) return;
     const won = ids.map((id) => leadById(id)).filter((l) => l && stageOf(l.status) === 'ganado');
@@ -6074,7 +6099,8 @@ const stillsPool = projects
   }
 
   /* tabla de rendimiento: canal/página → sesiones, leads y % de conversión */
-  function perfTable(el, list){
+  function perfTable(el, list, opts){
+    const clickable = opts && opts.clickable;
     const withRate = list.map((r) => ({ ...r, rate: r.sessions ? (r.leads / r.sessions * 100) : 0 }))
       .sort((a, b) => (b.leads - a.leads) || (b.sessions - a.sessions));
     const maxRate = Math.max(1, ...withRate.map((r) => r.rate));
@@ -6082,10 +6108,17 @@ const stillsPool = projects
       '<tr>' +
         '<td>' + (r.badge ? '<span class="badge b-' + esc(r.key) + '">' + esc(r.label) + '</span>' : '<span title="' + esc(r.label) + '">' + esc(r.label) + '</span>') + '</td>' +
         '<td class="num">' + r.sessions + '</td>' +
-        '<td class="num"><span class="lead-n' + (r.leads ? '' : ' zero') + '">' + r.leads + '</span></td>' +
+        '<td class="num">' + (clickable && r.leads
+          ? '<span class="lead-n perf-lead-click" data-ch="' + esc(r.key) + '" title="Ver estos leads en Personas" style="cursor:pointer;text-decoration:underline dotted">' + r.leads + '</span>'
+          : '<span class="lead-n' + (r.leads ? '' : ' zero') + '">' + r.leads + '</span>') + '</td>' +
         '<td class="num"><span class="rate-cell"><span class="rate-bar"><i style="width:' + Math.round((r.rate / maxRate) * 100) + '%"></i></span><span class="rate-num">' + (r.sessions ? r.rate.toFixed(1) + '%' : '—') + '</span></span></td>' +
       '</tr>'
     ).join('') || '<tr><td colspan="4" class="muted-note" style="padding:14px">Sin datos todavía.</td></tr>';
+    if (clickable) el.querySelectorAll('.perf-lead-click').forEach((sp) => sp.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      channelFilter = sp.dataset.ch; psStage = 'all';
+      gotoTab('leads'); renderLeads();
+    }));
   }
 
   /* ---------- Funnel de ventas: conversión + tiempo entre etapas ---------- */
@@ -6214,7 +6247,7 @@ const stillsPool = projects
     periodLeads.forEach((l) => { const k = l.channel || 'direct'; chLeads.set(k, (chLeads.get(k) || 0) + 1); });
     const chKeys = new Set([...chSessions.keys(), ...chLeads.keys()]);
     const channelPerf = [...chKeys].map((k) => ({ key: k, label: k, badge: true, sessions: chSessions.get(k) || 0, leads: chLeads.get(k) || 0 }));
-    perfTable($('perf-channel'), channelPerf);
+    perfTable($('perf-channel'), channelPerf, { clickable: true });
 
     /* rendimiento por PÁGINA DE ENTRADA */
     const lpSessions = new Map();
