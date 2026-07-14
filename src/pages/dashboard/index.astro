@@ -957,7 +957,43 @@ const stillsPool = projects
   .ab-res .cell{background:var(--navy-900);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
   .ab-res .cell .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted-2)}
   .ab-res .cell .v{font-family:'Space Grotesk';font-weight:700;font-size:18px;margin-top:3px}
-  .ab-actions{display:flex;gap:7px;flex-wrap:wrap}
+  .ab-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  /* --- A/B rediseño: tarjeta con las dos variantes lado a lado + barra de veredicto --- */
+  .ab-card .top .status-chip{font-size:10px;font-weight:700;border:1px solid;border-radius:20px;padding:2px 9px;margin-left:8px;white-space:nowrap}
+  .ab-card .subline{font-size:12px;color:var(--muted-2);margin-top:3px}
+  .ab-vs{display:grid;grid-template-columns:1fr 44px 1fr;gap:10px;margin:14px 0;align-items:stretch}
+  .ab-var{border:1px solid var(--line);border-radius:12px;padding:11px 14px;background:var(--navy-900);display:flex;flex-direction:column}
+  .ab-var.win{border-color:rgba(126,217,87,.5);box-shadow:inset 0 0 0 1px rgba(126,217,87,.18)}
+  .ab-var .k{font-size:9.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  .ab-var .txt{font-size:12px;color:var(--muted);margin-top:5px;font-style:italic;line-height:1.45;word-break:break-word}
+  .ab-var .nums{display:flex;gap:16px;margin-top:auto;padding-top:10px}
+  .ab-var .nums div b{font-family:'Space Grotesk';font-size:16px;display:block;line-height:1.2}
+  .ab-var .nums div span{font-size:9px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em}
+  .ab-vsmid{display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:800;color:var(--muted-2);font-size:13px}
+  .verdictbar{border-radius:12px;padding:12px 15px;font-size:12.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}
+  .verdictbar.wait{background:rgba(240,192,96,.09);border:1px solid rgba(240,192,96,.35)}
+  .verdictbar.win{background:rgba(126,217,87,.09);border:1px solid rgba(126,217,87,.4)}
+  .verdictbar .conf{font-family:'Space Grotesk';font-weight:800;font-size:17px;flex:none}
+  .verdictbar .vtxt{flex:1;min-width:180px;line-height:1.45}
+  .verdictbar .vtxt b{color:var(--text)}
+  .verdictbar .bar{flex:1;min-width:120px;max-width:220px;height:7px;border-radius:10px;background:rgba(255,255,255,.08);overflow:hidden}
+  :root[data-theme="light"] .verdictbar .bar{background:rgba(20,25,35,.08)}
+  .verdictbar .bar i{display:block;height:100%;border-radius:10px}
+  /* filas colapsadas de los tests secundarios */
+  .ab-crow{border:1px solid var(--line);border-radius:12px;background:var(--navy-800);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;cursor:pointer;width:100%;text-align:left;color:inherit;font-family:inherit}
+  .ab-crow:hover{border-color:var(--line-strong)}
+  .ab-crow.done{opacity:.72;cursor:pointer}
+  .ab-crow .cdot{font-size:10px;font-weight:700;border:1px solid;border-radius:20px;padding:1.5px 8px;white-space:nowrap}
+  .ab-crow .cname{font-weight:700}
+  .ab-crow .cpath{color:var(--muted-2);font-size:11px}
+  .ab-crow .cconf{margin-left:auto;font-family:'Space Grotesk';font-weight:800}
+  .ab-crow .cstate{font-size:11px;font-weight:600}
+  .ab-crow .ccar{color:var(--muted-2);font-size:13px}
+  /* candidatos agrupados por sección en el wizard */
+  .ab-candgrp{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:16px 0 8px}
+  .ab-candgrp:first-child{margin-top:6px}
+  .ab-candgrp .cnt{color:var(--acid);margin-left:6px}
+  @media(max-width:720px){.ab-vs{grid-template-columns:1fr;gap:8px}.ab-vsmid{display:none}}
   /* --- tab Servicios: catálogo de precios --- */
   .sv-phase{font-family:'Space Grotesk';font-weight:700;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--acid);margin:18px 0 8px}
   .sv-phase:first-child{margin-top:0}
@@ -6364,6 +6400,7 @@ const stillsPool = projects
      CTAs/imágenes editables, guarda los cambios en ab_tests y el sitio hace el
      resto: split por visitante, exposiciones en ab_hits y leads taggeados (.ab). */
   let abBuilt = false, abTests = [], abCands = [], abEditing = null;
+  let abExpandedId = null, abExp = {}, abLeadsCache = [];
   function abInit(){
     if (!abBuilt){
       abBuilt = true;
@@ -6810,50 +6847,180 @@ const stillsPool = projects
     // exposiciones únicas por test/bucket
     const exp = {};
     hits.filter((h) => !/^claude-/.test(h.session_id || '')).forEach((h) => { const k = h.test_id + ':' + h.bucket; (exp[k] = exp[k] || new Set()).add(h.session_id || Math.random()); });
+    abExp = exp; abLeadsCache = abLeads;
     renderAbList(exp, abLeads);
+  }
+  /* ---- significancia estadística: z-test de dos proporciones ----
+     Φ(z) = CDF normal estándar vía la aproximación racional de Zelen & Severo
+     (Abramowitz-Stegun 7.1.26). La confianza a dos colas = 1 - 2·(1-Φ(|z|)). */
+  function abPhi(z){
+    const t = 1 / (1 + 0.2316419 * Math.abs(z));
+    const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+    let p = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+    p = 1 - p;
+    return z >= 0 ? p : 1 - p;
+  }
+  function abStats(ea, la, eb, lb){
+    const ca = ea ? la / ea : 0, cb = eb ? lb / eb : 0;
+    let z = 0, conf = 0;
+    if (ea > 0 && eb > 0){
+      const p = (la + lb) / (ea + eb);
+      const se = Math.sqrt(p * (1 - p) * (1 / ea + 1 / eb));
+      if (se > 0){ z = (cb - ca) / se; conf = 1 - 2 * (1 - abPhi(Math.abs(z))); }
+    }
+    conf = Math.max(0, Math.min(1, conf));
+    return { ca, cb, z, conf };
+  }
+  // sesiones necesarias POR VARIANTE para detectar el uplift observado (o ~30% relativo por defecto)
+  function abNeededPerVar(ca, cb){
+    const base = ca > 0 ? ca : 0.02;
+    let delta = Math.abs(cb - ca);
+    if (delta < 1e-9) delta = base * 0.30;
+    return Math.ceil(16 * base * (1 - base) / (delta * delta));
+  }
+  // texto corto del cambio para el lado A/B de la tarjeta
+  function abVariantTxt(changes, side){
+    if (!changes || !changes.length) return side === 'a' ? 'Página original' : 'Sin cambios';
+    const c = changes[0];
+    const raw = side === 'a' ? c.from : c.to;
+    if (c.type === 'src' || c.type === 'attr'){ const f = String(raw || '').split('/').pop(); return (side === 'a' ? 'Imagen/media original' : 'Nuevo: ') + (side === 'b' ? (f || raw) : ''); }
+    let s = String(raw || '').trim();
+    if (changes.length > 1) s += ' (+' + (changes.length - 1) + ' cambio más)';
+    return '"' + s.slice(0, 160) + (s.length > 160 ? '…' : '') + '"';
+  }
+  function abEffStatus(t){
+    if (t.status === 'running' && t.end_at && new Date(t.end_at) < new Date()) return 'stopped';
+    return t.status;
+  }
+  function abDayOf(t){
+    if (!t.start_at) return null;
+    return Math.max(1, Math.floor((Date.now() - new Date(t.start_at)) / 864e5) + 1);
   }
   function renderAbList(exp, abLeads){
     const box = $('ab-list');
     if (!abTests.length){ box.innerHTML = '<p class="muted-note">Sin tests todavía. Creá el primero con ➕ — probá un H1 distinto en una página de servicio.</p>'; return; }
-    const badge = { draft: ['Borrador', '#8ab4ff'], running: ['🟢 Corriendo', '#7ed957'], done_a: ['Ganó A (original)', '#8a94a8'], done_b: ['🏆 Ganó B (activa)', '#ddf98f'] };
-    box.innerHTML = abTests.map((t) => {
+    // color por estado (no hay vars --won/--warn en este dashboard, se usan los hex del resto del tab)
+    const chip = { draft: ['Borrador', '#8ab4ff'], running: ['● Corriendo', '#7ed957'], stopped: ['⏹ Terminado (auto-stop)', '#f0c060'], done_a: ['Ganó A (original)', '#8a94a8'], done_b: ['✓ B desplegado', '#ddf98f'] };
+    // métricas por test
+    const rows = abTests.map((t) => {
       const ea = (exp[t.id + ':a'] || new Set()).size, eb = (exp[t.id + ':b'] || new Set()).size;
       const la = abLeads.filter((l) => String(l.ab || '').includes(t.id + ':a')).length;
       const lb = abLeads.filter((l) => String(l.ab || '').includes(t.id + ':b')).length;
-      const ca = ea ? la / ea * 100 : 0, cb = eb ? lb / eb * 100 : 0;
-      const up = ca > 0 ? ((cb - ca) / ca * 100) : (cb > 0 ? 100 : 0);
-      const b = badge[t.status] || badge.draft;
-      const dates = (t.start_at ? new Date(t.start_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '—') + ' → ' + (t.end_at ? new Date(t.end_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '—');
-      const small = (ea + eb) < 100 ? '<p class="muted-note" style="margin:0 0 8px">⚠️ Muestra chica todavía (' + (ea + eb) + ' visitas) — esperá ~100+ por variante antes de decidir.</p>' : '';
-      return '<div class="ab-card" data-id="' + t.id + '">' +
-        '<div class="top"><div><span class="nm">' + esc(t.name || '(sin nombre)') + '</span> <span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + ';margin-left:8px">' + b[0] + '</span>' +
-        '<div class="pathln">' + esc(t.url_path) + ' · B al ' + (t.split_pct || 50) + '% · ' + dates + ' · ' + (t.changes || []).length + ' cambio(s)</div></div></div>' +
-        small +
-        '<div class="ab-res">' +
-          '<div class="cell"><div class="l">Visitas A</div><div class="v">' + ea + '</div></div>' +
-          '<div class="cell"><div class="l">Visitas B</div><div class="v">' + eb + '</div></div>' +
-          '<div class="cell"><div class="l">Leads A</div><div class="v">' + la + (ea ? ' <span style="font-size:12px;color:var(--muted-2)">' + ca.toFixed(1) + '%</span>' : '') + '</div></div>' +
-          '<div class="cell"><div class="l">Leads B</div><div class="v">' + lb + (eb ? ' <span style="font-size:12px;color:var(--muted-2)">' + cb.toFixed(1) + '%</span>' : '') + '</div></div>' +
-          '<div class="cell"><div class="l">Uplift B</div><div class="v" style="color:' + (up >= 0 ? '#7ed957' : '#ff8b8b') + '">' + (up >= 0 ? '+' : '') + up.toFixed(0) + '%</div></div>' +
-        '</div>' +
-        '<div class="ab-actions">' +
-          (['running', 'done_b'].includes(t.status)
-            ? '<button class="btn btn-ghost small" data-act="cmp" type="button" title="Original y variante LADO A LADO — para ver que los cambios funcionan de verdad">🆚 Comparar A | B</button>' +
-              '<a class="btn btn-ghost small" href="https://www.viven.ch' + esc(t.url_path) + '?vvab=' + t.id + ':b" target="_blank" rel="noopener" title="Abrir solo la variante B (sin sorteo, sin exposición)">👁 Ver B</a>'
-            : '<span class="muted-note" style="align-self:center">▶ Inicialo para previsualizar</span>') +
-          (t.status === 'draft' ? '<button class="btn btn-primary small" data-act="run" type="button">▶ Iniciar</button>' : '') +
-          (t.status === 'running' ? '<button class="btn btn-ghost small" data-act="pause" type="button">⏸ Pausar</button>' +
-            '<button class="btn btn-primary small" data-act="winb" type="button" title="La variante B pasa a servirse al 100% del tráfico">🏆 Usar B para todos</button>' +
-            '<button class="btn btn-ghost small" data-act="wina" type="button" title="Se mantiene la página original">Mantener A</button>' : '') +
-          (t.status === 'done_b' ? '<button class="btn btn-ghost small" data-act="wina" type="button" title="Volver a la original">↩ Volver a A</button>' : '') +
-          '<button class="btn btn-ghost small danger" data-act="del" type="button">🗑</button>' +
-        '</div></div>';
-    }).join('');
-    box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+      const st = abStats(ea, la, eb, lb);
+      return { t, ea, eb, la, lb, eff: abEffStatus(t), ...st };
+    });
+    const isActive = (r) => ['running', 'stopped', 'draft'].includes(r.eff);
+    // primario = test activo con más sesiones; el resto colapsa
+    const active = rows.filter(isActive);
+    if (abExpandedId == null || !rows.some((r) => String(r.t.id) === String(abExpandedId))){
+      const prim = active.slice().sort((a, b) => (b.ea + b.eb) - (a.ea + a.eb))[0] || rows[0];
+      abExpandedId = prim.t.id;
+    }
+    const expandedRow = rows.find((r) => String(r.t.id) === String(abExpandedId));
+    const collapsed = rows.filter((r) => r !== expandedRow)
+      .sort((a, b) => (isActive(b) - isActive(a)) || ((b.ea + b.eb) - (a.ea + a.eb)));
+    box.innerHTML = abFullCard(expandedRow, chip) + collapsed.map((r) => abCollapsedRow(r, chip)).join('');
+    bindAbList();
+  }
+  function abFullCard(r, chip){
+    const t = r.t, changes = t.changes || [], c = chip[r.eff] || chip.draft;
+    const bWins = r.cb > r.ca, aWins = r.ca > r.cb;
+    const confPct = Math.round(r.conf * 100);
+    const day = abDayOf(t);
+    const endTxt = t.end_at ? new Date(t.end_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : null;
+    const canDeclare = r.conf >= 0.95;
+    // barra de veredicto
+    let verdict;
+    if (canDeclare && (bWins || aWins)){
+      const winner = bWins ? 'B' : 'A', wc = bWins ? r.cb : r.ca, lc = bWins ? r.ca : r.cb;
+      const uplift = lc > 0 ? Math.round((wc - lc) / lc * 100) : 100;
+      verdict = '<div class="verdictbar win"><span class="conf" style="color:#7ed957">' + confPct + '%</span>' +
+        '<div class="vtxt"><b>Hay ganador: variante ' + winner + '.</b> Convierte ' + (wc * 100).toFixed(1) + '% vs ' + (lc * 100).toFixed(1) + '% (' + (uplift >= 0 ? '+' : '') + uplift + '%) con ' + confPct + '% de confianza. ' +
+        (bWins ? 'Podés declararlo y B queda desplegado para todos.' : 'Podés mantener A con tranquilidad.') + '</div>' +
+        '<div class="bar"><i style="width:' + Math.min(100, confPct) + '%;background:#7ed957"></i></div></div>';
+    } else {
+      const needPer = abNeededPerVar(r.ca, r.cb), needTot = needPer * 2, total = r.ea + r.eb;
+      let rate = 0;
+      if (t.start_at){ const days = Math.max(0.5, (Date.now() - new Date(t.start_at)) / 864e5); rate = total / days; }
+      const remaining = Math.max(0, needTot - total);
+      const weeks = rate > 0 ? Math.ceil(remaining / (rate * 7)) : null;
+      const eta = remaining <= 0 ? 'ya hay muestra suficiente — juntando la señal' : (weeks != null ? '~' + weeks + (weeks === 1 ? ' semana' : ' semanas') + ' al ritmo actual' : 'sin ritmo de tráfico todavía');
+      verdict = '<div class="verdictbar wait"><span class="conf" style="color:#f0c060">' + (confPct > 0 ? confPct + '%' : '—') + '</span>' +
+        '<div class="vtxt"><b>Todavía no hay nada que decidir.</b> ' + total + ' de ~' + needTot + ' sesiones necesarias para detectar una diferencia real. ' + eta + '.</div>' +
+        '<div class="bar"><i style="width:' + Math.max(3, Math.min(100, confPct)) + '%;background:#f0c060"></i></div></div>';
+    }
+    const cell = (side, txt, e2, l2, conv) =>
+      '<div class="ab-var' + (side === 'a' ? (aWins && r.eb ? ' win' : '') : (bWins ? ' win' : '')) + '">' +
+        '<div class="k">' + (side === 'a' ? 'A — Original' : 'B — Variante') + '</div>' +
+        '<div class="txt">' + esc(txt) + '</div>' +
+        '<div class="nums"><div><b>' + e2 + '</b><span>sesiones</span></div><div><b>' + l2 + '</b><span>leads</span></div><div><b>' + (e2 ? (conv * 100).toFixed(1) : '0') + '%</b><span>conv.</span></div></div></div>';
+    // sub-línea: path · split · día · auto-stop
+    const sub = esc(t.url_path) + ' · split ' + (t.split_pct || 50) + '/' + (100 - (t.split_pct || 50)) +
+      (day ? ' · día ' + day : '') + (endTxt ? ' · termina ' + endTxt + ' (auto-stop)' : '') + ' · ' + changes.length + ' cambio(s)';
+    // acciones
+    const isPreviewable = ['running', 'stopped', 'done_b'].includes(t.status);
+    let acts = '';
+    if (isPreviewable){
+      acts += '<button class="btn btn-ghost small" data-act="cmp" type="button" title="Original y variante LADO A LADO">🆚 Comparar A | B</button>' +
+        '<a class="btn btn-ghost small" href="https://www.viven.ch' + esc(t.url_path) + '?vvab=' + t.id + ':a" target="_blank" rel="noopener" title="Abrir solo la variante A">👁 Ver A</a>' +
+        '<a class="btn btn-ghost small" href="https://www.viven.ch' + esc(t.url_path) + '?vvab=' + t.id + ':b" target="_blank" rel="noopener" title="Abrir solo la variante B">👁 Ver B</a>';
+    } else {
+      acts += '<span class="muted-note" style="align-self:center">▶ Inicialo para previsualizar</span>';
+    }
+    acts += '<span style="flex:1"></span>';
+    if (t.status === 'draft') acts += '<button class="btn btn-primary small" data-act="run" type="button">▶ Iniciar</button>';
+    if (t.status === 'running' && r.eff === 'running') acts += '<button class="btn btn-ghost small" data-act="pause" type="button">⏸ Pausar</button>';
+    if (['running', 'stopped'].includes(r.eff)){
+      acts += '<button class="btn btn-ghost small" data-act="wina" type="button" title="Se mantiene la página original">Mantener A</button>';
+      const dis = canDeclare && bWins ? '' : ' disabled style="opacity:.45"';
+      const tip = canDeclare && bWins ? 'La variante B pasa a servirse al 100% del tráfico' : 'Se habilita solo cuando B gana con ≥95% de confianza — protege contra decidir por ruido' + (aWins ? ' (ahora mismo va ganando A)' : '');
+      acts += '<button class="btn btn-primary small" data-act="winb" type="button"' + dis + ' title="' + esc(tip) + '">🏆 Declarar ganador B</button>';
+    }
+    if (t.status === 'done_b') acts += '<button class="btn btn-ghost small" data-act="wina" type="button" title="Volver a la original">↩ Volver a A</button>';
+    acts += '<button class="btn btn-ghost small danger" data-act="del" type="button">🗑</button>';
+    return '<div class="ab-card" data-id="' + t.id + '">' +
+      '<div class="top"><div><span class="nm">' + esc(t.name || '(sin nombre)') + '</span>' +
+        '<span class="status-chip" style="color:' + c[1] + ';border-color:' + c[1] + '">' + c[0] + '</span>' +
+        '<div class="subline">' + sub + '</div></div></div>' +
+      '<div class="ab-vs">' + cell('a', abVariantTxt(changes, 'a'), r.ea, r.la, r.ca) +
+        '<div class="ab-vsmid">VS</div>' + cell('b', abVariantTxt(changes, 'b'), r.eb, r.lb, r.cb) + '</div>' +
+      verdict +
+      '<div class="ab-actions" style="margin-top:12px">' + acts + '</div></div>';
+  }
+  function abCollapsedRow(r, chip){
+    const t = r.t, c = chip[r.eff] || chip.draft, confPct = Math.round(r.conf * 100);
+    const day = abDayOf(t);
+    if (['done_a', 'done_b'].includes(r.eff)){
+      const closed = t.end_at ? new Date(t.end_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '';
+      const uplift = r.ca > 0 ? Math.round((r.cb - r.ca) / r.ca * 100) : 0;
+      const outcome = r.eff === 'done_b' ? 'cerró ' + closed + ' · ' + (uplift >= 0 ? '+' : '') + uplift + '% conv.' : 'cerró ' + closed + ' · se mantuvo A';
+      return '<button class="ab-crow done" data-id="' + t.id + '" type="button">' +
+        '<span class="cdot" style="color:' + c[1] + ';border-color:' + c[1] + '">' + c[0] + '</span>' +
+        '<b class="cname">' + esc(t.name || '(sin nombre)') + '</b>' +
+        '<span class="cconf" style="color:var(--muted-2);font-size:11px;font-weight:400">' + esc(outcome) + '</span><span class="ccar">▾</span></button>';
+    }
+    const stateLabel = r.conf >= 0.95 ? (r.cb > r.ca ? '🏆 listo para declarar' : '🏆 A confirmada') : r.eff === 'stopped' ? 'terminado — a decidir' : 'juntando datos…';
+    const stateColor = r.conf >= 0.95 ? '#7ed957' : r.eff === 'stopped' ? '#f0c060' : 'var(--muted-2)';
+    const confColor = r.conf >= 0.95 ? '#7ed957' : '#f0c060';
+    return '<button class="ab-crow" data-id="' + t.id + '" type="button">' +
+      '<span class="cdot" style="color:' + c[1] + ';border-color:' + c[1] + '">' + c[0].replace(/ .*/, '') + '</span>' +
+      '<b class="cname">' + esc(t.name || '(sin nombre)') + '</b>' +
+      '<span class="cpath">' + esc(t.url_path) + (day ? ' · día ' + day : '') + '</span>' +
+      '<span class="cconf" style="color:' + confColor + '">' + (confPct > 0 ? confPct + '%' : '—') + '</span>' +
+      '<span class="cstate" style="color:' + stateColor + '">' + stateLabel + '</span><span class="ccar">▾</span></button>';
+  }
+  function bindAbList(){
+    const box = $('ab-list');
+    box.querySelectorAll('.ab-crow').forEach((row) => row.addEventListener('click', () => {
+      abExpandedId = row.dataset.id; renderAbList(abExp, abLeadsCache);
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    box.querySelectorAll('.ab-card [data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+      if (btn.disabled) return;
       const id = btn.closest('.ab-card').dataset.id, act = btn.dataset.act;
       const patchMap = { run: { status: 'running', start_at: new Date().toISOString() }, pause: { status: 'draft' }, winb: { status: 'done_b', end_at: new Date().toISOString() }, wina: { status: 'done_a', end_at: new Date().toISOString() } };
       if (act === 'cmp'){ const t = abTests.find((x) => String(x.id) === String(id)); if (t) abCompare(t); return; }
-      if (act === 'del'){ if (!confirm('¿Borrar este test y sus datos?')) return; await supabase.from('ab_tests').delete().eq('id', id); abLoad(); return; }
+      if (act === 'del'){ if (!confirm('¿Borrar este test y sus datos?')) return; await supabase.from('ab_tests').delete().eq('id', id); abExpandedId = null; abLoad(); return; }
       const { error } = await supabase.from('ab_tests').update(patchMap[act]).eq('id', id);
       if (error) toast(error.message); else { toast(act === 'winb' ? '🏆 Variante B activa para el 100% del tráfico' : 'Listo'); abLoad(); }
     }));
@@ -6889,19 +7056,59 @@ const stillsPool = projects
       const plang = (path.match(/^\/(en|de|es)\//) || [])[1];
       if (plang && plang !== 'en') doc.querySelectorAll('[data-' + plang + ']').forEach((el) => { const t = el.getAttribute('data-' + plang); if (t) el.textContent = t; });
       abCands = [];
-      const push = (label, sel, idx, type, val, name) => { if (val && String(val).trim()) abCands.push({ label, sel, idx, type, name: name || null, from: String(val).trim() }); };
-      const h1 = doc.querySelector('h1'); if (h1) push('H1', 'h1', 0, 'text', h1.textContent);
+      const seen = new Set();
+      // el selector nth-of-type asegura que site.js apunte al MISMO nodo (sel + idx dentro del sel)
+      const push = (group, label, sel, idx, type, val, name) => {
+        const v = String(val || '').trim(); if (!v) return;
+        const key = sel + '#' + idx + '#' + type + '#' + (name || '');
+        if (seen.has(key)) return; seen.add(key);
+        abCands.push({ group, label, sel, idx, type, name: name || null, from: v });
+      };
+      // índice de un nodo entre todos los que matchean su selector (para {sel, idx})
+      const idxOf = (sel, el) => { const all = [...doc.querySelectorAll(sel)]; return Math.max(0, all.indexOf(el)); };
+      // ---- HERO ----
+      const h1 = doc.querySelector('h1'); if (h1) push('Hero', 'H1', 'h1', 0, 'text', h1.textContent);
       const ld = doc.querySelector('.page-hero .lead') || doc.querySelector('.hero .lead') || doc.querySelector('.lead');
-      if (ld) push('Lead', ld.closest('.page-hero') ? '.page-hero .lead' : (ld.closest('.hero') ? '.hero .lead' : '.lead'), 0, 'text', ld.textContent);
-      doc.querySelectorAll('.btn-primary').forEach((b2, i) => { if (i < 3) push('CTA ' + (i + 1), '.btn-primary', i, 'text', b2.textContent); });
-      const hb = doc.querySelector('.hero-bg[data-mp4]'); if (hb) push('Video héroe (mp4)', '.hero-bg', 0, 'attr', hb.getAttribute('data-mp4'), 'data-mp4');
-      let imgN = 0;
-      doc.querySelectorAll('main img[src], .section img[src]').forEach((im) => { const src = im.getAttribute('src') || ''; if (imgN < 3 && src && !src.startsWith('data:')){ imgN++; push('Imagen ' + imgN, 'img[src="' + src + '"]', 0, 'src', src); } });
+      if (ld){ const lsel = ld.closest('.page-hero') ? '.page-hero .lead' : (ld.closest('.hero') ? '.hero .lead' : '.lead'); push('Hero', 'Lead del hero', lsel, idxOf(lsel, ld), 'text', ld.textContent); }
+      const hb = doc.querySelector('.hero-bg[data-mp4]'); if (hb) push('Hero', 'Video del hero (mp4)', '.hero-bg', idxOf('.hero-bg', hb), 'attr', hb.getAttribute('data-mp4'), 'data-mp4');
+      // ---- SECCIONES: H2s, párrafos lead/intro de sección, títulos de cards ----
+      doc.querySelectorAll('h2').forEach((h) => { const el = h; push('Secciones', 'H2 · ' + (el.textContent || '').trim().slice(0, 40), 'h2', idxOf('h2', el), 'text', el.textContent); });
+      doc.querySelectorAll('section .lead, .section .lead, section > p.intro, .section-intro').forEach((p) => {
+        if (p.closest('.page-hero') || p.closest('.hero')) return;
+        const sel = p.classList.contains('lead') ? 'section .lead' : (p.classList.contains('intro') ? 'section > p.intro' : '.section-intro');
+        push('Secciones', 'Párrafo de sección', sel, idxOf(sel, p), 'text', p.textContent);
+      });
+      doc.querySelectorAll('h3').forEach((h) => { const el = h; push('Secciones', 'Título card · ' + (el.textContent || '').trim().slice(0, 32), 'h3', idxOf('h3', el), 'text', el.textContent); });
+      // ---- CTAs de TODA la página: botones + links de acción prominentes ----
+      const ctaSel = 'a.btn-primary, a.btn-ghost, .btn-primary, .btn-secondary, a.cta, .cta-banner a';
+      doc.querySelectorAll(ctaSel).forEach((b2) => {
+        const txt = (b2.textContent || '').trim(); if (!txt) return;
+        // selector estable por tag+clase principal
+        const tag = b2.tagName.toLowerCase();
+        const cls = b2.classList.contains('btn-primary') ? '.btn-primary' : b2.classList.contains('btn-ghost') ? '.btn-ghost' : b2.classList.contains('btn-secondary') ? '.btn-secondary' : b2.classList.contains('cta') ? '.cta' : tag;
+        const sel = cls.startsWith('.') ? cls : tag;
+        push('CTAs', 'CTA · ' + txt.slice(0, 34), sel, idxOf(sel, b2), 'text', txt);
+      });
+      // ---- IMÁGENES de secciones (swap por otra del pool) ----
+      doc.querySelectorAll('main img[src], section img[src], .section img[src]').forEach((im) => {
+        const src = im.getAttribute('src') || ''; if (!src || src.startsWith('data:')) return;
+        const sel = 'img[src="' + src + '"]';
+        push('Imágenes', 'Imagen · ' + (src.split('/').pop() || '').slice(0, 30), sel, 0, 'src', src);
+      });
       if (!abCands.length) throw new Error('No encontré elementos editables en esa página.');
-      $('ab-cands').innerHTML = abCands.map((c, i) =>
-        '<div class="ab-cand" data-i="' + i + '"><div class="k">' + esc(c.label) + '</div>' +
-        '<div class="orig">' + esc(c.from.slice(0, 220)) + '</div>' +
-        '<textarea data-i="' + i + '" placeholder="Versión B (vacío = sin cambio)"></textarea></div>').join('');
+      // render agrupado por sección — el índice global data-i se mantiene para abSave/abIdeas
+      const groups = ['Hero', 'Secciones', 'CTAs', 'Imágenes'];
+      let html = '';
+      groups.forEach((g) => {
+        const items = abCands.map((c, i) => ({ c, i })).filter((x) => x.c.group === g);
+        if (!items.length) return;
+        html += '<div class="ab-candgrp">' + esc(g) + '<span class="cnt">' + items.length + '</span></div>';
+        html += items.map(({ c, i }) =>
+          '<div class="ab-cand" data-i="' + i + '"><div class="k">' + esc(c.label) + '</div>' +
+          '<div class="orig">' + esc(c.from.slice(0, 220)) + '</div>' +
+          '<textarea data-i="' + i + '" placeholder="Versión B (vacío = sin cambio)"></textarea></div>').join('');
+      });
+      $('ab-cands').innerHTML = html;
       $('ab-cands').querySelectorAll('textarea').forEach((t2) => t2.addEventListener('input', () => { t2.closest('.ab-cand').classList.toggle('changed', !!t2.value.trim()); }));
       abEditing = { url_path: path };
       $('ab-editor').hidden = false;
@@ -6914,8 +7121,8 @@ const stillsPool = projects
     const btn = $('ab-ideas'), prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Pensando…';
     try {
       const h1 = (abCands.find((c) => c.label === 'H1') || {}).from || '';
-      const lead = (abCands.find((c) => c.label === 'Lead') || {}).from || '';
-      const ctas = abCands.filter((c) => c.label.startsWith('CTA')).map((c) => c.from);
+      const lead = (abCands.find((c) => /^Lead/i.test(c.label)) || {}).from || '';
+      const ctas = abCands.filter((c) => /^CTA/.test(c.label)).map((c) => c.from);
       const lang2 = (abEditing.url_path.match(/^\/(en|de|es)\//) || [])[1] || 'en';
       const { data, error } = await supabase.functions.invoke('ai-ab-ideas', { body: { url: abEditing.url_path, h1, lead, ctas, lang: lang2 } });
       if (error && error.context){ try { const j = await error.context.json(); throw new Error(j.error || error.message); } catch (e2) { if (e2.message) throw e2; } }
@@ -6927,9 +7134,9 @@ const stillsPool = projects
         '<button class="btn btn-ghost small" data-i="' + i + '" type="button">Usar</button></div>').join('');
       box.querySelectorAll('button[data-i]').forEach((b3) => b3.addEventListener('click', () => {
         const idea = data.ideas[+b3.dataset.i];
-        const map = { h1: 'H1', lead: 'Lead', cta: 'CTA 1' };
-        const target = map[(idea.target || '').toLowerCase()] || 'H1';
-        const ci = abCands.findIndex((c) => c.label === target);
+        const finder = { h1: (c) => c.label === 'H1', lead: (c) => /^Lead/i.test(c.label), cta: (c) => /^CTA/.test(c.label) };
+        const fn = finder[(idea.target || '').toLowerCase()] || finder.h1;
+        const ci = abCands.findIndex(fn);
         if (ci >= 0){ const ta = $('ab-cands').querySelector('textarea[data-i="' + ci + '"]'); ta.value = idea.proposal || ''; ta.dispatchEvent(new Event('input')); }
       }));
     } catch (e) { toast('Ideas IA: ' + (e.message || e)); }
