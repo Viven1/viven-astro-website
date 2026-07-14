@@ -6,7 +6,14 @@
 // navegables ‹ ›. booking-create crea el evento con Meet. Fallback: si la API no
 // responde, link de respaldo (HubSpot).
 const FN = 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1';
-const FALLBACK = 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49';
+// fix (pedido explícito 2026-07-14): el respaldo era un solo link fijo al HubSpot de Sofía
+// sin importar con quién había fallado la reserva — mismo patrón de bug que ya arreglamos
+// (mandar al cliente con la persona equivocada). Ahora cada quien tiene su propio link.
+const FALLBACK: Record<string, string> = {
+  sofia: 'https://meetings.hubspot.com/sofia-trevino?uuid=76bf013f-3825-4341-8a95-fee769f70c49',
+  sebastian: 'https://meetings.hubspot.com/viven/30-mins-meeting?uuid=aaf009a3-8284-4b8e-b64a-68b248d18b55',
+};
+const FALLBACK_DEFAULT = FALLBACK.sofia;
 interface Props { preHost?: string | null }
 const { preHost = null } = Astro.props;
 ---
@@ -192,7 +199,7 @@ const { preHost = null } = Astro.props;
     </main>
   </div>
 </div>
-<script is:inline define:vars={{ FN, FALLBACK, preHost }}>
+<script is:inline define:vars={{ FN, FALLBACK, FALLBACK_DEFAULT, preHost }}>
   const qs = new URLSearchParams(location.search);
   const lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang')
     : (navigator.language || 'en').slice(0,2) === 'de' ? 'de'
@@ -312,7 +319,9 @@ const { preHost = null } = Astro.props;
       $('bk-days').innerHTML = '';
       $('bk-slots').innerHTML = '';
       $('bk-err').hidden = false;
-      $('bk-err').innerHTML = t('fb') + '<br><br><a class="bk-btn" style="text-decoration:none;display:inline-block" href="' + FALLBACK + '">' + t('fbBtn') + '</a>';
+      // respaldo de LA PERSONA que estaba fallando (HOST), no siempre el mismo para todos
+      const fb = (HOST && FALLBACK[HOST]) || FALLBACK_DEFAULT;
+      $('bk-err').innerHTML = t('fb') + '<br><br><a class="bk-btn" style="text-decoration:none;display:inline-block" href="' + fb + '">' + t('fbBtn') + '</a>';
     }
   }
   function renderWeek(){
