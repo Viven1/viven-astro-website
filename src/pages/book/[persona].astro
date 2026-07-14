@@ -1,0 +1,19 @@
+---
+// /book/[persona] — links directos para la firma de email de cada persona
+// (/book/sofia, /book/sebastian). Abren directo la agenda de esa persona, sin
+// selector, aun con ambos visibles. Misma UI que /book/ (BookingApp), con preHost.
+import BookingApp from '../../components/BookingApp.astro';
+
+export function getStaticPaths() {
+  // book_visible vive en la DB y esto es SSG → los slugs se fijan acá a mano.
+  // Orden (pedido del dueño): Sofia SIEMPRE primero.
+  // AGREGAR una persona nueva = agregar su slug acá + rebuild del sitio.
+  return [
+    { params: { persona: 'sofia' } },
+    { params: { persona: 'sebastian' } },
+  ];
+}
+
+const { persona } = Astro.params;
+---
+<BookingApp preHost={persona} />
