@@ -1633,6 +1633,7 @@ const newsCases = [
     </div>
     <div class="home-kpis hm-kpis">
       <div class="hk"><div class="hk-l">Pipeline abierto</div><div class="hk-n" id="hm-pipe">–</div><div class="hk-t muted" id="hm-pipe-t"></div></div>
+      <div class="hk"><div class="hk-l">Enviados, esperando</div><div class="hk-n" id="hm-sent">–</div><div class="hk-t muted" id="hm-sent-t"></div></div>
       <div class="hk"><div class="hk-l">Ponderado</div><div class="hk-n" id="hm-weight">–</div><div class="hk-t muted">valor × probabilidad</div></div>
       <div class="hk"><div class="hk-l">Ganado (30 días)</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div></div>
       <div class="hk"><div class="hk-l">Win rate (90 días)</div><div class="hk-n" id="hm-wr">–</div><div class="hk-t muted" id="hm-wr-t">ganado / decidido</div></div>
@@ -4323,6 +4324,14 @@ const newsCases = [
     const k = hmDealKpis();
     $('hm-pipe').textContent = fmtChf(k.openVal);
     $('hm-pipe-t').textContent = k.openN + (k.openN === 1 ? ' deal abierto' : ' deals abiertos');
+    // Enviados, esperando respuesta (pedido explícito: "no veo los enviado y por ende los
+    // abiertos" en el Home) — mismo criterio que el KPI ya existente en Ofertas+Propuestas
+    const offSentH = (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent');
+    const propSentH = (ppList || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent');
+    const sentCount = offSentH.length + propSentH.length;
+    const sentVal = offSentH.reduce((a, o) => a + offerNet(o), 0) + propSentH.reduce((a, p) => a + propVal(p), 0);
+    $('hm-sent').textContent = fmtChf(sentVal);
+    $('hm-sent-t').textContent = sentCount ? sentCount + (sentCount === 1 ? ' enviado' : ' enviados') : 'nada pendiente';
     $('hm-weight').textContent = fmtChf(Math.round(k.weighted));
     $('hm-won30').textContent = fmtChf(k.won30Val);
     setDelta('hm-won30-d', k.won30Val, k.prev30Val);
