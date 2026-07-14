@@ -1,9 +1,25 @@
 ---
 // pool de fotos reales (stills de rodajes) para elegir los separadores de una propuesta
 import projects from '../../data/projects.json';
+import videos from '../../data/videos.json';
 const stillsPool = projects
   .filter((p) => p.lang === 'en' && Array.isArray(p.stills) && p.stills.length)
   .map((p) => ({ client: p.client || p.headline || 'Project', stills: p.stills }));
+
+// catálogo de videos (Vimeo) para las tarjetas de video del newsletter
+const newsVideos = videos
+  .filter((v) => v && v.id && v.thumb && (v.access ? v.access === 'public' : true))
+  .map((v) => ({ id: String(v.id), title: v.title || v.name || v.client || 'Video', thumb: v.thumb, client: v.client || '' }));
+
+// case studies para las cards de case study del newsletter (páginas ya publicadas)
+const newsCases = [
+  { slug: 'siemens', title: 'Siemens — Employer Branding', url: 'https://www.viven.ch/en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding',
+    thumb: '/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg' },
+  { slug: 'meteomatics', title: 'Meteomatics — Video Solutions', url: 'https://www.viven.ch/en/case-study-meteomatics-simplifying-complexity-with-viven-ags-video-solutions',
+    thumb: '/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg' },
+  { slug: 'sv-group', title: 'SV Group — IT & Hospitality', url: 'https://www.viven.ch/en/case-study-sv-group-bringing-it-operations-and-hospitality-together',
+    thumb: '/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg' },
+];
 ---
 <!DOCTYPE html>
 <html lang="es">
@@ -742,6 +758,70 @@ const stillsPool = projects
   .gads-table{width:100%;border-collapse:collapse;font-size:13px;min-width:460px}
   .gads-table th,.gads-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
   .gads-table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+
+  /* ============ rediseño tab NEWSLETTER (scoped a #tab-news — nunca inputs pelados) ============ */
+  #tab-news .nw-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+  @media(max-width:900px){#tab-news .nw-grid{grid-template-columns:1fr}}
+  #tab-news .nw-sec-h{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+  #tab-news .nw-sec-h:first-child{margin-top:0}
+  /* campos de formulario — dedicados, con clase reconocible */
+  #tab-news .nw-inp{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font:14px/1.5 inherit;padding:10px 12px}
+  #tab-news textarea.nw-inp{min-height:120px;resize:vertical}
+  #tab-news select.nw-sel{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:100px;color:var(--text);font:600 12.5px inherit;padding:8px 13px;cursor:pointer}
+  #tab-news .nw-inp:focus,#tab-news .nw-sel:focus{outline:none;border-color:var(--acid)}
+  #tab-news .nw-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  /* bloques de contenido — cards compactas en el editor */
+  #tab-news .nw-block{border:1.5px solid rgba(221,249,143,.4);border-radius:12px;background:var(--navy-900);padding:10px 13px;margin:8px 0;position:relative}
+  #tab-news .nw-block .nw-bh{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;color:var(--acid);margin-bottom:8px}
+  #tab-news .nw-block .nw-bctl{margin-left:auto;display:flex;gap:4px}
+  #tab-news .nw-block .nw-bctl button{background:none;border:1px solid var(--line-strong);border-radius:7px;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;padding:3px 7px}
+  #tab-news .nw-block .nw-bctl button:hover{border-color:var(--acid);color:var(--acid)}
+  #tab-news .nw-block .nw-bctl button:disabled{opacity:.3;cursor:default}
+  #tab-news .nw-textblock{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);margin:8px 0}
+  #tab-news .nw-textblock textarea{width:100%;background:transparent;border:0;color:var(--text);font:13.5px/1.6 inherit;padding:11px 13px;resize:vertical;min-height:70px}
+  #tab-news .nw-textblock textarea:focus{outline:none}
+  #tab-news .nw-addrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  #tab-news .nw-addbtn{border:1px dashed var(--line-strong);border-radius:100px;padding:6px 12px;font-size:11.5px;color:var(--muted);background:transparent;cursor:pointer}
+  #tab-news .nw-addbtn:hover{border-color:var(--acid);color:var(--acid)}
+  /* mini campo dentro de un bloque */
+  #tab-news .nw-bfield{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+  #tab-news .nw-bfield label{font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em}
+  #tab-news .nw-thumbrow{display:flex;gap:9px;align-items:center;margin-top:6px}
+  #tab-news .nw-thumb{width:96px;aspect-ratio:16/9;border-radius:8px;background:#16233a center/cover no-repeat;display:grid;place-items:center;font-size:15px;color:#fff;flex:none}
+  /* send box acid */
+  #tab-news .nw-sendbox{border:1px solid rgba(221,249,143,.4);border-radius:13px;background:rgba(221,249,143,.06);padding:14px 16px;margin-top:12px}
+  #tab-news .nw-sendbox .t{font-weight:700;font-size:13.5px}
+  #tab-news .nw-sendbox .m{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
+  #tab-news .nw-sendbox .m b{color:var(--text)}
+  #tab-news .nw-sendbox .m .cap-over{color:var(--lost);font-weight:700}
+  #tab-news .nw-bar{height:8px;border-radius:10px;background:rgba(255,255,255,.09);overflow:hidden;margin-top:10px}
+  #tab-news .nw-bar i{display:block;height:100%;width:0;background:var(--acid);border-radius:10px;transition:width .3s}
+  #tab-news .nw-bar-t{font-size:10.5px;color:var(--muted-2);margin-top:5px}
+  /* KPI mini row */
+  #tab-news .kmini{display:flex;gap:9px;margin-bottom:14px}
+  #tab-news .kmini .k{flex:1;border:1px solid var(--line);border-radius:11px;background:var(--navy-900);padding:10px 12px}
+  #tab-news .kmini .k .n{font-family:'Space Grotesk';font-weight:700;font-size:18px;color:var(--acid)}
+  #tab-news .kmini .k .l{font-size:9px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  /* lista de campañas */
+  #tab-news .nw-sr{display:flex;align-items:flex-start;gap:9px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  #tab-news .nw-sr:last-child{border-bottom:0}
+  #tab-news .nw-sr .tt{font-weight:600;color:var(--text)}
+  #tab-news .nw-sr .sub{font-size:10.5px;color:var(--muted-2);margin-top:2px}
+  #tab-news .nw-sr .st2{margin-left:auto;font-size:10.5px;text-align:right;white-space:nowrap}
+  #tab-news .nw-pill{font-size:9.5px;font-weight:700;border-radius:20px;padding:2px 8px;display:inline-block}
+  #tab-news .nw-pill.ok{background:rgba(126,217,87,.15);color:var(--won)}
+  #tab-news .nw-pill.warn{background:rgba(240,192,96,.15);color:var(--warn)}
+  #tab-news .nw-sr.clickable{cursor:pointer}
+  #tab-news .nw-sr.clickable:hover{background:color-mix(in srgb,var(--acid) 6%,transparent)}
+  /* thumbnails picker (video/case/still) dentro del overlay */
+  #tab-news .nw-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-height:360px;overflow-y:auto;margin-top:8px}
+  .nw-pick-btn{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--navy-900);cursor:pointer;padding:0;text-align:left}
+  .nw-pick-btn:hover{border-color:var(--acid)}
+  .nw-pick-btn img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+  .nw-pick-btn .cap{font-size:10.5px;color:var(--muted);padding:5px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* input dentro de overlays del newsletter (fuera de #tab-news, no pueden usar .nw-inp scoped) */
+  .nw-ov-inp{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px}
+  .nw-ov-inp:focus{outline:none;border-color:var(--acid)}
 
   /* ---- rediseño tab Google Ads: veredicto, settings, pacing, search terms ---- */
   .warnbox{background:rgba(255,210,127,.08);border:1px solid rgba(255,210,127,.35);border-radius:12px;padding:12px 16px;font-size:13px;color:#ffd27f;margin-bottom:14px}
@@ -1927,32 +2007,80 @@ const stillsPool = projects
   <div id="tab-news" hidden>
     <div class="panel">
       <h2>📰 Newsletter</h2>
-      <p class="muted-note" style="margin:6px 0 12px">Envíos segmentados vía Resend. Se excluyen solos: dados de baja, spam/descartados y emails de test. Cada mail sale con link de baja de un click.</p>
-      <div class="pp-grid" style="grid-template-columns:2fr 1fr 1fr;align-items:end;gap:10px">
-        <div class="bf"><label>Asunto</label><input id="nw-subject" placeholder="p. ej. Was kostet ein Imagefilm 2026?" /></div>
-        <div class="bf"><label>Segmento</label><select id="nw-stage"><option value="all">Todos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select></div>
-        <div class="bf"><label>Idioma</label><select id="nw-lang"><option value="all">Todos</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></div>
+      <p class="muted-note" style="margin:6px 0 14px">Envíos segmentados vía Resend (API batch + reintentos + retomable sin duplicar). Se excluyen solos: dados de baja, spam/descartados y emails de test. Cada mail sale con link de baja de un click y con los links taggeados <code>utm_campaign=nl-{'{id}'}</code> para la atribución de ventas.</p>
+
+      <div class="nw-grid">
+        <!-- ===== columna izquierda: redactar + destinatarios + envío ===== -->
+        <div class="nw-lft">
+          <div class="nw-sec-h">Asunto</div>
+          <input id="nw-subject" class="nw-inp" placeholder="p. ej. Was kostet ein Imagefilm 2026?" />
+
+          <div class="nw-sec-h">Redactar <span class="muted-note" style="font-weight:400;text-transform:none;letter-spacing:0">— texto + bloques listos de tu propio material</span></div>
+          <div id="nw-editor"></div>
+          <!-- backward-compat: el cuerpo en texto plano sigue existiendo (IA/preview/legacy) -->
+          <textarea id="nw-body" hidden></textarea>
+          <div class="nw-addrow">
+            <button class="nw-addbtn" id="nw-add-text" type="button">➕ ¶ texto</button>
+            <button class="nw-addbtn" id="nw-add-video" type="button">➕ 🎬 video</button>
+            <button class="nw-addbtn" id="nw-add-still" type="button">➕ 🖼 still</button>
+            <button class="nw-addbtn" id="nw-add-cta" type="button">➕ 🔘 CTA</button>
+            <button class="nw-addbtn" id="nw-add-case" type="button">➕ 📋 case</button>
+          </div>
+          <div class="nw-row" style="margin-top:12px">
+            <button class="btn btn-ghost small" id="nw-ai" type="button">✨ Generar con IA</button>
+            <button class="btn btn-ghost small" id="nw-blog" type="button">📰 Usar último artículo</button>
+            <span style="flex:1"></span>
+            <button class="btn btn-ghost small" id="nw-preview" type="button">👁 Preview HTML</button>
+          </div>
+          <div class="nw-bfield" style="margin-top:10px">
+            <label style="font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em">Notas para la IA (opcional)</label>
+            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. mencionar el case study de Meteomatics, tono relajado" />
+          </div>
+
+          <div class="nw-sec-h">Destinatarios</div>
+          <div class="nw-row">
+            <select id="nw-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select>
+            <select id="nw-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
+            <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver / editar lista</button>
+          </div>
+          <div class="nw-row">
+            <select id="nw-mode" class="nw-sel"><option value="segment">Todo el segmento</option><option value="one">Una persona (email directo)</option></select>
+            <input id="nw-one-email" class="nw-inp" type="email" placeholder="nombre@empresa.com" style="flex:1;min-width:180px" hidden />
+          </div>
+
+          <div class="nw-sec-h">Programar</div>
+          <div class="nw-row">
+            <select id="nw-sched-mode" class="nw-sel"><option value="now">Enviar ahora</option><option value="at">Programar fecha/hora</option></select>
+            <input id="nw-sched-at" class="nw-inp" type="datetime-local" style="flex:1;min-width:200px" hidden />
+          </div>
+          <p class="muted-note" id="nw-sched-note" style="margin:2px 0 0;font-size:11.5px">El envío programado queda listo pero el despachador automático está apagado (política del proyecto) — hasta activarlo, mandá con «Enviar ahora».</p>
+
+          <!-- ===== send box ===== -->
+          <div class="nw-sendbox">
+            <div class="t" id="nw-send-title">📤 Preparando…</div>
+            <div class="m" id="nw-send-info"></div>
+            <div class="nw-bar" id="nw-bar" hidden><i id="nw-bar-fill"></i></div>
+            <div class="nw-bar-t" id="nw-bar-t" hidden></div>
+            <div class="nw-row" style="margin-top:12px;margin-bottom:0">
+              <button class="btn btn-ghost small" id="nw-test" type="button">📧 Probar en mi casilla</button>
+              <span style="flex:1"></span>
+              <button class="btn btn-primary small" id="nw-send" type="button">📤 Enviar ahora</button>
+            </div>
+          </div>
+          <p class="muted-note" id="nw-note" style="margin-top:8px"></p>
+        </div>
+
+        <!-- ===== columna derecha: KPIs + campañas ===== -->
+        <div class="nw-rgt">
+          <div class="kmini" id="nw-kmini">
+            <div class="k"><div class="n" id="nw-kmini-subs">—</div><div class="l">Suscriptos</div></div>
+            <div class="k"><div class="n" id="nw-kmini-open">—</div><div class="l">Apertura últ. envío</div></div>
+            <div class="k"><div class="n" id="nw-kmini-unsub">—</div><div class="l">Bajas</div></div>
+          </div>
+          <div class="nw-sec-h">Envíos anteriores <span class="count" id="nw-listcount" style="margin-left:auto"></span></div>
+          <div id="nw-list"><p class="muted-note">Sin campañas todavía.</p></div>
+        </div>
       </div>
-      <div class="bf"><label>Contenido <span class="muted-note" style="font-weight:400">(texto plano — párrafos con línea en blanco; los links se vuelven clickeables)</span></label>
-        <textarea id="nw-body" rows="10" style="width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:12px;resize:vertical"></textarea></div>
-      <div class="bf"><label>Notas para la IA <span class="muted-note" style="font-weight:400">(opcional — ideas, links, tono; el Asunto de arriba hace de título/tema)</span></label>
-        <input id="nw-ai-notes" placeholder="p. ej. mencionar el nuevo case study de Meteomatics, tono relajado" /></div>
-      <div class="pp-grid" style="grid-template-columns:1fr 1fr;align-items:end;gap:10px;margin-top:2px">
-        <div class="bf"><label>Enviar a</label><select id="nw-mode"><option value="segment">Todo el segmento (según filtros de arriba)</option><option value="one">Una persona (email directo)</option></select></div>
-        <div class="bf" id="nw-one-wrap" hidden><label>Email del destinatario</label><input id="nw-one-email" type="email" placeholder="nombre@empresa.com" /></div>
-      </div>
-      <div class="ab-urlrow" style="margin-top:10px">
-        <button class="btn btn-ghost small" id="nw-ai" type="button">✨ Generar con IA</button>
-        <button class="btn btn-ghost small" id="nw-blog" type="button">📰 Usar último artículo</button>
-        <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver destinatarios</button>
-        <button class="btn btn-ghost small" id="nw-test" type="button">✉️ Test a mi email</button>
-        <button class="btn btn-primary small" id="nw-send" type="button">🚀 Enviar</button>
-      </div>
-      <p class="muted-note" id="nw-note" style="margin-top:8px"></p>
-    </div>
-    <div class="panel" style="margin-top:14px">
-      <h2>Campañas <span class="count" id="nw-listcount"></span></h2>
-      <div id="nw-list"><p class="muted-note">Sin campañas todavía.</p></div>
     </div>
 
     <div class="panel" style="margin-top:14px">
@@ -2879,7 +3007,7 @@ const stillsPool = projects
   </div>
 </div>
 
-<script is:inline define:vars={{ stillsPool }}>window.STILLS_POOL = stillsPool;</script>
+<script is:inline define:vars={{ stillsPool, newsVideos, newsCases }}>window.STILLS_POOL = stillsPool; window.NEWS_VIDEOS = newsVideos; window.NEWS_CASES = newsCases;</script>
 <script>
   import { createClient } from '@supabase/supabase-js';
 
@@ -6761,13 +6889,14 @@ const stillsPool = projects
       });
 
       // Newsletter
-      $('nw-count') && $('nw-count').addEventListener('click', nwShowRecipients);
+      $('nw-count') && $('nw-count').addEventListener('click', async () => { await nwShowRecipients(); nwUpdateSendPanel(); });
       $('nw-blog') && $('nw-blog').addEventListener('click', async () => {
         const { data } = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
         const b = (data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
         $('nw-subject').value = b.title; if (b.lang) $('nw-lang').value = b.lang;
-        $('nw-body').value = (b.lead || '') + '\n\n' + ((b.lang === 'de' ? 'Weiterlesen: ' : b.lang === 'es' ? 'Leé el artículo completo: ' : 'Read the full article: ') + (b.published_url || 'https://www.viven.ch/blog/'));
-        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
+        const txt = (b.lead || '') + '\n\n' + ((b.lang === 'de' ? 'Weiterlesen: ' : b.lang === 'es' ? 'Leé el artículo completo: ' : 'Read the full article: ') + (b.published_url || 'https://www.viven.ch/blog/'));
+        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; nwSetBodyText(txt); nwUpdateSendPanel();
+        $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
       });
       $('nw-test') && $('nw-test').addEventListener('click', async () => {
         const id = await nwSave(); if (!id) return;
@@ -6778,8 +6907,21 @@ const stillsPool = projects
         $('nw-note').textContent = error ? '⚠️ ' + error.message : (data && data.error) ? '⚠️ ' + data.error : '✉️ Test enviado a ' + me + ' — revisá tu inbox.';
       });
       $('nw-mode') && $('nw-mode').addEventListener('change', () => {
-        $('nw-one-wrap').hidden = $('nw-mode').value !== 'one';
+        $('nw-one-email').hidden = $('nw-mode').value !== 'one';
+        nwUpdateSendPanel();
       });
+      $('nw-stage') && $('nw-stage').addEventListener('change', nwUpdateSendPanel);
+      $('nw-lang') && $('nw-lang').addEventListener('change', nwUpdateSendPanel);
+      $('nw-sched-mode') && $('nw-sched-mode').addEventListener('change', () => {
+        $('nw-sched-at').hidden = $('nw-sched-mode').value !== 'at';
+        nwUpdateSendPanel();
+      });
+      $('nw-add-text') && $('nw-add-text').addEventListener('click', () => nwAddBlock('text'));
+      $('nw-add-video') && $('nw-add-video').addEventListener('click', () => nwAddBlock('video'));
+      $('nw-add-still') && $('nw-add-still').addEventListener('click', () => nwAddBlock('still'));
+      $('nw-add-cta') && $('nw-add-cta').addEventListener('click', () => nwAddBlock('cta'));
+      $('nw-add-case') && $('nw-add-case').addEventListener('click', () => nwAddBlock('case'));
+      $('nw-preview') && $('nw-preview').addEventListener('click', nwPreview);
       $('nw-ai') && $('nw-ai').addEventListener('click', async () => {
         const topic = $('nw-subject').value.trim();
         if (!topic){ toast('Poné un tema/título en Asunto primero'); return; }
@@ -6788,7 +6930,7 @@ const stillsPool = projects
           const lg = $('nw-lang').value === 'all' ? 'en' : $('nw-lang').value;
           const { data, error } = await supabase.functions.invoke('ai-newsletter', { body: { topic, notes: $('nw-ai-notes').value.trim(), lang: lg } });
           if (error || (data && data.error)){ toast('⚠️ ' + (error ? error.message : data.error)); return; }
-          $('nw-subject').value = data.subject; $('nw-body').value = data.body;
+          $('nw-subject').value = data.subject; nwSetBodyText(data.body);
           $('nw-note').textContent = '✨ Borrador generado (' + lg.toUpperCase() + ') — revisá y editá antes de mandar.';
         } finally { btn.disabled = false; btn.textContent = prev; }
       });
@@ -6796,14 +6938,30 @@ const stillsPool = projects
         const toOne = $('nw-mode').value === 'one';
         const oneEmail = $('nw-one-email').value.trim();
         if (toOne && (!oneEmail || !oneEmail.includes('@'))){ toast('Poné un email válido'); return; }
+        const scheduled = !toOne && $('nw-sched-mode').value === 'at';
+        if (scheduled){
+          const when = $('nw-sched-at').value;
+          if (!when){ toast('Elegí fecha y hora'); return; }
+          const id = await nwSave(); if (!id) return;
+          $('nw-note').textContent = '⏰ Campaña programada para ' + new Date(when).toLocaleString('es-CH') + '. NOTA: el despachador automático está apagado — se enviará solo cuando el dueño active el cron; hasta entonces usá «Enviar ahora».';
+          toast('⏰ Programada (despachador inactivo)'); newsInit();
+          return;
+        }
         const id = await nwSave(); if (!id) return;
         if (!confirm(toOne ? '¿Enviar directo a ' + oneEmail + '?' : '¿Enviar esta campaña al segmento seleccionado?\n\nNo se puede deshacer.')) return;
-        $('nw-note').textContent = 'Enviando…'; $('nw-send').disabled = true;
+        const sendBtn = $('nw-send'); sendBtn.disabled = true;
+        $('nw-note').textContent = 'Enviando…';
+        // barra de progreso indeterminada (el envío es server-side por batch)
+        const bar = $('nw-bar'), fill = $('nw-bar-fill'), barT = $('nw-bar-t');
+        if (bar){ bar.hidden = false; barT.hidden = false; fill.style.width = '15%'; barT.textContent = 'Enviando por tandas…'; }
+        let prog = 15; const tick = setInterval(() => { prog = Math.min(90, prog + 8); if (fill) fill.style.width = prog + '%'; }, 700);
         const { data, error } = await supabase.functions.invoke('newsletter-send', { body: toOne ? { id, test_to: oneEmail, mark_sent: true } : { id } });
-        $('nw-send').disabled = false;
-        if (error || (data && data.error)){ $('nw-note').textContent = '⚠️ ' + (error ? error.message : data.error); return; }
-        $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + data.sent + ' contactos' + (data.failed ? ' (' + data.failed + ' fallaron)' : '') + '.';
-        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-body').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; newsInit();
+        clearInterval(tick); sendBtn.disabled = false;
+        if (error || (data && data.error)){ if (fill) fill.style.width = '0'; if (barT) barT.textContent = ''; $('nw-note').textContent = '⚠️ ' + (error ? error.message : data.error); return; }
+        if (fill) fill.style.width = '100%';
+        if (barT) barT.textContent = 'Listo · ' + (data.sent || 0) + ' enviados' + (data.skipped ? ' · ' + data.skipped + ' ya estaban (no duplicados)' : '') + (data.failed ? ' · ' + data.failed + ' fallaron' : '');
+        $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + (data.sent || 0) + ' contactos' + (data.skipped ? ' (+' + data.skipped + ' ya registrados)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') + '.';
+        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; nwBlocks = []; nwRenderEditor(); newsInit();
       });
       // Automatizaciones — cada handler blindado: si algo falla, se ve en un toast (nunca "no pasa nada" en silencio)
       const auGuard = (fn) => (...args) => { try { const r = fn(...args); if (r && r.catch) r.catch((e) => toast('⚠️ ' + (e && e.message || e))); } catch (e) { toast('⚠️ ' + (e && e.message || e)); } };
@@ -10356,7 +10514,7 @@ const stillsPool = projects
     auCfgVis(); auRenderFlow(); $('au-editor').scrollIntoView({ behavior: 'smooth' });
   }
 
-  let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [];
+  let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [], nwBlocks = [];
   async function nurLoad(){
     const box = $('nur-roster-list'), n = $('nur-roster-n'), sel = $('nur-add-lead');
     if (!box) return;
@@ -10407,11 +10565,204 @@ const stillsPool = projects
     $('nur-add-lead').value = '';
     nurLoad();
   }
+  // ===== bloques de contenido (editor) =====
+  const NW_CTA_DESTS = [['calculator', 'Calculadora'], ['brief', 'Brief'], ['call', 'Agendar call'], ['custom', 'URL propia…']];
+  function nwDerivedBody(){ return nwBlocks.filter((b) => b.type === 'text').map((b) => String(b.text || '').trim()).filter(Boolean).join('\n\n'); }
+  function nwSyncBody(){ const el = $('nw-body'); if (el) el.value = nwDerivedBody(); }
+  function nwSetBodyText(text){ nwBlocks = [{ type: 'text', text: String(text || '') }]; nwRenderEditor(); }
+  function nwBlocksFromRow(n){ return (Array.isArray(n.blocks) && n.blocks.length) ? n.blocks.map((b) => ({ ...b })) : [{ type: 'text', text: n.body || '' }]; }
+  function nwCtaMode(b){ return (b.dest === 'calculator' || b.dest === 'brief' || b.dest === 'call') ? b.dest : 'custom'; }
+  function nwStillOptions(cur){
+    let out = '<option value="">— elegir still —</option>';
+    (window.STILLS_POOL || []).forEach((grp) => {
+      out += '<optgroup label="' + esc(grp.client) + '">';
+      (grp.stills || []).forEach((s) => { const p = String(s); out += '<option value="' + esc(p) + '"' + (p === cur ? ' selected' : '') + '>' + esc(p.split('/').pop()) + '</option>'; });
+      out += '</optgroup>';
+    });
+    return out;
+  }
+  function nwAddBlock(type){
+    const b = { type };
+    if (type === 'text') b.text = '';
+    else if (type === 'video'){ b.vimeo_id = ''; b.title = ''; b.thumb = ''; b.url = 'https://www.viven.ch/en/projects/'; }
+    else if (type === 'still'){ b.src = ''; b.caption = ''; }
+    else if (type === 'cta'){ b.label = 'Calculá tu presupuesto en 1 minuto →'; b.dest = 'calculator'; }
+    else if (type === 'case'){ b.slug = ''; b.title = ''; b.url = ''; b.thumb = ''; }
+    nwBlocks.push(b); nwRenderEditor();
+    if (type === 'video') nwPickVideo(nwBlocks.length - 1);
+    else if (type === 'case') nwPickCase(nwBlocks.length - 1);
+  }
+  function nwBlockCard(b, i){
+    const ctl = '<span class="nw-bctl">' +
+      '<button data-mv="up" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' title="Subir">▲</button>' +
+      '<button data-mv="dn" data-i="' + i + '"' + (i === nwBlocks.length - 1 ? ' disabled' : '') + ' title="Bajar">▼</button>' +
+      '<button data-rm="' + i + '" title="Quitar">✕</button></span>';
+    if (b.type === 'text')
+      return '<div class="nw-textblock"><div style="display:flex;align-items:center;padding:6px 10px 0"><span style="font-size:10px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.05em">¶ Texto</span>' + ctl + '</div>' +
+        '<textarea data-txt="' + i + '" placeholder="Escribí un párrafo… (una línea en blanco separa párrafos; los links se vuelven clickeables)">' + esc(b.text || '') + '</textarea></div>';
+    if (b.type === 'video'){
+      const ts = b.thumb ? 'background-image:url(' + esc(b.thumb) + ')' : '';
+      return '<div class="nw-block"><div class="nw-bh">🎬 Tarjeta de video' + ctl + '</div>' +
+        '<div class="nw-thumbrow"><div class="nw-thumb" style="' + ts + '">▶</div>' +
+        '<div style="font-size:11.5px;color:var(--muted);min-width:0"><b style="color:var(--text)">' + (b.title ? esc(b.title) : '(sin video elegido)') + '</b>' + (b.vimeo_id ? ' · Vimeo ' + esc(b.vimeo_id) : '') +
+        '<br/><button type="button" data-pickvid="' + i + '" style="background:none;border:0;color:var(--acid);cursor:pointer;padding:0;font:inherit">' + (b.vimeo_id ? 'cambiar video' : 'elegir video') + '</button></div></div>' +
+        '<div class="nw-bfield"><label>Link al hacer click (proyecto en viven.ch)</label><input class="nw-inp" data-vurl="' + i + '" value="' + esc(b.url || '') + '" placeholder="https://www.viven.ch/en/projects/…" /></div></div>';
+    }
+    if (b.type === 'still'){
+      const ts = b.src ? 'background-image:url(' + esc(b.src) + ')' : '';
+      return '<div class="nw-block"><div class="nw-bh">🖼 Still de rodaje' + ctl + '</div>' +
+        '<div class="nw-thumbrow"><div class="nw-thumb" style="' + ts + '"></div>' +
+        '<div style="flex:1;min-width:0"><select class="nw-sel" data-still="' + i + '" style="width:100%;border-radius:10px">' + nwStillOptions(b.src) + '</select></div></div>' +
+        '<div class="nw-bfield"><label>Epígrafe (opcional)</label><input class="nw-inp" data-stillcap="' + i + '" value="' + esc(b.caption || '') + '" placeholder="On set — …" /></div></div>';
+    }
+    if (b.type === 'cta'){
+      const mode = nwCtaMode(b);
+      const sel = NW_CTA_DESTS.map(([v, l]) => '<option value="' + v + '"' + (mode === v ? ' selected' : '') + '>' + l + '</option>').join('');
+      return '<div class="nw-block"><div class="nw-bh">🔘 Botón CTA' + ctl + '</div>' +
+        '<div class="nw-bfield"><label>Texto del botón</label><input class="nw-inp" data-ctalabel="' + i + '" value="' + esc(b.label || '') + '" /></div>' +
+        '<div class="nw-bfield"><label>Destino</label><select class="nw-sel" data-ctadest="' + i + '" style="width:100%;border-radius:10px">' + sel + '</select></div>' +
+        '<div class="nw-bfield" data-ctacustomwrap="' + i + '"' + (mode === 'custom' ? '' : ' hidden') + '><label>URL propia</label><input class="nw-inp" data-ctacustom="' + i + '" value="' + esc(mode === 'custom' ? (b.dest || '') : '') + '" placeholder="https://…" /></div></div>';
+    }
+    if (b.type === 'case'){
+      const ts = b.thumb ? 'background-image:url(' + esc(b.thumb) + ')' : '';
+      return '<div class="nw-block"><div class="nw-bh">📋 Card de case study' + ctl + '</div>' +
+        '<div class="nw-thumbrow"><div class="nw-thumb" style="' + ts + '"></div>' +
+        '<div style="font-size:11.5px;color:var(--muted)"><b style="color:var(--text)">' + (b.title ? esc(b.title) : '(sin case elegido)') + '</b>' +
+        '<br/><button type="button" data-pickcase="' + i + '" style="background:none;border:0;color:var(--acid);cursor:pointer;padding:0;font:inherit">' + (b.slug ? 'cambiar case' : 'elegir case') + '</button></div></div></div>';
+    }
+    return '';
+  }
+  function nwRenderEditor(){
+    const box = $('nw-editor'); if (!box) return;
+    if (!nwBlocks.length) nwBlocks = [{ type: 'text', text: '' }];
+    box.innerHTML = nwBlocks.map((b, i) => nwBlockCard(b, i)).join('');
+    box.querySelectorAll('[data-txt]').forEach((t) => t.addEventListener('input', () => { nwBlocks[+t.dataset.txt].text = t.value; nwSyncBody(); }));
+    box.querySelectorAll('[data-vurl]').forEach((t) => t.addEventListener('input', () => { nwBlocks[+t.dataset.vurl].url = t.value; }));
+    box.querySelectorAll('[data-stillcap]').forEach((t) => t.addEventListener('input', () => { nwBlocks[+t.dataset.stillcap].caption = t.value; }));
+    box.querySelectorAll('[data-still]').forEach((s) => s.addEventListener('change', () => { nwBlocks[+s.dataset.still].src = s.value; nwRenderEditor(); }));
+    box.querySelectorAll('[data-ctalabel]').forEach((t) => t.addEventListener('input', () => { nwBlocks[+t.dataset.ctalabel].label = t.value; }));
+    box.querySelectorAll('[data-ctadest]').forEach((s) => s.addEventListener('change', () => { const i = +s.dataset.ctadest; nwBlocks[i].dest = s.value === 'custom' ? '' : s.value; nwRenderEditor(); }));
+    box.querySelectorAll('[data-ctacustom]').forEach((t) => t.addEventListener('input', () => { nwBlocks[+t.dataset.ctacustom].dest = t.value; }));
+    box.querySelectorAll('[data-pickvid]').forEach((b) => b.addEventListener('click', () => nwPickVideo(+b.dataset.pickvid)));
+    box.querySelectorAll('[data-pickcase]').forEach((b) => b.addEventListener('click', () => nwPickCase(+b.dataset.pickcase)));
+    box.querySelectorAll('[data-mv]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.i, j = i + (b.dataset.mv === 'up' ? -1 : 1); if (j < 0 || j >= nwBlocks.length) return; const t = nwBlocks[i]; nwBlocks[i] = nwBlocks[j]; nwBlocks[j] = t; nwRenderEditor(); nwSyncBody(); }));
+    box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { nwBlocks.splice(+b.dataset.rm, 1); nwRenderEditor(); nwSyncBody(); }));
+    nwSyncBody();
+  }
+  function nwPicker(title, items, onPick){
+    let ov = $('nw-picker'); if (!ov){ ov = document.createElement('div'); ov.id = 'nw-picker'; document.body.appendChild(ov); }
+    ov.className = 'of-composer';
+    ov.innerHTML = '<div class="ofc-card" style="max-width:660px"><h3 style="margin:0 0 10px">' + esc(title) + '</h3>' +
+      '<div class="nw-pick">' + items.map((it, idx) => '<button class="nw-pick-btn" data-idx="' + idx + '" type="button"><img src="' + esc(it.thumb) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'" /><div class="cap">' + esc(it.label) + '</div></button>').join('') + '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost small" id="nw-picker-close" type="button">Cerrar</button></div></div>';
+    ov.querySelectorAll('[data-idx]').forEach((b) => b.addEventListener('click', () => { onPick(items[+b.dataset.idx]); ov.remove(); }));
+    ov.querySelector('#nw-picker-close').addEventListener('click', () => ov.remove());
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  }
+  function nwPickVideo(i){
+    const items = (window.NEWS_VIDEOS || []).map((v) => ({ thumb: v.thumb, label: (v.client ? v.client + ' — ' : '') + v.title, v }));
+    if (!items.length){ toast('Sin catálogo de videos'); return; }
+    nwPicker('🎬 Elegí un video', items, (it) => { const b = nwBlocks[i]; b.vimeo_id = it.v.id; b.title = it.v.title; b.thumb = it.v.thumb; if (!b.url || b.url === 'https://www.viven.ch/en/projects/') b.url = 'https://vimeo.com/' + it.v.id; nwRenderEditor(); });
+  }
+  function nwPickCase(i){
+    const items = (window.NEWS_CASES || []).map((c) => ({ thumb: c.thumb, label: c.title, c }));
+    if (!items.length){ toast('Sin catálogo de cases'); return; }
+    nwPicker('📋 Elegí un case study', items, (it) => { const b = nwBlocks[i]; b.slug = it.c.slug; b.title = it.c.title; b.url = it.c.url; b.thumb = it.c.thumb; nwRenderEditor(); });
+  }
+
+  // ===== render del email (espejo cliente de la edge function newsletter-send) =====
+  const NW_CALC = { en: 'https://www.viven.ch/en/video-cost-calculator', de: 'https://www.viven.ch/de/videoproduktion-kosten-rechner', es: 'https://www.viven.ch/es/calculadora-costos-video' };
+  function nwAddUtm(url, id){ const u = String(url || '').trim(); if (!u || u.startsWith('mailto:') || u.startsWith('#')) return u; const tag = 'utm_source=newsletter&utm_campaign=nl-' + id; const parts = u.split('#'); const j = parts[0] + (parts[0].includes('?') ? '&' : '?') + tag; return parts[1] ? j + '#' + parts[1] : j; }
+  function nwCtaDest(dest, lang){ if (dest === 'calculator') return NW_CALC[lang] || NW_CALC.en; if (dest === 'brief') return 'https://www.viven.ch/brief/'; if (dest === 'call') return 'https://www.viven.ch/book/'; return dest || 'https://www.viven.ch'; }
+  function nwTextHtml(text, id){ return String(text || '').trim().split(/\n{2,}/).map((par) => { const wl = esc(par).replace(/(https?:\/\/[^\s<]+)/g, (m) => '<a href="' + nwAddUtm(m, id) + '" style="color:#5b7cfa">' + m + '</a>').replace(/\n/g, '<br>'); return '<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#222">' + wl + '</p>'; }).join(''); }
+  function nwBlocksHtml(blocks, lang, id){
+    const abs = (s) => String(s || '').startsWith('http') ? s : 'https://www.viven.ch' + s;
+    return (blocks || []).map((b) => {
+      if (!b || !b.type) return '';
+      if (b.type === 'text') return nwTextHtml(b.text || '', id);
+      if (b.type === 'video'){ const url = nwAddUtm(b.url || 'https://www.viven.ch', id); const title = esc(b.title || 'Ver el video');
+        return '<div style="margin:18px 0;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb"><a href="' + url + '" style="text-decoration:none;color:inherit;display:block"><div style="position:relative">' +
+          (b.thumb ? '<img src="' + esc(b.thumb) + '" alt="' + title + '" style="display:block;width:100%;height:auto" />' : '<div style="width:100%;padding-bottom:56.25%;background:#16233a"></div>') +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.92);color:#0f1826;font-size:22px;line-height:56px;text-align:center;display:inline-block">▶</span></div></div>' +
+          '<div style="background:#f4f5f7;padding:9px 13px;font-size:13px;color:#555"><b style="color:#222">' + title + '</b></div></a></div>'; }
+      if (b.type === 'still'){ if (!b.src) return ''; const cap = esc(b.caption || '');
+        return '<div style="margin:18px 0"><img src="' + esc(abs(b.src)) + '" alt="' + cap + '" style="display:block;width:100%;height:auto;border-radius:12px" />' + (cap ? '<div style="font-size:12px;color:#888;margin-top:6px;text-align:center">' + cap + '</div>' : '') + '</div>'; }
+      if (b.type === 'cta'){ const href = nwAddUtm(nwCtaDest(b.dest || 'call', lang), id);
+        return '<div style="text-align:center;margin:22px 0"><a href="' + href + '" style="background:#0f1826;color:#ddf98f;border-radius:100px;padding:13px 26px;font-size:14px;font-weight:700;text-decoration:none;display:inline-block">' + esc(b.label || 'Más info →') + '</a></div>'; }
+      if (b.type === 'case'){ const url = nwAddUtm(b.url || 'https://www.viven.ch', id); const title = esc(b.title || 'Case study');
+        return '<a href="' + url + '" style="text-decoration:none;color:inherit;display:block;margin:18px 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>' +
+          (b.thumb ? '<td width="120" style="width:120px"><img src="' + esc(abs(b.thumb)) + '" alt="' + title + '" width="120" style="display:block;width:120px;height:auto;object-fit:cover" /></td>' : '') +
+          '<td style="padding:12px 14px;vertical-align:middle"><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8a919e">Case study</div><div style="font-size:14px;font-weight:700;color:#222;margin-top:3px">' + title + '</div><div style="font-size:12px;color:#5b7cfa;margin-top:5px">Ver el caso →</div></td></tr></table></a>'; }
+      return '';
+    }).join('');
+  }
+  function nwEmailHtml(){
+    const id = (nwCur && nwCur.id) || 'preview';
+    const lang = $('nw-lang').value === 'all' ? 'en' : $('nw-lang').value;
+    const useBlocks = nwBlocks.some((b) => b.type !== 'text' || String(b.text || '').trim());
+    const inner = useBlocks ? nwBlocksHtml(nwBlocks, lang, id) : nwTextHtml(nwDerivedBody(), id);
+    return '<div style="max-width:600px;margin:0 auto">' +
+      '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><span style="font-family:\'Space Grotesk\',sans-serif;font-weight:800;color:#ddf98f;font-size:16px">viven</span> <span style="font-size:8px;color:#8290ab;text-transform:uppercase;letter-spacing:.05em">Film Production</span></div>' +
+      '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px"><p style="margin:0 0 16px;font-size:15px;color:#222">Hi Pedro,</p>' + inner + '<p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p></div>' +
+      '<p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · viven.ch · <u>' + (lang === 'de' ? 'Abmelden' : lang === 'es' ? 'Darse de baja' : 'Unsubscribe') + '</u></p></div>';
+  }
+  function nwPreview(){
+    let ov = $('nw-preview-ov'); if (!ov){ ov = document.createElement('div'); ov.id = 'nw-preview-ov'; document.body.appendChild(ov); }
+    ov.className = 'of-composer';
+    ov.innerHTML = '<div class="ofc-card" style="max-width:640px"><h3 style="margin:0 0 4px">👁 Preview — así le llega al cliente</h3>' +
+      '<p class="muted-note" style="margin:0 0 12px">El saludo real usa el nombre de cada destinatario y el link de baja es personal. Los links salen con utm_campaign=nl-{id}.</p>' +
+      '<div style="background:#f4f5f7;border-radius:14px;padding:20px;max-height:65vh;overflow-y:auto">' + nwEmailHtml() + '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost small" id="nw-prev-close" type="button">Cerrar</button></div></div>';
+    ov.querySelector('#nw-prev-close').addEventListener('click', () => ov.remove());
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  }
+
+  // ===== panel de envío (conteo, tandas, cupo, progreso) =====
+  function nwRecipCount(){
+    const seen = new Set(); let n = 0;
+    (allLeads || []).forEach((r) => { const e = (r.email || '').toLowerCase(); if (!e || seen.has(e) || !nwSegFilter(r)) return; seen.add(e); if (nwExcludeIds.has(String(r.id))) return; n++; });
+    (nwExtraEmails || []).forEach((em) => { if (!seen.has(em)){ seen.add(em); n++; } });
+    return n;
+  }
+  function nwSubsCount(){
+    const seen = new Set(); let n = 0; const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+    (allLeads || []).forEach((r) => { const e = (r.email || '').toLowerCase(); if (!e || seen.has(e) || TEST.test(e) || r.unsubscribed) return; if (/spam|descartado/i.test(r.status || '')) return; seen.add(e); n++; });
+    return n;
+  }
+  function nwUpdateSendPanel(){
+    const title = $('nw-send-title'), info = $('nw-send-info'); if (!title || !info) return;
+    if ($('nw-mode') && $('nw-mode').value === 'one'){ title.textContent = '📤 Envío directo a 1 persona'; info.innerHTML = 'Queda registrado en el historial (con utm y link de baja). El self-test rápido NO deja rastro.'; const b0 = $('nw-send'); if (b0) b0.textContent = '📤 Enviar ahora'; return; }
+    const n = nwRecipCount();
+    const batches = Math.max(1, Math.ceil(n / 100));
+    const secs = Math.max(1, Math.round(batches * 0.6 + n * 0.02));
+    const CAP = 100;
+    const cap = n > CAP
+      ? '<br/><span class="cap-over">⚠️ ' + n + " supera el tope diario del plan Free (100/día) — conviene Pro (USD 20/mes = 50'000).</span>"
+      : "<br/>Cupo Free: <b>" + n + " de 3'000 este mes</b> ✓";
+    const sched = $('nw-sched-mode') && $('nw-sched-mode').value === 'at';
+    title.textContent = '📤 Listo para enviar a ' + n + ' persona' + (n === 1 ? '' : 's');
+    info.innerHTML = 'En <b>' + batches + ' tanda' + (batches === 1 ? '' : 's') + ' de 100</b> (API batch de Resend) · duración estimada: <b>~' + secs + 's</b>' + cap +
+      '<br/>Si el envío se corta, se retoma solo sin duplicar a nadie ✓' + (sched ? '<br/>⏰ Programado — se enviará cuando el despachador esté activo.' : '');
+    const btn = $('nw-send'); if (btn) btn.textContent = sched ? '⏰ Programar' : '📤 Enviar ahora';
+  }
+
+  // ===== atribución de ventas por campaña =====
+  function nwWonDeal(leadId){ return (dealsList || []).find((d) => String(d.lead_id) === String(leadId) && stageOf(d.stage) === 'ganado'); }
+  function nwMoneyShort(v){ v = Number(v) || 0; return v >= 1000 ? 'CHF ' + (v / 1000).toLocaleString('de-CH', { maximumFractionDigits: 1 }) + 'k' : 'CHF ' + v.toLocaleString('de-CH', { maximumFractionDigits: 0 }); }
+
   async function newsInit(){
-    const { data, error } = await supabase.from('newsletters').select('*').order('created_at', { ascending: false });
-    if (error){ $('nw-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0039 — ' + esc(error.message) + '</p>'; return; }
-    nwList = data || [];
+    const [nlRes, sendsRes] = await Promise.all([
+      supabase.from('newsletters').select('*').order('created_at', { ascending: false }),
+      supabase.from('newsletter_sends').select('newsletter_id,lead_id,opened_at,clicked_at'),
+    ]);
+    if (nlRes.error){ $('nw-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0039 — ' + esc(nlRes.error.message) + '</p>'; return; }
+    nwList = nlRes.data || [];
+    const sends = sendsRes.error ? [] : (sendsRes.data || []);   // sin columnas de tracking (SQL 0075) → sin métricas
     $('nw-listcount').textContent = nwList.length || '';
+    // editor: inicializar si está vacío
+    if (!$('nw-editor').children.length) nwRenderEditor();
+    nwUpdateSendPanel();
+
     (async () => { try {
       const [{ data: st }, { data: lg }] = await Promise.all([
         supabase.from('app_settings').select('value').eq('key', 'nurture').maybeSingle(),
@@ -10423,26 +10774,79 @@ const stillsPool = projects
       if ($('nur-stats')) $('nur-stats').textContent = '① ' + c[1] + ' · ② ' + c[2] + ' · ③ ' + c[3] + ' enviados';
     } catch (e) { if ($('nur-stats')) $('nur-stats').textContent = 'falta SQL 0040'; } })();
     nurLoad();
-    $('nw-list').innerHTML = nwList.map((n) => '<div class="of-card"><div class="of-card-open" data-nw="' + n.id + '">' +
-      '<div class="of-card-main"><div class="of-card-title">' + esc(n.subject) + '</div>' +
-      '<div class="of-card-sub">' + (n.segment_stage === 'won' ? 'Clientes' : n.segment_stage === 'open' ? 'Prospectos' : 'Todos') + ' · ' + (n.segment_lang === 'all' ? 'todos los idiomas' : n.segment_lang.toUpperCase()) + ' · ' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + '</div></div>' +
-      '<span class="of-badge" style="color:' + (n.status === 'sent' ? '#7ed957' : '#8ab4ff') + ';border-color:currentColor">' + (n.status === 'sent' ? '✅ ' + n.sent_count + ' enviados' : 'Borrador') + '</span></div></div>').join('') || '<p class="muted-note">Sin campañas todavía.</p>';
+
+    // agregado de envíos por campaña
+    const agg = {};
+    sends.forEach((s) => { const a = agg[s.newsletter_id] = agg[s.newsletter_id] || { n: 0, open: 0, click: 0, openLeads: [] }; a.n++; if (s.opened_at){ a.open++; if (s.lead_id) a.openLeads.push(s.lead_id); } if (s.clicked_at) a.click++; });
+
+    // KPI mini
+    if ($('nw-kmini-subs')) $('nw-kmini-subs').textContent = nwSubsCount();
+    const lastSent = nwList.find((n) => n.status === 'sent');
+    if ($('nw-kmini-open')){ if (lastSent){ const a = agg[lastSent.id] || { n: 0, open: 0 }; const sn = lastSent.sent_count || a.n; $('nw-kmini-open').textContent = sn ? Math.round(a.open / sn * 100) + '%' : '—'; } else $('nw-kmini-open').textContent = '—'; }
+    if ($('nw-kmini-unsub')) $('nw-kmini-unsub').textContent = (allLeads || []).filter((l) => l.unsubscribed).length;
+
+    // lista de campañas con atribución
+    $('nw-list').innerHTML = nwList.map((n) => {
+      const a = agg[n.id] || { n: 0, open: 0, click: 0, openLeads: [] };
+      const sentN = n.sent_count || a.n;
+      const date = new Date(n.sent_at || n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
+      const seg = n.segment_stage === 'won' ? 'Clientes' : n.segment_stage === 'open' ? 'Prospectos' : 'Todos';
+      let right;
+      if (n.status === 'sent'){
+        const openPct = sentN ? Math.round(a.open / sentN * 100) : 0;
+        const clickPct = sentN ? Math.round(a.click / sentN * 100) : 0;
+        // atribución directa (utm_campaign del lead) e influida (abrió → ganó en 30d)
+        let directWon = 0; (allLeads || []).forEach((l) => { if (l.utm_campaign === 'nl-' + n.id){ const d = nwWonDeal(l.id); if (d) directWon += dealValue(d); } });
+        const sentT = n.sent_at ? Date.parse(n.sent_at) : 0; let inflWon = 0; const seen = new Set();
+        (a.openLeads || []).forEach((lid) => { if (seen.has(String(lid))) return; seen.add(String(lid)); const d = nwWonDeal(lid); if (!d) return; const wt = Date.parse(d.won_at || d.last_stage_at || ''); if (sentT && wt && wt >= sentT && wt <= sentT + 30 * 864e5) inflWon += dealValue(d); });
+        let attr;
+        if (directWon > 0) attr = '<b style="color:var(--won)">💰 ' + nwMoneyShort(directWon) + ' ganados</b>';
+        else if (inflWon > 0) attr = '<b style="color:var(--won)">💰 ' + nwMoneyShort(inflWon) + ' influido</b>';
+        else attr = '<span style="color:var(--muted-2)">sin ventas atribuidas</span>';
+        right = '<span class="nw-pill ' + (openPct >= 35 ? 'ok' : 'warn') + '">' + openPct + '% abrió</span> <span class="nw-pill ' + (clickPct >= 5 ? 'ok' : 'warn') + '">' + clickPct + '% click</span><br/>' + attr;
+      } else if (n.scheduled_at){
+        right = '<span class="nw-pill warn">⏰ ' + new Date(n.scheduled_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>';
+      } else {
+        right = '<span class="of-badge" style="color:#8ab4ff;border-color:currentColor">Borrador</span>';
+      }
+      return '<div class="nw-sr clickable" data-nw="' + n.id + '"><div style="min-width:0"><div class="tt">' + esc(n.subject) + '</div>' +
+        '<div class="sub">' + date + ' · ' + seg + ' · ' + (n.status === 'sent' ? sentN + ' enviados' : 'sin enviar') + '</div></div>' +
+        '<div class="st2">' + right + '</div></div>';
+    }).join('') || '<p class="muted-note">Sin campañas todavía.</p>';
+
     $('nw-list').querySelectorAll('[data-nw]').forEach((c) => c.addEventListener('click', () => {
       const n = nwList.find((x) => x.id === c.dataset.nw); if (!n) return;
       nwCur = n.status === 'sent' ? null : n;
-      $('nw-subject').value = n.subject; $('nw-body').value = n.body; $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
+      $('nw-subject').value = n.subject; $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
+      nwBlocks = nwBlocksFromRow(n); nwRenderEditor();
       nwExcludeIds = new Set((n.exclude_ids || []).map(String)); nwExtraEmails = (n.extra_emails || []).slice();
+      if (n.scheduled_at && n.status !== 'sent'){ $('nw-sched-mode').value = 'at'; $('nw-sched-at').hidden = false; try { $('nw-sched-at').value = new Date(n.scheduled_at).toISOString().slice(0, 16); } catch (e) {} }
+      else { $('nw-sched-mode').value = 'now'; $('nw-sched-at').hidden = true; }
       $('nw-note').textContent = n.status === 'sent' ? 'Cargada como COPIA (la original ya se envió) — al enviar se crea una campaña nueva.' : 'Borrador cargado.';
+      nwUpdateSendPanel();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }));
   }
   async function nwSave(){
-    const row = { subject: $('nw-subject').value.trim(), body: $('nw-body').value, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
-    if (!row.subject || !row.body.trim()){ toast('Falta asunto o contenido'); return null; }
-    if (nwCur && nwCur.id){ const { error } = await supabase.from('newsletters').update(row).eq('id', nwCur.id); if (error){ toast(error.message); return null; } return nwCur.id; }
-    const { data, error } = await supabase.from('newsletters').insert(row).select().single();
+    const cleanBlocks = nwBlocks.map((b) => ({ ...b })).filter((b) => b.type !== 'text' || String(b.text || '').trim());
+    const body = nwDerivedBody();
+    const hasContent = body.trim() || cleanBlocks.some((b) => b.type !== 'text');
+    const subject = $('nw-subject').value.trim();
+    if (!subject || !hasContent){ toast('Falta asunto o contenido'); return null; }
+    const schedAt = ($('nw-sched-mode') && $('nw-sched-mode').value === 'at' && $('nw-sched-at').value) ? new Date($('nw-sched-at').value).toISOString() : null;
+    const row = { subject, body, blocks: cleanBlocks, scheduled_at: schedAt, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
+    const saveRow = async (r) => {
+      if (nwCur && nwCur.id){ const { error } = await supabase.from('newsletters').update(r).eq('id', nwCur.id); return { id: nwCur.id, error }; }
+      const { data, error } = await supabase.from('newsletters').insert(r).select().single(); if (!error) nwCur = data; return { id: data && data.id, error };
+    };
+    let { id, error } = await saveRow(row);
+    if (error && /blocks|scheduled_at|column/i.test(error.message || '')){
+      const legacy = { subject: row.subject, body: row.body, segment_stage: row.segment_stage, segment_lang: row.segment_lang, exclude_ids: row.exclude_ids, extra_emails: row.extra_emails, updated_at: row.updated_at };
+      ({ id, error } = await saveRow(legacy));
+      if (!error) toast('Guardado sin bloques/programación — corré el SQL 0075');
+    }
     if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0039' : error.message); return null; }
-    nwCur = data; return data.id;
+    return id;
   }
   function nwSegFilter(r){
     const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
@@ -10485,7 +10889,7 @@ const stillsPool = projects
     ov.innerHTML = '<div class="ofc-card" style="max-width:480px">' +
       '<h3 style="margin:0 0 4px">👥 Destinatarios</h3>' +
       '<p class="muted-note" style="margin:0 0 10px" id="nw-recip-total"></p>' +
-      '<div style="display:flex;gap:8px;margin-bottom:10px"><input id="nw-recip-add" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px"><input id="nw-recip-add" class="nw-ov-inp" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div>' +
       '<div id="nw-recip-extra"></div>' +
       '<div id="nw-recip-list" style="max-height:320px;overflow-y:auto;margin-top:6px"></div>' +
       '<p class="muted-note" style="margin-top:10px">Destildar saca a esa persona de este envío. La selección se guarda con el borrador.</p>' +
