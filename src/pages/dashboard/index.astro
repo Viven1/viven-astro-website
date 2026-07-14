@@ -715,6 +715,11 @@ const newsCases = [
   .bl2-pend-title{font-weight:700;font-size:14.5px}
   .bl2-pend-sub{font-size:12px;color:var(--muted-2);margin-top:3px}
   .bl2-pend-acts{display:flex;gap:8px;flex-wrap:wrap}
+  .bl2-kw{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--navy-900);padding:9px 13px;margin:2px 0}
+  .bl2-kw-tag{display:inline-block;font-weight:800;font-size:10.5px;border:1px solid;border-radius:6px;padding:2px 7px;white-space:nowrap;margin-right:8px;vertical-align:middle}
+  .bl2-kw-kw{font-weight:700;font-size:12.5px;color:var(--text)}
+  .bl2-kw-why{font-size:12px;color:var(--muted-2);margin-top:4px;line-height:1.55}
+  .bl2-kw.muted{background:transparent;border-style:dashed}
   .bl2-table .bl2-t{font-weight:700;font-size:13.5px}
   .bl2-table .bl2-sub{font-size:11px;color:var(--muted-2);margin-top:2px}
   .bl2-table td{vertical-align:middle}
@@ -5215,9 +5220,19 @@ const newsCases = [
     }));
     wrap.querySelectorAll('.kw-q').forEach((b) => b.addEventListener('click', async () => {
       const o = kwOpps.find((x) => String(x.id) === b.dataset.id); if (!o) return;
-      const { error } = await supabase.from('content_queue').insert({ topic: o.action || o.keyword, priority: Math.min(10, o.priority || 5) });
-      if (error) { toast('¿SQL 0032? ' + error.message); return; }
-      toast('📝 «' + (o.action || o.keyword).slice(0, 60) + '…» en la cola — escribilo ya con ⚡ desde el tab Blog');
+      // llevamos la keyword+why+priority como datos separados (no solo colapsados
+      // en "topic") — así content-engine puede hacer el lookup de ranking real
+      // y mostrar el veredicto data-backed en el tab Blog, no solo prosa de IA.
+      let row = { topic: o.action || o.keyword, priority: Math.min(10, o.priority || 5), target_keyword: o.keyword, keyword_why: o.why || null, keyword_priority: o.priority || null };
+      let ins = await supabase.from('content_queue').insert(row);
+      for (let tries = 0; ins.error && tries < 3; tries++) {
+        const m = /'([^']+)' column/.exec(ins.error.message || '');
+        if (!m || !(m[1] in row)) break;
+        delete row[m[1]];
+        ins = await supabase.from('content_queue').insert(row);
+      }
+      if (ins.error) { toast('¿SQL 0032/0076? ' + ins.error.message); return; }
+      toast('📝 «' + (o.action || o.keyword).slice(0, 60) + '…» en la cola con keyword objetivo: ' + o.keyword + ' — escribilo ya con ⚡ desde el tab Blog');
     }));
     wrap.querySelectorAll('.kw-act').forEach((b) => b.addEventListener('click', () => kwSetStatus(b.dataset.id, 'actioned')));
     wrap.querySelectorAll('.kw-dis').forEach((b) => b.addEventListener('click', () => kwSetStatus(b.dataset.id, 'dismissed')));
@@ -9759,6 +9774,27 @@ const newsCases = [
         date: Math.max(...rows.map((r) => +new Date(r.published_at || r.updated_at || r.created_at || 0))) };
     });
   }
+  // feedback de keyword+ranking (SQL 0076): DATO de ranking + veredicto data-backed
+  // (no otra opinión de la IA) para decidir si el blog vale la pena — pedido
+  // explícito de Sebastián, mismos valores en las 3 versiones de idioma del grupo.
+  const KW_VERDICT_UI = {
+    nuevo:          { label: '🌱 Nuevo — sin ranking previo', color: '#7ed957' },
+    quick_win:      { label: '⚡ Quick win', color: '#7ed957' },
+    ya_rankea_bien: { label: '🤔 Ya rankea bien — reconsiderar', color: '#8ab4ff' },
+    dudoso:         { label: '⚠️ Dudoso — validar volumen', color: '#f0c060' },
+  };
+  function bl2KwBlock(g){
+    const b = g.main || {};
+    const kw = b.target_keyword;
+    if (!kw || b.keyword_verdict === 'sin_keyword') return '<div class="bl2-kw muted"><span class="muted-note">Sin keyword objetivo — tema libre</span></div>';
+    const v = KW_VERDICT_UI[b.keyword_verdict] || KW_VERDICT_UI.dudoso;
+    const pos = b.keyword_current_position != null ? ('posición actual: ' + (+b.keyword_current_position).toFixed(1)) : 'sin ranking — nuevo';
+    return '<div class="bl2-kw" style="border-color:' + v.color + '55">' +
+      '<span class="bl2-kw-tag" style="color:' + v.color + ';border-color:' + v.color + '">' + v.label + '</span>' +
+      '<span class="bl2-kw-kw">🎯 ' + esc(kw) + ' · ' + esc(pos) + '</span>' +
+      (b.keyword_verdict_why ? '<div class="bl2-kw-why">' + esc(b.keyword_verdict_why) + '</div>' : '') +
+      '</div>';
+  }
   function bl2GroupViews(g, idx){
     if (!idx) return null;
     return g.rows.reduce((a, r) => a + ((idx.bySlug.get(r.slug) || {}).total || 0), 0);
@@ -11008,6 +11044,7 @@ const newsCases = [
       pend.map((g) => '<div class="bl2-pend">' +
         '<div class="bl2-pend-main"><div class="bl2-pend-title">' + esc(g.main.title || '(sin título)') + '</div>' +
         '<div class="bl2-pend-sub">' + esc(g.main.topic || g.main.slug || '') + ' · llegó ' + fdate(g.date) + ' · ' + badges(g) + '</div></div>' +
+        bl2KwBlock(g) +
         '<div class="bl2-pend-acts">' +
           '<button class="btn btn-primary small" data-approve="' + esc(g.key) + '" type="button">✅ Aprobar y publicar ×' + g.rows.length + '</button>' +
           '<button class="btn btn-ghost small" data-review="' + esc(g.main.id) + '" type="button">👁 Revisar y editar</button>' +

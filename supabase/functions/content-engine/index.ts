@@ -197,6 +197,107 @@ async function pickMedia(topic: string): Promise<{ hero: string; video: string |
 
 const INTERNAL = ["services/brand-video", "services/product-video", "services/employer-branding", "services/how-to-video", "services/social-media-video", "services/corporate-video", "projects", "contact", "faq", "blog", "resources"];
 
+// ---- feedback de keyword+ranking (SQL 0076) --------------------------------
+// Sebastián no quiere juzgar un tema "solo por el texto" — quiere el DATO de
+// en qué posición está HOY la keyword objetivo antes de decidir si escribir
+// el blog vale la pena. Mismo patrón de OAuth que gsc-stats/ai-keywords.
+async function googleToken(): Promise<string> {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
+      client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
+      refresh_token: Deno.env.get("GOOGLE_REFRESH_TOKEN")!,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!res.ok) throw new Error("google_token " + res.status + " " + (await res.text()).slice(0, 160));
+  return (await res.json()).access_token;
+}
+// Posición ACTUAL (últimos 28 días) de una keyword exacta en Search Console.
+// Si no hay fila (0 impresiones / nunca buscada), position vuelve null — ese
+// es justamente el dato de "sin visibilidad hoy", no un error.
+async function gscKeywordPosition(keyword: string): Promise<{ position: number | null; impressions: number }> {
+  try {
+    const token = await googleToken();
+    let site = Deno.env.get("GSC_SITE") || "";
+    if (!site) {
+      const sres = await fetch("https://searchconsole.googleapis.com/webmasters/v3/sites", { headers: { Authorization: "Bearer " + token } });
+      const entries = sres.ok ? ((await sres.json()).siteEntry ?? []) : [];
+      const ok = entries.filter((e: { permissionLevel?: string }) => e.permissionLevel !== "siteUnverifiedUser").map((e: { siteUrl: string }) => e.siteUrl);
+      const pref = ["sc-domain:viven.ch", "https://www.viven.ch/", "https://viven.ch/"];
+      site = pref.find((p) => ok.includes(p)) || ok[0] || "https://viven.ch/";
+    }
+    const end = new Date(Date.now() - 2 * 864e5), start = new Date(end.getTime() - 28 * 864e5);
+    const ymd = (x: Date) => x.toISOString().slice(0, 10);
+    const res = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        startDate: ymd(start), endDate: ymd(end),
+        dimensions: ["query"],
+        dimensionFilterGroups: [{ filters: [{ dimension: "query", operator: "equals", expression: keyword }] }],
+        rowLimit: 1,
+      }),
+    });
+    if (!res.ok) return { position: null, impressions: 0 };
+    const rows = (await res.json()).rows ?? [];
+    if (!rows.length) return { position: null, impressions: 0 };
+    return { position: Number(rows[0].position), impressions: Number(rows[0].impressions || 0) };
+  } catch (e) {
+    console.error("GSC_KEYWORD_LOOKUP_ERROR", String(e));
+    return { position: null, impressions: 0 }; // best-effort: nunca tumba la escritura del artículo por esto
+  }
+}
+// Veredicto DETERMINÍSTICO (reglas fijas, no otra opinión de la IA) — mismos
+// cortes que usa el SEO Keyword Manager (SQL 0070) para clasificar quick_win.
+const KW_VERDICT_LABEL: Record<string, string> = {
+  nuevo: "nuevo, sin ranking previo",
+  quick_win: "quick win",
+  ya_rankea_bien: "ya rankea bien — reconsiderar",
+  dudoso: "dudoso, validar volumen",
+  sin_keyword: "sin keyword objetivo",
+};
+function keywordVerdict(targetKeyword: string | null, gsc: { position: number | null; impressions: number }): { verdict: string; why: string } {
+  if (!targetKeyword) return { verdict: "sin_keyword", why: "Tema libre, sin keyword objetivo asociado — no hay dato de ranking para evaluar." };
+  if (gsc.position == null) return { verdict: "nuevo", why: "Sin visibilidad hoy — contenido genuinamente nuevo, vale la pena si hay volumen de búsqueda real." };
+  if (gsc.impressions < 3) {
+    return { verdict: "dudoso", why: "Posición actual muy baja (" + gsc.position.toFixed(1) + ") o casi sin impresiones (" + gsc.impressions + " en 28 días) — validar si hay volumen de búsqueda real antes de invertir en el artículo." };
+  }
+  if (gsc.position <= 3) return { verdict: "ya_rankea_bien", why: "Ya rankea en el top 3 (posición " + gsc.position.toFixed(1) + ") — escribir contenido nuevo para esta keyword probablemente no suma mucho; considerá reforzar la página existente en vez de un artículo nuevo." };
+  if (gsc.position <= 20) return { verdict: "quick_win", why: "Ya tenés tracción (posición " + gsc.position.toFixed(1) + ") — este es justamente el rango donde un artículo nuevo/reforzado puede empujarla a primera página. Alta probabilidad de que valga la pena." };
+  return { verdict: "dudoso", why: "Posición actual muy baja (" + gsc.position.toFixed(1) + ") o casi sin impresiones — validar si hay volumen de búsqueda real antes de invertir en el artículo." };
+}
+// Contexto REAL de competencia (pedido explícito de Sebastián: no solo nuestro
+// propio dato de ranking, sino qué está pasando AFUERA ahora mismo para esa
+// keyword) — una llamada a Claude con la tool web_search, mismo patrón que
+// ai-keywords/index.ts pero acotada (2-3 búsquedas, no una investigación
+// completa) porque acá es solo un chequeo de contexto antes de escribir.
+// Corre UNA vez por grupo (no 3x por idioma) — best-effort: si falla, el
+// artículo se escribe igual, solo sin el párrafo de contexto de competencia.
+async function webSearchKeywordContext(keyword: string): Promise<string> {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 500,
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+        messages: [{ role: "user", content: `Sos el estratega SEO de viven.ch, productora de video en Zúrich (compite en el mercado suizo/DACH). Buscá en Google AHORA MISMO la keyword "${keyword}" y contame, en 2-3 frases MUY concretas (nada genérico): ¿quiénes son los resultados top HOY (dominios reales), qué ángulo o formato cubren, y qué tan difícil parece competir por esa keyword? Respondé SOLO esas 2-3 frases en español, texto plano, sin JSON, sin markdown, sin preámbulo.` }],
+      }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    const text = (data.content ?? []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join(" ").trim();
+    return text.replace(/\s+/g, " ").slice(0, 600);
+  } catch (e) {
+    console.error("KW_WEBSEARCH_ERROR", String(e));
+    return "";
+  }
+}
+
 async function pushAll(title: string, body: string, url: string) {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
   if (!pub || !priv) return;
@@ -281,6 +382,17 @@ Deno.serve(async (req) => {
     }
     if (!item) return json({ ok: true, msg: "cola vacía — sembrá más temas en content_queue" });
 
+    // feedback de keyword+ranking (SQL 0076): si el tema vino del SEO Keyword
+    // Manager trae target_keyword — un solo lookup a GSC (no 3x, mismo dato
+    // para las 3 versiones de idioma) + veredicto determinístico.
+    const targetKeyword = (item.target_keyword as string | null | undefined)?.trim() || null;
+    const kwGsc = targetKeyword ? await gscKeywordPosition(targetKeyword) : { position: null, impressions: 0 };
+    const kw = keywordVerdict(targetKeyword, kwGsc);
+    if (targetKeyword) {
+      const ctx = await webSearchKeywordContext(targetKeyword);
+      if (ctx) kw.why = kw.why + " Buscando en Google ahora: " + ctx;
+    }
+
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
     const groupId = crypto.randomUUID();
     const media = await pickMedia(item.topic);
@@ -294,6 +406,7 @@ Deno.serve(async (req) => {
           lang: lg, topic: item.topic, slug: a.slug, title: a.title, description: a.description,
           eyebrow: a.eyebrow || "Industry insight", lead: a.lead, body_html: a.body_html, faq: a.faq,
           status: "draft", group_id: groupId, hero_image: media.hero, video_id: media.video, approve_token: token,
+          target_keyword: targetKeyword, keyword_current_position: kwGsc.position, keyword_verdict: kw.verdict, keyword_verdict_why: kw.why,
         };
         let ins = await service.from("blogs").insert(row).select("id").single();
         for (let tries = 0; ins.error && tries < 4; tries++) {
@@ -309,7 +422,8 @@ Deno.serve(async (req) => {
       if (!made.length) { await service.from("content_queue").update({ status: "pending" }).eq("id", item.id); throw e; }
     }
     await service.from("content_queue").update({ status: "done", done_at: new Date().toISOString() }).eq("id", item.id);
-    await pushAll("📝 Borradores listos: " + item.topic, made.map((m) => m.lang).join(" + ") + " esperan tu aprobación (email o tab Blog).", "/dashboard/");
+    const kwPushLine = targetKeyword ? ` · 🎯 ${targetKeyword} · pos ${kwGsc.position != null ? kwGsc.position.toFixed(1) : "sin ranking"} · ${KW_VERDICT_LABEL[kw.verdict]}` : "";
+    await pushAll("📝 Borradores listos: " + item.topic, made.map((m) => m.lang).join(" + ") + " esperan tu aprobación (email o tab Blog)." + kwPushLine, "/dashboard/");
 
     // email a Sebastián con preview + botones Publicar / Editar
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -317,6 +431,13 @@ Deno.serve(async (req) => {
       const FN = Deno.env.get("SUPABASE_URL") + "/functions/v1/blog-approve";
       // artículo COMPLETO legible en el email: hero + cuerpo entero + FAQ, botones arriba
       const clean = (h: string) => h.replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, "<strong>$1</strong>");
+      // feedback de keyword+ranking (SQL 0076): mismo dato para las 3 versiones
+      // de idioma, así que va UNA vez arriba de las cards, no repetido x3.
+      const kwEmailBlock = targetKeyword ? `
+        <div style="border:1px solid #dfe4ec;border-radius:12px;padding:14px 18px;margin:0 0 20px;background:#f7f9fc">
+          <div style="font-size:13.5px;color:#1a2230"><b>🎯 Keyword objetivo:</b> ${targetKeyword} · <b>posición actual:</b> ${kwGsc.position != null ? kwGsc.position.toFixed(1) : "sin ranking — nuevo"} · <b>${KW_VERDICT_LABEL[kw.verdict]}</b></div>
+          <div style="font-size:12.5px;color:#5b6472;margin-top:6px;line-height:1.6">${kw.why}</div>
+        </div>` : "";
       const cards = made.map((m) => `
         <div style="border:1px solid #e3e6ec;border-radius:14px;padding:20px 22px;margin:0 0 22px">
           <div style="font-size:11px;letter-spacing:.08em;color:#8a94a8;font-weight:700">${m.lang}</div>
@@ -337,7 +458,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: "Viven Content Engine <leads@viven.ch>", to: ["sebastian@viven.ch"],
           subject: "📝 Para aprobar: " + item.topic,
-          html: `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto"><h2 style="font-size:18px">Nuevos borradores del motor de contenido</h2><p style="color:#5b6472;font-size:13.5px">Tema: <b>${item.topic}</b> · hero image ✓${media.video ? " · video ✓" : ""}. Un click en Publicar y sale a la web (deploy ~2 min); Editar abre el dashboard.</p>${cards}</div>`,
+          html: `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto"><h2 style="font-size:18px">Nuevos borradores del motor de contenido</h2><p style="color:#5b6472;font-size:13.5px">Tema: <b>${item.topic}</b> · hero image ✓${media.video ? " · video ✓" : ""}. Un click en Publicar y sale a la web (deploy ~2 min); Editar abre el dashboard.</p>${kwEmailBlock}${cards}</div>`,
         }),
       }).catch(() => {});
     }
