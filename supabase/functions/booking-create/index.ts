@@ -30,6 +30,10 @@ const cors = {
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// slug = primera palabra del nombre, minúsculas, sin acentos ("Sofía Treviño" → sofia).
+// Debe coincidir con booking-slots y con el backfill de la migración 0080.
+const slugify = (name: string) => String(name || "").trim().split(/\s+/)[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
 async function googleToken(): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -51,11 +55,27 @@ const BRIEF_URL = SITE + "/brief/";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en" } = await req.json();
+    const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en", host: hostSpec = "" } = await req.json();
     if (!name.trim() || !/.+@.+\..+/.test(email) || !start) return json({ error: "missing_fields" }, 400);
     // settings del dashboard (booking_settings, SQL 0024) — con defaults si no existe
     let cfg: Record<string, unknown> = { active: true, notice_hours: 4, horizon_days: 28, buffer_min: 0, durations: [15, 30], msg_en: null, msg_de: null, msg_es: null };
     try { const { data: bs } = await service.from("booking_settings").select("*").eq("id", 1).maybeSingle(); if (bs) cfg = { ...cfg, ...bs }; } catch (_e) { /* defaults */ }
+    // Host opcional (slug/email) mandado por el front (/book/[persona] o el selector de /book/):
+    // su fila de booking_settings pisa la default para las validaciones de validez/duración,
+    // y su email queda como host_email de la reserva. Host no resoluble → default id=1 (compat).
+    let paramHostEmail: string | null = null;
+    if (hostSpec) {
+      try {
+        const { data: profs } = await service.from("team_profiles").select("email,name,role,slug");
+        const low = String(hostSpec).toLowerCase();
+        const tp = (profs || []).find((p) => String(hostSpec).includes("@") ? String(p.email || "").toLowerCase() === low : (p.slug || slugify(p.name)) === low);
+        if (tp) {
+          paramHostEmail = String(tp.email || "").toLowerCase();
+          const { data: hbs } = await service.from("booking_settings").select("*").eq("email", paramHostEmail).maybeSingle();
+          if (hbs) cfg = { ...cfg, ...hbs };
+        }
+      } catch (_e) { /* host no resoluble → default id=1 */ }
+    }
     if (!cfg.active) return json({ error: "booking_off" }, 403);
     const startMs = Date.parse(start);
     const noticeMs = (Number(cfg.notice_hours) - 0.5) * 3600e3;   // margen de medio slot
@@ -74,7 +94,7 @@ Deno.serve(async (req) => {
     // La identidad visible (nombre/rol/tel/firma) sale de team_profiles de esa persona.
     // NOTA: el evento sigue yendo al ÚNICO Google Calendar compartido (GCAL_ID/GOOGLE_REFRESH_TOKEN);
     // acá solo se nombra al host correcto en el email y en el texto del evento.
-    const hostEmail: string = String(preLead?.owner || (cfg as { email?: string }).email || "sebastian@viven.ch").toLowerCase();
+    const hostEmail: string = String(paramHostEmail || preLead?.owner || (cfg as { email?: string }).email || "sebastian@viven.ch").toLowerCase();
     const host = { email: hostEmail, name: String(cfg.host_name || "Sebastian Cepeda"), role: String(cfg.host_role || "Founder — Viven AG, Zürich"), phone: "", signature: "" };
     try {
       const { data: tp } = await service.from("team_profiles").select("name,role,phone,signature_text").eq("email", hostEmail).maybeSingle();
