@@ -4261,8 +4261,9 @@ const newsCases = [
 
   function renderHome(){
     const now = Date.now(), D = 864e5;
-    // saludo: quién está logueado (meEmail), con fallback al remitente elegido en la ficha
-    const who = /sebastian/.test(meEmail || '') ? 'Sebastián' : /sofia/.test(meEmail || '') ? 'Sofia' : (sender === 'sebastian' ? 'Sebastián' : 'Sofia');
+    // saludo: quién está logueado de verdad — teamName ya resuelve por team_profiles,
+    // soporta cualquier cantidad de personas (antes era un regex hardcodeado a solo 2 nombres)
+    const who = teamName(meEmail).split(/\s+/)[0] || 'ahí';
     $('hm-greet').textContent = 'Buen día, ' + who + ' 👋';
 
     /* --- KPIs --- */
@@ -5710,7 +5711,12 @@ const newsCases = [
   // 👤 Mi perfil (SQL 0064): nombre elegido por la persona pisa al hardcodeado.
   const teamName = (e) => (profileFor(e) || {}).name || (TEAM.find((t) => t.email === e) || {}).name || e || '';
   const teamEmailByName = (n) => (TEAM.find((t) => t.name === n) || {}).email || '';
-  const myEmail = () => (sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
+  // fix: myEmail() usaba el toggle "De: Sofia/Sebastian" del composer de email (localStorage
+  // 'viven_sender', pensado SOLO para elegir la firma de un email a un cliente) como si fuera
+  // tu identidad real — por eso cualquiera que no hubiera tocado ese toggle a mano aparecía
+  // siempre como Sofia al escribir notas o responder. Ahora usa meEmail (login real de Supabase
+  // Auth) primero; el toggle queda de fallback solo por si se llama antes de resolver la sesión.
+  const myEmail = () => meEmail || (sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
   const teamOptions = (sel, ph) => '<option value="">' + (ph || '—') + '</option>' + TEAM.map((t) => '<option value="' + t.email + '"' + (t.email === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>').join('');
 
   // AI lead scoring (heurístico, instantáneo): intención + fit B2B + engagement + recencia
@@ -6071,7 +6077,7 @@ const newsCases = [
     const nb = $('lm2-note-save'); if (nb) nb.addEventListener('click', async () => {
       const bodyTxt = $('lm2-note-b').value.trim(); if (!bodyTxt) { toast('Escribí la nota'); return; }
       const mention = $('lm2-note-m').value || null;
-      const author = teamName(sender === 'sebastian' ? 'sebastian@viven.ch' : 'sofia@viven.ch');
+      const author = teamName(myEmail());
       const { error } = await supabase.from('lead_notes').insert({ lead_id: String(r.id), body: bodyTxt, mention, author });
       if (error) { toast('No se pudo: ' + error.message); return; }
       if (mention) notifyUser(mention, '📝 Nota en el lead ' + (r.name || r.email), author + ' te mencionó:\n\n"' + bodyTxt + '"', r.id);
