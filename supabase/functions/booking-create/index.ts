@@ -245,7 +245,9 @@ Deno.serve(async (req) => {
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: `${host.name} — VIVEN AG <info@viven.ch>`, to: [email], reply_to: replyTo, subject, html }),
+          // fix: antes salía siempre de info@viven.ch (buzón genérico) aunque el host fuera
+          // Sofia o Sebastián — ahora sale del email real de esa persona (mismo que replyTo)
+          body: JSON.stringify({ from: `${host.name} — VIVEN AG <${replyTo}>`, to: [email], reply_to: replyTo, subject, html }),
         });
         if (leadId) await service.from("email_log").insert({ lead_id: String(leadId), to_addr: email, subject, body: html, sender_label: hostFirst, source: "booking-create" }).then(() => {}, () => {});
       }
