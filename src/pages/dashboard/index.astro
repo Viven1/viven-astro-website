@@ -1279,6 +1279,59 @@ const newsCases = [
   .side-item.disabled{opacity:.45;cursor:not-allowed}
   .side-item.disabled:hover{background:none;color:var(--muted)}
   .dash-main{flex:1;min-width:0}
+  /* ===== Shell redesign — slice seguro y aditivo (⌘K + riel colapsable + Crear global) =====
+     Porta el look del mockup aprobado (dashboard-shell-mockup.html) usando SIEMPRE las
+     variables de tema (--navy-*, --line, --acid…), nunca los hexes del mockup: light/dark. */
+  /* -- riel: sidebar colapsable a íconos, con memoria (vv_sidebar_collapsed) -- */
+  .side-rail-btn{align-self:flex-end;background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:13px;padding:5px 9px;margin:-4px 0 2px;border-radius:8px;line-height:1;font-family:inherit;transition:color .12s,background .12s}
+  .side-rail-btn:hover{color:var(--text);background:var(--navy-800)}
+  .dash-side{transition:flex-basis .18s ease,width .18s ease}
+  .dash-body.dash-collapsed .dash-side{flex-basis:56px;width:56px}
+  .dash-body.dash-collapsed .side-rail-btn{align-self:center}
+  .dash-body.dash-collapsed .side-item{font-size:0;gap:0;justify-content:center;padding:9px 0}
+  .dash-body.dash-collapsed .side-item .si-ic{font-size:16px}
+  .dash-body.dash-collapsed .side-item .pill{display:none}
+  .dash-body.dash-collapsed .side-sec{font-size:0;padding:9px 0 4px;pointer-events:none;justify-content:center}
+  .dash-body.dash-collapsed .side-chev{display:none}
+  /* en riel los grupos “colapsados” igual muestran sus íconos (si no, desaparecerían del riel) */
+  .dash-body.dash-collapsed .side-group.collapsed .side-group-items{display:flex}
+  /* -- búsqueda global: pastilla con ⌘K en la barra superior (abre el palette al click) -- */
+  .vv-search{display:flex;align-items:center;gap:8px;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:100px;padding:8px 14px;color:var(--muted-2);font-family:inherit;font-size:13px;cursor:pointer;min-width:190px;transition:border-color .12s,color .12s}
+  .vv-search:hover{border-color:var(--acid);color:var(--muted)}
+  .vv-search .vv-search-t{margin-right:auto}
+  .vv-kbd{font:600 10px Inter,system-ui,sans-serif;color:var(--muted-2);border:1px solid var(--line-strong);border-radius:5px;padding:1px 5px;white-space:nowrap}
+  /* -- ➕ Crear ▾ global -- */
+  .vv-create{position:relative}
+  .vv-create-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:130;min-width:190px;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.5);padding:6px;display:flex;flex-direction:column;gap:2px}
+  .vv-create-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--text);font-family:inherit;font-size:13.5px;font-weight:500;padding:9px 11px;border-radius:8px;cursor:pointer}
+  .vv-create-menu button:hover,.vv-create-menu button:focus-visible{background:color-mix(in srgb,var(--acid) 14%,transparent);color:var(--acid);outline:none}
+  /* -- ⌘K command palette -- */
+  .vv-cmdk{position:fixed;inset:0;z-index:500;display:none;align-items:flex-start;justify-content:center;padding:12vh 20px 20px}
+  .vv-cmdk.open{display:flex}
+  .vv-cmdk-bd{position:fixed;inset:0;background:rgba(9,15,26,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  .vv-cmdk-panel{position:relative;z-index:2;width:min(600px,100%);background:var(--navy-800);border:1px solid var(--line-strong);border-radius:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7);overflow:hidden;animation:vvCmdkIn .18s ease}
+  .vv-cmdk-top{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .vv-cmdk-top .ci-ic{font-size:16px;color:var(--muted-2)}
+  .vv-cmdk-input{flex:1;background:none;border:0;outline:none;color:var(--text);font-family:inherit;font-size:15px;min-width:0}
+  .vv-cmdk-input::placeholder{color:var(--muted-2)}
+  .vv-cmdk-esc{font:600 10px Inter,system-ui,sans-serif;color:var(--muted-2);border:1px solid var(--line-strong);border-radius:5px;padding:2px 6px;white-space:nowrap}
+  .vv-cmdk-results{max-height:min(52vh,420px);overflow:auto;padding:6px}
+  .vv-cmdk-grp{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-2);font-weight:700;padding:10px 10px 4px}
+  .vv-cmdk-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;color:var(--text);font-family:inherit;font-size:13.5px;padding:9px 11px;border-radius:9px;cursor:pointer}
+  .vv-cmdk-item .ci-ic{font-size:15px;width:20px;text-align:center;flex:none}
+  .vv-cmdk-item .ci-main{display:flex;flex-direction:column;min-width:0}
+  .vv-cmdk-item .ci-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vv-cmdk-item .ci-sub{color:var(--muted-2);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vv-cmdk-item.sel,.vv-cmdk-item:hover{background:color-mix(in srgb,var(--acid) 14%,transparent)}
+  .vv-cmdk-item.sel .ci-t,.vv-cmdk-item:hover .ci-t{color:var(--acid)}
+  .vv-cmdk-empty{padding:24px 12px;text-align:center;color:var(--muted-2);font-size:13px}
+  @keyframes vvCmdkIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.vv-cmdk-panel{animation:none}.dash-side{transition:none}}
+  /* en móvil la barra ya usa el bottom-nav: la pastilla de búsqueda queda compacta (solo lupa) */
+  @media(max-width:820px){
+    .vv-search{min-width:0;padding:0;width:38px;height:38px;justify-content:center;border-radius:10px}
+    .vv-search .vv-search-t,.vv-search .vv-kbd{display:none}
+  }
   /* ---------- Modo app en móvil: sidebar → barra inferior fija ---------- */
   .mob-nav,.mob-sheet{display:none}
   @media(max-width:820px){
@@ -1475,6 +1528,21 @@ const newsCases = [
       <p class="dash-sub" id="updated-at">Últimos 30 días</p>
     </div>
     <div class="dash-actions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <!-- Búsqueda global ⌘K: pastilla-affordance (abre el command palette al click) -->
+      <button class="vv-search" id="vv-search-btn" type="button" title="Buscar persona, empresa, oferta… (⌘K)" aria-label="Buscar">
+        <span class="vv-search-ic">🔍</span><span class="vv-search-t">Buscar…</span><kbd class="vv-kbd">⌘K</kbd>
+      </button>
+      <!-- ➕ Crear ▾ global: rutea a los flujos "nuevo" ya existentes de cada entidad -->
+      <div class="vv-create" id="vv-create">
+        <button class="btn btn-primary small" id="vv-create-btn" type="button" aria-haspopup="menu" aria-expanded="false">➕ Crear ▾</button>
+        <div class="vv-create-menu" id="vv-create-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-create="persona">👤 Persona</button>
+          <button type="button" role="menuitem" data-create="empresa">🏢 Empresa</button>
+          <button type="button" role="menuitem" data-create="deal">🤝 Deal</button>
+          <button type="button" role="menuitem" data-create="oferta">🧾 Oferta</button>
+          <button type="button" role="menuitem" data-create="propuesta">🌐 Propuesta</button>
+        </div>
+      </div>
       <button class="bell-btn" id="theme-btn" type="button" title="Cambiar tema (oscuro/claro)" aria-label="Cambiar tema">◐</button>
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
@@ -1491,6 +1559,8 @@ const newsCases = [
 
   <div class="dash-body">
     <aside class="dash-side">
+      <!-- Riel colapsable: un click achica el sidebar a íconos (con memoria por navegador) -->
+      <button class="side-rail-btn" id="side-rail-btn" type="button" title="Colapsar menú" aria-label="Colapsar menú"><span class="srb-ic">⟨⟨</span></button>
       <button class="side-item active" data-tab="home" type="button"><span class="si-ic">🏠</span>Home</button>
       <div class="side-group" data-group="crm">
         <button class="side-sec" type="button">CRM<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -2936,6 +3006,20 @@ const newsCases = [
     <button data-tab="offers" type="button"><span class="mi">🧾</span><span class="ml">Ofertas</span></button><!-- ml corto por espacio: la fila unificada de Propuestas vive dentro de este tab -->
     <button id="mob-more" type="button"><span class="mi">☰</span><span class="ml">Más</span></button>
   </nav>
+
+  <!-- ============ ⌘K Command palette (búsqueda + salto globales) ============ -->
+  <div class="vv-cmdk" id="vv-cmdk" role="dialog" aria-modal="true" aria-label="Buscar y navegar">
+    <div class="vv-cmdk-bd" id="vv-cmdk-bd"></div>
+    <div class="vv-cmdk-panel">
+      <div class="vv-cmdk-top">
+        <span class="ci-ic">🔍</span>
+        <input class="vv-cmdk-input" id="vv-cmdk-input" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Buscar persona, empresa, oferta, propuesta… o saltar a una sección" aria-label="Buscar" />
+        <kbd class="vv-cmdk-esc">Esc</kbd>
+      </div>
+      <div class="vv-cmdk-results" id="vv-cmdk-results"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ============ LEAD DETAIL MODAL ============ -->
@@ -12916,6 +13000,165 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       else if (oid) { gotoTab('offers'); openOffer(oid); }
     } catch (e) {}
   }
+
+  /* ============================================================================
+     SHELL REDESIGN — slice seguro/aditivo: ⌘K palette + riel colapsable + Crear global
+     No toca tabs, gotoTab ni data-tab: solo agrega cromo alrededor de lo existente.
+     Reutiliza los flujos ya montados (openLead/openCompany/openOffer/openProp,
+     newOffer/newProp y los botones "nuevo" de cada tab). Sin fetch nuevo: lee los
+     arrays ya cargados en memoria (allLeads, companiesData(), offersList, propsAll).
+     ============================================================================ */
+
+  /* ---------- Riel colapsable (memoria: vv_sidebar_collapsed) ---------- */
+  (function initRail(){
+    const btn = $('side-rail-btn'), body = document.querySelector('.dash-body');
+    if (!btn || !body) return;
+    const KEY = 'vv_sidebar_collapsed';
+    function apply(on){
+      body.classList.toggle('dash-collapsed', on);
+      const ic = btn.querySelector('.srb-ic'); if (ic) ic.textContent = on ? '⟩⟩' : '⟨⟨';
+      btn.title = on ? 'Expandir menú' : 'Colapsar menú';
+      btn.setAttribute('aria-label', btn.title);
+    }
+    let on = false; try { on = localStorage.getItem(KEY) === '1'; } catch (e) {}
+    apply(on);
+    btn.addEventListener('click', () => { on = !on; apply(on); try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {} });
+    // tooltip en riel: title = SOLO el texto del item (sin el emoji del .si-ic ni el .pill)
+    document.querySelectorAll('.dash-side .side-item[data-tab]').forEach((it) => {
+      if (it.title) return;
+      const label = Array.from(it.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').replace(/\s+/g, ' ').trim();
+      if (label) it.title = label;
+    });
+  })();
+
+  /* ---------- ➕ Crear ▾ global: rutea a los flujos "nuevo" ya existentes ---------- */
+  (function initCreate(){
+    const wrap = $('vv-create'), btn = $('vv-create-btn'), menu = $('vv-create-menu');
+    if (!wrap || !btn || !menu) return;
+    const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+    btn.addEventListener('click', (e) => { e.stopPropagation(); const open = menu.hidden; menu.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+    document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) close(); });
+    menu.querySelectorAll('[data-create]').forEach((b) => b.addEventListener('click', async () => {
+      close();
+      const k = b.dataset.create;
+      if (k === 'persona')   { await gotoTab('leads');     const n = $('ps-new-btn'); if (n) n.click(); }  // tras gotoTab el form está oculto → el click lo abre
+      else if (k === 'empresa')   { await gotoTab('companies'); const n = $('co-new-btn'); if (n) n.click(); }
+      else if (k === 'deal')      { await gotoTab('deals');     const n = $('dl-new-btn'); if (n) n.click(); }
+      else if (k === 'oferta')    { await gotoTab('offers');    const n = $('of-new');     if (n) n.click(); }
+      else if (k === 'propuesta') { await gotoTab('offers');    const n = $('pp-new');     if (n) n.click(); }
+    }));
+  })();
+
+  /* ---------- ⌘K Command palette ---------- */
+  // destinos de navegación (mismos labels/íconos del sidebar; Cash Flow solo si es visible)
+  const CMDK_NAV = [
+    { tab: 'home', ic: '🏠', label: 'Home' },
+    { tab: 'leads', ic: '👤', label: 'Personas' },
+    { tab: 'companies', ic: '🏢', label: 'Companies' },
+    { tab: 'deals', ic: '🤝', label: 'Deals' },
+    { tab: 'offers', ic: '🧾', label: 'Ofertas y propuestas' },
+    { tab: 'booking', ic: '📅', label: 'Booking' },
+    { tab: 'services', ic: '🛠', label: 'Servicios' },
+    { tab: 'licenses', ic: '📄', label: 'Licencias' },
+    { tab: 'analytics', ic: '📊', label: 'Analytics' },
+    { tab: 'ab', ic: '🧪', label: 'A/B Tests' },
+    { tab: 'blog', ic: '📝', label: 'Blog' },
+    { tab: 'news', ic: '📰', label: 'Newsletter' },
+    { tab: 'magnets', ic: '🧲', label: 'Lead Magnets' },
+    { tab: 'auto', ic: '⚙️', label: 'Workflows' },
+    { tab: 'tmpl', ic: '📚', label: 'Plantillas' },
+    { tab: 'profile', ic: '👤', label: 'Mi perfil' },
+    { tab: 'cashflow', ic: '💰', label: 'Cash Flow', hidden: () => { const g = $('side-group-finance'); return !g || g.hidden; } }
+  ];
+  let cmdkFlat = [], cmdkSel = 0;
+  // abrir una propuesta desde cualquier lado: usa ppList si ya cargó, si no propsAll (misma tabla)
+  function cmdkOpenProp(id){
+    const src = (typeof ppList !== 'undefined' ? ppList : []).find((p) => String(p.id) === String(id))
+             || (propsAll || []).find((p) => String(p.id) === String(id));
+    if (!src) return;
+    try { ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); } catch (e) {}
+  }
+  function cmdkRender(q){
+    q = (q || '').trim(); const ql = q.toLowerCase();
+    const has = (s) => !!s && String(s).toLowerCase().includes(ql);
+    cmdkFlat = []; let html = '';
+    function group(title, items){
+      if (!items.length) return;
+      html += '<div class="vv-cmdk-grp">' + esc(title) + '</div>';
+      items.forEach((it) => { const i = cmdkFlat.length; cmdkFlat.push(it);
+        html += '<button class="vv-cmdk-item" type="button" data-i="' + i + '">' +
+          '<span class="ci-ic">' + it.ic + '</span><span class="ci-main"><span class="ci-t">' + esc(it.title) + '</span>' +
+          (it.sub ? '<span class="ci-sub">' + esc(it.sub) + '</span>' : '') + '</span></button>';
+      });
+    }
+    // registros solo con query (no volcamos miles de leads sobre un input vacío)
+    if (ql){
+      const ppl = (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '')).filter((l) => {
+        const dom = leadDomain(l), co = dom ? companyName(dom) : '';
+        return has(l.name) || has(l.email) || has(co) || has(l.company);
+      }).slice(0, 6).map((l) => { const dom = leadDomain(l), co = (dom && companyName(dom)) || l.company || '';
+        return { ic: '👤', title: l.name || l.email || '(sin nombre)', sub: [co, l.email].filter(Boolean).join(' · '), run: () => { cmdkClose(); openLead(l.id); } }; });
+      group('Personas', ppl);
+
+      const emp = (companiesData() || []).filter((c) => has(c.name) || has(c.domain)).slice(0, 4).map((c) =>
+        ({ ic: '🏢', title: c.name || c.domain, sub: c.domain + ' · ' + c.contacts.length + ' contacto' + (c.contacts.length === 1 ? '' : 's'), run: () => { cmdkClose(); openCompany(c.domain); } }));
+      group('Empresas', emp);
+
+      const ofs = (offersList || []).filter((o) => o.status !== 'tier').filter((o) => has(o.title) || has(o.number)).slice(0, 4).map((o) =>
+        ({ ic: '🧾', title: o.title || ('Oferta ' + (o.number || '#' + o.id)), sub: [o.number ? ('N.º ' + o.number) : '', o.client || leadName(o.lead_id)].filter(Boolean).join(' · '), run: () => { cmdkClose(); (async () => { await gotoTab('offers'); openOffer(o.id); })(); } }));
+      group('Ofertas', ofs);
+
+      const prs = (propsAll || []).filter((p) => !p.is_template && !p.archived).filter((p) => has(p.title)).slice(0, 4).map((p) =>
+        ({ ic: '🌐', title: p.title || '(propuesta)', sub: leadName(p.lead_id), run: () => { cmdkClose(); (async () => { await gotoTab('offers'); cmdkOpenProp(p.id); })(); } }));
+      group('Propuestas', prs);
+    }
+    // navegación: vacío → todas las secciones; con query → las que matcheen (máx 5)
+    const nav = CMDK_NAV.filter((n) => !n.hidden || !n.hidden())
+      .filter((n) => !ql || n.label.toLowerCase().includes(ql) || n.tab.includes(ql))
+      .slice(0, ql ? 5 : 99)
+      .map((n) => ({ ic: n.ic, title: n.label, sub: 'Ir a la sección', run: () => { cmdkClose(); gotoTab(n.tab); } }));
+    group(ql ? 'Ir a…' : 'Secciones', nav);
+
+    const res = $('vv-cmdk-results');
+    res.innerHTML = html || '<div class="vv-cmdk-empty">Sin resultados para «' + esc(q) + '»</div>';
+    cmdkSel = 0; cmdkHi();
+    res.querySelectorAll('.vv-cmdk-item').forEach((b) => {
+      b.addEventListener('click', () => { const it = cmdkFlat[+b.dataset.i]; if (it && it.run) it.run(); });
+      b.addEventListener('mousemove', () => { if (cmdkSel !== +b.dataset.i){ cmdkSel = +b.dataset.i; cmdkHi(); } });
+    });
+  }
+  function cmdkHi(){
+    const items = $('vv-cmdk-results').querySelectorAll('.vv-cmdk-item');
+    items.forEach((b, i) => b.classList.toggle('sel', i === cmdkSel));
+    const cur = items[cmdkSel]; if (cur) cur.scrollIntoView({ block: 'nearest' });
+  }
+  function cmdkMove(d){ if (!cmdkFlat.length) return; cmdkSel = (cmdkSel + d + cmdkFlat.length) % cmdkFlat.length; cmdkHi(); }
+  function cmdkOpen(){
+    const ov = $('vv-cmdk'); if (!ov) return;
+    ov.classList.add('open');
+    const inp = $('vv-cmdk-input'); inp.value = ''; cmdkRender('');
+    requestAnimationFrame(() => inp.focus());
+  }
+  function cmdkClose(){ const ov = $('vv-cmdk'); if (ov) ov.classList.remove('open'); }
+  (function initCmdk(){
+    const ov = $('vv-cmdk'); if (!ov) return;
+    $('vv-search-btn') && $('vv-search-btn').addEventListener('click', cmdkOpen);
+    $('vv-cmdk-bd') && $('vv-cmdk-bd').addEventListener('click', cmdkClose);
+    $('vv-cmdk-input').addEventListener('input', (e) => cmdkRender(e.target.value));
+    document.addEventListener('keydown', (e) => {
+      // ⌘K / Ctrl+K: abre/cierra (solo con el dashboard visible, no sobre el login)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){
+        const dv = $('dash-view'); if (!dv || dv.hidden) return;
+        e.preventDefault(); ov.classList.contains('open') ? cmdkClose() : cmdkOpen(); return;
+      }
+      if (!ov.classList.contains('open')) return;
+      if (e.key === 'Escape'){ e.preventDefault(); cmdkClose(); }
+      else if (e.key === 'ArrowDown'){ e.preventDefault(); cmdkMove(1); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); cmdkMove(-1); }
+      else if (e.key === 'Enter'){ e.preventDefault(); const it = cmdkFlat[cmdkSel]; if (it && it.run) it.run(); }
+    });
+  })();
+
   supabase.auth.getSession().then(async ({ data }) => {
     if (data.session) {
       meEmail = (data.session.user?.email || '').toLowerCase();
