@@ -13,6 +13,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// fix (auditoría 2026-07-14): deployada con --no-verify-jwt y sin ningún chequeo propio,
+// esta función era invocable por cualquiera sin login — filtraba una señal financiera
+// parcial (si hay o no un mes en rojo) y podía mutar last_alerted_period/disparar el
+// email fuera de horario. Mismo patrón que ya usa lead-followup (CRON_SECRET). Queda
+// INERTE (no bloquea nada) hasta que el secret CASHFLOW_CRON_SECRET exista de verdad.
+const CASHFLOW_CRON_SECRET = Deno.env.get("CASHFLOW_CRON_SECRET") ?? "";
 
 type Entry = { kind: "income" | "expense"; amount_chf: number; due_date: string; status: string };
 type Template = {
@@ -79,7 +85,10 @@ function projectMonthly(startBalance: number, entries: Entry[], templates: Templ
   return months;
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (CASHFLOW_CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CASHFLOW_CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const { data: settings, error: settingsErr } = await service.from("cashflow_alert_settings").select("*").eq("id", 1).maybeSingle();
     if (settingsErr) return new Response(JSON.stringify({ error: settingsErr.message }), { status: 500 });

@@ -5162,9 +5162,13 @@ const newsCases = [
   };
 
   /* quién firma/envía — configurable (Sofia o Sebastian). Se guarda en el navegador. */
+  // fix (auditoría 2026-07-14): el link "book" apuntaba al genérico /book/ para las dos
+  // personas — con el selector por-persona ya en vivo, un email firmado "de parte de
+  // Sebastián" mandaba igual al calendario que resuelva /book/ (hoy Sofia, por su
+  // book_visible). Ahora cada quien linkea directo a su propia agenda.
   const SENDERS = {
-    sofia:     { name: 'Sofia Treviño',   book: 'https://www.viven.ch/book/', email: 'sofia@viven.ch' },
-    sebastian: { name: 'Sebastian Cepeda', book: 'https://www.viven.ch/book/', email: 'sebastian@viven.ch' },
+    sofia:     { name: 'Sofia Treviño',   book: 'https://www.viven.ch/book/sofia', email: 'sofia@viven.ch' },
+    sebastian: { name: 'Sebastian Cepeda', book: 'https://www.viven.ch/book/sebastian', email: 'sebastian@viven.ch' },
   };
   let sender = localStorage.getItem('viven_sender') || 'sofia';
   const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en') + '&topic=' + detectTopic(r.message);
@@ -5263,16 +5267,14 @@ const newsCases = [
   const time2mins = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
   function bookingInit(){ if (!bkSetLoaded) loadBookingSet(); if (isOwner()) loadBookVisible(); }
   async function loadBookingSet(){
+    // fix (auditoría 2026-07-14): el dueño editaba SIEMPRE la fila legacy id=1 (arrastraba
+    // datos viejos de Sofia de cuando /book/ redirigía temporalmente a su HubSpot) — su fila
+    // real por email (con SUS horarios reales) quedaba huérfana, inaccesible desde acá. Eso
+    // tenía sentido cuando el booking por-persona todavía estaba diferido (id=1 era lo único
+    // que servía /book/ en vivo); ahora que el selector por-persona ya está activo, cada
+    // persona —dueño incluido— edita SU PROPIA fila por email, igual que Sofia.
     let c = null;
-    if (isOwner()) {
-      // El dueño edita SIEMPRE la fila default global id=1. Mientras el selector público
-      // por-persona esté diferido, /book/ (booking-slots/booking-create leen id=1) debe
-      // seguir editable — si editara su propia fila por email, el /book/ live quedaría congelado.
-      const { data: def, error } = await supabase.from('booking_settings').select('*').eq('id', 1).maybeSingle();
-      if (error) { $('bks-note').textContent = '⚠️ Corré el SQL 0073 para poder editar (mientras tanto rigen los defaults).'; return; }
-      c = def || {}; bkRowId = 1;
-    } else if (meEmail) {
-      // Cada usuario no-dueño edita SU propia fila por email; hereda del default id=1 hasta guardar.
+    if (meEmail) {
       const { data } = await supabase.from('booking_settings').select('*').eq('email', meEmail).maybeSingle();
       c = data || null;
       if (c) { bkRowId = c.id; }
@@ -5303,7 +5305,7 @@ const newsCases = [
     $('bks-hname').value = c.host_name || prof.name || 'Sebastian Cepeda';
     $('bks-hrole').value = c.host_role || prof.role || 'Founder — Viven AG, Zürich';
     $('bks-msg-en').value = c.msg_en || ''; $('bks-msg-de').value = c.msg_de || ''; $('bks-msg-es').value = c.msg_es || '';
-    $('bks-note').textContent = isOwner() ? 'Estás editando el horario público de /book/ (default global).' : (bkRowId ? '' : 'Todavía usás los horarios por defecto — guardá para tener los tuyos.');
+    $('bks-note').textContent = bkRowId ? '' : 'Todavía usás los horarios por defecto — guardá para tener los tuyos.';
   }
   async function saveBookingSet(){
     if (!meEmail) { toast('Sin sesión detectada — entrá de nuevo'); return; }
@@ -5317,8 +5319,9 @@ const newsCases = [
       buffer_min: +$('bks-buffer').value || 0, durations, days,
       host_name: $('bks-hname').value.trim(), host_role: $('bks-hrole').value.trim(),
       msg_en: $('bks-msg-en').value.trim() || null, msg_de: $('bks-msg-de').value.trim() || null, msg_es: $('bks-msg-es').value.trim() || null };
-    // el dueño escribe el default global (id=1, sin email); los no-dueños su propia fila por email
-    if (isOwner()) { bkRowId = 1; row.email = null; } else { row.email = meEmail; }
+    // fix: cada persona (dueño incluido) escribe SU PROPIA fila por email — antes el dueño
+    // pisaba siempre la fila legacy id=1, dejando su fila real huérfana e inaccesible
+    row.email = meEmail;
     if (row.work_end - Math.max(...durations) < row.work_start) { toast('El horario es demasiado corto para la duración más larga'); return; }
     let error;
     if (bkRowId) {
@@ -5328,8 +5331,8 @@ const newsCases = [
       error = res.error; if (!error && res.data) bkRowId = res.data.id;
     }
     if (error) { toast('No se pudo guardar (¿SQL 0073?): ' + error.message); return; }
-    $('bks-note').textContent = isOwner() ? 'Estás editando el horario público de /book/ (default global).' : '';
-    toast(isOwner() ? '📅 Horario público de /book/ guardado — rige al instante' : '📅 Tus horarios de booking quedaron guardados');
+    $('bks-note').textContent = '';
+    toast('📅 Tus horarios de booking quedaron guardados');
   }
   $('bks-save') && $('bks-save').addEventListener('click', saveBookingSet);
 
@@ -9122,7 +9125,11 @@ const newsCases = [
     const cut30 = Date.now() - 30 * 86400000;
     const offWon = offPool.filter((o) => o.status === 'won');
     const offWon30 = offWon.filter((o) => Date.parse(o.updated_at) > cut30);
-    const propAcc = propPool.filter((p) => p.status === 'accepted');
+    // fix (auditoría 2026-07-14): sin propCovered, una oferta convertida a propuesta y ganada
+    // (accept-proposal marca won la oferta original) se contaba DOS VECES acá — como oferta
+    // ganada Y como propuesta aceptada. propCovered ya existe y se usa en Deals/Home
+    // (propsWonForLead/Deal) exactamente para este caso — reusarlo acá también.
+    const propAcc = propPool.filter((p) => p.status === 'accepted' && !propCovered(p));
     const propAcc30 = propAcc.filter((p) => p.accepted_at && Date.parse(p.accepted_at) > cut30);
     const won30Count = offWon30.length + propAcc30.length;
     const won30Val = offWon30.reduce((a, o) => a + offerNet(o), 0) + propAcc30.reduce((a, p) => a + (Number(p.accepted_total) || propVal(p)), 0);
@@ -9207,11 +9214,16 @@ const newsCases = [
       const offIds = [...ofSelected], propIds = [...ppSelected], total = offIds.length + propIds.length;
       if (!total) return;
       if (!confirm('¿Borrar definitivamente ' + total + ' documento' + (total === 1 ? '' : 's') + ' (' + offIds.length + ' oferta' + (offIds.length === 1 ? '' : 's') + ' + ' + propIds.length + ' propuesta' + (propIds.length === 1 ? '' : 's') + ')? Esta acción no se puede deshacer.')) return;
-      if (offIds.length){ const { error } = await supabase.from('offers').delete().in('id', offIds); if (error){ toast('⚠️ ' + error.message); return; } }
-      if (propIds.length){ const { error } = await supabase.from('proposals').delete().in('id', propIds); if (error){ toast('⚠️ ' + error.message); return; } }
-      offersList = offersList.filter((o) => !offIds.includes(String(o.id)));
-      ppList = ppList.filter((p) => !propIds.includes(String(p.id)));
-      ofSelected.clear(); ppSelected.clear();
+      // fix (auditoría 2026-07-14): antes, si el delete de offers tenía éxito pero el de
+      // proposals fallaba, la función cortaba ANTES de reflejar el primer borrado en la UI —
+      // quedaba desincronizada de la base (ofertas ya borradas pero seguían viéndose en pantalla
+      // como si existieran y seleccionadas). Ahora cada mitad se refleja según su propio resultado.
+      let offErr = null, propErr = null;
+      if (offIds.length){ ({ error: offErr } = await supabase.from('offers').delete().in('id', offIds)); }
+      if (propIds.length){ ({ error: propErr } = await supabase.from('proposals').delete().in('id', propIds)); }
+      if (!offErr){ offersList = offersList.filter((o) => !offIds.includes(String(o.id))); ofSelected.clear(); }
+      if (!propErr){ ppList = ppList.filter((p) => !propIds.includes(String(p.id))); ppSelected.clear(); }
+      if (offErr || propErr) toast('⚠️ ' + (offErr ? offErr.message : propErr.message));
       renderComboList();
     };
   }
@@ -13071,9 +13083,14 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     menu.querySelectorAll('[data-create]').forEach((b) => b.addEventListener('click', async () => {
       close();
       const k = b.dataset.create;
-      if (k === 'persona')   { await gotoTab('leads');     const n = $('ps-new-btn'); if (n) n.click(); }  // tras gotoTab el form está oculto → el click lo abre
-      else if (k === 'empresa')   { await gotoTab('companies'); const n = $('co-new-btn'); if (n) n.click(); }
-      else if (k === 'deal')      { await gotoTab('deals');     const n = $('dl-new-btn'); if (n) n.click(); }
+      // fix (auditoría 2026-07-14): estos 3 botones son TOGGLE, no "abrir siempre" — si el
+      // usuario había dejado el form abierto con un borrador sin guardar en otro momento,
+      // gotoTab NO lo cierra (no toca hidden de estos forms), así que el .click() de acá
+      // caía en la rama "cerrar" y Crear global terminaba DESCARTANDO el borrador en vez de
+      // abrir uno nuevo. Forzamos hidden=true justo antes para que el toggle siempre abra.
+      if (k === 'persona')   { await gotoTab('leads');     const f = $('ps-form'); if (f) f.hidden = true; const n = $('ps-new-btn'); if (n) n.click(); }
+      else if (k === 'empresa')   { await gotoTab('companies'); const f = $('co-form'); if (f) f.hidden = true; const n = $('co-new-btn'); if (n) n.click(); }
+      else if (k === 'deal')      { await gotoTab('deals');     const f = $('dl-form'); if (f) f.hidden = true; const n = $('dl-new-btn'); if (n) n.click(); }
       else if (k === 'oferta')    { await gotoTab('offers');    const n = $('of-new');     if (n) n.click(); }
       else if (k === 'propuesta') { await gotoTab('offers');    const n = $('pp-new');     if (n) n.click(); }
     }));
@@ -13179,7 +13196,17 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       // ⌘K / Ctrl+K: abre/cierra (solo con el dashboard visible, no sobre el login)
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){
         const dv = $('dash-view'); if (!dv || dv.hidden) return;
-        e.preventDefault(); ov.classList.contains('open') ? cmdkClose() : cmdkOpen(); return;
+        const isOpen = ov.classList.contains('open');
+        // fix (auditoría 2026-07-14): Ctrl+K en Mac es el atajo nativo "borrar hasta fin de
+        // línea" dentro de cualquier campo de texto — antes esto lo interceptaba SIEMPRE,
+        // robando el foco de notas/textos a medio escribir. Si la paleta ya está abierta sí
+        // se puede cerrar igual (toggle); si está cerrada y estás escribiendo, dejamos pasar
+        // el atajo nativo sin abrir nada encima.
+        if (!isOpen){
+          const tag = (e.target && e.target.tagName) || '';
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
+        }
+        e.preventDefault(); isOpen ? cmdkClose() : cmdkOpen(); return;
       }
       if (!ov.classList.contains('open')) return;
       if (e.key === 'Escape'){ e.preventDefault(); cmdkClose(); }

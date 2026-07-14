@@ -68,16 +68,27 @@ export function slugify(name: string): string {
 }
 
 // Resuelve un host (slug o email) a su fila de settings + identidad visible.
-// Sin host, o host no resoluble → EXACTO comportamiento actual (fila id=1 default).
+// Sin host resoluble → fallback a la fila legacy id=1 SOLO si hay 0 o 2+ personas
+// visibles (ambigüedad real). Auditoría 2026-07-14: antes, ?host= vacío caía SIEMPRE
+// a esa fila legacy, que muestra un host_name viejo pero usa el calendario COMPARTIDO
+// (la cuenta personal de Sebastián) — con 1 sola persona visible eso es un mismatch
+// real de nombre vs. calendario. Mismo criterio que ya usa el frontend (BookingApp.astro).
 export async function resolveHost(spec: string): Promise<{ cfg: typeof DEFAULTS; host: { name: string; role: string; email: string | null } }> {
   const def = await bookingSettings();
   const fallback = { cfg: def, host: { name: String(def.host_name), role: String(def.host_role), email: null as string | null } };
-  if (!spec) return fallback;
+  let resolvedSpec = spec;
+  if (!resolvedSpec) {
+    try {
+      const { data: vis } = await service.from("team_profiles").select("email,slug").eq("book_visible", true);
+      if (vis && vis.length === 1) resolvedSpec = String(vis[0].slug || vis[0].email || "");
+    } catch (_e) { /* best-effort — si falla, sigue al fallback legacy de siempre */ }
+  }
+  if (!resolvedSpec) return fallback;
   try {
     const { data: profs } = await service.from("team_profiles").select("email,name,role,slug");
-    const low = spec.toLowerCase();
+    const low = resolvedSpec.toLowerCase();
     const tp = (profs || []).find((p) =>
-      spec.includes("@") ? String(p.email || "").toLowerCase() === low : (p.slug || slugify(p.name)) === low);
+      resolvedSpec.includes("@") ? String(p.email || "").toLowerCase() === low : (p.slug || slugify(p.name)) === low);
     if (!tp) return fallback;
     const email = String(tp.email || "").toLowerCase();
     let cfg = def;

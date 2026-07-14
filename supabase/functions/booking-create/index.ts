@@ -77,11 +77,21 @@ Deno.serve(async (req) => {
     // su fila de booking_settings pisa la default para las validaciones de validez/duración,
     // y su email queda como host_email de la reserva. Host no resoluble → default id=1 (compat).
     let paramHostEmail: string | null = null;
-    if (hostSpec) {
+    let resolvedHostSpec = String(hostSpec || "");
+    if (!resolvedHostSpec) {
+      // fix (auditoría 2026-07-14): sin host, ANTES caía siempre a la fila legacy id=1 (cuyo
+      // host_name puede no coincidir con el calendario real usado más abajo) — con exactamente
+      // 1 persona visible, resolvemos directo a ella (mismo criterio que booking-slots/frontend).
+      try {
+        const { data: vis } = await service.from("team_profiles").select("email,slug").eq("book_visible", true);
+        if (vis && vis.length === 1) resolvedHostSpec = String(vis[0].slug || vis[0].email || "");
+      } catch (_e) { /* best-effort */ }
+    }
+    if (resolvedHostSpec) {
       try {
         const { data: profs } = await service.from("team_profiles").select("email,name,role,slug");
-        const low = String(hostSpec).toLowerCase();
-        const tp = (profs || []).find((p) => String(hostSpec).includes("@") ? String(p.email || "").toLowerCase() === low : (p.slug || slugify(p.name)) === low);
+        const low = resolvedHostSpec.toLowerCase();
+        const tp = (profs || []).find((p) => resolvedHostSpec.includes("@") ? String(p.email || "").toLowerCase() === low : (p.slug || slugify(p.name)) === low);
         if (tp) {
           paramHostEmail = String(tp.email || "").toLowerCase();
           const { data: hbs } = await service.from("booking_settings").select("*").eq("email", paramHostEmail).maybeSingle();
@@ -97,14 +107,20 @@ Deno.serve(async (req) => {
     const endMs = startMs + duration * 60e3;
 
     // lead existente (si hay) ANTES de crear el evento → el link al brief va ligado
-    const { data: preLead } = await service.from("leads").select("id,owner").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    // fix (auditoría 2026-07-14): esto seleccionaba "owner", una columna que NUNCA existió en
+    // `leads` — Supabase-js no tira error por eso, solo hace que preLead.owner sea siempre
+    // undefined (código muerto que documentaba una prioridad "dueño del lead" que jamás corría).
+    // No hay hoy un concepto real de "lead asignado a una persona" — si se quiere esa feature
+    // hay que construirla de cero (columna + UI), no asumir que ya existía.
+    const { data: preLead } = await service.from("leads").select("id").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const briefUrl = BRIEF_URL + "?lang=" + encodeURIComponent(lang) + (preLead?.id ? "&lead=" + preLead.id : "");
 
-    // Anfitrión correcto (SQL 0073): dueño del lead → email de la fila de settings → default.
-    // La identidad visible (nombre/rol/tel/firma) sale de team_profiles de esa persona.
-    // El evento va al calendario DE ESA PERSONA si tiene su propio Google conectado (secret
-    // GOOGLE_REFRESH_TOKEN_<host>); si no, al calendario compartido de siempre (fallback).
-    const hostEmail: string = String(paramHostEmail || preLead?.owner || (cfg as { email?: string }).email || "sebastian@viven.ch").toLowerCase();
+    // Anfitrión correcto: host explícito del front (o resuelto arriba por 1-solo-visible)
+    // → email de la fila de settings del host → default. La identidad visible (nombre/rol/
+    // tel/firma) sale de team_profiles de esa persona. El evento va al calendario DE ESA
+    // PERSONA si tiene su propio Google conectado (secret GOOGLE_REFRESH_TOKEN_<host>); si
+    // no, al calendario compartido de siempre (fallback).
+    const hostEmail: string = String(paramHostEmail || (cfg as { email?: string }).email || "sebastian@viven.ch").toLowerCase();
     const host = { email: hostEmail, name: String(cfg.host_name || "Sebastian Cepeda"), role: String(cfg.host_role || "Founder — Viven AG, Zürich"), phone: "", signature: "" };
     try {
       const { data: tp } = await service.from("team_profiles").select("name,role,phone,signature_text").eq("email", hostEmail).maybeSingle();
