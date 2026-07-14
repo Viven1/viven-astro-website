@@ -13,10 +13,16 @@
 // funciones vía fetch(), best-effort (sin esperar ni frenar por su resultado).
 //
 // Deploy: supabase functions deploy outbox-notify --no-verify-jwt
+//
+// fix (auditoría 2026-07-14): invocable sin auth por cualquiera con solo el id
+// de un outbox row — filtraba contenido de borradores de email a clientes.
+// Los 3 callers YA mandan Authorization: Bearer SERVICE_ROLE_KEY (mismo patrón
+// que newsletter-send) — solo se exige acá, nunca una llamada anónima.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const service = createClient(Deno.env.get("SUPABASE_URL")!, SERVICE_ROLE_KEY);
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
@@ -34,6 +40,9 @@ const SENDER_EMAIL: Record<string, string> = { sofia: "sofia@viven.ch", sebastia
 const SENDER_NAME: Record<string, string> = { sofia: "Sofia", sebastian: "Sebastian", team: "el team" };
 
 Deno.serve(async (req) => {
+  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+    return json({ error: "unauthorized" }, 401);
+  }
   try {
     const { id } = await req.json().catch(() => ({}));
     if (!id) return json({ error: "falta id" }, 400);

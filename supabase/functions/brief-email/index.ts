@@ -5,8 +5,15 @@
 //
 // Deploy: supabase functions deploy brief-email --no-verify-jwt
 // Usa:    RESEND_API_KEY (ya seteado)
+//
+// fix (auditoría 2026-07-14): sin límite, cualquiera podía usar esto como
+// open-relay hacia un `to` arbitrario o bombardear una sola bandeja. Rate
+// limit simple por IP vía tabla rl_hits (SQL 0082): máx 5 envíos / 10 min.
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
+const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -14,6 +21,15 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+async function rateLimited(fn: string, ip: string, max = 5, windowMin = 10): Promise<boolean> {
+  const since = new Date(Date.now() - windowMin * 60_000).toISOString();
+  const { count } = await service.from("rl_hits").select("id", { count: "exact", head: true }).eq("fn", fn).eq("key", ip).gte("at", since);
+  await service.from("rl_hits").insert({ fn, key: ip });
+  if (Math.random() < 0.02) service.from("rl_hits").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString()).then(() => {}, () => {});
+  return (count ?? 0) >= max;
+}
+const clientIp = (req: Request) => req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
 const T: Record<string, Record<string, string>> = {
   en: { subject: "Your project brief — VIVEN", hi: "Hi", intro: "Here's a copy of the brief you just filled in — forward it to anyone else who needs to weigh in.", refLabel: "References", notesLabel: "Anything else", bye: "We'll be in touch shortly. Prefer to talk sooner?", cta: "Book a free 15-min call →", foot: "You're receiving this because you filled in our project brief." },
@@ -23,6 +39,7 @@ const T: Record<string, Record<string, string>> = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (await rateLimited("brief-email", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
     const { to, name, lang: rawLang, pairs, references, extra } = await req.json();
     if (!to || !Array.isArray(pairs) || !pairs.length) return json({ error: "faltan datos (to/pairs)" }, 400);

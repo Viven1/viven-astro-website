@@ -6,10 +6,19 @@
 // Secret:  supabase secrets set RESEND_API_KEY=re_xxx
 // Webhook: Supabase → Database → Webhooks → New:
 //          tabla=leads, evento=INSERT, tipo=Supabase Edge Function → lead-notify
+//          HTTP Headers → agregar Authorization: Bearer <CRON_SECRET>
+//
+// fix (auditoría 2026-07-14): invocable sin auth por cualquiera con un body
+// { record: {...} } armado a mano — filtraba nombre/mensaje/campaña de leads
+// reales y podía spammear el push del team. Exige el mismo CRON_SECRET
+// compartido que el resto de las funciones internas — el Database Webhook
+// tiene que mandarlo como header custom (configuración manual en el
+// Dashboard, ver arriba; no se puede setear desde una migración SQL).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
+const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const TO = "info@viven.ch";
 const FROM = "Viven Leads <leads@viven.ch>"; // dominio verificado en Resend
@@ -37,6 +46,9 @@ async function pushBroadcast(title: string, body: string, url = "/dashboard/") {
 }
 
 Deno.serve(async (req) => {
+  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
+    return new Response("forbidden", { status: 403 });
+  }
   try {
     const body = await req.json();
     const r = body.record ?? body; // webhook trae { type, table, record }

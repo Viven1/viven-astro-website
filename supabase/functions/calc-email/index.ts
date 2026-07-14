@@ -12,6 +12,10 @@
 // intro+nota de abajo (tokens {{first_name}}/{{range}}). Sin fila → default
 // hardcodeado de siempre. Lookup defensivo: tabla ausente = mismo camino que
 // "sin fila".
+//
+// fix (auditoría 2026-07-14): sin límite, cualquiera podía usar esto como
+// open-relay hacia un `to` arbitrario o bombardear una sola bandeja. Rate
+// limit simple por IP vía tabla rl_hits (SQL 0082): máx 5 envíos / 10 min.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -24,6 +28,17 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+// rate limit por IP: máx N hits en una ventana de M minutos, compartido por
+// todos los endpoints públicos que mandan email (misma tabla, `fn` distinto).
+async function rateLimited(fn: string, ip: string, max = 5, windowMin = 10): Promise<boolean> {
+  const since = new Date(Date.now() - windowMin * 60_000).toISOString();
+  const { count } = await service.from("rl_hits").select("id", { count: "exact", head: true }).eq("fn", fn).eq("key", ip).gte("at", since);
+  await service.from("rl_hits").insert({ fn, key: ip });
+  if (Math.random() < 0.02) service.from("rl_hits").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString()).then(() => {}, () => {});
+  return (count ?? 0) >= max;
+}
+const clientIp = (req: Request) => req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
 async function getTemplate(key: string, lang: string): Promise<{ subject: string; body: string } | null> {
   try {
@@ -71,6 +86,7 @@ const T: Record<string, Record<string, string>> = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (await rateLimited("calc-email", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
     const { to, name, lang: rawLang, lines, lo, hi, config } = await req.json();
     if (!to || !lo || !hi) return json({ error: "faltan datos (to/lo/hi)" }, 400);

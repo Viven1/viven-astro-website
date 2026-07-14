@@ -6,10 +6,24 @@
 //
 // Deploy:   supabase functions deploy booking-create --no-verify-jwt
 // Secrets:  GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, GCAL_ID (opcional)
+//
+// fix (auditoría 2026-07-14): sin límite, cualquiera podía scriptear reservas
+// (spam de eventos en el calendario real + invitaciones de Google Meet a
+// cualquier `email`). Rate limit simple por IP vía tabla rl_hits (SQL 0082):
+// máx 8 reservas / 10 min — generoso para reintentos legítimos, corta abuso.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+async function rateLimited(fn: string, ip: string, max = 8, windowMin = 10): Promise<boolean> {
+  const since = new Date(Date.now() - windowMin * 60_000).toISOString();
+  const { count } = await service.from("rl_hits").select("id", { count: "exact", head: true }).eq("fn", fn).eq("key", ip).gte("at", since);
+  await service.from("rl_hits").insert({ fn, key: ip });
+  if (Math.random() < 0.02) service.from("rl_hits").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString()).then(() => {}, () => {});
+  return (count ?? 0) >= max;
+}
+const clientIp = (req: Request) => req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
 // 📚 Plantillas (SQL 0062): si existe email_templates(key='booking_confirmation',
 // lang), su subject/body pisan el saludo+parrafo de confirmación de abajo
@@ -67,6 +81,7 @@ const BRIEF_URL = SITE + "/brief/";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (await rateLimited("booking-create", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
     const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en", host: hostSpec = "" } = await req.json();
     if (!name.trim() || !/.+@.+\..+/.test(email) || !start) return json({ error: "missing_fields" }, 400);
