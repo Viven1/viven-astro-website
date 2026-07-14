@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { to, subject, html, text, reply_to, offer_id } = await req.json();
+    const { to, subject, html, text, reply_to, offer_id, pdf_base64, pdf_filename } = await req.json();
     if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(to))) return json({ error: "email del cliente inválido" }, 400);
     if (!subject || !html) return json({ error: "faltan subject/html" }, 400);
 
@@ -38,6 +38,9 @@ Deno.serve(async (req) => {
         to: [to],
         reply_to: reply_to && /@viven\.ch$/i.test(reply_to) ? reply_to : "info@viven.ch",
         subject, html, text: text || "",
+        // PDF de la oferta adjunto (opcional): el dashboard lo genera con jsPDF y lo manda
+        // en base64 — Resend acepta content en base64 directo
+        ...(pdf_base64 ? { attachments: [{ filename: String(pdf_filename || "Offerte_VIVEN.pdf"), content: String(pdf_base64) }] } : {}),
         // tag con el id de la oferta → el webhook resend-events puede mapear cada
         // apertura del email de vuelta a SU oferta y estampar last_open_at
         ...(offer_id ? { tags: [{ name: "offer_id", value: String(offer_id) }] } : {}),

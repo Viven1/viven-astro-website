@@ -49,9 +49,12 @@ Reglas:
 - Si el brief trae "answers", USALO: formats con 9:16/1:1 → agregá "Social cutdowns"; cada idioma extra o "Subtitles needed" → una posición de "Untertitel / Subtitles" por idioma; quantity de varios videos → escalá días de producción/edición en proporción; "Animation (no shoot)" o "No shoot needed" → sin crew de rodaje, más Motion/VFX; "Multiple locations" → más días de producción y Van.
 - IMPORTANTE — presupuesto del brief (answers.budget): si existe y NO es "Not sure yet", es un TECHO DURO, no orientativo. Tomá el extremo SUPERIOR del rango como límite ("< CHF 5k" → 5'000; "CHF 5–15k" → 15'000; "CHF 15–40k" → 40'000; "CHF 40k+" → tratalo como ~45'000) y el TOTAL NETO de la oferta (suma qty×price) NUNCA puede superar ese número. Quedar por debajo está perfecto (ideal si los costos reales dan más bajo). Superarlo NO — le pedimos ese dato al cliente justamente para no ofertarle algo que no puede pagar; si hace falta, bajá días/posiciones hasta entrar en el rango.
 - El "title" corto y claro (cliente + tipo de video). El "summary" en ${language}, 1-2 frases sobre el enfoque.
+- "intro_text" y "closing_text": textos PERSONALES en ${language} que van en el PDF y el email de la oferta, dirigidos al cliente (trato natural del idioma: Sie en alemán, you en inglés, tono cercano en español).
+  · intro_text (2-4 frases): cálido y específico — agradecé la consulta, mencioná EL PROYECTO concreto del brief (qué video, para qué) y decí con ganas que nos encantaría hacerlo con ellos. Nada de plantillas genéricas.
+  · closing_text (1-3 frases): cierre cercano — si hay preguntas sobre alcance o precio que escriban o llamen, estamos felices de ajustar lo que haga falta.
 
 Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-{"title":"...","summary":"...","items":[{"phase":"Production","name":"Director of Photography","qty":1,"unit":"Tag","price":1000,"cost":800}]}
+{"title":"...","summary":"...","intro_text":"...","closing_text":"...","items":[{"phase":"Production","name":"Director of Photography","qty":1,"unit":"Tag","price":1000,"cost":800}]}
 
 Consulta del cliente:
 ${inquiry || "(sin mensaje directo)"}
@@ -93,7 +96,13 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
       price: Number(it.price) || 0,
       cost: Number(it.cost) || 0,
     })).slice(0, 40);
-    return json({ title: parsed.title || "", summary: parsed.summary || "", items: parsed.items });
+    return json({
+      title: parsed.title || "",
+      summary: parsed.summary || "",
+      intro_text: typeof parsed.intro_text === "string" ? parsed.intro_text.slice(0, 1200) : "",
+      closing_text: typeof parsed.closing_text === "string" ? parsed.closing_text.slice(0, 600) : "",
+      items: parsed.items,
+    });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) });

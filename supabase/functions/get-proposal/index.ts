@@ -31,7 +31,7 @@ function stripInternal(content: any) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { slug, password } = await req.json();
+    const { slug, password, seller } = await req.json();
     if (!slug) return json({ error: "missing slug" }, 400);
     const admin = createClient(SB_URL, SERVICE);
     const { data, error } = await admin.from("proposals").select("*").eq("slug", slug).maybeSingle();
@@ -43,9 +43,13 @@ Deno.serve(async (req) => {
     }
     // contar la vista + CUÁNDO fue (best-effort) — "vista hace 3 h" en el dashboard
     // es la señal de que el cliente la está mirando; si la columna falta (SQL 0058
-    // sin correr), reintenta solo con el contador para no romper la carga
-    const { error: vErr } = await admin.from("proposals").update({ views: (data.views || 0) + 1, last_view_at: new Date().toISOString() }).eq("id", data.id);
-    if (vErr) await admin.from("proposals").update({ views: (data.views || 0) + 1 }).eq("id", data.id);
+    // sin correr), reintenta solo con el contador para no romper la carga.
+    // seller=true (dashboard "Ver link" / preview con &s=1): NO estampa nada — las
+    // vistas del vendedor no inflan las stats del cliente.
+    if (!seller) {
+      const { error: vErr } = await admin.from("proposals").update({ views: (data.views || 0) + 1, last_view_at: new Date().toISOString() }).eq("id", data.id);
+      if (vErr) await admin.from("proposals").update({ views: (data.views || 0) + 1 }).eq("id", data.id);
+    }
     return json({
       ok: true,
       title: data.title,

@@ -126,7 +126,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .pp-fine{font-size:12px;color:var(--muted-2);margin-top:12px;text-align:center}
   .pp-agree{display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:13.5px;color:var(--muted);cursor:pointer;line-height:1.4}
   .pp-agree input{margin-top:2px;flex:none}
-  .pp-signed-name{font-family:'Brush Script MT',cursive;font-size:26px;color:var(--acid);margin-top:8px}
+  /* firma: stack cursivo que EXISTE en Android/iOS (Brush Script MT no está en celulares) */
+  .pp-signed-name{font-family:'Segoe Script','Bradley Hand','Snell Roundhand','Comic Sans MS',cursive;font-size:26px;color:var(--acid);margin-top:8px}
   .pp-footer{text-align:center;padding:44px 0;color:var(--muted)}
   .pp-footer a{color:var(--acid)}
   /* gate + estados */
@@ -156,6 +157,20 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .pp-add .a-x{color:var(--acid)}
   .pp-add .a-each{font-size:11px;color:var(--muted-2);font-weight:400;text-align:right}
   .pp-sec{scroll-margin-top:70px}
+  /* ---- skeleton de carga (entre el password y el contenido) ---- */
+  #pp-skel{max-width:var(--pp-max);margin:0 auto;padding:60px 22px}
+  .sk{background:var(--navy-800);border-radius:10px;animation:sk-pulse 1.2s ease-in-out infinite;margin-bottom:16px}
+  @keyframes sk-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  /* ---- barra de total fija abajo (solo mobile): total + Aceptar siempre a la vista ---- */
+  #pp-mbar{display:none}
+  @media(max-width:640px){
+    #pp-mbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--navy-900) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line-strong);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+    #pp-mbar[hidden]{display:none}
+    #pp-mbar .mb-k{font-size:11px;color:var(--muted-2)}
+    #pp-mbar .mb-v{font-size:17px;font-weight:800;color:var(--text)}
+    body.has-mbar .pp-wrap{padding-bottom:170px}
+  }
+  @media print{#pp-mbar,#pp-skel{display:none!important}}
 </style>
 </head>
 <body>
@@ -173,6 +188,17 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     </div>
   </div>
 
+  <!-- SKELETON mientras carga get-proposal -->
+  <div id="pp-skel" hidden>
+    <div class="sk" style="width:130px;height:22px"></div>
+    <div class="sk" style="width:75%;height:44px"></div>
+    <div class="sk" style="width:45%;height:20px;margin-bottom:34px"></div>
+    <div class="sk" style="height:14px"></div>
+    <div class="sk" style="height:14px;width:92%"></div>
+    <div class="sk" style="height:14px;width:84%;margin-bottom:30px"></div>
+    <div class="sk" style="height:190px;border-radius:16px"></div>
+  </div>
+
   <!-- PROPOSAL -->
   <div id="pp-app" hidden>
     <div class="pp-top">
@@ -184,6 +210,11 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       </div>
     </div>
     <div class="pp-wrap" id="pp-body"><!-- render JS --></div>
+    <!-- barra fija de total (solo mobile) -->
+    <div id="pp-mbar">
+      <div><div class="mb-k" id="pp-mbar-k">Total incl. VAT</div><div class="mb-v" id="pp-mbar-total">—</div></div>
+      <button class="btn btn-primary small" id="pp-mbar-accept" type="button">Accept →</button>
+    </div>
   </div>
 
 <script is:inline define:vars={{ SB_URL, SB_KEY }}>
@@ -258,11 +289,36 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   function refreshTotals(){
     const t = totals();
     $('pp-mini-total').textContent = fmt(t.gross);
+    const mb = $('pp-mbar-total'); if (mb) mb.textContent = fmt(t.gross);
     const box = $('pp-tot-box');
     if (box) box.innerHTML =
       '<div class="pp-tot-row"><span>Subtotal</span><b>' + fmt(t.net) + '</b></div>' +
       '<div class="pp-tot-row"><span>VAT ' + (Number(content.vat_rate) || 0) + '%</span><b>' + fmt(t.vat) + '</b></div>' +
       '<div class="pp-tot-row grand"><span>Total</span><b>' + fmt(t.gross) + '</b></div>';
+  }
+
+  // ---- bloques: orden + on/off definidos en el editor (content.block_order / content.blocks_off) ----
+  const BLOCK_KEYS = ['intro', 'photo1', 'overview', 'scope', 'tiers', 'addons', 'terms', 'call', 'testimonial', 'videos'];
+  function normOrder(o){
+    const seen = new Set();
+    const out = (Array.isArray(o) ? o : []).filter((k) => BLOCK_KEYS.includes(k) && !seen.has(k) && seen.add(k));
+    BLOCK_KEYS.forEach((k) => { if (!seen.has(k)) out.push(k); });
+    return out;
+  }
+
+  // contenido interno de un add-on (checkbox + nombre + qty + precio) — se re-pinta SOLO este label al elegir
+  function addonInner(gi, ii){
+    const it = content.addon_groups[gi].items[ii];
+    const k = gi + ':' + ii, q = selAddons.get(k) || 0, on = q > 0;
+    const max = Math.max(1, Number(it.max) || 1);
+    // add-ons con cantidad (idiomas, rondas de revisión…): selector 1..max al elegirlo
+    const qtyUI = max > 1 && on
+      ? '<span class="a-qty" data-k="' + k + '"><button type="button" class="q-m">−</button><b>' + q + '</b><button type="button" class="q-p">+</button></span>'
+      : (max > 1 ? '<span class="a-note">hasta ' + max + '×</span>' : '');
+    return '<input type="checkbox"' + (on ? ' checked' : '') + '/>' +
+      '<div class="a-main"><div class="a-name">' + esc(it.name) + (on && q > 1 ? ' <b class="a-x">×' + q + '</b>' : '') + '</div>' +
+      (it.note ? '<div class="a-note">' + esc(it.note) + '</div>' : '') + qtyUI + '</div>' +
+      '<div class="a-price">' + fmt((Number(it.price) || 0) * (on ? q : 1)) + (on && q > 1 ? '<div class="a-each">' + fmt(it.price) + ' each</div>' : '') + '</div>';
   }
 
   function render(){
@@ -274,8 +330,10 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       '<div class="pp-quote">“' + esc(q.quote) + '”<div class="pp-cite"><b>' + esc(q.name) + '</b> — ' + esc(q.role) + (q.company ? ', ' + esc(q.company) : '') + '</div></div>';
     const quotes = (c.testimonials || []).map(quoteHTML).join('');
     const quotesRest = (c.testimonials || []).slice(1).map(quoteHTML).join('');
-    // prueba social justo antes del precio: rating de Google + reseñas restantes
-    const gbadge = '<div class="pp-gbadge"><span class="g-stars">★★★★★</span><span class="g-txt"><b>5.0</b> · <b>47 Google Reviews</b></span>' +
+    // badge de Google editable desde el dashboard (content.google_badge, ej. "5.0 · 47 Google Reviews") con fallback al fijo
+    const gbTxt = (c.google_badge || '').trim();
+    const gbRating = gbTxt ? esc(gbTxt.split('·')[0].trim()) : '5.0';
+    const gbadge = '<div class="pp-gbadge"><span class="g-stars">★★★★★</span><span class="g-txt"><b>' + (gbTxt ? esc(gbTxt) : '5.0</b> · <b>47 Google Reviews') + '</b></span>' +
       '<a href="https://www.google.com/maps/place/Viven+AG/@47.375414,8.5306427,17z/data=!4m8!3m7!1s0x47900b957351a2a1:0xeaa9cea91f1b0f19!9m1!1b1!8m2!3d47.375414!4d8.5306427!16s%2Fg%2F11gf3ms_pt" target="_blank" rel="noopener">See our reviews ↗</a></div>';
     const tiers = (c.tiers || []).map((t, i) => {
       const inc = (t.includes || []).map((x) => '<li>' + esc(x) + '</li>').join('');
@@ -303,16 +361,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     const addons = (c.addon_groups || []).map((g, gi) =>
       '<div class="pp-addg"><h3>' + esc(g.title) + '</h3>' +
       (g.items || []).map((it, ii) => {
-        const k = gi + ':' + ii, q = selAddons.get(k) || 0, on = q > 0;
-        const max = Math.max(1, Number(it.max) || 1);
-        // add-ons con cantidad (idiomas, rondas de revisión…): selector 1..max al elegirlo
-        const qtyUI = max > 1 && on
-          ? '<span class="a-qty" data-k="' + k + '"><button type="button" class="q-m">−</button><b>' + q + '</b><button type="button" class="q-p">+</button></span>'
-          : (max > 1 ? '<span class="a-note">hasta ' + max + '×</span>' : '');
-        return '<label class="pp-add' + (on ? ' sel' : '') + '" data-k="' + k + '"><input type="checkbox"' + (on ? ' checked' : '') + '/>' +
-          '<div class="a-main"><div class="a-name">' + esc(it.name) + (on && q > 1 ? ' <b class="a-x">×' + q + '</b>' : '') + '</div>' +
-          (it.note ? '<div class="a-note">' + esc(it.note) + '</div>' : '') + qtyUI + '</div>' +
-          '<div class="a-price">' + fmt((Number(it.price) || 0) * (on ? q : 1)) + (on && q > 1 ? '<div class="a-each">' + fmt(it.price) + ' each</div>' : '') + '</div></label>';
+        const k = gi + ':' + ii, on = (selAddons.get(k) || 0) > 0;
+        return '<label class="pp-add' + (on ? ' sel' : '') + '" data-k="' + k + '">' + addonInner(gi, ii) + '</label>';
       }).join('') + '</div>').join('');
 
     // stills reales de rodajes como separadores visuales entre bloques — elegibles desde el dashboard (con default si la propuesta es vieja)
@@ -323,9 +373,50 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       { src: '/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg', cap: 'On set — Kanebo Sensai' },
     ];
     const brk = (c.break_images && c.break_images.length === 3) ? c.break_images : DEFAULT_BRK;
-    const BRK1 = BRK(brk[0].src, brk[0].cap), BRK2 = BRK(brk[1].src, brk[1].cap), BRK3 = BRK(brk[2].src, brk[2].cap);
+
+    // ---- secciones por bloque (el editor define orden y on/off) ----
+    const S = {};
+    S.intro = '<section class="pp-sec"><div class="pp-lead">' + esc(c.intro || '') + '</div>' +
+      (c.intro_sign ? '<div class="pp-sign"><b>' + esc(c.intro_sign.name) + '</b>' + esc(c.intro_sign.role || '') + '</div>' : '') +
+      (quotes ? quotes.split('</div>').slice(0, 1).join('</div>') + '</div>' : '') + '</section>';
+    S.photo1 = BRK(brk[0].src, brk[0].cap);
+    S.overview = '<section class="pp-sec"><div class="pp-eyebrow">Project Overview</div>' +
+      (c.overview && c.overview.objective ? '<p class="pp-lead">' + esc(c.overview.objective) + '</p>' : '') +
+      (outputs ? '<ul class="pp-outputs">' + outputs + '</ul>' : '') +
+      '<div class="pp-grid3">' +
+        '<div class="pp-info"><div class="k">Location</div><div class="v">' + esc((c.overview || {}).location || 'TBD') + '</div></div>' +
+        '<div class="pp-info"><div class="k">Timing</div><div class="v">' + esc((c.overview || {}).timing || 'TBD') + '</div></div>' +
+        '<div class="pp-info"><div class="k">Delivery</div><div class="v">' + esc((c.overview || {}).delivery || 'TBD') + '</div></div>' +
+      '</div></section>';
+    S.scope = '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' + BRK(brk[1].src, brk[1].cap);
+    S.tiers = '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
+      '<div class="pp-tiers">' + tiers + '</div></section>';
+    S.addons = addons ? '<section class="pp-sec">' + addons + '</section>' : '';
+    S.terms = c.terms ? '<section class="pp-sec"><div class="pp-eyebrow">Terms &amp; Conditions</div><div class="pp-terms">' + esc(c.terms) + '</div><div class="pp-terms-gtc"><a href="https://www.viven.ch/en/terms/" target="_blank" rel="noopener">General Terms and Conditions ↗</a></div></section>' : '';
+    S.accept = '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +
+      '<div class="pp-eyebrow">Accept & start</div><div id="pp-tot-box"></div>' +
+      '<div id="pp-accept-ui"><div class="pp-acc-form"><input id="pp-acc-name" placeholder="Your full name" /><input id="pp-acc-email" type="email" placeholder="Your email" /></div>' +
+      '<label class="pp-agree"><input type="checkbox" id="pp-acc-agree" /> I have read and agree to the Terms &amp; Conditions above</label>' +
+      '<button class="btn btn-primary" id="pp-do-accept" type="button">✓ Accept &amp; sign proposal</button>' +
+      '<div class="pp-fine">Typing your name above and clicking accept counts as your electronic signature. By accepting you agree to start the project on the selected scope. We’ll be in touch within one business day.</div>' +
+      '<div class="pp-err" id="pp-acc-err"></div></div>' +
+      '</div></section>';
+    S.call = '<section class="pp-sec"><div class="pp-call"><div class="pp-call-tx"><div class="pp-call-t">Questions before deciding?</div>' +
+      '<div class="pp-call-s">Book a quick 15-minute call — we\'ll walk you through the proposal and adjust anything you need.</div></div>' +
+      '<a class="btn btn-primary pp-call-btn" href="https://www.viven.ch/book/" target="_blank" rel="noopener">📅 Book a call</a></div></section>';
+    S.testimonial = '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge +
+      (embedUrl(testiV.url) ? '<figure class="pp-vid pp-testi"><div class="pp-vid-frame"><iframe src="' + esc(embedUrl(testiV.url)) + '" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><figcaption class="pp-vid-title">' + esc(testiV.title || 'Hear it from our clients') + '</figcaption></figure>' : '') +
+      quotesRest + '</section>' + BRK(brk[2].src, brk[2].cap);
+    S.videos = videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '';
+
+    const off = new Set(Array.isArray(c.blocks_off) ? c.blocks_off : []);
+    let keys = normOrder(c.block_order).filter((k) => !off.has(k));
+    // la sección Aceptar sale SIEMPRE: después de Términos (o del bloque de precio si no hay términos)
+    let ai = keys.indexOf('terms'); if (ai < 0) ai = keys.indexOf('addons'); if (ai < 0) ai = keys.indexOf('tiers');
+    keys = ai >= 0 ? keys.slice(0, ai + 1).concat(['accept'], keys.slice(ai + 1)) : keys.concat(['accept']);
+
     $('pp-body').innerHTML =
-      '<div class="pp-brand"><img class="pp-logoimg pp-logoimg-bar" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /><span class="pp-brand-r">★★★★★ 5.0 on Google</span></div>' +
+      '<div class="pp-brand"><img class="pp-logoimg pp-logoimg-bar" src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" /><span class="pp-brand-r">★★★★★ ' + gbRating + ' on Google</span></div>' +
       '<section class="pp-hero pp-sec">' +
         '<div class="pp-eyebrow">Proposal</div>' +
         '<h1 class="pp-h1">' + esc(c.title || 'Video Production Proposal') + '</h1>' +
@@ -337,62 +428,63 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
         })() +
       '</section>' +
       (c.accepted_banner || '') +
-      '<section class="pp-sec"><div class="pp-lead">' + esc(c.intro || '') + '</div>' +
-        (c.intro_sign ? '<div class="pp-sign"><b>' + esc(c.intro_sign.name) + '</b>' + esc(c.intro_sign.role || '') + '</div>' : '') +
-        (quotes ? quotes.split('</div>').slice(0, 1).join('</div>') + '</div>' : '') + '</section>' +
-      BRK1 +
-      '<section class="pp-sec"><div class="pp-eyebrow">Project Overview</div>' +
-        (c.overview && c.overview.objective ? '<p class="pp-lead">' + esc(c.overview.objective) + '</p>' : '') +
-        (outputs ? '<ul class="pp-outputs">' + outputs + '</ul>' : '') +
-        '<div class="pp-grid3">' +
-          '<div class="pp-info"><div class="k">Location</div><div class="v">' + esc((c.overview || {}).location || 'TBD') + '</div></div>' +
-          '<div class="pp-info"><div class="k">Timing</div><div class="v">' + esc((c.overview || {}).timing || 'TBD') + '</div></div>' +
-          '<div class="pp-info"><div class="k">Delivery</div><div class="v">' + esc((c.overview || {}).delivery || 'TBD') + '</div></div>' +
-        '</div></section>' +
-      '<section class="pp-sec"><div class="pp-eyebrow">Project Scope</div><div class="pp-scope">' + scope + '</div></section>' +
-      BRK2 +
-      '<section class="pp-sec"><div class="pp-eyebrow">Project Investment</div><h2 class="pp-h2">Choose your package</h2>' +
-        '<div class="pp-tiers">' + tiers + '</div>' + addons + '</section>' +
-      (c.terms ? '<section class="pp-sec"><div class="pp-eyebrow">Terms &amp; Conditions</div><div class="pp-terms">' + esc(c.terms) + '</div><div class="pp-terms-gtc"><a href="https://www.viven.ch/en/terms/" target="_blank" rel="noopener">General Terms and Conditions ↗</a></div></section>' : '') +
-      '<section class="pp-sec" id="pp-accept-sec"><div class="pp-accept">' +
-        '<div class="pp-eyebrow">Accept & start</div><div id="pp-tot-box"></div>' +
-        '<div id="pp-accept-ui"><div class="pp-acc-form"><input id="pp-acc-name" placeholder="Your full name" /><input id="pp-acc-email" type="email" placeholder="Your email" /></div>' +
-        '<label class="pp-agree"><input type="checkbox" id="pp-acc-agree" /> I have read and agree to the Terms &amp; Conditions above</label>' +
-        '<button class="btn btn-primary" id="pp-do-accept" type="button">✓ Accept &amp; sign proposal</button>' +
-        '<div class="pp-fine">Typing your name above and clicking accept counts as your electronic signature. By accepting you agree to start the project on the selected scope. We’ll be in touch within one business day.</div>' +
-        '<div class="pp-err" id="pp-acc-err"></div></div>' +
-      '</div></section>' +
-      '<section class="pp-sec"><div class="pp-call"><div class="pp-call-tx"><div class="pp-call-t">Questions before deciding?</div>' +
-        '<div class="pp-call-s">Book a quick 15-minute call — we\'ll walk you through the proposal and adjust anything you need.</div></div>' +
-        '<a class="btn btn-primary pp-call-btn" href="https://www.viven.ch/book/" target="_blank" rel="noopener">📅 Book a call</a></div></section>' +
-      '<section class="pp-sec"><div class="pp-eyebrow">What clients say</div>' + gbadge +
-        (embedUrl(testiV.url) ? '<figure class="pp-vid pp-testi"><div class="pp-vid-frame"><iframe src="' + esc(embedUrl(testiV.url)) + '" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div><figcaption class="pp-vid-title">' + esc(testiV.title || 'Hear it from our clients') + '</figcaption></figure>' : '') +
-        quotesRest + '</section>' +
-      BRK3 +
-      (videos ? '<section class="pp-sec"><div class="pp-eyebrow">Selected work</div><div class="pp-videos">' + videos + '</div></section>' : '') +
+      keys.map((k) => S[k] || '').join('') +
       '<div class="pp-footer">Questions before we start? <a href="mailto:' + esc(sender.email || 'sofia@viven.ch') + '">' + esc(sender.email || 'sofia@viven.ch') + '</a>' +
         (sender.phone ? ' · ' + esc(sender.phone) : '') + '<br>' + esc(sender.name || 'Viven') + ' — viven.ch</div>';
 
-    // bind
-    document.querySelectorAll('.pp-tier').forEach((el) => el.addEventListener('click', () => { selTier = +el.dataset.t; render(); scrollKeep(); }));
-    document.querySelectorAll('.pp-add').forEach((el) => el.addEventListener('click', (e) => {
-      if (e.target.closest('.a-qty')) return;    // los botones −/+ manejan lo suyo
-      e.preventDefault(); const k = el.dataset.k; selAddons.has(k) ? selAddons.delete(k) : selAddons.set(k, 1); render(); scrollKeep();
-    }));
-    document.querySelectorAll('.a-qty').forEach((el) => {
-      const k = el.dataset.k;
-      const [gi, ii] = k.split(':').map(Number);
-      const max = Math.max(1, Number((content.addon_groups[gi].items[ii] || {}).max) || 1);
-      el.querySelector('.q-m').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); const q = (selAddons.get(k) || 1) - 1; q <= 0 ? selAddons.delete(k) : selAddons.set(k, q); render(); scrollKeep(); });
-      el.querySelector('.q-p').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); selAddons.set(k, Math.min(max, (selAddons.get(k) || 1) + 1)); render(); scrollKeep(); });
-    });
-    const accBtn = $('pp-do-accept'); if (accBtn) accBtn.addEventListener('click', doAccept);
+    bindBody();
+    document.body.classList.add('has-mbar');
     if (c.accepted) lockAccepted(c.accepted);
     refreshTotals();
   }
-  let keepY = 0;
-  function scrollKeep(){ window.scrollTo(0, keepY); }
-  document.addEventListener('click', () => { keepY = window.scrollY; }, true);
+
+  // ---- interacciones SIN reconstruir la página: solo clases y textos (los videos nunca se recargan) ----
+  function selectTier(i){
+    selTier = i;
+    document.querySelectorAll('.pp-tier').forEach((el) => {
+      const on = +el.dataset.t === i;
+      el.classList.toggle('sel', on);
+      const pick = el.querySelector('.t-pick'); if (pick) pick.textContent = on ? '✓ Selected' : 'Select this package';
+    });
+    refreshTotals();
+  }
+  function refreshAddon(k){
+    const el = document.querySelector('.pp-add[data-k="' + k + '"]'); if (!el) return;
+    const [gi, ii] = k.split(':').map(Number);
+    el.className = 'pp-add' + ((selAddons.get(k) || 0) > 0 ? ' sel' : '');
+    el.innerHTML = addonInner(gi, ii);
+    refreshTotals();
+  }
+  let bodyBound = false;
+  function bindBody(){
+    const accBtn = $('pp-do-accept'); if (accBtn) accBtn.addEventListener('click', doAccept);
+    if (bodyBound) return;   // delegación: se ata UNA vez, sobrevive a los re-pintados puntuales
+    bodyBound = true;
+    $('pp-body').addEventListener('click', (e) => {
+      const tier = e.target.closest('.pp-tier');
+      if (tier){ selectTier(+tier.dataset.t); return; }
+      const qBtn = e.target.closest('.q-m, .q-p');
+      if (qBtn){
+        e.preventDefault(); e.stopPropagation();
+        const k = qBtn.closest('.a-qty').dataset.k;
+        const [gi, ii] = k.split(':').map(Number);
+        const max = Math.max(1, Number((content.addon_groups[gi].items[ii] || {}).max) || 1);
+        if (qBtn.classList.contains('q-p')) selAddons.set(k, Math.min(max, (selAddons.get(k) || 1) + 1));
+        else { const q = (selAddons.get(k) || 1) - 1; q <= 0 ? selAddons.delete(k) : selAddons.set(k, q); }
+        refreshAddon(k); return;
+      }
+      const add = e.target.closest('.pp-add');
+      if (add){
+        if (e.target.closest('.a-qty')) return;   // los botones −/+ manejan lo suyo
+        e.preventDefault();
+        const k = add.dataset.k;
+        selAddons.has(k) ? selAddons.delete(k) : selAddons.set(k, 1);
+        refreshAddon(k); return;
+      }
+    });
+    const mba = $('pp-mbar-accept');
+    if (mba) mba.addEventListener('click', () => { const s = document.getElementById('pp-accept-sec'); s && s.scrollIntoView({ behavior: 'smooth' }); });
+  }
 
   function lockAccepted(a){
     const ui = $('pp-accept-ui');
@@ -419,26 +511,32 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   }
 
   // ---- carga ----
-  let DEMO_MODE = qs.get('demo') === '1', PREVIEW_MODE = qs.get('preview') === '1', PASS = '';
+  const PREVIEW_ID = qs.get('preview');   // ?preview=<id de propuesta> (o "1" legacy)
+  const SELLER = qs.get('s') === '1';     // vista del VENDEDOR: no estampa views/last_view_at en el server
+  let DEMO_MODE = qs.get('demo') === '1', PREVIEW_MODE = !!PREVIEW_ID, PASS = '';
   function boot(data){
     content = data.content || data;
     content.accepted = data.accepted || null;
     document.getElementById('pp-gate').hidden = true;
+    document.getElementById('pp-skel').hidden = true;
     document.getElementById('pp-app').hidden = false;
     document.documentElement.lang = content.lang || 'en';
     selTier = (content.tiers || []).findIndex((t) => t.recommended); if (selTier < 0) selTier = 0;
     render();
   }
+  // skeleton entre el password y el contenido (antes quedaba en negro mientras respondía get-proposal)
+  function showSkel(on){ $('pp-skel').hidden = !on; $('pp-gate').hidden = on; }
   $('pp-jump-accept') && $('pp-jump-accept').addEventListener('click', () => { const s = document.getElementById('pp-accept-sec'); s && s.scrollIntoView({ behavior: 'smooth' }); });
   $('pp-print') && $('pp-print').addEventListener('click', () => window.print());
 
   if (PREVIEW_MODE) {
-    // vista previa desde el dashboard: contenido en localStorage, sin password ni backend
+    // vista previa desde el dashboard: contenido en localStorage, sin password ni backend.
+    // Clave POR PROPUESTA (viven_prop_preview_<id>) con fallback a la clave vieja.
     try {
-      const raw = localStorage.getItem('viven_prop_preview');
+      const raw = (PREVIEW_ID !== '1' && localStorage.getItem('viven_prop_preview_' + PREVIEW_ID)) || localStorage.getItem('viven_prop_preview');
       if (raw) { const d = JSON.parse(raw); boot({ content: d.content }); document.title = 'PREVIEW · ' + (d.title || 'Proposal');
         const b = document.createElement('div'); b.textContent = '👁 VISTA PREVIA — así lo ve el cliente. El botón Accept no envía nada acá.';
-        b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99;background:#ddf98f;color:#10210a;font:600 13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;text-align:center;padding:9px'; document.body.appendChild(b);
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99;background:#ddf98f;color:#10210a;font:600 13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;text-align:center;padding:9px'; document.body.appendChild(b);
       }
       else { $('pp-gate-sub').textContent = 'No hay preview cargada. Generá/editá una propuesta y apretá Vista previa.'; $('pp-gate-form').hidden = true; }
     } catch (e) { $('pp-gate-sub').textContent = 'No se pudo cargar la preview.'; $('pp-gate-form').hidden = true; }
@@ -453,17 +551,18 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       PASS = $('pp-pass').value;
       const err = $('pp-gate-err'); err.textContent = '';
       const btn = e.target.querySelector('button'); btn.disabled = true;
+      showSkel(true);
       try {
-        const res = await fetch(FN('get-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({ slug, password: PASS }) });
+        const res = await fetch(FN('get-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({ slug, password: PASS, seller: SELLER }) });
         const data = await res.json();
-        if (res.status === 404) { err.textContent = 'Proposal not found.'; btn.disabled = false; return; }
-        if (data.error === 'wrong_password') { err.textContent = 'Wrong access code — try again.'; btn.disabled = false; return; }
+        if (res.status === 404) { showSkel(false); err.textContent = 'Proposal not found.'; btn.disabled = false; return; }
+        if (data.error === 'wrong_password') { showSkel(false); err.textContent = 'Wrong access code — try again.'; btn.disabled = false; return; }
         if (data.error) throw new Error(data.error);
         boot(data);
-      } catch (e) { err.textContent = 'Could not open: ' + e.message; btn.disabled = false; }
+      } catch (e) { showSkel(false); err.textContent = 'Could not open: ' + e.message; btn.disabled = false; }
     });
     // si no tiene password, intentar abrir directo
-    fetch(FN('get-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({ slug, password: '' }) })
+    fetch(FN('get-proposal'), { method: 'POST', headers: HEAD, body: JSON.stringify({ slug, password: '', seller: SELLER }) })
       .then((r) => r.json()).then((data) => { if (data && data.ok && !data.error) boot(data); }).catch(() => {});
   }
 </script>
