@@ -895,21 +895,39 @@ window.addEventListener('message', function(e){
   if(String(e.origin).indexOf('player.vimeo.com') === -1) return;
   var d; try{ d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; }catch(err){ return; }
   if(!d || !d.event) return;
+  var ifrEl = null;
+  try{
+    var ifrAll = document.querySelectorAll('iframe[src*="player.vimeo.com"]');
+    for(var i0 = 0; i0 < ifrAll.length; i0++){ if(ifrAll[i0].contentWindow === e.source){ ifrEl = ifrAll[i0]; break; } }
+  }catch(err){}
   if(d.event === 'ready'){
     try{
       ['playProgress', 'timeupdate', 'finish', 'ended'].forEach(function(ev){
         e.source.postMessage(JSON.stringify({ method: 'addEventListener', value: ev }), '*');
       });
     }catch(err){}
+    /* FIX (hueco real): los embeds SUELTOS (case studies, testimonios, blog) nunca
+       pasan por openVideo() — sus hitos 25/50/75/100 de abajo SÍ se guardaban, pero
+       jamás quedaban contados como "reproducción" (pct=0) en el dashboard, aunque
+       la gente los mirara y convirtiera. El modal central ya cuenta el arranque en
+       openVideo(); acá cubrimos los que NO pasan por ahí (mount = el iframe del
+       modal — si el iframe que mandó 'ready' no es ese, es un embed suelto). */
+    if(ifrEl && (!mount || !mount.contains(ifrEl))){
+      var m0 = ifrEl.src.match(/video\/(\d+)/), vid0 = m0 && m0[1];
+      if(vid0){
+        var seen0 = vvVidMs[vid0] = vvVidMs[vid0] || {};
+        if(!seen0.start){
+          seen0.start = true;
+          if(!/^(localhost|127\.|192\.168\.)/.test(location.hostname)){
+            sbInsert('video_plays', { session_id: sessionStorage.getItem('viven-session') || 'no-storage', video_id: String(vid0), label: ifrEl.title || null, lang: document.documentElement.lang || null });
+          }
+        }
+      }
+    }
     return;
   }
-  var vid = null, label = null;
-  try{
-    var ifr = document.querySelectorAll('iframe[src*="player.vimeo.com"]');
-    for(var i = 0; i < ifr.length; i++){
-      if(ifr[i].contentWindow === e.source){ var m = ifr[i].src.match(/video\/(\d+)/); vid = m && m[1]; label = ifr[i].title || null; break; }
-    }
-  }catch(err){}
+  var vid = ifrEl ? (ifrEl.src.match(/video\/(\d+)/) || [])[1] : null;
+  var label = ifrEl ? (ifrEl.title || null) : null;
   if(!vid) return;
   var pct = null;
   if(d.event === 'finish' || d.event === 'ended') pct = 100;
