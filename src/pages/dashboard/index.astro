@@ -621,7 +621,7 @@ const newsCases = [
   .pp-row .rowtop{display:flex;gap:10px;align-items:center;margin-bottom:8px}
   .pp-row input,.pp-row textarea,.pp-row select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:14px;padding:9px 11px}
   /* bündig: el texto ocupa TODO el ancho y crece con el contenido — nunca scroll interno */
-  .pp-row textarea,#tab-props textarea{width:100%;min-height:54px;resize:none;overflow:hidden;line-height:1.55;display:block;margin-top:8px}
+  .pp-row textarea,#pp-editor textarea{width:100%;min-height:54px;resize:none;overflow:hidden;line-height:1.55;display:block;margin-top:8px}
   .pp-row .grow{flex:1;min-width:0}
   .pp-row .rm{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:16px;padding:2px 6px}
   .pp-row .rm:hover{color:#ff8b8b}
@@ -1469,8 +1469,7 @@ const newsCases = [
         <button class="side-sec" type="button">Ventas<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="side-group-items">
           <button class="side-item" data-tab="deals" type="button"><span class="si-ic">🤝</span>Deals</button>
-          <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas</button>
-          <button class="side-item" data-tab="props" type="button"><span class="si-ic">🌐</span>Propuestas</button>
+          <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas y propuestas</button>
           <button class="side-item" data-tab="booking" type="button"><span class="si-ic">📅</span>Booking</button>
           <button class="side-item" data-tab="services" type="button"><span class="si-ic">🛠</span>Servicios</button>
           <button class="side-item" data-tab="licenses" type="button"><span class="si-ic">📄</span>Licencias</button>
@@ -2277,45 +2276,47 @@ const newsCases = [
     </div>
   </div>
 
-  <!-- ============ TAB: OFERTAS ============ -->
+  <!-- ============ TAB: OFERTAS Y PROPUESTAS ============ -->
+  <!-- Ofertas y Propuestas son documentos SEPARADOS (tablas offers/proposals, editores of-editor/pp-editor,
+       lógica de negocio distinta) — esta lista es SOLO presentación: junta las dos listas en una tabla,
+       con 🧾/🌐 como destino final de cada fila (mockup aprobado 2026-07-14). -->
   <div id="tab-offers" hidden>
-    <!-- LISTA -->
-    <div id="of-list-view">
+    <!-- LISTA UNIFICADA -->
+    <div id="combo-list-view">
       <div class="of-bar">
         <div>
-          <h2 style="margin:0">Ofertas</h2>
-          <p class="muted-note" style="margin:2px 0 0">Calculá precio, costo interno, margen y breakeven. Se guardan en Supabase.</p>
+          <h2 style="margin:0">Ofertas y propuestas</h2>
+          <p class="muted-note" style="margin:2px 0 0">🧾 Ofertas (presupuesto rápido, PDF, factura) y 🌐 Propuestas (vendedor web de 3 paquetes) — documentos separados, una sola lista.</p>
         </div>
-        <button class="btn btn-primary" id="of-new" type="button">➕ Nueva oferta</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="of-new" type="button">➕ Nueva oferta</button>
+          <button class="btn btn-primary" id="pp-new" type="button">➕ Nueva propuesta</button>
+        </div>
       </div>
-      <!-- KPIs: 4 números de pulso — el resto vive plegado en "Más métricas" -->
+      <!-- KPIs combinados: 4 números de pulso sobre ofertas + propuestas juntas -->
       <div class="kpis four" style="margin-top:16px">
-        <div class="kpi"><div class="n" id="of-k-open">–</div><div class="l">Enviadas, esperando</div></div>
-        <div class="kpi"><div class="n" id="of-k-won">–</div><div class="l">Ganadas (30 días)</div></div>
-        <div class="kpi"><div class="n" id="of-k-conv">–</div><div class="l">Conversión</div></div>
-        <div class="kpi"><div class="n" id="of-k-profit">–</div><div class="l">Ganancia (30 días)</div></div>
+        <div class="kpi"><div class="n" id="opl-k-wait">–</div><div class="l">Enviadas, esperando</div></div>
+        <div class="kpi"><div class="n" id="opl-k-won30">–</div><div class="l">Ganado (30 días)</div></div>
+        <div class="kpi"><div class="n" id="opl-k-conv">–</div><div class="l">Tasa de conversión</div></div>
+        <div class="kpi"><div class="n" id="opl-k-margin">–</div><div class="l">Margen promedio</div></div>
       </div>
-      <!-- métricas secundarias plegadas: mismos cálculos de siempre, sin comerse media pantalla -->
-      <details style="margin:2px 0 0">
-        <summary class="of-more-sum">Más métricas ▾</summary>
-        <p class="muted-note" id="of-more-line" style="margin:2px 0 0">–</p>
-      </details>
-      <p class="muted-note" id="of-unlinked-note" style="margin:6px 0 0" hidden></p>
       <div class="tpl-strip" id="of-tpl-strip" hidden style="margin-top:14px"></div>
+      <div class="tpl-strip" id="pp-tpl-strip" hidden style="margin-top:8px"></div>
       <!-- toolbar: segmentos con contadores vivos (🗄 reemplaza al viejo toggle de archivadas) + búsqueda + orden -->
       <div class="pipe-bar" style="margin:14px 0 0">
-        <div class="co-seg" id="of-seg"></div>
-        <input type="search" id="of-search" placeholder="Buscar por título, cliente o persona…" />
-        <select id="of-sort" class="status" title="Ordenar">
+        <div class="co-seg" id="opl-seg"></div>
+        <input type="search" id="opl-search" placeholder="Buscar por título, cliente o persona…" />
+        <select id="opl-sort" class="status" title="Ordenar">
           <option value="urgent">Más urgente</option>
           <option value="value">Valor ↓</option>
           <option value="recent">Recientes</option>
         </select>
       </div>
-      <div id="of-list" style="margin-top:14px"></div>
-      <p class="muted-note" id="of-empty" hidden>Todavía no hay ofertas. Creá la primera con "Nueva oferta".</p>
-      <!-- popover ⋯ compartido por todas las filas (fixed para que el overflow de la tabla no lo recorte) -->
+      <div id="opl-list" style="margin-top:14px"></div>
+      <p class="muted-note" id="opl-empty" hidden>Todavía no hay ofertas ni propuestas. Creá la primera arriba.</p>
+      <!-- popovers ⋯ compartidos por todas las filas de cada tipo (fixed para que el overflow de la tabla no los recorte) -->
       <div class="lm2-menu" id="of-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
+      <div class="lm2-menu" id="pp-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
       <!-- Insights con IA — abajo de la lista: primero las ofertas, después el análisis -->
       <div class="panel ai-panel" style="margin:16px 0 0">
         <div class="ai-head">
@@ -2328,7 +2329,7 @@ const newsCases = [
       </div>
     </div>
 
-    <!-- EDITOR (V3: 4 pasos — ① Cliente ② Posiciones ③ Condiciones ④ Enviar) -->
+    <!-- EDITOR DE OFERTA (V3: 4 pasos — ① Cliente ② Posiciones ③ Condiciones ④ Enviar) — sin cambios -->
     <div id="of-editor" hidden>
       <div class="of-bar">
         <button class="btn btn-ghost small" id="of-back" type="button">← Volver</button>
@@ -2447,46 +2448,8 @@ const newsCases = [
         <div class="of3-send" id="of3-send-panel"></div>
       </div>
     </div>
-  </div>
 
-  <!-- ============ TAB: PROPUESTAS ============ -->
-  <div id="tab-props" hidden>
-    <!-- LISTA -->
-    <div id="pp-list-view">
-      <div class="of-bar">
-        <div>
-          <h2 style="margin:0">Propuestas</h2>
-          <p class="muted-note" style="margin:2px 0 0">Propuestas tipo Qwilr con password. El cliente entra, elige paquete y acepta. Se publican en viven.ch/proposal.</p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" id="pp-new" type="button">➕ Nueva propuesta</button>
-        </div>
-      </div>
-      <!-- KPIs del negocio de propuestas (mismo patrón que las KPIs de Empresas) -->
-      <div class="kpis four" style="margin-top:14px;margin-bottom:0">
-        <div class="kpi"><div class="n" id="pp-k-wait">–</div><div class="l">Publicadas, esperando</div></div>
-        <div class="kpi"><div class="n" id="pp-k-acc30">–</div><div class="l">Aceptadas (30 días)</div></div>
-        <div class="kpi"><div class="n" id="pp-k-rate">–</div><div class="l">Tasa de aceptación</div></div>
-        <div class="kpi"><div class="n" id="pp-k-ticket">–</div><div class="l">Ticket prom. aceptado</div></div>
-      </div>
-      <div class="tpl-strip" id="pp-tpl-strip" hidden style="margin-top:14px"></div>
-      <!-- toolbar: segmentos con contadores vivos (🗄 reemplaza al viejo botón "Ver archivadas") + búsqueda + orden -->
-      <div class="pipe-bar" style="margin:14px 0 0">
-        <div class="co-seg" id="pp-seg"></div>
-        <input type="search" id="pp-search" placeholder="Buscar por título o cliente…" />
-        <select id="pp-sort" class="status" title="Ordenar">
-          <option value="urgent">Más urgente</option>
-          <option value="value">Valor ↓</option>
-          <option value="recent">Recientes</option>
-        </select>
-      </div>
-      <div id="pp-list" style="margin-top:14px"></div>
-      <p class="muted-note" id="pp-empty" hidden>Todavía no hay propuestas. Creá la primera con "Nueva propuesta".</p>
-      <!-- popover ⋯ compartido por todas las filas (fixed para que el scroll horizontal de la tabla no lo recorte) -->
-      <div class="lm2-menu" id="pp-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
-    </div>
-
-    <!-- EDITOR -->
+    <!-- EDITOR DE PROPUESTA — sin cambios (lista de arriba ya es la unificada) -->
     <div id="pp-editor" hidden>
       <div class="of-bar">
         <button class="btn btn-ghost small" id="pp-back" type="button">← Volver</button>
@@ -2919,7 +2882,6 @@ const newsCases = [
   <!-- Navegación inferior estilo app (solo móvil) -->
   <div class="mob-sheet" id="mob-sheet" hidden>
     <button data-tab="companies" type="button">🏢 Companies</button>
-    <button data-tab="props" type="button">🌐 Propuestas</button>
     <button data-tab="booking" type="button">📅 Booking</button>
     <button data-tab="services" type="button">🛠 Servicios</button>
     <button data-tab="licenses" type="button">📄 Licencias</button>
@@ -2937,7 +2899,7 @@ const newsCases = [
     <button data-tab="home" class="active" type="button"><span class="mi">🏠</span><span class="ml">Home</span></button>
     <button data-tab="leads" type="button"><span class="mi">👤</span><span class="ml">Personas</span></button>
     <button data-tab="deals" type="button"><span class="mi">🤝</span><span class="ml">Deals</span></button>
-    <button data-tab="offers" type="button"><span class="mi">🧾</span><span class="ml">Ofertas</span></button>
+    <button data-tab="offers" type="button"><span class="mi">🧾</span><span class="ml">Ofertas</span></button><!-- ml corto por espacio: la fila unificada de Propuestas vive dentro de este tab -->
     <button id="mob-more" type="button"><span class="mi">☰</span><span class="ml">Más</span></button>
   </nav>
 </div>
@@ -3178,7 +3140,7 @@ const newsCases = [
 
   /* ---------- Navegación (sidebar) ---------- */
   // 'seo' y 'gads' ya no son tabs propios: viven como sub-tabs dentro de Analytics
-  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'props', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile', 'cashflow'];
+  const TABS = ['home', 'leads', 'deals', 'companies', 'offers', 'blog', 'analytics', 'booking', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile', 'cashflow'];
   // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
@@ -3190,11 +3152,13 @@ const newsCases = [
     } catch (e) { /* si falla, seguimos con lo que ya había en memoria */ }
   }
   async function gotoTab(tab){
-    // alias para deep links / botones viejos: 'seo' y 'gads' abren Analytics en su sub-tab
+    // alias para deep links / botones viejos: 'seo' y 'gads' abren Analytics en su sub-tab;
+    // 'props' (viejo tab "Propuestas") ahora vive adentro del tab unificado "Ofertas y propuestas"
     if (tab === 'seo' || tab === 'gads'){ anaSetSub(tab); tab = 'analytics'; }
+    if (tab === 'props') tab = 'offers';
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'props', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile', 'cashflow'];
+    const SHEET_TABS = ['companies', 'booking', 'analytics', 'blog', 'services', 'licenses', 'ab', 'news', 'magnets', 'auto', 'tmpl', 'profile', 'cashflow'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
@@ -3203,8 +3167,7 @@ const newsCases = [
     await refreshLeadsList();
     if (tab === 'home') renderHome();
     if (tab === 'companies') renderCompanies();
-    if (tab === 'offers') offersInit();
-    if (tab === 'props') proposalsInit();
+    if (tab === 'offers') { offersInit(); proposalsInit(); }
     if (tab === 'blog') blogInit();
     if (tab === 'analytics') anaSetSub(anaSub); // re-aplica el sub-tab guardado y dispara su carga
     if (tab === 'booking') bookingInit();
@@ -7820,158 +7783,56 @@ const newsCases = [
 
   async function offersLoad(){
     const { data, error } = await supabase.from('offers').select('*').order('updated_at', { ascending: false });
-    if (error){ $('of-empty').hidden = false; $('of-empty').textContent = 'No se pudo cargar (¿corriste el SQL 0003_offers?): ' + error.message; return; }
+    if (error){ $('opl-empty').hidden = false; $('opl-empty').textContent = 'No se pudo cargar ofertas (¿corriste el SQL 0003_offers?): ' + error.message; return; }
     offersList = data || [];
     renderOffersList();
     // el valor de las ofertas se ve también en Deals (board), Personas y Home → refrescarlos
     try { renderLeads(); renderHome(); } catch (e) {}
   }
 
-  // ---------- LISTA de ofertas V2: KPIs + segmentos + tabla (espejo del rediseño de Propuestas) ----------
-  let ofSeg = 'active';    // segmento por defecto: lo VIVO (borradores + enviadas); paquetes y 🗄 tienen chip propio
-  let ofSort = 'urgent';   // "más urgente": enviadas de la más vieja a la más nueva — son las que hay que perseguir hoy
-  let ofListBound = false; // búsqueda/orden/click-afuera se atan UNA vez; segmentos y filas se re-atan en cada render
+  // ---------- LISTA UNIFICADA "Ofertas y propuestas": Ofertas y Propuestas son documentos separados
+  // (tablas/editores distintos) pero comparten una sola lista con badge 🧾/🌐 como destino final ----------
   const ofDaysAgo = (iso) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  function renderOffersList(){
-    const box = $('of-list'); if (!box) return;
-    // el refresh automático (loadAll) re-dibuja la tabla: cerrar el ⋯ para que no quede flotando sobre filas viejas
-    const mn0 = $('of-menu'); if (mn0) mn0.hidden = true;
-    renderTplStrip('of-tpl-strip', offersList.filter((o) => o.is_template), useOfferTemplate, delOfferTemplate);
-    if (!ofListBound){ ofListBound = true;
-      $('of-search').addEventListener('input', renderOffersList);
-      $('of-sort').addEventListener('change', () => { ofSort = $('of-sort').value; renderOffersList(); });
-      // click afuera cierra el popover ⋯ (es uno solo compartido por todas las filas)
-      document.addEventListener('click', (e) => { if (!e.target.closest('#of-menu') && !e.target.closest('.of2-dots')) $('of-menu').hidden = true; });
+  const fmtDShort = (iso) => new Date(iso).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
+  const ofLeadNm = (o) => o.lead_id ? ((allLeads.find((l) => String(l.id) === String(o.lead_id)) || {}).name || '') : '';
+  const ofBadge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'], tier: ['Paquete propuesta', '#c58af9'] };
+  // <tr> de una OFERTA — misma lógica/clases de siempre (semáforo pp2-sem, ojo pp2-eye, badge of-badge), con 🧾 delante del título
+  function ofRowHtml(o){
+    const b = ofBadge[o.status] || ofBadge.draft, net = offerNet(o), lname = ofLeadNm(o);
+    const nPos = (o.items || []).length;
+    let sub = nPos + ' posici' + (nPos === 1 ? 'ón' : 'ones') + (o.status !== 'draft' && o.sent_at ? ' · enviada ' + fmtDShort(o.sent_at) : ' · editada ' + fmtDShort(o.updated_at));
+    if (o.status === 'lost' && (o.lost_reason || leadLostReason(o.lead_id))) sub += ' · <span style="color:#ff8b8b">✕ ' + esc(o.lost_reason || leadLostReason(o.lead_id)) + '</span>';
+    if (!o.lead_id) sub += ' · <span style="color:#f0c060">⚠ sin persona (fuera del pipeline)</span>';
+    // "Esperando hace": semáforo desde sent_at (real; fallback updated_at para lo enviado antes del tracking)
+    let wait = '<span class="lt-num">—</span>';
+    if (o.status === 'sent'){
+      const d = ofDaysAgo(o.sent_at || o.updated_at);
+      wait = d > 10 ? '<span class="pp2-sem bad">' + d + 'd · ⚠ seguir</span>' : d >= 5 ? '<span class="pp2-sem mid">' + d + 'd</span>' : '<span class="pp2-sem ok">' + d + 'd</span>';
+    } else if (o.status === 'won'){
+      const n = Math.max(0, Math.round((Date.parse(o.updated_at) - Date.parse(o.created_at)) / 86400000));
+      wait = '<span class="pp2-eye" style="color:#7ed957">cerró en ' + n + ' día' + (n === 1 ? '' : 's') + '</span>';
     }
-    const all = offersList.filter((o) => !o.is_template);
-    const pool = all.filter((o) => !o.archived && o.status !== 'tier');   // paquetes y archivadas FUERA de los números
-    const open = pool.filter((o) => o.status === 'sent');
-    const won = pool.filter((o) => o.status === 'won');
-    const lost = pool.filter((o) => o.status === 'lost');
-    const propExtra = acceptedProps().filter((p) => !propCovered(p));   // propuestas ganadas sin oferta ligada
-    const propExtraNet = propExtra.reduce((a, p) => a + propNet(p), 0);
-    // --- 4 KPIs de pulso (sobre TODO, sin filtro de búsqueda/segmento) ---
-    $('of-k-open').innerHTML = open.length ? fmtM(open.reduce((a, o) => a + offerNet(o), 0)) + ' <small>' + open.length + ' oferta' + (open.length === 1 ? '' : 's') + '</small>' : '0';
-    // "ganada hace ≤30d": updated_at como proxy de la fecha de cierre — no guardamos won_at y la fila se toca al marcar Ganada
-    const cut30 = Date.now() - 30 * 86400000;
-    const won30 = won.filter((o) => Date.parse(o.updated_at) > cut30);
-    $('of-k-won').innerHTML = won30.length ? fmtM(won30.reduce((a, o) => a + offerNet(o), 0)) + ' <small>' + won30.length + '</small>' : '0';
-    // conversión all-time: solo cuenta lo ya DECIDIDO; las propuestas aceptadas sin oferta también son wins
-    const decided = won.length + lost.length + propExtra.length;
-    $('of-k-conv').innerHTML = decided ? Math.round((won.length + propExtra.length) / decided * 100) + '<small>%</small>' : '–';
-    const p30 = won30.reduce((a, o) => a + offerNet(o) - offerCost(o), 0);
-    const m30 = won30.map(offerMarginPct).filter((m) => isFinite(m));
-    $('of-k-profit').innerHTML = won30.length ? fmtM(p30) + (m30.length ? ' <small>' + Math.round(m30.reduce((a, b) => a + b, 0) / m30.length) + '% margen</small>' : '') : '–';
-    $('of-k-profit').style.color = p30 > 0 ? '#7ed957' : 'var(--text)';
-    // --- métricas plegadas ("Más métricas"): los mismos cálculos que antes tenían tarjeta propia ---
-    const wonGross = won.reduce((a, o) => a + offerNet(o) * (1 + (o.vat_rate ?? 8.1) / 100), 0) + propExtraNet * 1.081;
-    const wonCost = won.reduce((a, o) => a + offerCost(o), 0);
-    const closeDurs = won.map((o) => (Date.parse(o.updated_at) - Date.parse(o.created_at)) / 6048e5).filter((d) => d >= 0);
-    const ml = $('of-more-line');
-    if (ml) ml.textContent = 'Ganado bruto (IVA incl.): ' + fmtM(wonGross) + ' · Costos externos (a pagar): ' + fmtM(wonCost) +
-      ' · Semanas para cerrar (prom.): ' + (closeDurs.length ? (closeDurs.reduce((a, b) => a + b, 0) / closeDurs.length).toFixed(1) : '–') +
-      ' · Ofertas totales: ' + pool.length;
-    // reconciliación con el pipeline: ofertas sin persona ligada = la diferencia entre ambos números
-    const unlinked = pool.filter((o) => !o.lead_id);
-    const un = $('of-unlinked-note');
-    if (un){
-      un.hidden = !unlinked.length;
-      if (unlinked.length) un.innerHTML = '⚠️ <b>' + unlinked.length + ' oferta' + (unlinked.length > 1 ? 's' : '') + ' sin persona ligada</b> (' + fmtM(unlinked.reduce((a, o) => a + offerNet(o), 0)) + ') — no aparecen en el pipeline. Abrilas y guardá: te propone crear la persona en un click.';
+    // "Interés": last_open_at lo estampa el webhook de Resend cuando el cliente abre el mail de la oferta
+    let eye = '<span class="lt-num">—</span>';
+    if (o.status === 'sent'){
+      if (o.last_open_at) eye = '<span class="pp2-eye' + ((Date.now() - Date.parse(o.last_open_at)) < 86400000 ? ' hot' : '') + '">👁 abrió hace ' + timeAgo(o.last_open_at) + '</span>';
+      else if (o.sent_at && ofDaysAgo(o.sent_at) > 3) eye = '<span class="pp2-eye warn">📪 sin abrir — ¿reenviar?</span>';
+      else eye = '<span class="pp2-eye">sin aperturas aún</span>';
     }
-    // --- búsqueda + segmentos: contadores vivos sobre lo que quedó de la búsqueda (como Propuestas) ---
-    const leadNm = (o) => o.lead_id ? ((allLeads.find((l) => String(l.id) === String(o.lead_id)) || {}).name || '') : '';
-    const q = ($('of-search').value || '').toLowerCase().trim();
-    const searched = q ? all.filter((o) => ((o.title || '') + ' ' + (o.client || '') + ' ' + leadNm(o)).toLowerCase().includes(q)) : all;
-    // 'active' NO incluye los paquetes (tier): esos solo viven en su chip propio
-    const segMatch = (o, k) =>
-      k === 'archived' ? !!o.archived :
-      !o.archived && (k === 'active' ? (o.status === 'draft' || o.status === 'sent') : o.status === k);
-    $('of-seg').innerHTML = [['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['tier', 'Paquetes'], ['archived', '🗄']]
-      .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (ofSeg === k ? 'on' : '') + '">' + l + ' ' + searched.filter((o) => segMatch(o, k)).length + '</button>').join('');
-    $('of-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { ofSeg = b.dataset.k; renderOffersList(); }));
-    const rows = searched.filter((o) => segMatch(o, ofSeg));
-    $('of-empty').hidden = rows.length > 0;
-    // --- orden: "más urgente" = enviadas más viejas primero (sent_at real; fallback updated_at), después borradores recientes, después el resto ---
-    const sentT = (o) => Date.parse(o.sent_at || o.updated_at) || 0;
-    const updT = (o) => Date.parse(o.updated_at) || 0;
-    if (ofSort === 'value') rows.sort((a, b) => offerNet(b) - offerNet(a));
-    else if (ofSort === 'recent') rows.sort((a, b) => updT(b) - updT(a));
-    else rows.sort((a, b) => {
-      const g = (o) => o.status === 'sent' ? 0 : o.status === 'draft' ? 1 : 2;
-      if (g(a) !== g(b)) return g(a) - g(b);
-      return g(a) === 0 ? sentT(a) - sentT(b) : updT(b) - updT(a);
-    });
-    const badge = { draft: ['Borrador', '#8ab4ff'], sent: ['Enviada', '#f0c060'], won: ['Ganada', '#7ed957'], lost: ['Perdida', '#ff6b6b'], tier: ['Paquete propuesta', '#c58af9'] };
-    const fmtD = (iso) => new Date(iso).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
-    const ofAllChecked = rows.length > 0 && rows.every((o) => ofSelected.has(String(o.id)));
-    box.innerHTML = rows.length ? '<div class="ab-urlrow" style="margin-bottom:8px"><button class="btn btn-danger small" id="of-del-sel" type="button" hidden>🗑 Borrar seleccionadas</button></div><div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
-      '<th class="lt-chk"><input type="checkbox" id="of-chk-all"' + (ofAllChecked ? ' checked' : '') + ' title="Seleccionar todas las visibles" /></th>' +
-      '<th>Oferta</th><th>Cliente</th><th>Estado</th><th>Esperando hace</th><th>Interés</th><th class="lt-num">Neto</th><th class="lt-num">Margen</th><th></th>' +
-      '</tr></thead><tbody>' + rows.map((o) => {
-        const b = badge[o.status] || badge.draft, net = offerNet(o), mp = offerMarginPct(o), lname = leadNm(o);
-        const nPos = (o.items || []).length;
-        let sub = nPos + ' posici' + (nPos === 1 ? 'ón' : 'ones') + (o.status !== 'draft' && o.sent_at ? ' · enviada ' + fmtD(o.sent_at) : ' · editada ' + fmtD(o.updated_at));
-        if (o.status === 'lost' && (o.lost_reason || leadLostReason(o.lead_id))) sub += ' · <span style="color:#ff8b8b">✕ ' + esc(o.lost_reason || leadLostReason(o.lead_id)) + '</span>';
-        if (!o.lead_id) sub += ' · <span style="color:#f0c060">⚠ sin persona (fuera del pipeline)</span>';
-        // "Esperando hace": semáforo desde sent_at (real; fallback updated_at para lo enviado antes del tracking)
-        let wait = '<span class="lt-num">—</span>';
-        if (o.status === 'sent'){
-          const d = ofDaysAgo(o.sent_at || o.updated_at);
-          wait = d > 10 ? '<span class="pp2-sem bad">' + d + 'd · ⚠ seguir</span>' : d >= 5 ? '<span class="pp2-sem mid">' + d + 'd</span>' : '<span class="pp2-sem ok">' + d + 'd</span>';
-        } else if (o.status === 'won'){
-          const n = Math.max(0, Math.round((Date.parse(o.updated_at) - Date.parse(o.created_at)) / 86400000));
-          wait = '<span class="pp2-eye" style="color:#7ed957">cerró en ' + n + ' día' + (n === 1 ? '' : 's') + '</span>';
-        }
-        // "Interés": last_open_at lo estampa el webhook de Resend cuando el cliente abre el mail de la oferta
-        let eye = '<span class="lt-num">—</span>';
-        if (o.status === 'sent'){
-          if (o.last_open_at) eye = '<span class="pp2-eye' + ((Date.now() - Date.parse(o.last_open_at)) < 86400000 ? ' hot' : '') + '">👁 abrió hace ' + timeAgo(o.last_open_at) + '</span>';
-          else if (o.sent_at && ofDaysAgo(o.sent_at) > 3) eye = '<span class="pp2-eye warn">📪 sin abrir — ¿reenviar?</span>';
-          else eye = '<span class="pp2-eye">sin aperturas aún</span>';
-        }
-        return '<tr data-id="' + o.id + '">' +
-          '<td class="lt-chk"><input type="checkbox" class="of-row-chk" data-id="' + esc(o.id) + '"' + (ofSelected.has(String(o.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
-          '<td><div class="lt-name">' + (o.number ? '<span style="color:var(--acid);font-size:12px;margin-right:7px">' + esc(o.number) + '</span>' : '') + esc(o.title || '(sin título)') + '</div><div class="lt-sub">' + sub + '</div></td>' +
-          '<td>' + esc(o.client || lname || '—') + (lname && o.client ? '<div class="lt-sub">' + esc(lname) + '</div>' : '') + '</td>' +
-          '<td><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></td>' +
-          '<td>' + wait + '</td><td>' + eye + '</td>' +
-          '<td class="lt-val" style="text-align:right">' + fmtM(net) + '</td>' +
-          '<td style="text-align:right;white-space:nowrap;color:' + (mp >= 50 ? '#7ed957' : mp >= 30 ? '#f0c060' : '#ff8b8b') + '">' + (isFinite(mp) ? Math.round(mp) + '%' : '—') + '</td>' +
-          '<td style="text-align:right"><button class="pp2-dots of2-dots" data-id="' + o.id + '" type="button" title="Acciones">⋯</button></td></tr>';
-      }).join('') + '</tbody></table></div>' : '';
-    box.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openOffer(tr.dataset.id)));
-    box.querySelectorAll('.of2-dots').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); ofOpenMenu(btn); }));
-    bindOfSelection(); updateOfDelBtn();
+    return '<tr data-id="' + o.id + '" data-kind="offer">' +
+      '<td class="lt-chk"><input type="checkbox" class="of-row-chk" data-id="' + esc(o.id) + '"' + (ofSelected.has(String(o.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
+      '<td><div class="lt-name">🧾 ' + (o.number ? '<span style="color:var(--acid);font-size:12px;margin-right:7px">' + esc(o.number) + '</span>' : '') + esc(o.title || '(sin título)') + '</div><div class="lt-sub">' + sub + '</div></td>' +
+      '<td>' + esc(o.client || lname || '—') + (lname && o.client ? '<div class="lt-sub">' + esc(lname) + '</div>' : '') + '</td>' +
+      '<td><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></td>' +
+      '<td>' + wait + '</td><td>' + eye + '</td>' +
+      '<td class="lt-val" style="text-align:right">' + fmtM(net) + '</td>' +
+      '<td style="text-align:right"><button class="pp2-dots of2-dots" data-id="' + o.id + '" type="button" title="Acciones">⋯</button></td></tr>';
   }
-  // Ofertas: selección múltiple para borrar en batch (mismo patrón que Personas/psSelected)
+  // Ofertas: selección múltiple para borrar en batch (se combina con ppSelected en la lista unificada)
   let ofSelected = new Set();
-  function updateOfDelBtn(){
-    const btn = $('of-del-sel'); if (!btn) return;
-    btn.hidden = ofSelected.size === 0;
-    btn.textContent = '🗑 Borrar seleccionadas (' + ofSelected.size + ')';
-  }
-  function bindOfSelection(){
-    document.querySelectorAll('.of-row-chk').forEach((cb) => cb.addEventListener('change', () => {
-      if (cb.checked) ofSelected.add(cb.dataset.id); else ofSelected.delete(cb.dataset.id);
-      updateOfDelBtn();
-      const all = $('of-chk-all'); if (all) all.checked = [...document.querySelectorAll('.of-row-chk')].every((c) => c.checked);
-    }));
-    const allBox = $('of-chk-all');
-    if (allBox) allBox.addEventListener('change', () => {
-      document.querySelectorAll('.of-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) ofSelected.add(cb.dataset.id); else ofSelected.delete(cb.dataset.id); });
-      updateOfDelBtn();
-    });
-    const delBtn = $('of-del-sel');
-    if (delBtn) delBtn.onclick = async () => {
-      const ids = [...ofSelected]; if (!ids.length) return;
-      if (!confirm('¿Borrar definitivamente ' + ids.length + ' oferta' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
-      const { error } = await supabase.from('offers').delete().in('id', ids);
-      if (error) { toast('⚠️ ' + error.message); return; }
-      offersList = offersList.filter((o) => !ids.includes(String(o.id)));
-      ofSelected.clear();
-      renderOffersList();
-    };
-  }
+  // renderOffersList queda como alias — lo siguen llamando muchos puntos del dashboard (Deals, Home, Personas)
+  // para refrescar la lista tras una mutación; ahora simplemente redibuja la lista unificada.
+  function renderOffersList(){ renderComboList(); }
   // popover ⋯ por fila (mismo patrón que ppOpenMenu: fixed, pegado al botón, sin salirse de la pantalla)
   function ofOpenMenu(btn){
     const menu = $('of-menu');
@@ -8026,7 +7887,7 @@ const newsCases = [
     renderOffersList();
   }
 
-  function showEditor(on){ $('of-editor').hidden = !on; $('of-list-view').hidden = on; }
+  function showEditor(on){ $('of-editor').hidden = !on; $('combo-list-view').hidden = on; }
 
   // strip de templates: chips con "usar" y borrar
   function renderTplStrip(id, tpls, useFn, delFn){
@@ -9027,13 +8888,9 @@ const newsCases = [
   function proposalsInit(){ if (!ppBuilt){ ppBuilt = true; bindProposals(); } showPropEditor(false); ppLoad(); }
   async function ppLoad(){
     const { data, error } = await supabase.from('proposals').select('*').order('updated_at', { ascending: false });
-    if (error){ $('pp-empty').hidden = false; $('pp-empty').textContent = 'No se pudo cargar (¿corriste el SQL 0004_proposals?): ' + error.message; return; }
+    if (error){ $('opl-empty').hidden = false; $('opl-empty').textContent = 'No se pudo cargar propuestas (¿corriste el SQL 0004_proposals?): ' + error.message; return; }
     ppList = data || []; renderPropList();
   }
-  // ---------- LISTA de propuestas V2: KPIs + segmentos + tabla (espejo del rediseño de Empresas) ----------
-  let ppSeg = 'active';    // segmento por defecto: lo que está VIVO (borradores + publicadas) — 🗄 reemplaza al viejo ppShowArchived
-  let ppSort = 'urgent';   // orden por defecto: lo publicado más viejo primero — es lo que hay que perseguir hoy
-  let ppListBound = false; // búsqueda/orden/click-afuera se atan UNA vez; segmentos y filas se re-atan en cada render
   // valor de la propuesta: lo aceptado si ya cerró; si no, el paquete recomendado (o el 1ro)
   const propVal = (p) => {
     if (Number(p.accepted_total)) return Number(p.accepted_total);
@@ -9042,121 +8899,172 @@ const newsCases = [
     return Number(rec && rec.price) || 0;
   };
   const ppDays = (iso) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  function renderPropList(){
-    const box = $('pp-list'); if (!box) return;
-    // el refresh automático (loadAll) re-dibuja la tabla: cerrar el ⋯ para que no quede flotando sobre filas viejas
-    const mn0 = $('pp-menu'); if (mn0) mn0.hidden = true;
-    renderTplStrip('pp-tpl-strip', ppList.filter((x) => x.is_template), usePropTemplate, delPropTemplate);
-    if (!ppListBound){ ppListBound = true;
-      $('pp-search').addEventListener('input', renderPropList);
-      $('pp-sort').addEventListener('change', () => { ppSort = $('pp-sort').value; renderPropList(); });
-      // click afuera cierra el popover ⋯ (es uno solo compartido por todas las filas)
-      document.addEventListener('click', (e) => { if (!e.target.closest('#pp-menu') && !e.target.closest('.pp2-dots')) $('pp-menu').hidden = true; });
+  const ppBadge = { draft: ['Borrador', '#8ab4ff'], sent: ['Publicada', '#f0c060'], accepted: ['Aceptada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
+  // <tr> de una PROPUESTA — misma lógica/clases de siempre, con 🌐 delante del título
+  function ppRowHtml(p){
+    const b = ppBadge[p.status] || ppBadge.draft, v = propVal(p), tiers = ((p.content || {}).tiers || []);
+    // sub del título: qué es y desde cuándo está afuera (o cuándo se tocó por última vez)
+    let sub = tiers.length + ' paquete' + (tiers.length === 1 ? '' : 's') + (p.published_at && p.status !== 'draft' ? ' · publicada ' + fmtDShort(p.published_at) : ' · editada ' + fmtDShort(p.updated_at));
+    // perdida: el motivo a la vista, para aprender de por qué se pierden
+    if (p.status === 'lost' && (p.lost_reason || leadLostReason(p.lead_id))) sub += ' · <span style="color:#ff8b8b">✕ ' + esc(p.lost_reason || leadLostReason(p.lead_id)) + '</span>';
+    const firma = (p.status === 'accepted' && p.accepted_name) ? '<div class="lt-sub">✍️ Firmado por ' + esc(p.accepted_name) + (p.accepted_at ? ' · ' + new Date(p.accepted_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '') + (p.signed_ip ? ' · IP ' + esc(p.signed_ip) : '') + '</div>' : '';
+    // "Esperando hace": semáforo desde published_at — el rojo es al que hay que hacerle follow-up hoy
+    let wait = '<span class="lt-num">—</span>';
+    if (p.status === 'sent' && (p.published_at || p.updated_at)){
+      const d = ppDays(p.published_at || p.updated_at);
+      wait = d > 8 ? '<span class="pp2-sem bad">' + d + 'd · ⚠ seguir</span>' : d >= 4 ? '<span class="pp2-sem mid">' + d + 'd</span>' : '<span class="pp2-sem ok">' + d + 'd</span>';
+    } else if (p.status === 'accepted' && p.accepted_at && p.published_at){
+      const n = Math.max(0, Math.round((Date.parse(p.accepted_at) - Date.parse(p.published_at)) / 86400000));
+      wait = '<span class="pp2-eye" style="color:#7ed957">aceptó en ' + n + ' día' + (n === 1 ? '' : 's') + '</span>';
     }
-    const all = ppList.filter((x) => !x.is_template);
-    // --- KPIs: el pulso del negocio de propuestas (sobre TODO, sin filtro de búsqueda/segmento) ---
-    const sentLive = all.filter((p) => p.status === 'sent' && !p.archived);
-    $('pp-k-wait').innerHTML = sentLive.length + ' <small>' + fmtChf(sentLive.reduce((a, p) => a + propVal(p), 0)) + '</small>';
-    const cut30 = Date.now() - 30 * 86400000;
-    const acc30 = all.filter((p) => p.status === 'accepted' && p.accepted_at && Date.parse(p.accepted_at) > cut30);
-    $('pp-k-acc30').innerHTML = acc30.length + ' <small>' + fmtChf(acc30.reduce((a, p) => a + (Number(p.accepted_total) || propVal(p)), 0)) + '</small>';
-    // tasa: solo cuenta lo que ya se DECIDIÓ (aceptadas vs perdidas) — sin decisiones todavía, no hay tasa
-    const nAcc = all.filter((p) => p.status === 'accepted').length;
-    const nLost = all.filter((p) => p.status === 'lost').length;
-    $('pp-k-rate').textContent = (nAcc + nLost) ? Math.round(nAcc * 100 / (nAcc + nLost)) + '%' : '–';
-    const accAll = all.filter((p) => p.status === 'accepted');
-    $('pp-k-ticket').textContent = accAll.length ? fmtChf(accAll.reduce((a, p) => a + propVal(p), 0) / accAll.length) : '–';
-    // --- búsqueda + segmentos: los contadores son vivos, sobre lo que quedó de la búsqueda (como Empresas) ---
-    const q = ($('pp-search').value || '').toLowerCase().trim();
-    const searched = q ? all.filter((p) => ((p.title || '') + ' ' + (p.client_name || '')).toLowerCase().includes(q)) : all;
-    const segMatch = (p, k) =>
-      k === 'archived' ? !!p.archived :
-      !p.archived && (k === 'active' ? (p.status === 'draft' || p.status === 'sent') : p.status === k);
-    $('pp-seg').innerHTML = [['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Publicadas'], ['accepted', 'Aceptadas'], ['lost', 'Perdidas'], ['archived', '🗄']]
-      .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (ppSeg === k ? 'on' : '') + '">' + l + ' ' + searched.filter((p) => segMatch(p, k)).length + '</button>').join('');
-    $('pp-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { ppSeg = b.dataset.k; renderPropList(); }));
-    const pool = searched.filter((p) => segMatch(p, ppSeg));
-    $('pp-empty').hidden = pool.length > 0;
-    // --- orden: "más urgente" = publicadas de la más vieja a la más nueva, después borradores recientes, después el resto ---
-    const pubT = (p) => Date.parse(p.published_at || p.updated_at) || 0;
-    const updT = (p) => Date.parse(p.updated_at) || 0;
-    if (ppSort === 'value') pool.sort((a, b) => propVal(b) - propVal(a));
-    else if (ppSort === 'recent') pool.sort((a, b) => updT(b) - updT(a));
-    else pool.sort((a, b) => {
-      const g = (p) => p.status === 'sent' ? 0 : p.status === 'draft' ? 1 : 2;
-      if (g(a) !== g(b)) return g(a) - g(b);
-      return g(a) === 0 ? pubT(a) - pubT(b) : updT(b) - updT(a);
-    });
-    const BDG = { draft: ['Borrador', '#8ab4ff'], sent: ['Publicada', '#f0c060'], accepted: ['Aceptada', '#7ed957'], lost: ['Perdida', '#ff6b6b'] };
-    const fmtD = (iso) => new Date(iso).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
-    const ppAllChecked = pool.length > 0 && pool.every((p) => ppSelected.has(String(p.id)));
-    box.innerHTML = pool.length ? '<div class="ab-urlrow" style="margin-bottom:8px"><button class="btn btn-danger small" id="pp-del-sel" type="button" hidden>🗑 Borrar seleccionadas</button></div><div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
-      '<th class="lt-chk"><input type="checkbox" id="pp-chk-all"' + (ppAllChecked ? ' checked' : '') + ' title="Seleccionar todas las visibles" /></th>' +
-      '<th>Propuesta</th><th>Cliente</th><th>Estado</th><th>Esperando hace</th><th>Interés</th><th class="lt-num">Valor</th><th></th>' +
-      '</tr></thead><tbody>' + pool.map((p) => {
-        const b = BDG[p.status] || BDG.draft, v = propVal(p), tiers = ((p.content || {}).tiers || []);
-        // sub del título: qué es y desde cuándo está afuera (o cuándo se tocó por última vez)
-        let sub = tiers.length + ' paquete' + (tiers.length === 1 ? '' : 's') + (p.published_at && p.status !== 'draft' ? ' · publicada ' + fmtD(p.published_at) : ' · editada ' + fmtD(p.updated_at));
-        // perdida: el motivo a la vista, para aprender de por qué se pierden
-        if (p.status === 'lost' && (p.lost_reason || leadLostReason(p.lead_id))) sub += ' · <span style="color:#ff8b8b">✕ ' + esc(p.lost_reason || leadLostReason(p.lead_id)) + '</span>';
-        const firma = (p.status === 'accepted' && p.accepted_name) ? '<div class="lt-sub">✍️ Firmado por ' + esc(p.accepted_name) + (p.accepted_at ? ' · ' + new Date(p.accepted_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '') + (p.signed_ip ? ' · IP ' + esc(p.signed_ip) : '') + '</div>' : '';
-        // "Esperando hace": semáforo desde published_at — el rojo es al que hay que hacerle follow-up hoy
-        let wait = '<span class="lt-num">—</span>';
-        if (p.status === 'sent' && (p.published_at || p.updated_at)){
-          const d = ppDays(p.published_at || p.updated_at);
-          wait = d > 8 ? '<span class="pp2-sem bad">' + d + 'd · ⚠ seguir</span>' : d >= 4 ? '<span class="pp2-sem mid">' + d + 'd</span>' : '<span class="pp2-sem ok">' + d + 'd</span>';
-        } else if (p.status === 'accepted' && p.accepted_at && p.published_at){
-          const n = Math.max(0, Math.round((Date.parse(p.accepted_at) - Date.parse(p.published_at)) / 86400000));
-          wait = '<span class="pp2-eye" style="color:#7ed957">aceptó en ' + n + ' día' + (n === 1 ? '' : 's') + '</span>';
-        }
-        // "Interés": qué hizo el cliente con el link (last_view_at lo estampa get-proposal en cada vista)
-        let eye = '<span class="lt-num">—</span>';
-        if (p.status === 'sent' || p.status === 'accepted'){
-          if (p.last_view_at) eye = '<span class="pp2-eye' + ((Date.now() - Date.parse(p.last_view_at)) < 86400000 ? ' hot' : '') + '">👁 vista hace ' + timeAgo(p.last_view_at) + '</span>';
-          else if (Number(p.views) > 0) eye = '<span class="pp2-eye">👁 ' + p.views + ' vistas</span>';
-          else if (p.status === 'sent' && p.published_at && ppDays(p.published_at) > 2) eye = '<span class="pp2-eye warn">👁 0 vistas — ¿le llegó el link?</span>';
-        }
-        const val = v ? '<span' + (p.status === 'accepted' ? ' style="color:#7ed957"' : '') + '>' + fmtM(v) + '</span><div class="lt-sub">' + (p.status === 'accepted' ? 'aceptado' : (tiers.find((t) => t.recommended) ? 'recomendado' : 'paquete 1')) + '</div>' : '<span class="lt-num">—</span>';
-        return '<tr data-id="' + p.id + '">' +
-          '<td class="lt-chk"><input type="checkbox" class="pp-row-chk" data-id="' + esc(p.id) + '"' + (ppSelected.has(String(p.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
-          '<td><div class="lt-name">' + esc(p.title || '(sin título)') + '</div><div class="lt-sub">' + sub + '</div>' + firma + '</td>' +
-          '<td>' + esc(p.client_name || '—') + (p.lead_id ? '<div class="lt-sub">' + esc(leadName(p.lead_id)) + '</div>' : '') + '</td>' +
-          '<td><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></td>' +
-          '<td>' + wait + '</td><td>' + eye + '</td>' +
-          '<td class="lt-val" style="text-align:right">' + val + '</td>' +
-          '<td style="text-align:right"><button class="pp2-dots" data-id="' + p.id + '" type="button" title="Acciones">⋯</button></td></tr>';
-      }).join('') + '</tbody></table></div>' : '';
-    box.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => openProp(tr.dataset.id)));
-    box.querySelectorAll('.pp2-dots').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); ppOpenMenu(btn); }));
-    bindPpSelection(); updatePpDelBtn();
+    // "Interés": qué hizo el cliente con el link (last_view_at lo estampa get-proposal en cada vista)
+    let eye = '<span class="lt-num">—</span>';
+    if (p.status === 'sent' || p.status === 'accepted'){
+      if (p.last_view_at) eye = '<span class="pp2-eye' + ((Date.now() - Date.parse(p.last_view_at)) < 86400000 ? ' hot' : '') + '">👁 vista hace ' + timeAgo(p.last_view_at) + '</span>';
+      else if (Number(p.views) > 0) eye = '<span class="pp2-eye">👁 ' + p.views + ' vistas</span>';
+      else if (p.status === 'sent' && p.published_at && ppDays(p.published_at) > 2) eye = '<span class="pp2-eye warn">👁 0 vistas — ¿le llegó el link?</span>';
+    }
+    const val = v ? '<span' + (p.status === 'accepted' ? ' style="color:#7ed957"' : '') + '>' + fmtM(v) + '</span><div class="lt-sub">' + (p.status === 'accepted' ? 'aceptado' : (tiers.find((t) => t.recommended) ? 'recomendado' : 'paquete 1')) + '</div>' : '<span class="lt-num">—</span>';
+    return '<tr data-id="' + p.id + '" data-kind="prop">' +
+      '<td class="lt-chk"><input type="checkbox" class="pp-row-chk" data-id="' + esc(p.id) + '"' + (ppSelected.has(String(p.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
+      '<td><div class="lt-name">🌐 ' + esc(p.title || '(sin título)') + '</div><div class="lt-sub">' + sub + '</div>' + firma + '</td>' +
+      '<td>' + esc(p.client_name || '—') + (p.lead_id ? '<div class="lt-sub">' + esc(leadName(p.lead_id)) + '</div>' : '') + '</td>' +
+      '<td><span class="of-badge" style="color:' + b[1] + ';border-color:' + b[1] + '">' + b[0] + '</span></td>' +
+      '<td>' + wait + '</td><td>' + eye + '</td>' +
+      '<td class="lt-val" style="text-align:right">' + val + '</td>' +
+      '<td style="text-align:right"><button class="pp2-dots" data-id="' + p.id + '" type="button" title="Acciones">⋯</button></td></tr>';
   }
-  // Propuestas: selección múltiple para borrar en batch (mismo patrón que Personas/psSelected)
+  // Propuestas: selección múltiple para borrar en batch (se combina con ofSelected en la lista unificada)
   let ppSelected = new Set();
-  function updatePpDelBtn(){
-    const btn = $('pp-del-sel'); if (!btn) return;
-    btn.hidden = ppSelected.size === 0;
-    btn.textContent = '🗑 Borrar seleccionadas (' + ppSelected.size + ')';
+  // renderPropList queda como alias — lo siguen llamando muchos puntos del dashboard tras mutar una propuesta
+  function renderPropList(){ renderComboList(); }
+
+  // ================= LISTA UNIFICADA "Ofertas y propuestas" =================
+  // Ofertas y Propuestas siguen siendo documentos separados (tablas offers/proposals, editores of-editor/pp-editor,
+  // lógica de negocio) — esto SOLO junta las dos listas en una tabla con 🧾/🌐 como destino final de cada fila.
+  // OJO: el prefijo "co-" ya está tomado por el tab Companies (co-seg/co-search/co-list/co-empty/co-del-sel/
+  // co-chk-all + funciones bindCoSelection/updateCoDelBtn + variable coSeg) — esta lista usa "opl-" (Ofertas+
+  // Propuestas Lista) para no pisar esos ids/variables/funciones.
+  let oplSeg = 'active', oplSort = 'urgent', oplListBound = false;
+  function renderComboList(){
+    const box = $('opl-list'); if (!box) return;
+    // el refresh automático (loadAll) re-dibuja la tabla: cerrar los ⋯ para que no queden flotando sobre filas viejas
+    const mnO = $('of-menu'); if (mnO) mnO.hidden = true;
+    const mnP = $('pp-menu'); if (mnP) mnP.hidden = true;
+    renderTplStrip('of-tpl-strip', offersList.filter((o) => o.is_template), useOfferTemplate, delOfferTemplate);
+    renderTplStrip('pp-tpl-strip', ppList.filter((x) => x.is_template), usePropTemplate, delPropTemplate);
+    if (!oplListBound){ oplListBound = true;
+      $('opl-search').addEventListener('input', renderComboList);
+      $('opl-sort').addEventListener('change', () => { oplSort = $('opl-sort').value; renderComboList(); });
+      // click afuera cierra el popover ⋯ que esté abierto (ofertas o propuestas — son dos popovers independientes)
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#of-menu') && !e.target.closest('.of2-dots')){ const m = $('of-menu'); if (m) m.hidden = true; }
+        if (!e.target.closest('#pp-menu') && !e.target.closest('.pp2-dots')){ const m = $('pp-menu'); if (m) m.hidden = true; }
+      });
+    }
+    const offAll = offersList.filter((o) => !o.is_template);
+    const propAll = ppList.filter((x) => !x.is_template);
+    const offPool = offAll.filter((o) => !o.archived && o.status !== 'tier');   // paquetes y archivadas FUERA de los números
+    const propPool = propAll.filter((p) => !p.archived);
+    // --- 4 KPIs combinados (sobre TODO, sin filtro de búsqueda/segmento) ---
+    const offSentK = offPool.filter((o) => o.status === 'sent'), propSentK = propPool.filter((p) => p.status === 'sent');
+    const waitCount = offSentK.length + propSentK.length;
+    const waitVal = offSentK.reduce((a, o) => a + offerNet(o), 0) + propSentK.reduce((a, p) => a + propVal(p), 0);
+    $('opl-k-wait').innerHTML = waitCount ? fmtM(waitVal) + ' <small>' + waitCount + '</small>' : '0';
+    const cut30 = Date.now() - 30 * 86400000;
+    const offWon = offPool.filter((o) => o.status === 'won');
+    const offWon30 = offWon.filter((o) => Date.parse(o.updated_at) > cut30);
+    const propAcc = propPool.filter((p) => p.status === 'accepted');
+    const propAcc30 = propAcc.filter((p) => p.accepted_at && Date.parse(p.accepted_at) > cut30);
+    const won30Count = offWon30.length + propAcc30.length;
+    const won30Val = offWon30.reduce((a, o) => a + offerNet(o), 0) + propAcc30.reduce((a, p) => a + (Number(p.accepted_total) || propVal(p)), 0);
+    $('opl-k-won30').innerHTML = won30Count ? fmtM(won30Val) + ' <small>' + won30Count + '</small>' : '0';
+    const offLost = offPool.filter((o) => o.status === 'lost'), propLost = propPool.filter((p) => p.status === 'lost');
+    const decided = offWon.length + offLost.length + propAcc.length + propLost.length;
+    const wonTotal = offWon.length + propAcc.length;
+    $('opl-k-conv').innerHTML = decided ? Math.round(wonTotal / decided * 100) + '<small>%</small>' : '–';
+    // margen promedio: solo tiene sentido con Ofertas (Propuestas no calculan costo/margen hoy)
+    const offMargins = offWon.map(offerMarginPct).filter((m) => isFinite(m));
+    $('opl-k-margin').innerHTML = offMargins.length ? Math.round(offMargins.reduce((a, b) => a + b, 0) / offMargins.length) + '<small>% · ofertas</small>' : '–';
+    // --- búsqueda (independiente por tipo, mismos criterios de siempre) ---
+    const q = ($('opl-search').value || '').toLowerCase().trim();
+    const searchedOff = q ? offAll.filter((o) => ((o.title || '') + ' ' + (o.client || '') + ' ' + ofLeadNm(o)).toLowerCase().includes(q)) : offAll;
+    const searchedProp = q ? propAll.filter((p) => ((p.title || '') + ' ' + (p.client_name || '')).toLowerCase().includes(q)) : propAll;
+    // --- segmentos combinados: won↔accepted y draft/sent/lost/archived son equivalentes 1:1; tier es solo de ofertas ---
+    const segMatchOff = (o, k) =>
+      k === 'archived' ? !!o.archived :
+      !o.archived && (k === 'active' ? (o.status === 'draft' || o.status === 'sent') : k === 'tier' ? o.status === 'tier' : o.status === k);
+    const segMatchProp = (p, k) =>
+      k === 'archived' ? !!p.archived :
+      !p.archived && (k === 'active' ? (p.status === 'draft' || p.status === 'sent') : k === 'tier' ? false : (k === 'won' ? p.status === 'accepted' : p.status === k));
+    $('opl-seg').innerHTML = [['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['tier', 'Paquetes'], ['archived', '🗄']]
+      .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (oplSeg === k ? 'on' : '') + '">' + l + ' ' + (searchedOff.filter((o) => segMatchOff(o, k)).length + searchedProp.filter((p) => segMatchProp(p, k)).length) + '</button>').join('');
+    $('opl-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { oplSeg = b.dataset.k; renderComboList(); }));
+    const offRows = searchedOff.filter((o) => segMatchOff(o, oplSeg));
+    const propRows = searchedProp.filter((p) => segMatchProp(p, oplSeg));
+    $('opl-empty').hidden = (offRows.length + propRows.length) > 0;
+    // --- orden combinado: "más urgente" = enviadas más viejas primero, después borradores recientes, después el resto ---
+    const oplGroup = (row) => row.status === 'sent' ? 0 : row.status === 'draft' ? 1 : 2;
+    const oplUrgentT = (kind, row) => kind === 'offer' ? (Date.parse(row.sent_at || row.updated_at) || 0) : (Date.parse(row.published_at || row.updated_at) || 0);
+    const oplUpdT = (row) => Date.parse(row.updated_at) || 0;
+    const oplValue = (kind, row) => kind === 'offer' ? offerNet(row) : propVal(row);
+    const merged = offRows.map((o) => ({ kind: 'offer', row: o })).concat(propRows.map((p) => ({ kind: 'prop', row: p })));
+    if (oplSort === 'value') merged.sort((a, b) => oplValue(b.kind, b.row) - oplValue(a.kind, a.row));
+    else if (oplSort === 'recent') merged.sort((a, b) => oplUpdT(b.row) - oplUpdT(a.row));
+    else merged.sort((a, b) => {
+      const g1 = oplGroup(a.row), g2 = oplGroup(b.row);
+      if (g1 !== g2) return g1 - g2;
+      return g1 === 0 ? oplUrgentT(a.kind, a.row) - oplUrgentT(b.kind, b.row) : oplUpdT(b.row) - oplUpdT(a.row);
+    });
+    const oplAllChecked = merged.length > 0 && merged.every((x) => x.kind === 'offer' ? ofSelected.has(String(x.row.id)) : ppSelected.has(String(x.row.id)));
+    box.innerHTML = merged.length ? '<div class="ab-urlrow" style="margin-bottom:8px"><button class="btn btn-danger small" id="opl-del-sel" type="button" hidden>🗑 Borrar seleccionadas</button></div><div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+      '<th class="lt-chk"><input type="checkbox" id="opl-chk-all"' + (oplAllChecked ? ' checked' : '') + ' title="Seleccionar todas las visibles" /></th>' +
+      '<th>Oferta / Propuesta</th><th>Cliente</th><th>Estado</th><th>Esperando hace</th><th>Interés</th><th class="lt-num">Valor</th><th></th>' +
+      '</tr></thead><tbody>' + merged.map((x) => x.kind === 'offer' ? ofRowHtml(x.row) : ppRowHtml(x.row)).join('') + '</tbody></table></div>' : '';
+    box.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => { if (tr.dataset.kind === 'offer') openOffer(tr.dataset.id); else openProp(tr.dataset.id); }));
+    box.querySelectorAll('.of2-dots').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); ofOpenMenu(btn); }));
+    box.querySelectorAll('.pp2-dots:not(.of2-dots)').forEach((btn) => btn.addEventListener('click', (e) => { e.stopPropagation(); ppOpenMenu(btn); }));
+    bindOplSelection(); updateOplDelBtn();
   }
-  function bindPpSelection(){
+  // selección múltiple unificada: ofSelected/ppSelected son dos Sets separados (borran de tablas distintas)
+  // pero la UI (checkbox "seleccionar todas" + botón "Borrar seleccionadas") se ve como una sola.
+  function updateOplDelBtn(){
+    const btn = $('opl-del-sel'); if (!btn) return;
+    const n = ofSelected.size + ppSelected.size;
+    btn.hidden = n === 0;
+    btn.textContent = '🗑 Borrar seleccionadas (' + n + ')';
+  }
+  function bindOplSelection(){
+    const syncAll = () => {
+      const all = $('opl-chk-all'); if (!all) return;
+      const boxes = [...document.querySelectorAll('.of-row-chk, .pp-row-chk')];
+      all.checked = boxes.length > 0 && boxes.every((c) => c.checked);
+    };
+    document.querySelectorAll('.of-row-chk').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) ofSelected.add(cb.dataset.id); else ofSelected.delete(cb.dataset.id);
+      updateOplDelBtn(); syncAll();
+    }));
     document.querySelectorAll('.pp-row-chk').forEach((cb) => cb.addEventListener('change', () => {
       if (cb.checked) ppSelected.add(cb.dataset.id); else ppSelected.delete(cb.dataset.id);
-      updatePpDelBtn();
-      const all = $('pp-chk-all'); if (all) all.checked = [...document.querySelectorAll('.pp-row-chk')].every((c) => c.checked);
+      updateOplDelBtn(); syncAll();
     }));
-    const allBox = $('pp-chk-all');
+    const allBox = $('opl-chk-all');
     if (allBox) allBox.addEventListener('change', () => {
+      document.querySelectorAll('.of-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) ofSelected.add(cb.dataset.id); else ofSelected.delete(cb.dataset.id); });
       document.querySelectorAll('.pp-row-chk').forEach((cb) => { cb.checked = allBox.checked; if (allBox.checked) ppSelected.add(cb.dataset.id); else ppSelected.delete(cb.dataset.id); });
-      updatePpDelBtn();
+      updateOplDelBtn();
     });
-    const delBtn = $('pp-del-sel');
+    const delBtn = $('opl-del-sel');
     if (delBtn) delBtn.onclick = async () => {
-      const ids = [...ppSelected]; if (!ids.length) return;
-      if (!confirm('¿Borrar definitivamente ' + ids.length + ' propuesta' + (ids.length === 1 ? '' : 's') + '? Esta acción no se puede deshacer.')) return;
-      const { error } = await supabase.from('proposals').delete().in('id', ids);
-      if (error) { toast('⚠️ ' + error.message); return; }
-      ppList = ppList.filter((p) => !ids.includes(String(p.id)));
-      ppSelected.clear();
-      renderPropList();
+      const offIds = [...ofSelected], propIds = [...ppSelected], total = offIds.length + propIds.length;
+      if (!total) return;
+      if (!confirm('¿Borrar definitivamente ' + total + ' documento' + (total === 1 ? '' : 's') + ' (' + offIds.length + ' oferta' + (offIds.length === 1 ? '' : 's') + ' + ' + propIds.length + ' propuesta' + (propIds.length === 1 ? '' : 's') + ')? Esta acción no se puede deshacer.')) return;
+      if (offIds.length){ const { error } = await supabase.from('offers').delete().in('id', offIds); if (error){ toast('⚠️ ' + error.message); return; } }
+      if (propIds.length){ const { error } = await supabase.from('proposals').delete().in('id', propIds); if (error){ toast('⚠️ ' + error.message); return; } }
+      offersList = offersList.filter((o) => !offIds.includes(String(o.id)));
+      ppList = ppList.filter((p) => !propIds.includes(String(p.id)));
+      ofSelected.clear(); ppSelected.clear();
+      renderComboList();
     };
   }
   // popover ⋯ por fila (mismo patrón que lm2Menu; fixed porque dentro del wrap con overflow lo recortaría)
@@ -9264,7 +9172,7 @@ const newsCases = [
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
   function openProp(id){ const src = ppList.find((p) => String(p.id) === String(id)); if (!src) return; ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); }
-  function showPropEditor(on){ $('pp-editor').hidden = !on; $('pp-list-view').hidden = on; }
+  function showPropEditor(on){ $('pp-editor').hidden = !on; $('combo-list-view').hidden = on; }
 
   function fillPropEditor(){
     $('pp-title').value = ppCur.title; $('pp-cname').value = ppCur.client_name; $('pp-cemail').value = ppCur.client_email;
@@ -9350,7 +9258,7 @@ const newsCases = [
     document.querySelectorAll('#pp3-main .pp3-blk').forEach((p) => p.classList.toggle('dim', off.has(p.dataset.pblock)));
   }
   function ppAutoGrow(){
-    document.querySelectorAll('#tab-props textarea').forEach((t) => {
+    document.querySelectorAll('#pp-editor textarea').forEach((t) => {
       const fit = () => { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; };
       if (!t.dataset.fit){ t.dataset.fit = '1'; t.addEventListener('input', fit); }
       fit();
