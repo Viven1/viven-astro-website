@@ -34,19 +34,32 @@ const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, 
 // Debe coincidir con booking-slots y con el backfill de la migración 0080.
 const slugify = (name: string) => String(name || "").trim().split(/\s+/)[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-async function googleToken(): Promise<string> {
+async function googleToken(refreshToken?: string): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
       client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
-      refresh_token: Deno.env.get("GOOGLE_REFRESH_TOKEN")!,
+      refresh_token: refreshToken || Deno.env.get("GOOGLE_REFRESH_TOKEN")!,
       grant_type: "refresh_token",
     }),
   });
   if (!res.ok) throw new Error("google_token " + res.status);
   return (await res.json()).access_token;
+}
+
+// Google por host: token+calendario de la propia cuenta de esa persona si tiene secret dedicado;
+// si no, FALLBACK al par compartido (comportamiento actual). Idéntico a booking-slots.hostGoogle.
+function hostGoogle(hostEmail: string): { refresh?: string; calId: string } {
+  const SECRET: Record<string, string> = {
+    "sofia@viven.ch": "GOOGLE_REFRESH_TOKEN_SOFIA",
+    "sebastian@viven.ch": "GOOGLE_REFRESH_TOKEN_SEBASTIAN",
+  };
+  const key = SECRET[(hostEmail || "").toLowerCase()];
+  const dedicated = key ? Deno.env.get(key) : undefined;
+  if (dedicated) return { refresh: dedicated, calId: "primary" };
+  return { refresh: Deno.env.get("GOOGLE_REFRESH_TOKEN"), calId: Deno.env.get("GCAL_ID") || "primary" };
 }
 
 const SITE = "https://www.viven.ch"; // LIVE ✓
@@ -83,17 +96,14 @@ Deno.serve(async (req) => {
     const duration = (cfg.durations as number[]).includes(Number(dur)) ? Number(dur) : (cfg.durations as number[])[0];
     const endMs = startMs + duration * 60e3;
 
-    const token = await googleToken();
-    const calId = Deno.env.get("GCAL_ID") || "primary";
-
     // lead existente (si hay) ANTES de crear el evento → el link al brief va ligado
     const { data: preLead } = await service.from("leads").select("id,owner").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const briefUrl = BRIEF_URL + "?lang=" + encodeURIComponent(lang) + (preLead?.id ? "&lead=" + preLead.id : "");
 
     // Anfitrión correcto (SQL 0073): dueño del lead → email de la fila de settings → default.
     // La identidad visible (nombre/rol/tel/firma) sale de team_profiles de esa persona.
-    // NOTA: el evento sigue yendo al ÚNICO Google Calendar compartido (GCAL_ID/GOOGLE_REFRESH_TOKEN);
-    // acá solo se nombra al host correcto en el email y en el texto del evento.
+    // El evento va al calendario DE ESA PERSONA si tiene su propio Google conectado (secret
+    // GOOGLE_REFRESH_TOKEN_<host>); si no, al calendario compartido de siempre (fallback).
     const hostEmail: string = String(paramHostEmail || preLead?.owner || (cfg as { email?: string }).email || "sebastian@viven.ch").toLowerCase();
     const host = { email: hostEmail, name: String(cfg.host_name || "Sebastian Cepeda"), role: String(cfg.host_role || "Founder — Viven AG, Zürich"), phone: "", signature: "" };
     try {
@@ -106,6 +116,10 @@ Deno.serve(async (req) => {
       }
     } catch (_e) { /* sin team_profiles → default de settings */ }
     const hostFirst = host.name.split(/\s+/)[0];
+
+    // token + calendario DEL HOST (su cuenta si tiene secret dedicado; si no, el compartido)
+    const { refresh: hostRefresh, calId } = hostGoogle(hostEmail);
+    const token = await googleToken(hostRefresh);
 
     // 1) revalidar que el slot siga libre (carrera entre dos clientes)
     const fb = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {

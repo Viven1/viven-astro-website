@@ -16,19 +16,34 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-export async function googleToken(): Promise<string> {
+export async function googleToken(refreshToken?: string): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
       client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
-      refresh_token: Deno.env.get("GOOGLE_REFRESH_TOKEN")!,
+      refresh_token: refreshToken || Deno.env.get("GOOGLE_REFRESH_TOKEN")!,
       grant_type: "refresh_token",
     }),
   });
   if (!res.ok) throw new Error("google_token " + res.status + " " + (await res.text()).slice(0, 200));
   return (await res.json()).access_token;
+}
+
+// Google por host: cada persona con SU propia cuenta conectada (refresh token dedicado).
+// Si el host tiene su secret → usa su token + su calendario "primary". Si no → FALLBACK al
+// par compartido de siempre (GOOGLE_REFRESH_TOKEN/GCAL_ID) — así deployar esto NO rompe nada
+// aunque falten secrets, y el /book/ default (sin host) sigue igual.
+export function hostGoogle(hostEmail: string): { refresh?: string; calId: string } {
+  const SECRET: Record<string, string> = {
+    "sofia@viven.ch": "GOOGLE_REFRESH_TOKEN_SOFIA",
+    "sebastian@viven.ch": "GOOGLE_REFRESH_TOKEN_SEBASTIAN",
+  };
+  const key = SECRET[(hostEmail || "").toLowerCase()];
+  const dedicated = key ? Deno.env.get(key) : undefined;
+  if (dedicated) return { refresh: dedicated, calId: "primary" };                    // su propia agenda
+  return { refresh: Deno.env.get("GOOGLE_REFRESH_TOKEN"), calId: Deno.env.get("GCAL_ID") || "primary" };
 }
 
 // hora local de Zúrich para un instante dado (sin libs)
@@ -122,8 +137,9 @@ Deno.serve(async (req) => {
     const timeMin = new Date(now).toISOString();
     const timeMax = new Date(now + days * 864e5).toISOString();
 
-    const token = await googleToken();
-    const calId = Deno.env.get("GCAL_ID") || "primary";
+    // free/busy contra el calendario DEL HOST (su token+agenda si tiene secret; si no, el compartido)
+    const { refresh, calId } = hostGoogle(host.email || "");
+    const token = await googleToken(refresh);
     const fb = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
