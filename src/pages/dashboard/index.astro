@@ -558,6 +558,11 @@ const stillsPool = projects
   .lic-days.soon{color:#f0c060;border:1px solid #f0c060}
   .lic-days.due{color:#ff8b8b;border:1px solid #ff8b8b}
   .lic-days.past{color:var(--muted-2);border:1px solid var(--line-strong)}
+  .of-act.lic-pri{background:var(--acid);border-color:var(--acid);color:var(--navy-900);font-weight:700}
+  .of-act.lic-pri:hover{border-color:var(--acid);color:var(--navy-900)}
+  :root[data-theme="light"] .of-act.lic-pri{background:#dff28b;border-color:#dff28b;color:#1c2508}
+  .lic-renew{display:flex;gap:8px;align-items:center;padding:0 12px 12px;flex-wrap:wrap}
+  .lic-renew input[type=date]{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:7px 10px}
   .pp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0 8px;align-items:end}
   .pp-grid .bf{margin-bottom:0}
   .pp-grid3{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:6px;align-items:start}
@@ -956,7 +961,7 @@ const stillsPool = projects
   /* --- tab Servicios: catálogo de precios --- */
   .sv-phase{font-family:'Space Grotesk';font-weight:700;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--acid);margin:18px 0 8px}
   .sv-phase:first-child{margin-top:0}
-  .sv-row{display:grid;grid-template-columns:2.2fr 1.2fr .7fr 1fr 1fr auto auto;gap:8px;align-items:center;background:var(--navy-800);border:1px solid var(--line);border-radius:11px;padding:8px 10px;margin-bottom:7px}
+  .sv-row{display:grid;grid-template-columns:20px 2fr 1.1fr .6fr .9fr .9fr auto auto auto;gap:8px;align-items:center;background:var(--navy-800);border:1px solid var(--line);border-radius:11px;padding:8px 10px;margin-bottom:7px}
   .sv-row input,.sv-row select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-family:inherit;font-size:13.5px;padding:8px 10px;min-width:0;width:100%}
   .sv-num{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted-2);white-space:nowrap}
   .sv-num input{text-align:right}
@@ -964,6 +969,12 @@ const stillsPool = projects
   .sv-tgl,.sv-del{background:none;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);cursor:pointer;width:30px;height:30px;font-size:12px}
   .sv-del:hover{border-color:#ff8b8b;color:#ff8b8b}
   .sv-tgl:hover{border-color:var(--acid);color:var(--acid)}
+  .sv-drag{cursor:grab;color:var(--muted-2);display:flex;align-items:center;justify-content:center;font-size:14px;user-select:none;height:100%}
+  .sv-drag:active{cursor:grabbing}
+  .sv-row.sv-dragging{opacity:.4}
+  .sv-row.sv-dragover{border-color:var(--acid);box-shadow:inset 0 0 0 1px var(--acid)}
+  .usage{font-size:11px;color:var(--acid);background:color-mix(in srgb,var(--acid) 10%,transparent);border:1px solid color-mix(in srgb,var(--acid) 35%,transparent);border-radius:999px;padding:1px 8px;white-space:nowrap;justify-self:start}
+  .usage.none{color:var(--muted-2);border-color:var(--line-strong);background:transparent}
   .sv-off{opacity:.45}
   @media(max-width:820px){
     .sv-row{grid-template-columns:1fr 1fr auto auto;grid-template-areas:'name name name name' 'phase phase unit unit' 'price cost tgl del'}
@@ -2574,6 +2585,7 @@ const stillsPool = projects
       <button class="btn btn-primary small" id="sv-add" type="button">➕ Agregar servicio</button>
     </div>
     <div id="sv-note" class="muted-note" hidden style="margin-bottom:10px"></div>
+    <div id="sv-seg" class="co-seg" style="margin-bottom:12px"></div>
     <div id="sv-list"><p class="muted-note">Cargando…</p></div>
   </div>
 
@@ -2601,6 +2613,13 @@ const stillsPool = projects
         <button class="btn btn-ghost small" id="lic-cancel" type="button">Cancelar</button>
       </div>
     </div>
+    <div class="kpis four" id="lic-kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="n" id="lic-k-active">–</div><div class="l">Cartera activa</div></div>
+      <div class="kpi"><div class="n" id="lic-k-renewed">–</div><div class="l">Renovadas (30d)</div></div>
+      <div class="kpi"><div class="n" id="lic-k-due90">–</div><div class="l">Por vencer (90d)</div></div>
+      <div class="kpi"><div class="n" id="lic-k-risk">–</div><div class="l">En riesgo</div></div>
+    </div>
+    <div id="lic-seg" class="co-seg" style="margin-bottom:12px"></div>
     <div id="lic-list"><p class="muted-note">Cargando…</p></div>
   </div>
 
@@ -6865,7 +6884,7 @@ const stillsPool = projects
   /* ================= SERVICIOS: catálogo de precios editable =================
      Tabla services (SQL 0025). Si no existe o está vacía → RATECARD hardcodeado.
      El catálogo de las ofertas sale SIEMPRE de acá (CATALOG). */
-  let servicesList = [], servicesBuilt = false;
+  let servicesList = [], servicesBuilt = false, svFilter = 'active', svDragId = null;
   const CATALOG = () => {
     const act = (servicesList || []).filter((x) => x.active !== false);
     if (!act.length) return RATECARD;
@@ -6885,7 +6904,9 @@ const stillsPool = projects
     return {};
   }
   /* ================= 📄 LICENCIAS: ingreso recurrente, avisos -90/-30/0 ================= */
-  let licensesBuilt = false, licList = [], licEditing = null;
+  let licensesBuilt = false, licList = [], licEditing = null, licFilter = 'active';
+  // días desde hoy hasta una fecha ISO (YYYY-MM-DD); negativo = ya venció
+  const licDaysTo = (d) => Math.round((new Date(d + 'T00:00:00').getTime() - new Date(new Date().toDateString()).getTime()) / 864e5);
   function licensesInit(){
     if (!licensesBuilt){
       licensesBuilt = true;
@@ -6941,33 +6962,91 @@ const stillsPool = projects
     licList = data || [];
     licRender();
   }
+  const licCHF = (n) => 'CHF ' + Math.round(Number(n) || 0).toLocaleString('de-CH');
+  // KPIs de ingreso recurrente — todo client-side sobre licList (montos = mensuales)
+  function licKpis(){
+    const active = licList.filter((l) => l.status === 'active');
+    const monthly = active.reduce((a, l) => a + (Number(l.amount) || 0), 0);
+    const renewed30 = licList.filter((l) => l.status === 'renewed' && l.updated_at && (Date.now() - Date.parse(l.updated_at) < 30 * 864e5))
+      .reduce((a, l) => a + (Number(l.amount) || 0), 0);
+    const due90 = active.filter((l) => l.renewal_date && licDaysTo(l.renewal_date) >= 0 && licDaysTo(l.renewal_date) <= 90)
+      .reduce((a, l) => a + (Number(l.amount) || 0), 0);
+    const risk = active.filter((l) => l.renewal_date && licDaysTo(l.renewal_date) <= 30).length;
+    $('lic-k-active').innerHTML = licCHF(monthly) + '<small>/mes</small>';
+    $('lic-k-renewed').textContent = licCHF(renewed30);
+    $('lic-k-due90').textContent = licCHF(due90);
+    const rk = $('lic-k-risk'); rk.textContent = String(risk); rk.style.color = risk > 0 ? '#ff8b8b' : '';
+  }
+  function licMatch(l){
+    if (licFilter === 'active') return l.status === 'active';
+    if (licFilter === 'due') return l.status === 'active' && l.renewal_date && licDaysTo(l.renewal_date) <= 30;
+    if (licFilter === 'renewed') return l.status === 'renewed';
+    if (licFilter === 'expired') return l.status === 'expired';
+    if (licFilter === 'cancelled') return l.status === 'cancelled';
+    return true;
+  }
+  function licSeg(){
+    const seg = $('lic-seg'); if (!seg) return;
+    const cnt = (f) => licList.filter((l) => { const bak = licFilter; licFilter = f; const r = licMatch(l); licFilter = bak; return r; }).length;
+    const defs = [['active', 'Activas'], ['due', 'Por vencer <30d'], ['renewed', 'Renovadas'], ['expired', 'Vencidas'], ['cancelled', 'Canceladas']];
+    seg.innerHTML = defs.map(([k, lbl]) => '<button data-f="' + k + '" class="' + (licFilter === k ? 'on' : '') + '" type="button">' + lbl + ' ' + cnt(k) + '</button>').join('');
+    seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { licFilter = b.dataset.f; licRender(); }));
+  }
   function licRender(){
+    licSeg(); licKpis();
     const box = $('lic-list');
     if (!licList.length){ box.innerHTML = '<p class="muted-note">Sin licencias todavía — agregá la primera con ➕.</p>'; return; }
-    box.innerHTML = licList.map((l) => {
+    const rows = licList.filter(licMatch);
+    if (!rows.length){ box.innerHTML = '<p class="muted-note">Sin licencias en este filtro.</p>'; return; }
+    box.innerHTML = rows.map((l) => {
       const lead = l.lead_id ? leadById(l.lead_id) : null;
       const statusLbl = { renewed: '✅ Renovada', expired: '⏹ Vencida', cancelled: '🚫 Cancelada' }[l.status] || '';
+      const sub = (l.amount ? licCHF(l.amount) + '/mes · ' : '') + (l.start_date ? 'desde ' + esc(l.start_date) + ' · ' : '') +
+        'renueva ' + esc(l.renewal_date || '—') + (lead ? ' · ' + esc(lead.name || lead.email) : '');
+      const actions = l.status === 'active'
+        ? '<button class="of-act lic-pri" data-act="genoffer" type="button">🧾 Generar oferta de renovación</button>' +
+          '<button class="of-act" data-act="renew" type="button">📅 Cambiar fecha</button>' +
+          '<button class="of-act" data-act="edit" type="button">✏️ Editar</button>' +
+          '<button class="of-act danger" data-act="cancel" type="button">🚫 Cancelar</button>' +
+          '<button class="of-act danger" data-act="del" type="button">🗑 Borrar</button>'
+        : '<button class="of-act" data-act="edit" type="button">✏️ Editar</button>' +
+          '<button class="of-act danger" data-act="del" type="button">🗑 Borrar</button>';
       return '<div class="of-card" data-lid="' + l.id + '"><div class="of-card-open"><div class="of-card-main">' +
         '<div class="of-card-title">' + esc(l.title) + '</div>' +
-        '<div class="of-card-sub">' + esc(lead ? (lead.name || lead.email) : 'Sin cliente') + (l.amount ? ' · CHF ' + Number(l.amount).toLocaleString('de-CH') : '') + ' · renueva ' + esc(l.renewal_date) + '</div></div>' +
+        '<div class="of-card-sub">' + sub + '</div></div>' +
         (l.status === 'active' ? licDaysBadge(l.renewal_date) : '<span class="lic-days past">' + statusLbl + '</span>') +
-        '</div><div class="of-actions">' +
-        (l.status === 'active' ? '<button class="of-act" data-act="renew" type="button">✅ Renovar</button><button class="of-act" data-act="edit" type="button">✏️ Editar</button><button class="of-act danger" data-act="cancel" type="button">🚫 Cancelar</button>' : '') +
-        '<button class="of-act danger" data-act="del" type="button">🗑 Borrar</button>' +
-        '</div></div>';
+        '</div>' +
+        '<div class="lic-renew" hidden><input type="date" class="lic-renew-date" value="' + esc(l.renewal_date || '') + '" /><button class="of-act lic-pri" data-act="renew-confirm" type="button">✅ Renovar</button><button class="of-act" data-act="renew-cancel" type="button">Cancelar</button></div>' +
+        '<div class="of-actions">' + actions + '</div></div>';
     }).join('');
     box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
       const card = btn.closest('[data-lid]'); const id = card.dataset.lid; const l = licList.find((x) => String(x.id) === id); if (!l) return;
       const act = btn.dataset.act;
       if (act === 'edit'){ licEditing = l; licOpenForm(l); }
-      else if (act === 'renew'){
-        const next = prompt('Nueva fecha de renovación (YYYY-MM-DD):', l.renewal_date);
-        if (!next) return;
-        await supabase.from('licenses').update({ renewal_date: next, updated_at: new Date().toISOString() }).eq('id', l.id);
+      else if (act === 'genoffer'){
+        // precarga una oferta nueva con el mismo cliente y monto (1 click en vez de armarla de cero)
+        const lead = l.lead_id ? leadById(l.lead_id) : null;
+        await gotoTab('offers');   // cambia de tab (offersInit deja la lista visible, no toca el editor luego)
+        newOffer();                // abre un editor en blanco
+        ofCur.title = 'Renovación — ' + (l.title || 'licencia');
+        ofCur.lead_id = l.lead_id || null;
+        ofCur.client = lead ? (lead.name || lead.email || '') : '';
+        ofCur.items = [{ phase: 'Production', name: l.title || 'Renovación de licencia', qty: 1, unit: 'Fix', price: Number(l.amount) || 0, cost: 0 }];
+        fillEditor(); showEditor(true);
+        toast('🧾 Oferta de renovación precargada — revisá y guardá');
+      }
+      else if (act === 'renew'){ const r = card.querySelector('.lic-renew'); if (r){ r.hidden = false; const inp = r.querySelector('input'); if (inp) inp.focus(); } }
+      else if (act === 'renew-cancel'){ const r = card.querySelector('.lic-renew'); if (r) r.hidden = true; }
+      else if (act === 'renew-confirm'){
+        const inp = card.querySelector('.lic-renew-date'); const next = inp && inp.value;
+        if (!next){ toast('Elegí una fecha'); return; }
+        const { error } = await supabase.from('licenses').update({ renewal_date: next, status: 'renewed', updated_at: new Date().toISOString() }).eq('id', l.id);
+        if (error){ toast('⚠️ ' + error.message); return; }
         toast('✅ Renovada — próxima: ' + next); licLoad();
-      } else if (act === 'cancel'){
+      }
+      else if (act === 'cancel'){
         if (!confirm('¿Marcar como cancelada?')) return;
-        await supabase.from('licenses').update({ status: 'cancelled' }).eq('id', l.id);
+        await supabase.from('licenses').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', l.id);
         licLoad();
       } else if (act === 'del'){
         if (!confirm('¿Borrar esta licencia del todo?')) return;
@@ -6993,26 +7072,89 @@ const stillsPool = projects
       note.hidden = true; renderServices();
     });
   }
+  const svPhaseOf = (x) => (PHASES.includes(x.phase) ? x.phase : 'Production');
+  const svVisible = (x) => svFilter === 'all' || (svFilter === 'paused' ? x.active === false : x.active !== false);
+  // "Usado en N ofertas" — READ-ONLY: cuenta cuántas ofertas/propuestas RECIENTES referencian el servicio por NOMBRE.
+  // NUNCA reescribe ofertas viejas (offers.items / proposals.tiers son snapshots denormalizados, sin FK a services.id).
+  function svUsageMap(){
+    const m = new Map();
+    const bumpSet = (names) => names.forEach((k) => m.set(k, (m.get(k) || 0) + 1));
+    (typeof offersList !== 'undefined' ? offersList : []).forEach((o) => {
+      const seen = new Set();
+      (Array.isArray(o.items) ? o.items : []).forEach((it) => { const k = it && it.name ? String(it.name).trim().toLowerCase() : ''; if (k) seen.add(k); });
+      bumpSet(seen);
+    });
+    (typeof propsAll !== 'undefined' ? propsAll : []).forEach((p) => {
+      const seen = new Set();
+      (Array.isArray(p.tiers) ? p.tiers : []).forEach((t) => (t && Array.isArray(t.items) ? t.items : []).forEach((it) => { const k = it && it.name ? String(it.name).trim().toLowerCase() : ''; if (k) seen.add(k); }));
+      bumpSet(seen);
+    });
+    return m;
+  }
+  function svDecorateUsage(box){
+    try {
+      const m = svUsageMap();
+      box.querySelectorAll('.sv-row').forEach((row) => {
+        const it = servicesList.find((x) => String(x.id) === String(row.dataset.id));
+        const span = row.querySelector('[data-usage]'); if (!it || !span) return;
+        const n = m.get(String(it.name || '').trim().toLowerCase()) || 0;
+        if (n > 0){ span.className = 'usage'; span.textContent = 'usado en ' + n + (n === 1 ? ' oferta' : ' ofertas'); }
+        else { span.className = 'usage none'; span.textContent = 'sin uso reciente'; }
+      });
+    } catch (e) { /* usage es best-effort: nunca rompe la tab */ }
+  }
+  function svRenderSeg(){
+    const seg = $('sv-seg'); if (!seg) return;
+    const act = servicesList.filter((x) => x.active !== false).length;
+    const off = servicesList.filter((x) => x.active === false).length;
+    const defs = [['active', 'Activos', act], ['paused', 'Pausados', off], ['all', 'Todos', servicesList.length]];
+    seg.innerHTML = defs.map(([k, lbl, n]) => '<button data-f="' + k + '" class="' + (svFilter === k ? 'on' : '') + '" type="button">' + lbl + ' ' + n + '</button>').join('');
+    seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { svFilter = b.dataset.f; renderServices(); }));
+  }
+  // reordenar dentro de la MISMA fase: reasigna `sort` 0..n y persiste
+  async function svReorder(fromId, toId){
+    if (!fromId || !toId || String(fromId) === String(toId)) return;
+    const from = servicesList.find((x) => String(x.id) === String(fromId));
+    const to = servicesList.find((x) => String(x.id) === String(toId));
+    if (!from || !to) return;
+    const ph = svPhaseOf(from);
+    if (svPhaseOf(to) !== ph){ toast('Solo se reordena dentro de la misma fase'); return; }
+    const group = servicesList.filter((x) => svPhaseOf(x) === ph);
+    const fi = group.findIndex((x) => String(x.id) === String(fromId));
+    const ti = group.findIndex((x) => String(x.id) === String(toId));
+    const [moved] = group.splice(fi, 1); group.splice(ti, 0, moved);
+    group.forEach((x, i) => { x.sort = i; });
+    const pIdx = (x) => { const k = PHASES.indexOf(svPhaseOf(x)); return k < 0 ? PHASES.length : k; };
+    servicesList.sort((a, b) => pIdx(a) - pIdx(b) || (Number(a.sort) || 0) - (Number(b.sort) || 0) || (Number(a.id) || 0) - (Number(b.id) || 0));
+    renderServices();
+    for (const x of group){ const { error } = await supabase.from('services').update({ sort: x.sort }).eq('id', x.id); if (error){ toast('No se pudo guardar el orden: ' + error.message); break; } }
+    svTouch();
+  }
   function renderServices(){
     const box = $('sv-list'); if (!box) return;
+    svRenderSeg();
     if (!servicesList.length){ box.innerHTML = '<p class="muted-note">Sin servicios. Agregá el primero con ➕ — o corré el SQL 0025 que precarga el catálogo actual.</p>'; return; }
-    let html = '';
+    let html = '', shown = 0;
     PHASES.forEach((ph) => {
-      const rows = servicesList.filter((x) => (PHASES.includes(x.phase) ? x.phase : 'Production') === ph);
+      const rows = servicesList.filter((x) => svPhaseOf(x) === ph && svVisible(x));
       if (!rows.length) return;
+      shown += rows.length;
       html += '<div class="sv-phase">' + esc(ph) + '</div>';
       rows.forEach((x) => {
         html += '<div class="sv-row' + (x.active === false ? ' sv-off' : '') + '" data-id="' + x.id + '">' +
+          '<span class="sv-drag" draggable="true" title="Arrastrar para reordenar">⠿</span>' +
           '<input data-f="name" value="' + esc(x.name || '') + '" placeholder="Nombre del servicio" />' +
           '<select data-f="phase">' + PHASES.map((p) => '<option' + (p === x.phase ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>' +
           '<input data-f="unit" value="' + esc(x.unit || '') + '" placeholder="Tag/Std/Fix" title="Unidad: Tag, Std, Fix, Stk, Person, Sprache…" />' +
           '<label class="sv-num">CHF<input data-f="price" type="number" step="10" value="' + (Number(x.price) || 0) + '" title="Precio al cliente" /></label>' +
           '<label class="sv-num sv-cost">costo<input data-f="cost" type="number" step="10" value="' + (Number(x.cost) || 0) + '" title="Costo interno (freelancer/alquiler) — para calcular tu margen" /></label>' +
+          '<span class="usage none" data-usage title="Ofertas/propuestas recientes que usan este servicio (solo lectura)"></span>' +
           '<button class="sv-tgl" data-act="tgl" type="button" title="' + (x.active === false ? 'Reactivar (hoy no aparece en el catálogo)' : 'Pausar (sale del catálogo sin borrarlo)') + '">' + (x.active === false ? '▶' : '⏸') + '</button>' +
           '<button class="sv-del" data-act="del" type="button" title="Borrar definitivamente">✕</button>' +
         '</div>';
       });
     });
+    if (!shown){ box.innerHTML = '<p class="muted-note">Sin servicios en este filtro.</p>'; return; }
     box.innerHTML = html;
     box.querySelectorAll('.sv-row input,.sv-row select').forEach((inp) => inp.addEventListener('change', async () => {
       const row = inp.closest('.sv-row'), id = row.dataset.id, f = inp.dataset.f;
@@ -7036,6 +7178,23 @@ const stillsPool = projects
       if (error){ toast(error.message); return; }
       servicesList = servicesList.filter((x) => String(x.id) !== String(id)); renderServices(); svTouch();
     }));
+    // drag-to-reorder por el handle ⠿ (persiste la columna `sort`)
+    box.querySelectorAll('.sv-drag').forEach((h) => {
+      h.addEventListener('dragstart', (e) => {
+        svDragId = h.closest('.sv-row').dataset.id;
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', svDragId); } catch (_) { /* algunos navegadores */ }
+        h.closest('.sv-row').classList.add('sv-dragging');
+      });
+      h.addEventListener('dragend', () => { box.querySelectorAll('.sv-row').forEach((r) => r.classList.remove('sv-dragging', 'sv-dragover')); svDragId = null; });
+    });
+    box.querySelectorAll('.sv-row').forEach((row) => {
+      row.addEventListener('dragover', (e) => { if (svDragId == null) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('sv-dragover'); });
+      row.addEventListener('dragleave', () => row.classList.remove('sv-dragover'));
+      row.addEventListener('drop', (e) => { e.preventDefault(); row.classList.remove('sv-dragover'); svReorder(svDragId, row.dataset.id); });
+    });
+    // decorar con "usado en N ofertas" DESPUÉS de pintar filas (best-effort, nunca bloquea)
+    svDecorateUsage(box);
   }
   // el catálogo de ofertas se rearma la próxima vez que entres a Ofertas
   function svTouch(){ const sel = $('of-preset'); if (sel) delete sel.dataset.built; }
