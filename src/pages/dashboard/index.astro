@@ -3549,14 +3549,22 @@ const newsCases = [
   async function fetchAllRows(table, cols, sinceIso, untilIso, dateCol){
     dateCol = dateCol || 'created_at';
     const PAGE = 1000;
-    const base = () => supabase.from(table).gte(dateCol, sinceIso).lte(dateCol, untilIso);
-    const { count, error: countErr } = await base().select(cols, { count: 'exact', head: true });
+    // fix urgente (2026-07-14, hangeaba loadAll entero): .select() SIEMPRE primero —
+    // .gte()/.lte() no existen en el QueryBuilder crudo de supabase.from(table), solo
+    // en el FilterBuilder que devuelve .select(). Llamarlos antes tiraba un TypeError
+    // sincrónico que async convertía en promesa rechazada, sin catch en loadAll() →
+    // Promise.all entero colgado para siempre, sin error visible.
+    const { count, error: countErr } = await supabase.from(table).select(cols, { count: 'exact', head: true })
+      .gte(dateCol, sinceIso).lte(dateCol, untilIso);
     if (countErr) return { data: null, error: countErr };
     const total = Math.min(count || 0, 200000); // mismo salvavidas de siempre
     if (!total) return { data: [], error: null };
     const pages = Math.ceil(total / PAGE);
     const results = await Promise.all(Array.from({ length: pages }, (_, i) =>
-      base().select(cols).order(dateCol, { ascending: true }).range(i * PAGE, i * PAGE + PAGE - 1)
+      supabase.from(table).select(cols)
+        .gte(dateCol, sinceIso).lte(dateCol, untilIso)
+        .order(dateCol, { ascending: true })
+        .range(i * PAGE, i * PAGE + PAGE - 1)
     ));
     const err = results.find((r) => r.error);
     if (err) return { data: null, error: err.error };
