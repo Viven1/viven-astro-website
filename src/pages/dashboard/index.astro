@@ -1486,13 +1486,20 @@ const newsCases = [
   .hk-t.up{color:#7ed957}
   .hk-t.down{color:#ff8b8b}
   .hk-t.muted{color:var(--muted-2);font-weight:400}
-  /* Hoy: KPIs + 3 columnas (Para hoy / Señales / stack) — cards compactas, sin el
-     padding/margin de .panel default (24px) que hacía sentir todo muy espaciado */
+  /* Hoy: KPIs + cards — cards compactas, sin el padding/margin de .panel default
+     (24px) que hacía sentir todo muy espaciado */
   .hm-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;margin-top:14px;align-items:start}
   .hm-grid .panel{margin-bottom:0}
   .hm-card{padding:15px 17px}
   .hm-card h2{font-size:14px;margin-bottom:8px}
-  .hm-stack{display:grid;gap:10px}
+  /* masonry con CSS multi-column (no grid): con un grid de 3 columnas fijas, "Para
+     hoy"/"Señales calientes" (cortas) dejaban un agujero enorme debajo mientras la
+     3ª columna (Visitas/Ads/IA apiladas) seguía mucho más abajo — acá el browser
+     reparte las 5 cards entre columnas balanceando la altura total, así no queda
+     una columna corta con espacio muerto al lado de una larga (pedido explícito,
+     con captura: "mira todo el dead space") */
+  .hm-masonry{columns:280px 3;column-gap:12px;margin-top:14px}
+  .hm-masonry .hm-card{break-inside:avoid;margin-bottom:12px}
   .hm-list{display:flex;flex-direction:column}
   /* fila accionable: barra de severidad a la izquierda (rojo/ámbar/azul) */
   .hm-item{position:relative;display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:10px 6px 10px 14px;cursor:pointer;text-align:left;color:var(--text);font-family:inherit}
@@ -1517,8 +1524,8 @@ const newsCases = [
   .hm-ads-grid div b{display:block;font-family:'Space Grotesk';font-size:16px}
   .hm-ads-grid div span{color:var(--muted);font-size:11.5px}
   .hm-verdict{font-weight:700;font-size:12.5px;margin-top:10px}
-  @media(max-width:1280px){.hm-grid{grid-template-columns:1fr 1fr}.hm-stack{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:920px){.hm-grid{grid-template-columns:1fr}.hm-stack{grid-column:auto;grid-template-columns:1fr}}
+  @media(max-width:1280px){.hm-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:920px){.hm-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1692,7 +1699,7 @@ const newsCases = [
       <div class="hk"><div class="hk-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div></div>
       <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
     </div>
-    <div class="hm-grid">
+    <div class="hm-masonry">
       <div class="panel hm-card">
         <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
         <div class="hm-list" id="hm-today"></div>
@@ -1701,11 +1708,9 @@ const newsCases = [
         <h2>🔥 Señales calientes</h2>
         <div class="hm-list" id="hm-signals"></div>
       </div>
-      <div class="hm-stack">
-        <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
-        <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
-        <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
-      </div>
+      <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
+      <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
+      <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
     </div>
   </div>
 
