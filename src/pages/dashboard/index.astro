@@ -1562,10 +1562,11 @@ const newsCases = [
     <aside class="dash-side">
       <!-- Riel colapsable: un click achica el sidebar a íconos (con memoria por navegador) -->
       <button class="side-rail-btn" id="side-rail-btn" type="button" title="Colapsar menú" aria-label="Colapsar menú"><span class="srb-ic">⟨⟨</span></button>
+      <button class="side-item active" data-tab="hoy" type="button"><span class="si-ic">🏠</span>Hoy</button>
       <div class="side-group" data-group="ventas">
         <button class="side-sec" type="button">Ventas<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="side-group-items">
-          <button class="side-item active" data-tab="deals" type="button"><span class="si-ic">🤝</span>Pipeline</button>
+          <button class="side-item" data-tab="deals" type="button"><span class="si-ic">🤝</span>Pipeline</button>
           <button class="side-item" data-tab="offers" type="button"><span class="si-ic">🧾</span>Ofertas y propuestas</button>
         </div>
       </div>
@@ -1650,8 +1651,43 @@ const newsCases = [
     <div id="leads-list"></div>
   </div>
 
+  <!-- ============ TAB: HOY (portada — lo que pasó + lo que toca hacer) ============ -->
+  <div id="tab-hoy">
+    <div class="of-bar" style="margin-bottom:12px">
+      <div>
+        <h2 style="margin:0">Hoy</h2>
+        <p class="muted-note" style="margin:2px 0 0">Un vistazo antes de entrar al pipeline: lo que pasó (señales, actividad) y lo que toca hacer.</p>
+      </div>
+      <button class="btn btn-ghost small" id="hoy-pipe-btn" type="button">🤝 Ver pipeline completo →</button>
+    </div>
+    <div class="home-kpis hm-kpis">
+      <div class="hk"><div class="hk-l">Pipeline abierto</div><div class="hk-n" id="hm-pipe">–</div><div class="hk-t muted" id="hm-pipe-t"></div></div>
+      <div class="hk"><div class="hk-l">Enviados, esperando</div><div class="hk-n" id="hm-sent">–</div><div class="hk-t muted" id="hm-sent-t"></div></div>
+      <div class="hk"><div class="hk-l">Ponderado</div><div class="hk-n" id="hm-weight">–</div><div class="hk-t muted">valor × probabilidad</div></div>
+      <div class="hk"><div class="hk-l">Ganado (30 días)</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div></div>
+      <div class="hk"><div class="hk-l">Win rate (90 días)</div><div class="hk-n" id="hm-wr">–</div><div class="hk-t muted" id="hm-wr-t">ganado / decidido</div></div>
+      <div class="hk"><div class="hk-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div></div>
+      <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
+    </div>
+    <div class="hm-grid" style="margin-top:20px">
+      <div class="panel hm-card">
+        <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
+        <div class="hm-list" id="hm-today"></div>
+      </div>
+      <div class="panel hm-card">
+        <h2>🔥 Señales calientes</h2>
+        <div class="hm-list" id="hm-signals"></div>
+      </div>
+      <div class="hm-stack">
+        <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
+        <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
+        <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ TAB: PIPELINE (antes Home+Deals fusionados) ============ -->
-  <div id="tab-deals">
+  <div id="tab-deals" hidden>
     <div class="of-bar" style="margin-bottom:12px">
       <div>
         <h2 style="margin:0">Pipeline</h2>
@@ -1682,15 +1718,6 @@ const newsCases = [
       </div>
     </div>
     <!-- resumen compacto + board arriba de todo (como HubSpot) -->
-    <div class="home-kpis hm-kpis">
-      <div class="hk"><div class="hk-l">Pipeline abierto</div><div class="hk-n" id="hm-pipe">–</div><div class="hk-t muted" id="hm-pipe-t"></div></div>
-      <div class="hk"><div class="hk-l">Enviados, esperando</div><div class="hk-n" id="hm-sent">–</div><div class="hk-t muted" id="hm-sent-t"></div></div>
-      <div class="hk"><div class="hk-l">Ponderado</div><div class="hk-n" id="hm-weight">–</div><div class="hk-t muted">valor × probabilidad</div></div>
-      <div class="hk"><div class="hk-l">Ganado (30 días)</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div></div>
-      <div class="hk"><div class="hk-l">Win rate (90 días)</div><div class="hk-n" id="hm-wr">–</div><div class="hk-t muted" id="hm-wr-t">ganado / decidido</div></div>
-      <div class="hk"><div class="hk-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div></div>
-      <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
-    </div>
     <div class="pipe-pager" id="pipe-pager" hidden>
       <button id="pgr-prev" type="button" aria-label="Etapa anterior">‹</button>
       <span id="pgr-label">—</span>
@@ -1729,21 +1756,6 @@ const newsCases = [
         </div>
       </div>
     </details>
-    <div class="hm-grid" style="margin-top:20px">
-      <div class="panel hm-card">
-        <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
-        <div class="hm-list" id="hm-today"></div>
-      </div>
-      <div class="panel hm-card">
-        <h2>🔥 Señales calientes</h2>
-        <div class="hm-list" id="hm-signals"></div>
-      </div>
-      <div class="hm-stack">
-        <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
-        <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
-        <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
-      </div>
-    </div>
   </div>
 
   <!-- ============ TAB: AGENDA (extraída de Home — reuniones + video calls por persona) ============ -->
@@ -2949,6 +2961,7 @@ const newsCases = [
 
   <!-- Navegación inferior estilo app (solo móvil) -->
   <div class="mob-sheet" id="mob-sheet" hidden>
+    <button data-tab="deals" type="button">🤝 Pipeline</button>
     <button data-tab="companies" type="button">🏢 Empresas</button>
     <button data-tab="analytics" type="button">📊 Analytics</button>
     <button data-tab="contenido" type="button">✍️ Contenido</button>
@@ -2956,7 +2969,7 @@ const newsCases = [
     <div class="mob-ver" id="mob-ver"></div>
   </div>
   <nav class="mob-nav" id="mob-nav" aria-label="Navegación">
-    <button data-tab="deals" class="active" type="button"><span class="mi">🤝</span><span class="ml">Pipeline</span></button>
+    <button data-tab="hoy" class="active" type="button"><span class="mi">🏠</span><span class="ml">Hoy</span></button>
     <button data-tab="leads" type="button"><span class="mi">👤</span><span class="ml">Personas</span></button>
     <button data-tab="offers" type="button"><span class="mi">🧾</span><span class="ml">Ofertas</span></button>
     <button data-tab="agenda" type="button"><span class="mi">📅</span><span class="ml">Agenda</span></button>
@@ -3239,11 +3252,14 @@ const newsCases = [
   /* ---------- Navegación (sidebar) ---------- */
   // 'seo' y 'gads' ya no son tabs propios: viven como sub-tabs dentro de Analytics
   // fix (2026-07-14, reestructuración del shell — mockup bb59ab6d): de 17 tabs planos a
-  // 8 destinos agrupados por intención. 'home' se fusiona en 'deals' (Pipeline = portada);
-  // blog/news/magnets/seo viven ahora dentro de 'contenido'; services/licenses/booking/ab/
-  // auto/tmpl/cashflow/profile viven dentro de 'sistema'. Ver contenidoSetSub/sistemaSetSub
-  // más abajo (mismo patrón que anaSetSub, ya probado con Analytics).
-  const TABS = ['deals', 'leads', 'companies', 'agenda', 'offers', 'analytics', 'contenido', 'sistema'];
+  // 8 destinos agrupados por intención; blog/news/magnets/seo viven dentro de 'contenido';
+  // services/licenses/booking/ab/auto/tmpl/cashflow/profile viven dentro de 'sistema'.
+  // fix (2026-07-15, pedido explícito: "me gustaba mas entrar y ver todo lo que paso y lo
+  // que toca hacer, llamalo Hoy"): 'hoy' es ahora la portada por defecto (KPIs + Para hoy +
+  // Señales + IA), separada de 'deals'/Pipeline que vuelve a ser un board puro. 'home' es
+  // alias viejo de deep links → redirige a 'hoy'. Ver contenidoSetSub/sistemaSetSub más
+  // abajo (mismo patrón que anaSetSub, ya probado con Analytics).
+  const TABS = ['hoy', 'deals', 'leads', 'companies', 'agenda', 'offers', 'analytics', 'contenido', 'sistema'];
   // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
@@ -3259,19 +3275,19 @@ const newsCases = [
     // sub-tabs de 'contenido'/'sistema', o que se fusionaron en otro destino.
     if (tab === 'gads'){ anaSetSub('gads'); tab = 'analytics'; }
     if (tab === 'props') tab = 'offers';
-    if (tab === 'home') tab = 'deals';
+    if (tab === 'home') tab = 'hoy';
     if (['blog', 'news', 'seo', 'magnets'].includes(tab)){ contenidoSetSub(tab); tab = 'contenido'; }
     if (['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'profile'].includes(tab)){ sistemaSetSub(tab); tab = 'sistema'; }
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
-    const SHEET_TABS = ['companies', 'analytics', 'contenido', 'sistema'];
+    const SHEET_TABS = ['deals', 'companies', 'analytics', 'contenido', 'sistema'];
     document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     const more = $('mob-more'); if (more) more.classList.toggle('active', SHEET_TABS.includes(tab));
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
     window.scrollTo(0, 0);
     await refreshLeadsList();
-    if (tab === 'deals') renderHome(); // KPIs + Para hoy/Señales/Agenda-mini/IA viven ahora en Pipeline
+    if (tab === 'hoy') renderHome(); // KPIs + Para hoy/Señales/Agenda-mini/IA viven en Hoy (portada)
     if (tab === 'agenda'){ hmRenderAgenda(); hmRenderCalls(); }
     if (tab === 'companies') renderCompanies();
     if (tab === 'offers') { offersInit(); proposalsInit(); }
@@ -4274,7 +4290,7 @@ const newsCases = [
     hmViews60Busy = true;
     try {
       const { data, error } = await fetchAllRows('pageviews', 'created_at', new Date(Date.now() - 60 * 864e5).toISOString(), new Date().toISOString());
-      if (!error && data){ hmViews60 = data; hmViews60At = Date.now(); if (!$('tab-deals').hidden) renderHome(); }
+      if (!error && data){ hmViews60 = data; hmViews60At = Date.now(); if (!$('tab-hoy').hidden) renderHome(); }
     } catch (e) { /* best-effort */ }
     finally { hmViews60Busy = false; }
   }
@@ -4285,7 +4301,7 @@ const newsCases = [
     if (hmAds && hmAds.date === today) return;
     try {
       const c = JSON.parse(localStorage.getItem(HM_ADS_LS) || 'null');
-      if (c && c.date === today){ hmAds = c; if (!$('tab-deals').hidden) renderHome(); return; }
+      if (c && c.date === today){ hmAds = c; if (!$('tab-hoy').hidden) renderHome(); return; }
     } catch (e) { /* cache corrupto → refetch */ }
     if (hmAdsBusy) return;
     hmAdsBusy = true;
@@ -4297,7 +4313,7 @@ const newsCases = [
     hmAds = { date: today, spend, official };
     try { localStorage.setItem(HM_ADS_LS, JSON.stringify(hmAds)); } catch (e) { /* sin espacio */ }
     hmAdsBusy = false;
-    if (!$('tab-deals').hidden) renderHome();
+    if (!$('tab-hoy').hidden) renderHome();
   }
 
   // resumen IA del día: 1 invoke por día por navegador (cache vv_home_ai) — ↻ regenera
@@ -4744,7 +4760,7 @@ const newsCases = [
         (data || []).forEach((t) => { const k = String(t.lead_id); if (!m[k]) m[k] = t; });   // ya viene ordenado: la primera es la más cercana
         dlTasksMap = m;
         renderPipeline();   // re-pinta con los próximos pasos ya cargados (el TTL corta el loop)
-        if (!$('tab-deals').hidden) renderHome();   // Pipeline también usa este cache (el TTL corta la recursión)
+        if (!$('tab-hoy').hidden) renderHome();   // Hoy también usa este cache (el TTL corta la recursión)
       }
     } catch (e) { /* best-effort: sin tabla de tasks el card cae al follow-up automático */ }
     finally { dlTasksBusy = false; }
@@ -13062,6 +13078,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
 
   /* ---- Personas: importar CSV ---- */
   $('ps-import').addEventListener('click', () => $('ps-csv').click());
+  $('hoy-pipe-btn') && $('hoy-pipe-btn').addEventListener('click', () => gotoTab('deals'));
   // nuevo deal desde el board
   $('dl-new-btn').addEventListener('click', () => {
     const f = $('dl-form');
@@ -13272,6 +13289,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   // cashflow/profile) siguen funcionando acá tal cual — gotoTab() ya sabe redirigirlos
   // al destino agrupado correcto (contenido/sistema) + su sub-tab (ver aliases arriba).
   const CMDK_NAV = [
+    { tab: 'hoy', ic: '🏠', label: 'Hoy' },
     { tab: 'deals', ic: '🤝', label: 'Pipeline' },
     { tab: 'leads', ic: '👤', label: 'Personas' },
     { tab: 'companies', ic: '🏢', label: 'Empresas' },
