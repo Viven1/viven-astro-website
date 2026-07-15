@@ -3240,6 +3240,7 @@ const newsCases = [
     );
   }
   let __perfReported = false;
+  let __perfKind = 'initial_load';
   function __perfReport(kind){
     const snapshot = { ...__perfMarks, total: Math.round(performance.now() - __perfT0) };
     console.log('[perf ' + kind + ']', snapshot);
@@ -3370,14 +3371,18 @@ const newsCases = [
     e.preventDefault();
     const f = e.target;
     f.classList.remove('has-error');
+    __perfKind = 'login_submit';
     const { error } = await supabase.auth.signInWithPassword({
       email: f.email.value.trim(),
       password: f.password.value
     });
+    __perfMark('login_signin');
     if (error) { f.classList.add('has-error'); return; }
     meEmail = (f.email.value.trim() || '').toLowerCase();
     await checkRole();
+    __perfMark('login_role_done');
     show('dash');
+    __perfMark('login_shell_shown');
     loadAll().then(openFromQuery);
   });
   $('logout-btn').addEventListener('click', async () => {
@@ -3535,22 +3540,27 @@ const newsCases = [
   // arbitrario (no hay .order()) y todo lo que se cuenta desde ahí (sesiones,
   // canales, páginas) queda subestimado en silencio. Paginar con .range() +
   // .order() es la única forma de traer TODAS las filas del rango.
+  // fix (auditoría de performance 2026-07-14): antes paginaba SECUENCIAL (una página
+  // esperaba a la anterior) — con ventanas de 30d que superan las 1000 filas (pageviews
+  // ronda 2800 totales), esto eran 2-3 round trips uno atrás del otro. En red móvil esto
+  // fue justo la query más lenta de loadAll() (~2.6s vs ~400-800ms del resto) y frenaba
+  // TODO el Promise.all. Ahora: 1 query liviana de count (head:true, sin filas) + todas
+  // las páginas en paralelo — mismo resultado, sin la cascada secuencial.
   async function fetchAllRows(table, cols, sinceIso, untilIso, dateCol){
     dateCol = dateCol || 'created_at';
     const PAGE = 1000;
-    let all = [], from = 0;
-    for (;;) {
-      const { data, error } = await supabase.from(table).select(cols)
-        .gte(dateCol, sinceIso).lte(dateCol, untilIso)
-        .order(dateCol, { ascending: true })
-        .range(from, from + PAGE - 1);
-      if (error) return { data: null, error };
-      all = all.concat(data || []);
-      if (!data || data.length < PAGE) break;
-      from += PAGE;
-      if (from > 200000) break; // salvavidas: nunca debería llegar acá
-    }
-    return { data: all, error: null };
+    const base = () => supabase.from(table).gte(dateCol, sinceIso).lte(dateCol, untilIso);
+    const { count, error: countErr } = await base().select(cols, { count: 'exact', head: true });
+    if (countErr) return { data: null, error: countErr };
+    const total = Math.min(count || 0, 200000); // mismo salvavidas de siempre
+    if (!total) return { data: [], error: null };
+    const pages = Math.ceil(total / PAGE);
+    const results = await Promise.all(Array.from({ length: pages }, (_, i) =>
+      base().select(cols).order(dateCol, { ascending: true }).range(i * PAGE, i * PAGE + PAGE - 1)
+    ));
+    const err = results.find((r) => r.error);
+    if (err) return { data: null, error: err.error };
+    return { data: results.flatMap((r) => r.data || []), error: null };
   }
 
   // ventana ANTERIOR de igual longitud: pageviews para los ▲▼ de KPIs y la línea punteada
@@ -3666,7 +3676,7 @@ const newsCases = [
     loadBell();
     subscribeRealtime();
     __perfMark('render_done');
-    if (!__perfReported) { __perfReported = true; __perfReport('initial_load'); }
+    if (!__perfReported) { __perfReported = true; __perfReport(__perfKind); }
   }
 
   /* ---------- Realtime: leads nuevos aparecen solos (gratis, sin polling) ---------- */
