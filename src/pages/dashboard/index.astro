@@ -3225,6 +3225,29 @@ const newsCases = [
     'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca'
   );
 
+  // ---- perf instrumentation temporal (2026-07-14, reporte "tarda 30s en entrar") ----
+  // best-effort: mide fases reales de carga y las manda a dash_perf_log (SQL 0083) +
+  // console, para tener datos de la red/dispositivo real en vez de adivinar. Sacar
+  // cuando ya no haga falta — no afecta nada del flujo normal si la insert falla.
+  const __perfT0 = performance.now();
+  const __perfMarks = {};
+  function __perfMark(label){ __perfMarks[label] = Math.round(performance.now() - __perfT0); }
+  function __perfTimed(label, p){
+    const s = performance.now();
+    return Promise.resolve(p).then(
+      (r) => { __perfMarks[label] = Math.round(performance.now() - s); return r; },
+      (e) => { __perfMarks[label] = 'ERR:' + Math.round(performance.now() - s); throw e; }
+    );
+  }
+  let __perfReported = false;
+  function __perfReport(kind){
+    const snapshot = { ...__perfMarks, total: Math.round(performance.now() - __perfT0) };
+    console.log('[perf ' + kind + ']', snapshot);
+    try {
+      supabase.from('dash_perf_log').insert({ email: meEmail || null, phases: { kind, ...snapshot }, ua: navigator.userAgent }).then(() => {}, () => {});
+    } catch (e) { /* best-effort */ }
+  }
+
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmtTime = (secs) => {
@@ -3541,23 +3564,24 @@ const newsCases = [
     const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
     prevWin = { start: winStart - winLen, end: winStart - 1 };
     const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ, bookQ, bookHistQ, prevQ] = await Promise.all([
-      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000),
-      fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
-      fetchAllRows('video_plays', '*', since(), until()),
-      supabase.from('offers').select('*').order('updated_at', { ascending: false }),
-      supabase.from('companies').select('*'),
+      __perfTimed('q_leads', supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000)),
+      __perfTimed('q_pageviews', fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until())),
+      __perfTimed('q_videoplays', fetchAllRows('video_plays', '*', since(), until())),
+      __perfTimed('q_offers', supabase.from('offers').select('*').order('updated_at', { ascending: false })),
+      __perfTimed('q_companies', supabase.from('companies').select('*')),
       // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
-      supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('proposals').select('*').limit(1000),
-      supabase.from('deals').select('*').order('created_at', { ascending: false }),
-      supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8),
+      __perfTimed('q_notes', supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000)),
+      __perfTimed('q_tasks', supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000)),
+      __perfTimed('q_proposals', supabase.from('proposals').select('*').limit(1000)),
+      __perfTimed('q_deals', supabase.from('deals').select('*').order('created_at', { ascending: false })),
+      __perfTimed('q_bookings', supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8)),
       // histórico 30d (pedido explícito: trackear video calls booked por persona) — created_at
       // = cuándo se hizo la reserva, no cuándo es la call, así cuenta "booked" de verdad
-      supabase.from('bookings').select('host_email,created_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()),
+      __perfTimed('q_bookingshist', supabase.from('bookings').select('host_email,created_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString())),
       // ventana anterior (solo columnas que usan los comparativos)
-      fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString())
+      __perfTimed('q_prevviews', fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString()))
     ]);
+    __perfMark('queries_done');
     if (leadsQ.error || viewsQ.error) {
       alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
       return;
@@ -3641,6 +3665,8 @@ const newsCases = [
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     loadBell();
     subscribeRealtime();
+    __perfMark('render_done');
+    if (!__perfReported) { __perfReported = true; __perfReport('initial_load'); }
   }
 
   /* ---------- Realtime: leads nuevos aparecen solos (gratis, sin polling) ---------- */
@@ -13260,10 +13286,13 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   })();
 
   supabase.auth.getSession().then(async ({ data }) => {
+    __perfMark('session_done');
     if (data.session) {
       meEmail = (data.session.user?.email || '').toLowerCase();
       await checkRole();
+      __perfMark('role_done');
       show('dash'); loadAll().then(openFromQuery);
+      __perfMark('shell_shown');
     }
     else show('login');
   });
