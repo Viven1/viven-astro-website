@@ -5661,14 +5661,65 @@ const newsCases = [
     }
   }
 
+  // ⚔️ Canibalización: además de listar las páginas que compiten, cada página débil
+  // (todas menos la dominante, r.pages[0]) tiene un botón "🔗 Sugerir link" — llama a
+  // ai-link-suggest para proponer anchor + oración + dónde insertarlo. Solo SUGIERE
+  // (pedido explícito de Sebastián: "sugerir el link, yo lo apruebo") — nunca edita ni
+  // commitea nada solo, él lo copia y lo mete a mano en el .astro correspondiente.
   function seoRenderCannib(data){
     const cont = $('seo-cannib-wrap'); if (!cont) return;
     const rows = data.cannibalization || [];
     if (!rows.length){ cont.innerHTML = '<p class="muted-note">Sin canibalización detectada — cada búsqueda top tiene una sola página dominante.</p>'; return; }
-    cont.innerHTML = '<table class="lead-table"><thead><tr><th>Query</th><th>Páginas compitiendo</th></tr></thead><tbody>' +
-      rows.map((r) => '<tr><td>' + esc(r.query) + '</td><td class="seo-cannib-pages">' +
-        r.pages.map((p) => esc(p.page.replace(/^https?:\/\/[^/]+/, '')) + ' (pos ' + p.position.toFixed(1) + ', ' + p.impressions + ' impr.)').join('<br>') +
-        '</td></tr>').join('') + '</tbody></table>';
+    let html = '<table class="lead-table"><thead><tr><th>Query</th><th>Páginas compitiendo</th></tr></thead><tbody>';
+    rows.forEach((r, ri) => {
+      const [strong, ...weak] = r.pages;
+      html += '<tr><td>' + esc(r.query) + '</td><td class="seo-cannib-pages">' +
+        '<div>🏆 ' + esc(strong.page.replace(/^https?:\/\/[^/]+/, '')) + ' (pos ' + strong.position.toFixed(1) + ', ' + strong.impressions + ' impr.)</div>' +
+        weak.map((p, pi) => '<div>' + esc(p.page.replace(/^https?:\/\/[^/]+/, '')) + ' (pos ' + p.position.toFixed(1) + ', ' + p.impressions + ' impr.) ' +
+          '<button type="button" class="btn btn-ghost small seo-cannib-link" data-ri="' + ri + '" data-pi="' + pi + '">🔗 Sugerir link</button></div>').join('') +
+        '</td></tr>' +
+        '<tr class="seo-cannib-detail" id="seo-cannib-detail-' + ri + '" hidden><td colspan="2"></td></tr>';
+    });
+    cont.innerHTML = html + '</tbody></table>';
+    cont.querySelectorAll('.seo-cannib-link').forEach((b) => b.addEventListener('click', () =>
+      seoLinkSuggest(+b.dataset.ri, +b.dataset.pi, rows)));
+  }
+  async function seoLinkSuggest(ri, pi, rows){
+    const tr = $('seo-cannib-detail-' + ri); if (!tr) return;
+    const td = tr.querySelector('td');
+    const r = rows[ri];
+    const strong = r.pages[0], weakP = r.pages.slice(1)[pi];
+    tr.hidden = false;
+    td.innerHTML = '<div class="seo-title-box">Leyendo ambas páginas y pensando el link…</div>';
+    try {
+      // title/description en vivo de la página débil (mismo origen, sin CORS) — mismo
+      // patrón que seoShowTitle, le da a la IA contexto real en vez de solo la URL.
+      const fetchMeta = async (url) => {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          const html = await res.text();
+          const tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+          const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
+          return { title: tm ? tm[1].trim() : '', desc: dm ? dm[1].trim() : '' };
+        } catch (_e) { return { title: '', desc: '' }; }
+      };
+      const [weakMeta, strongMeta] = await Promise.all([fetchMeta(weakP.page), fetchMeta(strong.page)]);
+      const { data, error } = await supabase.functions.invoke('ai-link-suggest', {
+        body: {
+          query: r.query, weakUrl: weakP.page, weakTitle: weakMeta.title, weakDesc: weakMeta.desc,
+          strongUrl: strong.page, strongTitle: strongMeta.title,
+        },
+      });
+      if (error || !data || data.error) throw new Error((data && data.error) || (error && error.message) || 'error desconocido');
+      td.innerHTML = '<div class="seo-title-box">' +
+        '<div><b>Anchor sugerido</b>: ' + esc(data.anchor) + '</div>' +
+        '<div style="margin-top:6px"><b>Oración</b>: ' + esc(data.snippet) + '</div>' +
+        (data.placement ? '<div style="margin-top:6px"><b>Dónde</b>: ' + esc(data.placement) + '</div>' : '') +
+        '<div style="margin-top:8px;color:var(--acid)">💡 Copialo y metelo a mano en el <code>.astro</code> de ' + esc(weakP.page.replace(/^https?:\/\/[^/]+/, '')) + ' — esto no edita nada solo.</div>' +
+        '</div>';
+    } catch (e) {
+      td.innerHTML = '<div class="seo-title-box">No se pudo generar la sugerencia: ' + esc(e.message || String(e)) + '</div>';
+    }
   }
 
   // tendencia por keyword: lee la historia diaria guardada en gsc_daily (SQL 0069, la llena
