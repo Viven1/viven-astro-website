@@ -3245,7 +3245,7 @@ const newsCases = [
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', channelFilter = null, insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
+  let allLeads = [], statusFilter = 'all', searchTerm = '', channelFilter = null, landingFilter = null, insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
   // última actividad por lead (notas/tasks/propuestas/web) — se llena en loadAll
   let actNotes = {}, actTasks = {}, actProps = {}, actWeb = {};
 
@@ -3955,6 +3955,7 @@ const newsCases = [
       if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
       if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
       if (channelFilter && (r.channel || 'direct') !== channelFilter) return false;
+      if (landingFilter && (r.landing_path || '(sin dato)') !== landingFilter) return false;
       if (searchTerm) {
         const hay = ((r.name || '') + ' ' + (r.email || '') + ' ' + (r.message || '') + ' ' + (r.company || '') + ' ' + (companyName(leadDomain(r)) || '')).toLowerCase();
         if (hay.indexOf(searchTerm) === -1) return false;
@@ -4008,8 +4009,10 @@ const newsCases = [
     if (psStage !== 'all' && psStage !== 'spam') rows = rows.filter((r) => stageOf(r.status) === psStage);
     if (psAct !== 'all') rows = rows.filter((r) => (lastActivity(r) || {}).kind === psAct);
     const chNote = channelFilter ? '<p class="muted-note" style="margin-bottom:8px">Filtrado por canal: <b>' + esc(channelFilter) + '</b> · <a href="#" id="ps-clear-channel" style="color:var(--acid)">quitar filtro</a></p>' : '';
-    cont.innerHTML = chNote + leadsListHTML(rows);
+    const lpNote = landingFilter ? '<p class="muted-note" style="margin-bottom:8px">Filtrado por página de entrada: <b>' + esc(landingFilter) + '</b> · <a href="#" id="ps-clear-landing" style="color:var(--acid)">quitar filtro</a></p>' : '';
+    cont.innerHTML = chNote + lpNote + leadsListHTML(rows);
     const clearCh = $('ps-clear-channel'); if (clearCh) clearCh.addEventListener('click', (ev) => { ev.preventDefault(); channelFilter = null; renderPeopleList(); });
+    const clearLp = $('ps-clear-landing'); if (clearLp) clearLp.addEventListener('click', (ev) => { ev.preventDefault(); landingFilter = null; renderPeopleList(); });
     cont.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id)));
     bindPsSelection(); updatePsDelBtn();
     cont.querySelectorAll('.lead-table th[data-k]').forEach((th) => th.addEventListener('click', () => {
@@ -6676,6 +6679,10 @@ const newsCases = [
   }
 
   /* tabla de rendimiento: canal/página → sesiones, leads y % de conversión */
+  // clickable: 'channel' | 'landing' — qué filtro de Personas setea el click en el
+  // número de leads (pedido explícito: "eso tiene que ser un shortcut a esos leads,
+  // asi entiendo si son buenos o no de ese canal" — antes solo funcionaba en la
+  // tabla de Canales, no en "¿Qué páginas convierten?")
   function perfTable(el, list, opts){
     const clickable = opts && opts.clickable;
     const withRate = list.map((r) => ({ ...r, rate: r.sessions ? (r.leads / r.sessions * 100) : 0 }))
@@ -6686,14 +6693,15 @@ const newsCases = [
         '<td>' + (r.badge ? '<span class="badge b-' + esc(r.key) + '">' + esc(r.label) + '</span>' : '<span title="' + esc(r.label) + '">' + esc(r.label) + '</span>') + '</td>' +
         '<td class="num">' + r.sessions + '</td>' +
         '<td class="num">' + (clickable && r.leads
-          ? '<span class="lead-n perf-lead-click" data-ch="' + esc(r.key) + '" title="Ver estos leads en Personas" style="cursor:pointer;text-decoration:underline dotted">' + r.leads + '</span>'
+          ? '<span class="lead-n perf-lead-click" data-val="' + esc(r.key) + '" title="Ver estos leads en Personas" style="cursor:pointer;text-decoration:underline dotted">' + r.leads + '</span>'
           : '<span class="lead-n' + (r.leads ? '' : ' zero') + '">' + r.leads + '</span>') + '</td>' +
         '<td class="num"><span class="rate-cell"><span class="rate-bar"><i style="width:' + Math.round((r.rate / maxRate) * 100) + '%"></i></span><span class="rate-num">' + (r.sessions ? r.rate.toFixed(1) + '%' : '—') + '</span></span></td>' +
       '</tr>'
     ).join('') || '<tr><td colspan="4" class="muted-note" style="padding:14px">Sin datos todavía.</td></tr>';
     if (clickable) el.querySelectorAll('.perf-lead-click').forEach((sp) => sp.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      channelFilter = sp.dataset.ch; psStage = 'all';
+      if (clickable === 'landing') landingFilter = sp.dataset.val; else channelFilter = sp.dataset.val;
+      psStage = 'all';
       gotoTab('leads'); renderLeads();
     }));
   }
@@ -6824,7 +6832,7 @@ const newsCases = [
     periodLeads.forEach((l) => { const k = l.channel || 'direct'; chLeads.set(k, (chLeads.get(k) || 0) + 1); });
     const chKeys = new Set([...chSessions.keys(), ...chLeads.keys()]);
     const channelPerf = [...chKeys].map((k) => ({ key: k, label: k, badge: true, sessions: chSessions.get(k) || 0, leads: chLeads.get(k) || 0 }));
-    perfTable($('perf-channel'), channelPerf, { clickable: true });
+    perfTable($('perf-channel'), channelPerf, { clickable: 'channel' });
 
     /* rendimiento por PÁGINA DE ENTRADA */
     const lpSessions = new Map();
@@ -6833,7 +6841,7 @@ const newsCases = [
     periodLeads.forEach((l) => { const k = l.landing_path || '(sin dato)'; lpLeads.set(k, (lpLeads.get(k) || 0) + 1); });
     const lpKeys = new Set([...lpSessions.keys(), ...lpLeads.keys()]);
     const landingPerf = [...lpKeys].map((k) => ({ key: k, label: k, sessions: lpSessions.get(k) || 0, leads: lpLeads.get(k) || 0 }));
-    perfTable($('perf-landing'), landingPerf);
+    perfTable($('perf-landing'), landingPerf, { clickable: 'landing' });
 
     /* REFERRERS externos: hostname del referrer de la ENTRADA de cada sesión.
        La atribución de leads es por session_id (igual espíritu que la tabla de canales). */
