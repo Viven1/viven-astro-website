@@ -590,7 +590,7 @@ const newsCases = [
   :root[data-theme="light"] .of-act.lic-pri{background:#dff28b;border-color:#dff28b;color:#1c2508}
   .lic-renew{display:flex;gap:8px;align-items:center;padding:0 12px 12px;flex-wrap:wrap}
   .lic-renew input[type=date]{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:13px;padding:7px 10px}
-  .pp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0 8px;align-items:end}
+  .pp-grid{display:grid;grid-template-columns:var(--cols,repeat(4,1fr));gap:14px;margin:18px 0 8px;align-items:end}
   .pp-grid .bf{margin-bottom:0}
   .pp-grid3{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:6px;align-items:start}
   .pp-grid3 > div .bf:last-child{margin-bottom:0}
@@ -1360,6 +1360,10 @@ const newsCases = [
     .dash-head h1{font-size:20px;white-space:nowrap}
     .dash-sub{display:none}
     .dash-head .btn.small{padding:8px 11px;font-size:12.5px;white-space:nowrap}
+    /* ➕ Crear ▾ era el único botón de texto sin compactar en la barra — quedaba
+       empujando/cortando al resto en pantallas angostas (mismo trato que refresh/logout) */
+    #vv-create-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
+    #vv-create-btn::before{content:'➕';font-size:16px}
     #refresh-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
     #refresh-btn::before{content:'↻';font-size:17px}
     .dash-actions{gap:7px;flex-wrap:nowrap!important}
@@ -2003,18 +2007,18 @@ const newsCases = [
       <div class="panel" style="margin-top:14px">
         <h2>💸 Oportunidades de CTR <span class="count">calculado de los datos reales — sin IA</span></h2>
         <p class="muted-note" style="margin:6px 0 10px">Queries con impresiones de sobra pero CTR bien por debajo de lo esperable para su posición (curva estándar de la industria: #1≈28%, #2≈15%, #3≈11%, #4-5≈8%, #6-10≈4%, #11+≈2%) — reescribir title/description ahí es el click gratis más rápido de conseguir. Ordenado por clicks perdidos estimados al mes.</p>
-        <div id="seo-opp-wrap"><p class="muted-note">Cargando…</p></div>
+        <div class="lead-table-wrap" id="seo-opp-wrap"><p class="muted-note">Cargando…</p></div>
       </div>
 
       <div class="gads-two">
         <div class="panel" style="margin:0">
           <h2>📈 Keywords que se mueven <span class="count" id="seo-trend-note">28d vs anteriores</span></h2>
-          <div id="seo-trend-wrap"><p class="muted-note">Cargando…</p></div>
+          <div class="lead-table-wrap" id="seo-trend-wrap"><p class="muted-note">Cargando…</p></div>
         </div>
         <div class="panel" style="margin:0">
           <h2>⚔️ Canibalización <span class="count">2+ páginas, misma query</span></h2>
           <p class="muted-note" style="margin:4px 0 10px">Detectado con la dimensión query×página (antes nunca se consultaba). Acción sugerida: linkear la página más débil a la fuerte con anchor exacto, o canonical.</p>
-          <div id="seo-cannib-wrap"><p class="muted-note">Cargando…</p></div>
+          <div class="lead-table-wrap" id="seo-cannib-wrap"><p class="muted-note">Cargando…</p></div>
         </div>
       </div>
 
@@ -2293,11 +2297,11 @@ const newsCases = [
 
     <div class="panel" id="au-editor" style="margin-top:14px" hidden>
       <h2 id="au-ed-title">Nuevo workflow</h2>
-      <div class="pp-grid" style="grid-template-columns:2fr 1fr;gap:10px;align-items:end">
+      <div class="pp-grid" style="--cols:2fr 1fr;gap:10px;align-items:end">
         <div class="bf"><label>Nombre</label><input id="au-name" placeholder="p. ej. Referral post-proyecto" /></div>
         <div class="bf"><label>Estado</label><select id="au-enabled"><option value="">⏸ Pausada (borrador)</option><option value="1">🟢 Activa</option></select></div>
       </div>
-      <div class="pp-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+      <div class="pp-grid" style="--cols:repeat(auto-fit,minmax(150px,1fr));gap:10px">
         <div class="bf"><label>SI… (trigger)</label><select id="au-trigger">
           <option value="lead_new">Entra un lead nuevo</option>
           <option value="stage">Lead llega a etapa…</option>
@@ -2372,7 +2376,7 @@ const newsCases = [
           <p class="muted-note" style="margin-top:6px">Sube a Supabase Storage (bucket <code>team-avatars</code>).</p>
         </div>
       </div>
-      <div class="pp-grid" style="grid-template-columns:1fr 1fr;gap:10px">
+      <div class="pp-grid" style="--cols:1fr 1fr;gap:10px">
         <div class="bf"><label>Nombre</label><input id="profile-name" /></div>
         <div class="bf"><label>Rol</label><input id="profile-role" placeholder="p. ej. Producer" /></div>
         <div class="bf"><label>Teléfono</label><input id="profile-phone" placeholder="+41 …" /></div>
@@ -2696,7 +2700,7 @@ const newsCases = [
 
     <details class="panel lm-fold" id="bl2-gen-fold" style="margin-bottom:16px">
       <summary class="lm-block-h" style="font-size:15px">✨ Escribir un artículo puntual (sin pasar por la cola)</summary>
-      <div class="pp-grid" style="grid-template-columns:2fr 1fr auto;align-items:end;margin-top:12px">
+      <div class="pp-grid" style="--cols:2fr 1fr auto;align-items:end;margin-top:12px">
         <div class="bf"><label>Tema o keyword</label><input id="bg-topic" placeholder="ej: video de producto para e-commerce en Suiza" /></div>
         <div class="bf"><label>Idioma</label><select id="bg-lang"><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></div>
         <button class="btn btn-primary" id="bg-gen" type="button" style="margin-bottom:0">✨ Generar artículo</button>
@@ -2706,7 +2710,7 @@ const newsCases = [
 
     <div id="bg-result" hidden>
       <div class="pp-sec-h" id="bg-editor-top" style="margin-top:0;flex-wrap:wrap">✏️ Editando <span class="count" id="bg-editing-lang"></span> <span id="bg-versions" class="bl2-ltabs"></span></div>
-      <div class="pp-grid" style="grid-template-columns:1fr 1fr;align-items:end">
+      <div class="pp-grid" style="--cols:1fr 1fr;align-items:end">
         <div class="bf"><label>Título SEO</label><input id="bg-title" /></div>
         <div class="bf"><label>Slug</label><input id="bg-slug" /></div>
       </div>
@@ -2718,7 +2722,7 @@ const newsCases = [
         <button class="btn btn-ghost small" id="bg-copy" type="button">⧉ Copiar .astro</button>
       </div>
       <p class="muted-note" id="bg-pub-note" style="margin:-2px 0 10px"></p>
-      <div class="pp-grid" style="grid-template-columns:1fr 1fr;align-items:start">
+      <div class="pp-grid" style="--cols:1fr 1fr;align-items:start">
         <div class="bf"><label>🖼 Imagen héroe <span class="muted-note" style="font-weight:400">— click en un still para elegirla, o pegá un path/URL abajo</span></label>
           <div class="bl2-imgpick" id="bl2-imgpick"></div>
           <input id="bg-hero" list="bg-hero-opts" placeholder="/projects/…/still.jpg (vacío = sin imagen)" />
@@ -2872,11 +2876,11 @@ const newsCases = [
       <button class="btn btn-primary small" id="lic-add" type="button">➕ Nueva licencia</button>
     </div>
     <div class="panel" id="lic-form" hidden style="margin-bottom:14px">
-      <div class="pp-grid" style="grid-template-columns:2fr 1fr;gap:10px">
+      <div class="pp-grid" style="--cols:2fr 1fr;gap:10px">
         <div class="bf"><label>Título</label><input id="lic-title" placeholder="p. ej. Derechos de uso — video Siemens 2026" /></div>
         <div class="bf"><label>Cliente</label><select id="lic-lead"></select></div>
       </div>
-      <div class="pp-grid" style="grid-template-columns:repeat(3,1fr);gap:10px">
+      <div class="pp-grid" style="--cols:repeat(3,1fr);gap:10px">
         <div class="bf"><label>Monto (CHF)</label><input id="lic-amount" type="number" min="0" step="50" /></div>
         <div class="bf"><label>Inicio</label><input id="lic-start" type="date" /></div>
         <div class="bf"><label>Renovación</label><input id="lic-renewal" type="date" /></div>
@@ -2922,7 +2926,7 @@ const newsCases = [
 
     <div class="panel" id="cf-entry-form" hidden>
       <h2>➕ Nueva partida</h2>
-      <div class="pp-grid" style="grid-template-columns:2fr 1fr 1fr 1fr;gap:10px">
+      <div class="pp-grid" style="--cols:2fr 1fr 1fr 1fr;gap:10px">
         <div class="bf"><label>Descripción</label><input id="cf-entry-desc" placeholder="p. ej. Pago proveedor edición" /></div>
         <div class="bf"><label>Monto (CHF)</label><input id="cf-entry-amount" type="number" min="0" step="10" /></div>
         <div class="bf"><label>Fecha</label><input id="cf-entry-date" type="date" /></div>
@@ -2941,7 +2945,7 @@ const newsCases = [
 
     <div class="panel">
       <h2 style="justify-content:space-between">🔁 Recurrentes <button class="btn btn-ghost small" id="cf-rec-add" type="button">➕ Agregar</button></h2>
-      <div class="pp-grid" id="cf-rec-form" hidden style="grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="pp-grid" id="cf-rec-form" hidden style="--cols:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="bf"><label>Descripción</label><input id="cf-rec-desc" placeholder="p. ej. Alquiler oficina" /></div>
         <div class="bf"><label>Monto (CHF)/período</label><input id="cf-rec-amount" type="number" min="0" step="10" /></div>
         <div class="bf"><label>Frecuencia</label><select id="cf-rec-freq"><option value="monthly">Mensual</option><option value="quarterly">Trimestral</option><option value="yearly">Anual</option></select></div>
@@ -2954,7 +2958,7 @@ const newsCases = [
 
     <div class="panel">
       <h2 style="justify-content:space-between">🏦 Préstamos y leasing <button class="btn btn-ghost small" id="cf-loan-add" type="button">➕ Agregar</button></h2>
-      <div class="pp-grid" id="cf-loan-form" hidden style="grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="pp-grid" id="cf-loan-form" hidden style="--cols:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="bf"><label>Nombre</label><input id="cf-loan-name" placeholder="p. ej. Leasing cámara" /></div>
         <div class="bf"><label>Principal (CHF)</label><input id="cf-loan-principal" type="number" min="0" step="100" /></div>
         <div class="bf"><label>Cuota mensual (CHF)</label><input id="cf-loan-payment" type="number" min="0" step="10" /></div>
@@ -2971,7 +2975,7 @@ const newsCases = [
 
     <div class="panel">
       <h2>⚙️ Configuración</h2>
-      <div class="pp-grid" style="grid-template-columns:1fr 1fr;gap:24px">
+      <div class="pp-grid" style="--cols:1fr 1fr;gap:24px">
         <div>
           <div class="bf"><label>Nuevo saldo bancario (CHF)</label><input id="cf-cfg-balance" type="number" min="0" step="10" /></div>
           <button class="btn btn-primary small" id="cf-cfg-balance-save" type="button">💾 Guardar saldo</button>
