@@ -1265,10 +1265,17 @@ const newsCases = [
   .of-table tr.of-sub td.num{color:var(--text)}
   .of-del{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px}
   .of-del:hover{color:#ff8b8b;background:rgba(255,107,107,.1)}
-  .of-actions{white-space:nowrap}
+  .of-row-actions{white-space:nowrap}
   .of-up,.of-down{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:11px;padding:4px 5px;border-radius:6px}
   .of-up:hover,.of-down:hover{color:var(--acid);background:rgba(221,249,143,.1)}
   .of-up:disabled,.of-down:disabled{opacity:.25;cursor:default;background:none;color:var(--muted-2)}
+  /* arrastrar ⠿ para reordenar más rápido — mismo trato visual que .sv-drag (Servicios) */
+  .of-name-wrap{display:flex;align-items:center;gap:6px}
+  .of-name-wrap .ofi{flex:1;min-width:0}
+  .of-drag{cursor:grab;color:var(--muted-2);flex:none;font-size:14px;user-select:none}
+  .of-drag:active{cursor:grabbing}
+  .of-table tr[data-i].of-dragging{opacity:.4}
+  .of-table tr[data-i].of-dragover{box-shadow:inset 0 0 0 1px var(--acid)}
   .of-summary{margin:18px 0 8px;margin-left:auto;max-width:420px;background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .of-sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;color:var(--muted)}
   .of-sum-row b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -6977,7 +6984,7 @@ const newsCases = [
   // botones/paneles — reactivar es cambiar estos dos a true.
   const FEATURE_INVOICING = false;
   const FEATURE_PORTAL = false;
-  let offersList = [], ofCur = null, offersBuilt = false, inquiryFromLead = '', curInvoice = null;
+  let offersList = [], ofCur = null, offersBuilt = false, inquiryFromLead = '', curInvoice = null, ofDragI = null;
   /* ---- editor V3: pasos, chips de estado, autosave, toggle de costos internos ---- */
   let of3Step = 1, ofLastSaved = 0, ofSaving = false, ofAutoT = null;
   let ofShowCosts = localStorage.getItem('vv_of_costs') !== '0';
@@ -8537,7 +8544,8 @@ const newsCases = [
     const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
     const margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
     return '<tr data-i="' + i + '">' +
-      '<td><input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></td>' +
+      '<td><div class="of-name-wrap"><span class="of-drag" draggable="true" title="Arrastrar para reordenar (dentro de su fase)">⠿</span>' +
+      '<input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></div></td>' +
       '<td><select class="ofi" data-f="phase">' + PHASES.map((p) => '<option' + (p === phaseOf(it) ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></td>' +
       '<td class="num"><input class="ofi w" data-f="qty" type="number" step="0.25" value="' + (it.qty ?? 1) + '"/></td>' +
       '<td><input class="ofi w" data-f="unit" value="' + esc(it.unit || '') + '"/></td>' +
@@ -8545,7 +8553,7 @@ const newsCases = [
       '<td class="num"><input class="ofi w" data-f="cost" type="number" step="10" value="' + (it.cost ?? 0) + '"/></td>' +
       '<td class="num">' + fmtM(total) + '</td>' +
       '<td class="num" style="color:' + (margin >= 0 ? '#7ed957' : '#ff8b8b') + '">' + fmtM(margin) + '</td>' +
-      '<td class="of-actions">' +
+      '<td class="of-row-actions">' +
         '<button class="of-up" type="button" data-i="' + i + '"' + (isFirst ? ' disabled' : '') + ' title="Subir (dentro de su fase)">▲</button>' +
         '<button class="of-down" type="button" data-i="' + i + '"' + (isLast ? ' disabled' : '') + ' title="Bajar (dentro de su fase)">▼</button>' +
         '<button class="of-del" type="button" data-i="' + i + '">✕</button>' +
@@ -8561,6 +8569,25 @@ const newsCases = [
     do { j += dir; } while (j >= 0 && j < ofCur.items.length && phaseOf(ofCur.items[j]) !== ph);
     if (j < 0 || j >= ofCur.items.length) return;
     const tmp = ofCur.items[i]; ofCur.items[i] = ofCur.items[j]; ofCur.items[j] = tmp;
+    renderRows();
+  }
+  // arrastrar y soltar (⠿) para reordenar más rápido que un click a la vez —
+  // pedido explícito: "que uno lo pueda agarrar y subir como quiera o bajar como en
+  // servicios, mas rapido que subir y bajar uno por uno". Mismo patrón que svReorder
+  // (catálogo de Servicios): reordena SOLO dentro del grupo de la MISMA fase, y
+  // reinserta ese grupo reordenado en los mismos índices absolutos que ocupaba —
+  // así las posiciones de otras fases intercaladas en el array no se mueven.
+  function offerReorder(fromI, toI){
+    if (fromI == null || toI == null || fromI === toI) return;
+    const items = ofCur.items, from = items[fromI], to = items[toI];
+    if (!from || !to) return;
+    const ph = phaseOf(from);
+    if (phaseOf(to) !== ph) return; // el dragover ya lo evita, pero por las dudas
+    const idxs = []; items.forEach((it, i) => { if (phaseOf(it) === ph) idxs.push(i); });
+    const group = idxs.map((i) => items[i]);
+    const fi = group.indexOf(from), ti = group.indexOf(to);
+    group.splice(fi, 1); group.splice(ti, 0, from);
+    idxs.forEach((absI, k) => { items[absI] = group[k]; });
     renderRows();
   }
   function renderRows(){
@@ -8580,6 +8607,24 @@ const newsCases = [
     tb.querySelectorAll('.of-del').forEach((b) => b.addEventListener('click', () => { ofCur.items.splice(+b.dataset.i, 1); renderRows(); }));
     tb.querySelectorAll('.of-up').forEach((b) => b.addEventListener('click', () => moveItem(+b.dataset.i, -1)));
     tb.querySelectorAll('.of-down').forEach((b) => b.addEventListener('click', () => moveItem(+b.dataset.i, 1)));
+    tb.querySelectorAll('.of-drag').forEach((h) => {
+      h.addEventListener('dragstart', (e) => {
+        ofDragI = +h.closest('tr').dataset.i;
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', String(ofDragI)); } catch (_) { /* algunos navegadores */ }
+        h.closest('tr').classList.add('of-dragging');
+      });
+      h.addEventListener('dragend', () => { tb.querySelectorAll('tr[data-i]').forEach((r) => r.classList.remove('of-dragging', 'of-dragover')); ofDragI = null; });
+    });
+    tb.querySelectorAll('tr[data-i]').forEach((row) => {
+      row.addEventListener('dragover', (e) => {
+        if (ofDragI == null) return;
+        if (phaseOf(ofCur.items[ofDragI]) !== phaseOf(ofCur.items[+row.dataset.i])) return; // solo dentro de la misma fase
+        e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('of-dragover');
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('of-dragover'));
+      row.addEventListener('drop', (e) => { e.preventDefault(); row.classList.remove('of-dragover'); offerReorder(ofDragI, +row.dataset.i); });
+    });
     recalc();
   }
   function onRowInput(e){
