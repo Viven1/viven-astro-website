@@ -3339,6 +3339,23 @@ const newsCases = [
     if (tab === 'analytics') anaSetSub(anaSub); // re-aplica el sub-tab guardado y dispara su carga
     if (tab === 'contenido') contenidoSetSub(contenidoSub);
     if (tab === 'sistema') sistemaSetSub(sistemaSub);
+    syncTabUrl();
+  }
+  // refleja tab (+ sub-tab si aplica) en la URL, SIN sumar entradas al historial
+  // (replaceState, no pushState — así el botón "atrás" no navega tab por tab).
+  // Pedido explícito: "poder tener varias ventanas a la vez abiertas del dashboard,
+  // que cambie la url segun el lugar, asi tmb cuando hago refresh me mantengo" —
+  // cada ventana/pestaña del navegador tiene su propia URL, así que F5 en CUALQUIERA
+  // de ellas te deja donde estabas, y podés abrir varias en paralelo cada una en
+  // un lugar distinto (sub-tab vive en localStorage, compartido entre pestañas del
+  // mismo navegador — sigue siendo "la última que elegiste en cualquiera de ellas",
+  // igual que ya pasaba antes de esto).
+  function syncTabUrl(){
+    const tab = TABS.find((k) => { const el = $('tab-' + k); return el && !el.hidden; });
+    if (!tab) return;
+    const sub = tab === 'analytics' ? anaSub : tab === 'contenido' ? contenidoSub : tab === 'sistema' ? sistemaSub : '';
+    const qs = '?tab=' + tab + (sub ? '&sub=' + sub : '');
+    try { history.replaceState(null, '', location.pathname + qs); } catch (e) {}
   }
 
   /* ---------- Analytics: sub-tabs (Web / Google Ads / Videos) ---------- */
@@ -3352,6 +3369,7 @@ const newsCases = [
     document.querySelectorAll('#ana-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
     // carga perezosa (Web y Videos ya se renderizan en loadAll)
     if (sub === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
+    syncTabUrl();
   }
   document.querySelectorAll('#ana-seg button').forEach((b) => b.addEventListener('click', () => anaSetSub(b.dataset.sub)));
 
@@ -3369,6 +3387,7 @@ const newsCases = [
     if (sub === 'news') newsInit();
     if (sub === 'seo') seoInit();
     if (sub === 'magnets') magnetsInit();
+    syncTabUrl();
   }
   document.querySelectorAll('#contenido-seg button').forEach((b) => b.addEventListener('click', () => contenidoSetSub(b.dataset.sub)));
 
@@ -3391,6 +3410,7 @@ const newsCases = [
     if (sub === 'tmpl') tmplInit();
     if (sub === 'cashflow') cfInit();
     if (sub === 'profile') profileInit();
+    syncTabUrl();
   }
   document.querySelectorAll('#sistema-seg button').forEach((b) => b.addEventListener('click', () => sistemaSetSub(b.dataset.sub)));
   // grupos del sidebar: colapsables, con memoria por navegador (localStorage)
@@ -13357,6 +13377,21 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       else if (oid) { gotoTab('offers'); openOffer(oid); }
     } catch (e) {}
   }
+  // restaura el tab (+ sub-tab) de la URL al entrar/refrescar — contraparte de
+  // syncTabUrl(). Si además hay ?lead=/?offer= (link viejo o compartido), esos
+  // ganan: openFromQuery() corre después y pisa el tab con el suyo.
+  async function openTabFromQuery(){
+    try {
+      const qs = new URLSearchParams(location.search);
+      const tab = qs.get('tab');
+      if (!tab || !TABS.includes(tab)) return;
+      const sub = qs.get('sub');
+      if (tab === 'analytics' && ['web', 'gads', 'videos'].includes(sub)) anaSetSub(sub);
+      else if (tab === 'contenido' && ['blog', 'news', 'seo', 'magnets'].includes(sub)) contenidoSetSub(sub);
+      else if (tab === 'sistema' && ['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'profile'].includes(sub)) sistemaSetSub(sub);
+      await gotoTab(tab);
+    } catch (e) {}
+  }
 
   /* ============================================================================
      SHELL REDESIGN — slice seguro/aditivo: ⌘K palette + riel colapsable + Crear global
@@ -13542,7 +13577,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       meEmail = (data.session.user?.email || '').toLowerCase();
       await checkRole();
       __perfMark('role_done');
-      show('dash'); loadAll().then(openFromQuery);
+      show('dash'); loadAll().then(async () => { await openTabFromQuery(); openFromQuery(); });
       __perfMark('shell_shown');
     }
     else show('login');
