@@ -635,6 +635,12 @@ const newsCases = [
      empujaba toda la fila (y la página entera) más ancha que la pantalla en celular */
   .pp-tier-row .tnums select.t-from{flex:1 1 160px;min-width:0;max-width:100%}
   .pp-tier-row .rec{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap}
+  /* precio + % desc. con label visible (antes solo un placeholder que desaparecía
+     al tipear — quedaba invisible el % OFF que ya existía, pedido explícito de
+     Sebastián de hacer el descuento por paquete más claro) */
+  .pp-tier-row .t-price-lbl{display:flex;flex-direction:column;gap:2px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-2);font-weight:600}
+  .pp-tier-row .t-price-lbl input{text-transform:none;letter-spacing:normal;font-size:13.5px;font-weight:400;color:var(--text);margin-top:2px}
+  .t-disc-final{font-size:12px;color:var(--acid);font-weight:600;align-self:center;white-space:nowrap}
   .pp-tier-row textarea{width:100%;min-height:90px}
   .pp-oflink{background:none;border:1px solid var(--line-strong);border-radius:8px;color:var(--acid);font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 9px;cursor:pointer;margin-left:8px}
   .pp-oflink:hover{border-color:var(--acid)}
@@ -1259,6 +1265,10 @@ const newsCases = [
   .of-table tr.of-sub td.num{color:var(--text)}
   .of-del{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px}
   .of-del:hover{color:#ff8b8b;background:rgba(255,107,107,.1)}
+  .of-actions{white-space:nowrap}
+  .of-up,.of-down{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:11px;padding:4px 5px;border-radius:6px}
+  .of-up:hover,.of-down:hover{color:var(--acid);background:rgba(221,249,143,.1)}
+  .of-up:disabled,.of-down:disabled{opacity:.25;cursor:default;background:none;color:var(--muted-2)}
   .of-summary{margin:18px 0 8px;margin-left:auto;max-width:420px;background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .of-sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;color:var(--muted)}
   .of-sum-row b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -8523,7 +8533,7 @@ const newsCases = [
     ofCur.items.forEach((it) => { if (phaseOf(it) === ph){ const q = Number(it.qty) || 0; net += q * (Number(it.price) || 0); cost += q * (Number(it.cost) || 0); } });
     return { net, cost };
   }
-  function rowHTML(it, i){
+  function rowHTML(it, i, isFirst, isLast){
     const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
     const margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
     return '<tr data-i="' + i + '">' +
@@ -8535,7 +8545,23 @@ const newsCases = [
       '<td class="num"><input class="ofi w" data-f="cost" type="number" step="10" value="' + (it.cost ?? 0) + '"/></td>' +
       '<td class="num">' + fmtM(total) + '</td>' +
       '<td class="num" style="color:' + (margin >= 0 ? '#7ed957' : '#ff8b8b') + '">' + fmtM(margin) + '</td>' +
-      '<td><button class="of-del" type="button" data-i="' + i + '">✕</button></td></tr>';
+      '<td class="of-actions">' +
+        '<button class="of-up" type="button" data-i="' + i + '"' + (isFirst ? ' disabled' : '') + ' title="Subir (dentro de su fase)">▲</button>' +
+        '<button class="of-down" type="button" data-i="' + i + '"' + (isLast ? ' disabled' : '') + ' title="Bajar (dentro de su fase)">▼</button>' +
+        '<button class="of-del" type="button" data-i="' + i + '">✕</button>' +
+      '</td></tr>';
+  }
+  // subir/bajar una posición DENTRO de su fase (pedido explícito: "poder mover los
+  // items, subirlos o bajarlos en el orden, ya que el orden es importante") — swapea
+  // con el vecino más cercano de la MISMA fase en el array (no el índice adyacente
+  // crudo, porque otras fases pueden estar intercaladas y el swap se vería raro)
+  function moveItem(i, dir){
+    const ph = phaseOf(ofCur.items[i]);
+    let j = i;
+    do { j += dir; } while (j >= 0 && j < ofCur.items.length && phaseOf(ofCur.items[j]) !== ph);
+    if (j < 0 || j >= ofCur.items.length) return;
+    const tmp = ofCur.items[i]; ofCur.items[i] = ofCur.items[j]; ofCur.items[j] = tmp;
+    renderRows();
   }
   function renderRows(){
     const tb = $('of-rows');
@@ -8543,7 +8569,8 @@ const newsCases = [
     // agrupado por fase, en el orden del catálogo, con subtotal por fase
     PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
       html += '<tr class="of-phase"><td colspan="9">' + esc(ph) + '</td></tr>';
-      ofCur.items.forEach((it, i) => { if (phaseOf(it) === ph) html += rowHTML(it, i); });
+      const idxs = []; ofCur.items.forEach((it, i) => { if (phaseOf(it) === ph) idxs.push(i); });
+      idxs.forEach((i, k) => { html += rowHTML(ofCur.items[i], i, k === 0, k === idxs.length - 1); });
       const s = phaseSubtotal(ph);
       html += '<tr class="of-sub" data-phase="' + esc(ph) + '"><td colspan="6">Subtotal ' + esc(ph) + '</td><td class="num">' + fmtM(s.net) + '</td><td class="num">' + fmtM(s.net - s.cost) + '</td><td></td></tr>';
     });
@@ -8551,6 +8578,8 @@ const newsCases = [
     tb.querySelectorAll('.ofi').forEach((inp) => inp.addEventListener('input', onRowInput));
     tb.querySelectorAll('.ofi[data-f="phase"]').forEach((s) => s.addEventListener('change', renderRows));
     tb.querySelectorAll('.of-del').forEach((b) => b.addEventListener('click', () => { ofCur.items.splice(+b.dataset.i, 1); renderRows(); }));
+    tb.querySelectorAll('.of-up').forEach((b) => b.addEventListener('click', () => moveItem(+b.dataset.i, -1)));
+    tb.querySelectorAll('.of-down').forEach((b) => b.addEventListener('click', () => moveItem(+b.dataset.i, 1)));
     recalc();
   }
   function onRowInput(e){
@@ -9206,6 +9235,11 @@ const newsCases = [
   const makeSlug = (t) => { const b = (t || 'proposal').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'proposal'; return b + '-' + Math.random().toString(36).slice(2, 8); };
   const tierNet = (t) => (t.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
   const tierCostSum = (t) => (t.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.cost) || 0), 0);
+  // precio final tras el % OFF — MISMA fórmula que tierPrice() en la propuesta pública
+  // (src/pages/proposal/index.astro), para que el editor muestre exactamente lo que va
+  // a ver el cliente (pedido explícito: descuento por paquete, más % en el más caro)
+  const tierFinalPrice = (t) => (Number(t.price) || 0) * (1 - (Number(t.discount_pct) || 0) / 100);
+  const tierDiscFinalTxt = (t) => (Number(t.discount_pct) || 0) > 0 ? '→ ' + fmtM(tierFinalPrice(t)) + ' final' : '';
   /* ---- bloques de la propuesta (orden + on/off, persistidos en content.block_order / content.blocks_off) ---- */
   const PP_BLOCKS = [
     ['intro', '✉️ Carta intro'], ['overview', '🎯 Overview'], ['photo1', '🖼 Foto separador'], ['scope', '🔧 Scope'],
@@ -9700,8 +9734,9 @@ const newsCases = [
       return '<div class="pp-row pp-tier-row" data-ti="' + i + '"><div class="rowtop"><input class="t-name grow" placeholder="Nombre paquete" value="' + esc(t.name || '') + '"/>' +
         '<input class="t-sub grow" placeholder="Subtítulo (1 shooting day)" value="' + esc(t.subtitle || '') + '"/><button class="rm t-del" type="button" data-i="' + i + '">✕</button></div>' +
         '<div class="rowtop tnums"><label class="rec"><input type="checkbox" class="t-rec"' + (t.recommended ? ' checked' : '') + '/> recomendado</label>' +
-        '<input class="t-price" type="number" placeholder="Precio" value="' + (t.price || 0) + '"/>' +
-        '<input class="t-disc" type="number" placeholder="% OFF" value="' + (t.discount_pct || 0) + '"/>' +
+        '<label class="t-price-lbl">Precio<input class="t-price" type="number" value="' + (t.price || 0) + '"/></label>' +
+        '<label class="t-price-lbl" title="Se muestra tachado en la propuesta pública — el paquete más caro suele llevar más % que el más barato">% desc.<input class="t-disc" type="number" min="0" max="90" value="' + (t.discount_pct || 0) + '"/></label>' +
+        '<b class="t-disc-final">' + tierDiscFinalTxt(t) + '</b>' +
         '<select class="t-from" data-i="' + i + '" title="Copiar nombre, precio y posiciones de una oferta existente">' + offerOpts + '</select>' +
         '<span class="pp-tier-margin">' + (cost ? 'margen ' + mp + '% · costo interno CHF ' + cost.toLocaleString('de-CH') : 'sin costo interno cargado') + '</span>' +
         (t.offer_id ? (() => { const o = (offersList || []).find((x) => String(x.id) === String(t.offer_id)); return o ? '<span class="pp3-sync">⇄ sync</span><button class="pp-oflink" data-oid="' + o.id + '" type="button" title="Abrir la oferta ligada — los ítems van y vienen (⇄)">🧾 ' + esc(o.number || 'oferta') + ' ↗</button>' : ''; })() : '') + '</div>' +
@@ -9735,6 +9770,17 @@ const newsCases = [
           const t = ppCur.tiers[ti]; if (!t || !t.items) return;
           t.items.splice(tj, 1); ppTierItemsChanged(t); renderTierRows();
         });
+      });
+      // precio/descuento: refresco en vivo del "→ CHF X final" (sin re-render, no perder foco)
+      row.querySelector('.t-price').addEventListener('input', (e) => {
+        const t = ppCur.tiers[ti]; if (!t) return;
+        t.price = parseFloat(e.target.value) || 0;
+        row.querySelector('.t-disc-final').textContent = tierDiscFinalTxt(t);
+      });
+      row.querySelector('.t-disc').addEventListener('input', (e) => {
+        const t = ppCur.tiers[ti]; if (!t) return;
+        t.discount_pct = parseFloat(e.target.value) || 0;
+        row.querySelector('.t-disc-final').textContent = tierDiscFinalTxt(t);
       });
       row.querySelector('.pp3-it-cat').addEventListener('change', (e) => {
         const v = e.target.value; if (!v) return;
