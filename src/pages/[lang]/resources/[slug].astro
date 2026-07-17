@@ -39,6 +39,46 @@ const CAT_VIDEO = {
 };
 const vid = CAT_VIDEO[entry.category] || CAT_VIDEO.general;
 
+// interlinking: cada categoría linkea a la página de servicio real que más se
+// le parece (las mismas /services/{slug}/ del menú, ya localizadas 1:1 en las
+// 3 lenguas) — pedido explícito: el contenido de Recursos no tenía NINGÚN link
+// interno en el cuerpo, todo el interlinking vivía en la lista genérica del
+// pie ("Related questions"). "event" y "animation" no tienen service propio →
+// caen en el más cercano (corporate-video ya incluye eventos; product-video
+// es lo más parecido a motion graphics/animación).
+const CAT_SVC = {
+  brand: 'brand-video', corporate: 'corporate-video', event: 'corporate-video',
+  employer: 'employer-branding', howto: 'how-to-video', social: 'social-media-video',
+  animation: 'product-video',
+};
+const SVC_NAME = {
+  'brand-video':         { en: 'Brand Videos', de: 'Markenfilme', es: 'Videos de marca' },
+  'corporate-video':     { en: 'Corporate & Events', de: 'Corporate & Events', es: 'Corporativo y eventos' },
+  'employer-branding':   { en: 'Employer Branding', de: 'Employer Branding', es: 'Employer Branding' },
+  'how-to-video':        { en: 'How-To & Tutorials', de: 'How-To & Tutorials', es: 'Tutoriales y How-To' },
+  'social-media-video':  { en: 'Social Media Videos', de: 'Social-Media-Videos', es: 'Videos para redes sociales' },
+  'product-video':       { en: 'Product Videos', de: 'Produktvideos', es: 'Videos de producto' },
+};
+const svcSlug = CAT_SVC[entry.category];
+const svcName = svcSlug && SVC_NAME[svcSlug][lang];
+const linkOut = svcSlug
+  ? { html: {
+        en: `Ready to plan your own? See our <a href="/${lang}/services/${svcSlug}/">${svcName}</a> service.`,
+        de: `Bereit, Ihr eigenes zu planen? Unser Service <a href="/${lang}/services/${svcSlug}/">${svcName}</a>.`,
+        es: `¿Listo para planear el tuyo? Mirá nuestro servicio de <a href="/${lang}/services/${svcSlug}/">${svcName}</a>.`,
+      }[lang] }
+  : entry.category === 'process'
+  ? { html: {
+        en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
+        de: 'Fragen Sie sich, was das kosten würde? Unser <a href="/en/video-cost-calculator/">Kostenrechner für Videos</a>.',
+        es: '¿Te preguntás cuánto costaría? Probá nuestra <a href="/en/video-cost-calculator/">calculadora de costos de video</a>.',
+      }[lang] }
+  : { html: {
+        en: `Ready to plan your own video? See our <a href="/${lang}/services/">video production services</a>.`,
+        de: `Bereit, Ihr eigenes Video zu planen? Unsere <a href="/${lang}/services/">Videoproduktions-Services</a>.`,
+        es: `¿Listo para planear tu propio video? Mirá nuestros <a href="/${lang}/services/">servicios de producción de video</a>.`,
+      }[lang] };
+
 const L = {
   resources: { en: 'Resources', de: 'Wissen', es: 'Recursos' }[lang],
   home: { en: 'Home', de: 'Home', es: 'Inicio' }[lang],
@@ -111,6 +151,8 @@ const description = { [lang]: entry.description };
         <p class="rsrc-vcap">{vid.t}</p>
       </div>
 
+      <p class="rsrc-linkout" set:html={linkOut.html}></p>
+
       {related.length > 0 && (
         <div class="rsrc-related">
           <h2>{L.related}</h2>
@@ -152,6 +194,9 @@ const description = { [lang]: entry.description };
     .rsrc-vframe{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
     .rsrc-vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
     .rsrc-vcap{color:var(--muted-2);font-size:12.5px;margin-top:8px}
+    .rsrc-linkout{margin:18px 0 0;padding:14px 18px;border:1px solid var(--line);border-radius:13px;background:var(--navy-800);color:var(--muted);font-size:14.5px;line-height:1.6}
+    .rsrc-linkout a{color:var(--acid);font-weight:600;text-decoration:none}
+    .rsrc-linkout a:hover{text-decoration:underline}
     .rsrc-related{margin:38px 0}
     .rsrc-related h2{font-size:clamp(19px,2.6vw,24px);margin-bottom:14px}
     .rsrc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
