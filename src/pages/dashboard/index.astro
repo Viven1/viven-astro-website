@@ -380,6 +380,20 @@ const newsCases = [
   .pipe-col-sums .tot{font-weight:700;font-family:'Space Grotesk';font-size:15px;letter-spacing:-.01em}
   .pipe-col-sums .wt{color:var(--muted-2);font-size:10.5px;white-space:nowrap}
   .pipe-col.drop{border-color:var(--acid);box-shadow:0 0 0 2px rgba(221,249,143,.2)}
+  /* resumen por etapa: todo el pipeline de un vistazo, sin scrollear el board para
+     sumar columna por columna (pedido explícito: "necesito entender los numeros
+     mucho mas rapido y mejor") */
+  .pipe-stage-sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .pss-card{position:relative;flex:1 1 150px;min-width:150px;background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:12px 14px;overflow:hidden}
+  .pss-card.pss-total{background:color-mix(in srgb,var(--acid) 7%,var(--navy-800));border-color:color-mix(in srgb,var(--acid) 30%,var(--line))}
+  .pss-bar{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--stage)}
+  .pss-body{padding-left:6px}
+  .pss-total .pss-l{padding-left:0}
+  .pss-l{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:600}
+  .pss-n{color:var(--muted-2);font-weight:600;font-size:11.5px}
+  .pss-v{font-family:'Space Grotesk';font-weight:700;font-size:18px;letter-spacing:-.01em;margin-top:3px}
+  .pss-w{color:var(--muted-2);font-size:10.5px;margin-top:2px}
+  @media(max-width:640px){.pss-card{flex:1 1 calc(50% - 5px)}}
   /* toggle de vista */
   .view-toggle{display:inline-flex;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;padding:2px;gap:2px}
   .vt-btn{background:none;border:0;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer}
@@ -1762,7 +1776,11 @@ const newsCases = [
         <button class="btn btn-ghost small" id="dlf-cancel" type="button">Cancelar</button>
       </div>
     </div>
-    <!-- resumen compacto + board arriba de todo (como HubSpot) -->
+    <!-- resumen por etapa: total abierto + cada etapa (n° · valor · ponderado) de un
+         vistazo, sin tener que armarlo mentalmente columna por columna del board
+         (pedido explícito: "no veo total del valor incluido dentro, no veo overview
+         de lo que esta abierto... necesito entender los numeros mucho mas rapido") -->
+    <div class="pipe-stage-sum" id="pipe-stage-sum"></div>
     <div class="pipe-pager" id="pipe-pager" hidden>
       <button id="pgr-prev" type="button" aria-label="Etapa anterior">‹</button>
       <span id="pgr-label">—</span>
@@ -4865,10 +4883,11 @@ const newsCases = [
     const bBtn = $('dl-view-board'), lBtn = $('dl-view-list');
     if (bBtn) bBtn.classList.toggle('on', board);
     if (lBtn) lBtn.classList.toggle('on', !board);
-    const pipe = $('pipeline'), drops = $('pipe-drops'), list = $('deals-list');
+    const pipe = $('pipeline'), drops = $('pipe-drops'), list = $('deals-list'), stageSum = $('pipe-stage-sum');
     if (!board){
       if (pipe) { pipe.hidden = true; pipe.innerHTML = ''; }
       if (drops) { drops.hidden = true; drops.innerHTML = ''; }
+      if (stageSum) { stageSum.hidden = true; stageSum.innerHTML = ''; }
       const pager = $('pipe-pager'); if (pager) pager.hidden = true;
       if (list) { list.hidden = false; renderDealsList(rows); }
       return;
@@ -4876,6 +4895,7 @@ const newsCases = [
     if (list) { list.hidden = true; list.innerHTML = ''; }
     if (pipe) pipe.hidden = false;
     if (drops) drops.hidden = false;
+    if (stageSum) stageSum.hidden = false;
     /* ---- board: solo las 4 columnas de trabajo; ganado/perdido son drop-zones abajo ---- */
     let open = rows.filter(isOpen);
     if (dlStuck) open = open.filter((d) => dealStageDays(d) > 14);
@@ -4883,6 +4903,22 @@ const newsCases = [
     const byStage = {}; DL_OPEN.forEach((k) => byStage[k] = []);
     open.forEach((d) => byStage[stageOf(d.stage)].push(d));
     Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
+    // resumen por etapa: total abierto (todo lo que ves en el board) + cada etapa
+    // por separado, sin tener que sumar columna por columna a ojo
+    if (stageSum) {
+      const openVal = dealsValue(open);
+      const openWt = Math.round(STAGES.filter((s) => DL_OPEN.includes(s.key))
+        .reduce((a, s) => a + dealsValue(byStage[s.key]) * s.prob, 0));
+      stageSum.innerHTML =
+        '<div class="pss-card pss-total"><div class="pss-l">Total abierto<b class="pss-n">' + open.length + '</b></div>' +
+          '<div class="pss-v">' + fmtChf(openVal) + '</div><div class="pss-w">pond. ' + fmtChf(openWt) + '</div></div>' +
+        STAGES.filter((s) => DL_OPEN.includes(s.key)).map((s) => {
+          const n = byStage[s.key].length, val = dealsValue(byStage[s.key]), wt = Math.round(val * s.prob);
+          return '<div class="pss-card" style="--stage:' + s.color + '"><span class="pss-bar"></span>' +
+            '<div class="pss-body"><div class="pss-l">' + s.label + '<b class="pss-n">' + n + '</b></div>' +
+            '<div class="pss-v">' + fmtChf(val) + '</div><div class="pss-w">pond. ' + fmtChf(wt) + ' (' + Math.round(s.prob * 100) + '%)</div></div></div>';
+        }).join('');
+    }
     pipe.className = 'pipeline';
     pipe.innerHTML = STAGES.filter((s) => DL_OPEN.includes(s.key)).map((s) => {
       const n = byStage[s.key].length;
