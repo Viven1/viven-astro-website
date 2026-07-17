@@ -1,0 +1,144 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Producción de vídeo corporativo: guía para empresas | Viven"};
+const description = {"es":"Cómo crear vídeos corporativos profesionales que comuniquen valores, atraigan talento y generen resultados medibles. Estrategia paso a paso."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "produccion-video-corporativo";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/produccion-video-corporativo" active="blog" singleLang={true} langUrls={{"en":"/en/blog/corporate-video-production-guide/","de":"/de/blog/unternehmensvideos-produktion/","es":"/es/blog/produccion-video-corporativo/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/produccion-video-corporativo/\"},\"headline\":\"Producción de vídeo corporativo: guía para empresas\",\"description\":\"Cómo crear vídeos corporativos profesionales que comuniquen valores, atraigan talento y generen resultados medibles. Estrategia paso a paso.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/produccion-video-corporativo/\",\"datePublished\":\"2026-07-17T03:10:11.551Z\",\"image\":\"https://www.viven.ch/projects/meteomatics-product-campaign-brand-video/03-Meteomatics_VIVEN_Video_Agentur_060.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Producción de vídeo corporativo: guía para empresas\",\"item\":\"https://www.viven.ch/es/blog/produccion-video-corporativo/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo toma producir un vídeo corporativo profesional?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Típicamente 4–8 semanas desde aprobación de concepto hasta versión final, dependiendo de complejidad, cantidad de locaciones y disponibilidad de talento o clientes para entrevistas.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué duración debe tener un vídeo corporativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"2–3 minutos es el estándar para web y redes sociales. Para content hub interno o presentaciones, 5–10 minutos funciona bien. YouTube y Google favorecen vídeos entre 2–4 minutos para retención orgánica.\"}},{\"@type\":\"Question\",\"name\":\"¿Un vídeo corporativo ayuda con SEO?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Sí. Los vídeos indexados correctamente mejoran ranking en búsqueda, aumentan tiempo en página y son priorizados por Google para aparecer en IA overviews. Requieren transcripción, schema markup y descripción optimizada.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Producción de vídeo corporativo: guía para empresas</span></nav>
+  <span class="eyebrow">Estrategia de comunicación</span>
+  <h1>Producción de vídeo corporativo: guía para empresas</h1>
+  <p class="lead">La producción de vídeo corporativo es hoy una inversión estratégica, no un gasto. Las empresas del DACH y Latinoamérica utilizan vídeos internos y externos para fortalecer su marca, atraer inversores, retener talento y mejorar el engagement en redes. Este artículo explica qué tipos de vídeos corporativos existen, cómo elegir el formato correcto según tus objetivos y qué esperar de un socio profesional de producción.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>17 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/meteomatics-product-campaign-brand-video/03-Meteomatics_VIVEN_Video_Agentur_060.jpg" alt="Producción de vídeo corporativo: guía para empresas" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>¿Qué es la producción de vídeo corporativo?</h2>
+<p>La producción de vídeo corporativo abarca todo contenido audiovisual que una empresa crea para comunicar internamente o hacia el público. Incluye vídeos de presentación empresarial, testimonios de clientes, comunicaciones internas, contenidos de capacitación y vídeos para redes sociales.</p>
+<p>A diferencia de la publicidad tradicional, estos vídeos priorizan la autenticidad y la conexión emocional. Empresas como UBS, Siemens y Porsche utilizan vídeo corporativo para fortalecer su reputación y diferenciarse en mercados competitivos.</p>
+
+<h2>Tipos de vídeo corporativo según tus objetivos</h2>
+<p>Elegir el formato correcto es clave para maximizar tu inversión:</p>
+<ul>
+<li><strong>Vídeo de marca (brand video):</strong> Cuenta la historia y los valores de tu empresa. <a href={p("services/brand-video")}>Brand videos</a> impactantes generan confianza y lealtad en clientes.</li>
+<li><strong>Vídeo de producto:</strong> Demuestra cómo funciona tu solución y sus beneficios. Ideal para B2B y para acelerar decisiones de compra.</li>
+<li><strong>Vídeo de employer branding:</strong> Atrae talento mostrando tu cultura. <a href={p("services/employer-branding")}>El employer branding</a> es esencial para retener personal en el mercado laboral suizo.</li>
+<li><strong>Contenido para redes sociales:</strong> Formatos cortos, ágiles, optimizados para LinkedIn, Instagram y TikTok. <a href={p("services/social-media-video")}>Vídeos para redes</a> generan alcance orgánico y conversiones directas.</li>
+<li><strong>Vídeos educativos (how-to):</strong> <a href={p("services/how-to-video")}>How-to videos</a> posicionan tu empresa como experta y mejoran el SEO.</li>
+</ul>
+
+<h2>El proceso de producción paso a paso</h2>
+<p>Una producción profesional sigue un método estructurado:</p>
+<ul>
+<li><strong>Estrategia y concepto:</strong> Definir objetivo, público, mensaje clave y formato.</li>
+<li><strong>Scripting y storyboard:</strong> Escribir guión y visualizar cada plano.</li>
+<li><strong>Pre-producción:</strong> Preparar locaciones, talento, equipamiento y permisos.</li>
+<li><strong>Rodaje:</strong> Grabación con equipo profesional de cámara, iluminación y sonido.</li>
+<li><strong>Post-producción:</strong> Edición, color grading, efectos, música y animación si se requiere.</li>
+<li><strong>Distribución:</strong> Optimizar el vídeo para diferentes plataformas y medir resultados.</li>
+</ul>
+
+<h2>Presupuesto e inversión en vídeo corporativo</h2>
+<p>El costo varía según alcance, complejidad y duración. Un vídeo corporativo profesional de 2–3 minutos en el mercado suizo ronda entre CHF 8.000–25.000, dependiendo de:</p>
+<ul>
+<li>Locaciones y días de rodaje</li>
+<li>Tamaño del equipo técnico</li>
+<li>Post-producción (animación, efectos, color grading)</li>
+<li>Derechos de música y licencias</li>
+</ul>
+<p>Empresas con presupuestos mayores logran producciones de cinema que generan ROI significativo en reconocimiento de marca y generación de leads.</p>
+
+<h2>Por qué elegir un socio profesional</h2>
+<p>Producir vídeo corporativo internamente es tentador, pero conlleva riesgos: falta de equipo técnico, tiempo desviado del core business, y resultados inconsistentes que perjudican tu marca.</p>
+<p>Un <a href={p("services/corporate-video")}>partner de producción corporativa</a> profesional aporta:</p>
+<ul>
+<li>Estrategia alineada con tus objetivos comerciales</li>
+<li>Equipo experimentado en narrativa corporativa</li>
+<li>Tecnología y estándares de calidad broadcasting</li>
+<li>Agilidad en iteraciones y entregas a tiempo</li>
+<li>Conocimiento de tendencias y formatos que funcionan en Google e IA overviews</li>
+</ul>
+
+<h2>Medición de resultados</h2>
+<p>El vídeo corporativo debe ser medible. Define KPIs claros:</p>
+<ul>
+<li>Vistas y tasa de retención en YouTube</li>
+<li>Clics a tu web desde descripción del vídeo</li>
+<li>Conversiones o leads generados</li>
+<li>Engagement (comentarios, compartidos) en redes sociales</li>
+<li>Impacto en SEO y visibilidad en buscadores</li>
+</ul>
+<p>Los vídeos corporativos bien optimizados aparecen en Google Search, YouTube y ahora en IA overviews, multiplicando tu visibilidad orgánica.</p>
+
+<p><strong>¿Listo para producir vídeo corporativo que impulse tu negocio?</strong> En Viven AG trabajamos con empresas líderes como FIFA, ON y Philips. Nuestro equipo en Zúrich diseña y produce vídeos que generan resultados medibles. <a href={p("contact")}>Contáctanos</a> hoy para una consulta sin compromiso y conoce cómo podemos elevar tu comunicación visual. También puedes explorar <a href={p("projects")}>nuestros proyectos</a> recientes para inspirarte.</p>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="produccion-video-corporativo" />
+  </div></section>
+</Base>
