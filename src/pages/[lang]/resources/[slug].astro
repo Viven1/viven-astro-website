@@ -61,7 +61,17 @@ const SVC_NAME = {
 };
 const svcSlug = CAT_SVC[entry.category];
 const svcName = svcSlug && SVC_NAME[svcSlug][lang];
-const linkOut = svcSlug
+// pedido explícito: "todos los FAQs que digan algo sobre costo cuanto cuesta, no
+// importa el servicio pone link al cost calculator" — el tema costo/precio pisa
+// el link de servicio por categoría, sea cual sea esa categoría.
+const isCostTopic = /\b(cost|costs|pricing|budget|kosten|preis|precio|costo|presupuesto)\b/i.test(entry.question + ' ' + entry.slug);
+const linkOut = isCostTopic
+  ? { html: {
+        en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
+        de: 'Fragen Sie sich, was das kosten würde? Unser <a href="/en/video-cost-calculator/">Kostenrechner für Videos</a>.',
+        es: '¿Te preguntás cuánto costaría? Probá nuestra <a href="/en/video-cost-calculator/">calculadora de costos de video</a>.',
+      }[lang] }
+  : svcSlug
   ? { html: {
         en: `Ready to plan your own? See our <a href="/${lang}/services/${svcSlug}/">${svcName}</a> service.`,
         de: `Bereit, Ihr eigenes zu planen? Unser Service <a href="/${lang}/services/${svcSlug}/">${svcName}</a>.`,
