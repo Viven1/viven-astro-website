@@ -75,6 +75,9 @@ function setLang(lang){
   document.querySelectorAll('[data-' + lang + '-ph]').forEach(function(el){
     el.setAttribute('placeholder', el.getAttribute('data-' + lang + '-ph'));
   });
+  document.querySelectorAll('[data-' + lang + '-href]').forEach(function(el){
+    el.setAttribute('href', el.getAttribute('data-' + lang + '-href'));
+  });
   document.querySelectorAll('.lang button').forEach(function(b){
     b.classList.toggle('active', b.dataset.lang === lang);
   });
