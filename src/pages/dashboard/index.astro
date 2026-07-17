@@ -3076,6 +3076,7 @@ const newsCases = [
 .lm2-who{min-width:0}
 .lm2-who .nm{font-family:'Space Grotesk';font-weight:700;font-size:16.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lm2-who .sub{font-size:12px;color:var(--muted)}
+.lm2-webbadge{margin-top:3px;font-size:11.5px;font-weight:600;color:var(--acid)}
 .lm2-back{border:1px solid var(--line-strong);background:transparent;color:var(--muted);border-radius:100px;font:600 12px Inter,sans-serif;padding:7px 13px;cursor:pointer;white-space:nowrap}
 .lm2-back:hover{color:var(--text);border-color:var(--muted)}
 .lm2-nav{display:flex;align-items:center;border:1px solid var(--line-strong);border-radius:100px;overflow:hidden}
@@ -6141,6 +6142,19 @@ const newsCases = [
 
   function lm2FmtDT(d){ return d ? new Date(d).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''; }
 
+  // "última visita a la web" SIEMPRE visible en el header de la ficha (no solo en la
+  // pestaña 🌐 Web de la timeline, que hay que abrir/filtrar para encontrarla) —
+  // pedido explícito: "eso es clave de tener y mostrar siempre". Reusa lastViews, ya
+  // cargado en memoria para Analytics/Señales calientes — sin fetch nuevo. Ventana
+  // acotada al rango global (30/60/90d); el historial completo sigue en el filtro Web.
+  function lm2WebBadge(r){
+    if (!r.session_id || /^claude-/.test(r.session_id)) return '';
+    const hits = (lastViews || []).filter((v) => v.session_id === r.session_id);
+    if (!hits.length) return '';
+    const last = hits.reduce((a, v) => Date.parse(v.created_at) > Date.parse(a.created_at) ? v : a);
+    return '<div class="lm2-webbadge" title="Ventana del rango elegido — el historial completo está en el filtro 🌐 Web de abajo">🌐 Visitó la web hace ' + timeAgo(last.created_at) + ' · ' + hits.length + ' página' + (hits.length === 1 ? '' : 's') + '</div>';
+  }
+
   function openLeadV2(id){
     const r = allLeads.find((l) => String(l.id) === String(id));
     if (!r) return;
@@ -6166,7 +6180,8 @@ const newsCases = [
         '<button id="lm2-nav-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>›</button></div>' +
       '<div class="lm2-avatar">' + esc(((first[0] || '?') + (last[0] || '')).toUpperCase()) + '</div>' +
       '<div class="lm2-who"><div class="nm">' + esc(r.name || '(sin nombre)') + '<span class="lm-score" id="lm2-score"></span></div>' +
-      '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div></div>' +
+      '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div>' +
+      lm2WebBadge(r) + '</div>' +
       pipe +
       '<div class="lm2-actions">' +
         '<a class="btn btn-primary small" href="mailto:' + esc(r.email) + '" style="text-decoration:none">✉️ Email</a>' +
