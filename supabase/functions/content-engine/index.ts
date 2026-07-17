@@ -407,13 +407,14 @@ Deno.serve(async (req) => {
       if (ctx) kw.why = kw.why + " Buscando en Google ahora: " + ctx;
     }
 
+    const topic = item.topic as string;
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
     const groupId = crypto.randomUUID();
-    const media = await pickMedia(item.topic);
+    const media = await pickMedia(topic);
     const made: { lang: string; id: number; title: string; lead: string; token: string | null; body: string; faq: { q: string; a: string }[] }[] = [];
     try {
       for (const [lg, loc] of [["en", false], ["de", true], ["es", true]] as [string, boolean][]) {
-        const a = await writeArticle(item.topic, lg, loc);
+        const a = await writeArticle(topic, lg, loc);
         const token = crypto.randomUUID();
         // insert RESILIENTE: si faltan columnas nuevas (SQL 0034 sin correr), las saca y reintenta
         let row: Record<string, unknown> = {

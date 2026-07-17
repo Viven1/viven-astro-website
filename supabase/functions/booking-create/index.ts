@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
 
     // 3) CRM sync: persona → videocall (crear si no existe)
     let leadId: string | null = null;
-    const { data: found } = await service.from("leads").select("id,status").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: found } = await service.from("leads").select("id,status,videocall_at").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const nowIso = new Date().toISOString();
     if (found) {
       leadId = found.id;
