@@ -82,13 +82,24 @@ async function unsubToken(id: string | number): Promise<string> {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
 }
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
-// avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify) —
-// best-effort: si falla, el borrador ya quedó pendiente en el dashboard igual.
-function notifyOutbox(id: string | number) {
+// avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify)
+// Y por push (celular/compu) — pedido explícito, las dos vías juntas.
+// Best-effort en ambas: si fallan, el borrador ya quedó pendiente en el
+// dashboard igual.
+function notifyOutbox(id: string | number, senderKey?: string) {
   fetch(`${SB_URL}/functions/v1/outbox-notify`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
     body: JSON.stringify({ id }),
+  }).catch(() => {});
+  // sender "team" (info@viven.ch) no tiene push_subscriptions propia —
+  // nadie se registra como "team", son Sofia/Sebastian a título personal.
+  // Sin 'to' push-send manda a TODOS los suscriptos en vez de a nadie.
+  const to = senderKey && senderKey !== "team" ? (FROMS[senderKey] || FROMS.team).reply : undefined;
+  fetch(`${SB_URL}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ to, title: "📤 Nuevo borrador para aprobar", body: "Revisá la Bandeja de salida para aprobar o descartar.", url: "/dashboard/?tab=sistema&sub=auto" }),
   }).catch(() => {});
 }
 function fill(t: string, lead: Record<string, unknown>): string {
@@ -285,14 +296,14 @@ Deno.serve(async (req) => {
           // Se guarda CRUDO (con tokens {{first_name}} etc.) — la sección 3 más
           // abajo hace fill()+wrap() recién al aprobar/enviar, con el lead fresco.
           const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: step.subject || "", body: step.body || "", status: "pending" }).select("id").maybeSingle();
-          if (obIns?.id) notifyOutbox(obIns.id);
+          if (obIns?.id) notifyOutbox(obIns.id, step.from);
           out.drafts = (out.drafts || 0) + 1;
         } else if (step.type === "ai_email") {
           // borrador IA → BANDEJA DE SALIDA (nunca sale sin aprobación humana)
           const draft = await aiDraft(lead, String(step.prompt || "Short friendly follow-up about their video project."), step.from || "team");
           if (draft) {
             const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: draft.subject, body: draft.body }).select("id").maybeSingle();
-            if (obIns?.id) notifyOutbox(obIns.id);
+            if (obIns?.id) notifyOutbox(obIns.id, step.from);
             out.drafts = (out.drafts || 0) + 1;
           }
         } else if (step.type === "content_step") {
@@ -323,14 +334,16 @@ Deno.serve(async (req) => {
               category: cfg.category || null, step: stepNum, sender: st.from || "team", subject, body: bodyHtml,
               status: "pending", scheduled_at: schedAt,
             }).select("id").maybeSingle();
-            if (obIns?.id) notifyOutbox(obIns.id);
+            if (obIns?.id) notifyOutbox(obIns.id, st.from);
             out.drafts = (out.drafts || 0) + 1;
           }
           stepsSkippedToEnd = true; // ya no queda nada más que ejecutar en este camino
         } else if (step.type === "task") {
           await service.from("lead_tasks").insert({ lead_id: lead.id, title: "⚙️ " + fill(step.title, lead), due_date: new Date().toISOString().slice(0, 10), done: false });
         } else if (step.type === "push") {
-          await fetch(`${SB_URL}/functions/v1/push-send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "⚙️ " + fill(step.title, lead), body: String(lead.name || lead.email) }) });
+          // fix real: push-send exige auth (usuario logueado o el service
+          // role) — esta llamada nunca mandaba nada, no tenía Authorization.
+          await fetch(`${SB_URL}/functions/v1/push-send`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") }, body: JSON.stringify({ title: "⚙️ " + fill(step.title, lead), body: String(lead.name || lead.email) }) });
         } else if (step.type === "status") {
           await service.from("leads").update({ status: step.value || "contactado" }).eq("id", lead.id);
         }

@@ -47,13 +47,19 @@ function isSwissBusinessHours(d = new Date()): boolean {
   return (mins >= 9 * 60 && mins < 12 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60);
 }
 
-// avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify) —
-// best-effort: si falla, el borrador ya quedó pendiente en el dashboard igual.
-function notifyOutbox(id: string | number) {
+// avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify)
+// Y por push — mismo patrón que automations-run. Best-effort en ambas.
+function notifyOutbox(id: string | number, senderKey?: string) {
   fetch(`${SB_URL}/functions/v1/outbox-notify`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
     body: JSON.stringify({ id }),
+  }).catch(() => {});
+  const snd = SENDER(senderKey || "sofia");
+  fetch(`${SB_URL}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ to: snd.email, title: "📤 Nuevo borrador para aprobar", body: "Revisá la Bandeja de salida para aprobar o descartar.", url: "/dashboard/?tab=sistema&sub=auto" }),
   }).catch(() => {});
 }
 
@@ -120,7 +126,7 @@ Deno.serve(async (req) => {
         lead_id: fu.lead_id, kind: "followup", followup_id: fu.id,
         sender: fu.sender_key || "sofia", subject: fu.subject, body: fu.body, status: "pending",
       }).select("id").maybeSingle();
-      if (obIns?.id) notifyOutbox(obIns.id);
+      if (obIns?.id) notifyOutbox(obIns.id, fu.sender_key);
       drafted++;
     }
 

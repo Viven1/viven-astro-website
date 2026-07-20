@@ -26,11 +26,15 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    // solo usuarios logueados del dashboard pueden disparar pushes
+    // usuarios logueados del dashboard (celular/compu propios) O funciones
+    // internas del server (automations-run/followup-send avisando de un
+    // borrador nuevo) — mismo patrón de bypass que outbox-notify.
     const auth = req.headers.get("Authorization") ?? "";
-    const supa = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
-    const { data: { user } } = await supa.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
+    if (auth !== `Bearer ${SB_SERVICE}`) {
+      const supa = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
+      const { data: { user } } = await supa.auth.getUser();
+      if (!user) return json({ error: "unauthorized" }, 401);
+    }
 
     const { to, title, body, url } = await req.json();
     if (!title) return json({ error: "falta title" }, 400);
