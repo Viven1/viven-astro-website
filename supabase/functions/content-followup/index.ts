@@ -157,7 +157,47 @@ async function notifyBestEffort(id: number) {
   } catch (_e) { /* best-effort */ }
 }
 
+// preview interno: manda los pasos de una categoría a una casilla del equipo
+// SIN pasar por leads/enrollment/outbox — pedido explícito para revisar cómo
+// se ven los emails antes de que le lleguen a un lead real. A propósito NO
+// exige CRON_SECRET (no es el cron, alguien lo llama a mano) pero está
+// limitado a las 3 casillas internas, nunca a un email arbitrario.
+const TEAM_EMAILS = new Set(["sebastian@viven.ch", "sofia@viven.ch", "info@viven.ch"]);
+function wrapEmail(bodyHtml: string): string {
+  return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
+<div style="max-width:600px;margin:0 auto;padding:28px 16px">
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="${SITE}/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
+  <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">${bodyHtml}</div>
+  <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="${SITE}" style="color:#9aa">viven.ch</a></p>
+</div></body>`;
+}
+async function testSend(email: string, category: string): Promise<Response> {
+  if (!TEAM_EMAILS.has(String(email || "").toLowerCase())) return new Response(JSON.stringify({ error: "email_no_permitido" }), { status: 403 });
+  const steps = CONTENT[category];
+  if (!steps || !steps.length) return new Response(JSON.stringify({ error: "sin_contenido_para_categoria", category }), { status: 400 });
+  const RESEND = Deno.env.get("RESEND_API_KEY");
+  const sent = [];
+  for (let i = 0; i < steps.length; i++) {
+    for (const lg of ["en", "de", "es"]) {
+      const s = steps[i];
+      const subject = `[TEST · ${category} · paso ${i + 1}/${steps.length} · ${lg.toUpperCase()}] ` + fillTok(s.subject[lg] || s.subject.en, { first_name: "Sebastian" });
+      const bodyHtml = fillTok(s.body[lg] || s.body.en, { first_name: "Sebastian" });
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: "VIVEN AG <info@viven.ch>", to: [email], subject, html: wrapEmail(bodyHtml) }),
+      });
+      sent.push({ step: i + 1, lang: lg, ok: res.ok });
+    }
+  }
+  return new Response(JSON.stringify({ ok: true, sent }), { headers: { "Content-Type": "application/json" } });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    if (body && body.test_send) return testSend(body.test_send.email, body.test_send.category);
+  }
   if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
     return new Response("forbidden", { status: 403 });
   }
