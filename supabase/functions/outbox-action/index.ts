@@ -1,10 +1,20 @@
 // Supabase Edge Function: outbox-action
-// Botones de UN CLICK del email de outbox-notify (GET, sin login — auth vía
+// Botones de UN CLICK del email de outbox-notify (sin login — auth vía
 // token HMAC-like, mismo esquema que newsletter-unsub). Dos acciones:
 //   ?action=approve → manda el email YA MISMO por Resend (no espera al cron)
 //   ?action=discard → marca el borrador como descartado
 // Nadie más puede aprobar/descartar adivinando IDs porque el token depende
 // del id + un secreto del server (RESEND_API_KEY, igual que el resto del código).
+//
+// fix real (2026-07-20): un GET a esta URL ejecutaba la acción directo —
+// eso es exactamente lo que escáneres de seguridad de email (Safe Links de
+// Microsoft, Link Tracking Protection de Apple Mail, proxies de Gmail)
+// visitan solos para revisar que el link no sea malicioso, ANTES de que la
+// persona lo vea. Resultado real observado: 6 borradores de contenido
+// quedaron con status='approved' sin que Sebastián tocara nada. Ahora un
+// GET solo muestra una página de confirmación (con un <form method="POST">
+// real) — la acción se ejecuta recién en el POST, que ningún escáner
+// automático envía.
 //
 // Deploy: supabase functions deploy outbox-action --no-verify-jwt
 
@@ -22,6 +32,23 @@ const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, 
 const page = (msg: string) => new Response(
   `<!doctype html><meta charset="utf-8"><title>VIVEN — Bandeja de salida</title><body style="font-family:sans-serif;background:#0f1826;color:#f4f6fb;display:grid;place-items:center;min-height:100vh;text-align:center;margin:0"><div style="max-width:420px;padding:24px"><p style="font-size:40px;margin:0">📤</p><h1 style="font-size:20px">${msg}</h1><p style="color:#9aa6bd"><a href="https://www.viven.ch" style="color:#ddf98f">viven.ch</a></p></div>`,
   { headers: { "Content-Type": "text/html; charset=utf-8" } });
+// página de confirmación para el GET — el <form method="POST"> es lo que un
+// escáner de seguridad NUNCA envía (solo sigue GET), así que la acción real
+// queda a salvo de clics fantasma.
+function confirmPage(actionUrl: string, actionLabel: string, danger: boolean, toName: string, subject: string): Response {
+  return new Response(
+    `<!doctype html><meta charset="utf-8"><title>VIVEN — Bandeja de salida</title><body style="font-family:sans-serif;background:#0f1826;color:#f4f6fb;display:grid;place-items:center;min-height:100vh;text-align:center;margin:0"><div style="max-width:420px;padding:24px">
+      <p style="font-size:40px;margin:0 0 8px">📤</p>
+      <h1 style="font-size:18px;margin:0 0 6px">Confirmar acción</h1>
+      <p style="color:#9aa6bd;margin:0 0 4px">Para: <b style="color:#f4f6fb">${esc(toName)}</b></p>
+      <p style="color:#9aa6bd;margin:0 0 20px">Asunto: ${esc(subject)}</p>
+      <form method="POST" action="${esc(actionUrl)}">
+        <button type="submit" style="background:${danger ? "#eee" : "#ddf98f"};color:${danger ? "#333" : "#1c2508"};font-weight:700;font-size:15px;border:0;border-radius:100px;padding:14px 28px;cursor:pointer">${esc(actionLabel)}</button>
+      </form>
+      <p style="color:#9aa6bd;margin-top:18px"><a href="https://www.viven.ch" style="color:#9aa6bd">Cancelar</a></p>
+    </div>`,
+    { headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
 
 const FROMS: Record<string, { from: string; reply: string; name: string }> = {
   sofia: { from: "Sofia Treviño — VIVEN <info@viven.ch>", reply: "sofia@viven.ch", name: "Sofia" },
@@ -84,12 +111,18 @@ Deno.serve(async (req) => {
     const { data: ob, error } = await service.from("outbox").select("*").eq("id", id).maybeSingle();
     if (error || !ob) return page("Borrador no encontrado (¿ya fue procesado?).");
     if (ob.status !== "pending") return page("Este borrador ya se marcó como «" + ob.status + "» — nada que hacer.");
+    if (action !== "approve" && action !== "discard") return page("Acción desconocida.");
+
+    if (req.method !== "POST") {
+      const { data: leadPreview } = await service.from("leads").select("name,email").eq("id", ob.lead_id).maybeSingle();
+      const toName = leadPreview?.name || leadPreview?.email || ("Lead #" + ob.lead_id);
+      return confirmPage(req.url, action === "approve" ? "✅ Sí, aprobar y enviar" : "✕ Sí, descartar", action === "discard", toName, ob.subject);
+    }
 
     if (action === "discard") {
       await service.from("outbox").update({ status: "discarded" }).eq("id", id);
       return page("Descartado — no se envía.");
     }
-    if (action !== "approve") return page("Acción desconocida.");
 
     const notYetDue = ob.scheduled_at && new Date(ob.scheduled_at).getTime() > Date.now();
     if (notYetDue || !isSwissBusinessHours()) {
