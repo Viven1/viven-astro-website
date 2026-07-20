@@ -28,6 +28,21 @@ const RESEND = Deno.env.get("RESEND_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
+// content_followup guarda el body ya como HTML armado (tablas de thumbnails,
+// link cards) — para la preview del email de aviso no sirve escaparlo tal
+// cual (se ve el markup crudo como texto). Lo bajamos a texto plano legible.
+const htmlToPreviewText = (html: string) =>
+  String(html || "")
+    .replace(/<(p|tr|table|div|br)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+
 // mismo esquema que newsletter-unsub / automations-run (sha256 recortado) —
 // pero con una sal propia ("ob|") para que este token no sirva para dar de baja a nadie.
 async function obToken(id: string): Promise<string> {
@@ -72,7 +87,7 @@ Deno.serve(async (req) => {
     <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase">Asunto</p>
     <p style="margin:0 0 16px;font-size:15px;color:#222;font-weight:600">${esc(ob.subject)}</p>
     <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase">Cuerpo</p>
-    <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#444;white-space:pre-wrap">${esc(String(ob.body || "").slice(0, 800))}</p>
+    <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#444;white-space:pre-wrap">${esc((ob.kind === "content_followup" ? htmlToPreviewText(ob.body) : String(ob.body || "")).slice(0, 800))}</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <a href="${approveUrl}" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:100px;display:inline-block">✅ Aprobar y enviar</a>
       <a href="${discardUrl}" style="background:#eee;color:#333;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:100px;display:inline-block">✕ No enviar</a>
