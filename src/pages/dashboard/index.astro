@@ -771,6 +771,12 @@ const newsCases = [
   .bl2-trend.up{color:#7ed957}
   .bl2-trend.dn{color:var(--muted-2)}
   .bl2-dots{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:4px 8px;font-family:inherit}
+  .bl2-cat-bar{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 14px}
+  .bl2-cat-chip{background:transparent;border:1px solid var(--line-strong);border-radius:20px;color:var(--muted);cursor:pointer;font-size:12.5px;font-family:inherit;padding:6px 12px;transition:.15s}
+  .bl2-cat-chip b{font-weight:800;margin-left:3px;color:var(--muted-2)}
+  .bl2-cat-chip:hover{border-color:var(--acid);color:var(--text)}
+  .bl2-cat-chip.on{background:var(--acid);border-color:var(--acid);color:#0f1826;font-weight:700}
+  .bl2-cat-chip.on b{color:#0f1826;opacity:.7}
   .bl2-dots:hover{border-color:var(--acid);color:var(--acid)}
   .bl2-ltabs{display:inline-flex;gap:6px;margin-left:6px}
   .bl2-ltab{background:transparent;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:700 11px Inter,sans-serif;padding:4px 11px;cursor:pointer}
@@ -2133,6 +2139,7 @@ const newsCases = [
 
     <!-- historial: un artículo por fila con badges de idioma + performance -->
     <div class="pp-sec-h" id="bg-list-h" hidden>📚 Artículos <span class="count" id="bl2-count"></span></div>
+    <div id="bl2-cat-filter" class="bl2-cat-bar"></div>
     <div id="bg-list" style="margin-bottom:20px"></div>
 
     <details class="panel lm-fold" id="cq-panel" style="margin-bottom:16px">
@@ -10333,6 +10340,13 @@ const newsCases = [
 
   /* ---- bl2: pageviews del blog (30d) para KPIs + columna Visitas ---- */
   let bl2Views = null, bl2ViewsAt = 0, bl2ViewsBusy = false;
+  // filtro por tipo de video en el historial del blog — pedido explícito:
+  // "el blog no tiene filtros para entender que tipos de blogs tenemos, sino
+  // tienen que leer todo y nadie lo hará". category viene de blogs.category
+  // (SQL 0087), la MISMA clasificación que ya usa content-engine para elegir
+  // la imagen (classify(topic) en content-engine/index.ts).
+  let bl2CatFilter = 'all';
+  const BL2_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', social: '📱 Social', howto: '🎓 How-to', event: '🎪 Event', process: '⚙️ Process', corporate: '🏢 Corporate', general: '📄 General' };
   async function bl2LoadViews(force){
     if (bl2ViewsBusy) return;
     if (!force && bl2Views && Date.now() - bl2ViewsAt < 5 * 60e3) return;
@@ -10383,7 +10397,8 @@ const newsCases = [
       rows.sort((a, b) => (ord[a.lang] ?? 9) - (ord[b.lang] ?? 9));
       const pub = rows.filter((r) => r.status === 'published');
       const main = rows.find((r) => r.lang === 'en') || rows[0];
-      return { key: k, rows, pub, main, pending: pub.length === 0,
+      const category = main.category || rows.find((r) => r.category)?.category || 'general';
+      return { key: k, rows, pub, main, category, pending: pub.length === 0,
         date: Math.max(...rows.map((r) => +new Date(r.published_at || r.updated_at || r.created_at || 0))) };
     });
   }
@@ -12106,9 +12121,21 @@ const newsCases = [
       : '';
 
     // 2) historial: una fila por artículo (grupo) con performance
-    const hist = groups.filter((g) => !g.pending).sort((a, b) => b.date - a.date);
-    $('bg-list-h').hidden = !hist.length;
-    const cnt = $('bl2-count'); if (cnt) cnt.textContent = '(' + hist.length + ')';
+    const histAll = groups.filter((g) => !g.pending).sort((a, b) => b.date - a.date);
+    $('bg-list-h').hidden = !histAll.length;
+    const cnt = $('bl2-count'); if (cnt) cnt.textContent = '(' + histAll.length + ')';
+
+    // chips de filtro: uno por categoría presente + "Todos", con conteo real
+    const catCounts = {}; histAll.forEach((g) => { catCounts[g.category] = (catCounts[g.category] || 0) + 1; });
+    const catBox = $('bl2-cat-filter');
+    if (catBox) {
+      const cats = Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a]);
+      if (!cats.includes(bl2CatFilter) && bl2CatFilter !== 'all') bl2CatFilter = 'all';
+      catBox.innerHTML = '<button type="button" class="bl2-cat-chip' + (bl2CatFilter === 'all' ? ' on' : '') + '" data-cat="all">Todos <b>' + histAll.length + '</b></button>' +
+        cats.map((c) => '<button type="button" class="bl2-cat-chip' + (bl2CatFilter === c ? ' on' : '') + '" data-cat="' + esc(c) + '">' + esc(BL2_CAT_LBL[c] || c) + ' <b>' + catCounts[c] + '</b></button>').join('');
+      catBox.querySelectorAll('[data-cat]').forEach((btn) => btn.addEventListener('click', () => { bl2CatFilter = btn.dataset.cat; renderBlogList(); }));
+    }
+    const hist = bl2CatFilter === 'all' ? histAll : histAll.filter((g) => g.category === bl2CatFilter);
     box.innerHTML = hist.length ?
       '<div class="lead-table-wrap"><table class="lead-table bl2-table"><thead><tr>' +
       '<th>Artículo</th><th>Idiomas</th><th style="text-align:right">Visitas 30d</th><th style="text-align:right">Tendencia</th><th>Publicado</th><th style="width:38px"></th>' +

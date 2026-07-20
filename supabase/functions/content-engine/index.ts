@@ -422,6 +422,7 @@ Deno.serve(async (req) => {
           eyebrow: a.eyebrow || "Industry insight", lead: a.lead, body_html: a.body_html, faq: a.faq,
           status: "draft", group_id: groupId, hero_image: media.hero, video_id: media.video, approve_token: token,
           target_keyword: targetKeyword, keyword_current_position: kwGsc.position, keyword_verdict: kw.verdict, keyword_verdict_why: kw.why,
+          category: classify(topic),
         };
         let ins = await service.from("blogs").insert(row).select("id").single();
         for (let tries = 0; ins.error && tries < 4; tries++) {
