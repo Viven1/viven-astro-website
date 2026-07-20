@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     } catch (_e) { /* best-effort */ }
 
     const to = SENDER_EMAIL[ob.sender] || SENDER_EMAIL.team;
-    const kindLabel = ob.kind === "followup" ? "📬 Follow-up" : "⚙️ Workflow";
+    const kindLabel = ob.kind === "followup" ? "📬 Follow-up" : ob.kind === "content_followup" ? "🎯 " + (ob.category || "Contenido") : "⚙️ Workflow";
     const token = await obToken(id);
     const approveUrl = `${SB_URL}/functions/v1/outbox-action?id=${encodeURIComponent(id)}&action=approve&token=${token}`;
     const discardUrl = `${SB_URL}/functions/v1/outbox-action?id=${encodeURIComponent(id)}&action=discard&token=${token}`;

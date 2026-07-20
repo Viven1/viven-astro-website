@@ -50,6 +50,18 @@ function wrap(bodyText: string, unsub: string, lang: string, sender: string): st
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${bye}</a></p>
 </div></body>`;
 }
+// content-followup arma su body como HTML ya listo (thumbnails de video +
+// link cards) del lado del server, no texto libre — a diferencia de wrap(),
+// NO se escapa (si no, <img>/<table> quedarían como texto literal en el mail).
+function wrapRaw(bodyHtml: string, unsub: string, lang: string): string {
+  const bye = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" }[lang] || "Unsubscribe";
+  return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
+<div style="max-width:600px;margin:0 auto;padding:28px 16px">
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
+  <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">${bodyHtml}</div>
+  <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${bye}</a></p>
+</div></body>`;
+}
 
 Deno.serve(async (req) => {
   try {
@@ -76,6 +88,8 @@ Deno.serve(async (req) => {
     const subjectFilled = fill(ob.subject, lead);
     const htmlFilled = ob.kind === "followup"
       ? `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230"><div style="border:1px solid #e8eaef;border-radius:14px;padding:26px 28px"><div style="font-size:15px;line-height:1.7;white-space:pre-wrap">${esc(fill(ob.body, lead))}</div></div></div>`
+      : ob.kind === "content_followup"
+      ? wrapRaw(fill(ob.body, lead), unsub, String(lead.lang || "en"))
       : wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), F.name);
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

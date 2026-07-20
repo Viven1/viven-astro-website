@@ -2286,6 +2286,34 @@ const newsCases = [
       </div>
     </div>
 
+    <div class="panel" style="margin-top:14px">
+      <div class="draft-head">
+        <h2 style="margin:0">🎯 Follow-up de contenido <span class="count" id="cfw-stats"></span></h2>
+        <button class="btn btn-ghost small" id="cfw-toggle" type="button">…</button>
+      </div>
+      <p class="muted-note" style="margin:8px 0 0">Reemplaza al nurture genérico: la categoría (📦 Product / 🎬 Brand / 👥 Employer branding / 🎓 How-to / 📱 Social / 🏢 Corporate) se detecta sola del mensaje de la calculadora, y cada paso manda videos de portfolio y posts de blog reales de esa categoría — no texto genérico. <b>①</b> +2 días: videos de ejemplo · <b>②</b> +5 días: blog · <b>③</b> +9 días: blog + cierre suave. Se frena solo si el lead ya fue contactado, y se apaga entero con el botón de arriba. <b>Ningún paso sale solo</b> — los tres caen a 📤 Bandeja de salida para tu OK.</p>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="draft-head">
+        <h2 style="margin:0">👥 Quién está adentro <span class="count" id="cfw-roster-n"></span></h2>
+      </div>
+      <p class="muted-note" style="margin:6px 0 10px">Se agregan solos los leads que vinieron de la calculadora (podés pausarlos acá) o agregá vos a alguien puntual, eligiendo qué categoría de contenido le corresponde.</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select id="cfw-add-lead" style="flex:1;min-width:200px"></select>
+        <select id="cfw-add-cat" style="min-width:160px">
+          <option value="product">📦 Product video</option>
+          <option value="brand">🎬 Brand film</option>
+          <option value="employer">👥 Employer branding</option>
+          <option value="howto">🎓 How-to / explainer</option>
+          <option value="social">📱 Social media</option>
+          <option value="corporate">🏢 Corporate film</option>
+        </select>
+        <button class="btn btn-ghost small" id="cfw-add-btn" type="button">➕ Agregar persona</button>
+      </div>
+      <div id="cfw-roster-list"><p class="muted-note">Cargando…</p></div>
+    </div>
+
   </div>
     <div id="contenido-sub-seo" hidden>
       <div class="of-bar" style="margin-bottom:14px">
@@ -7560,6 +7588,13 @@ const newsCases = [
       $('au-pre-dor') && $('au-pre-dor').addEventListener('click', auGuard(() => auPreset('dor')));
       $('au-enroll-add') && $('au-enroll-add').addEventListener('click', auGuard(auEnrollPerson));
 
+      $('cfw-toggle') && $('cfw-toggle').addEventListener('click', async () => {
+        const on = !$('cfw-toggle').dataset.on;
+        const { error } = await supabase.from('app_settings').upsert({ key: 'content_followup', value: { enabled: on }, updated_at: new Date().toISOString() });
+        if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0086' : error.message); return; }
+        toast(on ? '🎯 Follow-up de contenido ENCENDIDO' : 'Follow-up de contenido apagado'); newsInit();
+      });
+      $('cfw-add-btn') && $('cfw-add-btn').addEventListener('click', cfwAddPerson);
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -10756,7 +10791,8 @@ const newsCases = [
     obBadgeRefresh();
     $('ob-list').innerHTML = obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
-      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : '⚙️ Workflow';
+      const CFW_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', howto: '🎓 How-to', social: '📱 Social', corporate: '🏢 Corporate' };
+      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : '⚙️ Workflow';
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
@@ -11564,6 +11600,60 @@ const newsCases = [
   }
 
   let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [], nwBlocks = [];
+  const CFW_CATS = [['product', '📦 Product video'], ['brand', '🎬 Brand film'], ['employer', '👥 Employer branding'], ['howto', '🎓 How-to / explainer'], ['social', '📱 Social media'], ['corporate', '🏢 Corporate film']];
+  const CFW_CAT_NAME = Object.fromEntries(CFW_CATS);
+  async function cfwLoad(){
+    const box = $('cfw-roster-list'), n = $('cfw-roster-n'), sel = $('cfw-add-lead');
+    if (!box) return;
+    if (sel){ sel.innerHTML = '<option value="">Elegir persona…</option>' + (allLeads || []).slice().sort((x, y) => (x.name || x.email || '').localeCompare(y.name || y.email || '')).map((l) => '<option value="' + l.id + '">' + esc(l.name || l.email) + '</option>').join(''); leadPicker(sel); }
+    try {
+      const [{ data: rows, error }, { data: logs }, { data: obs }] = await Promise.all([
+        supabase.from('content_followup_state').select('*').order('enrolled_at', { ascending: false }),
+        supabase.from('content_followup_log').select('lead_id,category,step'),
+        supabase.from('outbox').select('lead_id,category,step,status').eq('kind', 'content_followup').in('status', ['pending', 'approved']),
+      ]);
+      if (error){ box.innerHTML = '<p class="muted-note">⚠️ ' + (/relation|does not exist/i.test(error.message) ? 'Falta correr el SQL 0086' : esc(error.message)) + '</p>'; if (n) n.textContent = ''; return; }
+      const st = rows || [];
+      if (n) n.textContent = st.length ? '(' + st.length + ')' : '';
+      if (!st.length){ box.innerHTML = '<p class="muted-note">Nadie inscripto todavía — entran solos los leads de la calculadora (o agregá a alguien arriba).</p>'; return; }
+      const sentBy = {}; (logs || []).forEach((l) => { const k = l.lead_id + '|' + l.category; (sentBy[k] = sentBy[k] || new Set()).add(l.step); });
+      const waitingBy = {}; (obs || []).forEach((o) => { waitingBy[o.lead_id + '|' + o.category] = o.step; });
+      const circled = { 1: '①', 2: '②', 3: '③' };
+      box.innerHTML = st.map((s) => {
+        const l = leadById(s.lead_id) || {};
+        const key = s.lead_id + '|' + s.category;
+        const done = sentBy[key] || new Set();
+        const wStep = waitingBy[key];
+        const progress = [1, 2, 3].map((i) => (done.has(i) ? '✅' : wStep === i ? '📤' : '⚪') + circled[i]).join(' ');
+        const waitNote = wStep ? '<div class="au-enr-step" style="color:var(--acid)">📤 Paso ' + wStep + ' esperando tu OK en 📤 Bandeja de salida</div>' : '';
+        const badge = s.status === 'active' ? 'active' : 'stopped';
+        const badgeTxt = s.status === 'active' ? '🟢 Activo' : '⏸ Pausado';
+        return '<div class="au-enr-row" data-nid="' + s.id + '">' +
+          '<div class="au-enr-main"><div class="au-enr-name">' + esc(l.name || l.email || ('Lead #' + s.lead_id)) + ' · ' + esc(CFW_CAT_NAME[s.category] || s.category) + (s.source === 'manual' ? ' · agregado a mano' : '') + '</div>' +
+          '<div class="au-enr-step">' + progress + '</div>' + waitNote + '</div>' +
+          '<span class="au-enr-badge ' + badge + '">' + badgeTxt + '</span>' +
+          '<div class="au-enr-actions">' +
+          (s.status === 'active' ? '<button data-act="pause" type="button">⏸ Pausar</button>' : '<button data-act="resume" type="button">▶️ Activar</button>') +
+          '<button data-act="del" type="button">🗑</button></div></div>';
+      }).join('');
+      box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+        const row = btn.closest('.au-enr-row'), nid = +row.dataset.nid, act = btn.dataset.act;
+        if (act === 'pause') await supabase.from('content_followup_state').update({ status: 'paused', updated_at: new Date().toISOString() }).eq('id', nid);
+        else if (act === 'resume') await supabase.from('content_followup_state').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', nid);
+        else if (act === 'del'){ if (!confirm('¿Sacar a esta persona del follow-up del todo?')) return; await supabase.from('content_followup_state').delete().eq('id', nid); }
+        cfwLoad();
+      }));
+    } catch (e) { box.innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
+  }
+  async function cfwAddPerson(){
+    const leadId = $('cfw-add-lead').value; if (!leadId){ toast('Elegí una persona'); return; }
+    const category = $('cfw-add-cat').value;
+    const { error } = await supabase.from('content_followup_state').insert({ lead_id: +leadId, category, status: 'active', source: 'manual' });
+    if (error){ toast(/duplicate|unique/i.test(error.message) ? 'Esa persona ya está en esa categoría' : '⚠️ ' + error.message); return; }
+    toast('➕ Agregado — entra en la próxima corrida (≤1h)');
+    $('cfw-add-lead').value = '';
+    cfwLoad();
+  }
   // ===== bloques de contenido (editor) =====
   const NW_CTA_DESTS = [['calculator', 'Calculadora'], ['brief', 'Brief'], ['call', 'Agendar call'], ['custom', 'URL propia…']];
   function nwDerivedBody(){ return nwBlocks.filter((b) => b.type === 'text').map((b) => String(b.text || '').trim()).filter(Boolean).join('\n\n'); }
@@ -11761,6 +11851,18 @@ const newsCases = [
     // editor: inicializar si está vacío
     if (!$('nw-editor').children.length) nwRenderEditor();
     nwUpdateSendPanel();
+
+    (async () => { try {
+      const [{ data: st }, { data: lg }] = await Promise.all([
+        supabase.from('app_settings').select('value').eq('key', 'content_followup').maybeSingle(),
+        supabase.from('content_followup_log').select('step'),
+      ]);
+      const on = !(st && st.value && st.value.enabled === false);
+      const btn = $('cfw-toggle'); if (btn){ btn.textContent = on ? '🟢 Activo — apagar' : '⚪ Apagado — encender'; btn.dataset.on = on ? '1' : ''; }
+      const c = { 1: 0, 2: 0, 3: 0 }; (lg || []).forEach((x) => c[x.step] = (c[x.step] || 0) + 1);
+      if ($('cfw-stats')) $('cfw-stats').textContent = '① ' + c[1] + ' · ② ' + c[2] + ' · ③ ' + c[3] + ' enviados';
+    } catch (e) { if ($('cfw-stats')) $('cfw-stats').textContent = 'falta SQL 0086'; } })();
+    cfwLoad();
 
     // agregado de envíos por campaña
     const agg = {};
