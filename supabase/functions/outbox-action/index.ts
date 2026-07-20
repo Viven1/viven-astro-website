@@ -86,7 +86,6 @@ Deno.serve(async (req) => {
     await service.from("outbox").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", id);
     await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id).then(() => {}, () => {});
     if (ob.kind === "followup" && ob.followup_id) await service.from("lead_followups").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.followup_id).then(() => {}, () => {});
-    if (ob.kind === "nurture" && ob.step) await service.from("nurture_log").insert({ lead_id: ob.lead_id, step: ob.step }).then(() => {}, () => {});
     await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: subjectFilled, body: htmlFilled, sender_label: F.name, source: "outbox-action" }).then(() => {}, () => {});
     return page("✅ Enviado a " + lead.email + ".");
   } catch (e) {

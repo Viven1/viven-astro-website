@@ -6,7 +6,7 @@
 //   .../functions/v1/outbox-action?id=<id>&action=discard&token=<t>
 // El token es el mismo esquema que newsletter-unsub: sha256(id + secret) recortado.
 //
-// Llamada BEST-EFFORT desde automations-run/nurture/followup-send justo
+// Llamada BEST-EFFORT desde automations-run/followup-send justo
 // después de insertar una fila en outbox — si esta función falla, NO bloquea
 // el flujo principal (el borrador ya quedó pendiente en el dashboard igual).
 // No la llama ningún cron todavía — se dispara manualmente desde las otras
@@ -28,7 +28,7 @@ const RESEND = Deno.env.get("RESEND_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
-// mismo esquema que newsletter-unsub / automations-run / nurture (sha256 recortado) —
+// mismo esquema que newsletter-unsub / automations-run (sha256 recortado) —
 // pero con una sal propia ("ob|") para que este token no sirva para dar de baja a nadie.
 async function obToken(id: string): Promise<string> {
   const data = new TextEncoder().encode("ob|" + String(id) + "|" + RESEND.slice(0, 24));
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     } catch (_e) { /* best-effort */ }
 
     const to = SENDER_EMAIL[ob.sender] || SENDER_EMAIL.team;
-    const kindLabel = ob.kind === "nurture" ? "🌱 Nurture" : ob.kind === "followup" ? "📬 Follow-up" : "⚙️ Workflow";
+    const kindLabel = ob.kind === "followup" ? "📬 Follow-up" : "⚙️ Workflow";
     const token = await obToken(id);
     const approveUrl = `${SB_URL}/functions/v1/outbox-action?id=${encodeURIComponent(id)}&action=approve&token=${token}`;
     const discardUrl = `${SB_URL}/functions/v1/outbox-action?id=${encodeURIComponent(id)}&action=discard&token=${token}`;

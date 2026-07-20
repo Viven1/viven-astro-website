@@ -2286,25 +2286,6 @@ const newsCases = [
       </div>
     </div>
 
-    <div class="panel" style="margin-top:14px">
-      <div class="draft-head">
-        <h2 style="margin:0">🌱 Nurture automático <span class="count" id="nur-stats"></span></h2>
-        <button class="btn btn-ghost small" id="nur-toggle" type="button">…</button>
-      </div>
-      <p class="muted-note" style="margin:8px 0 0">Secuencia a leads nuevos: <b>①</b> bienvenida a los ~30 min ("oferta en 48h" + showreel; si vino de la calculadora, recap del rango) · <b>②</b> +3 días: case study según su interés + testimonials · <b>③</b> +7 días: último toque suave con booking. Los pasos ②③ solo salen si el lead sigue SIN CONTACTAR (si ya lo trabajás, se frenan solos) y se apagan con el botón de arriba (para todos de una). Nunca a bajas ni tests; máximo un email por paso. <b>Ningún paso sale solo</b> — los tres caen como borrador a 📤 Bandeja de salida (abajo, en Workflows) para tu OK.</p>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <div class="draft-head">
-        <h2 style="margin:0">👥 Quién está adentro <span class="count" id="nur-roster-n"></span></h2>
-      </div>
-      <p class="muted-note" style="margin:6px 0 10px">Se agregan solos los leads nuevos (podés pausarlos acá) o agregá vos a alguien puntual.</p>
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <select id="nur-add-lead" style="flex:1;min-width:200px"></select>
-        <button class="btn btn-ghost small" id="nur-add-btn" type="button">➕ Agregar persona</button>
-      </div>
-      <div id="nur-roster-list"><p class="muted-note">Cargando…</p></div>
-    </div>
   </div>
     <div id="contenido-sub-seo" hidden>
       <div class="of-bar" style="margin-bottom:14px">
@@ -2565,7 +2546,7 @@ const newsCases = [
         <h2 style="margin:0">📤 Bandeja de salida <span class="count" id="ob-count"></span></h2>
         <button class="btn btn-ghost small" id="ob-approve-all" type="button" hidden>✅ Aprobar todos</button>
       </div>
-      <p class="muted-note" style="margin:6px 0 10px">Acá caen TODOS los borradores automáticos — workflows (📧/🤖), 🌱 nurture y 📬 follow-ups — sin excepción, ninguno sale solo. Editá, cambiá el remitente, posponé o descartá. Los aprobados salen en la próxima corrida del motor correspondiente (nurture: cada hora · workflows/follow-ups: máx. 30 min).</p>
+      <p class="muted-note" style="margin:6px 0 10px">Acá caen TODOS los borradores automáticos — workflows (📧/🤖) y 📬 follow-ups — sin excepción, ninguno sale solo. Editá, cambiá el remitente, posponé o descartá. Los aprobados salen en la próxima corrida del motor correspondiente (máx. 30 min).</p>
       <div id="ob-list"><p class="muted-note">Bandeja vacía.</p></div>
     </div>
 
@@ -7579,13 +7560,6 @@ const newsCases = [
       $('au-pre-dor') && $('au-pre-dor').addEventListener('click', auGuard(() => auPreset('dor')));
       $('au-enroll-add') && $('au-enroll-add').addEventListener('click', auGuard(auEnrollPerson));
 
-      $('nur-toggle') && $('nur-toggle').addEventListener('click', async () => {
-        const on = !$('nur-toggle').dataset.on;
-        const { error } = await supabase.from('app_settings').upsert({ key: 'nurture', value: { enabled: on }, updated_at: new Date().toISOString() });
-        if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0040' : error.message); return; }
-        toast(on ? '🌱 Nurture ②③ ENCENDIDO' : 'Nurture ②③ apagado'); newsInit();
-      });
-      $('nur-add-btn') && $('nur-add-btn').addEventListener('click', nurAddPerson);
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -10782,7 +10756,7 @@ const newsCases = [
     obBadgeRefresh();
     $('ob-list').innerHTML = obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
-      const srcTag = o.kind === 'nurture' ? '🌱 Nurture · paso ' + o.step : o.kind === 'followup' ? '📬 Follow-up' : '⚙️ Workflow';
+      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : '⚙️ Workflow';
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
@@ -10832,25 +10806,10 @@ const newsCases = [
   /* =========================================================================
      📚 PLANTILLAS (SQL 0062 email_templates) — Task A. Lista TODOS los
      touchpoints conocidos; "wired" marca cuáles ya leen la tabla server-side
-     (calc-email, booking-create, nurture paso 1) — los demás quedan editables
+     (calc-email, booking-create) — los demás quedan editables
      acá para cuando se sume el lookup del lado del edge function (follow-up).
      ========================================================================= */
   const TMPL_TOUCHPOINTS = [
-    { key: 'nurture_step1', label: '🌱 Nurture — Paso 1 (bienvenida)', wired: true, vars: ['first_name', 'calc_range'], defaults: {
-      en: { subject: 'We got your request — concept & quote within 48h', body: "Thanks for reaching out to Viven. A real human (one of us two) is already looking at your request — you'll get three concept directions, timing and a clear fixed quote within 48 hours on business days.\n\nYour calculator estimate ({{calc_range}}) came through with your selections — we'll refine it into an exact quote.\n\nMeanwhile, 90 seconds of what we do: watch our showreel at vimeo.com/1057568537.\n\nIn a hurry? Grab a free 15-min slot at viven.ch/book/ and let's talk it through." },
-      de: { subject: 'Anfrage erhalten — Konzept & Offerte innert 48h', body: 'Danke für Ihre Anfrage bei Viven. Ein echter Mensch (einer von uns beiden) schaut sie sich bereits an — Sie erhalten innert 48 Stunden (werktags) drei Konzeptrichtungen, Timing und eine klare Fixofferte.\n\nIhre Rechner-Schätzung ({{calc_range}}) ist mit Ihren Angaben angekommen — wir verfeinern sie zu einer exakten Offerte.\n\nIn der Zwischenzeit: 90 Sekunden, was wir tun — Showreel auf vimeo.com/1057568537.\n\nEilig? Buchen Sie einen gratis 15-Min-Slot auf viven.ch/book/ und wir besprechen es direkt.' },
-      es: { subject: 'Recibimos tu consulta — concepto y presupuesto en 48h', body: 'Gracias por escribirle a Viven. Un humano de verdad (uno de nosotros dos) ya está mirando tu consulta — en 48 horas hábiles vas a tener tres direcciones de concepto, tiempos y un presupuesto fijo claro.\n\nTu estimación de la calculadora ({{calc_range}}) llegó con tu configuración — la vamos a afinar a un presupuesto exacto.\n\nMientras tanto, 90 segundos de lo que hacemos: mirá nuestro showreel en vimeo.com/1057568537.\n\n¿Apuro? Reservá 15 minutos gratis en viven.ch/book/ y lo hablamos directo.' },
-    } },
-    { key: 'nurture_step2', label: '🌱 Nurture — Paso 2 (case study)', wired: false, vars: ['first_name'], defaults: {
-      en: { subject: 'How brands like Siemens use video (2-min read)', body: "While your project idea is fresh: here's a story close to what you're planning — goal, approach and what it changed.\n\nAnd if you want the receipts: every single Google review is 5 stars (viven.ch/en/testimonials/)." },
-      de: { subject: 'Wie Marken wie Siemens Video einsetzen (2 Min.)', body: 'Solange Ihre Projektidee frisch ist: eine Geschichte nah an dem, was Sie planen — Ziel, Vorgehen und was sie bewirkt hat.\n\nUnd wer Beweise will: jede einzelne Google-Bewertung hat 5 Sterne (viven.ch/de/testimonials/).' },
-      es: { subject: 'Cómo marcas como Siemens usan el video (2 min)', body: 'Mientras tu idea sigue fresca: una historia parecida a lo que estás planeando — objetivo, enfoque y qué cambió.\n\nY si querés pruebas: todas nuestras reseñas de Google son de 5 estrellas (viven.ch/es/testimonios/).' },
-    } },
-    { key: 'nurture_step3', label: '🌱 Nurture — Paso 3 (último toque)', wired: false, vars: ['first_name'], defaults: {
-      en: { subject: 'Should we keep your video project warm?', body: "No pressure — projects have their own timing. If it's still on your mind, two easy ways forward: book a free 15-min call at viven.ch/book/.\n\nOr get an instant number: calculate your video cost in 60 seconds at viven.ch/en/video-cost-calculator/. If now isn't the moment, just ignore this — we won't keep nudging." },
-      de: { subject: 'Sollen wir Ihr Videoprojekt warmhalten?', body: 'Kein Druck — Projekte haben ihr eigenes Timing. Falls es noch aktuell ist, zwei einfache Wege: gratis 15-Min-Call buchen auf viven.ch/book/.\n\nOder sofort eine Zahl: Videokosten in 60 Sekunden berechnen auf viven.ch/de/videoproduktion-kosten-rechner/. Falls es gerade nicht passt, einfach ignorieren — wir haken nicht weiter nach.' },
-      es: { subject: '¿Mantenemos tu proyecto de video en el radar?', body: 'Sin presión — los proyectos tienen su propio timing. Si sigue en tu cabeza, dos caminos fáciles: reservar llamada gratis de 15 min en viven.ch/book/.\n\nO un número al instante: calculá el costo de tu video en 60 segundos en viven.ch/es/calculadora-costos-video/. Si no es el momento, ignorá este mail — no vamos a insistir.' },
-    } },
     { key: 'calc_result', label: '🧮 Calculadora — resultado', wired: true, vars: ['first_name', 'range'], defaults: {
       en: { subject: 'Your video cost estimate: CHF', body: "Thank you for your enquiry — here is the cost estimate you requested, based on real budgets from over 100 Swiss productions for brands like UBS, Siemens and FIFA.\n\nYour range: {{range}}\n\nEvery project is different, and these figures are an honest starting point — not a fixed quote. If the estimate sits above your budget, we can usually help bring the costs down: adjusting shoot days, scope or format, without compromising the result. If you'd like to go through the details, don't hesitate to contact us — we're happy to think along with you.\n\nBook a free 15-min call at viven.ch/book/.\n\nPrefer email? Just reply to this message — it lands directly with me." },
       de: { subject: 'Ihre Videokosten-Schätzung: CHF', body: 'vielen Dank für Ihre Anfrage — hier ist die gewünschte Kostenschätzung, basierend auf echten Budgets aus über 100 Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.\n\nIhre Spanne: {{range}}\n\nJedes Projekt ist anders — diese Zahlen sind ein ehrlicher Richtwert, keine fixe Offerte. Liegt die Schätzung über Ihrem Budget, helfen wir gerne, die Kosten zu senken: über Drehtage, Umfang oder Format, ohne Kompromisse beim Resultat. Möchten Sie ins Detail gehen? Kontaktieren Sie uns jederzeit — wir denken gerne mit.\n\nGratis 15-Min-Call buchen auf viven.ch/book/.\n\nLieber per E-Mail? Antworten Sie einfach auf diese Nachricht — sie landet direkt bei mir.' },
@@ -11605,56 +11564,6 @@ const newsCases = [
   }
 
   let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [], nwBlocks = [];
-  async function nurLoad(){
-    const box = $('nur-roster-list'), n = $('nur-roster-n'), sel = $('nur-add-lead');
-    if (!box) return;
-    if (sel){ sel.innerHTML = '<option value="">Elegir persona…</option>' + (allLeads || []).slice().sort((x, y) => (x.name || x.email || '').localeCompare(y.name || y.email || '')).map((l) => '<option value="' + l.id + '">' + esc(l.name || l.email) + '</option>').join(''); leadPicker(sel); }
-    try {
-      const [{ data: rows, error }, { data: logs }, { data: obs }] = await Promise.all([
-        supabase.from('nurture_state').select('*').order('enrolled_at', { ascending: false }),
-        supabase.from('nurture_log').select('lead_id,step'),
-        supabase.from('outbox').select('lead_id,step,status').eq('kind', 'nurture').in('status', ['pending', 'approved']),
-      ]);
-      if (error){ box.innerHTML = '<p class="muted-note">⚠️ ' + (/relation|does not exist/i.test(error.message) ? 'Falta correr el SQL 0053' : esc(error.message)) + '</p>'; if (n) n.textContent = ''; return; }
-      const st = rows || [];
-      if (n) n.textContent = st.length ? '(' + st.length + ')' : '';
-      if (!st.length){ box.innerHTML = '<p class="muted-note">Nadie inscripto todavía — entran solos los leads nuevos (o agregá a alguien arriba).</p>'; return; }
-      const sentBy = {}; (logs || []).forEach((l) => { (sentBy[l.lead_id] = sentBy[l.lead_id] || new Set()).add(l.step); });
-      const waitingBy = {}; (obs || []).forEach((o) => { waitingBy[o.lead_id] = o.step; });
-      const circled = { 1: '①', 2: '②', 3: '③' };
-      box.innerHTML = st.map((s) => {
-        const l = leadById(s.lead_id) || {};
-        const done = sentBy[s.lead_id] || new Set();
-        const wStep = waitingBy[s.lead_id];
-        const progress = [1, 2, 3].map((i) => (done.has(i) ? '✅' : wStep === i ? '📤' : '⚪') + circled[i]).join(' ');
-        const waitNote = wStep ? '<div class="au-enr-step" style="color:var(--acid)">📤 Paso ' + wStep + ' esperando tu OK en 📤 Bandeja de salida</div>' : '';
-        const badge = s.status === 'active' ? 'active' : 'stopped';
-        const badgeTxt = s.status === 'active' ? '🟢 Activo' : '⏸ Pausado';
-        return '<div class="au-enr-row" data-nid="' + s.id + '">' +
-          '<div class="au-enr-main"><div class="au-enr-name">' + esc(l.name || l.email || ('Lead #' + s.lead_id)) + (s.source === 'manual' ? ' · agregado a mano' : '') + '</div>' +
-          '<div class="au-enr-step">' + progress + '</div>' + waitNote + '</div>' +
-          '<span class="au-enr-badge ' + badge + '">' + badgeTxt + '</span>' +
-          '<div class="au-enr-actions">' +
-          (s.status === 'active' ? '<button data-act="pause" type="button">⏸ Pausar</button>' : '<button data-act="resume" type="button">▶️ Activar</button>') +
-          '<button data-act="del" type="button">🗑</button></div></div>';
-      }).join('');
-      box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
-        const row = btn.closest('.au-enr-row'), nid = +row.dataset.nid, act = btn.dataset.act;
-        if (act === 'pause') await supabase.from('nurture_state').update({ status: 'paused', updated_at: new Date().toISOString() }).eq('id', nid);
-        else if (act === 'resume') await supabase.from('nurture_state').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', nid);
-        else if (act === 'del'){ if (!confirm('¿Sacar a esta persona del nurture del todo?')) return; await supabase.from('nurture_state').delete().eq('id', nid); }
-        nurLoad();
-      }));
-    } catch (e) { box.innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
-  }
-  async function nurAddPerson(){
-    const leadId = $('nur-add-lead').value; if (!leadId){ toast('Elegí una persona'); return; }
-    const { error } = await supabase.from('nurture_state').insert({ lead_id: +leadId, status: 'active', source: 'manual' });
-    if (error){ toast(/duplicate|unique/i.test(error.message) ? 'Esa persona ya está en el nurture' : '⚠️ ' + error.message); return; }
-    toast('➕ Agregado — entra en la próxima corrida (≤1h)');
-    $('nur-add-lead').value = '';
-    nurLoad();
-  }
   // ===== bloques de contenido (editor) =====
   const NW_CTA_DESTS = [['calculator', 'Calculadora'], ['brief', 'Brief'], ['call', 'Agendar call'], ['custom', 'URL propia…']];
   function nwDerivedBody(){ return nwBlocks.filter((b) => b.type === 'text').map((b) => String(b.text || '').trim()).filter(Boolean).join('\n\n'); }
@@ -11852,18 +11761,6 @@ const newsCases = [
     // editor: inicializar si está vacío
     if (!$('nw-editor').children.length) nwRenderEditor();
     nwUpdateSendPanel();
-
-    (async () => { try {
-      const [{ data: st }, { data: lg }] = await Promise.all([
-        supabase.from('app_settings').select('value').eq('key', 'nurture').maybeSingle(),
-        supabase.from('nurture_log').select('step'),
-      ]);
-      const on = !(st && st.value && st.value.enabled === false);
-      const btn = $('nur-toggle'); if (btn){ btn.textContent = on ? '🟢 Pasos ②③ activos — apagar' : '⚪ Pasos ②③ apagados — encender'; btn.dataset.on = on ? '1' : ''; }
-      const c = { 1: 0, 2: 0, 3: 0 }; (lg || []).forEach((x) => c[x.step] = (c[x.step] || 0) + 1);
-      if ($('nur-stats')) $('nur-stats').textContent = '① ' + c[1] + ' · ② ' + c[2] + ' · ③ ' + c[3] + ' enviados';
-    } catch (e) { if ($('nur-stats')) $('nur-stats').textContent = 'falta SQL 0040'; } })();
-    nurLoad();
 
     // agregado de envíos por campaña
     const agg = {};

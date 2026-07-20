@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
       out.steps++;
       await new Promise((ok) => setTimeout(ok, 120));
     }
-    // ============ 3) BANDEJA: enviar los aprobados (los de nurture los envía y marca la función nurture) ============
+    // ============ 3) BANDEJA: enviar los aprobados ============
     const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").eq("kind", "workflow").limit(50);
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();

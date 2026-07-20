@@ -12,7 +12,7 @@
 //      del lead) y se manda por Resend.
 //
 // Por qué dos fases y no mandar directo al aprobar en outbox: mismo motor que
-// automations-run/nurture — el outbox es la ÚNICA puerta de salida.
+// automations-run — el outbox es la ÚNICA puerta de salida.
 //
 // Deploy:    supabase functions deploy followup-send --no-verify-jwt
 // Schedule:  Supabase Dashboard → Edge Functions → followup-send → Schedules → */30 * * * *
@@ -21,7 +21,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-// fix (auditoría 2026-07-14): sin auth, mismo riesgo que automations-run/nurture — cron
+// fix (auditoría 2026-07-14): sin auth, mismo riesgo que automations-run — cron
 // pausado (migración 0060) pero función directamente invocable. Exige el secret compartido.
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
