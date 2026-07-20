@@ -77,9 +77,16 @@ function notifyOutbox(id: string | number) {
 }
 function fill(t: string, lead: Record<string, unknown>): string {
   const first = String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim();
+  // {{last_name}} — para saludos formales en alemán ("Guten Tag {{last_name}},"
+  // con Sie), donde el nombre de pila suena mal si el resto del texto ya usa
+  // Sie. A propósito NO se adivina Herr/Frau (no hay campo de género en
+  // leads y adivinarlo por nombre de pila puede fallar con nombres
+  // internacionales/ambiguos — un error ahí es peor que no ponerlo).
+  const last = String(lead.last_name || "").trim() || String(lead.name || "").split(" ").slice(1).join(" ").trim() || first;
   const refCode = String(lead.referral_code || "");
   return String(t || "")
     .replaceAll("{{first_name}}", first)
+    .replaceAll("{{last_name}}", last)
     .replaceAll("{{name}}", String(lead.name || first))
     .replaceAll("{{company}}", String(lead.company || ""))
     .replaceAll("{{referral_code}}", refCode)
