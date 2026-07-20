@@ -150,11 +150,17 @@ function categoryOf(message: string | null | undefined): string | null {
   return null;
 }
 const pick = (obj: Record<string, string> | undefined, lang: string) => (obj && (obj[lang] || obj.en)) || "";
-function thumbTable(items: { href: string; img: string; caption: string }[]): string {
-  const valid = items.filter((it) => it && it.href && it.img);
+type VideoGridItem = { href?: Record<string, string> | string; img: string; caption: string };
+// href por idioma (no un solo link compartido) — un lead en alemán/español
+// tiene que caer en la página del proyecto en SU idioma, no siempre en la
+// versión en inglés. `pick(it.href, lang)` con fallback a EN si falta ese
+// idioma; también acepta el string viejo (compat con contenido ya guardado).
+function thumbTable(items: VideoGridItem[], lang: string): string {
+  const hrefOf = (it: VideoGridItem) => typeof it.href === "string" ? it.href : pick(it.href, lang);
+  const valid = items.filter((it) => it && hrefOf(it) && it.img);
   if (!valid.length) return "";
   const td = valid.map((it, i) => `<td width="${Math.floor(100 / valid.length)}%" style="padding:0 ${i === 0 ? 6 : 3}px 0 ${i === valid.length - 1 ? 0 : 3}px;vertical-align:top">` +
-    `<a href="${esc(it.href)}" style="text-decoration:none"><img src="${esc(it.img)}" width="100%" style="display:block;border-radius:8px;border:1px solid #e5e7eb" alt="${esc(it.caption)}"/>` +
+    `<a href="${esc(hrefOf(it))}" style="text-decoration:none"><img src="${esc(it.img)}" width="100%" style="display:block;border-radius:8px;border:1px solid #e5e7eb" alt="${esc(it.caption)}"/>` +
     `<p style="margin:6px 0 0;font-size:11.5px;color:#555;text-align:center">▶ ${esc(it.caption)}</p></a></td>`).join("");
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>${td}</tr></table>`;
 }
@@ -167,11 +173,11 @@ function linkCardBlock(href: string, title: string, icon = "📝"): string {
 function pBlock(text: string, muted: boolean): string {
   return `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:${muted ? "#555" : "#222"}">${esc(text).replace(/\n/g, "<br>")}</p>`;
 }
-type ContentBlock = { type: string; muted?: boolean; text?: Record<string, string>; items?: { href: string; img: string; caption: string }[]; href?: Record<string, string>; title?: Record<string, string>; icon?: string };
+type ContentBlock = { type: string; muted?: boolean; text?: Record<string, string>; items?: VideoGridItem[]; href?: Record<string, string>; title?: Record<string, string>; icon?: string };
 function renderBlocks(blocks: ContentBlock[], lang: string, lead: Record<string, unknown>): string {
   return (blocks || []).map((b) => {
     if (b.type === "p") return pBlock(fill(pick(b.text, lang), lead), !!b.muted);
-    if (b.type === "video_grid") return thumbTable(b.items || []);
+    if (b.type === "video_grid") return thumbTable(b.items || [], lang);
     if (b.type === "link_card") return linkCardBlock(pick(b.href, lang), pick(b.title, lang), b.icon || "📝");
     return "";
   }).join("");

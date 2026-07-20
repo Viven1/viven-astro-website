@@ -11438,10 +11438,17 @@ const newsCases = [
     } else if (t === 'video_grid') {
       const items = (b.items && b.items.length ? b.items : [{}, {}, {}]).slice(0, 3);
       while (items.length < 3) items.push({});
-      inner = items.map((it, s) => '<div class="cs-vg-slot"><b>Video ' + (s + 1) + '</b>' +
+      // href por idioma — cada video tiene que llevar a la página del
+      // proyecto en el idioma del lead, no siempre a la versión en inglés
+      inner = items.map((it, s) => {
+        const hf = typeof it.href === 'string' ? { en: it.href } : (it.href || {});
+        return '<div class="cs-vg-slot"><b>Video ' + (s + 1) + '</b>' +
         '<label>URL de la imagen (thumbnail)</label><input class="cs-vg-img" data-slot="' + s + '" value="' + esc(it.img || '') + '" placeholder="https://www.viven.ch/projects/.../foto.jpg" />' +
-        '<label>URL de la página (a dónde lleva el clic)</label><input class="cs-vg-href" data-slot="' + s + '" value="' + esc(it.href || '') + '" placeholder="https://www.viven.ch/proyecto/" />' +
-        '<label>Título / caption</label><input class="cs-vg-caption" data-slot="' + s + '" value="' + esc(it.caption || '') + '" placeholder="Nombre del cliente" /></div>').join('');
+        '<label>URL de la página — EN</label><input class="cs-vg-href" data-slot="' + s + '" data-lang="en" value="' + esc(hf.en || '') + '" placeholder="https://www.viven.ch/en/proyecto/" />' +
+        '<label>URL de la página — DE</label><input class="cs-vg-href" data-slot="' + s + '" data-lang="de" value="' + esc(hf.de || '') + '" placeholder="https://www.viven.ch/de/projekt/" />' +
+        '<label>URL de la página — ES</label><input class="cs-vg-href" data-slot="' + s + '" data-lang="es" value="' + esc(hf.es || '') + '" placeholder="https://www.viven.ch/es/proyecto/" />' +
+        '<label>Título / caption</label><input class="cs-vg-caption" data-slot="' + s + '" value="' + esc(it.caption || '') + '" placeholder="Nombre del cliente" /></div>';
+      }).join('');
     } else {
       const hf = b.href || {}, tt = b.title || {};
       inner = '<label>Ícono (emoji)</label><input class="cs-lc-icon" value="' + esc(b.icon || '📝') + '" style="max-width:60px" />' +
@@ -11476,7 +11483,8 @@ const newsCases = [
       if (bt === 'p') return { type: 'p', muted: qq('.cs-p-muted').checked,
         text: { en: qq('.cs-p-text[data-lang="en"]').value, de: qq('.cs-p-text[data-lang="de"]').value, es: qq('.cs-p-text[data-lang="es"]').value } };
       if (bt === 'video_grid') return { type: 'video_grid', items: [0, 1, 2].map((s) => ({
-        href: qq('.cs-vg-href[data-slot="' + s + '"]').value, img: qq('.cs-vg-img[data-slot="' + s + '"]').value, caption: qq('.cs-vg-caption[data-slot="' + s + '"]').value })) };
+        href: { en: qq('.cs-vg-href[data-slot="' + s + '"][data-lang="en"]').value, de: qq('.cs-vg-href[data-slot="' + s + '"][data-lang="de"]').value, es: qq('.cs-vg-href[data-slot="' + s + '"][data-lang="es"]').value },
+        img: qq('.cs-vg-img[data-slot="' + s + '"]').value, caption: qq('.cs-vg-caption[data-slot="' + s + '"]').value })) };
       return { type: 'link_card', icon: qq('.cs-lc-icon').value || '📝',
         href: { en: qq('.cs-lc-href[data-lang="en"]').value, de: qq('.cs-lc-href[data-lang="de"]').value, es: qq('.cs-lc-href[data-lang="es"]').value },
         title: { en: qq('.cs-lc-title[data-lang="en"]').value, de: qq('.cs-lc-title[data-lang="de"]').value, es: qq('.cs-lc-title[data-lang="es"]').value } };
