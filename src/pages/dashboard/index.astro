@@ -573,6 +573,7 @@ const newsCases = [
   #ob-list .ob-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   #ob-list .ob-who{display:flex;gap:10px;align-items:center}
   #ob-list .ob-kind{font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--acid);background:color-mix(in srgb,var(--acid) 14%,transparent);border:1px solid color-mix(in srgb,var(--acid) 40%,transparent);border-radius:20px;padding:3px 11px;flex:none}
+  #ob-list .ob-sched-note{font-size:12px;color:var(--muted);margin-bottom:10px}
   #ob-list .ob-f{margin-bottom:10px}
   #ob-list .ob-f label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
   #ob-list .ob-f input,#ob-list .ob-f select,#ob-list .ob-f textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px}
@@ -10809,8 +10810,12 @@ const newsCases = [
     const nowIso = new Date().toISOString();
     const { data, error } = await supabase.from('outbox').select('*').eq('status', 'pending').order('created_at');
     if (error){ $('ob-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; return; }
-    // "⏰ Más tarde" oculta el borrador hasta scheduled_at — no lo borra de la bandeja real
-    const obs = (data || []).filter((o) => !o.scheduled_at || o.scheduled_at <= nowIso);
+    // "⏰ Más tarde" oculta el borrador hasta scheduled_at — no lo borra de la
+    // bandeja real. PERO en content_followup scheduled_at significa otra cosa
+    // (la fecha real de envío del paso, para poder revisar los 3 pasos de la
+    // secuencia de una — pedido explícito) y ahí SÍ debe seguir visible aunque
+    // sea futuro.
+    const obs = (data || []).filter((o) => o.kind === 'content_followup' || !o.scheduled_at || o.scheduled_at <= nowIso);
     const snoozed = (data || []).length - obs.length;
     $('ob-count').textContent = obs.length || '';
     $('ob-approve-all').hidden = obs.length < 2;
@@ -10821,9 +10826,16 @@ const newsCases = [
       const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : '⚙️ Workflow';
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
+      // content_followup: scheduled_at es la fecha real de envío (no un
+      // snooze) — se muestra siempre para dejar claro que aprobar HOY no
+      // manda antes de esa fecha, respeta el espaciado de la secuencia.
+      const schedNote = (o.kind === 'content_followup' && o.scheduled_at)
+        ? '<div class="ob-sched-note">📅 ' + (o.scheduled_at <= nowIso ? 'Ya puede salir — próxima corrida en horario laboral' : 'Sale automáticamente el ' + new Date(o.scheduled_at).toLocaleDateString('es-CH', { day: 'numeric', month: 'long' })) + '</div>'
+        : '';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
         '<div class="ob-hd"><div class="ob-who">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b>' + (l.company ? '<span class="muted-note">' + esc(l.company) + '</span>' : '') + '</div>' +
         '<span class="ob-kind">' + esc(srcTag) + '</span></div>' +
+        schedNote +
         '<div class="ob-row"><div class="ob-f"><label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select></div>' +
         '<div class="ob-f" style="flex:3"><label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" /></div></div>' +
         (o.kind === 'content_followup'
@@ -10863,11 +10875,13 @@ const newsCases = [
         const subj = card.querySelector('.ob-subject').value;
         const rawBody = card.querySelector('.ob-body').value.trim();
         const bodyPreview = (card.querySelector('.ob-html-editor') ? obHtmlToPreviewText(rawBody) : rawBody).slice(0, 220);
-        if (!confirm('¿Mandar este email a ' + card.dataset.to + '?\n\nAsunto: ' + subj + '\n\n' + bodyPreview + (bodyPreview.length >= 220 ? '…' : '') + '\n\nRevisá que esté todo bien — no se puede deshacer.')) return;
+        const schedTxt = card.querySelector('.ob-sched-note');
+        const schedLine = schedTxt ? '\n\n' + schedTxt.textContent : '';
+        if (!confirm('¿Aprobar este email para ' + card.dataset.to + '?\n\nAsunto: ' + subj + '\n\n' + bodyPreview + (bodyPreview.length >= 220 ? '…' : '') + schedLine + '\n\nRevisá que esté todo bien — no se puede deshacer.')) return;
         const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: subj, body: card.querySelector('.ob-body').value };
         const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.id);
         if (e2){ toast(e2.message); return; }
-        toast('✅ Aprobado — sale en la próxima corrida');
+        toast(schedTxt ? '✅ Aprobado — ' + schedTxt.textContent.replace('📅 ', '') : '✅ Aprobado — sale en la próxima corrida en horario laboral');
       } else if (act === 'later'){
         const when = new Date(Date.now() + 4 * 3600e3).toISOString();
         const { error: e2 } = await supabase.from('outbox').update({ scheduled_at: when }).eq('id', b.dataset.id);

@@ -35,6 +35,18 @@ const SENDER = (k: string) => k === "sebastian"
   : { name: "Sofia Treviño", email: "sofia@viven.ch" };
 const esc = (s: unknown) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 
+// mismo gate que automations-run: no mandar fuera de horario laboral suizo
+// (Mon-Fri 09:00-12:00 y 13:30-17:00, hora de Zúrich, con DST vía Intl).
+function isSwissBusinessHours(d = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Zurich", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+  if (["Sat", "Sun"].includes(get("weekday"))) return false;
+  const mins = (+get("hour")) * 60 + (+get("minute"));
+  return (mins >= 9 * 60 && mins < 12 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60);
+}
+
 // avisa por email al remitente de un borrador nuevo (SQL 0063/outbox-notify) —
 // best-effort: si falla, el borrador ya quedó pendiente en el dashboard igual.
 function notifyOutbox(id: string | number) {
@@ -113,7 +125,11 @@ Deno.serve(async (req) => {
     }
 
     // ============ 2) SEND: aprobados en la Bandeja (kind='followup') ============
-    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").eq("kind", "followup").limit(50);
+    // fuera de horario laboral suizo no se manda nada — el draft de arriba
+    // (fase 1) SÍ sigue corriendo siempre, solo el envío real se demora.
+    const appr = isSwissBusinessHours()
+      ? (await service.from("outbox").select("*").eq("status", "approved").eq("kind", "followup").limit(50)).data
+      : [];
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("*").eq("id", ob.lead_id).maybeSingle();
       if (!lead || !lead.email) { await service.from("outbox").update({ status: "discarded" }).eq("id", ob.id); continue; }

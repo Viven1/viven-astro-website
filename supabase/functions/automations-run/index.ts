@@ -54,6 +54,22 @@ async function aiDraft(lead: Record<string, unknown>, prompt: string, sender: st
 const STAGE_TS: Record<string, string> = { contactado: "contacted_at", videocall: "videocall_at", propuesta: "proposal_at", ganado: "won_at", perdido: "lost_at" };
 const isNuevo = (st: string) => ["", "new", "nuevo", "pending"].includes((st || "").toLowerCase());
 
+// pedido explícito de Sebastián: no mandar emails automatizados fuera de
+// horario laboral suizo (Mon-Fri 09:00-12:00 y 13:30-17:00, hora de
+// Zúrich). Usa Intl con timeZone en vez de matemática manual de offset
+// para que el cambio de horario de verano (CEST/CET) no rompa esto dos
+// veces al año. Fuera de horario: el draft queda 'approved' esperando la
+// próxima corrida — no se pierde, solo se demora hasta la próxima ventana.
+function isSwissBusinessHours(d = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Zurich", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+  if (["Sat", "Sun"].includes(get("weekday"))) return false;
+  const mins = (+get("hour")) * 60 + (+get("minute"));
+  return (mins >= 9 * 60 && mins < 12 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60);
+}
+
 const FROMS: Record<string, { from: string; reply: string }> = {
   sofia: { from: "Sofia Treviño — VIVEN <info@viven.ch>", reply: "sofia@viven.ch" },
   sebastian: { from: "Sebastian Cepeda — VIVEN <info@viven.ch>", reply: "sebastian@viven.ch" },
@@ -252,6 +268,7 @@ Deno.serve(async (req) => {
       }
       let nextAt = new Date();
       if (body.dry_run) { out.steps++; continue; }
+      let stepsSkippedToEnd = false;
       try {
         if (step.type === "wait") {
           nextAt = new Date(Date.now() + (Math.max(0, +step.days || 1)) * 864e5);
@@ -273,20 +290,37 @@ Deno.serve(async (req) => {
             out.drafts = (out.drafts || 0) + 1;
           }
         } else if (step.type === "content_step") {
-          // igual que 'email' pero con bloques ricos — sale por outbox con
-          // kind:'content_followup' (mismo pipeline que ya sabe mostrar/enviar HTML)
+          // A pedido de Sebastián: quiere ver LOS 3 pasos de la secuencia para
+          // aprobar juntos, no uno por vez a medida que van venciendo los
+          // waits. Se arman TODOS los content_step restantes del camino en
+          // esta misma corrida, cada uno con su fecha real de envío en
+          // scheduled_at (respeta el espaciado original día+2/+5/+9 desde
+          // que el lead entró — no se manda nada antes de tiempo, solo se
+          // puede REVISAR antes). La sección 3 más abajo solo manda un
+          // draft aprobado si ya llegó su scheduled_at.
+          const enrolledAt = new Date(run.created_at).getTime();
+          const cumulativeDays = (upTo: number) => {
+            let d = 0;
+            for (let i = 0; i < upTo; i++) if (steps[i]?.type === "wait") d += Math.max(0, +steps[i].days || 0);
+            return d;
+          };
           const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
-          const subject = fill(pick(step.subject, lang), lead);
-          const bodyHtml = renderBlocks(step.blocks || [], lang, lead);
-          // 'step' es solo para mostrar "paso N" en la Bandeja/notificación —
-          // cuenta cuántos content_step hay hasta este punto del camino (1-indexed)
-          const stepNum = steps.slice(0, run.step_idx + 1).filter((s: { type: string }) => s.type === "content_step").length;
-          const { data: obIns } = await service.from("outbox").insert({
-            lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "content_followup",
-            category: cfg.category || null, step: stepNum, sender: step.from || "team", subject, body: bodyHtml, status: "pending",
-          }).select("id").maybeSingle();
-          if (obIns?.id) notifyOutbox(obIns.id);
-          out.drafts = (out.drafts || 0) + 1;
+          for (let i = run.step_idx; i < steps.length; i++) {
+            const st = steps[i];
+            if (st.type !== "content_step") continue;
+            const subject = fill(pick(st.subject, lang), lead);
+            const bodyHtml = renderBlocks(st.blocks || [], lang, lead);
+            const stepNum = steps.slice(0, i + 1).filter((s: { type: string }) => s.type === "content_step").length;
+            const schedAt = new Date(enrolledAt + cumulativeDays(i) * 864e5).toISOString();
+            const { data: obIns } = await service.from("outbox").insert({
+              lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "content_followup",
+              category: cfg.category || null, step: stepNum, sender: st.from || "team", subject, body: bodyHtml,
+              status: "pending", scheduled_at: schedAt,
+            }).select("id").maybeSingle();
+            if (obIns?.id) notifyOutbox(obIns.id);
+            out.drafts = (out.drafts || 0) + 1;
+          }
+          stepsSkippedToEnd = true; // ya no queda nada más que ejecutar en este camino
         } else if (step.type === "task") {
           await service.from("lead_tasks").insert({ lead_id: lead.id, title: "⚙️ " + fill(step.title, lead), due_date: new Date().toISOString().slice(0, 10), done: false });
         } else if (step.type === "push") {
@@ -295,7 +329,7 @@ Deno.serve(async (req) => {
           await service.from("leads").update({ status: step.value || "contactado" }).eq("id", lead.id);
         }
       } catch (e) { console.error("STEP_ERROR", run.id, String(e)); }
-      const nextIdx = run.step_idx + 1;
+      const nextIdx = stepsSkippedToEnd ? steps.length : run.step_idx + 1;
       await service.from("automation_runs").update({ step_idx: nextIdx, next_at: nextAt.toISOString(), status: nextIdx >= steps.length ? "done" : "active" }).eq("id", run.id);
       out.steps++;
       await new Promise((ok) => setTimeout(ok, 120));
@@ -305,7 +339,13 @@ Deno.serve(async (req) => {
     // de outbox-action; si se aprobaba desde el dashboard (Bandeja de salida)
     // el borrador quedaba en status='approved' para siempre, sin nada que lo
     // agarre y lo mande de verdad. Bug real, encontrado al migrar content-followup acá.
-    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup"]).limit(50);
+    //
+    // Fuera de horario laboral suizo: no se manda nada en esta corrida — los
+    // aprobados quedan tal cual, la próxima corrida en horario los agarra.
+    if (!isSwissBusinessHours()) return json({ ok: true, ...out, automations: (autos ?? []).length, skipped_out_of_hours: true });
+    const nowIso2 = new Date().toISOString();
+    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup"])
+      .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso2}`).limit(50);
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
       if (!lead || !lead.email || (lead as { unsubscribed?: boolean }).unsubscribed || TEST.test(String(lead.email))) {

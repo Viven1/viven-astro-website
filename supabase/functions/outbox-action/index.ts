@@ -53,6 +53,19 @@ function wrap(bodyText: string, unsub: string, lang: string, sender: string): st
 // content-followup arma su body como HTML ya listo (thumbnails de video +
 // link cards) del lado del server, no texto libre — a diferencia de wrap(),
 // NO se escapa (si no, <img>/<table> quedarían como texto literal en el mail).
+// mismo gate que automations-run/followup-send: el link de un-click no debe
+// saltarse ni la fecha programada (scheduled_at, content_followup) ni el
+// horario laboral suizo — si no corresponde mandar YA, se deja 'approved'
+// para que el cron lo mande en la próxima ventana válida.
+function isSwissBusinessHours(d = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Zurich", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+  if (["Sat", "Sun"].includes(get("weekday"))) return false;
+  const mins = (+get("hour")) * 60 + (+get("minute"));
+  return (mins >= 9 * 60 && mins < 12 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60);
+}
 function wrapRaw(bodyHtml: string, unsub: string, lang: string): string {
   const bye = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" }[lang] || "Unsubscribe";
   return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
@@ -77,6 +90,13 @@ Deno.serve(async (req) => {
       return page("Descartado — no se envía.");
     }
     if (action !== "approve") return page("Acción desconocida.");
+
+    const notYetDue = ob.scheduled_at && new Date(ob.scheduled_at).getTime() > Date.now();
+    if (notYetDue || !isSwissBusinessHours()) {
+      await service.from("outbox").update({ status: "approved" }).eq("id", id);
+      const when = notYetDue ? new Date(ob.scheduled_at).toLocaleDateString("es-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" }) : "la próxima ventana de horario laboral";
+      return page("✅ Aprobado — sale automáticamente " + (notYetDue ? "el " + when : when) + ".");
+    }
 
     const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
     if (!lead || !lead.email || lead.unsubscribed) {
