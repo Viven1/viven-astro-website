@@ -3,11 +3,17 @@
 // matchean el trigger de cada automatización activa y ejecuta los pasos de su
 // camino (A o B según el split). Cron cada 20 min (SQL 0041).
 //
-// Triggers:  lead_new {source?, lang?, channel?} · stage {stage} · inactivity {days}
-// Pasos:     email {from, subject, body} · wait {days} · task {title} ·
-//            push {title} · status {value}
+// Triggers:  lead_new {source?, lang?, channel?, category?} · stage {stage} · inactivity {days}
+// Pasos:     email {from, subject, body} · content_step {from, subject{lang}, blocks[]} ·
+//            wait {days} · task {title} · push {title} · status {value}
 // Tokens en subject/body: {{first_name}} {{name}} {{company}}
 // Frenos: unsubscribed, emails de test, un run por lead y automatización (unique).
+//
+// content_step (SQL 0088, reemplaza a la function content-followup): igual
+// que 'email' pero el cuerpo se arma con bloques ricos (párrafo/grilla de
+// videos/link card) según el idioma del lead, y sale por outbox con
+// kind:'content_followup' — mismo pipeline que ya sabe renderizar HTML sin
+// escapar (outbox-notify/outbox-action).
 //
 // Deploy: supabase functions deploy automations-run --no-verify-jwt
 
@@ -92,6 +98,61 @@ function wrap(bodyText: string, unsub: string, lang: string, sender: string): st
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${bye}</a></p>
 </div></body>`;
 }
+// content_step arma su body como HTML ya listo (thumbnails/link cards), no
+// texto libre — a diferencia de wrap(), NO se escapa el body entero (si no,
+// <img>/<table> quedarían como texto literal). Mismo shell que outbox-action.
+function wrapRaw(bodyHtml: string, unsub: string, lang: string): string {
+  const bye = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" }[lang] || "Unsubscribe";
+  return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
+<div style="max-width:600px;margin:0 auto;padding:28px 16px">
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
+  <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">${bodyHtml}</div>
+  <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${bye}</a></p>
+</div></body>`;
+}
+
+// el chip de tipo de video en el mensaje de la calculadora ("🧮 CALCULADORA —
+// 📦 Product video · ...") cambia de texto por idioma pero el emoji es el
+// mismo en EN/DE/ES — matchear solo por emoji cubre los 3 idiomas sin listar
+// cada traducción. Aislar el PRIMER segmento (antes del primer '·') evita
+// chocar con el chip de talento "👥 Our own employees", que comparte emoji
+// con la categoría Employer branding.
+const CATEGORY_RE: [string, RegExp][] = [
+  ["product", /📦/], ["brand", /🎬/], ["employer", /👥/], ["howto", /🎓/], ["social", /📱/], ["corporate", /🏢/],
+];
+function categoryOf(message: string | null | undefined): string | null {
+  const seg = String(message || "").match(/🧮 CALCULADORA — ([^·]+)·/);
+  if (!seg) return null;
+  for (const [cat, re] of CATEGORY_RE) if (re.test(seg[1])) return cat;
+  return null;
+}
+const pick = (obj: Record<string, string> | undefined, lang: string) => (obj && (obj[lang] || obj.en)) || "";
+function thumbTable(items: { href: string; img: string; caption: string }[]): string {
+  const valid = items.filter((it) => it && it.href && it.img);
+  if (!valid.length) return "";
+  const td = valid.map((it, i) => `<td width="${Math.floor(100 / valid.length)}%" style="padding:0 ${i === 0 ? 6 : 3}px 0 ${i === valid.length - 1 ? 0 : 3}px;vertical-align:top">` +
+    `<a href="${esc(it.href)}" style="text-decoration:none"><img src="${esc(it.img)}" width="100%" style="display:block;border-radius:8px;border:1px solid #e5e7eb" alt="${esc(it.caption)}"/>` +
+    `<p style="margin:6px 0 0;font-size:11.5px;color:#555;text-align:center">▶ ${esc(it.caption)}</p></a></td>`).join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>${td}</tr></table>`;
+}
+function linkCardBlock(href: string, title: string, icon = "📝"): string {
+  if (!href) return "";
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;background:#f4f5f7;border-radius:12px"><tr>` +
+    `<td style="padding:14px 16px"><a href="${esc(href)}" style="text-decoration:none;color:#0f1826"><span style="font-size:18px;margin-right:8px">${icon}</span><b style="font-size:14px">${esc(title)}</b><br>` +
+    `<span style="font-size:11.5px;color:#8891a0;font-family:monospace">${esc(href.replace(/^https?:\/\//, ""))}</span></a></td></tr></table>`;
+}
+function pBlock(text: string, muted: boolean): string {
+  return `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:${muted ? "#555" : "#222"}">${esc(text).replace(/\n/g, "<br>")}</p>`;
+}
+type ContentBlock = { type: string; muted?: boolean; text?: Record<string, string>; items?: { href: string; img: string; caption: string }[]; href?: Record<string, string>; title?: Record<string, string>; icon?: string };
+function renderBlocks(blocks: ContentBlock[], lang: string, lead: Record<string, unknown>): string {
+  return (blocks || []).map((b) => {
+    if (b.type === "p") return pBlock(fill(pick(b.text, lang), lead), !!b.muted);
+    if (b.type === "video_grid") return thumbTable(b.items || []);
+    if (b.type === "link_card") return linkCardBlock(pick(b.href, lang), pick(b.title, lang), b.icon || "📝");
+    return "";
+  }).join("");
+}
 
 Deno.serve(async (req) => {
   if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
@@ -107,7 +168,10 @@ Deno.serve(async (req) => {
     for (const au of autos ?? []) {
       const cfg = au.trigger_config || {};
       let cands: Record<string, unknown>[] = [];
-      const since = new Date(Date.now() - 10 * 864e5).toISOString();
+      // 21 días (no 10): content_step puede tener pasos hasta día+9+margen de
+      // aprobación manual — una ventana más corta dejaría afuera leads reales
+      // que matchean una categoría pero ya no son "recién llegados".
+      const since = new Date(Date.now() - 21 * 864e5).toISOString();
       if (au.trigger === "lead_new") {
         // fix (auditoría 2026-07-14): pedía leads.source, columna que NUNCA existió —
         // PostgREST devolvía error, q.data quedaba undefined, y con `?? []` esto hacía
@@ -118,6 +182,7 @@ Deno.serve(async (req) => {
         cands = (q.data ?? []).filter((r) => {
           if (cfg.source === "calculator" && !String(r.message || "").includes("CALCULADORA")) return false;
           if (cfg.source === "form" && String(r.message || "").includes("CALCULADORA")) return false;
+          if (cfg.category && categoryOf(String(r.message || "")) !== cfg.category) return false;
           if (cfg.lang && cfg.lang !== "any" && (r.lang || "en") !== cfg.lang) return false;
           if (cfg.channel === "paid" && !r.channel?.toString().includes("paid")) return false;
           if (cfg.channel === "organic" && !/organic|search/.test(String(r.channel || ""))) return false;
@@ -151,6 +216,7 @@ Deno.serve(async (req) => {
     for (const run of runs ?? []) {
       const au = (autos ?? []).find((a) => a.id === run.automation_id);
       if (!au) { await service.from("automation_runs").update({ status: "stopped" }).eq("id", run.id); continue; }
+      const cfg = au.trigger_config || {};
       const steps = (run.variant === "b" ? au.steps_b : au.steps_a) || [];
       if (run.step_idx >= steps.length) { await service.from("automation_runs").update({ status: "done" }).eq("id", run.id); out.done++; continue; }
       const { data: lead } = await service.from("leads").select("*").eq("id", run.lead_id).maybeSingle();
@@ -172,7 +238,7 @@ Deno.serve(async (req) => {
       }
       const step = steps[run.step_idx];
       // THROTTLE global: máx 1 email automático / 5 días por contacto (los waits del camino mandan igual)
-      if ((step.type === "email" || step.type === "ai_email") && lead.last_automated_email_at &&
+      if ((step.type === "email" || step.type === "ai_email" || step.type === "content_step") && lead.last_automated_email_at &&
           Date.now() - new Date(lead.last_automated_email_at).getTime() < 5 * 864e5 && !(run.step_idx === 0 && au.trigger === "lead_new")) {
         await service.from("automation_runs").update({ next_at: new Date(Date.now() + 2 * 864e5).toISOString() }).eq("id", run.id);
         out.throttled = (out.throttled || 0) + 1; continue;
@@ -199,6 +265,18 @@ Deno.serve(async (req) => {
             if (obIns?.id) notifyOutbox(obIns.id);
             out.drafts = (out.drafts || 0) + 1;
           }
+        } else if (step.type === "content_step") {
+          // igual que 'email' pero con bloques ricos — sale por outbox con
+          // kind:'content_followup' (mismo pipeline que ya sabe mostrar/enviar HTML)
+          const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
+          const subject = fill(pick(step.subject, lang), lead);
+          const bodyHtml = renderBlocks(step.blocks || [], lang, lead);
+          const { data: obIns } = await service.from("outbox").insert({
+            lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "content_followup",
+            category: cfg.category || null, sender: step.from || "team", subject, body: bodyHtml, status: "pending",
+          }).select("id").maybeSingle();
+          if (obIns?.id) notifyOutbox(obIns.id);
+          out.drafts = (out.drafts || 0) + 1;
         } else if (step.type === "task") {
           await service.from("lead_tasks").insert({ lead_id: lead.id, title: "⚙️ " + fill(step.title, lead), due_date: new Date().toISOString().slice(0, 10), done: false });
         } else if (step.type === "push") {
@@ -213,7 +291,11 @@ Deno.serve(async (req) => {
       await new Promise((ok) => setTimeout(ok, 120));
     }
     // ============ 3) BANDEJA: enviar los aprobados ============
-    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").eq("kind", "workflow").limit(50);
+    // incluye 'content_followup' — antes solo lo mandaba el link de un-click
+    // de outbox-action; si se aprobaba desde el dashboard (Bandeja de salida)
+    // el borrador quedaba en status='approved' para siempre, sin nada que lo
+    // agarre y lo mande de verdad. Bug real, encontrado al migrar content-followup acá.
+    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup"]).limit(50);
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
       if (!lead || !lead.email || (lead as { unsubscribed?: boolean }).unsubscribed || TEST.test(String(lead.email))) {
@@ -223,7 +305,12 @@ Deno.serve(async (req) => {
       const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
       const senderName = ob.sender === "sebastian" ? "Sebastian" : "Sofia";
       const subjectFilled = fill(ob.subject, lead);
-      const htmlFilled = wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), senderName); // wrap() escapea los campos del lead sustituidos — nunca guardar fill() crudo
+      // content_followup: el body ya salió de renderBlocks() como HTML con
+      // tokens ya resueltos (fill() de nuevo acá es un no-op) — wrapRaw() no
+      // escapa, a diferencia de wrap() que sí espera texto libre.
+      const htmlFilled = ob.kind === "content_followup"
+        ? wrapRaw(fill(ob.body, lead), unsub, String(lead.lang || "en"))
+        : wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), senderName); // wrap() escapea los campos del lead sustituidos — nunca guardar fill() crudo
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },

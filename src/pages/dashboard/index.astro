@@ -1007,6 +1007,22 @@ const newsCases = [
   .au-field-wrap.au-fs textarea{flex:1;min-height:0;font-size:14.5px}
   body.au-fs-open{overflow:hidden}
   .au-addsel{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 8px}
+  .cs-blocks{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .cs-block{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--navy-800)}
+  .cs-block-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .cs-block-h b{font-size:11.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.4px}
+  .cs-block-actions{display:flex;gap:4px}
+  .cs-block-actions button{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:12px;padding:2px 4px}
+  .cs-block-actions button:hover{color:var(--acid)}
+  .cs-block-body label{margin-top:8px}
+  .cs-block-body textarea{min-height:64px}
+  .cs-vg-slot{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}
+  .cs-vg-slot:first-child{border-top:0;padding-top:0;margin-top:0}
+  .cs-vg-slot b{font-size:11px;color:var(--muted-2)}
+  .cs-check{display:flex !important;align-items:center;gap:6px;text-transform:none !important;font-size:12.5px !important;letter-spacing:0 !important}
+  .cs-check input{width:auto !important}
+  .cs-block-add-row{display:flex;gap:6px;margin-top:10px}
+  .cs-block-add-row select{flex:1}
   #au-enroll-lead{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px}
   .au-enr-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
   .au-enr-row:last-child{border-bottom:0}
@@ -2293,34 +2309,6 @@ const newsCases = [
       </div>
     </div>
 
-    <div class="panel" style="margin-top:14px">
-      <div class="draft-head">
-        <h2 style="margin:0">🎯 Follow-up de contenido <span class="count" id="cfw-stats"></span></h2>
-        <button class="btn btn-ghost small" id="cfw-toggle" type="button">…</button>
-      </div>
-      <p class="muted-note" style="margin:8px 0 0">Reemplaza al nurture genérico: la categoría (📦 Product / 🎬 Brand / 👥 Employer branding / 🎓 How-to / 📱 Social / 🏢 Corporate) se detecta sola del mensaje de la calculadora, y cada paso manda videos de portfolio y posts de blog reales de esa categoría — no texto genérico. <b>①</b> +2 días: videos de ejemplo · <b>②</b> +5 días: blog · <b>③</b> +9 días: blog + cierre suave. Se frena solo si el lead ya fue contactado, y se apaga entero con el botón de arriba. <b>Ningún paso sale solo</b> — los tres caen a 📤 Bandeja de salida para tu OK.</p>
-    </div>
-
-    <div class="panel" style="margin-top:14px">
-      <div class="draft-head">
-        <h2 style="margin:0">👥 Quién está adentro <span class="count" id="cfw-roster-n"></span></h2>
-      </div>
-      <p class="muted-note" style="margin:6px 0 10px">Se agregan solos los leads que vinieron de la calculadora (podés pausarlos acá) o agregá vos a alguien puntual, eligiendo qué categoría de contenido le corresponde.</p>
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <select id="cfw-add-lead" style="flex:1;min-width:200px"></select>
-        <select id="cfw-add-cat" style="min-width:160px">
-          <option value="product">📦 Product video</option>
-          <option value="brand">🎬 Brand film</option>
-          <option value="employer">👥 Employer branding</option>
-          <option value="howto">🎓 How-to / explainer</option>
-          <option value="social">📱 Social media</option>
-          <option value="corporate">🏢 Corporate film</option>
-        </select>
-        <button class="btn btn-ghost small" id="cfw-add-btn" type="button">➕ Agregar persona</button>
-      </div>
-      <div id="cfw-roster-list"><p class="muted-note">Cargando…</p></div>
-    </div>
-
   </div>
     <div id="contenido-sub-seo" hidden>
       <div class="of-bar" style="margin-bottom:14px">
@@ -2601,6 +2589,7 @@ const newsCases = [
         <div class="bf au-cfg au-cfg-days"><label>Días de inactividad</label><input id="au-cfg-days" type="number" min="2" value="7" /></div>
         <div class="bf au-cfg au-cfg-days"><label>Sobre quién</label><select id="au-cfg-scope"><option value="nuevo">Leads sin cerrar</option><option value="dormant">😴 Clientes dormidos (ganados)</option></select></div>
         <div class="bf au-cfg au-cfg-source"><label>Fuente</label><select id="au-cfg-source"><option value="any">Cualquiera</option><option value="calculator">🧮 Calculadora</option><option value="form">Formulario</option></select></div>
+        <div class="bf au-cfg au-cfg-category"><label>Categoría (calculadora)</label><select id="au-cfg-category"><option value="">Cualquiera</option><option value="product">📦 Product video</option><option value="brand">🎬 Brand film</option><option value="employer">👥 Employer branding</option><option value="howto">🎓 How-to / explainer</option><option value="social">📱 Social media</option><option value="corporate">🏢 Corporate film</option></select></div>
         <div class="bf"><label>Idioma</label><select id="au-cfg-lang"><option value="any">Todos</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select></div>
         <div class="bf"><label>A/B de caminos</label><select id="au-ab"><option value="0">Sin A/B (todo por A)</option><option value="50">50/50 — mitad camino B</option></select></div>
       </div>
@@ -7588,20 +7577,12 @@ const newsCases = [
       $('au-cfg-stage') && $('au-cfg-stage').addEventListener('change', auGuard(auRenderFlow));
       $('au-cfg-days') && $('au-cfg-days').addEventListener('input', auGuard(auRenderFlow));
       $('au-cfg-scope') && $('au-cfg-scope').addEventListener('change', auGuard(auRenderFlow));
-      $('au-cfg-source') && $('au-cfg-source').addEventListener('change', auGuard(auRenderFlow));
+      $('au-cfg-source') && $('au-cfg-source').addEventListener('change', auGuard(() => { auCfgVis(); auRenderFlow(); }));
       $('au-pre-ref') && $('au-pre-ref').addEventListener('click', auGuard(() => auPreset('ref')));
       $('au-pre-rev') && $('au-pre-rev').addEventListener('click', auGuard(() => auPreset('rev')));
       $('au-pre-wel') && $('au-pre-wel').addEventListener('click', auGuard(() => auPreset('wel')));
       $('au-pre-dor') && $('au-pre-dor').addEventListener('click', auGuard(() => auPreset('dor')));
       $('au-enroll-add') && $('au-enroll-add').addEventListener('click', auGuard(auEnrollPerson));
-
-      $('cfw-toggle') && $('cfw-toggle').addEventListener('click', async () => {
-        const on = !$('cfw-toggle').dataset.on;
-        const { error } = await supabase.from('app_settings').upsert({ key: 'content_followup', value: { enabled: on }, updated_at: new Date().toISOString() });
-        if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0086' : error.message); return; }
-        toast(on ? '🎯 Follow-up de contenido ENCENDIDO' : 'Follow-up de contenido apagado'); newsInit();
-      });
-      $('cfw-add-btn') && $('cfw-add-btn').addEventListener('click', cfwAddPerson);
       const adsCsv = async (wonOnly) => {
         const { data, error } = await adsFetch();
         if (error){ toast('No se pudo leer: ' + error.message); return; }
@@ -11367,13 +11348,77 @@ const newsCases = [
 
   const AU_TYPE_META = {
     email: { ic: '📧', tag: 'EMAIL' }, ai_email: { ic: '🤖', tag: 'EMAIL IA → BANDEJA' }, wait: { ic: '⏱', tag: 'ESPERAR' },
+    content_step: { ic: '🎯', tag: 'CONTENIDO RICO' },
     task: { ic: '✅', tag: 'TAREA' }, push: { ic: '🔔', tag: 'PUSH' }, status: { ic: '🔀', tag: 'CAMBIAR ETAPA' },
   };
-  const AU_TYPE_OPTS = '<option value="email">📧 Email</option><option value="ai_email">🤖 Email IA (a bandeja)</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option>';
+  const AU_TYPE_OPTS = '<option value="email">📧 Email</option><option value="ai_email">🤖 Email IA (a bandeja)</option><option value="content_step">🎯 Contenido rico (video/blog)</option><option value="wait">⏱ Esperar días</option><option value="task">✅ Tarea para el team</option><option value="push">🔔 Push al team</option><option value="status">🔀 Cambiar etapa</option>';
+  const CS_BLOCK_LBL = { p: '📝 Párrafo', video_grid: '🎬 Grilla de 3 videos', link_card: '🔗 Link card' };
+  function csBlankBlock(bt){
+    return bt === 'p' ? { type: 'p', muted: false, text: { en: '', de: '', es: '' } }
+      : bt === 'video_grid' ? { type: 'video_grid', items: [{}, {}, {}] }
+      : { type: 'link_card', icon: '📝', href: { en: '', de: '', es: '' }, title: { en: '', de: '', es: '' } };
+  }
+  function csBlockHtml(b, idx){
+    const t = b.type;
+    let inner = '';
+    if (t === 'p') {
+      const tx = b.text || {};
+      inner = '<label>Párrafo — EN</label><textarea class="cs-p-text" data-lang="en">' + esc(tx.en || '') + '</textarea>' +
+        '<label>DE</label><textarea class="cs-p-text" data-lang="de">' + esc(tx.de || '') + '</textarea>' +
+        '<label>ES</label><textarea class="cs-p-text" data-lang="es">' + esc(tx.es || '') + '</textarea>' +
+        '<label class="cs-check"><input type="checkbox" class="cs-p-muted"' + (b.muted ? ' checked' : '') + ' /> Texto secundario (gris, más chico — para firmas o notas)</label>';
+    } else if (t === 'video_grid') {
+      const items = (b.items && b.items.length ? b.items : [{}, {}, {}]).slice(0, 3);
+      while (items.length < 3) items.push({});
+      inner = items.map((it, s) => '<div class="cs-vg-slot"><b>Video ' + (s + 1) + '</b>' +
+        '<label>URL de la imagen (thumbnail)</label><input class="cs-vg-img" data-slot="' + s + '" value="' + esc(it.img || '') + '" placeholder="https://www.viven.ch/projects/.../foto.jpg" />' +
+        '<label>URL de la página (a dónde lleva el clic)</label><input class="cs-vg-href" data-slot="' + s + '" value="' + esc(it.href || '') + '" placeholder="https://www.viven.ch/proyecto/" />' +
+        '<label>Título / caption</label><input class="cs-vg-caption" data-slot="' + s + '" value="' + esc(it.caption || '') + '" placeholder="Nombre del cliente" /></div>').join('');
+    } else {
+      const hf = b.href || {}, tt = b.title || {};
+      inner = '<label>Ícono (emoji)</label><input class="cs-lc-icon" value="' + esc(b.icon || '📝') + '" style="max-width:60px" />' +
+        '<label>Título — EN</label><input class="cs-lc-title" data-lang="en" value="' + esc(tt.en || '') + '" />' +
+        '<label>Título — DE</label><input class="cs-lc-title" data-lang="de" value="' + esc(tt.de || '') + '" />' +
+        '<label>Título — ES</label><input class="cs-lc-title" data-lang="es" value="' + esc(tt.es || '') + '" />' +
+        '<label>URL — EN</label><input class="cs-lc-href" data-lang="en" value="' + esc(hf.en || '') + '" />' +
+        '<label>URL — DE</label><input class="cs-lc-href" data-lang="de" value="' + esc(hf.de || '') + '" />' +
+        '<label>URL — ES</label><input class="cs-lc-href" data-lang="es" value="' + esc(hf.es || '') + '" />';
+    }
+    return '<div class="cs-block" data-type="' + t + '" data-idx="' + idx + '"><div class="cs-block-h"><b>' + CS_BLOCK_LBL[t] + '</b>' +
+      '<span class="cs-block-actions"><button type="button" class="cs-block-up" title="Subir">↑</button><button type="button" class="cs-block-down" title="Bajar">↓</button><button type="button" class="cs-block-del" title="Borrar bloque">🗑</button></span></div>' +
+      '<div class="cs-block-body">' + inner + '</div></div>';
+  }
+  function csFieldsHtml(st, F){
+    const subj = st.subject || {};
+    const blocks = st.blocks || [];
+    return '<label>Sale de</label>' + F(st.from) +
+      '<label>Asunto — EN</label><input class="cs-subj" data-lang="en" value="' + esc(subj.en || '') + '" />' +
+      '<label>Asunto — DE</label><input class="cs-subj" data-lang="de" value="' + esc(subj.de || '') + '" />' +
+      '<label>Asunto — ES</label><input class="cs-subj" data-lang="es" value="' + esc(subj.es || '') + '" />' +
+      '<div class="cs-blocks">' + blocks.map((b, i) => csBlockHtml(b, i)).join('') + '</div>' +
+      '<div class="cs-block-add-row"><select class="cs-block-type-picker"><option value="p">📝 Párrafo</option><option value="video_grid">🎬 Grilla de 3 videos</option><option value="link_card">🔗 Link card</option></select><button type="button" class="cs-block-add btn btn-ghost small">➕ Agregar bloque</button></div>' +
+      '<p class="muted-note" style="margin-top:6px">No se envía solo: cae en 📤 Bandeja para tu aprobación. El idioma correcto (EN/DE/ES) sale según el idioma del lead.</p>';
+  }
+  function auCollectBlocks(nodeEl, curBlocks){
+    const cont = nodeEl.querySelector('.cs-blocks');
+    if (!cont) return curBlocks || [];
+    return Array.from(cont.querySelectorAll('.cs-block')).map((be) => {
+      const bt = be.dataset.type;
+      const qq = (sel) => be.querySelector(sel);
+      if (bt === 'p') return { type: 'p', muted: qq('.cs-p-muted').checked,
+        text: { en: qq('.cs-p-text[data-lang="en"]').value, de: qq('.cs-p-text[data-lang="de"]').value, es: qq('.cs-p-text[data-lang="es"]').value } };
+      if (bt === 'video_grid') return { type: 'video_grid', items: [0, 1, 2].map((s) => ({
+        href: qq('.cs-vg-href[data-slot="' + s + '"]').value, img: qq('.cs-vg-img[data-slot="' + s + '"]').value, caption: qq('.cs-vg-caption[data-slot="' + s + '"]').value })) };
+      return { type: 'link_card', icon: qq('.cs-lc-icon').value || '📝',
+        href: { en: qq('.cs-lc-href[data-lang="en"]').value, de: qq('.cs-lc-href[data-lang="de"]').value, es: qq('.cs-lc-href[data-lang="es"]').value },
+        title: { en: qq('.cs-lc-title[data-lang="en"]').value, de: qq('.cs-lc-title[data-lang="de"]').value, es: qq('.cs-lc-title[data-lang="es"]').value } };
+    });
+  }
   let auOpenIdx = null;   // 'a-2' | 'b-0' | null — qué nodo tiene el panel de edición abierto
   let auDrag = null;      // { v, i } del nodo que se está arrastrando
   function auStepSummary(st){
     if (st.type === 'email' || st.type === 'ai_email') return st.type === 'email' ? esc(st.subject || '(sin asunto)') : '"' + esc((st.prompt || '').slice(0, 46)) + (st.prompt && st.prompt.length > 46 ? '…' : '') + '"';
+    if (st.type === 'content_step') { const s = st.subject || {}; const n = (st.blocks || []).length; return esc(s.en || s.de || s.es || '(sin asunto)') + ' · ' + n + ' bloque' + (n === 1 ? '' : 's'); }
     if (st.type === 'wait') return (st.days || 1) + ' día' + ((st.days || 1) == 1 ? '' : 's');
     if (st.type === 'task' || st.type === 'push') return esc(st.title || '(sin texto)');
     return '→ ' + (st.value || 'contactado');
@@ -11385,6 +11430,7 @@ const newsCases = [
     const F = (cur) => '<select class="f-from"><option value="sofia"' + (cur === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (cur === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (!cur || cur === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select>';
     let fields = '';
     if (st.type === 'email') fields = '<label>Sale de</label>' + F(st.from) + '<label>Asunto</label><input class="f-subject" value="' + esc(st.subject || '') + '" /><div class="au-field-wrap"><label>Cuerpo (párrafos con línea en blanco) <button type="button" class="au-fs-toggle" data-act="fs">⤢ Expandir</button></label><textarea class="f-body">' + esc(st.body || '') + '</textarea></div>';
+    else if (st.type === 'content_step') fields = csFieldsHtml(st, F);
     else if (st.type === 'ai_email') fields = '<label>Sale de</label>' + F(st.from) + '<div class="au-field-wrap"><label>Instrucción para la IA (usa el contexto real del contacto y escribe en su idioma) <button type="button" class="au-fs-toggle" data-act="fs">⤢ Expandir</button></label><textarea class="f-prompt">' + esc(st.prompt || '') + '</textarea></div><p class="muted-note" style="margin-top:6px">No se envía solo: cae en 📤 Bandeja para tu aprobación.</p>';
     else if (st.type === 'wait') fields = '<label>Días</label><input class="f-days" type="number" min="0" value="' + (+st.days || 1) + '" />';
     else if (st.type === 'task' || st.type === 'push') fields = '<label>Texto</label><input class="f-title" value="' + esc(st.title || '') + '" />';
@@ -11452,6 +11498,32 @@ const newsCases = [
         auOpenIdx = null; auRenderFlow();
       });
     });
+    flow.querySelectorAll('.cs-block-add').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const node = btn.closest('.au-node'), v = node.dataset.v, i = +node.dataset.i;
+      const bt = node.querySelector('.cs-block-type-picker').value;
+      auCollect();
+      const st = auSteps[v][i]; if (!st.blocks) st.blocks = []; st.blocks.push(csBlankBlock(bt));
+      auRenderFlow();
+    }));
+    flow.querySelectorAll('.cs-block-del').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const node = btn.closest('.au-node'), v = node.dataset.v, i = +node.dataset.i;
+      const bIdx = +btn.closest('.cs-block').dataset.idx;
+      auCollect();
+      auSteps[v][i].blocks.splice(bIdx, 1);
+      auRenderFlow();
+    }));
+    flow.querySelectorAll('.cs-block-up,.cs-block-down').forEach((btn) => btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const node = btn.closest('.au-node'), v = node.dataset.v, i = +node.dataset.i;
+      const bIdx = +btn.closest('.cs-block').dataset.idx;
+      auCollect();
+      const arr = auSteps[v][i].blocks, dir = btn.classList.contains('cs-block-up') ? -1 : 1, to = bIdx + dir;
+      if (to < 0 || to >= arr.length) return;
+      const [moved] = arr.splice(bIdx, 1); arr.splice(to, 0, moved);
+      auRenderFlow();
+    }));
     $('au-copy-ab') && $('au-copy-ab').addEventListener('click', () => { auCollect(); auSteps.b = JSON.parse(JSON.stringify(auSteps.a)); toast('📋 Camino A copiado a B'); auRenderFlow(); });
     flow.querySelectorAll('.au-fs-toggle').forEach((btn) => btn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
@@ -11471,6 +11543,12 @@ const newsCases = [
         const cur = (auSteps[v] || [])[+el.dataset.i] || {};
         const q = (sel) => el.querySelector(sel);
         if (t === 'email') arr.push({ type: 'email', from: (q('.f-from') || {}).value || cur.from, subject: (q('.f-subject') || {}).value ?? cur.subject, body: (q('.f-body') || {}).value ?? cur.body });
+        else if (t === 'content_step') {
+          const hasSubj = !!q('.cs-subj');
+          arr.push({ type: 'content_step', from: (q('.f-from') || {}).value || cur.from,
+            subject: hasSubj ? { en: q('.cs-subj[data-lang="en"]').value, de: q('.cs-subj[data-lang="de"]').value, es: q('.cs-subj[data-lang="es"]').value } : (cur.subject || {}),
+            blocks: auCollectBlocks(el, cur.blocks) });
+        }
         else if (t === 'ai_email') arr.push({ type: 'ai_email', from: (q('.f-from') || {}).value || cur.from, prompt: (q('.f-prompt') || {}).value ?? cur.prompt });
         else if (t === 'wait') arr.push({ type: 'wait', days: q('.f-days') ? (+q('.f-days').value || 1) : cur.days });
         else if (t === 'task') arr.push({ type: 'task', title: (q('.f-title') || {}).value ?? cur.title });
@@ -11485,6 +11563,7 @@ const newsCases = [
     document.querySelectorAll('.au-cfg-stage').forEach((e) => e.style.display = t === 'stage' ? '' : 'none');
     document.querySelectorAll('.au-cfg-days').forEach((e) => e.style.display = t === 'inactivity' ? '' : 'none');
     document.querySelectorAll('.au-cfg-source').forEach((e) => e.style.display = t === 'lead_new' ? '' : 'none');
+    document.querySelectorAll('.au-cfg-category').forEach((e) => e.style.display = (t === 'lead_new' && $('au-cfg-source').value === 'calculator') ? '' : 'none');
   }
   // cierra el editor y SIEMPRE limpia el estado de textarea-en-pantalla-completa
   // (⤢ Expandir) — sin esto, cerrar/guardar/borrar con un campo expandido dejaba
@@ -11503,6 +11582,7 @@ const newsCases = [
     $('au-cfg-days').value = c.days || 7;
     $('au-cfg-scope').value = c.scope || 'nuevo';
     $('au-cfg-source').value = c.source || 'any';
+    $('au-cfg-category').value = c.category || '';
     $('au-cfg-lang').value = c.lang || 'any';
     $('au-ab').value = a && a.ab_split >= 50 ? '50' : '0';
     auSteps = { a: (a && a.steps_a) ? JSON.parse(JSON.stringify(a.steps_a)) : [], b: (a && a.steps_b) ? JSON.parse(JSON.stringify(a.steps_b)) : [] };
@@ -11576,7 +11656,7 @@ const newsCases = [
       name: $('au-name').value.trim() || 'Sin nombre',
       enabled: !!$('au-enabled').value,
       trigger: $('au-trigger').value,
-      trigger_config: { stage: $('au-cfg-stage').value, days: +$('au-cfg-days').value || 7, scope: $('au-cfg-scope').value, source: $('au-cfg-source').value, lang: $('au-cfg-lang').value },
+      trigger_config: { stage: $('au-cfg-stage').value, days: +$('au-cfg-days').value || 7, scope: $('au-cfg-scope').value, source: $('au-cfg-source').value, category: $('au-cfg-category').value || null, lang: $('au-cfg-lang').value },
       ab_split: +$('au-ab').value || 0,
       steps_a: auSteps.a, steps_b: auSteps.b,
       updated_at: new Date().toISOString(),
@@ -11606,7 +11686,7 @@ const newsCases = [
     $('au-trigger').value = p.trigger;
     $('au-cfg-stage').value = p.cfg.stage; $('au-cfg-days').value = 7;
     $('au-cfg-scope').value = p.cfg.scope || 'nuevo'; $('au-cfg-days').value = p.cfg.days || 7;
-    $('au-cfg-source').value = p.cfg.source; $('au-cfg-lang').value = p.cfg.lang;
+    $('au-cfg-source').value = p.cfg.source; $('au-cfg-category').value = p.cfg.category || ''; $('au-cfg-lang').value = p.cfg.lang;
     $('au-ab').value = p.ab;
     auSteps = { a: JSON.parse(JSON.stringify(p.steps)).map((x) => x.body ? { ...x, body: x.body.split('\\n').join('\n') } : x), b: [] };
     auOpenIdx = null;
@@ -11615,60 +11695,6 @@ const newsCases = [
   }
 
   let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [], nwBlocks = [];
-  const CFW_CATS = [['product', '📦 Product video'], ['brand', '🎬 Brand film'], ['employer', '👥 Employer branding'], ['howto', '🎓 How-to / explainer'], ['social', '📱 Social media'], ['corporate', '🏢 Corporate film']];
-  const CFW_CAT_NAME = Object.fromEntries(CFW_CATS);
-  async function cfwLoad(){
-    const box = $('cfw-roster-list'), n = $('cfw-roster-n'), sel = $('cfw-add-lead');
-    if (!box) return;
-    if (sel){ sel.innerHTML = '<option value="">Elegir persona…</option>' + (allLeads || []).slice().sort((x, y) => (x.name || x.email || '').localeCompare(y.name || y.email || '')).map((l) => '<option value="' + l.id + '">' + esc(l.name || l.email) + '</option>').join(''); leadPicker(sel); }
-    try {
-      const [{ data: rows, error }, { data: logs }, { data: obs }] = await Promise.all([
-        supabase.from('content_followup_state').select('*').order('enrolled_at', { ascending: false }),
-        supabase.from('content_followup_log').select('lead_id,category,step'),
-        supabase.from('outbox').select('lead_id,category,step,status').eq('kind', 'content_followup').in('status', ['pending', 'approved']),
-      ]);
-      if (error){ box.innerHTML = '<p class="muted-note">⚠️ ' + (/relation|does not exist/i.test(error.message) ? 'Falta correr el SQL 0086' : esc(error.message)) + '</p>'; if (n) n.textContent = ''; return; }
-      const st = rows || [];
-      if (n) n.textContent = st.length ? '(' + st.length + ')' : '';
-      if (!st.length){ box.innerHTML = '<p class="muted-note">Nadie inscripto todavía — entran solos los leads de la calculadora (o agregá a alguien arriba).</p>'; return; }
-      const sentBy = {}; (logs || []).forEach((l) => { const k = l.lead_id + '|' + l.category; (sentBy[k] = sentBy[k] || new Set()).add(l.step); });
-      const waitingBy = {}; (obs || []).forEach((o) => { waitingBy[o.lead_id + '|' + o.category] = o.step; });
-      const circled = { 1: '①', 2: '②', 3: '③' };
-      box.innerHTML = st.map((s) => {
-        const l = leadById(s.lead_id) || {};
-        const key = s.lead_id + '|' + s.category;
-        const done = sentBy[key] || new Set();
-        const wStep = waitingBy[key];
-        const progress = [1, 2, 3].map((i) => (done.has(i) ? '✅' : wStep === i ? '📤' : '⚪') + circled[i]).join(' ');
-        const waitNote = wStep ? '<div class="au-enr-step" style="color:var(--acid)">📤 Paso ' + wStep + ' esperando tu OK en 📤 Bandeja de salida</div>' : '';
-        const badge = s.status === 'active' ? 'active' : 'stopped';
-        const badgeTxt = s.status === 'active' ? '🟢 Activo' : '⏸ Pausado';
-        return '<div class="au-enr-row" data-nid="' + s.id + '">' +
-          '<div class="au-enr-main"><div class="au-enr-name">' + esc(l.name || l.email || ('Lead #' + s.lead_id)) + ' · ' + esc(CFW_CAT_NAME[s.category] || s.category) + (s.source === 'manual' ? ' · agregado a mano' : '') + '</div>' +
-          '<div class="au-enr-step">' + progress + '</div>' + waitNote + '</div>' +
-          '<span class="au-enr-badge ' + badge + '">' + badgeTxt + '</span>' +
-          '<div class="au-enr-actions">' +
-          (s.status === 'active' ? '<button data-act="pause" type="button">⏸ Pausar</button>' : '<button data-act="resume" type="button">▶️ Activar</button>') +
-          '<button data-act="del" type="button">🗑</button></div></div>';
-      }).join('');
-      box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
-        const row = btn.closest('.au-enr-row'), nid = +row.dataset.nid, act = btn.dataset.act;
-        if (act === 'pause') await supabase.from('content_followup_state').update({ status: 'paused', updated_at: new Date().toISOString() }).eq('id', nid);
-        else if (act === 'resume') await supabase.from('content_followup_state').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', nid);
-        else if (act === 'del'){ if (!confirm('¿Sacar a esta persona del follow-up del todo?')) return; await supabase.from('content_followup_state').delete().eq('id', nid); }
-        cfwLoad();
-      }));
-    } catch (e) { box.innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
-  }
-  async function cfwAddPerson(){
-    const leadId = $('cfw-add-lead').value; if (!leadId){ toast('Elegí una persona'); return; }
-    const category = $('cfw-add-cat').value;
-    const { error } = await supabase.from('content_followup_state').insert({ lead_id: +leadId, category, status: 'active', source: 'manual' });
-    if (error){ toast(/duplicate|unique/i.test(error.message) ? 'Esa persona ya está en esa categoría' : '⚠️ ' + error.message); return; }
-    toast('➕ Agregado — entra en la próxima corrida (≤1h)');
-    $('cfw-add-lead').value = '';
-    cfwLoad();
-  }
   // ===== bloques de contenido (editor) =====
   const NW_CTA_DESTS = [['calculator', 'Calculadora'], ['brief', 'Brief'], ['call', 'Agendar call'], ['custom', 'URL propia…']];
   function nwDerivedBody(){ return nwBlocks.filter((b) => b.type === 'text').map((b) => String(b.text || '').trim()).filter(Boolean).join('\n\n'); }
@@ -11866,18 +11892,6 @@ const newsCases = [
     // editor: inicializar si está vacío
     if (!$('nw-editor').children.length) nwRenderEditor();
     nwUpdateSendPanel();
-
-    (async () => { try {
-      const [{ data: st }, { data: lg }] = await Promise.all([
-        supabase.from('app_settings').select('value').eq('key', 'content_followup').maybeSingle(),
-        supabase.from('content_followup_log').select('step'),
-      ]);
-      const on = !(st && st.value && st.value.enabled === false);
-      const btn = $('cfw-toggle'); if (btn){ btn.textContent = on ? '🟢 Activo — apagar' : '⚪ Apagado — encender'; btn.dataset.on = on ? '1' : ''; }
-      const c = { 1: 0, 2: 0, 3: 0 }; (lg || []).forEach((x) => c[x.step] = (c[x.step] || 0) + 1);
-      if ($('cfw-stats')) $('cfw-stats').textContent = '① ' + c[1] + ' · ② ' + c[2] + ' · ③ ' + c[3] + ' enviados';
-    } catch (e) { if ($('cfw-stats')) $('cfw-stats').textContent = 'falta SQL 0086'; } })();
-    cfwLoad();
 
     // agregado de envíos por campaña
     const agg = {};
