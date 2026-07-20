@@ -278,9 +278,12 @@ Deno.serve(async (req) => {
           const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
           const subject = fill(pick(step.subject, lang), lead);
           const bodyHtml = renderBlocks(step.blocks || [], lang, lead);
+          // 'step' es solo para mostrar "paso N" en la Bandeja/notificación —
+          // cuenta cuántos content_step hay hasta este punto del camino (1-indexed)
+          const stepNum = steps.slice(0, run.step_idx + 1).filter((s: { type: string }) => s.type === "content_step").length;
           const { data: obIns } = await service.from("outbox").insert({
             lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "content_followup",
-            category: cfg.category || null, sender: step.from || "team", subject, body: bodyHtml, status: "pending",
+            category: cfg.category || null, step: stepNum, sender: step.from || "team", subject, body: bodyHtml, status: "pending",
           }).select("id").maybeSingle();
           if (obIns?.id) notifyOutbox(obIns.id);
           out.drafts = (out.drafts || 0) + 1;
