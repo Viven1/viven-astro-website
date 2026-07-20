@@ -1991,6 +1991,11 @@ const newsCases = [
         </div>
       </div>
 
+      <div class="panel">
+        <h2>📝 Blog: qué posts rinden más <span class="count">(todas las vistas → leads)</span></h2>
+        <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Post</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-blog"></tbody></table></div>
+      </div>
+
       <!-- detalle secundario plegado: no se come media pantalla -->
       <details style="margin-top:2px">
         <summary class="of-more-sum">Más detalle: páginas vistas, dispositivos e idiomas ▾</summary>
@@ -6946,6 +6951,24 @@ const newsCases = [
     const landingPerf = [...lpKeys].map((k) => ({ key: k, label: k, sessions: lpSessions.get(k) || 0, leads: lpLeads.get(k) || 0 }));
     perfTable($('perf-landing'), landingPerf, { clickable: 'landing' });
 
+    /* rendimiento del BLOG: TODAS las vistas (no solo entrada — alguien puede leer
+       2-3 posts en la misma sesión sin que cada uno sea la página de entrada), leads
+       por landing_path exacto (mismo criterio que la tabla de arriba, solo filtrado
+       a rutas /blog/). Pedido explícito: "mostrame el analytics de los blogs". */
+    const BLOG_RE = /\/blog\/[^/]+\/?$/;
+    const blogSess = new Map();
+    real.forEach((r) => { const p = r.path || ''; if (!BLOG_RE.test(p)) return; if (!blogSess.has(p)) blogSess.set(p, new Set()); blogSess.get(p).add(r.session_id); });
+    const blogLeadsN = new Map();
+    periodLeads.forEach((l) => { const p = l.landing_path || ''; if (BLOG_RE.test(p)) blogLeadsN.set(p, (blogLeadsN.get(p) || 0) + 1); });
+    const blogKeys = new Set([...blogSess.keys(), ...blogLeadsN.keys()]);
+    const blogTitle = (p) => {
+      const m = p.match(/^\/(en|de|es)\/blog\/([^/]+)\//);
+      if (!m) return p;
+      return m[2].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) + ' (' + m[1].toUpperCase() + ')';
+    };
+    const blogPerf = [...blogKeys].map((k) => ({ key: k, label: blogTitle(k), sessions: (blogSess.get(k) || new Set()).size, leads: blogLeadsN.get(k) || 0 }));
+    perfTable($('perf-blog'), blogPerf, { clickable: 'landing' });
+
     /* REFERRERS externos: hostname del referrer de la ENTRADA de cada sesión.
        La atribución de leads es por session_id (igual espíritu que la tabla de canales). */
     const refBySess = new Map();
@@ -6976,6 +6999,7 @@ const newsCases = [
       canales: channelPerf.map((c) => ({ canal: c.label, sesiones: c.sessions, leads: c.leads })).slice(0, 8),
       paginas_entrada: landingPerf.map((p) => ({ path: p.label, sesiones: p.sessions, leads: p.leads })).slice(0, 8),
       referrers: refPerf.map((r) => ({ sitio: r.label, sesiones: r.sessions, leads: r.leads })).slice(0, 8),
+      blog: blogPerf.slice().sort((a, b) => (b.leads - a.leads) || (b.sessions - a.sessions)).map((p) => ({ post: p.label, sesiones: p.sessions, leads: p.leads })).slice(0, 8),
     };
 
     /* insights automáticos (cache diario por navegador; el ↻ los fuerza) */
