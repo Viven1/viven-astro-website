@@ -6034,6 +6034,7 @@ const newsCases = [
     let s = 0; const f = [];
     const ch = (r.channel || '').toLowerCase();
     if (r.gclid || /paid|cpc|ppc|sem/.test(ch)) { s += 28; f.push('+28 Google Ads (alta intención)'); }
+    else if (ch === 'ai') { s += 16; f.push('+16 referido por asistente IA (recomendación directa)'); }
     else if (/organic|search/.test(ch)) { s += 14; f.push('+14 búsqueda orgánica'); }
     else if (/direct/.test(ch)) { s += 10; f.push('+10 directo'); }
     else if (/social|referr/.test(ch)) { s += 6; f.push('+6 social/referral'); }
@@ -6316,7 +6317,7 @@ const newsCases = [
         FIELDS.map(([f, label]) =>
           '<div><div class="k">' + label + (f === 'company' && ldom ? ' <a href="#" id="lm2-colink" title="Abrir la empresa" style="color:var(--acid);text-decoration:none">↗</a>' : '') + '</div>' +
           '<div class="v lm2-edit" data-f="' + f + '" title="Clic para editar">' + (disp(f) || '<span style="color:var(--muted-2)">— agregar</span>') + '</div></div>').join('') +
-        kvA('Canal', esc(r.channel || 'direct')) +
+        kvA('Canal', esc(r.channel === 'ai' ? 'AI Referral' : (r.channel || 'direct'))) +
       '</div>' +
       '<details class="lm2-morefields"><summary>Ver todos los campos ▾</summary><div class="lm2-kv">' +
         kvA('Fuente (UTM)', esc(r.utm_source || '')) + kvA('Campaña (UTM)', esc(r.utm_campaign || '')) +

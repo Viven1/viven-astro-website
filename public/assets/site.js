@@ -794,7 +794,7 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     else if(/cpc|ppc|paid|sem|display/.test(utm.medium)) channel = 'paid_search';
     else if(fbclid || /paid.?social/.test(utm.medium)) channel = 'paid_social';
     else if(utm.medium === 'email' || utm.source === 'newsletter') channel = 'email';
-    else if(AI.test(refHost)) channel = 'ai';
+    else if(AI.test(refHost) || AI.test(utm.source || '')) channel = 'ai';
     else if(SEARCH.test(refHost)) channel = 'organic';
     else if(SOCIAL.test(refHost)) channel = 'social';
     else if(refHost && !own) channel = 'referral';
