@@ -4677,6 +4677,20 @@ const newsCases = [
     const first = firstDealOf(d.lead_id);
     return !!(first && String(first.id) === String(d.id));
   }).reduce((a, p) => a + propNet(p), 0);
+  // propuestas PUBLICADAS esperando respuesta (status 'sent', sin decidir todavía) — sin esto,
+  // un deal cotizado solo por propuesta (sin oferta formal) valía CHF 0 en todo el pipeline hasta
+  // que el cliente la aceptaba (bug reportado: "las propuestas fueron enviadas con valores pero
+  // no se pasan a la pipeline"). Mismo criterio de match que propsWonForDeal, sin propCovered
+  // (si ya hubiera un won, dealValue/leadValue corta antes de llegar acá).
+  const propsSentForLead = (lid) => (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent' && String(p.lead_id || '') === String(lid)).reduce((a, p) => a + propNet(p), 0);
+  const propsSentForDeal = (d) => (propsAll || []).filter((p) => {
+    if (p.archived || p.is_template || p.status !== 'sent') return false;
+    if (p.deal_id) return String(p.deal_id) === String(d.id);
+    if (String(p.lead_id || '') !== String(d.lead_id)) return false;
+    if (d.synthetic) return true;
+    const first = firstDealOf(d.lead_id);
+    return !!(first && String(first.id) === String(d.id));
+  }).reduce((a, p) => a + propNet(p), 0);
 
   // REGLA DE VALOR ÚNICA (misma en board, Personas, Home y forecast):
   // ganadas si existen; si no, abiertas (borrador+enviada); las PERDIDAS nunca suman; fallback: valor estimado.
@@ -4684,7 +4698,7 @@ const newsCases = [
     const ofs = offersForLead(l.id);
     const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0) + propsWonForLead(l.id);
     if (won) return won;
-    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0);
+    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0) + propsSentForLead(l.id);
     return open || Number(l.deal_value) || 0;
   };
   const leadsValue = (leads) => leads.reduce((a, l) => a + leadValue(l), 0);
@@ -4717,7 +4731,7 @@ const newsCases = [
     const ofs = offersForDeal(d);
     const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0) + propsWonForDeal(d);
     if (won) return won;
-    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0);
+    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0) + propsSentForDeal(d);
     return open || Number(d.deal_value) || 0;
   };
   const dealsValue = (ds) => ds.reduce((a, d) => a + dealValue(d), 0);
