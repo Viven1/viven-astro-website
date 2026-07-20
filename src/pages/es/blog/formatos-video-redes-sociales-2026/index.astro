@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Formatos y duraciones de video en redes sociales 2026 | Viven"};
+const description = {"es":"Guía completa sobre dimensiones, duraciones y especificaciones técnicas de video para TikTok, Instagram, YouTube y LinkedIn en 2026."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "formatos-video-redes-sociales-2026";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/formatos-video-redes-sociales-2026" active="blog" singleLang={true} langUrls={{"en":"/en/blog/social-media-video-2026-formats-lengths-specs/","de":"/de/blog/social-media-video-formate-2026/","es":"/es/blog/formatos-video-redes-sociales-2026/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/formatos-video-redes-sociales-2026/\"},\"headline\":\"Formatos y duraciones de video en redes sociales 2026\",\"description\":\"Guía completa sobre dimensiones, duraciones y especificaciones técnicas de video para TikTok, Instagram, YouTube y LinkedIn en 2026.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/formatos-video-redes-sociales-2026/\",\"datePublished\":\"2026-07-20T14:41:21.767Z\",\"image\":\"https://www.viven.ch/projects/carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Formatos y duraciones de video en redes sociales 2026\",\"item\":\"https://www.viven.ch/es/blog/formatos-video-redes-sociales-2026/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuál es la resolución óptima para TikTok en 2026?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"1080×1920 px en formato vertical (relación 9:16). TikTok redimensiona automáticamente, pero subir en esta resolución nativa evita pérdida de calidad y maximiza el alcance del algoritmo.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánta duración debería tener un video para Instagram Reels?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Entre 21 y 60 segundos es óptimo para engagement máximo. Los Reels de 30–45 segundos generan mejor retención en audiencias hispanohablantes.\"}},{\"@type\":\"Question\",\"name\":\"¿Por qué los subtítulos son importantes en LinkedIn?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"85% de usuarios ven videos en LinkedIn sin sonido (en el trabajo o transporte). Subtítulos quemados o archivos SRT garantizan que tu mensaje sea accesible y mejoran el algoritmo de retención.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Formatos y duraciones de video en redes sociales 2026</span></nav>
+  <span class="eyebrow">Tendencias de contenido</span>
+  <h1>Formatos y duraciones de video en redes sociales 2026</h1>
+  <p class="lead">El video es el formato que domina las redes sociales en 2026, pero cada plataforma exige especificaciones técnicas distintas. Si publicas contenido con las medidas incorrectas, pierdes alcance, engagement y conversiones. En esta guía encontrarás las dimensiones exactas, duraciones óptimas y códecs recomendados para TikTok, Instagram, YouTube, LinkedIn y Pinterest, basadas en el comportamiento actual de usuarios hispanohablantes.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>20 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg" alt="Formatos y duraciones de video en redes sociales 2026" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>¿Por qué importan las especificaciones técnicas en 2026?</h2><p>Las redes sociales ajustan constantemente sus algoritmos para priorizar contenido optimizado. Un video en formato vertical que debería tener 1080×1920 px pero se sube en 720×1280 px se reproduce en baja resolución, genera más rebotes y recibe menos recomendaciones. Los creadores y marcas que entienden estas reglas técnicas obtienen 30% más visualizaciones que quienes improvisan.</p><p>Para marcas como UBS, Siemens o Porsche, la precisión técnica es tan importante como el contenido creativo. <a href={p("services/social-media-video")}>Producir video para redes sociales</a> requiere planificación desde el guion: si sabes exactamente dónde va a vivir tu contenido, puedes optimizar composición, color, tipografía y ritmo desde la preproducción.</p><h2>TikTok: el formato vertical que sigue gobernando</h2><p>TikTok mantiene su posición como plataforma de video más importante para alcance orgánico entre hispanohablantes, especialmente generaciones Z y millennials.</p><ul><li><strong>Dimensiones:</strong> 1080×1920 px (relación 9:16, vertical)</li><li><strong>Duración óptima:</strong> 15–60 segundos para máximo alcance; hasta 10 minutos para cuentas verificadas</li><li><strong>Formato de archivo:</strong> MP4 o MOV con H.264, audio AAC a 128 kbps</li><li><strong>Tamaño máximo:</strong> 287.6 MB</li><li><strong>Frame rate:</strong> 23.976, 24, 25, 29.97 o 30 fps</li></ul><p>Los videos de 21–34 segundos generan mayor engagement en España y Latinoamérica. Evita subtítulos quemados en los primeros 2 segundos: TikTok muestra una vista previa sin sonido en el feed.</p><h2>Instagram: Reels y Feed en formatos específicos</h2><p>Instagram diferencia fuertemente entre Reels (verticales, máximo alcance) y videos en Feed (cuadrados o verticales).</p><p><strong>Instagram Reels:</strong></p><ul><li><strong>Dimensiones:</strong> 1080×1920 px (9:16)</li><li><strong>Duración:</strong> 15 segundos a 90 segundos (máximo recomendado: 60 segundos)</li><li><strong>Codificación:</strong> H.264, 25–30 fps, audio estéreo AAC 128 kbps</li><li><strong>Tamaño máximo:</strong> 4 GB</li></ul><p><strong>Instagram Feed:</strong></p><ul><li><strong>Dimensiones:</strong> 1080×1080 px (1:1, cuadrado) o 1080×1350 px (4:5)</li><li><strong>Duración:</strong> hasta 60 minutos (pero 15–30 segundos maximiza reproducción completa)</li></ul><p>En el mercado hispanohablante, los Reels optimizados para 30 segundos con hooks visuales fuertes en el primer segundo generan 2x más interacción que videos genéricos.</p><h2>YouTube: Escalas diferentes para desktop y móvil</h2><p>YouTube sigue siendo crucial para marcas B2B como las que atiende <a href={p("services/corporate-video")}>Viven AG</a>. La plataforma reproduce contenido en múltiples dispositivos y relaciones de aspecto.</p><ul><li><strong>Dimensiones recomendadas:</strong> 1920×1080 px (16:9, landscape) como estándar</li><li><strong>Relación alternativa:</strong> 1080×1920 px (9:16) para Shorts, que es el formato emergente</li><li><strong>Duración óptima para discoverability:</strong> 8–12 minutos para monetización; sin límite máximo</li><li><strong>Codificación:</strong> H.264 o VP9, 24–60 fps, audio estéreo AAC</li><li><strong>Bitrate recomendado:</strong> 8–51 Mbps dependiendo de resolución</li></ul><p>YouTube Shorts (verticales, máx. 60 segundos) crecen en España y Latinoamérica. Si creas contenido institucional, mantén el 16:9 tradicional; si buscas viralidad joven, invierte en Shorts.</p><h2>LinkedIn: Video profesional con especificaciones B2B</h2><p>LinkedIn prioriza contenido de video en feed para recruiting, pensamiento estratégico y <a href={p("services/employer-branding")}>employer branding</a>. Las marcas suizas que contratan talento hispanohablante deben entender estas métricas.</p><ul><li><strong>Dimensiones:</strong> 1200×675 px (16:9) o 1080×1920 px (9:16)</li><li><strong>Duración ideal:</strong> 30–120 segundos (videos de 60 seg obtienen máximo engagement)</li><li><strong>Formato:</strong> MP4, H.264, 30 fps</li><li><strong>Subtítulos:</strong> Obligatorios; 85% de usuarios ven sin sonido</li></ul><p>En LinkedIn hispanohablante, los videos de testimonios de empleados (45–75 segundos) y case studies de producto (90–120 segundos) superan el rendimiento de contenido estático.</p><h2>Pinterest y otras plataformas emergentes</h2><p>Pinterest crece en España y Latinoamérica para nichos de diseño, moda y consumo. TikTok Shop también requiere formatos específicos.</p><ul><li><strong>Pinterest estándar:</strong> 1000×1500 px (2:3, vertical), MP4 o MOV, máx. 2 GB</li><li><strong>Duración:</strong> hasta 15 minutos, pero 15–30 segundos es óptimo</li><li><strong>TikTok Shop:</strong> 1080×1920 px, máx. 60 segundos, enfoque en producto</li></ul><h2>Checklist técnico antes de publicar</h2><p>Verifica siempre:<br/>✓ Resolución exacta según plataforma<br/>✓ Relación de aspecto sin barras negras<br/>✓ Subtítulos quemados o archivo SRT separado<br/>✓ Audio normalizado a -14 LUFS (estándar YouTube/Spotify)<br/>✓ Compatibilidad de códec en teléfono físico antes de publicar<br/>✓ Duración dentro del rango óptimo<br/>✓ Descripción con palabras clave en español nativo</p><p>En 2026, la automatización de republicación (herramientas como Meta Business Suite o Later) es tentadora, pero reduce alcance si no adaptas manualmente cada archivo. <a href={p("services/social-media-video")}>Producir contenido social</a> requiere respeto por las especificaciones de cada plataforma.</p><p>¿Necesitas ayuda para planificar o producir video optimizado para redes sociales? Viven AG ha trabajado con marcas globales como Siemens y Porsche para crear contenido que no solo se ve profesional, sino que also convierte. <a href={p("contact")}>Contáctanos</a> para conocer nuestros servicios de producción y asesoría técnica.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/828322230?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="formatos-video-redes-sociales-2026" />
+  </div></section>
+</Base>
