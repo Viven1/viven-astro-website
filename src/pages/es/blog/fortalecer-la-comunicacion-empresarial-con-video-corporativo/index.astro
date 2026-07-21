@@ -1,0 +1,117 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Fortalecé la comunicación empresarial con video corporativo | Viven"};
+const description = {"es":"Cómo el video corporativo mejora el engagement de tus empleados, fortalece la comunicación interna y aumenta la visibilidad de tu marca."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "fortalecer-la-comunicacion-empresarial-con-video-corporativo";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine','fortalecer','comunicacion','empresarial','corporativo']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/fortalecer-la-comunicacion-empresarial-con-video-corporativo" active="blog" singleLang={true} langUrls={{"en":"/en/blog/strengthen-business-communication-with-corporate-video-production/","de":"/de/blog/stärke-die-unternehmenskommunikation-mit-corporate-videoproduktion/","es":"/es/blog/fortalecer-la-comunicacion-empresarial-con-video-corporativo/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/fortalecer-la-comunicacion-empresarial-con-video-corporativo/\"},\"headline\":\"Fortalecé la comunicación empresarial con video corporativo\",\"description\":\"Cómo el video corporativo mejora el engagement de tus empleados, fortalece la comunicación interna y aumenta la visibilidad de tu marca.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/fortalecer-la-comunicacion-empresarial-con-video-corporativo/\",\"datePublished\":\"2026-07-21T09:00:00.000Z\",\"image\":\"https://www.viven.ch/projects/stadtspital-zurich-mis-spital-mis-laebe/04-Spital_Mis_L_be_VIVEN_Video_Agency_018.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Fortalecé la comunicación empresarial con video corporativo\",\"item\":\"https://www.viven.ch/es/blog/fortalecer-la-comunicacion-empresarial-con-video-corporativo/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cómo fortalece la comunicación empresarial el video corporativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Hace que los mensajes sean más fáciles de entender y más cercanos para empleados, clientes y socios; un informe de Demand Metric de 2024 encontró que las empresas que usan video en su comunicación crecen sus ingresos un 49% más rápido que las que no.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuáles son las principales aplicaciones del video corporativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Videos institucionales, comunicación interna, capacitación y onboarding, y videos de reclutamiento.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué resultados obtuvo Siemens con su contenido de video corporativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Más de 120 videos de employer branding ayudaron a humanizar la marca, generando 3 veces más engagement y mayor lealtad hacia la marca.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Fortalecé la comunicación empresarial con video corporativo</span></nav>
+  <span class="eyebrow">Eventos y corporativo</span>
+  <h1>Fortalecé la comunicación empresarial con video corporativo</h1>
+  <p class="lead">Mirá cómo la producción de video corporativo mejora el engagement de tus empleados, fortalece la comunicación y aumenta la visibilidad de tu marca.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>21 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/stadtspital-zurich-mis-spital-mis-laebe/04-Spital_Mis_L_be_VIVEN_Video_Agency_018.jpg" alt="Fortalecé la comunicación empresarial con video corporativo" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué la producción de video corporativo es esencial</h2>
+<p>El video corporativo fortalece la comunicación empresarial porque es más fácil de ver y de entender que un texto, sea cual sea la audiencia: empleados, clientes o socios. Un informe de Demand Metric de 2024 encontró que las empresas que usan video en su comunicación interna y externa crecen sus ingresos un 49% más rápido que las que no lo hacen — evidencia de que el video no es solo un lindo agregado, sino un motor medible de resultados de negocio.</p>
+<p>En un entorno digital saturado, las empresas están bajo presión constante para generar confianza, involucrar a sus equipos y captar la atención de su audiencia. El video corporativo hace más que informar — conecta. Humaniza a la marca y hace que sus mensajes se sientan más cercanos, ya sea que estés explicando la misión de tu empresa, dando la bienvenida a nuevos empleados, o mostrando un detrás de escena de tus operaciones.</p>
+<ul>
+<li><strong>Genera confianza y credibilidad:</strong> un video corporativo bien producido muestra profesionalismo y facilita la conexión con clientes y empleados.</li>
+<li><strong>Mejora el engagement de los empleados:</strong> los videos de comunicación interna simplifican el onboarding y la capacitación, y ayudan a que el equipo se sienta más conectado con los objetivos de la empresa.</li>
+<li><strong>Aumenta la visibilidad de marca:</strong> compartir videos corporativos en tu web o redes extiende el alcance y la reputación de tu marca.</li>
+</ul>
+<p>El trabajo de Viven con Siemens Suiza lo ilustra bien: más de 120 videos de <a href={p("services/employer-branding")}>employer branding</a> ayudaron a humanizar la marca frente a empleados actuales y potenciales, generando 3 veces más engagement y mayor lealtad.</p>
+<h2>Aplicaciones del video corporativo</h2>
+<ul>
+<li><strong>Videos institucionales:</strong> presentan tu misión, valores y cultura — ideales para tu web, pitches de venta o reuniones con inversores.</li>
+<li><strong>Comunicación interna:</strong> comparten novedades y celebran logros para mantener al equipo alineado con los objetivos de la empresa.</li>
+<li><strong>Capacitación y onboarding:</strong> dejan que los nuevos empleados aprendan a su ritmo con tutoriales en video que simplifican procesos complejos.</li>
+<li><strong>Videos de reclutamiento:</strong> muestran a los candidatos cómo es trabajar con tu equipo, atrayendo a quienes se identifican con tu misión.</li>
+</ul>
+<h2>Cómo el video corporativo mejora el engagement de los empleados</h2>
+<p>El engagement de los empleados es un factor crítico para el éxito de cualquier empresa, y las que usan video en su comunicación interna reportan un 75% más de satisfacción laboral. Compartir videos que celebran logros del equipo o comunican novedades importantes hace que los empleados se sientan parte de algo más grande — y la gente que se siente conectada tiende a comprometerse más y rendir mejor.</p>
+<h2>El proceso de producción de video corporativo</h2>
+<p>Una producción de video corporativo exitosa sigue un proceso claro. El <strong>desarrollo creativo</strong> define tus objetivos, tu visión y un concepto alineado con tu marca. La <strong>preproducción</strong> resuelve la logística — equipo, casting, locaciones y agenda — para que el rodaje fluya sin sobresaltos. La <strong>producción</strong> suma a camarógrafos, directores y técnicos de sonido para capturar imágenes de calidad que cuenten tu historia con claridad. La <strong>postproducción</strong> — edición, diseño de sonido, corrección de color y motion graphics — convierte ese material en un video pulido y profesional.</p>
+<h2>Buenas prácticas para un video corporativo efectivo</h2>
+<ul>
+<li><strong>Definí objetivos claros:</strong> sabé qué querés lograr, ya sea educar a tu equipo o generar engagement con clientes.</li>
+<li><strong>Conocé a tu audiencia:</strong> adaptá el contenido y el tono a las necesidades y preferencias de tu público objetivo.</li>
+<li><strong>Mantené el mensaje simple:</strong> no satures a quien mira — que el mensaje sea claro y fácil de entender.</li>
+<li><strong>Cuidá la consistencia de marca:</strong> asegurate de que el video refleje la voz y el estilo de tu marca.</li>
+<li><strong>Invertí en calidad de producción:</strong> un video de alta calidad refleja el profesionalismo de tu marca.</li>
+</ul>
+<p><strong>¿Listo para fortalecer tu comunicación empresarial con video?</strong> Cuando trabajás con Viven, elegís un equipo que se encarga de todo, del concepto a la entrega, para crear <a href={p("services/corporate-video")}>videos corporativos</a> alineados con tus objetivos de negocio y que comunican tu mensaje con claridad. <a href={p("contact")}>Contactanos hoy</a> y armemos videos que generen engagement, construyan confianza y hagan crecer tu negocio.</p>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="fortalecer-la-comunicacion-empresarial-con-video-corporativo" />
+  </div></section>
+</Base>
