@@ -10709,9 +10709,13 @@ const newsCases = [
     }
     return '<div class="wfp-ab"><div class="wfp-ab-grid">' + cell('a', A, aWins && st.conf >= 0.95) + cell('b', B, bWins && st.conf >= 0.95) + '</div>' + verdict + '</div>';
   }
-  // franja de pasos (modesta): por cada paso de steps_a, cuántos runs ya lo PASARON (step_idx > i).
-  // Sin % de apertura: el webhook aún no marca opens de workflows (ver nota arriba).
-  function wfpStepStrip(a, rs){
+  // franja de pasos (modesta): por cada paso de steps_a, cuántos runs ya lo
+  // PASARON. Para content_step no alcanza con step_idx > i — ese step type
+  // arma los 3 pasos de una sola corrida (salta step_idx directo al final),
+  // así que "pasó el paso" ahí hay que leerlo de la Bandeja real: ¿ya se
+  // MANDÓ (status='sent') el draft de ese paso? Sin eso, un content_step
+  // recién drafteado (todavía sin aprobar/enviar) ya contaba como "llegó".
+  function wfpStepStrip(a, rs, obA){
     const steps = a.steps_a || [];
     if (!steps.length) return '';
     const rsA = a.ab_split > 0 ? rs.filter((r) => r.variant === 'a') : rs;  // camino A (o único)
@@ -10719,12 +10723,18 @@ const newsCases = [
     const cells = [];
     steps.forEach((st, i) => {
       const meta = AU_TYPE_META[st.type] || { ic: '•' };
-      const reached = rsA.filter((r) => (r.step_idx || 0) > i).length;
-      const raw = st.type === 'email' ? (st.subject || 'email') : st.type === 'ai_email' ? 'email IA' :
+      let reached;
+      if (st.type === 'content_step') {
+        const stepNum = steps.slice(0, i + 1).filter((s) => s.type === 'content_step').length;
+        reached = (obA || []).filter((o) => o.step === stepNum && o.status === 'sent').length;
+      } else {
+        reached = rsA.filter((r) => (r.step_idx || 0) > i).length;
+      }
+      const raw = st.type === 'email' ? (st.subject || 'email') : st.type === 'ai_email' ? 'email IA' : st.type === 'content_step' ? '🎯 contenido' :
         st.type === 'wait' ? ((st.days || 1) + ' días') : st.type === 'task' ? (st.title || 'tarea') :
         st.type === 'push' ? 'push team' : ('→ ' + (st.value || 'etapa'));
       cells.push('<div class="wfp-step"><div class="t">' + meta.ic + ' ' + esc(String(raw).slice(0, 22)) + '</div>' +
-        '<div class="n"><b>' + reached + '</b> llegaron</div></div>');
+        '<div class="n"><b>' + reached + '</b> ' + (st.type === 'content_step' ? 'recibieron' : 'llegaron') + '</div></div>');
       if (i < steps.length - 1) cells.push('<span class="wfp-arrow">→</span>');
     });
     return '<div class="wfp-steps">' + cells.join('') + '</div>' +
@@ -10735,9 +10745,13 @@ const newsCases = [
     const [{ data, error }, runsQ, obQ] = await Promise.all([
       supabase.from('automations').select('*').order('created_at', { ascending: false }),
       supabase.from('automation_runs').select('automation_id,variant,status,lead_id,step_idx'),
-      // 📤 pendientes de OK + 🕒 aprobados esperando su scheduled_at (content_step
-      // arma los 3 pasos de una — "completó" no es lo mismo que "ya salió")
-      supabase.from('outbox').select('automation_id,status,scheduled_at').in('status', ['pending', 'approved']),
+      // TODOS los estados (no solo pending/approved) — necesitamos saber, por
+      // persona, si YA recibió todo de verdad (sent/discarded) o todavía le
+      // falta algo, sin importar si el motor (automation_runs.status) ya
+      // terminó de calcular los pasos. content_step arma los 3 emails de una
+      // sola vez para poder revisarlos juntos — el motor puede decir "done"
+      // mucho antes de que la persona reciba el último email real.
+      supabase.from('outbox').select('automation_id,lead_id,status,scheduled_at').not('automation_id', 'is', null),
     ]);
     if (error){ $('au-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; return; }
     auList = data || [];
@@ -10749,13 +10763,28 @@ const newsCases = [
       const obA = obAll.filter((o) => String(o.automation_id) === String(a.id));
       const approved = obA.filter((o) => o.status === 'approved');
       const nextSchedAt = approved.map((o) => o.scheduled_at).filter(Boolean).sort()[0];
+      // "inscripto ahora" = la PERSONA sigue con algo pendiente de recibir —
+      // no si al motor le queda algo por calcular. Alguien puede estar
+      // "done" para automations-run (ya armó los 3 drafts) y seguir siendo
+      // bien "inscripto" desde la perspectiva de Sebastián: todavía no
+      // recibió el email 2 ni el 3.
+      const obByLead = {};
+      obA.forEach((o) => { (obByLead[o.lead_id] = obByLead[o.lead_id] || []).push(o); });
+      const fullyDelivered = (leadId) => {
+        const rows = obByLead[leadId];
+        return !rows || !rows.length || rows.every((o) => o.status === 'sent' || o.status === 'discarded');
+      };
+      const stoppedIds = new Set(rs.filter((r) => r.status === 'stopped').map((r) => String(r.lead_id)));
+      const enrolledIds = [...new Set(rs.map((r) => String(r.lead_id)))];
+      const activeIds = enrolledIds.filter((id) => !stoppedIds.has(id) && !fullyDelivered(id));
+      const doneIds = enrolledIds.filter((id) => !stoppedIds.has(id) && fullyDelivered(id));
       // ganados atribuidos: de todos los leads ALGUNA VEZ inscriptos, cuáles se volvieron GANADOS
       // (dedupe por lead) + CHF sumando su deal_value (misma convención que el resto del archivo).
-      const wonLeads = [...new Set(rs.map((r) => String(r.lead_id)))].filter((id) => wonIds.has(id));
+      const wonLeads = enrolledIds.filter((id) => wonIds.has(id));
       const s = {
-        active: rs.filter((r) => r.status === 'active').length,
-        done: rs.filter((r) => r.status === 'done').length,
-        stopped: rs.filter((r) => r.status === 'stopped').length,
+        active: activeIds.length,
+        done: doneIds.length,
+        stopped: stoppedIds.size,
         drafts: obA.filter((o) => o.status === 'pending').length,
         approved: approved.length,
         nextSend: nextSchedAt ? new Date(nextSchedAt).toLocaleDateString('es-CH', { day: 'numeric', month: 'short' }) : '',
@@ -10767,7 +10796,7 @@ const newsCases = [
         '<div class="of-card-main"><div class="of-card-title">' + (a.enabled ? '🟢 ' : '⏸ ') + esc(a.name) + '</div>' +
         '<div class="of-card-sub">SI ' + esc(auTriggerLabel(a)) + ' → ' + ((a.steps_a || []).length) + ' pasos' + (a.ab_split > 0 ? ' · A/B ' + a.ab_split + '/' + (100 - a.ab_split) : '') + '</div></div>' +
         '<span class="of-badge">' + emailN + ' 📧</span></div>' +
-        '<div class="wfp">' + wfpChips(s) + (a.ab_split > 0 ? wfpAbBlock(a, rs, wonIds) : '') + wfpStepStrip(a, rs) + '</div>' +
+        '<div class="wfp">' + wfpChips(s) + (a.ab_split > 0 ? wfpAbBlock(a, rs, wonIds) : '') + wfpStepStrip(a, rs, obA) + '</div>' +
         '<div class="of-actions"><button class="of-act" data-auact="toggle" data-id="' + a.id + '" type="button">' + (a.enabled ? '⏸ Pausar' : '▶️ Activar') + '</button></div></div>';
     }).join('') || '<p class="muted-note">Sin workflows todavía — creá uno o cloná una plantilla.</p>';
     obLoad();
