@@ -10662,13 +10662,18 @@ const newsCases = [
   const auChf = (n) => 'CHF ' + Math.round(+n || 0).toLocaleString('de-CH');
   // fila resumen (el add clave): inscriptos ahora / completaron / frenados / borradores / ganados+CHF
   function wfpChips(s){
-    if (!s.active && !s.done && !s.stopped && !s.drafts && !s.won)
+    if (!s.active && !s.done && !s.stopped && !s.drafts && !s.approved && !s.won)
       return '<span class="wfp-empty">Sin datos todavía — nadie inscripto (el motor automático está en pausa).</span>';
     const c = [];
     c.push('<span class="wfp-chip">👥 <b>' + s.active + '</b> inscriptos ahora</span>');
     c.push('<span class="wfp-chip">✅ <b>' + s.done + '</b> completaron</span>');
     if (s.stopped) c.push('<span class="wfp-chip">⏹ <b>' + s.stopped + '</b> frenados (respondió/avanzó)</span>');
     if (s.drafts) c.push('<span class="wfp-chip">📤 <b>' + s.drafts + '</b> borradores esperando ok</span>');
+    // 'completaron' es al motor terminando de armar los pasos, no que ya se
+    // mandó nada — content_step arma los 3 emails de una sola vez (para
+    // revisar juntos) pero cada uno recién sale en su scheduled_at real, así
+    // que "aprobados, por salir" es la señal que faltaba para no verse vacío.
+    if (s.approved) c.push('<span class="wfp-chip">🕒 <b>' + s.approved + '</b> aprobados, por salir' + (s.nextSend ? ' · el más próximo ' + s.nextSend : '') + '</span>');
     if (s.won) c.push('<span class="wfp-chip win">🏆 <b>' + s.won + '</b> ganados · ' + auChf(s.chf) + ' atribuidos</span>');
     return '<div class="wfp-sum">' + c.join('') + '</div>';
   }
@@ -10730,16 +10735,20 @@ const newsCases = [
     const [{ data, error }, runsQ, obQ] = await Promise.all([
       supabase.from('automations').select('*').order('created_at', { ascending: false }),
       supabase.from('automation_runs').select('automation_id,variant,status,lead_id,step_idx'),
-      // borradores 📤 esperando aprobación, por workflow (best-effort; si falla la capa igual renderiza)
-      supabase.from('outbox').select('automation_id,status').eq('status', 'pending'),
+      // 📤 pendientes de OK + 🕒 aprobados esperando su scheduled_at (content_step
+      // arma los 3 pasos de una — "completó" no es lo mismo que "ya salió")
+      supabase.from('outbox').select('automation_id,status,scheduled_at').in('status', ['pending', 'approved']),
     ]);
     if (error){ $('au-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; return; }
     auList = data || [];
     const runs = runsQ.data || [];
-    const obPend = (obQ && obQ.data) || [];
+    const obAll = (obQ && obQ.data) || [];
     const wonIds = new Set((allLeads || []).filter((l) => stageOf(l.status) === 'ganado').map((l) => String(l.id)));
     $('au-list').innerHTML = auList.map((a) => {
       const rs = runs.filter((r) => r.automation_id === a.id);
+      const obA = obAll.filter((o) => String(o.automation_id) === String(a.id));
+      const approved = obA.filter((o) => o.status === 'approved');
+      const nextSchedAt = approved.map((o) => o.scheduled_at).filter(Boolean).sort()[0];
       // ganados atribuidos: de todos los leads ALGUNA VEZ inscriptos, cuáles se volvieron GANADOS
       // (dedupe por lead) + CHF sumando su deal_value (misma convención que el resto del archivo).
       const wonLeads = [...new Set(rs.map((r) => String(r.lead_id)))].filter((id) => wonIds.has(id));
@@ -10747,7 +10756,9 @@ const newsCases = [
         active: rs.filter((r) => r.status === 'active').length,
         done: rs.filter((r) => r.status === 'done').length,
         stopped: rs.filter((r) => r.status === 'stopped').length,
-        drafts: obPend.filter((o) => String(o.automation_id) === String(a.id)).length,
+        drafts: obA.filter((o) => o.status === 'pending').length,
+        approved: approved.length,
+        nextSend: nextSchedAt ? new Date(nextSchedAt).toLocaleDateString('es-CH', { day: 'numeric', month: 'short' }) : '',
         won: wonLeads.length,
         chf: wonLeads.reduce((t, id) => t + (Number((leadById(id) || {}).deal_value) || 0), 0),
       };
