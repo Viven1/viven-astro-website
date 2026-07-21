@@ -12201,6 +12201,8 @@ const newsCases = [
       if (p.session_id) b.maxBy[p.session_id] = Math.max(b.maxBy[p.session_id] || 0, pct);
     });
     const rows = Object.entries(by).sort((a2, b2) => b2[1].plays - a2[1].plays);
+    const leadIdBySess = {};
+    (leadsArr || []).forEach((l) => { if (l.session_id) leadIdBySess[l.session_id] = l.id; });
 
     // KPIs globales del período
     const totalPlays = rows.reduce((a2, [, b]) => a2 + b.plays, 0);
@@ -12233,7 +12235,8 @@ const newsCases = [
         const isStartGap = i === 0 && noStart;
         return '<div class="bar' + (i === steps.length - 1 && !isStartGap ? ' finish' : '') + '" style="height:' + h + '%' + (isStartGap ? ';background:var(--line)' : '') + '"><span>' + label + '</span><b style="color:' + (isStartGap ? 'var(--muted)' : '#0f1826') + '">' + (v == null ? '?' : v) + '</b></div>';
       }).join('');
-      return '<div class="va-card">' +
+      const leadIds = [...new Set([...b.sess].map((s2) => leadIdBySess[s2]).filter(Boolean))];
+      return '<div class="va-card"' + (leadIds.length ? ' data-lead-ids="' + esc(leadIds.join(',')) + '" style="cursor:pointer" title="Ir al lead"' : '') + '>' +
         '<div class="hd"><b>🎬 ' + esc(String(k).slice(0, 60)) + '</b><span>' + (noStart ? '0 reproducciones' : b.plays + ' reproducciones') + ' · Ø visto ' + avg + '%' +
           (noStart ? ' <span class="of-badge" style="color:#f0c060;border-color:#f0c060">no contabilizado</span>' : '') + '</span></div>' +
         '<div class="va-funnel">' + bars + '</div>' +
@@ -12243,6 +12246,9 @@ const newsCases = [
         '<div class="va-vimeo" data-vimeo-badge="' + esc(b.videoId || '') + '"></div>' +
       '</div>';
     }).join('');
+    box.querySelectorAll('.va-card[data-lead-ids]').forEach((card) => {
+      card.addEventListener('click', () => { const ids = card.dataset.leadIds.split(','); gotoTab('leads'); openLead(ids[0]); });
+    });
 
     loadVimeoOfficial(rows); // best-effort — nunca bloquea lo de arriba
   }
