@@ -1,0 +1,135 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Cómo los videos explicativos generan leads de calidad | Viven"};
+const description = {"es":"Descubrí cómo los videos explicativos impulsan el crecimiento de tu negocio generando leads de calidad. Captan atención, educan y convierten."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videos-explicativos-como-generar-leads-de-calidad";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine','generar','generan','leads','calidad','explicativos']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/videos-explicativos-como-generar-leads-de-calidad" active="blog" singleLang={true} langUrls={{"en":"/en/blog/unlocking-business-growth-the-power-of-explainer-videos-in-generating-quality-leads/","de":"/de/blog/mehr-qualifizierte-leads-mit-erklaervideos-so-waechst-dein-business-nachhaltig/","es":"/es/blog/videos-explicativos-como-generar-leads-de-calidad/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/videos-explicativos-como-generar-leads-de-calidad/\"},\"headline\":\"Cómo los videos explicativos generan leads de calidad\",\"description\":\"Descubrí cómo los videos explicativos impulsan el crecimiento de tu negocio generando leads de calidad. Captan atención, educan y convierten.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/videos-explicativos-como-generar-leads-de-calidad/\",\"datePublished\":\"2026-07-21T09:00:00.000Z\",\"image\":\"https://www.viven.ch/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Cómo los videos explicativos generan leads de calidad\",\"item\":\"https://www.viven.ch/es/blog/videos-explicativos-como-generar-leads-de-calidad/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cómo generan leads de calidad los videos explicativos?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Captan la atención rápido, responden preguntas clave desde el principio del proceso de compra, y guían a quien mira hacia un próximo paso claro, como completar un formulario o agendar una demo.\"}},{\"@type\":\"Question\",\"name\":\"¿Dónde conviene ubicar los videos explicativos para mejores resultados?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"En tu sitio web y redes sociales, donde videos cortos y atractivos aumentan el click-through rate y llevan más tráfico a tus landing pages.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué hace efectivos a los videos explicativos de Viven para generar leads?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Están pensados para enganchar a la audiencia y dejar clara la propuesta de la marca, convirtiendo prospectos de calidad en leads reales.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Cómo los videos explicativos generan leads de calidad</span></nav>
+  <span class="eyebrow">Guías y tutoriales</span>
+  <h1>Cómo los videos explicativos generan leads de calidad</h1>
+  <p class="lead">Los videos explicativos impulsan el crecimiento de tu negocio: captan la atención rápido, educan a los leads desde el principio del recorrido de compra y los guían hacia un próximo paso claro. Generar leads de calidad requiere más que tráfico — necesita contenido que atraiga y eduque a clientes potenciales, y eso es exactamente lo que hace un buen <a href={p("services/how-to-video")}>video explicativo</a>.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>21 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg" alt="Cómo los videos explicativos generan leads de calidad" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Captar la atención rápido</h2>
+<p>Hoy en día la gente tiene la atención dividida en mil pantallas, por eso un video explicativo corto y ágil funciona mucho mejor que un bloque largo de texto en tu sitio o redes sociales. Un video breve y bien producido gana consistentemente, y ayuda de dos formas concretas:</p>
+<ul>
+<li><strong>Aumenta el click-through rate:</strong> un video que engancha hace que la gente quiera saber más y haga clic en tus links.</li>
+<li><strong>Lleva más tráfico:</strong> más clics significan más visitas a tus landing pages.</li>
+</ul>
+<h2>Educar a los leads al principio del recorrido</h2>
+<p>Cuando alguien recién empieza a buscar un producto o servicio, suele tener muchas preguntas. Ahí es donde un video explicativo brilla, porque puede:</p>
+<ul>
+<li><strong>Responder las preguntas clave:</strong> respuestas claras a las dudas más comunes ayudan a que el cliente potencial entienda qué ofrecés.</li>
+<li><strong>Dar claridad:</strong> explicar tu producto o servicio de forma simple ayuda a que el lead se sienta seguro de su decisión.</li>
+<li><strong>Mejorar la calidad del lead:</strong> cuando la gente entiende bien qué hacés, es mucho más probable que su interés sea genuino.</li>
+</ul>
+<h2>Guiar hacia el próximo paso</h2>
+<p>Una vez que captaste la atención y educaste a tu audiencia, un llamado a la acción claro convierte ese interés en un lead real. Tu video tiene que invitar a dar el próximo paso — completar un formulario para mostrar interés, o agendar una demo para ver el producto en acción. Guiar a la persona hacia ese paso es lo que la acerca a convertirse en cliente.</p>
+<h2>Más leads con los videos explicativos de Viven</h2>
+<p>En Viven nos especializamos en crear videos explicativos que no solo atraen, sino que convierten prospectos de calidad en leads reales. Nuestros videos están pensados para enganchar a tu audiencia y dejar tu mensaje claro y convincente. Trabajamos codo a codo con tus equipos de marketing y ventas para que cada video refleje cómo se vende de verdad tu producto, no solo cómo se ve en una lista de características.</p>
+<h2>¿Listo para potenciar tu generación de leads?</h2>
+<p><a href={p("contact")}>Conocé cómo los videos explicativos de Viven pueden ayudar a crecer tu negocio</a> y empezá a convertir más de tu tráfico en leads calificados.</p>
+</div>
+<p class="post-service-note"><a href={p("services/how-to-video")}>¿Querés ver cómo funciona en la práctica? Conocé nuestra producción de videos instructivos.</a></p>
+</div></section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Cómo generan leads de calidad los videos explicativos?</summary>
+        <p>Captan la atención rápido, responden preguntas clave desde el principio del proceso de compra, y guían a quien mira hacia un próximo paso claro, como completar un formulario o agendar una demo.</p>
+      </details>
+      <details>
+        <summary>¿Dónde conviene ubicar los videos explicativos para mejores resultados?</summary>
+        <p>En tu sitio web y redes sociales, donde videos cortos y atractivos aumentan el click-through rate y llevan más tráfico a tus landing pages.</p>
+      </details>
+      <details>
+        <summary>¿Qué hace efectivos a los videos explicativos de Viven para generar leads?</summary>
+        <p>Están pensados para enganchar a la audiencia y dejar clara la propuesta de la marca, convirtiendo prospectos de calidad en leads reales.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="videos-explicativos-como-generar-leads-de-calidad" />
+  </div></section>
+</Base>
