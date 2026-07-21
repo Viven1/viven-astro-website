@@ -11710,15 +11710,37 @@ const newsCases = [
     $('au-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   /* ================= 👥 INSCRIPTOS: quién está en qué paso, frenar o sumar gente ================= */
-  function auEnrStepTxt(a, run){
+  // content_step arma los N emails de una sola corrida (el motor termina su
+  // parte enseguida) — "Terminó la secuencia" leído de automation_runs.status
+  // mentía apenas había algo drafteado: la persona seguía sin recibir nada
+  // real. Acá se lee la entrega VERDADERA desde la Bandeja (outbox) de ese
+  // lead para este workflow — sent = ya le llegó, pending/approved = todavía
+  // no. Si el lead no tiene ningún outbox row para este workflow (por
+  // ejemplo, todavía cursando el primer "esperar"), cae al texto viejo
+  // basado en step_idx, que ahí sigue siendo preciso.
+  function auEnrStepTxt(a, run, obLead){
     const steps = run.variant === 'b' ? (a.steps_b || []) : (a.steps_a || []);
+    const totalContent = steps.filter((s) => s.type === 'content_step').length;
+    if (totalContent && obLead && obLead.length){
+      const sent = obLead.filter((o) => o.status === 'sent').length;
+      const pending = obLead.filter((o) => o.status === 'pending').length;
+      const approved = obLead.filter((o) => o.status === 'approved');
+      if (sent >= totalContent && !pending && !approved.length) return '✅ Recibió los ' + totalContent + ' pasos';
+      const next = approved.map((o) => o.scheduled_at).filter(Boolean).sort()[0];
+      const nextTxt = pending ? 'esperando tu OK en la Bandeja' : next ? 'sale el ' + new Date(next).toLocaleDateString('es-CH', { day: 'numeric', month: 'short' }) : 'aprobado, por salir';
+      return 'Recibió ' + sent + '/' + totalContent + ' · próximo paso ' + nextTxt;
+    }
     if (run.status === 'done' || run.step_idx >= steps.length) return 'Terminó la secuencia';
     const st = steps[run.step_idx];
     if (!st) return '—';
     return 'Paso ' + (run.step_idx + 1) + '/' + steps.length + ': ' + (AU_TYPE_META[st.type] || {}).ic + ' ' + auStepSummary(st);
   }
-  function auEnrNextTxt(run){
+  function auEnrNextTxt(run, obLead){
     if (run.status === 'stopped') return 'Frenado';
+    // si ya hay drafts de contenido, el próximo envío depende de la Bandeja
+    // (scheduled_at/aprobación), no de automation_runs.next_at — ese campo
+    // ya no representa nada útil una vez que el motor terminó su parte.
+    if (obLead && obLead.length) return '';
     if (run.status === 'done') return '—';
     if (!run.next_at) return 'pendiente';
     const t = new Date(run.next_at).getTime(), now = Date.now();
@@ -11731,26 +11753,44 @@ const newsCases = [
     if (!a){ box.innerHTML = '<p class="muted-note">Guardá el workflow primero para poder inscribir gente.</p>'; if (n) n.textContent = ''; return; }
     box.innerHTML = '<p class="muted-note">Cargando…</p>';
     if (sel){ sel.innerHTML = '<option value="">Elegir persona…</option>' + (allLeads || []).slice().sort((x, y) => (x.name || x.email || '').localeCompare(y.name || y.email || '')).map((l) => '<option value="' + l.id + '">' + esc(l.name || l.email) + '</option>').join(''); leadPicker(sel); }
-    const { data, error } = await supabase.from('automation_runs').select('*').eq('automation_id', a.id).order('created_at', { ascending: false });
+    const [{ data, error }, { data: obData }] = await Promise.all([
+      supabase.from('automation_runs').select('*').eq('automation_id', a.id).order('created_at', { ascending: false }),
+      supabase.from('outbox').select('lead_id,status,scheduled_at').eq('automation_id', a.id),
+    ]);
     if (error){ box.innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; if (n) n.textContent = ''; return; }
     const runs = data || [];
+    const obAll = obData || [];
     if (n) n.textContent = runs.length ? '(' + runs.length + ')' : '';
     if (!runs.length){ box.innerHTML = '<p class="muted-note">Nadie inscripto todavía.</p>'; return; }
     box.innerHTML = runs.map((r) => {
       const l = leadById(r.lead_id) || {};
-      const badge = r.status === 'active' ? 'active' : r.status === 'stopped' ? 'stopped' : 'done';
-      const badgeTxt = r.status === 'active' ? '🟢 Activo' : r.status === 'stopped' ? '⏸ Frenado' : '✅ Terminado';
+      const obLead = obAll.filter((o) => String(o.lead_id) === String(r.lead_id));
+      const steps = r.variant === 'b' ? (a.steps_b || []) : (a.steps_a || []);
+      const totalContent = steps.filter((s) => s.type === 'content_step').length;
+      const fullyDelivered = totalContent && obLead.length ? obLead.every((o) => o.status === 'sent' || o.status === 'discarded') : (r.status === 'done');
+      const badge = r.status === 'stopped' ? 'stopped' : fullyDelivered ? 'done' : 'active';
+      const badgeTxt = r.status === 'stopped' ? '⏸ Frenado' : fullyDelivered ? '✅ Terminado' : '🟢 Activo';
+      const nextTxt = auEnrNextTxt(r, obLead);
       return '<div class="au-enr-row" data-rid="' + r.id + '">' +
         '<div class="au-enr-main"><div class="au-enr-name">' + esc(l.name || l.email || ('Lead #' + r.lead_id)) + (a.ab_split >= 50 ? ' · ' + r.variant.toUpperCase() : '') + '</div>' +
-        '<div class="au-enr-step">' + esc(auEnrStepTxt(a, r)) + ' · ' + esc(auEnrNextTxt(r)) + '</div></div>' +
+        '<div class="au-enr-step">' + esc(auEnrStepTxt(a, r, obLead)) + (nextTxt ? ' · ' + esc(nextTxt) : '') + '</div></div>' +
         '<span class="au-enr-badge ' + badge + '">' + badgeTxt + '</span>' +
         '<div class="au-enr-actions">' +
-        (r.status === 'active' ? '<button data-act="stop" type="button">⏸ Frenar</button>' : r.status === 'stopped' ? '<button data-act="resume" type="button">▶️ Reactivar</button>' : '') +
+        (r.status !== 'stopped' ? '<button data-act="stop" type="button">⏸ Frenar</button>' : '<button data-act="resume" type="button">▶️ Reactivar</button>') +
         '<button data-act="del" type="button">🗑</button></div></div>';
     }).join('');
     box.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
       const row = btn.closest('.au-enr-row'), rid = +row.dataset.rid, act = btn.dataset.act;
-      if (act === 'stop') await supabase.from('automation_runs').update({ status: 'stopped' }).eq('id', rid);
+      const run = runs.find((r) => r.id === rid);
+      if (act === 'stop') {
+        await supabase.from('automation_runs').update({ status: 'stopped' }).eq('id', rid);
+        // "Frenar" tiene que frenar de verdad — la sección que manda los
+        // aprobados (automations-run) NO mira automation_runs.status, solo
+        // outbox.status. Si no se descartan acá los que ya estaban
+        // pending/approved, el motor los manda igual aunque el run diga
+        // 'stopped' — justo lo que "Frenar" promete evitar.
+        if (run) await supabase.from('outbox').update({ status: 'discarded' }).eq('automation_id', a.id).eq('lead_id', run.lead_id).in('status', ['pending', 'approved']);
+      }
       else if (act === 'resume') await supabase.from('automation_runs').update({ status: 'active', next_at: new Date().toISOString() }).eq('id', rid);
       else if (act === 'del'){ if (!confirm('¿Sacar a esta persona del workflow del todo?')) return; await supabase.from('automation_runs').delete().eq('id', rid); }
       auLoadEnrolled(auCur);
