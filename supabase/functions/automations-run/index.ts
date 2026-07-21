@@ -160,8 +160,18 @@ function categoryOf(message: string | null | undefined): string | null {
   for (const [cat, re] of CATEGORY_RE) if (re.test(seg[1])) return cat;
   return null;
 }
-const pick = (obj: Record<string, string> | undefined, lang: string) => (obj && (obj[lang] || obj.en)) || "";
-type VideoGridItem = { href?: Record<string, string> | string; img: string; caption: string };
+// si el idioma está EXPLÍCITAMENTE presente en el objeto (aunque sea null/
+// vacío) se respeta tal cual — sin fallback a EN. Eso permite marcar "no
+// hay nada real para linkear en este idioma" con `es: null` en vez de
+// forzar el mismo link que EN/DE (o, peor, mostrar la página en inglés a
+// un lead que lee en español). Solo cae a EN si la clave del idioma NI
+// SIQUIERA existe en el objeto (contenido viejo que nunca contempló esto).
+const pick = (obj: Record<string, string | null> | undefined, lang: string): string => {
+  if (!obj) return "";
+  if (lang in obj) return obj[lang] || "";
+  return obj.en || "";
+};
+type VideoGridItem = { href?: Record<string, string | null> | string; img: string; caption: string };
 // href por idioma (no un solo link compartido) — un lead en alemán/español
 // tiene que caer en la página del proyecto en SU idioma, no siempre en la
 // versión en inglés. `pick(it.href, lang)` con fallback a EN si falta ese
@@ -184,7 +194,7 @@ function linkCardBlock(href: string, title: string, icon = "📝"): string {
 function pBlock(text: string, muted: boolean): string {
   return `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:${muted ? "#555" : "#222"}">${esc(text).replace(/\n/g, "<br>")}</p>`;
 }
-type ContentBlock = { type: string; muted?: boolean; text?: Record<string, string>; items?: VideoGridItem[]; href?: Record<string, string>; title?: Record<string, string>; icon?: string };
+type ContentBlock = { type: string; muted?: boolean; text?: Record<string, string | null>; items?: VideoGridItem[]; href?: Record<string, string | null>; title?: Record<string, string | null>; icon?: string };
 function renderBlocks(blocks: ContentBlock[], lang: string, lead: Record<string, unknown>): string {
   return (blocks || []).map((b) => {
     if (b.type === "p") return pBlock(fill(pick(b.text, lang), lead), !!b.muted);
