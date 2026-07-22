@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Employer Branding Video: Die richtigen Talente anziehen | Viven"};
+const description = {"de":"Wie Arbeitgeber-Videos qualifizierte Kandidaten anziehen – nicht bloss mehr Bewerbungen. Strategie, Best Practices und ROI."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "employer-branding-video-talente-gewinnen";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/employer-branding-video-talente-gewinnen" active="blog" singleLang={true} langUrls={{"en":"/en/blog/","de":"/de/blog/employer-branding-video-talente-gewinnen/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/employer-branding-video-talente-gewinnen/\"},\"headline\":\"Employer Branding Video: Die richtigen Talente anziehen\",\"description\":\"Wie Arbeitgeber-Videos qualifizierte Kandidaten anziehen – nicht bloss mehr Bewerbungen. Strategie, Best Practices und ROI.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/employer-branding-video-talente-gewinnen/\",\"datePublished\":\"2026-07-22T12:17:23.696Z\",\"image\":\"https://www.viven.ch/projects/siemens-shaping-the-future-together-employer-branding-campaign/08-RORES_clean_VIVEN.00_00_29_06.Still017.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Employer Branding Video: Die richtigen Talente anziehen\",\"item\":\"https://www.viven.ch/de/blog/employer-branding-video-talente-gewinnen/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie lange sollte ein Employer Branding Video sein?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Optimal 2–3 Minuten für LinkedIn und Website. Für intensive Einblicke (z. B. in der Recruiting-Funktion) können 4–5 Minuten sinnvoll sein. Kuerzeere Varianten (15–30 Sek.) für Social Media und Werbeanzeigen.\"}},{\"@type\":\"Question\",\"name\":\"Welche Kosten entstehen fuer ein professionelles Employer Branding Video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"In der Schweiz liegt eine professionelle Produktion (Konzept, Dreharbeiten, Post-Production) typischerweise zwischen CHF 8'000 und CHF 25'000, je nach Komplexitaet und Dauer. Der ROI durch bessere Kandidaten rechnet sich oft innerhalb von 6 Monaten.\"}},{\"@type\":\"Question\",\"name\":\"Kann ich mein Employer Branding Video selbst drehen?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Einfache Varianten ja – mit Smartphone und echten Mitarbeitern kann authentisches Material entstehen. Für professionelle Wirkung, Sound-Design und Schnitt lohnt sich aber eine erfahrene Videoproduktion, die auch rechtliche und Datenschutz-Fragen handhabt.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Employer Branding Video: Die richtigen Talente anziehen</span></nav>
+  <span class="eyebrow">HR-Marketing</span>
+  <h1>Employer Branding Video: Die richtigen Talente anziehen</h1>
+  <p class="lead">Ein Employer Branding Video ist nicht einfach eine schöne Undernehmensdarstellung: Es ist ein strategisches Werkzeug, um genau die Talente anzuziehen, die kulturell und fachlich zu Ihrem Unternehmen passen. Während generische Stellenanzeigen Masse bringen, arbeitet ein authentisches Video an Qualität – es zeigt Unternehmenskultur, Werte und Alltag so, dass nur Kandidaten begeistert sind, die wirklich zu Ihnen passen. Das reduziert Fluktuation, spart Recruitingkosten und baut eine starke Arbeitgebermarke auf.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>22. Juli 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/siemens-shaping-the-future-together-employer-branding-campaign/08-RORES_clean_VIVEN.00_00_29_06.Still017.jpg" alt="Employer Branding Video: Die richtigen Talente anziehen" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Warum Standard-Recruitung nicht mehr ausreicht</h2><p>Der Talentmarkt in der Schweiz ist angespannt. UBS, Siemens und andere Grosskonzerne konkurrieren um die gleichen Profile. Eine PDF-Stellenanzeige auf LinkedIn verursacht viele Bewerbungen – aber oft von weniger passenden Kandidaten. Die Quote der Absagen wird hoeher, die Onboarding-Kosten steigen, und nach sechs Monaten merkt man: Der kulturelle Fit stimmte nicht.</p><p>Ein professionelles <a href={p("services/employer-branding")}>Employer Branding Video</a> loest dieses Problem anders: Es kommuniziert Ihre Arbeitgebermarke emotional und authentisch. Bewerber sehen nicht nur die Jobbeschreibung, sondern das echte Arbeitsumfeld, echte Mitarbeitende und die gelebten Werte. Das funktioniert als Self-Selection-Mechanismus – nur wer sich in diesem Umfeld wirklich sieht, bewirbt sich.</p><h2>Authentizitaet schlaegt Perfektion</h2><p>Die haeufigster Fehler: Arbeitgeber produzieren Video-Broschuren statt echte Einblicke. Glatte Bueroaufnahmen, Studiobeleuchung, Sprecher-Off-Text – das sieht professionell aus, wirkt aber nicht. Moderne Kandidaten (besonders Gen Z und Millennials) erkennen Inszenierung sofort und misstrauen ihr.</p><p>Bessere Strategie:</p><ul><li><strong>Echte Mitarbeitende reden lassen:</strong> Interviews mit Angestellten ueber ihren Arbeitsalltag, Trainingsmöglichkeiten, Zusammenarbeit</li><li><strong>Ungefilterte Einblicke:</strong> Team-Meetings, Kaffeepausen, informelle Momente – nicht nur den perfekten Arbeitsplatz</li><li><strong>Probleme und Chancen nennen:</strong> Ehrlich darstellen, worauf es ankommt (z. B. Eigeninitiative, Stresstoleranz, internationale Zusammenarbeit)</li><li><strong>Lokale Elemente:</strong> Schweizer Arbeitskultur, Homeoffice-Regeln, Lohnstruktur und Benefits im Video konkretisieren</li></ul><h2>Verteilung: Wo Employer Branding Videos wirken</h2><p>Ein gut gemachtes Video braucht die richtige Plattform:</p><ul><li><strong>LinkedIn:</strong> Auf der Unternehmensseite und in Stellenanzeigen – hier sind Kandidaten aktiv auf Jobsuche</li><li><strong>Website:</strong> Ein <a href={p("services/corporate-video")}>Corporate Video</a> auf der Karriere-Seite als Anker-Content</li><li><strong>Instagram & TikTok:</strong> Kürzere Schnitte (15–30 Sekunden) fuer jüngere Talente</li><li><strong>YouTube:</strong> Laenger und detaillierter (3–5 Minuten) für vertiefende Informationen</li><li><strong>Teammeeting-Kanäle (Slack, Teams, Intranet):</strong> Auch interne Kandidierende (Promotionen) erreichen</li></ul><p>Pro-Tipp: Nutzen Sie auch <a href={p("services/social-media-video")}>Social Media Videos</a> mit User-Generated-Content – wenn Ihre Mitarbeiter authentische Clips vom Arbeitsalltag teilen, hat das viel mehr Reichweite und Glaubwuerdigkeit als Unternehmens-Posts.</p><h2>Messbarer ROI: Das zeigt sich schnell</h2><p>Viele Recruiter denken: Video ist nice-to-have, aber schwer zu messen. Das stimmt nicht. Tracking-Parameter zeigen genau:</p><ul><li><strong>Bewerber-Qualitaet:</strong> Sinkt die Quote der Absagen nach dem ersten Interview? Steigt die Quote durchlaufener Kandidaten?</li><li><strong>Kosten pro Hire:</strong> Mit Video kostet eine erfolgreiche Anstellung oft 20–30 % weniger (weniger Fehlzustaende = weniger Neurekrutierungen)</li><li><strong>Verweildauer:</strong> Kandidaten, die sich nach authentischem Video bewerben, bleiben laenger (6+ Monate statt 3–4)</li><li><strong>Video-Engagement:</strong> View-Rate, Drop-off-Point, Click-through-Rate zur Bewerbung</li></ul><p>Schweizer Unternehmen wie ON und Philips sehen bei einem modernen Employer Branding Video innerhalb von 3 Monaten messbare Effekte – bessere Qualitaet der Kandidaten, schneller besetzte Positionen.</p><h2>Häufige Anfaengerfehler</h2><ul><li><strong>Zu lang:</strong> Videos über 4 Minuten werden zu wenig ganz angeschaut. Kurz und fokussiert ist besser.</li><li><strong>Zu viel Text:</strong> Subtitel ja, aber nicht Absaetze vorlesen lassen.</li><li><strong>Kein Call-to-Action:</strong> Am Ende muss klar sein, wie Interessierte sich bewerben.</li><li><strong>Nur positive Stories:</strong> Einen Hauch Humor oder Ehrlichkeit uber Herausforderungen macht es glaubwuerdiger.</li><li><strong>Keine Aktualisierung:</strong> Nach jedem Jahr sollte das Video aufgefrischt werden – sonst wirkt es veraltet.</li></ul><h2>Nächste Schritte</h2><p>Ein professionelles Employer Branding Video ist eine Investition, die sich bei richtiger Strategie schnell rechnet. Der erste Schritt: Klären Sie intern, wer Ihre idealen Kandidaten sind und was Sie von anderen Arbeitgebern unterscheidet. Dann lassen Sie sich von erfahrenen Videoproduktionen beraten – sie helfen, die richtige Botschaft in die richtige Form zu bringen.</p><p>Falls Sie Ihre Employer Branding Strategie mit Video unterlegen möchten, schauen Sie sich <a href={p("services/employer-branding")}>unsere Arbeiten an</a> oder <a href={p("contact")}>kontaktieren Sie uns direkt</a> für ein unverbindliches Gespräch.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="employer-branding-video-talente-gewinnen" />
+  </div></section>
+</Base>
