@@ -1,0 +1,102 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Employer Branding Video: Attract the Right Candidates | Viven"};
+const description = {"en":"Learn how employer branding videos attract qualified candidates instead of just volume. Discover strategies used by leading Swiss companies like UBS and Siemens."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "employer-branding-video-attract-candidates";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/employer-branding-video-attract-candidates" active="blog" singleLang={true} langUrls={{"en":"/en/blog/employer-branding-video-attract-candidates/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/employer-branding-video-attract-candidates/\"},\"headline\":\"Employer Branding Video: Attract the Right Candidates\",\"description\":\"Learn how employer branding videos attract qualified candidates instead of just volume. Discover strategies used by leading Swiss companies like UBS and Siemens.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/employer-branding-video-attract-candidates/\",\"datePublished\":\"2026-07-22T12:17:14.565Z\",\"image\":\"https://www.viven.ch/projects/siemens-shaping-the-future-together-employer-branding-campaign/08-RORES_clean_VIVEN.00_00_29_06.Still017.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Employer Branding Video: Attract the Right Candidates\",\"item\":\"https://www.viven.ch/en/blog/employer-branding-video-attract-candidates/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How long should an employer branding video be?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ideally 2–4 minutes for a deep-dive role-specific video. Shorter clips (30–60 seconds) work well for social media teasers, but longer formats hold engaged candidates and allow authentic storytelling. Qualified candidates typically watch 70–85% of 3-minute videos, while poor fits drop off early.\"}},{\"@type\":\"Question\",\"name\":\"Should we feature only our best employees in the video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"No. Feature representative employees—people who are good at their jobs but also realistic about challenges. Authenticity builds trust. Candidates can sense when a video is curated propaganda, and it attracts people with low integrity. Show diverse experience levels and backgrounds.\"}},{\"@type\":\"Question\",\"name\":\"How do we measure if an employer branding video is working?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Track the quality of applicants, not quantity. Monitor the percentage of applicants who meet your minimum criteria, your interview-to-hire ratio, and retention at 12 and 24 months. A video generating 50 qualified applications is more successful than one generating 500 unsuitable ones.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Employer Branding Video: Attract the Right Candidates</span></nav>
+  <span class="eyebrow">Industry insight</span>
+  <h1>Employer Branding Video: Attract the Right Candidates</h1>
+  <p class="lead">Most employer branding videos fail because they chase vanity metrics—view counts and application volume—instead of filtering for cultural fit and genuine capability. The wrong approach floods your HR inbox with unsuitable candidates; the right one builds a magnetic reputation that naturally repels poor fits and attracts people who already understand what you stand for. This article explains how to craft employer branding videos that don't just reach people, but reach the *right* people.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>July 22, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/siemens-shaping-the-future-together-employer-branding-campaign/08-RORES_clean_VIVEN.00_00_29_06.Still017.jpg" alt="Employer Branding Video: Attract the Right Candidates" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Volume of Applicants Isn't Your Real Goal</h2><p>When a company posts a generic "we're hiring" video, it often generates hundreds of applications—most irrelevant. The hidden cost is time: recruiters waste hours filtering, interviewing unsuitable candidates, and managing rejection conversations. A strategic employer branding video does the opposite. It pre-qualifies viewers by communicating your actual values, work culture, and expectations. People who aren't aligned self-select out before they apply.</p><p>The companies winning the talent war—like those in tech, finance, and manufacturing—use video to show, not tell. They let real employees speak about real work, real challenges, and real culture. This transparency repels the resume-shoppers and attracts mission-driven professionals.</p>
+
+<h2>Four Core Elements That Stop the Wrong People Applying</h2><ul><li><strong>Authentic culture moments:</strong> Show unscripted team interactions, problem-solving, and how people actually spend their day. Candidates immediately sense whether they fit.</li><li><strong>Clear role expectations:</strong> Spell out the technical demands, soft skills needed, and growth timeline. A junior developer watching your senior engineering video will know if they're ready.</li><li><strong>Honest company values in action:</strong> Don't list values on a slide. Show them in decisions: how you handled a setback, how you treat customers, how you invest in people. Values-driven candidates respond to this; transactional job-seekers don't.</li><li><strong>Visible diversity and inclusion:</strong> If your team isn't diverse, the video shouldn't pretend. Conversely, if inclusion is real, document it. Candidates from underrepresented groups will trust you only if they see themselves reflected honestly.</li></ul>
+
+<h2>The Right Candidates Watch Longer</h2><p>Employer branding videos that attract the right people typically hold attention longer because the message resonates. Instead of a generic 60-second corporate spot, consider 2–4 minute deep-dives where employees discuss their role, the challenges they solve, and why they chose your company. Analytics show that qualified candidates—those who eventually accept offers—watch 70–85% of the content, while poor fits drop off in the first 15 seconds.</p><p>This is where <a href={p("services/employer-branding")}>employer branding video production</a> expertise matters. Professional production elevates your message, but the real power lies in authentic storytelling that repels mediocrity and attracts excellence.</p>
+
+<h2>Distribution Strategy: Reach Your Niche</h2><p>A brilliant employer branding video watched by the wrong audience is wasted potential. Rather than broad YouTube placement, strategic distribution channels include:</p><ul><li>Your careers page and LinkedIn company profile</li><li>Industry-specific job boards and forums</li><li>Professional networks where your ideal candidates congregate</li><li>Targeted social media campaigns on platforms your talent uses</li><li>Employee networks and referral programmes (often your strongest source)</li></ul><p>The goal is concentration, not reach. A video seen by 5,000 genuinely interested professionals creates better candidates than one reaching 100,000 random viewers. <a href={p("services/social-media-video")}>Social media distribution</a> is especially effective because you can retarget engaged users and tailor messaging to specific candidate personas.</p>
+
+<h2>Measuring Success: Quality Over Quantity</h2><p>Stop counting total applications. Start tracking these metrics instead:</p><ul><li><strong>Qualified applicant rate:</strong> What percentage of applicants meet your minimum criteria? Aiming for 60%+ is realistic; below 30% signals your video isn't filtering properly.</li><li><strong>Interview-to-hire ratio:</strong> How many people you interview before making an offer. A lower number means your video pre-qualified better.</li><li><strong>Time-to-hire:</strong> How fast you fill the role. Better-qualified pipelines move faster.</li><li><strong>Retention at 12 and 24 months:</strong> Do people who watched your video and joined stay longer? Video candidates with realistic expectations typically do.</li></ul><p>A video that generates 50 highly qualified applications is infinitely more valuable than one delivering 500 random ones.</p>
+
+<h2>Common Mistakes That Backfire</h2><p>The most damaging error is over-polishing. Slick corporate videos with stock footage and professional actors feel inauthentic to today's candidates. They want to see real people in real spaces making real decisions. Second: ignoring your company's actual flaws. Every workplace has trade-offs—long hours, demanding clients, competitive culture. Acknowledge them. Candidates who accept the role despite trade-offs are more committed than those blindsided later.</p><p>Third: burying key information. If you're hiring for a remote role, lead with it. If you require specific technical skills or certifications, state it upfront. This brutal clarity filters better than vague job descriptions.</p>
+
+<h2>Next Steps: From Strategy to Production</h2><p>Developing an effective employer branding video starts with clarity. Define your ideal candidate profile—not in terms of degree or years of experience, but in terms of values, work style, and career aspirations. Then, identify 2–3 current employees who embody this profile and are articulate about their experience. Script loosely, film in authentic settings, and edit for emotional truth over polish.</p><p>If you're ready to create an employer branding video that attracts talent, not just applications, <a href={p("contact")}>we'd love to help</a>. At Viven AG, we've produced employer branding videos for leading companies like UBS, Siemens, and ON—videos that don't just fill pipelines, they fill them with people who thrive.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="employer-branding-video-attract-candidates" />
+  </div></section>
+</Base>
