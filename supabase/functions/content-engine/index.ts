@@ -171,6 +171,21 @@ const MEDIA: Record<string, { imgs: string[]; video?: string }> = {
   ] },
 };
 
+// El eyebrow visible se deriva de classify(), NO del texto que devuelva la IA:
+// el ejemplo JSON del prompt decía "Industry insight" y el modelo lo copiaba
+// tal cual — posts de employer branding salían publicados con la categoría
+// equivocada (y el filtro del blog los agrupaba mal).
+const EYEBROW: Record<string, Record<string, string>> = {
+  brand: { en: "Brand video", de: "Markenfilm", es: "Video de marca" },
+  product: { en: "Product video", de: "Produktvideo", es: "Video de producto" },
+  employer: { en: "Employer Branding", de: "Employer Branding", es: "Employer Branding" },
+  howto: { en: "How-to & tutorial", de: "How-To & Tutorial", es: "Guías y tutoriales" },
+  social: { en: "Social media", de: "Social Media", es: "Redes sociales" },
+  corporate: { en: "Corporate & events", de: "Corporate & Events", es: "Corporativo y eventos" },
+  event: { en: "Corporate & events", de: "Corporate & Events", es: "Corporativo y eventos" },
+  process: { en: "Industry insight", de: "Branchen-Insight", es: "Industria" },
+  general: { en: "Industry insight", de: "Branchen-Insight", es: "Industria" },
+};
 function classify(topic: string): string {
   const t = topic.toLowerCase();
   return /corporate|internal comm/.test(t) ? "corporate"
@@ -419,7 +434,7 @@ Deno.serve(async (req) => {
         // insert RESILIENTE: si faltan columnas nuevas (SQL 0034 sin correr), las saca y reintenta
         let row: Record<string, unknown> = {
           lang: lg, topic: item.topic, slug: a.slug, title: a.title, description: a.description,
-          eyebrow: a.eyebrow || "Industry insight", lead: a.lead, body_html: a.body_html, faq: a.faq,
+          eyebrow: (EYEBROW[classify(topic)] || EYEBROW.general)[lg] || "Industry insight", lead: a.lead, body_html: a.body_html, faq: a.faq,
           status: "draft", group_id: groupId, hero_image: media.hero, video_id: media.video, approve_token: token,
           target_keyword: targetKeyword, keyword_current_position: kwGsc.position, keyword_verdict: kw.verdict, keyword_verdict_why: kw.why,
           category: classify(topic),
