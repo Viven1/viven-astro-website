@@ -464,6 +464,30 @@ function hubspotSubmit(first, last, email, message, company){
   }catch(e){}
 }
 document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadForm(m); });
+
+/* Newsletter del footer: captura de baja fricción (solo email) → lead con
+   source 'newsletter'. Usa el mismo insert resiliente que el form principal. */
+document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var inp = form.querySelector('input[type="email"]');
+    var email = (inp.value || '').trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ inp.focus(); return; }
+    var btn = form.querySelector('button'); btn.disabled = true;
+    var extra = window.vivenAttribution ? window.vivenAttribution() : null;
+    var row = { name: '', first_name: '', email: email, message: 'Newsletter signup', form_path: location.pathname, source: 'newsletter' };
+    if(extra){
+      row.session_id = extra.session_id;
+      row.lang = extra.lang;
+      if(extra.attrib){ row.channel = extra.attrib.channel; row.utm_source = extra.attrib.utm_source; row.landing_path = extra.attrib.landing_path; }
+    }
+    sbInsertLead(row).then(function(res){
+      var box = form.closest('[data-nl]');
+      if(res && res.ok){ form.hidden = true; var d = box.querySelector('.nl-done'); if(d) d.hidden = false; }
+      else { btn.disabled = false; }
+    });
+  });
+});
 /* el idioma ya se aplicó al cargar — re-aplicar sobre el formulario recién montado */
 if(document.querySelector('.lead-form')) setLang(document.documentElement.lang || 'en');
 
