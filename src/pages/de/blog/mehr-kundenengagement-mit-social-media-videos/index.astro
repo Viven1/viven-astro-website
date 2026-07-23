@@ -1,0 +1,125 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Mehr Kundenengagement mit Social-Media-Videos | Viven"};
+const description = {"de":"Mehr Engagement mit hochwertigen Social-Media-Videos: Wie Vivens plattform-native Videoproduktion Reichweite steigert und Interaktion auslöst."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "mehr-kundenengagement-mit-social-media-videos";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/mehr-kundenengagement-mit-social-media-videos" active="blog" singleLang={true} langUrls={{"en":"/en/blog/how-viven-helps-brands-boost-customer-engagement-with-social-media-videos/","de":"/de/blog/mehr-kundenengagement-mit-social-media-videos/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/mehr-kundenengagement-mit-social-media-videos/\"},\"headline\":\"Mehr Kundenengagement mit Social-Media-Videos\",\"description\":\"Mehr Engagement mit hochwertigen Social-Media-Videos: Wie Vivens plattform-native Videoproduktion Reichweite steigert und Interaktion auslöst.\",\"image\":\"https://www.viven.ch/projects/fifa-living-football-social-media-campaign/05-Living_Football_Viven_Video_Agentur11.jpeg\",\"datePublished\":\"2026-07-23\",\"dateModified\":\"2026-07-23\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/mehr-kundenengagement-mit-social-media-videos/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/de/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Mehr Kundenengagement mit Social-Media-Videos\",\"item\":\"https://www.viven.ch/de/blog/mehr-kundenengagement-mit-social-media-videos/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Warum performt Video auf Social Media besser als andere Inhalte?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Video-Posts erzielen rund 48% mehr Views und Engagement als andere Inhaltstypen, und die Algorithmen priorisieren Video aktiv bei Reichweite und Sichtbarkeit.\"}},{\"@type\":\"Question\",\"name\":\"Welche Social-Video-Formate produziert Viven?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Produkt-Highlight-Clips, Kunden-Testimonials, animierte Erklärvideos sowie Event-Highlights und Livestreams.\"}},{\"@type\":\"Question\",\"name\":\"Welche Resultate erzielte Siemens mit der Social-Video-Kampagne von Viven?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Eine Verdreifachung des Social-Media-Engagements und spürbar mehr Website-Traffic nach dem Launch der Videos auf LinkedIn, Instagram und Facebook.\"}}]}]}"}></script>
+<!-- ============ POST HERO ============ -->
+<section class="page-hero post-hero">
+  <div class="wrap">
+    <div class="post-wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p("")}>Home</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <a href={p("blog")}>Blog</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <span>Mehr Kundenengagement mit Social-Media-Videos</span>
+      </nav>
+      <span class="eyebrow">Social Media</span>
+      <h1>Mehr Kundenengagement mit Social-Media-Videos</h1>
+      <p class="lead">Social-Media-Algorithmen belohnen Video — wer nur auf statische Posts setzt, arbeitet gegen die Plattform. Wie plattform-native Videoproduktion Reichweite und Interaktion messbar steigert.</p>
+      <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>23. Juli 2026</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARTICLE ============ -->
+<section class="sec" style="padding-top:40px">
+  <div class="wrap">
+    <div class="post-wrap post-body reveal">
+<p>Viven steigert das Kundenengagement auf Social Media mit massgeschneiderten, pro Plattform optimierten Videos — denn Video-Posts erzielen rund <strong>48% mehr Views</strong> und Engagement als jeder andere Inhaltstyp. Die Algorithmen priorisieren Video aktiv. Für Marken, die Reichweite aufbauen wollen, ist Video damit kein Nice-to-have, sondern die Eintrittskarte.</p>
+<h2>Warum Video auf Social Media funktioniert</h2>
+<p>Video-Posts schlagen andere Formate konstant, weil die Plattformen Watch-Time und Shares belohnen. Wer sich allein auf statische Bilder verlässt, arbeitet gegen den Algorithmus statt mit ihm.</p>
+<h2>Social-Videos, die performen</h2>
+<p>Von Kurzform-Teasern bis Behind-the-Scenes: Viven produziert <a href={p("services/social-media-video")}>Social-Media-Videos</a>, die auf Interaktion und Shares ausgelegt sind — plattformgerecht gedacht und mit messbaren Resultaten, über einen Mix aus Formaten:</p>
+<ul>
+<li><a href={p("services/product-video")}>Produkt-Highlight-Clips</a></li>
+<li>Kunden-Testimonials</li>
+<li>Animierte Erklärvideos</li>
+<li>Event-Highlights und Livestreams</li>
+</ul>
+<h2>Case Study: Siemens — Social-Media-Engagement verdreifacht</h2>
+<p>Siemens liess mit Viven eine Serie von Social-Media-Videos im Rahmen der Employer-Branding-Kampagne produzieren — mit dem Ziel, sowohl Mitarbeitende als auch potenzielle Talente über Unternehmenskultur und Arbeitsumfeld zu erreichen. Nach dem Launch auf LinkedIn, Instagram und Facebook verzeichnete Siemens eine <strong>Verdreifachung</strong> des Social-Media-Engagements und spürbar mehr Website-Traffic.</p>
+<h2>Warum Viven für Social Video</h2>
+<p>Viven bringt Erfahrung mit plattformspezifischen Formaten, Storytelling für die mobile Nutzung und schnelle Turnarounds für temporeiche Kampagnen mit. Derselbe Ansatz steckt hinter unserer weiteren engagement-fokussierten Arbeit für B2C-Marken auf Social Media.</p>
+<h2>Der richtige Content-Mix</h2>
+<p>Die stärksten Social-Media-Auftritte setzen nicht auf ein einziges Videoformat, sondern rotieren durch einen Mix, der den Feed frisch hält. Kurze Produkt-Teaser wecken schnelles Interesse, Testimonials bauen über Zeit Glaubwürdigkeit auf, Behind-the-Scenes-Clips geben der Marke ein menschliches Gesicht. Event-Highlights und Livestreams schaffen eine Unmittelbarkeit, die statische Posts nicht erreichen.</p>
+<p>Konstanz zählt dabei genauso viel wie Vielfalt: Ein verlässlicher Publishing-Rhythmus signalisiert Algorithmus und Publikum, dass die Marke aktiv ist — und verstärkt die Reichweite jedes einzelnen Videos. Dazu gehören klare Captions, native Untertitel und das richtige Seitenverhältnis pro Plattform.</p>
+<h2>Starten Sie Ihre Social-Video-Kampagne</h2>
+<p><a href={p("contact")}>Starten Sie Ihre Social-Video-Kampagne mit Viven</a> und machen Sie die Plattform-Algorithmen zu Ihrem Vorteil.</p>
+    </div>
+    <p class="post-service-note"><a href={p("services/social-media-video")}>Sehen, wie das in der Praxis aussieht? Unsere Social-Media-Produktion.</a></p>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="mehr-kundenengagement-mit-social-media-videos" />
+  </div></section>
+</Base>
