@@ -475,7 +475,7 @@ document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ inp.focus(); return; }
     var btn = form.querySelector('button'); btn.disabled = true;
     var extra = window.vivenAttribution ? window.vivenAttribution() : null;
-    var row = { name: '', first_name: '', email: email, message: 'Newsletter signup', form_path: location.pathname, source: 'newsletter' };
+    var row = { name: '', first_name: '', email: email, message: 'Newsletter signup', form_path: location.pathname };   /* el origen va en message — leads.source no existe */
     if(extra){
       row.session_id = extra.session_id;
       row.lang = extra.lang;

@@ -5127,7 +5127,7 @@ const newsCases = [
       const s = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
       const val = rowVal(r);
       const act = actMap.get(r.id);
-      const isNl = r.source === 'newsletter';
+      const isNl = String(r.message || '') === 'Newsletter signup';   // leads.source no existe — el origen vive en message (igual que 'CALCULADORA')
       const nm = r.name || r.first_name || (isNl && r.email) || '(sin nombre)';
       const ini = (nm[0] || '?').toUpperCase();
       const dom = leadDomain(r);
@@ -6212,7 +6212,7 @@ const newsCases = [
         (oi > -1 ? '<span class="lm2-nav-n">' + (oi + 1) + '/' + order.length + '</span>' : '') +
         '<button id="lm2-nav-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>›</button></div>' +
       '<div class="lm2-avatar">' + esc(((first[0] || '?') + (last[0] || '')).toUpperCase()) + '</div>' +
-      '<div class="lm2-who"><div class="nm">' + esc(r.name || (r.source === 'newsletter' && r.email) || '(sin nombre)') + (r.source === 'newsletter' ? ' <span class="lt-nl">📰 Newsletter</span>' : '') + '<span class="lm-score" id="lm2-score"></span></div>' +
+      '<div class="lm2-who"><div class="nm">' + esc(r.name || (String(r.message || '') === 'Newsletter signup' && r.email) || '(sin nombre)') + (String(r.message || '') === 'Newsletter signup' ? ' <span class="lt-nl">📰 Newsletter</span>' : '') + '<span class="lm-score" id="lm2-score"></span></div>' +
       '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div>' +
       lm2WebBadge(r) + '</div>' +
       pipe +
