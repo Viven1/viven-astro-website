@@ -6,13 +6,16 @@ const p = (s) => localePath(lang, s);
 const t = (o) => o[lang] || o.en;
 
 const L = {
+  home: { en: 'Home', de: 'Home', es: 'Inicio' },
   eyebrow: { en: 'Project', de: 'Projekt', es: 'Proyecto' },
   watch: { en: 'Watch the film', de: 'Film ansehen', es: 'Ver el film' },
   back: { en: 'All projects', de: 'Alle Projekte', es: 'Todos los proyectos' },
   gallery: { en: 'From the production', de: 'Aus der Produktion', es: 'De la producción' },
   ctaH: { en: 'Start your success story.', de: 'Starten Sie Ihre Erfolgsgeschichte.', es: 'Empezá tu historia de éxito.' },
   ctaP: { en: 'Tell us what you’re working on — we’ll come back with ideas, timing and a clear quote.', de: 'Erzählen Sie uns von Ihrem Projekt — wir melden uns mit Ideen, Timing und einem klaren Angebot.', es: 'Contá tu proyecto — volvemos con ideas, tiempos y un presupuesto claro.' },
-  ctaBtn: { en: 'Start a project', de: 'Projekt starten', es: 'Iniciar proyecto' },
+  formNote: { en: "We'll reply within one business day. No spam, ever.", de: 'Wir antworten innerhalb eines Werktags. Kein Spam.', es: 'Respondemos en un día hábil. Nunca spam.' },
+  bookQ: { en: 'Prefer to talk it through?', de: 'Lieber direkt sprechen?', es: '¿Preferís hablarlo directamente?' },
+  bookCta: { en: 'Book a free 15-min call →', de: 'Gratis 15-Min-Call buchen →', es: 'Reservá una llamada gratis de 15 min →' },
 };
 
 const lead = project.body[0] || '';
@@ -27,7 +30,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
   <section class="page-hero cs-hero">
     <div class="wrap">
       <nav class="crumbs" aria-label="Breadcrumb">
-        <a href={p('')}>Home</a>
+        <a href={p('')}>{t(L.home)}</a>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
         <a href={p('projects')}>{t(L.back)}</a>
       </nav>
@@ -75,15 +78,19 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
 
   <section class="cta" style="padding-top:0">
     <div class="wrap">
-      <div class="cta-card reveal" style="grid-template-columns:1fr;text-align:center">
+      <div class="cta-card reveal">
         <div>
-          <span class="eyebrow" style="justify-content:center">{t(L.eyebrow)}</span>
+          <span class="eyebrow">{t(L.eyebrow)}</span>
           <h2>{t(L.ctaH)}</h2>
-          <p class="lead" style="margin-left:auto;margin-right:auto">{t(L.ctaP)}</p>
-          <div class="hero-cta" style="justify-content:center;margin-top:28px">
-            <a href={p('contact')} class="btn btn-primary">{t(L.ctaBtn)}</a>
+          <p class="lead">{t(L.ctaP)}</p>
+          <div class="hero-cta" style="margin-top:28px">
             <a href={p('projects')} class="btn btn-ghost">← {t(L.back)}</a>
           </div>
+        </div>
+        <div>
+          <div class="lead-form-mount"></div>
+          <p class="form-note">{t(L.formNote)}</p>
+          <p class="book-call-note"><span>{t(L.bookQ)}</span> <a class="book-call" href="/book/" target="_blank" rel="noopener">{t(L.bookCta)}</a></p>
         </div>
       </div>
     </div>

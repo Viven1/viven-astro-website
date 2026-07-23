@@ -109,6 +109,16 @@ if (limit) list = list.slice(0, limit);
 
 // case studies primero (ordenados por relevancia de marca)
 csProjects.sort((a, b) => rank(a.client) - rank(b.client));
+// data-pin: el 1er proyecto de cada una de las 3 marcas top queda SIEMPRE
+// primero en la grilla (site.js baraja el resto en cada carga) — 3 marcas
+// distintas, no 3 proyectos del mismo cliente.
+const pinnedIdx = new Set();
+{
+  const seenClients = new Set();
+  csProjects.forEach((pr, i) => {
+    if (seenClients.size < 3 && !seenClients.has(pr.client)) { seenClients.add(pr.client); pinnedIdx.add(i); }
+  });
+}
 
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 ---
@@ -117,7 +127,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
     const feat = feature && i === 0 ? ' wt-feature' : '';
     const c = serviceCat(pr.service);
     return (
-      <a class={'work-tile reveal wt-case' + feat} href={'/' + pr.slug + '/'} data-cat={c} aria-label={pr.client}>
+      <a class={'work-tile reveal wt-case' + feat} href={'/' + pr.slug + '/'} data-cat={c} data-pin={pinnedIdx.has(i) ? '1' : undefined} aria-label={pr.client}>
         <span class="wt-thumb"><img src={pr.stills[0]} width="1280" height="720" loading="lazy" decoding="async" alt={pr.headline} /></span>
         <span class="wt-meta">
           <span class="wt-title">{pr.client}</span>
