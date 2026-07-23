@@ -47,11 +47,39 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const auth = req.headers.get("Authorization") ?? "";
-    const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
+    // service-role bypass (mismo patrón que push-send): permite acciones
+    // server-to-server como submit_sitemap sin sesión de dashboard.
+    const isService = auth === "Bearer " + (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "");
+    if (!isService) {
+      const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return json({ error: "unauthorized" }, 401);
+    }
 
-    const { days = 28 } = await req.json().catch(() => ({}));
+    const body0 = await req.json().catch(() => ({}));
+    // Registrar el sitemap en Search Console vía API (una vez tras migrar a
+    // sitemap-index.xml, o cuando haga falta re-avisar). Requiere que el
+    // refresh token tenga el scope webmasters completo — si es readonly,
+    // Google responde 403 y lo reportamos tal cual.
+    if (body0.submit_sitemap) {
+      const token = await googleToken();
+      let site = Deno.env.get("GSC_SITE") || "";
+      if (!site) {
+        const sres = await fetch("https://searchconsole.googleapis.com/webmasters/v3/sites", { headers: { Authorization: "Bearer " + token } });
+        const entries = sres.ok ? ((await sres.json()).siteEntry ?? []) : [];
+        const ok = entries.filter((e: { permissionLevel?: string }) => e.permissionLevel !== "siteUnverifiedUser").map((e: { siteUrl: string }) => e.siteUrl);
+        const pref = ["sc-domain:viven.ch", "https://www.viven.ch/", "https://viven.ch/"];
+        site = pref.find((p) => ok.includes(p)) || ok[0] || "https://viven.ch/";
+      }
+      const feed = String(body0.submit_sitemap) === "true" || body0.submit_sitemap === true ? "https://www.viven.ch/sitemap-index.xml" : String(body0.submit_sitemap);
+      const sub = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/sitemaps/${encodeURIComponent(feed)}`, {
+        method: "PUT", headers: { Authorization: "Bearer " + token },
+      });
+      return json({ ok: sub.ok, status: sub.status, site, feed, detail: sub.ok ? "submitted" : (await sub.text()).slice(0, 300) });
+    }
+    if (isService) return json({ error: "solo submit_sitemap disponible con service role" }, 400);
+
+    const { days = 28 } = body0;
     const d = Math.max(7, Math.min(90, Number(days) || 28));
     const end = new Date(Date.now() - 2 * 864e5);         // GSC llega con ~2 días de lag
     // fix (auditoría 2026-07-14): startDate/endDate de GSC son AMBOS inclusive —
