@@ -1,0 +1,46 @@
+---
+// Bloque "Related reading" para páginas de SERVICIO: los 3 posts más
+// recientes del idioma cuya categoría (eyebrow) matchee `match`. Cierra el
+// gap de interlinking servicios→blog (los posts ya linkean a servicios,
+// pero ninguna página de servicio linkeaba al blog). Auto-descubierto del
+// contenido — cero curación manual, siempre al día.
+const { lang = 'en', match = /./ } = Astro.props;
+const raw = import.meta.glob('../pages/*/blog/*/index.astro', { query: '?raw', import: 'default', eager: true });
+const H = { en: 'Related reading', de: 'Das könnte dich auch interessieren', es: 'Esto también te puede interesar' };
+const MORE = { en: 'Read more →', de: 'Weiterlesen →', es: 'Leer más →' };
+const all = Object.entries(raw)
+  .filter(([p]) => p.includes('/' + lang + '/blog/'))
+  .map(([p, r]) => {
+    const slug = p.split('/blog/')[1].split('/')[0];
+    const s = String(r);
+    const jstr = (re) => { const m = s.match(re); if (!m) return ''; try { return JSON.parse(m[1]); } catch { return ''; } };
+    const title = String(jstr(/const title = \{"[a-z]{2}":("(?:[^"\\]|\\.)*")\}/) || slug).replace(/ \| Viven$/, '');
+    const desc = String(jstr(/const description = \{"[a-z]{2}":("(?:[^"\\]|\\.)*")\}/) || '');
+    const eyebrowM = s.match(/class="eyebrow">([^<]*)</);
+    const date = (s.match(/datePublished[^0-9]{0,6}([0-9]{4}-[0-9]{2}-[0-9]{2}[0-9T:.+]*)/) || [])[1] || '';
+    return { slug, title, desc, eyebrow: eyebrowM ? eyebrowM[1] : '', date };
+  })
+  .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+// sin posts de la categoría en este idioma → los 3 más recientes del idioma
+// (mejor un interlink genérico que ningún interlink)
+const matched = all.filter((p) => match.test(p.eyebrow));
+const posts = (matched.length ? matched : all).slice(0, 3);
+---
+{posts.length > 0 && (
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>{H[lang] || H.en}</h2>
+      <div class="related-grid">
+        {posts.map((r) => (
+          <a href={'/' + lang + '/blog/' + r.slug + '/'} class="related-card reveal">
+            <h3>{r.title}</h3>
+            <p>{r.desc}</p>
+            <span class="more">{MORE[lang] || MORE.en}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+)}
