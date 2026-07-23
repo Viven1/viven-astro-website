@@ -1259,6 +1259,7 @@ const newsCases = [
   .lt-person{display:flex;align-items:center;gap:10px}
   .lt-av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#0b1220;flex:none}
   .lt-sub{font-size:11.5px;color:var(--muted-2);margin-top:1px}
+  .lt-nl{font-size:10.5px;font-weight:700;letter-spacing:.04em;color:#8ab4ff;border:1px solid color-mix(in srgb,#8ab4ff 45%,transparent);background:color-mix(in srgb,#8ab4ff 12%,transparent);border-radius:999px;padding:1px 8px;vertical-align:middle}
   .lt-mail2 a{color:var(--muted);text-decoration:none}
   .lt-mail2 a:hover{color:var(--acid);text-decoration:underline}
   .lt-ph{color:var(--muted)}
@@ -5126,14 +5127,15 @@ const newsCases = [
       const s = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
       const val = rowVal(r);
       const act = actMap.get(r.id);
-      const nm = r.name || r.first_name || '(sin nombre)';
+      const isNl = r.source === 'newsletter';
+      const nm = r.name || r.first_name || (isNl && r.email) || '(sin nombre)';
       const ini = (nm[0] || '?').toUpperCase();
       const dom = leadDomain(r);
       const co = (dom && companyName(dom)) || r.company || '';
       const nd = dealsForLead(r.id).length;
       return '<tr data-id="' + esc(r.id) + '">' +
         '<td class="lt-chk"><input type="checkbox" class="ps-row-chk" data-id="' + esc(r.id) + '"' + (psSelected.has(String(r.id)) ? ' checked' : '') + ' onclick="event.stopPropagation()" /></td>' +
-        '<td><div class="lt-person"><span class="lt-av" style="background:' + avColor(nm) + '">' + esc(ini) + '</span><div><div class="lt-name">' + esc(nm) + '</div>' + (r.job_title ? '<div class="lt-sub">' + esc(r.job_title) + '</div>' : '') + '</div></div></td>' +
+        '<td><div class="lt-person"><span class="lt-av" style="background:' + avColor(nm) + '">' + esc(ini) + '</span><div><div class="lt-name">' + esc(nm) + (isNl ? ' <span class="lt-nl">📰 Newsletter</span>' : '') + '</div>' + (r.job_title ? '<div class="lt-sub">' + esc(r.job_title) + '</div>' : '') + '</div></div></td>' +
         '<td class="lt-mail2">' + (r.email ? '<a href="mailto:' + esc(r.email) + '" onclick="event.stopPropagation()">' + esc(r.email) + '</a>' : '—') + '</td>' +
         '<td class="lt-ph">' + esc(r.phone || '—') + '</td>' +
         '<td>' + esc(co || '—') + '</td>' +
@@ -6210,7 +6212,7 @@ const newsCases = [
         (oi > -1 ? '<span class="lm2-nav-n">' + (oi + 1) + '/' + order.length + '</span>' : '') +
         '<button id="lm2-nav-next" title="Contacto siguiente"' + (oi < 0 || oi >= order.length - 1 ? ' disabled' : '') + '>›</button></div>' +
       '<div class="lm2-avatar">' + esc(((first[0] || '?') + (last[0] || '')).toUpperCase()) + '</div>' +
-      '<div class="lm2-who"><div class="nm">' + esc(r.name || '(sin nombre)') + '<span class="lm-score" id="lm2-score"></span></div>' +
+      '<div class="lm2-who"><div class="nm">' + esc(r.name || (r.source === 'newsletter' && r.email) || '(sin nombre)') + (r.source === 'newsletter' ? ' <span class="lt-nl">📰 Newsletter</span>' : '') + '<span class="lm-score" id="lm2-score"></span></div>' +
       '<div class="sub">' + esc([r.job_title, company, r.email].filter(Boolean).join(' · ')) + '</div>' +
       lm2WebBadge(r) + '</div>' +
       pipe +
