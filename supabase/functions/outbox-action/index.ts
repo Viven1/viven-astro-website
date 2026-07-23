@@ -116,7 +116,11 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") {
       const { data: leadPreview } = await service.from("leads").select("name,email").eq("id", ob.lead_id).maybeSingle();
       const toName = leadPreview?.name || leadPreview?.email || ("Lead #" + ob.lead_id);
-      return confirmPage(req.url, action === "approve" ? "✅ Sí, aprobar y enviar" : "✕ Sí, descartar", action === "discard", toName, ob.subject);
+      // req.url adentro de la function refleja la URL INTERNA (sin /functions/v1/,
+      // a veces http://) — nunca la pública. Reconstruimos la URL real a partir
+      // de SUPABASE_URL, si no el <form action> queda roto (404 al aprobar).
+      const publicActionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/outbox-action?id=${encodeURIComponent(id)}&action=${encodeURIComponent(action)}&token=${encodeURIComponent(token)}`;
+      return confirmPage(publicActionUrl, action === "approve" ? "✅ Sí, aprobar y enviar" : "✕ Sí, descartar", action === "discard", toName, ob.subject);
     }
 
     if (action === "discard") {
