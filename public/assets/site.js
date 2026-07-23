@@ -465,6 +465,36 @@ function hubspotSubmit(first, last, email, message, company){
 }
 document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadForm(m); });
 
+/* Lead magnet gated: email → lead (message identifica el magnet) → descarga.
+   La descarga arranca aunque el insert falle — el PDF nunca se le niega a
+   un humano por un hipo del backend. */
+document.querySelectorAll('.lm-gate').forEach(function(box){
+  var form = box.querySelector('.lm-gate-form');
+  if(!form) return;
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var inp = form.querySelector('input[type="email"]');
+    var email = (inp.value || '').trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ inp.focus(); return; }
+    var btn = form.querySelector('button'); btn.disabled = true;
+    var extra = window.vivenAttribution ? window.vivenAttribution() : null;
+    var row = { name: '', first_name: '', email: email, message: box.dataset.magnet || 'Lead magnet', form_path: location.pathname };
+    if(extra){
+      row.session_id = extra.session_id;
+      row.lang = extra.lang;
+      if(extra.attrib){ row.channel = extra.attrib.channel; row.utm_source = extra.attrib.utm_source; row.landing_path = extra.attrib.landing_path; }
+    }
+    var download = function(){
+      form.hidden = true;
+      var d = box.querySelector('.lm-gate-done'); if(d) d.hidden = false;
+      var a = document.createElement('a');
+      a.href = box.dataset.pdf; a.download = '';
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+    sbInsertLead(row).then(download, download);
+  });
+});
+
 /* Newsletter del footer: captura de baja fricción (solo email) → lead con
    source 'newsletter'. Usa el mismo insert resiliente que el form principal. */
 document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){

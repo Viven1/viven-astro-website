@@ -1,0 +1,39 @@
+---
+// Lead magnet gated por email: el visitante deja su email → lead en el CRM
+// (message identifica el magnet, misma convención que 'Newsletter signup')
+// → descarga el PDF. El handler vive en site.js (.lm-gate).
+const { lang = 'en', pdf, magnet = 'Lead magnet' } = Astro.props;
+const T = {
+  eyebrow: { en: 'Free download', de: 'Gratis-Download', es: 'Descarga gratis' },
+  title: { en: 'Social Media Video Cheat Sheet 2026', de: 'Social-Media-Video Cheat-Sheet 2026', es: 'Cheat sheet de video para redes 2026' },
+  desc: {
+    en: 'Every platform-native format, length and spec on one page — YouTube, Reels, TikTok and LinkedIn. The same reference our producers use.',
+    de: 'Alle plattform-nativen Formate, Längen und Specs auf einer Seite — YouTube, Reels, TikTok und LinkedIn. Dieselbe Referenz, die unsere Producer nutzen.',
+    es: 'Todos los formatos nativos, duraciones y specs en una página — YouTube, Reels, TikTok y LinkedIn. La misma referencia que usan nuestros productores.',
+  },
+  ph: { en: 'Your work email', de: 'Ihre Arbeits-E-Mail', es: 'Tu email de trabajo' },
+  btn: { en: 'Download the PDF', de: 'PDF herunterladen', es: 'Descargar el PDF' },
+  done: { en: '✓ Downloading — check your folder.', de: '✓ Download läuft — im Ordner nachsehen.', es: '✓ Descargando — revisá tu carpeta.' },
+  note: { en: 'No spam — unsubscribe any time.', de: 'Kein Spam — jederzeit abmeldbar.', es: 'Sin spam — baja cuando quieras.' },
+};
+const t = (k) => T[k][lang] || T[k].en;
+---
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="lm-gate reveal" data-pdf={pdf} data-magnet={magnet}>
+      <div class="lm-gate-copy">
+        <span class="eyebrow">{t('eyebrow')}</span>
+        <h2>{t('title')}</h2>
+        <p>{t('desc')}</p>
+      </div>
+      <div class="lm-gate-side">
+        <form class="lm-gate-form" novalidate>
+          <input type="email" name="email" required placeholder={t('ph')} autocomplete="email" />
+          <button type="submit" class="btn btn-primary">📄 {t('btn')}</button>
+        </form>
+        <p class="lm-gate-done" hidden>{t('done')}</p>
+        <p class="lm-gate-note">{t('note')}</p>
+      </div>
+    </div>
+  </div>
+</section>
