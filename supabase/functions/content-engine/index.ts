@@ -354,7 +354,7 @@ Rules:
 - slug: kebab-case, ascii.
 
 Respond ONLY with valid minified JSON, no markdown fences:
-{"title":"...","slug":"...","description":"...","eyebrow":"Industry insight","lead":"first paragraph, plain text","body_html":"<h2>...</h2><p>...</p>","faq":[{"q":"...","a":"..."}]}`;
+{"title":"...","slug":"...","description":"...","eyebrow":"Industry insight","lead":"first paragraph, plain text","body_html":"<h2>...</h2><p>...</p>","faq":[{"q":"...","a":"..."}],"linkedin":"ready-to-post LinkedIn text: 1 hook line, 2 short paragraphs, 2-3 relevant hashtags, ends with {{URL}} on its own line. Same language as the article. No emojis overload — max 2."}`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -373,7 +373,7 @@ Respond ONLY with valid minified JSON, no markdown fences:
   text = text.replace(/```json|```/g, "").trim();
   const last = text.lastIndexOf("}");
   if (last > -1) text = text.slice(0, last + 1);
-  let p: { title?: string; slug?: string; description?: string; eyebrow?: string; lead?: string; body_html?: string; faq?: unknown[] } | null = null;
+  let p: { title?: string; slug?: string; description?: string; eyebrow?: string; lead?: string; body_html?: string; faq?: unknown[]; linkedin?: string } | null = null;
   try { p = JSON.parse(text); } catch { p = null; }
   if (!p || !p.body_html) throw new Error("artículo inválido (" + lang + ")");
   if (lang === "de") { // Schweizer Hochdeutsch: sin ß, siempre ss (garantizado por código, no solo por prompt)
@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
     await service.from("content_queue").update({ status: "working" }).eq("id", item.id);
     const groupId = crypto.randomUUID();
     const media = await pickMedia(topic);
-    const made: { lang: string; id: number; title: string; lead: string; token: string | null; body: string; faq: { q: string; a: string }[] }[] = [];
+    const made: { lang: string; id: number; title: string; lead: string; token: string | null; body: string; faq: { q: string; a: string }[]; linkedin: string; slug: string }[] = [];
     try {
       for (const [lg, loc] of [["en", false], ["de", true], ["es", true]] as [string, boolean][]) {
         const a = await writeArticle(topic, lg, loc);
@@ -447,7 +447,7 @@ Deno.serve(async (req) => {
           ins = await service.from("blogs").insert(row).select("id").single();
         }
         if (ins.error) throw new Error("no pude guardar el borrador (" + lg + "): " + ins.error.message);
-        made.push({ lang: lg.toUpperCase(), id: ins.data?.id, title: a.title, lead: a.lead || "", token: ("approve_token" in row) ? token : null, body: a.body_html || "", faq: (a.faq || []) as { q: string; a: string }[] });
+        made.push({ lang: lg.toUpperCase(), id: ins.data?.id, title: a.title, lead: a.lead || "", token: ("approve_token" in row) ? token : null, body: a.body_html || "", faq: (a.faq || []) as { q: string; a: string }[], linkedin: String(a.linkedin || ""), slug: a.slug || "" });
       }
     } catch (e) {
       if (!made.length) { await service.from("content_queue").update({ status: "pending" }).eq("id", item.id); throw e; }
@@ -482,6 +482,7 @@ Deno.serve(async (req) => {
           <div style="font-size:14px;color:#333c4a;line-height:1.75">${clean(m.body)}</div>
           ${m.faq.length ? `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #eceef2"><b style="font-size:13px">FAQ</b>${m.faq.map((f) => `<p style="font-size:13px;margin:8px 0 2px"><b>${f.q}</b><br>${f.a}</p>`).join("")}</div>` : ""}
           ${media.video ? `<p style="font-size:12.5px;color:#8a94a8;margin-top:12px">🎬 Al publicar se embebe también el video Vimeo ${media.video} al final del artículo.</p>` : ""}
+          ${m.linkedin ? `<div style="margin-top:16px;padding:14px 16px;border:1px dashed #b9c2d0;border-radius:12px;background:#fafbfd"><b style="font-size:12.5px;color:#1a2230">📣 Post de LinkedIn (copiar y pegar al publicar)</b><div style="font-size:13px;color:#333c4a;line-height:1.65;white-space:pre-wrap;margin-top:8px">${m.linkedin.replace("{{URL}}", "https://www.viven.ch/" + m.lang.toLowerCase() + "/blog/" + m.slug + "/")}</div></div>` : ""}
         </div>`).join("");
       await fetch("https://api.resend.com/emails", {
         method: "POST",
