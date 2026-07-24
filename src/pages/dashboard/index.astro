@@ -1560,6 +1560,23 @@ const newsCases = [
      con captura: "mira todo el dead space") */
   .hm-masonry{columns:280px 3;column-gap:12px;margin-top:14px}
   .hm-masonry .hm-card{break-inside:avoid;margin-bottom:12px}
+  /* 🎯 Ritmo del mes (tab Hoy): mismo lenguaje visual que los KPIs .hk de abajo */
+  .rm-panel{margin-bottom:12px}
+  .rm-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .rm-head h2{margin-bottom:0}
+  .rm-goal{display:flex;align-items:center;gap:6px;margin-left:auto}
+  .rm-goal-lbl{color:var(--muted);font-size:12.5px}
+  .rm-goal-lbl b{color:var(--text);font-family:'Space Grotesk'}
+  .rm-kpis{margin-bottom:12px}
+  .rm-bar{position:relative;height:10px;border-radius:6px;background:var(--navy-900);border:1px solid var(--line);overflow:visible}
+  .rm-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:#7ed957;transition:width .3s}
+  .rm-fill.behind{background:#f0c060}
+  .rm-marker{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);opacity:.65;border-radius:1px}
+  .rm-bar-cap{margin-top:6px;font-size:12px}
+  .rm-action{margin:10px 0 0;font-size:13px;font-weight:600}
+  .rm-action.ok{color:#7ed957}
+  .rm-action.warn{color:#f0c060}
+  .rm-action.bad{color:#ff8b8b}
   .hm-list{display:flex;flex-direction:column}
   /* fila accionable: barra de severidad a la izquierda (rojo/ámbar/azul) */
   .hm-item{position:relative;display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:10px 6px 10px 14px;cursor:pointer;text-align:left;color:var(--text);font-family:inherit}
@@ -1782,6 +1799,36 @@ const newsCases = [
         <p class="muted-note" style="margin:2px 0 0">Un vistazo antes de entrar al pipeline: lo que pasó (señales, actividad) y lo que toca hacer.</p>
       </div>
       <button class="btn btn-ghost small" id="hoy-pipe-btn" type="button">🤝 Ver pipeline completo →</button>
+    </div>
+    <!-- 🎯 Ritmo del mes: metas vs realidad (SQL 0108 business_goals) — objetivo editable
+         inline, cerrado + ponderado + proyección + gap, barra con marcador de "dónde
+         deberías estar hoy" y línea de acción con leads faltantes -->
+    <div class="panel hm-card rm-panel" id="rm-panel">
+      <div class="rm-head">
+        <h2 style="margin:0">🎯 Ritmo del mes <span class="count" id="rm-month"></span></h2>
+        <div class="rm-goal" id="rm-goal-view">
+          <span class="rm-goal-lbl">Objetivo: <b id="rm-goal-val">–</b></span>
+          <button class="btn btn-ghost small" id="rm-goal-edit" type="button" title="Editar objetivo mensual">✎</button>
+        </div>
+        <div class="rm-goal" id="rm-goal-form" hidden>
+          <span class="rm-goal-lbl">CHF</span>
+          <input class="ed-inp" id="rm-goal-inp" type="number" min="0" step="1000" placeholder="p. ej. 60000" style="width:110px" />
+          <button class="btn btn-primary small" id="rm-goal-save" type="button">Guardar</button>
+          <button class="btn btn-ghost small" id="rm-goal-cancel" type="button">✕</button>
+        </div>
+      </div>
+      <div class="home-kpis rm-kpis">
+        <div class="hk"><div class="hk-l">Cerrado este mes</div><div class="hk-n" id="rm-closed" style="color:#7ed957">–</div><div class="hk-t muted" id="rm-closed-t"></div></div>
+        <div class="hk"><div class="hk-l">Pipeline ponderado</div><div class="hk-n" id="rm-weighted">–</div><div class="hk-t muted">abiertos × prob. de etapa</div></div>
+        <div class="hk"><div class="hk-l">Proyección del mes</div><div class="hk-n" id="rm-proj">–</div><div class="hk-t muted">cerrado + ponderado</div></div>
+        <div class="hk"><div class="hk-l">Gap vs objetivo</div><div class="hk-n" id="rm-gap">–</div><div class="hk-t muted" id="rm-gap-t"></div></div>
+      </div>
+      <div class="rm-bar" id="rm-bar" hidden>
+        <div class="rm-fill" id="rm-fill"></div>
+        <div class="rm-marker" id="rm-marker"></div>
+      </div>
+      <div class="rm-bar-cap muted-note" id="rm-bar-cap"></div>
+      <p class="rm-action" id="rm-action" hidden></p>
     </div>
     <div class="home-kpis hm-kpis">
       <div class="hk"><div class="hk-l">Pipeline abierto</div><div class="hk-n" id="hm-pipe">–</div><div class="hk-t muted" id="hm-pipe-t"></div></div>
@@ -4737,6 +4784,112 @@ const newsCases = [
   }
   $('hm-ai-btn').addEventListener('click', () => hmAi(true));
 
+  /* ---------- 🎯 Ritmo del mes: metas vs realidad (SQL 0108 business_goals) ----------
+     Pesos del pipeline ponderado = STAGES.prob (nuevo .2 · contactado .4 · videocall .6 ·
+     propuesta .8): los MISMOS que ya usa todo el dashboard (KPI "Ponderado", board) —
+     inventar otros acá haría que el panel contradiga al resto de la pantalla.
+     La edge function daily-digest usa este mismo mapa (copiado con comentario). */
+  let rmGoal = null, rmGoalFetched = false, rmGoalBusy = false;
+  async function rmFetchGoal(){
+    if (rmGoalBusy || rmGoalFetched) return;
+    rmGoalBusy = true;
+    try {
+      const { data, error } = await supabase.from('business_goals').select('monthly_target').eq('id', 1).maybeSingle();
+      if (!error){ rmGoal = data ? +data.monthly_target || 0 : 0; rmGoalFetched = true; rmRender(); }
+    } catch (e) { /* tabla pendiente (SQL 0108 sin correr) → el panel muestra el aviso de definir objetivo */ }
+    finally { rmGoalBusy = false; }
+  }
+  function rmRender(){
+    if (!$('rm-panel')) return;
+    const now = new Date(), D = 864e5;
+    $('rm-month').textContent = '(' + now.toLocaleDateString('es-CH', { month: 'long', year: 'numeric' }) + ')';
+    const m0 = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dayOfMonth = now.getDate();
+    const all = (dealsList || []).filter((d) => !d.archived);
+    // cerrado este mes: ganados con won_at (fallback last_stage_at) dentro del mes en curso
+    const wonMonth = all.filter((d) => stageOf(d.stage) === 'ganado' && Date.parse(d.won_at || d.last_stage_at || '') >= m0);
+    const closed = dealsValue(wonMonth);
+    // ponderado: mismos pesos/valores que hmDealKpis (números idénticos en todo el dashboard)
+    const open = all.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
+    const weighted = open.reduce((a, d) => a + dealValue(d) * ((STAGES.find((s) => s.key === stageOf(d.stage)) || {}).prob || 0), 0);
+    const proj = closed + weighted;
+    const goal = +rmGoal || 0;
+    $('rm-closed').textContent = closed ? fmtChf(closed) : 'CHF 0';
+    $('rm-closed-t').textContent = wonMonth.length ? wonMonth.length + (wonMonth.length === 1 ? ' deal ganado' : ' deals ganados') : 'sin cierres todavía';
+    $('rm-weighted').textContent = fmtChf(Math.round(weighted));
+    $('rm-proj').textContent = fmtChf(Math.round(proj));
+    $('rm-goal-val').textContent = goal ? fmtChf(goal) : (rmGoalFetched ? 'sin definir' : '–');
+    const gapEl = $('rm-gap'), gapT = $('rm-gap-t'), bar = $('rm-bar'), cap = $('rm-bar-cap'), act = $('rm-action');
+    if (!goal){
+      gapEl.textContent = '–'; gapEl.style.color = ''; gapT.textContent = 'definí el objetivo →';
+      bar.hidden = true; cap.textContent = '';
+      act.hidden = false; act.className = 'rm-action warn';
+      act.textContent = rmGoalFetched ? 'Definí el objetivo mensual (✎ arriba) para ver el gap y el ritmo del mes.' : 'Cargando objetivo…';
+      return;
+    }
+    // GAP = proyección − objetivo (verde si la proyección ya cubre el objetivo)
+    const gap = proj - goal;
+    const gapAbs = Math.abs(Math.round(gap));
+    gapEl.textContent = (gap >= 0 ? '+' : '−') + (gapAbs ? fmtChf(gapAbs) : 'CHF 0');
+    gapEl.style.color = gap >= 0 ? '#7ed957' : '#ff8b8b';
+    gapT.textContent = gap >= 0 ? 'proyección cubre el objetivo' : 'falta para el objetivo';
+    // barra: cerrado vs objetivo, con marcador de "dónde deberías estar hoy" (día/días del mes)
+    const pctClosed = Math.min(100, closed / goal * 100);
+    const pctToday = Math.min(100, dayOfMonth / daysInMonth * 100);
+    bar.hidden = false;
+    const fill = $('rm-fill');
+    fill.style.width = pctClosed.toFixed(1) + '%';
+    fill.className = 'rm-fill' + (pctClosed + 0.5 < pctToday ? ' behind' : '');
+    const mk = $('rm-marker');
+    mk.style.left = pctToday.toFixed(1) + '%';
+    mk.title = 'Hoy deberías estar en ' + fmtChf(Math.round(goal * dayOfMonth / daysInMonth)) + ' (' + Math.round(pctToday) + '% del mes)';
+    cap.textContent = 'Cerrado ' + (closed ? fmtChf(closed) : 'CHF 0') + ' de ' + fmtChf(goal) + ' (' + Math.round(pctClosed) + '%) · día ' + dayOfMonth + ' de ' + daysInMonth + ' (' + Math.round(pctToday) + '% del mes)';
+    // línea de acción: "faltan ~N leads" con conversión histórica REAL (leads→ganados 90 días)
+    act.hidden = false;
+    if (gap >= 0){
+      act.className = 'rm-action ok';
+      act.textContent = '✓ A este ritmo el mes cierra en ' + fmtChf(Math.round(proj)) + ' — ' + fmtChf(Math.round(gap)) + ' arriba del objetivo.';
+      return;
+    }
+    const t90 = Date.now() - 90 * D;
+    const leads90 = (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && !/spam/i.test(l.status || '') && Date.parse(l.created_at || '') >= t90);
+    const won90 = all.filter((d) => stageOf(d.stage) === 'ganado' && Date.parse(d.won_at || d.last_stage_at || '') >= t90);
+    const lead90Ids = new Set(leads90.map((l) => String(l.id)));
+    const wonFromLeads90 = won90.filter((d) => lead90Ids.has(String(d.lead_id))).length;
+    const avgWon = won90.length ? dealsValue(won90) / won90.length : 0;
+    // historia suficiente = al menos 10 leads y 2 cierres en 90 días; si no, no inventamos una tasa
+    if (leads90.length >= 10 && won90.length >= 2 && wonFromLeads90 >= 1 && avgWon > 0){
+      const conv = wonFromLeads90 / leads90.length;
+      const needLeads = Math.ceil(Math.abs(gap) / (avgWon * conv));
+      act.className = 'rm-action bad';
+      act.textContent = '⚠ Faltan ' + fmtChf(Math.abs(Math.round(gap))) + ' — ≈ ' + needLeads + (needLeads === 1 ? ' lead más' : ' leads más') + ' este mes (conversión 90 d: ' + wonFromLeads90 + '/' + leads90.length + ' leads ganados · ticket medio ' + fmtChf(Math.round(avgWon)) + ').';
+    } else {
+      act.className = 'rm-action bad';
+      act.textContent = '⚠ Faltan ' + fmtChf(Math.abs(Math.round(gap))) + ' para el objetivo. Poca historia de conversión (90 d) para estimar cuántos leads equivalen — el número saldrá solo cuando haya más cierres.';
+    }
+  }
+  // objetivo editable inline: ✎ → input CHF → upsert business_goals id=1
+  $('rm-goal-edit').addEventListener('click', () => {
+    $('rm-goal-view').hidden = true; $('rm-goal-form').hidden = false;
+    const inp = $('rm-goal-inp'); inp.value = rmGoal || ''; inp.focus();
+  });
+  $('rm-goal-cancel').addEventListener('click', () => { $('rm-goal-form').hidden = true; $('rm-goal-view').hidden = false; });
+  $('rm-goal-save').addEventListener('click', async () => {
+    const v = Math.max(0, Math.round(+$('rm-goal-inp').value || 0));
+    const btn = $('rm-goal-save'); btn.disabled = true;
+    try {
+      const { error } = await supabase.from('business_goals').upsert({ id: 1, monthly_target: v, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      rmGoal = v; rmGoalFetched = true;
+      $('rm-goal-form').hidden = true; $('rm-goal-view').hidden = false;
+      toast('🎯 Objetivo mensual guardado: ' + (v ? fmtChf(v) : 'sin objetivo'));
+      rmRender();
+    } catch (e) { toast('No se pudo guardar (¿corriste el SQL 0108?): ' + e.message); }
+    finally { btn.disabled = false; }
+  });
+  $('rm-goal-inp').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('rm-goal-save').click(); });
+
   function renderHome(){
     const now = Date.now(), D = 864e5;
     /* --- KPIs --- */
@@ -4781,6 +4934,10 @@ const newsCases = [
       roasEl.textContent = '–'; roasEl.style.color = '';
       $('hm-roas-t').textContent = 'sin datos de Ads';
     }
+
+    /* --- 🎯 Ritmo del mes (objetivo lazy: 1 fetch por sesión, después cache) --- */
+    rmFetchGoal();
+    rmRender();
 
     /* --- listas --- */
     const items = hmTodayItems();
