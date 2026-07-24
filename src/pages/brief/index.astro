@@ -386,6 +386,36 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   var bar = document.getElementById('bprog-bar');
   var errBox = document.getElementById('brief-err');
 
+  // ---- funnel first-party (tabla funnel_events) — /brief/ NO carga site.js, así que
+  // el tracker vive acá, con el mismo contrato que window.vvFunnel: dedupe por sesión
+  // y step (sessionStorage), opt-out viven-notrack y session_id compartido con
+  // pageviews ('viven-session'; si llegó directo desde el email, se crea acá).
+  // step 0 = abrió · 1..N = primera respuesta de cada pregunta · N+1 = envió.
+  var vvSid = null;
+  try {
+    vvSid = sessionStorage.getItem('viven-session');
+    if (!vvSid && window.crypto && crypto.randomUUID) { vvSid = crypto.randomUUID(); sessionStorage.setItem('viven-session', vvSid); }
+  } catch (e) {}
+  function vvFunnel(step, label){
+    try {
+      if (!vvSid) return;
+      if (/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;
+      try { if (localStorage.getItem('vv_notrack') === '1') return; } catch (e) {}
+      var k = 'vvf_brief_' + step;
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, '1');
+      fetch(SB_URL + '/rest/v1/funnel_events', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ session_id: vvSid, funnel: 'brief', step: step, label: label || null, path: location.pathname }),
+        keepalive: true
+      }).catch(function(){});
+    } catch (e) {}
+  }
+  var vvQKeys = [];
+  form.querySelectorAll('.q[data-key]').forEach(function(q){ vvQKeys.push(q.getAttribute('data-key')); });
+  vvFunnel(0, 'view');
+
   function updateProgress(){
     var qBlocks = form.querySelectorAll('.q[data-key]');
     var done = 0;
@@ -409,6 +439,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           opt.classList.add('sel');
         }
         updateProgress();
+        var vvKey = q.getAttribute('data-key');
+        vvFunnel(vvQKeys.indexOf(vvKey) + 1, vvKey);
       });
     });
   });
@@ -554,6 +586,7 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     lastBrief = { to: row.email, name: row.name, lang: lang, pairs: buildSummaryPairs(), references: references || null, extra: extra || null };
 
     function showSuccess(){
+      vvFunnel(vvQKeys.length + 1, 'submitted');
       document.getElementById('brief-form-card').hidden = true;
       document.getElementById('brief-ok').hidden = false;
       // el documento respira: la card pasa de 680px (ancho de formulario) a 960px

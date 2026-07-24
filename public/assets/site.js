@@ -528,6 +528,7 @@ document.querySelectorAll('.lm-gate').forEach(function(box){
     }
     window.sbCallFunction('magnet-download', body).then(function(res){
       if(res && res.ok && res.url){
+        if(window.vvFunnel) window.vvFunnel('magnet', 1, 'email_submitted');
         form.hidden = true;
         var d = box.querySelector('.lm-gate-done'); if(d) d.hidden = false;
         var a = document.createElement('a');
@@ -982,6 +983,148 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     }
     return { session_id: sid, lang: siteLang, attrib: attrib };
   };
+})();
+
+/* ---------- Funnels first-party (calc / brief / magnet) → tabla funnel_events ----------
+   window.vvFunnel(funnel, step, label): 1 evento por sesión y step (dedupe en
+   sessionStorage). Respeta viven-notrack (sbInsert ya lo gatea para todo lo que
+   no sea leads) y no manda nada sin session id (__vvSid no existe en localhost). */
+function vvFunnel(funnel, step, label){
+  try{
+    var fsid = window.__vvSid;
+    if(!fsid) return;
+    var k = 'vvf_' + funnel + '_' + step;
+    try{ if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1'); }catch(e){ return; }
+    sbInsert('funnel_events', { session_id: fsid, funnel: funnel, step: step, label: label || null, path: location.pathname });
+  }catch(e){}
+}
+window.vvFunnel = vvFunnel;
+
+(function vvFunnelInit(){
+  /* --- funnel 'calc': las 3 calculadoras (EN/DE/ES) comparten markup, así que se
+     instrumenta genérico desde acá y no se toca ninguna de las 3 páginas.
+     step 0 = vio la página · steps 1..N = primer click en cada grupo de chips
+     (orden de aparición del data-group en el DOM) · step N+1 = dejó su email. --- */
+  var CALC_PATHS = ['/en/video-cost-calculator/', '/de/videoproduktion-kosten-rechner/', '/es/calculadora-costos-video/'];
+  if(CALC_PATHS.indexOf(location.pathname.replace(/\/?$/, '/')) !== -1){
+    var calcGroups = function(){
+      var out = [];
+      document.querySelectorAll('.calc-chips[data-group]').forEach(function(g){
+        var name = g.getAttribute('data-group');
+        if(out.indexOf(name) === -1) out.push(name);
+      });
+      return out;
+    };
+    vvFunnel('calc', 0, 'view');
+    document.addEventListener('click', function(e){
+      var btn = e.target && e.target.closest ? e.target.closest('.calc-chips button') : null;
+      if(!btn) return;
+      var g = btn.closest('.calc-chips');
+      var name = g && g.getAttribute('data-group');
+      if(!name) return;
+      var idx = calcGroups().indexOf(name);
+      if(idx !== -1) vvFunnel('calc', idx + 1, name);
+    }, true);
+    document.addEventListener('submit', function(e){
+      var f = e.target;
+      if(f && f.querySelector && f.querySelector('#cf-email')) vvFunnel('calc', calcGroups().length + 1, 'email_submitted');
+    }, true);
+  }
+  /* --- funnel 'magnet': step 0 al ver un gate de lead magnet en la página;
+     el step 1 (email) se emite en el handler .lm-gate de más arriba. --- */
+  if(document.querySelector('.lm-gate')) vvFunnel('magnet', 0, 'view');
+})();
+
+/* ---------- Señales UX (rage clicks / dead clicks / errores JS) → tabla ux_signals ----------
+   Captura liviana: mismo opt-out que pageviews (via sbInsert) y máximo 20 señales
+   por sesión — es un termómetro de fricción, no un session recorder. */
+(function vvUxInit(){
+  if(/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;
+  var UX_MAX = 20;
+  function uxSpent(){
+    var n = 0;
+    try{ n = parseInt(sessionStorage.getItem('vv_ux_n') || '0', 10) || 0; }catch(e){}
+    return n;
+  }
+  function uxSelector(el){
+    if(!el || !el.tagName) return null;
+    var s = el.tagName.toLowerCase();
+    if(el.id) s += '#' + el.id;
+    else if(el.classList && el.classList.length) s += '.' + el.classList[0];
+    return s.slice(0, 80);
+  }
+  function uxSend(kind, selector, detail){
+    if(uxSpent() >= UX_MAX) return;
+    try{ sessionStorage.setItem('vv_ux_n', String(uxSpent() + 1)); }catch(e){}
+    var w = window.innerWidth;
+    sbInsert('ux_signals', {
+      session_id: window.__vvSid || null,
+      kind: kind,
+      selector: selector || null,
+      detail: detail ? String(detail).slice(0, 200) : null,
+      path: location.pathname,
+      device: w <= 680 ? 'mobile' : (w <= 1024 ? 'tablet' : 'desktop')
+    });
+  }
+
+  /* RAGE: 3+ clicks en un radio de 30px dentro de 1000ms */
+  var rageClicks = [];
+  document.addEventListener('click', function(e){
+    var now = Date.now();
+    rageClicks = rageClicks.filter(function(c){ return now - c.t <= 1000; });
+    rageClicks.push({ t: now, x: e.clientX, y: e.clientY, el: e.target });
+    if(rageClicks.length < 3) return;
+    var last = rageClicks[rageClicks.length - 1];
+    var near = rageClicks.filter(function(c){ return Math.abs(c.x - last.x) <= 30 && Math.abs(c.y - last.y) <= 30; });
+    if(near.length >= 3){
+      var el = last.el;
+      var txt = el && el.textContent ? el.textContent.trim().slice(0, 40) : '';
+      uxSend('rage', uxSelector(el), txt || null);
+      rageClicks = [];   /* no reportar el mismo estallido dos veces */
+    }
+  }, true);
+
+  /* DEAD: click en algo que PARECE interactivo pero 800ms después no produjo ni
+     navegación ni mutación del DOM. Conservador a propósito: solo <a> sin href /
+     href="#" y divs/spans con .btn o role=button — nunca <button> reales (pueden
+     hacer trabajo sin tocar el DOM: copiar, fetch, etc.). Se excluye lo que vive
+     dentro de forms, los chips de la calculadora y el switcher de idioma. */
+  document.addEventListener('click', function(e){
+    var t = e.target && e.target.closest ? e.target.closest('a, .btn, [role="button"]') : null;
+    if(!t) return;
+    var tag = t.tagName.toLowerCase();
+    if(tag === 'button' || tag === 'input') return;
+    if(tag === 'a'){
+      var href = t.getAttribute('href');
+      if(href && href !== '#') return;
+    }
+    if(t.closest('form') || t.closest('.calc-chips') || t.closest('.lang-link') || t.classList.contains('lang-link')) return;
+    var mutated = false, mo;
+    try{
+      mo = new MutationObserver(function(){ mutated = true; });
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+    }catch(err){ return; }
+    var url0 = location.href;
+    setTimeout(function(){
+      try{ mo.disconnect(); }catch(err){}
+      if(mutated || location.href !== url0 || document.hidden) return;
+      var txt = (t.textContent || '').trim().slice(0, 40);
+      uxSend('dead', uxSelector(t), txt || null);
+    }, 800);
+  }, true);
+
+  /* JSERROR: errores propios (archivo de viven.ch o relativo) — se ignoran los
+     "Script error." cross-origin y todo lo que venga de extensiones del navegador */
+  window.addEventListener('error', function(e){
+    try{
+      var msg = e && e.message ? String(e.message) : '';
+      if(!msg || /^Script error\.?$/i.test(msg)) return;
+      var fn = e.filename || '';
+      if(!fn) return;
+      if(!/^\//.test(fn) && fn.indexOf(location.hostname) === -1) return;
+      uxSend('jserror', null, msg + ' @ ' + fn + ':' + (e.lineno || 0));
+    }catch(err){}
+  });
 })();
 
 })();

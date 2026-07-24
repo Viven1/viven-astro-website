@@ -1586,6 +1586,20 @@ const newsCases = [
   .hm-verdict{font-weight:700;font-size:12.5px;margin-top:10px}
   @media(max-width:1280px){.hm-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:920px){.hm-grid{grid-template-columns:1fr}}
+
+  /* ---------- 🧭 Recorridos: funnels first-party con drop-off (prefijo rc-) ---------- */
+  .rc-funnels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+  .rc-funnel h3{font-size:13.5px;margin:0 0 10px;font-family:'Space Grotesk';letter-spacing:-.01em}
+  .rc-funnel .rc-note{color:var(--muted);font-size:12.5px}
+  .rc-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+  .rc-lbl{flex:0 0 132px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rc-track{flex:1;min-width:0;position:relative;height:24px;background:var(--navy-900);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .rc-track i{display:block;height:100%;background:color-mix(in srgb,var(--acid) 55%,transparent);border-radius:6px 0 0 6px}
+  .rc-track b{position:absolute;inset:0;display:flex;align-items:center;padding:0 8px;font-size:11.5px;color:var(--text)}
+  .rc-drop{flex:0 0 52px;text-align:right;font-size:11.5px;font-weight:700;color:#ff8b8b;font-variant-numeric:tabular-nums}
+  .rc-drop.ok{color:var(--muted-2)}
+  .rc-kind{white-space:nowrap}
+  @media(max-width:680px){.rc-lbl{flex-basis:104px}}
 </style>
 </head>
 <body>
@@ -2131,6 +2145,29 @@ const newsCases = [
         <div class="kpis four" id="va-kpis" style="margin-bottom:16px"></div>
         <div id="ka-video-table"><p class="muted-note">Sin reproducciones en el período.</p></div>
       </div>
+    </div>
+
+    <!-- ============ 🧭 RECORRIDOS: funnels con drop-off (first-party) + entradas + fricción ============
+         Sección hermana de los sub-tabs: cierra el tab Analytics sea cual sea el sub elegido.
+         Período propio 7/28 (el tracking de funnel_events/ux_signals arranca con el SQL 0106). -->
+    <div class="panel rc-panel">
+      <div class="of-bar" style="margin-bottom:12px">
+        <div>
+          <h2 style="margin:0">🧭 Recorridos <span class="count">(funnels first-party — calculadora · brief · lead magnet)</span></h2>
+          <p class="muted-note" style="margin:2px 0 0">En qué paso exacto abandona la gente — tracking propio, sin scripts externos.</p>
+        </div>
+        <div class="co-seg" id="rc-period">
+          <button data-days="7" type="button">7 días</button>
+          <button data-days="28" class="on" type="button">28 días</button>
+        </div>
+      </div>
+      <div class="rc-funnels" id="rc-funnels"><p class="muted-note">Cargando…</p></div>
+
+      <h2 style="margin-top:24px">🚪 Páginas de entrada <span class="count">(landing · rebote · profundidad)</span></h2>
+      <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">% rebote</th><th class="num">Págs. promedio</th></tr></thead><tbody id="rc-entry"><tr><td colspan="4"><p class="muted-note" style="margin:6px 0">Cargando…</p></td></tr></tbody></table></div>
+
+      <h2 style="margin-top:24px">⚠️ Señales de fricción <span class="count">(rage clicks · dead clicks · errores JS)</span></h2>
+      <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Tipo</th><th>Página</th><th>Elemento / detalle</th><th class="num">Hits</th><th class="num">Sesiones</th></tr></thead><tbody id="rc-ux"><tr><td colspan="5"><p class="muted-note" style="margin:6px 0">Cargando…</p></td></tr></tbody></table></div>
     </div>
 
   </div>
@@ -3405,9 +3442,96 @@ const newsCases = [
     document.querySelectorAll('#ana-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
     // carga perezosa (Web y Videos ya se renderizan en loadAll)
     if (sub === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
+    rcLoad(); // 🧭 Recorridos: cierra el tab sea cual sea el sub — carga 1 vez por período
     syncTabUrl();
   }
   document.querySelectorAll('#ana-seg button').forEach((b) => b.addEventListener('click', () => anaSetSub(b.dataset.sub)));
+
+  /* ---------- 🧭 Recorridos: funnels first-party + páginas de entrada + fricción ----------
+     Datos de funnel_events / ux_signals (SQL 0106) vía RPCs security definer —
+     el dashboard nunca baja filas crudas. Período propio 7/28 días, independiente
+     del selector global (los funnels miran conversión reciente, no un día puntual). */
+  let rcDays = 28, rcLoadedFor = 0;
+  const RC_FUNNELS = [
+    { id: 'calc', name: '🧮 Calculadora de costos' },
+    { id: 'brief', name: '📋 Brief de proyecto' },
+    { id: 'magnet', name: '🧲 Lead magnet' }
+  ];
+  // labels amigables por funnel (fallback: label crudo del evento)
+  const RC_LABELS = {
+    calc: { view: 'Vio la calculadora', type: 'Eligió tipo', dur: 'Duración', days: 'Días de rodaje', locs: 'Locaciones', talent: 'Quién sale en cámara', chan: 'Dónde corre', lic: 'Licencia (buyout)', extras: 'Extras', email_submitted: 'Dejó su email' },
+    brief: { view: 'Abrió el brief', goal: 'Objetivo', audience: 'Audiencia', distribution: 'Distribución', quantity: 'Cantidad', formats: 'Formatos', languages: 'Idiomas', oncamera: 'Quién sale en cámara', locations: 'Locaciones', timeline: 'Timing', budget: 'Presupuesto', action: 'Acción deseada', feeling: 'Emoción', destination: 'Destino', submitted: 'Envió el brief' },
+    magnet: { view: 'Vio el gate', email_submitted: 'Dejó su email' }
+  };
+  const RC_KINDS = { rage: '😡 Rage', dead: '💀 Dead', jserror: '🐞 Error JS' };
+  function rcRenderFunnel(f, res){
+    let inner;
+    if (res && res.error) inner = '<p class="rc-note">No se pudo cargar (' + esc(res.error.message || 'error') + ') — ¿ya corriste el SQL 0106?</p>';
+    else if (!res || !res.data || !res.data.length) inner = '<p class="rc-note">sin datos todavía — el tracking arranca hoy</p>';
+    else {
+      const rows = res.data;
+      const base = Number(rows[0].sessions) || 1;
+      let prev = null;
+      inner = rows.map((r) => {
+        const n = Number(r.sessions) || 0;
+        const w = Math.max(2, Math.round((n / base) * 100));
+        let drop = '<span class="rc-drop ok"></span>';
+        if (prev !== null && prev > 0){
+          const d = Math.round((1 - n / prev) * 100);
+          drop = d > 0 ? '<span class="rc-drop">−' + d + '%</span>' : '<span class="rc-drop ok">' + (d < 0 ? '+' + -d + '%' : '=') + '</span>';
+        }
+        prev = n;
+        const lbl = (RC_LABELS[f.id] && RC_LABELS[f.id][r.label]) || r.label || ('Paso ' + r.step);
+        return '<div class="rc-row"><div class="rc-lbl" title="' + esc(r.label || '') + '">' + esc(lbl) + '</div>' +
+          '<div class="rc-track"><i style="width:' + w + '%"></i><b>' + n + '</b></div>' + drop + '</div>';
+      }).join('');
+    }
+    return '<div class="rc-funnel"><h3>' + f.name + '</h3>' + inner + '</div>';
+  }
+  async function rcLoad(force){
+    const box = $('rc-funnels'); if (!box) return;
+    if (!force && rcLoadedFor === rcDays) return; // ya cargado para este período
+    rcLoadedFor = rcDays;
+    // 1) funnels con drop-off (calc / brief / magnet) en paralelo
+    const rs = await Promise.all(RC_FUNNELS.map((f) => Promise.resolve(supabase.rpc('rpc_funnel_steps', { p_funnel: f.id, p_days: rcDays })).catch((e) => ({ error: e }))));
+    box.innerHTML = RC_FUNNELS.map((f, i) => rcRenderFunnel(f, rs[i])).join('');
+    // 2) páginas de entrada (landing → rebote → profundidad)
+    const eb = $('rc-entry');
+    try {
+      const { data, error } = await supabase.rpc('rpc_entry_pages', { p_days: rcDays });
+      if (error) throw error;
+      eb.innerHTML = (data && data.length)
+        ? data.map((r) => {
+            const s = Number(r.sessions) || 0, b = Number(r.bounces) || 0;
+            const br = s ? Math.round((b / s) * 100) : 0;
+            return '<tr><td>' + esc(r.landing || '/') + '</td><td class="num">' + s + '</td>' +
+              '<td class="num"' + (br >= 70 ? ' style="color:#ff8b8b;font-weight:700"' : '') + '>' + br + '%</td>' +
+              '<td class="num">' + (r.avg_pages == null ? '–' : Number(r.avg_pages).toFixed(1)) + '</td></tr>';
+          }).join('')
+        : '<tr><td colspan="4"><p class="muted-note" style="margin:6px 0">Sin sesiones en el período.</p></td></tr>';
+    } catch (e) {
+      eb.innerHTML = '<tr><td colspan="4"><p class="muted-note" style="margin:6px 0">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL 0106?</p></td></tr>';
+    }
+    // 3) señales de fricción (rage / dead / jserror)
+    const ub = $('rc-ux');
+    try {
+      const { data, error } = await supabase.rpc('rpc_ux_signals', { p_days: rcDays });
+      if (error) throw error;
+      ub.innerHTML = (data && data.length)
+        ? data.map((r) =>
+            '<tr><td class="rc-kind">' + (RC_KINDS[r.kind] || esc(r.kind)) + '</td><td>' + esc(r.path || '') + '</td>' +
+            '<td>' + esc(r.selector || '–') + '</td><td class="num">' + (Number(r.hits) || 0) + '</td><td class="num">' + (Number(r.sessions) || 0) + '</td></tr>')
+          .join('')
+        : '<tr><td colspan="5"><p class="muted-note" style="margin:6px 0">Sin señales — se empieza a registrar hoy.</p></td></tr>';
+    } catch (e) {
+      ub.innerHTML = '<tr><td colspan="5"><p class="muted-note" style="margin:6px 0">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL 0106?</p></td></tr>';
+    }
+  }
+  document.querySelectorAll('#rc-period button').forEach((b) => b.addEventListener('click', () => {
+    rcDays = parseInt(b.dataset.days, 10) || 28;
+    document.querySelectorAll('#rc-period button').forEach((x) => x.classList.toggle('on', x === b));
+    rcLoad(true);
+  }));
 
   /* ---------- Contenido: sub-tabs (Blog / Newsletter / Search Console / Lead Magnets) ----------
      Mismo patrón que anaSetSub — Search Console se mudó acá desde Analytics
