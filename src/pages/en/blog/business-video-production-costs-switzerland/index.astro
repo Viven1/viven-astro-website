@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Business Video Production Costs & Process for Swiss Companies | Viven"};
+const description = {"en":"Learn what business video production costs in Switzerland, how the process works, and why companies like UBS and Siemens invest in professional video."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "business-video-production-costs-switzerland";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/business-video-production-costs-switzerland" active="blog" singleLang={true} langUrls={{"en":"/en/blog/business-video-production-costs-switzerland/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/business-video-production-costs-switzerland/\"},\"headline\":\"Business Video Production Costs & Process for Swiss Companies\",\"description\":\"Learn what business video production costs in Switzerland, how the process works, and why companies like UBS and Siemens invest in professional video.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/business-video-production-costs-switzerland/\",\"datePublished\":\"2026-07-24T13:20:32.570Z\",\"image\":\"https://www.viven.ch/projects/anybotics-anymal-c-product-launch/01-on2019-08-22-12h10m12s489-1-1024x512.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Business Video Production Costs & Process for Swiss Companies\",\"item\":\"https://www.viven.ch/en/blog/business-video-production-costs-switzerland/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How long does it take to produce a professional business video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Most corporate videos take 4–8 weeks from concept to delivery, depending on complexity. A simple 2-minute video with internal talent might take 3–4 weeks. A multi-location, talent-heavy production can stretch to 10–12 weeks. Clear briefs and timely feedback from your side accelerate the timeline.\"}},{\"@type\":\"Question\",\"name\":\"Can we reduce video production costs without sacrificing quality?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Yes. Use existing locations, employ internal spokespeople, and keep shoots to 1–2 days. Also, start with one flagship video and repurpose it across channels instead of producing many separate videos. Working with an experienced agency also prevents costly reshoots and revisions.\"}},{\"@type\":\"Question\",\"name\":\"How do we measure the success of a business video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Track completion rate (how far viewers watch), click-through rate (links clicked from the video), and conversion rate (leads or sales generated). Compare performance across platforms. Long-term, monitor brand lift and employee engagement. Strong production partners help you set KPIs before filming starts.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Business Video Production Costs & Process for Swiss Companies</span></nav>
+  <span class="eyebrow">Product video</span>
+  <h1>Business Video Production Costs & Process for Swiss Companies</h1>
+  <p class="lead">Professional video production is no longer a luxury for Swiss enterprises—it's essential. If you're wondering how much a corporate video costs and what the production process actually involves, the answer depends on scope, duration, and distribution. Most Swiss companies invest CHF 8,000–80,000 for a high-quality [[services/corporate-video|corporate video]], but strategic partnerships with experienced production houses can deliver measurable ROI through increased engagement, brand credibility, and lead generation.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>July 24, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/anybotics-anymal-c-product-launch/01-on2019-08-22-12h10m12s489-1-1024x512.jpg" alt="Business Video Production Costs & Process for Swiss Companies" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Swiss Companies Are Investing in Video</h2><p>Video content drives engagement at three times the rate of static content. Fortune 500 companies, including those headquartered in Switzerland, now allocate 15–25% of marketing budgets to video. The reasons are clear: search engines prioritize video, employees retain 95% of a message when delivered via video versus 10% via text, and decision-makers watch videos before making B2B purchases.</p><p>Swiss companies operate in a premium market segment. Clients expect professional communication, and poor-quality video damages brand perception. Conversely, polished video—whether <a href={p("services/product-video")}>showcasing a product</a> or explaining a complex service—positions your company as serious and trustworthy.</p><h2>What Determines Video Production Costs</h2><p>Video production pricing is not one-size-fits-all. Several factors shape the final invoice:</p><ul><li><strong>Concept and strategy:</strong> Are you working from a detailed brief, or does the production house develop the concept? Custom storytelling costs more than template-based approaches.</li><li><strong>Location and logistics:</strong> Studio production is typically cheaper than on-location shoots. International travel or industrial site filming adds costs.</li><li><strong>Talent:</strong> Professional voice-over artists, actors, or on-camera presenters increase the budget. User-generated content or internal talent reduces it.</li><li><strong>Post-production complexity:</strong> Motion graphics, colour grading, sound design, and multiple revisions add to the timeline and cost.</li><li><strong>Duration:</strong> A 60-second social video costs less than a 5-minute brand documentary. But this also depends on it's content.</li><li><strong>Distribution:</strong> Do you need multiple formats (horizontal, vertical, square) for different platforms? Repurposing content costs extra but maximizes ROI.</li></ul><h2>Typical Budget Ranges for Swiss Businesses</h2><p>Based on thousands of projects across industries:</p><ul><li><strong>Small business (startup, SME):</strong> CHF 8,000–25,000 for a single 2–3 minute video. Often combines stock footage, internal team members, and one day of shooting.</li><li><strong>Mid-market company:</strong> CHF 25,000–60,000 for a series or a premium single video. Includes custom concept, professional talent, multi-day shoot, and full post-production.</li><li><strong>Enterprise:</strong> CHF 60,000–150,000+ for brand campaigns, annual reports, or <a href={p("services/employer-branding")}>employer branding</a> initiatives. May span weeks of production and dozens of revisions.</li><li><strong><a href={p("services/social-media-video")}>Social media content</a> (ongoing):</strong> CHF 3,000–12,000 per month for a managed production partnership.</li></ul><p>Remember: the cheapest option is rarely the best investment. A poorly executed video damages your brand more than no video at all.</p><h2>How Professional Video Production Works</h2><p>A transparent production partner will walk you through these stages:</p><p><strong>1. Discovery and strategy</strong><br>You meet with the creative team to align on goals, audience, and key messages. They ask about your competitors, brand tone, and success metrics. This phase typically lasts 1–2 weeks and is essential for a video that actually converts.</p><p><strong>2. Concept and script</strong><br>Based on the brief, the team develops a creative concept (visual direction, narrative arc, tone) and writes the script. You review and approve revisions. Budget: 2–3 weeks.</p><p><strong>3. Pre-production planning</strong><br>The producer coordinates locations, talent, crew, equipment, and scheduling. Shot lists and storyboards are finalized. A detailed plan avoids costly on-set surprises.</p><p><strong>4. Filming</strong><br>The shoot day (or days) happens. Professional crews handle lighting, sound, camera work, and direction. Most corporate videos require 1–3 shoot days.</p><p><strong>5. Post-production and edit</strong><br>Editors assemble footage, add graphics, sound design, and colour correction. You receive rough cuts for feedback. This phase is where raw footage becomes a polished asset. Typically 2–4 weeks.</p><p><strong>6. Final delivery and optimization</strong><br>The video is exported in multiple formats for web, social, and email. You receive master files and usage guidelines. A strong production partner also advises on distribution strategy.</p><h2>Maximizing ROI on Your Video Investment</h2><p>The video itself is only the beginning. To get the most from your investment:</p><ul><li><strong>Repurpose across channels:</strong> A 5-minute brand story can become 8–10 social clips, email snippets, and presentation segments.</li><li><strong>Optimize for SEO:</strong> Host on your website with proper metadata. <a href={p("services/how-to-video")}>How-to videos</a> in particular drive organic traffic.</li><li><strong>Integrate with sales:</strong> Share with your team and embed in proposals, follow-ups, and landing pages.</li><li><strong>Measure performance:</strong> Track views, completion rates, click-throughs, and conversions. Data guides your next investment.</li></ul><h2>Choosing the Right Production Partner</h2><p>Not every video agency is equipped to serve Swiss enterprise clients. Look for a partner who:</p><ul><li>Has experience in your industry (financial services, manufacturing, pharma, etc.)</li><li>Understands your market and can position your story competitively</li><li>Offers transparent pricing with no hidden fees</li><li>Provides clear timelines and revision policies</li><li>Has a portfolio of work from recognized Swiss and international brands</li></ul><p>Ask for references, review their <a href={p("projects")}>recent work</a>, and schedule a consultation before committing.</p><p>Video production is a long-term asset for your brand. When done right, a professional video generates leads, builds trust, and amplifies your competitive edge in the Swiss market. If you're ready to discuss your video strategy, <a href={p("contact")}>get in touch with our team</a>. We've helped companies like UBS, Siemens, and Porsche translate their vision into impactful content.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="business-video-production-costs-switzerland" />
+  </div></section>
+</Base>
