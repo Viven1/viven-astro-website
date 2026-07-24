@@ -1600,6 +1600,25 @@ const newsCases = [
   .rc-drop.ok{color:var(--muted-2)}
   .rc-kind{white-space:nowrap}
   @media(max-width:680px){.rc-lbl{flex-basis:104px}}
+  /* 🗺️ Flujo de visitas (Sankey 3 columnas, SVG generado por JS) */
+  .rc-flow-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .rc-flow-reset{background:var(--navy-900);border:1px solid var(--line);color:var(--text);font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer;font-family:inherit}
+  .rc-flow-reset:hover{border-color:var(--acid)}
+  .rc-flow-wrap{overflow-x:auto;margin-bottom:6px}
+  .rc-flow-inner{min-width:720px}
+  .rc-flow-inner svg{width:100%;height:auto;display:block}
+  .rc-flow-col{font-size:11px;font-family:'Space Grotesk';fill:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .rc-ribbon{fill:var(--acid);opacity:.25;transition:opacity .15s}
+  .rc-ribbon:hover{opacity:.5}
+  .rc-ribbon.rc-exit{fill:#8b93a7}
+  .rc-flow-node rect{fill:color-mix(in srgb,var(--acid) 55%,transparent);stroke:var(--line)}
+  .rc-flow-node.rc-exit rect{fill:color-mix(in srgb,#8b93a7 40%,transparent)}
+  .rc-flow-node.rc-other rect{fill:color-mix(in srgb,var(--acid) 25%,transparent)}
+  .rc-flow-node text{font-size:11px;fill:var(--text)}
+  .rc-flow-node .rc-flow-lang{fill:var(--acid);font-weight:700;font-size:9.5px;letter-spacing:.03em}
+  .rc-flow-node .rc-flow-n{fill:var(--muted);font-variant-numeric:tabular-nums}
+  .rc-flow-node.rc-click{cursor:pointer}
+  .rc-flow-node.rc-click:hover rect{stroke:var(--acid)}
 </style>
 </head>
 <body>
@@ -2161,6 +2180,15 @@ const newsCases = [
           <button data-days="28" class="on" type="button">28 días</button>
         </div>
       </div>
+      <!-- 🗺️ Flujo de visitas: Sankey 3 columnas sobre pageviews (SQL 0107) -->
+      <div class="rc-flow-head">
+        <h2 style="margin:0">🗺️ Flujo de visitas <span class="count">(entrada → 2ª página → 3ª página)</span></h2>
+        <button type="button" class="rc-flow-reset" id="rc-flow-reset" hidden>✕ ver todo</button>
+      </div>
+      <p class="muted-note" style="margin:2px 0 10px">Entran acá → pasan a esto → salen acá. Click en una página de entrada para ver solo sus flujos; las cintas grises son sesiones que terminan ahí.</p>
+      <div class="rc-flow-wrap"><div class="rc-flow-inner" id="rc-flow"><p class="muted-note">Cargando…</p></div></div>
+
+      <h2 style="margin-top:24px">📊 Funnels con drop-off <span class="count">(calculadora · brief · lead magnet)</span></h2>
       <div class="rc-funnels" id="rc-funnels"><p class="muted-note">Cargando…</p></div>
 
       <h2 style="margin-top:24px">🚪 Páginas de entrada <span class="count">(landing · rebote · profundidad)</span></h2>
@@ -3488,10 +3516,128 @@ const newsCases = [
     }
     return '<div class="rc-funnel"><h3>' + f.name + '</h3>' + inner + '</div>';
   }
+  /* ---------- 🗺️ Flujo de visitas: Sankey 3 columnas sobre pageviews (SQL 0107) ----------
+     rpc_path_flows devuelve (step1, step2, step3, sessions) ya deduplicado y
+     agregado server-side (top 60). Acá solo se agrupa en top-6 + "otras" +
+     "(salida)" por columna y se dibuja el SVG a mano — cero librerías.
+     Click en un nodo de entrada = filtro client-side (mismos datos, re-render). */
+  let rcFlowRows = null, rcFlowFilter = null;
+  const RC_EXIT = '(salida)', RC_OTHER = '(otras)';
+  function rcFlowLabel(p){
+    if (p === RC_EXIT) return { lang: '', text: 'salida', full: 'la sesión termina acá' };
+    if (p === RC_OTHER) return { lang: '', text: 'otras', full: 'otras páginas (fuera del top 6)' };
+    let lang = '', rest = p || '/';
+    const m = /^\/(en|de|es)(\/.*)?$/.exec(rest);
+    if (m){ lang = m[1].toUpperCase(); rest = m[2] || '/'; }
+    return { lang, text: rest.length > 28 ? rest.slice(0, 27) + '…' : rest, full: p };
+  }
+  // top 6 paths por volumen + "otras" (agregado) + "(salida)" al final
+  function rcFlowNodes(counts, withExit){
+    const real = [...counts].filter((e) => e[0] !== RC_EXIT).sort((a, b) => b[1] - a[1]);
+    const nodes = real.slice(0, 6).map((e) => ({ key: e[0], value: e[1] }));
+    const rest = real.slice(6);
+    if (rest.length) nodes.push({ key: RC_OTHER, value: rest.reduce((s, e) => s + e[1], 0), other: true });
+    if (withExit && counts.get(RC_EXIT)) nodes.push({ key: RC_EXIT, value: counts.get(RC_EXIT), exit: true });
+    const idx = new Map(nodes.map((n, i) => [n.key, i]));
+    rest.forEach((e) => idx.set(e[0], idx.get(RC_OTHER))); // paths chicos → nodo "otras"
+    return { nodes, idx };
+  }
+  function rcFlowRender(){
+    const box = $('rc-flow'); if (!box) return;
+    const rst = $('rc-flow-reset'); if (rst) rst.hidden = !rcFlowFilter;
+    const rows = (rcFlowRows || []).filter((r) => !rcFlowFilter || r.step1 === rcFlowFilter);
+    if (!rows.length){ box.innerHTML = '<p class="muted-note">Sin recorridos en el período todavía.</p>'; return; }
+    // 1) volumen por path en cada columna (col 3 solo si la sesión llegó a una 2ª página)
+    const c1 = new Map(), c2 = new Map(), c3 = new Map();
+    rows.forEach((r) => {
+      const n = Number(r.sessions) || 0;
+      c1.set(r.step1, (c1.get(r.step1) || 0) + n);
+      c2.set(r.step2, (c2.get(r.step2) || 0) + n);
+      if (r.step2 !== RC_EXIT) c3.set(r.step3, (c3.get(r.step3) || 0) + n);
+    });
+    const cols = [rcFlowNodes(c1, false), rcFlowNodes(c2, true), rcFlowNodes(c3, true)];
+    // 2) cintas agregadas nodo→nodo (índices dentro de cada columna)
+    const agg = (m, a, b, n) => { const k = a + '|' + b; m.set(k, (m.get(k) || 0) + n); };
+    const l12 = new Map(), l23 = new Map();
+    rows.forEach((r) => {
+      const n = Number(r.sessions) || 0;
+      agg(l12, cols[0].idx.get(r.step1), cols[1].idx.get(r.step2), n);
+      if (r.step2 !== RC_EXIT) agg(l23, cols[1].idx.get(r.step2), cols[2].idx.get(r.step3), n);
+    });
+    // 3) geometría: viewBox fija 960×420, escala común = la columna más "apretada"
+    const W = 960, H = 420, TOP = 34, BOT = 412, GAP = 8, NW = 12, MINH = 5;
+    const colX = [8, (W - NW) / 2, W - NW - 8];
+    let scale = Infinity;
+    cols.forEach((c) => {
+      const tot = c.nodes.reduce((s, n) => s + n.value, 0);
+      if (tot > 0) scale = Math.min(scale, (BOT - TOP - GAP * (c.nodes.length - 1)) / tot);
+    });
+    if (!isFinite(scale)) scale = 1;
+    cols.forEach((c) => {
+      let y = TOP;
+      c.nodes.forEach((n) => { n.h = Math.max(MINH, n.value * scale); n.y = y; y += n.h + GAP; n.so = 0; n.to = 0; });
+    });
+    // 4) SVG: cintas primero (quedan debajo), nodos + labels encima
+    const parts = ['<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Flujo de visitas: entrada, segunda y tercera página">'];
+    parts.push('<text class="rc-flow-col" x="' + colX[0] + '" y="16">Entrada</text>' +
+      '<text class="rc-flow-col" x="' + (W / 2) + '" y="16" text-anchor="middle">2ª página</text>' +
+      '<text class="rc-flow-col" x="' + (colX[2] + NW) + '" y="16" text-anchor="end">3ª página</text>');
+    const ribbon = (links, a, b, x1, x2) => {
+      // orden estable arriba→abajo para que las cintas no se crucen de más
+      [...links].map(([k, v]) => { const p = k.split('|'); return { s: +p[0], t: +p[1], v }; })
+        .sort((p, q) => (p.s - q.s) || (p.t - q.t))
+        .forEach((l) => {
+          const S = a.nodes[l.s], T = b.nodes[l.t], h = l.v * scale;
+          const sy = S.y + S.so, ty = T.y + T.to; S.so += h; T.to += h;
+          const mx = (x1 + x2) / 2, exit = b.nodes[l.t].exit;
+          parts.push('<path class="rc-ribbon' + (exit ? ' rc-exit' : '') + '" d="M' + x1 + ' ' + sy.toFixed(1) +
+            ' C' + mx + ' ' + sy.toFixed(1) + ' ' + mx + ' ' + ty.toFixed(1) + ' ' + x2 + ' ' + ty.toFixed(1) +
+            ' L' + x2 + ' ' + (ty + h).toFixed(1) + ' C' + mx + ' ' + (ty + h).toFixed(1) + ' ' + mx + ' ' + (sy + h).toFixed(1) + ' ' + x1 + ' ' + (sy + h).toFixed(1) + ' Z">' +
+            '<title>' + esc(S.key) + ' → ' + esc(T.key) + ': ' + l.v + ' sesiones</title></path>');
+        });
+    };
+    ribbon(l12, cols[0], cols[1], colX[0] + NW, colX[1]);
+    ribbon(l23, cols[1], cols[2], colX[1] + NW, colX[2]);
+    cols.forEach((c, ci) => {
+      c.nodes.forEach((n) => {
+        const lb = rcFlowLabel(n.key);
+        const click = ci === 0 && !n.other; // solo entradas reales filtran
+        const cls = 'rc-flow-node' + (n.exit ? ' rc-exit' : '') + (n.other ? ' rc-other' : '') + (click ? ' rc-click' : '');
+        const ty = (n.y + n.h / 2 + 3.5).toFixed(1);
+        const right = ci < 2; // col 1 y 2: label a la derecha del nodo; col 3: a la izquierda
+        const tx = right ? colX[ci] + NW + 6 : colX[ci] - 6;
+        const lang = lb.lang ? '<tspan class="rc-flow-lang">' + lb.lang + ' </tspan>' : '';
+        parts.push('<g class="' + cls + '"' + (click ? ' data-flow-src="' + esc(n.key) + '"' : '') + '>' +
+          '<title>' + esc(lb.full) + ' — ' + n.value + ' sesiones' + (click ? ' (click para filtrar)' : '') + '</title>' +
+          '<rect x="' + colX[ci] + '" y="' + n.y.toFixed(1) + '" width="' + NW + '" height="' + n.h.toFixed(1) + '" rx="4"/>' +
+          '<text x="' + tx + '" y="' + ty + '"' + (right ? '' : ' text-anchor="end"') + '>' + lang + esc(lb.text) +
+          ' <tspan class="rc-flow-n">· ' + n.value + '</tspan></text></g>');
+      });
+    });
+    parts.push('</svg>');
+    box.innerHTML = parts.join('');
+    box.querySelectorAll('[data-flow-src]').forEach((g) => g.addEventListener('click', () => {
+      rcFlowFilter = g.getAttribute('data-flow-src'); rcFlowRender();
+    }));
+  }
+  async function rcFlowLoad(){
+    const box = $('rc-flow'); if (!box) return;
+    try {
+      const { data, error } = await supabase.rpc('rpc_path_flows', { p_days: rcDays });
+      if (error) throw error;
+      rcFlowRows = data || []; rcFlowFilter = null; rcFlowRender();
+    } catch (e) {
+      const rst = $('rc-flow-reset'); if (rst) rst.hidden = true;
+      box.innerHTML = '<p class="muted-note">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL 0107?</p>';
+    }
+  }
+  (function(){ const rst = $('rc-flow-reset'); if (rst) rst.addEventListener('click', () => { rcFlowFilter = null; rcFlowRender(); }); })();
+
   async function rcLoad(force){
     const box = $('rc-funnels'); if (!box) return;
     if (!force && rcLoadedFor === rcDays) return; // ya cargado para este período
     rcLoadedFor = rcDays;
+    rcFlowLoad(); // 🗺️ flujo de visitas — mismo período, en paralelo con los funnels
     // 1) funnels con drop-off (calc / brief / magnet) en paralelo
     const rs = await Promise.all(RC_FUNNELS.map((f) => Promise.resolve(supabase.rpc('rpc_funnel_steps', { p_funnel: f.id, p_days: rcDays })).catch((e) => ({ error: e }))));
     box.innerHTML = RC_FUNNELS.map((f, i) => rcRenderFunnel(f, rs[i])).join('');

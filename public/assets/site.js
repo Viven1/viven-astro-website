@@ -377,7 +377,8 @@ function renderLeadForm(mount){
   /* prueba social pegada al form (CRO): wordmarks — decide donde decide el visitante */
   var proof = document.createElement('div');
   proof.className = 'form-proof';
-  proof.innerHTML = '<b data-en="Trusted by" data-de="Vertraut von" data-es="Conf\u00edan en nosotros">Trusted by</b> UBS \u00b7 Siemens \u00b7 Porsche \u00b7 ON \u00b7 FIFA \u00b7 KPMG';
+  proof.innerHTML = '<b data-en="Trusted by" data-de="Vertraut von" data-es="Conf\u00edan en nosotros">Trusted by</b> UBS \u00b7 Siemens \u00b7 Porsche \u00b7 ON \u00b7 FIFA \u00b7 KPMG' +
+    ' <span class="fp-stars">\u2605 5.0</span> <span data-en="\u00b7 47+ Google reviews" data-de="\u00b7 47+ Google-Bewertungen" data-es="\u00b7 47+ rese\u00f1as en Google">\u00b7 47+ Google reviews</span>';
   mount.insertBefore(proof, mount.firstChild);
   var form = mount.querySelector('.lead-form');
   var okBox = mount.querySelector('.form-ok');
