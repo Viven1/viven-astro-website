@@ -372,6 +372,11 @@ function renderLeadForm(mount){
       '<p data-en="We&#39;ll reply within one business day." data-de="Wir antworten innerhalb eines Werktags." data-es="Respondemos en un d&iacute;a h&aacute;bil.">We&#39;ll reply within one business day.</p>' +
     '</div>';
 
+  /* prueba social pegada al form (CRO): wordmarks — decide donde decide el visitante */
+  var proof = document.createElement('div');
+  proof.className = 'form-proof';
+  proof.innerHTML = '<b data-en="Trusted by" data-de="Vertraut von" data-es="Conf\u00edan en nosotros">Trusted by</b> UBS \u00b7 Siemens \u00b7 Porsche \u00b7 ON \u00b7 FIFA \u00b7 KPMG';
+  mount.insertBefore(proof, mount.firstChild);
   var form = mount.querySelector('.lead-form');
   var okBox = mount.querySelector('.form-ok');
   var renderedAt = Date.now();
@@ -464,6 +469,44 @@ function hubspotSubmit(first, last, email, message, company){
   }catch(e){}
 }
 document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadForm(m); });
+
+/* ---------- Slide-in de la calculadora (CRO) ----------
+   Al 60% de scroll en páginas de contenido/servicio: invitación discreta a la
+   calculadora. Una vez por sesión, cerrable, nunca en las páginas donde no
+   aporta (calculadora misma, thank-you, book, dashboard, propuestas). */
+(function(){
+  var path = location.pathname;
+  if(/calculator|kosten-rechner|calculadora|thank-you|danke|gracias|dashboard|proposal|book/.test(path)) return;
+  try{ if(sessionStorage.getItem('vv_calc_slidein')) return; }catch(e){}
+  var lang = (document.documentElement.lang || 'en').slice(0,2);
+  var T = {
+    en: { t: 'Curious what your video would cost?', s: '60 seconds, no email needed.', b: 'Try the calculator →', u: '/en/video-cost-calculator/' },
+    de: { t: 'Was würde Ihr Video kosten?', s: '60 Sekunden, ohne E-Mail.', b: 'Zum Kostenrechner →', u: '/de/videoproduktion-kosten-rechner/' },
+    es: { t: '¿Querés saber cuánto costaría tu video?', s: '60 segundos, sin email.', b: 'Probar la calculadora →', u: '/es/calculadora-costos-video/' }
+  };
+  var t = T[lang] || T.en;
+  var shown = false;
+  function maybeShow(){
+    if(shown) return;
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    if(h < 400 || window.scrollY / h < 0.6) return;
+    shown = true;
+    window.removeEventListener('scroll', maybeShow);
+    try{ sessionStorage.setItem('vv_calc_slidein', '1'); }catch(e){}
+    var box = document.createElement('div');
+    box.className = 'vv-slidein';
+    box.innerHTML = '<button class="vv-slidein-x" aria-label="Close">&times;</button>' +
+      '<b>' + t.t + '</b><span>' + t.s + '</span>' +
+      '<a class="btn btn-primary" href="' + t.u + '">' + t.b + '</a>';
+    /* si el banner de cookies está visible, apilarse arriba (no taparse) */
+    var cbar = document.getElementById('cookie-bar');
+    if(cbar && cbar.offsetHeight) box.style.bottom = (cbar.offsetHeight + 16) + 'px';
+    document.body.appendChild(box);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('in'); }); });
+    box.querySelector('.vv-slidein-x').addEventListener('click', function(){ box.classList.remove('in'); setTimeout(function(){ box.remove(); }, 350); });
+  }
+  window.addEventListener('scroll', maybeShow, {passive:true});
+})();
 
 /* Lead magnet con gate REAL: el PDF vive en un bucket privado — la función
    magnet-download crea el lead server-side y devuelve una URL firmada de
