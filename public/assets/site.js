@@ -87,6 +87,8 @@ function setLang(lang){
   var d = document.querySelector('meta[name="description"]');
   if(d && d.getAttribute('data-' + lang)) d.setAttribute('content', d.getAttribute('data-' + lang));
   try{ localStorage.setItem('viven-lang', lang); }catch(e){}
+  /* espejo en cookie: el Worker de "/" redirige server-side según esta preferencia */
+  try{ document.cookie = 'viven-lang=' + lang + ';path=/;max-age=31536000;SameSite=Lax'; }catch(e){}
 }
 /* Páginas nuevas (/en/ /de/ /es/): el idioma lo fija la URL vía <html lang data-fixed-lang>.
    Solo aplicamos el idioma al contenido con data-* y NO hacemos switching client-side
