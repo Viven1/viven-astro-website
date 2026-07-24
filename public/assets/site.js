@@ -465,9 +465,9 @@ function hubspotSubmit(first, last, email, message, company){
 }
 document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadForm(m); });
 
-/* Lead magnet gated: email → lead (message identifica el magnet) → descarga.
-   La descarga arranca aunque el insert falle — el PDF nunca se le niega a
-   un humano por un hipo del backend. */
+/* Lead magnet con gate REAL: el PDF vive en un bucket privado — la función
+   magnet-download crea el lead server-side y devuelve una URL firmada de
+   5 min. Sin email no hay link (el archivo no tiene URL pública). */
 document.querySelectorAll('.lm-gate').forEach(function(box){
   var form = box.querySelector('.lm-gate-form');
   if(!form) return;
@@ -476,22 +476,24 @@ document.querySelectorAll('.lm-gate').forEach(function(box){
     var inp = form.querySelector('input[type="email"]');
     var email = (inp.value || '').trim();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ inp.focus(); return; }
-    var btn = form.querySelector('button'); btn.disabled = true;
+    var btn = form.querySelector('button'); if(btn.disabled) return; btn.disabled = true;
     var extra = window.vivenAttribution ? window.vivenAttribution() : null;
-    var row = { name: '', first_name: '', email: email, message: box.dataset.magnet || 'Lead magnet', form_path: location.pathname };
+    var body = { email: email, magnet: box.dataset.magnet || '', lang: (document.documentElement.lang || 'en').slice(0,2), form_path: location.pathname };
     if(extra){
-      row.session_id = extra.session_id;
-      row.lang = extra.lang;
-      if(extra.attrib){ row.channel = extra.attrib.channel; row.utm_source = extra.attrib.utm_source; row.landing_path = extra.attrib.landing_path; }
+      body.session_id = extra.session_id;
+      if(extra.attrib){ body.channel = extra.attrib.channel; body.utm_source = extra.attrib.utm_source; body.landing_path = extra.attrib.landing_path; }
     }
-    var download = function(){
-      form.hidden = true;
-      var d = box.querySelector('.lm-gate-done'); if(d) d.hidden = false;
-      var a = document.createElement('a');
-      a.href = box.dataset.pdf; a.download = '';
-      document.body.appendChild(a); a.click(); a.remove();
-    };
-    sbInsertLead(row).then(download, download);
+    window.sbCallFunction('magnet-download', body).then(function(res){
+      if(res && res.ok && res.url){
+        form.hidden = true;
+        var d = box.querySelector('.lm-gate-done'); if(d) d.hidden = false;
+        var a = document.createElement('a');
+        a.href = res.url; a.download = '';
+        document.body.appendChild(a); a.click(); a.remove();
+      } else {
+        btn.disabled = false;
+      }
+    });
   });
 });
 

@@ -1,8 +1,9 @@
 ---
-// Lead magnet gated por email: el visitante deja su email → lead en el CRM
-// (message identifica el magnet, misma convención que 'Newsletter signup')
-// → descarga el PDF. El handler vive en site.js (.lm-gate).
-const { lang = 'en', pdf, magnet = 'Lead magnet' } = Astro.props;
+// Lead magnet con gate REAL: el PDF está en el bucket privado 'magnets' —
+// el handler de site.js (.lm-gate) llama a la función magnet-download, que
+// crea el lead server-side y devuelve una URL firmada de 5 min. `magnet` es
+// la CLAVE del magnet en la función (no un path).
+const { lang = 'en', magnet = 'social-formats' } = Astro.props;
 const T = {
   eyebrow: { en: 'Free download', de: 'Gratis-Download', es: 'Descarga gratis' },
   title: { en: 'Social Media Video Cheat Sheet 2026', de: 'Social-Media-Video Cheat-Sheet 2026', es: 'Cheat sheet de video para redes 2026' },
@@ -20,7 +21,7 @@ const t = (k) => T[k][lang] || T[k].en;
 ---
 <section class="sec" style="padding-top:0">
   <div class="wrap">
-    <div class="lm-gate reveal" data-pdf={pdf} data-magnet={magnet}>
+    <div class="lm-gate reveal" data-magnet={magnet}>
       <div class="lm-gate-copy">
         <span class="eyebrow">{t('eyebrow')}</span>
         <h2>{t('title')}</h2>
