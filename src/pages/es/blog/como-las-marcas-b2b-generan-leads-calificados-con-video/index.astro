@@ -1,0 +1,128 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Cómo las marcas B2B generan leads calificados con video | Viven"};
+const description = {"es":"Descubrí cómo el video potencia la generación de leads B2B: estrategias efectivas y casos reales de las soluciones en video de Viven."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "como-las-marcas-b2b-generan-leads-calificados-con-video";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/como-las-marcas-b2b-generan-leads-calificados-con-video" active="blog" singleLang={true} langUrls={{"es":"/es/blog/como-las-marcas-b2b-generan-leads-calificados-con-video/","en":"/en/blog/how-b2b-brands-generate-qualified-leads-with-video/","de":"/de/blog/wie-b2b-marken-mit-video-qualifizierte-leads-generieren/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/como-las-marcas-b2b-generan-leads-calificados-con-video/\"},\"headline\":\"Cómo las marcas B2B generan leads calificados con video\",\"description\":\"Descubrí cómo el video potencia la generación de leads B2B: estrategias efectivas y casos reales de las soluciones en video de Viven.\",\"image\":\"https://www.viven.ch/projects/pmi-why-science-matters-brand-video/08-VIVEN_Film_Production_Why_Science_033.jpeg\",\"datePublished\":\"2026-07-23\",\"dateModified\":\"2026-07-23\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Organization\",\"name\":\"Viven AG\",\"url\":\"https://www.viven.ch/\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/como-las-marcas-b2b-generan-leads-calificados-con-video/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Cómo las marcas B2B generan leads calificados con video\",\"item\":\"https://www.viven.ch/es/blog/como-las-marcas-b2b-generan-leads-calificados-con-video/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué el video genera mejores leads B2B que otros contenidos?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Los compradores B2B tienen un 50% más de probabilidades de interactuar con video, que además transmite información compleja en minutos y construye confianza más rápido que el texto.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué tipos de video funcionan mejor para generar leads B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Los videos explicativos en landing pages, los anuncios en LinkedIn y YouTube, los casos de éxito de clientes y las promos de webinars son los formatos que mejor califican leads.\"}},{\"@type\":\"Question\",\"name\":\"¿Cómo apoya Viven la generación de leads B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Viven crea videos que le hablan directamente a quienes toman las decisiones, diseñados para atraer, informar y convertir audiencias en leads calificados.\"}}]}]}"}></script>
+<!-- ============ POST HERO ============ -->
+<section class="page-hero post-hero">
+  <div class="wrap">
+    <div class="post-wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p("")}>Inicio</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <a href={p("blog")}>Blog</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <span>Cómo las marcas B2B generan leads calificados con video</span>
+      </nav>
+      <span class="eyebrow">Guías y tutoriales</span>
+      <h1>Cómo las marcas B2B generan leads calificados con video</h1>
+      <p class="lead">El video transmite información compleja en minutos y construye confianza más rápido que cualquier texto. Cómo las marcas B2B lo usan para convertir prospectos en leads calificados — con estrategias que funcionan.</p>
+      <p class="post-meta"><span>Equipo Viven</span> <span>·</span> <span>23 de julio de 2026</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARTICLE ============ -->
+<section class="sec" style="padding-top:40px">
+  <div class="wrap">
+    <div class="post-wrap post-body reveal">
+<p>Las marcas B2B generan más leads calificados con video porque transmite información compleja en minutos, construye confianza más rápido que el texto y logra un engagement medible con quienes toman las decisiones. Los compradores B2B tienen un <strong>50% más de probabilidades</strong> de interactuar con contenido en video que con texto plano — y eso lo convierte en una de las herramientas más efectivas para transformar prospectos en leads calificados.</p>
+<h2>Por qué el video genera mejores leads</h2>
+<p>El video no es solo agradable de mirar: ayuda a entender la información rápido y genera confianza con tu audiencia. Por eso funciona tan bien para generar leads:</p>
+<ul>
+<li><strong>Información en minutos:</strong> un video puede explicar ideas complejas en apenas unos minutos.</li>
+<li><strong>Conexión emocional:</strong> ver a una persona o un producto en acción crea un vínculo más fuerte con quien mira.</li>
+<li><strong>Más engagement:</strong> la gente comparte videos con más facilidad, y tu mensaje llega más lejos.</li>
+</ul>
+<h2>Cómo Viven apoya la generación de leads B2B</h2>
+<p>En Viven creamos videos que le hablan directamente a quienes deciden en tu industria. Ya sea que estés lanzando un servicio nuevo o explicando una solución complicada, nuestros videos están diseñados para atraer, informar y convertir a tu audiencia en leads, a través de formatos pensados justamente para eso:</p>
+<h3>Formatos de video orientados a leads</h3>
+<ul>
+<li><strong><a href={p("services/how-to-video")}>Videos explicativos para landing pages</a>:</strong> ideales para presentar tu producto o servicio de forma clara y rápida.</li>
+<li><strong><a href={p("services/social-media-video")}>Anuncios en video para LinkedIn y YouTube</a>:</strong> llegá a tu audiencia donde ya pasa su tiempo.</li>
+<li><strong>Casos de éxito de clientes:</strong> historias reales que generan confianza en los prospectos.</li>
+<li><strong>Promos de webinars:</strong> videos cortos que aumentan la asistencia a tus eventos online.</li>
+</ul>
+<p>Estos formatos rinden especialmente bien como parte de una estrategia más amplia para <a href={p("blog/videos-explicativos-b2b-como-simplificar-productos-complejos")}>simplificar productos complejos con videos explicativos</a> o para <a href={p("blog/videos-explicativos-como-generar-leads-de-calidad")}>generar leads de calidad con videos explicativos</a>.</p>
+<h2>Alineá el video con tu embudo de ventas</h2>
+<p>Cada etapa del recorrido de compra B2B pide un video distinto. Al principio, los prospectos necesitan explicativos cortos y claros que dejen en evidencia qué hace tu producto y por qué importa. Más abajo en el embudo, los casos de éxito y los testimonios hacen el trabajo pesado: le dan al equipo de ventas la prueba social que necesita en llamadas y correos de seguimiento. Elegir el formato correcto para cada etapa mantiene a los prospectos avanzando en vez de perderlos en el camino.</p>
+<p>También conviene que el video sea parte del kit del equipo de ventas, no solo de marketing. Un video corto y personalizado después de una llamada de descubrimiento, o un clip de caso de éxito en un correo de seguimiento, suele rendir más que un PDF genérico: se consume más rápido y se recuerda mejor.</p>
+<h2>¿Listo para transformar tu generación de leads?</h2>
+<p>Si el video suena como la pieza que le falta a tu generación de leads B2B, no esperes más. <a href={p("contact")}>Asociate con Viven para generar leads de calidad</a> con contenido en video construido alrededor de tus compradores.</p>
+    </div>
+    <p class="post-service-note"><a href={p("services/how-to-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción de guías y tutoriales.</a></p>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="como-las-marcas-b2b-generan-leads-calificados-con-video" />
+  </div></section>
+</Base>

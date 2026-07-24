@@ -1,0 +1,125 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Videos explicativos B2B: simplificá lo complejo | Viven"};
+const description = {"es":"Descubrí cómo los videos explicativos simplifican ideas complejas, aumentan el engagement y aceleran la toma de decisiones B2B."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videos-explicativos-b2b-como-simplificar-productos-complejos";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/videos-explicativos-b2b-como-simplificar-productos-complejos" active="blog" singleLang={true} langUrls={{"es":"/es/blog/videos-explicativos-b2b-como-simplificar-productos-complejos/","en":"/en/blog/how-b2b-companies-simplify-complex-products-with-explainer-videos/","de":"/de/blog/wie-b2b-unternehmen-komplexe-produkte-mit-erklaervideos-einfach-erklaeren/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/videos-explicativos-b2b-como-simplificar-productos-complejos/\"},\"headline\":\"Cómo las empresas B2B simplifican productos complejos con videos explicativos\",\"description\":\"Descubrí cómo los videos explicativos simplifican ideas complejas, aumentan el engagement y aceleran la toma de decisiones B2B.\",\"image\":\"https://www.viven.ch/projects/franke-the-office-hero-horeca-product-launch/01-ro__VIVEN_Video_Film_Production-007.jpeg\",\"datePublished\":\"2026-07-23\",\"dateModified\":\"2026-07-23\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Organization\",\"name\":\"Viven AG\",\"url\":\"https://www.viven.ch/\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/videos-explicativos-b2b-como-simplificar-productos-complejos/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Cómo las empresas B2B simplifican productos complejos con videos explicativos\",\"item\":\"https://www.viven.ch/es/blog/videos-explicativos-b2b-como-simplificar-productos-complejos/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto puede mejorar un video explicativo la comprensión de un producto?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Un video explicativo bien hecho puede aumentar la comprensión hasta un 74%, ayudando a que quienes deciden entiendan más rápido ofertas complejas.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué formatos de video funcionan mejor para simplificar productos B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Las animaciones 2D y 3D, las demostraciones con imagen real y los videos interactivos simplifican ideas complejas de maneras distintas, según tu audiencia y tu objetivo.\"}},{\"@type\":\"Question\",\"name\":\"¿Por qué los videos explicativos acortan los ciclos de venta B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Cuando quienes deciden entienden rápido tu producto, avanzan más rápido por la evaluación y la aprobación, y el ciclo de venta completo se acorta.\"}}]}]}"}></script>
+<!-- ============ POST HERO ============ -->
+<section class="page-hero post-hero">
+  <div class="wrap">
+    <div class="post-wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p("")}>Inicio</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <a href={p("blog")}>Blog</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <span>Cómo las empresas B2B simplifican productos complejos con videos explicativos</span>
+      </nav>
+      <span class="eyebrow">Guías y tutoriales</span>
+      <h1>Cómo las empresas B2B simplifican productos complejos con videos explicativos</h1>
+      <p class="lead">Un buen video explicativo convierte conceptos técnicos en historias visuales que se entienden en minutos — y eso acelera el engagement y la decisión de compra B2B.</p>
+      <p class="post-meta"><span>Equipo Viven</span> <span>·</span> <span>23 de julio de 2026</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARTICLE ============ -->
+<section class="sec" style="padding-top:40px">
+  <div class="wrap">
+    <div class="post-wrap post-body reveal">
+<p>Las empresas B2B simplifican productos complejos con videos explicativos que convierten conceptos técnicos en historias visuales cortas: quienes deciden las entienden en minutos, no en páginas de documentación. Un video explicativo bien hecho puede aumentar la comprensión hasta un <strong>74%</strong>, y eso se traduce en decisiones de compra más rápidas y seguras. Esa claridad es exactamente lo que Viven construye en cada video explicativo que produce.</p>
+<h2>El poder de un mensaje simple</h2>
+<p>Cuando tu audiencia entiende fácil qué ofrecés, decide más rápido. En el mundo B2B, quienes toman decisiones valoran la comunicación clara y concisa que respeta su tiempo — y hasta el mensaje más complicado puede volverse una historia que conecta. Esto pesa todavía más cuando la compra involucra a varias personas: un video claro le da a todo el comité de compra el mismo punto de partida, en vez de dejar que cada uno interprete por su cuenta una ficha técnica densa.</p>
+<h3>¿Por qué elegir videos explicativos?</h3>
+<ul>
+<li><strong>Engagement:</strong> el video atrapa más que el texto solo — capta la atención y la sostiene.</li>
+<li><strong>Claridad:</strong> lo visual descompone las ideas complejas y las vuelve fáciles de digerir.</li>
+<li><strong>Decisiones más rápidas:</strong> cuando la gente entiende tu producto, decide antes — y el ciclo de venta se acorta.</li>
+</ul>
+<h2>La experiencia de Viven en videos explicativos</h2>
+<p>En Viven nos especializamos en crear <a href={p("services/how-to-video")}>videos explicativos</a> a medida que aclaran conceptos técnicos y muestran el valor de tu oferta — ya sea para tu sitio web, tus redes sociales o tus presentaciones de venta. Empezamos por conocer tu producto a fondo y después trabajamos hacia atrás desde las preguntas que tus prospectos realmente hacen.</p>
+<h3>Nuestros formatos</h3>
+<ul>
+<li><strong>Animación 2D y 3D:</strong> dale vida a tus ideas con animaciones que cautivan a tu audiencia.</li>
+<li><strong>Demostraciones con imagen real:</strong> mostrá a personas reales usando tu producto para construir confianza y autenticidad.</li>
+<li><strong>Videos interactivos:</strong> experiencias personalizadas que invitan a la audiencia a participar del contenido.</li>
+</ul>
+<h2>¿Listo para simplificar tu mensaje?</h2>
+<p>No dejes que un producto complejo se pierda en la traducción. Con Viven podés crear videos explicativos que vuelven tu oferta cristalina — seas una startup o una marca establecida que quiere acortar un ciclo de venta largo y técnico. Y si además querés convertir esa claridad en pipeline, mirá cómo <a href={p("blog/videos-explicativos-como-generar-leads-de-calidad")}>los videos explicativos generan leads de calidad</a> y cómo ayudan a maximizar la conversión de clientes.</p>
+<p>Transformá la forma en que presentás tus productos con nuestros servicios de <a href={p("services/product-video")}>video de producto</a>, o <a href={p("contact")}>escribinos hoy</a> para empezar — hagamos que tu mensaje brille y que tus clientes entiendan tu valor.</p>
+    </div>
+    <p class="post-service-note"><a href={p("services/how-to-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción de guías y tutoriales.</a></p>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="videos-explicativos-b2b-como-simplificar-productos-complejos" />
+  </div></section>
+</Base>
