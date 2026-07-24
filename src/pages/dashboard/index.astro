@@ -11665,9 +11665,12 @@ const newsCases = [
     for (let m = 0; m < 12; m++){
       const mStart = new Date(today.getFullYear(), today.getMonth() + m, 1);
       const mEnd = new Date(today.getFullYear(), today.getMonth() + m + 1, 1);
-      const delta = events.filter((ev) => ev.date >= mStart && ev.date < mEnd).reduce((a, ev) => a + ev.delta, 0);
+      const evs = events.filter((ev) => ev.date >= mStart && ev.date < mEnd);
+      const inflow = evs.reduce((a, ev) => a + (ev.delta > 0 ? ev.delta : 0), 0);
+      const outflow = evs.reduce((a, ev) => a + (ev.delta < 0 ? -ev.delta : 0), 0);
+      const delta = inflow - outflow;
       running += delta;
-      months.push({ label: mStart.toLocaleDateString('es-CH', { month: 'short', year: '2-digit' }), delta, balance: running });
+      months.push({ label: mStart.toLocaleDateString('es-CH', { month: 'short', year: '2-digit' }), delta, inflow, outflow, balance: running });
     }
     return months;
   }
@@ -11682,9 +11685,12 @@ const newsCases = [
       const wStart = new Date(weekStart0); wStart.setDate(weekStart0.getDate() + w * 7);
       if (wStart > horizon) break;
       const wEnd = new Date(wStart); wEnd.setDate(wStart.getDate() + 7);
-      const delta = events.filter((ev) => ev.date >= wStart && ev.date < wEnd).reduce((a, ev) => a + ev.delta, 0);
+      const evs = events.filter((ev) => ev.date >= wStart && ev.date < wEnd);
+      const inflow = evs.reduce((a, ev) => a + (ev.delta > 0 ? ev.delta : 0), 0);
+      const outflow = evs.reduce((a, ev) => a + (ev.delta < 0 ? -ev.delta : 0), 0);
+      const delta = inflow - outflow;
       running += delta;
-      weeks.push({ label: wStart.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), delta, balance: running });
+      weeks.push({ label: wStart.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }), delta, inflow, outflow, balance: running });
     }
     return weeks;
   }
@@ -11696,7 +11702,14 @@ const newsCases = [
 
   function cfRenderKpis(){
     const bal = cfBalance ? Number(cfBalance.balance_chf) : null;
-    $('cf-k-balance').textContent = bal != null ? cfCHF(bal) : '—';
+    const kb = $('cf-k-balance');
+    if (bal != null){
+      kb.textContent = cfCHF(bal);
+      kb.title = 'Actualizalo abajo en ⚙️ Configuración cuando cambie';
+    } else {
+      // sin saldo cargado la proyección no significa nada — llevarlo directo
+      kb.innerHTML = '<a href="#cf-cfg-balance" style="color:var(--acid);font-size:15px;text-decoration:underline" onclick="document.getElementById(\'cf-cfg-balance\').focus()">Cargar saldo →</a>';
+    }
     const zeroIdx = cfMonths.findIndex((m) => m.balance < 0);
     const rw = $('cf-k-runway');
     if (zeroIdx === -1){ rw.textContent = '12+ meses'; rw.style.color = '#7ed957'; }
@@ -11715,7 +11728,7 @@ const newsCases = [
   function cfRenderSeg(){
     const seg = $('cf-seg'); if (!seg) return;
     seg.innerHTML = [['monthly', 'Mensual'], ['weekly', 'Semanal']].map(([k, lbl]) => '<button data-p="' + k + '" class="' + (cfPeriod === k ? 'on' : '') + '" type="button">' + lbl + '</button>').join('');
-    seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { cfPeriod = b.dataset.p; cfRenderSeg(); cfRenderChart(); }));
+    seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { cfPeriod = b.dataset.p; cfRenderSeg(); cfRenderChart(); cfRenderTable(); }));
   }
 
   // gráfico SVG — reusa las mismas clases .gsvg/.g-grid/.g-yl/.g-xl/.g-line del chart de Analytics,
@@ -11752,6 +11765,17 @@ const newsCases = [
   function cfRenderTable(){
     const box = $('cf-table'); if (!box) return;
     if (!cfEvents.length){ box.innerHTML = '<p class="muted-note">Sin partidas futuras — agregá una con ➕ Agregar partida, o cargá recurrentes/préstamos abajo.</p>'; return; }
+    // resumen por período (sigue el toggle Mensual/Semanal del gráfico): lo que
+    // entra, lo que sale, neto y saldo proyectado — pedido: "resumen semanal y
+    // mensual de lo que entra y lo que sale". Semanal: 13 semanas (~3 meses).
+    const series = (cfPeriod === 'weekly' ? cfWeeks.slice(0, 13) : cfMonths).filter((r) => r.inflow || r.outflow || true);
+    const sumRows = series.map((r) =>
+      '<tr><td>' + esc(r.label) + '</td>' +
+      '<td class="cf-amt pos">' + (r.inflow ? '+' + cfCHF(r.inflow) : '—') + '</td>' +
+      '<td class="cf-amt neg">' + (r.outflow ? '−' + cfCHF(r.outflow) : '—') + '</td>' +
+      '<td class="cf-amt ' + (r.delta >= 0 ? 'pos' : 'neg') + '">' + (r.delta >= 0 ? '+' : '−') + cfCHF(Math.abs(r.delta)) + '</td>' +
+      '<td style="color:' + (r.balance < 0 ? '#ff8b8b' : 'inherit') + '">' + cfCHF(r.balance) + '</td></tr>').join('');
+    const summary = '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>' + (cfPeriod === 'weekly' ? 'Semana del' : 'Mes') + '</th><th>⬆ Entradas</th><th>⬇ Salidas</th><th>Neto</th><th>Saldo proyectado</th></tr></thead><tbody>' + sumRows + '</tbody></table></div>';
     let running = cfBalance ? Number(cfBalance.balance_chf) : 0;
     const TAGS = { rec: ['recurrente', 'rec'], loan: ['préstamo', 'loan'], bexio: ['Bexio', 'bexio'], manual: ['manual', 'manual'] };
     const rows = cfEvents.slice(0, 300).map((ev) => {
@@ -11762,7 +11786,7 @@ const newsCases = [
         '<td class="cf-amt ' + (ev.delta >= 0 ? 'pos' : 'neg') + '">' + (ev.delta >= 0 ? '+' : '−') + cfCHF(Math.abs(ev.delta)) + '</td>' +
         '<td>' + cfCHF(running) + '</td></tr>';
     }).join('');
-    box.innerHTML = '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Monto</th><th>Saldo corrido</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    box.innerHTML = summary + '<details style="margin-top:12px"><summary style="cursor:pointer;color:var(--muted);font-size:13.5px">Ver movimientos uno por uno (' + cfEvents.length + ')</summary><div class="lead-table-wrap" style="margin-top:10px"><table class="lead-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Monto</th><th>Saldo corrido</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
   }
 
   async function cfSaveEntry(){
