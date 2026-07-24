@@ -1,0 +1,15 @@
+// Config del Worker (Cloudflare Workers Builds la respeta al correr
+// `npx wrangler deploy`). Antes no existía y Cloudflare usaba defaults —
+// cuyo not_found_handling es "none": cualquier URL rota devolvía un 404
+// con CUERPO VACÍO (pantalla en blanco) en vez de nuestra 404.
+// name/compatibility copiados EXACTOS del dashboard (Settings → Runtime) —
+// si el name no coincide, wrangler crearía un Worker nuevo sin el dominio.
+{
+  "name": "viven-astro-website",
+  "compatibility_date": "2026-07-24",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
