@@ -480,9 +480,9 @@ document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadFor
   try{ if(sessionStorage.getItem('vv_calc_slidein')) return; }catch(e){}
   var lang = (document.documentElement.lang || 'en').slice(0,2);
   var T = {
-    en: { t: 'Curious what your video would cost?', s: '60 seconds, no email needed.', b: 'Try the calculator →', u: '/en/video-cost-calculator/' },
-    de: { t: 'Was würde Ihr Video kosten?', s: '60 Sekunden, ohne E-Mail.', b: 'Zum Kostenrechner →', u: '/de/videoproduktion-kosten-rechner/' },
-    es: { t: '¿Querés saber cuánto costaría tu video?', s: '60 segundos, sin email.', b: 'Probar la calculadora →', u: '/es/calculadora-costos-video/' }
+    en: { t: 'Curious what your video would cost?', s: '5 quick questions — free, no obligation.', b: 'Try the calculator →', u: '/en/video-cost-calculator/' },
+    de: { t: 'Was würde Ihr Video kosten?', s: '5 kurze Fragen — gratis und unverbindlich.', b: 'Zum Kostenrechner →', u: '/de/videoproduktion-kosten-rechner/' },
+    es: { t: '¿Querés saber cuánto costaría tu video?', s: '5 preguntas rápidas — gratis y sin compromiso.', b: 'Probar la calculadora →', u: '/es/calculadora-costos-video/' }
   };
   var t = T[lang] || T.en;
   var shown = false;
