@@ -1636,6 +1636,26 @@ const newsCases = [
   .rc-flow-node .rc-flow-n{fill:var(--muted);font-variant-numeric:tabular-nums}
   .rc-flow-node.rc-click{cursor:pointer}
   .rc-flow-node.rc-click:hover rect{stroke:var(--acid)}
+
+  /* ---------- 🧪 Motor de CRO semanal (prefijo cro-) ---------- */
+  .cro-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .cro-tools select{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);font-family:inherit;font-size:12.5px;padding:7px 10px}
+  .cro-card{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:16px 18px;margin-bottom:10px}
+  .cro-card.cro-done{border-color:rgba(126,217,87,.35)}
+  .cro-card.cro-dismissed{opacity:.4}
+  .cro-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .cro-badge{border:1px solid var(--line-strong);border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;color:var(--muted);white-space:nowrap}
+  .cro-badge.ab_test{color:#8ab4ff;border-color:rgba(138,180,255,.45)}
+  .cro-badge.fix{color:#ff8b8b;border-color:rgba(255,139,139,.45)}
+  .cro-badge.experiment{color:#f0c060;border-color:rgba(240,192,96,.45)}
+  .cro-where{color:var(--muted-2);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+  .cro-impact{margin-left:auto;color:var(--acid);font-size:11px;letter-spacing:2px;white-space:nowrap}
+  .cro-title{font-size:14.5px;font-weight:700;font-family:'Space Grotesk';letter-spacing:-.01em;line-height:1.35}
+  .cro-hypo{color:var(--muted);font-size:13px;line-height:1.55;margin:6px 0 0}
+  .cro-evidence{color:var(--muted);font-size:12.5px;font-style:italic;line-height:1.5;margin:8px 0 0;border-left:2px solid color-mix(in srgb,var(--acid) 45%,transparent);padding-left:10px}
+  .cro-how{color:var(--text);font-size:12.5px;line-height:1.55;margin:8px 0 0}
+  .cro-how b{color:var(--muted-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;margin-right:4px}
+  .cro-actions{display:flex;gap:8px;margin-top:12px}
 </style>
 </head>
 <body>
@@ -2048,6 +2068,7 @@ const newsCases = [
       <button data-sub="web" class="on" type="button">🌐 Web</button>
       <button data-sub="gads" type="button">🎯 Google Ads</button>
       <button data-sub="videos" type="button">🎬 Videos</button>
+      <button data-sub="cro" type="button">🧪 CRO</button>
     </div>
 
     <!-- ============ SUB: WEB ============ -->
@@ -2210,6 +2231,27 @@ const newsCases = [
         <p class="muted-note" style="margin:6px 0 10px">Embudo real por video: arranque → 25% → 50% → 75% → 100%, con <b>Leads</b> (la sesión vio el video antes de convertir) y <b>Ganados</b> (esa persona terminó como cliente ganado). 100% tracking propio — las estadísticas oficiales de Vimeo se suman como dato extra si hay token configurado, nunca reemplazan lo de arriba.</p>
         <div class="kpis four" id="va-kpis" style="margin-bottom:16px"></div>
         <div id="ka-video-table"><p class="muted-note">Sin reproducciones en el período.</p></div>
+      </div>
+    </div>
+
+    <!-- ============ SUB: CRO (🧪 motor de CRO semanal — ideas de la IA sobre datos reales) ============
+         Cada lunes el cron (SQL 0112 → función cro-ideas) genera 3-5 ideas ancladas a los
+         datos de la semana (funnels, fricción, entradas, A/B, canales). Acá se leen de
+         cro_ideas, se marcan hechas/descartadas (status en el jsonb) y se puede regenerar. -->
+    <div id="ana-sub-cro" hidden>
+      <div class="panel">
+        <div class="of-bar" style="margin-bottom:12px">
+          <div>
+            <h2 style="margin:0">🧪 Motor de CRO semanal <span class="count">(ideas nuevas cada lunes)</span></h2>
+            <p class="muted-note" style="margin:2px 0 0">Mejoras y tests propuestos por la IA sobre TUS datos reales — cada idea cita el número que la justifica, nada de recetas genéricas.</p>
+          </div>
+          <div class="cro-tools">
+            <select id="cro-week" class="status" hidden title="Ver semanas anteriores"></select>
+            <button class="btn btn-ghost small" id="cro-gen" type="button" title="Regenerar las ideas de esta semana con los datos de hoy">🔄 Generar ahora</button>
+          </div>
+        </div>
+        <p class="muted-note" id="cro-meta" style="margin:0 0 12px" hidden></p>
+        <div id="cro-list"><p class="muted-note">Cargando…</p></div>
       </div>
     </div>
 
@@ -3512,14 +3554,15 @@ const newsCases = [
   /* ---------- Analytics: sub-tabs (Web / Google Ads / Videos) ---------- */
   // estado en módulo + localStorage: sobrevive al auto-refresh y a recargar la página
   let anaSub = localStorage.getItem('vv_ana_sub') || 'web';
-  if (!['web', 'gads', 'videos'].includes(anaSub)) anaSub = 'web';
+  if (!['web', 'gads', 'videos', 'cro'].includes(anaSub)) anaSub = 'web';
   function anaSetSub(sub){
     anaSub = sub;
     try { localStorage.setItem('vv_ana_sub', sub); } catch (e) { /* modo privado */ }
-    ['web', 'gads', 'videos'].forEach((k) => { const el = $('ana-sub-' + k); if (el) el.hidden = k !== sub; });
+    ['web', 'gads', 'videos', 'cro'].forEach((k) => { const el = $('ana-sub-' + k); if (el) el.hidden = k !== sub; });
     document.querySelectorAll('#ana-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
     // carga perezosa (Web y Videos ya se renderizan en loadAll)
     if (sub === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
+    if (sub === 'cro') croLoad(); // 🧪 CRO: carga 1 vez, después usa lo que hay en memoria
     rcLoad(); // 🧭 Recorridos: cierra el tab sea cual sea el sub — carga 1 vez por período
     syncTabUrl();
   }
@@ -3728,6 +3771,103 @@ const newsCases = [
     document.querySelectorAll('#rc-period button').forEach((x) => x.classList.toggle('on', x === b));
     rcLoad(true);
   }));
+
+  /* ---------- 🧪 Motor de CRO semanal (tabla cro_ideas — SQL 0112 + función cro-ideas) ----------
+     La fila más reciente es "la semana actual"; el dropdown deja mirar hasta 8 semanas
+     atrás. Hecha/Descartar guardan un status DENTRO del jsonb ideas[i] (update simple,
+     sin tabla extra); 🔄 invoca la función con {force:true} (la sesión alcanza de auth). */
+  let croRows = [], croIdx = 0, croLoadedOnce = false;
+  const CRO_TYPE = { ab_test: '🧪 A/B test', fix: '🔧 Fix', experiment: '🔬 Experimento' };
+  const CRO_EFFORT = { S: 'Esfuerzo S', M: 'Esfuerzo M', L: 'Esfuerzo L' };
+  function croImpactDots(n){
+    n = Math.max(1, Math.min(5, Number(n) || 0));
+    return '●'.repeat(n) + '○'.repeat(5 - n);
+  }
+  function croWeekLabel(ws){
+    try { return 'Semana del ' + new Date(ws + 'T00:00:00').toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }); }
+    catch (e) { return 'Semana ' + ws; }
+  }
+  async function croLoad(force){
+    const box = $('cro-list'); if (!box) return;
+    if (croLoadedOnce && !force) return; // ya en memoria — el sub-tab solo re-muestra
+    try {
+      const { data, error } = await supabase.from('cro_ideas').select('id,week_start,ideas,created_at').order('week_start', { ascending: false }).limit(8);
+      if (error) throw error;
+      croRows = data || []; croIdx = 0; croLoadedOnce = true;
+      const sel = $('cro-week');
+      if (sel){
+        sel.hidden = croRows.length < 2;
+        sel.innerHTML = croRows.map((r, i) => '<option value="' + i + '">' + esc(croWeekLabel(r.week_start)) + (i === 0 ? ' (actual)' : '') + '</option>').join('');
+        sel.value = '0';
+      }
+      croRender();
+    } catch (e) {
+      box.innerHTML = '<p class="muted-note">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL <b>0112</b>?</p>';
+    }
+  }
+  function croRender(){
+    const box = $('cro-list'); if (!box) return;
+    const meta = $('cro-meta');
+    const row = croRows[croIdx];
+    if (!row){
+      if (meta) meta.hidden = true;
+      box.innerHTML = '<p class="muted-note">Todavía no hay ideas: el cron corre cada lunes a la mañana (SQL 0112), o generá la primera tanda ahora con el botón 🔄 de arriba.</p>';
+      return;
+    }
+    const ideas = Array.isArray(row.ideas) ? row.ideas : [];
+    if (meta){
+      const open = ideas.filter((i) => !i.status).length;
+      meta.textContent = croWeekLabel(row.week_start) + ' · ' + ideas.length + ' ideas (' + open + ' pendientes) · generadas el ' + new Date(row.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      meta.hidden = false;
+    }
+    box.innerHTML = ideas.length ? ideas.map((idea, i) => {
+      const st = idea.status || '';
+      const cls = st === 'done' ? ' cro-done' : st === 'dismissed' ? ' cro-dismissed' : '';
+      return '<div class="cro-card' + cls + '">' +
+        '<div class="cro-head">' +
+          '<span class="cro-badge ' + esc(idea.type || '') + '">' + (CRO_TYPE[idea.type] || esc(idea.type || 'idea')) + '</span>' +
+          '<span class="cro-badge">' + esc(CRO_EFFORT[idea.effort] || idea.effort || '?') + '</span>' +
+          (idea.where ? '<span class="cro-where" title="' + esc(idea.where) + '">📍 ' + esc(idea.where) + '</span>' : '') +
+          '<span class="cro-impact" title="Impacto estimado ' + (Number(idea.impact) || 0) + '/5">' + croImpactDots(idea.impact) + '</span>' +
+        '</div>' +
+        '<div class="cro-title">' + (st === 'done' ? '✅ ' : '') + esc(idea.title || '') + '</div>' +
+        (idea.hypothesis ? '<p class="cro-hypo">' + esc(idea.hypothesis) + '</p>' : '') +
+        (idea.evidence ? '<p class="cro-evidence">📊 ' + esc(idea.evidence) + '</p>' : '') +
+        (idea.how ? '<p class="cro-how"><b>Cómo</b>' + esc(idea.how) + '</p>' : '') +
+        '<div class="cro-actions">' +
+          '<button class="btn btn-ghost small" data-cro-st="done" data-cro-i="' + i + '" type="button">' + (st === 'done' ? '↩︎ Reabrir' : '✅ Hecha') + '</button>' +
+          '<button class="btn btn-ghost small" data-cro-st="dismissed" data-cro-i="' + i + '" type="button">' + (st === 'dismissed' ? '↩︎ Restaurar' : '🗑 Descartar') + '</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') : '<p class="muted-note">Esta semana quedó sin ideas — regenerá con 🔄.</p>';
+    box.querySelectorAll('[data-cro-st]').forEach((b) => b.addEventListener('click', () => croSetStatus(parseInt(b.dataset.croI, 10), b.dataset.croSt)));
+  }
+  async function croSetStatus(i, st){
+    const row = croRows[croIdx]; if (!row || !Array.isArray(row.ideas) || !row.ideas[i]) return;
+    const cur = row.ideas[i].status || '';
+    row.ideas[i].status = cur === st ? null : st; // segundo click = deshacer
+    croRender(); // optimista — el update va por detrás
+    const { error } = await supabase.from('cro_ideas').update({ ideas: row.ideas }).eq('id', row.id);
+    if (error){ row.ideas[i].status = cur || null; croRender(); alert('No se pudo guardar: ' + (error.message || 'error')); }
+  }
+  async function croGenerate(){
+    const btn = $('cro-gen'); if (!btn || btn.disabled) return;
+    btn.disabled = true; btn.textContent = '⏳ Generando…';
+    try {
+      const { data, error } = await supabase.functions.invoke('cro-ideas', { body: { force: true } });
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+      await croLoad(true);
+    } catch (e) {
+      alert('No se pudieron generar las ideas: ' + (e.message || e));
+    } finally {
+      btn.disabled = false; btn.textContent = '🔄 Generar ahora';
+    }
+  }
+  (function(){
+    const g = $('cro-gen'); if (g) g.addEventListener('click', croGenerate);
+    const sel = $('cro-week'); if (sel) sel.addEventListener('change', () => { croIdx = parseInt(sel.value, 10) || 0; croRender(); });
+  })();
 
   /* ---------- Contenido: sub-tabs (Blog / Newsletter / Search Console / Lead Magnets) ----------
      Mismo patrón que anaSetSub — Search Console se mudó acá desde Analytics
@@ -14157,7 +14297,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       const tab = qs.get('tab');
       if (!tab || !TABS.includes(tab)) return;
       const sub = qs.get('sub');
-      if (tab === 'analytics' && ['web', 'gads', 'videos'].includes(sub)) anaSetSub(sub);
+      if (tab === 'analytics' && ['web', 'gads', 'videos', 'cro'].includes(sub)) anaSetSub(sub);
       else if (tab === 'contenido' && ['blog', 'news', 'seo', 'magnets'].includes(sub)) contenidoSetSub(sub);
       else if (tab === 'sistema' && ['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'profile'].includes(sub)) sistemaSetSub(sub);
       await gotoTab(tab);
