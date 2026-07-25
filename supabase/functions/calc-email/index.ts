@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
     const lang = ["en", "de", "es"].includes(rawLang) ? rawLang : "en";
     const t = T[lang];
     const first = String(name || "").trim().split(" ")[0] || "";
+    // DE automatizado: Sie + APELLIDO (regla fija) — sin apellido, nombre completo
+    const last = String(name || "").trim().split(" ").slice(1).join(" ") || String(name || "").trim();
+    const sal = lang === "de" ? last : first;
     const fmt = (n: number) => "CHF " + Math.round(+n || 0).toLocaleString("de-CH");
     const rows = (Array.isArray(lines) ? lines : []).map((l: [string, number]) => `<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;font-size:13.5px;color:#333">${esc(l[0])}</td><td style="padding:6px 4px;border-bottom:1px solid #eee;font-size:13.5px;color:#333;text-align:right">${fmt(l[1])}</td></tr>`).join("");
     const cfgLine = Array.isArray(config) ? config.map(esc).join(" · ") : "";
@@ -101,7 +104,7 @@ Deno.serve(async (req) => {
     // template opcional (📚 Plantillas) — pisa subject + intro/nota; el resto
     // (desglose, botón, firma, footer) sigue siendo estructura fija del código
     const tmpl = await getTemplate("calc_result", lang);
-    const tok = (s: string) => s.replaceAll("{{first_name}}", first).replaceAll("{{range}}", range);
+    const tok = (s: string) => s.replaceAll("{{first_name}}", first).replaceAll("{{last_name}}", last).replaceAll("{{range}}", range);
     const subject = tmpl ? tok(tmpl.subject) : `${t.subject} ${fmt(lo)}–${fmt(hi)}`;
     const bodyParas = tmpl
       ? tok(tmpl.body).trim().split(/\n{2,}/).map((p) => `<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#222">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")
@@ -112,7 +115,7 @@ Deno.serve(async (req) => {
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
   <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">
-    <p style="margin:0 0 15px;font-size:15px;color:#222">${t.hi}${first ? " " + esc(first) : ""},</p>
+    <p style="margin:0 0 15px;font-size:15px;color:#222">${t.hi}${sal ? " " + esc(sal) : ""},</p>
     ${bodyParas}
     <div style="background:#f4f5f7;border-radius:14px;padding:22px;text-align:center;margin:0 0 18px">
       <div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#888">${cfgLine ? esc(cfgLine) : ""}</div>
@@ -128,7 +131,7 @@ Deno.serve(async (req) => {
 </div></body>`;
 
     const textLines = (Array.isArray(lines) ? lines : []).map((l: [string, number]) => `  ${l[0]}: ${fmt(l[1])}`).join("\n");
-    const text = `${t.hi}${first ? " " + first : ""},\n\n${tmpl ? tok(tmpl.body) : t.intro}\n\n${range}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${textLines ? t.basedOn + "\n" + textLines + "\n\n" : ""}${tmpl ? "" : t.note + "\n\n"}${t.cta.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
+    const text = `${t.hi}${sal ? " " + sal : ""},\n\n${tmpl ? tok(tmpl.body) : t.intro}\n\n${range}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${textLines ? t.basedOn + "\n" + textLines + "\n\n" : ""}${tmpl ? "" : t.note + "\n\n"}${t.cta.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

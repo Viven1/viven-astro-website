@@ -55,11 +55,14 @@ Deno.serve(async (req) => {
       const { data: prev } = await service.from("lead_notes").select("id").eq("lead_id", String(lead.id)).ilike("body", "%⭐ Pedido de reseña ENVIADO%").limit(1);
       if (prev && prev.length && !body.force) return json({ error: "ya se le pidió reseña a esta persona (mandá force:true para repetir)" }, 409);
       const lang = (["en", "de", "es"].includes(lead.lang) ? lead.lang : "en") as "en" | "de" | "es";
-      const first = (lead.name || "").split(/\s+/)[0] || (lang === "en" ? "there" : "");
+      const nmParts = (lead.name || "").trim().split(/\s+/);
+      const first = nmParts[0] || (lang === "en" ? "there" : "");
+      const lastN = nmParts.slice(1).join(" ") || nmParts[0] || "";
+      const sal = lang === "de" ? lastN : first;   // DE: Sie + apellido (regla fija)
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: "Sebastian de Viven <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [lead.email], subject: MAIL[lang].subject, html: MAIL[lang].html(first) }),
+        body: JSON.stringify({ from: "Sebastian de Viven <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [lead.email], subject: MAIL[lang].subject, html: MAIL[lang].html(sal) }),
       });
       if (!r.ok) return json({ error: "Resend " + r.status }, 500);
       await service.from("lead_notes").insert({ lead_id: String(lead.id), author: "Sistema", body: "⭐ Pedido de reseña ENVIADO a " + lead.email });
