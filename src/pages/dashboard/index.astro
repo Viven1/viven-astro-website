@@ -1643,6 +1643,8 @@ const newsCases = [
   .cro-card{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:16px 18px;margin-bottom:10px}
   .cro-card.cro-done{border-color:rgba(126,217,87,.35)}
   .cro-card.cro-dismissed{opacity:.4}
+  .cro-card.cro-approved{border-color:color-mix(in srgb,var(--acid) 55%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--acid) 25%,transparent)}
+  .cro-approved-note{color:var(--acid);font-size:12px;font-weight:600;margin:8px 0 0}
   .cro-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
   .cro-badge{border:1px solid var(--line-strong);border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;color:var(--muted);white-space:nowrap}
   .cro-badge.ab_test{color:#8ab4ff;border-color:rgba(138,180,255,.45)}
@@ -2243,7 +2245,7 @@ const newsCases = [
         <div class="of-bar" style="margin-bottom:12px">
           <div>
             <h2 style="margin:0">🧪 Motor de CRO semanal <span class="count">(ideas nuevas cada lunes)</span></h2>
-            <p class="muted-note" style="margin:2px 0 0">Mejoras y tests propuestos por la IA sobre TUS datos reales — cada idea cita el número que la justifica, nada de recetas genéricas.</p>
+            <p class="muted-note" style="margin:2px 0 0">Cada lunes la IA revisa los datos reales de tu web (visitas, funnels, errores, señales de fricción) y propone 3-5 mejoras concretas — cada una cita el dato que la justifica. Vos solo decidís: <b>🤖 Aprobar</b> = Claude la implementa y te avisa cuando está lista · <b>✅ Hecha</b> = ya se resolvió · <b>🗑 Descartar</b> = no va.</p>
           </div>
           <div class="cro-tools">
             <select id="cro-week" class="status" hidden title="Ver semanas anteriores"></select>
@@ -2392,6 +2394,30 @@ const newsCases = [
     <div class="lm2-menu" id="bl2-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
   </div>
     <div id="contenido-sub-news" hidden>
+    <div class="panel" style="margin-bottom:14px">
+      <div class="draft-head">
+        <h2 style="margin:0">📬 Edición mensual automática <span class="count" id="nwi-count"></span></h2>
+        <button class="btn btn-ghost small" id="nwi-gen" type="button">⚙️ Generar draft ahora</button>
+      </div>
+      <p class="muted-note" style="margin:6px 0 10px">El primer martes del mes (07:00 UTC) se arma solo un draft con los mejores posts del blog (por visitas) + un proyecto destacado que rota sin repetirse, en EN/DE/ES. <b>Nada se envía sin tu aprobación</b> — cada suscriptor lo recibe en su idioma, con su link de baja.</p>
+      <div id="nwi-list"><p class="muted-note">Cargando…</p></div>
+      <div id="nwi-detail" hidden style="margin-top:14px;border-top:1px solid var(--line-strong);padding-top:14px">
+        <div class="ab-urlrow" style="margin-bottom:8px">
+          <button class="btn btn-ghost small nwi-lang" data-lg="en" type="button">🇬🇧 EN</button>
+          <button class="btn btn-ghost small nwi-lang" data-lg="de" type="button">🇩🇪 DE</button>
+          <button class="btn btn-ghost small nwi-lang" data-lg="es" type="button">🇪🇸 ES</button>
+        </div>
+        <p class="muted-note" id="nwi-subject" style="margin:0 0 8px"></p>
+        <iframe id="nwi-preview" title="Preview newsletter mensual" style="width:100%;height:520px;border:1px solid var(--line-strong);border-radius:10px;background:#f4f5f7"></iframe>
+        <div class="ab-urlrow" style="margin-top:10px">
+          <button class="btn btn-ghost small" id="nwi-test" type="button">✉️ Test a mi email</button>
+          <button class="btn btn-primary small" id="nwi-send" type="button">✅ Aprobar y enviar</button>
+          <button class="btn btn-ghost small" id="nwi-discard" type="button">🗑 Descartar</button>
+          <button class="btn btn-ghost small" id="nwi-close" type="button">Cerrar</button>
+        </div>
+        <p class="muted-note" id="nwi-note" style="margin-top:8px"></p>
+      </div>
+    </div>
     <div class="panel">
       <h2>📰 Newsletter</h2>
       <p class="muted-note" style="margin:6px 0 14px">Envíos segmentados vía Resend (API batch + reintentos + retomable sin duplicar). Se excluyen solos: dados de baja, spam/descartados y emails de test. Cada mail sale con link de baja de un click y con los links taggeados <code>utm_campaign=nl-{'{id}'}</code> para la atribución de ventas.</p>
@@ -3822,7 +3848,7 @@ const newsCases = [
     }
     box.innerHTML = ideas.length ? ideas.map((idea, i) => {
       const st = idea.status || '';
-      const cls = st === 'done' ? ' cro-done' : st === 'dismissed' ? ' cro-dismissed' : '';
+      const cls = st === 'done' ? ' cro-done' : st === 'dismissed' ? ' cro-dismissed' : st === 'approved' ? ' cro-approved' : '';
       return '<div class="cro-card' + cls + '">' +
         '<div class="cro-head">' +
           '<span class="cro-badge ' + esc(idea.type || '') + '">' + (CRO_TYPE[idea.type] || esc(idea.type || 'idea')) + '</span>' +
@@ -3830,11 +3856,13 @@ const newsCases = [
           (idea.where ? '<span class="cro-where" title="' + esc(idea.where) + '">📍 ' + esc(idea.where) + '</span>' : '') +
           '<span class="cro-impact" title="Impacto estimado ' + (Number(idea.impact) || 0) + '/5">' + croImpactDots(idea.impact) + '</span>' +
         '</div>' +
-        '<div class="cro-title">' + (st === 'done' ? '✅ ' : '') + esc(idea.title || '') + '</div>' +
-        (idea.hypothesis ? '<p class="cro-hypo">' + esc(idea.hypothesis) + '</p>' : '') +
-        (idea.evidence ? '<p class="cro-evidence">📊 ' + esc(idea.evidence) + '</p>' : '') +
-        (idea.how ? '<p class="cro-how"><b>Cómo</b>' + esc(idea.how) + '</p>' : '') +
+        '<div class="cro-title">' + (st === 'done' ? '✅ ' : st === 'approved' ? '🤖 ' : '') + esc(idea.title || '') + '</div>' +
+        (idea.hypothesis ? '<p class="cro-hypo"><b>Por qué:</b> ' + esc(idea.hypothesis) + '</p>' : '') +
+        (idea.evidence ? '<p class="cro-evidence"><b>📊 El dato:</b> ' + esc(idea.evidence) + '</p>' : '') +
+        (idea.how ? '<p class="cro-how"><b>Qué haría:</b> ' + esc(idea.how) + '</p>' : '') +
+        (st === 'approved' ? '<p class="cro-approved-note">🤖 Aprobada — Claude la implementa en la próxima sesión de trabajo y la marca ✅ Hecha al terminar.</p>' : '') +
         '<div class="cro-actions">' +
+          (st !== 'done' ? '<button class="btn small" data-cro-st="approved" data-cro-i="' + i + '" type="button">' + (st === 'approved' ? '↩︎ Quitar aprobación' : '🤖 Aprobar — la hace Claude') + '</button>' : '') +
           '<button class="btn btn-ghost small" data-cro-st="done" data-cro-i="' + i + '" type="button">' + (st === 'done' ? '↩︎ Reabrir' : '✅ Hecha') + '</button>' +
           '<button class="btn btn-ghost small" data-cro-st="dismissed" data-cro-i="' + i + '" type="button">' + (st === 'dismissed' ? '↩︎ Restaurar' : '🗑 Descartar') + '</button>' +
         '</div>' +
@@ -8060,6 +8088,48 @@ const newsCases = [
         } catch (e) { toast('⚠️ ' + (e.message || 'No se pudo sincronizar')); }
         btn.disabled = false; btn.textContent = prevTxt;
         window.gadsLoad();
+      });
+
+      // Newsletter — edición mensual automática (newsletter_issues, SQL 0114)
+      $('nwi-gen') && $('nwi-gen').addEventListener('click', async () => {
+        const btn = $('nwi-gen'), prev = btn.textContent;
+        if (!confirm('¿Generar el draft mensual ahora?\n\nSi ya existe un draft de este mes, se descarta y se arma uno nuevo. No se envía nada.')) return;
+        btn.disabled = true; btn.textContent = '⚙️ Generando… (~30s)';
+        try {
+          const { data, error } = await supabase.functions.invoke('newsletter-builder', { body: { force: true } });
+          if (error || (data && data.error)){ toast('⚠️ ' + (error ? error.message : data.error)); return; }
+          if (data && data.skipped){ toast(data.skipped); return; }
+          toast('📬 Draft generado — revisalo abajo.');
+          nwiInit();
+        } finally { btn.disabled = false; btn.textContent = prev; }
+      });
+      document.querySelectorAll('.nwi-lang').forEach((b) => b.addEventListener('click', () => nwiShowLang(b.dataset.lg)));
+      $('nwi-close') && $('nwi-close').addEventListener('click', () => { $('nwi-detail').hidden = true; nwiCur = null; });
+      $('nwi-test') && $('nwi-test').addEventListener('click', async () => {
+        if (!nwiCur) return;
+        const { data: s2 } = await supabase.auth.getUser();
+        const me = s2 && s2.user && s2.user.email; if (!me){ toast('Sin email de sesión'); return; }
+        $('nwi-note').textContent = 'Enviando test…';
+        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { issue_id: nwiCur.id, test_to: me } });
+        $('nwi-note').textContent = error ? '⚠️ ' + error.message : (data && data.error) ? '⚠️ ' + data.error : '✉️ Test enviado a ' + me + ' — revisá tu inbox.';
+      });
+      $('nwi-send') && $('nwi-send').addEventListener('click', async () => {
+        if (!nwiCur) return;
+        if (nwiCur.status === 'sent'){ toast('Este issue ya fue enviado'); return; }
+        if (!confirm('¿Aprobar y ENVIAR la edición ' + nwiCur.month + ' a todos los suscriptores?\n\nCada uno la recibe en su idioma. No se puede deshacer.')) return;
+        $('nwi-note').textContent = 'Enviando por tandas…'; $('nwi-send').disabled = true;
+        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { issue_id: nwiCur.id } });
+        $('nwi-send').disabled = false;
+        if (error || (data && data.error)){ $('nwi-note').textContent = '⚠️ ' + (error ? error.message : data.error) + (data && data.sent ? ' · ' + data.sent + ' ya salieron — reintentá: se retoma sin duplicar.' : ''); return; }
+        $('nwi-note').textContent = '🚀 Enviada a ' + (data.sent || 0) + ' suscriptores' + (data.skipped ? ' (+' + data.skipped + ' ya registrados de un intento previo)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') + '.';
+        nwiInit();
+      });
+      $('nwi-discard') && $('nwi-discard').addEventListener('click', async () => {
+        if (!nwiCur || nwiCur.status === 'sent') return;
+        if (!confirm('¿Descartar este draft? (no se envía nada; podés regenerarlo con «Generar draft ahora»)')) return;
+        const { error } = await supabase.from('newsletter_issues').update({ status: 'discarded', updated_at: new Date().toISOString() }).eq('id', nwiCur.id);
+        if (error){ toast('⚠️ ' + error.message); return; }
+        $('nwi-detail').hidden = true; nwiCur = null; toast('🗑 Draft descartado'); nwiInit();
       });
 
       // Newsletter
@@ -12652,7 +12722,51 @@ const newsCases = [
   function nwWonDeal(leadId){ return (dealsList || []).find((d) => String(d.lead_id) === String(leadId) && stageOf(d.stage) === 'ganado'); }
   function nwMoneyShort(v){ v = Number(v) || 0; return v >= 1000 ? 'CHF ' + (v / 1000).toLocaleString('de-CH', { maximumFractionDigits: 1 }) + 'k' : 'CHF ' + v.toLocaleString('de-CH', { maximumFractionDigits: 0 }); }
 
+  // ---- Edición mensual automática (newsletter_issues, SQL 0114) ----
+  let nwiCur = null, nwiList = [];
+  async function nwiInit(){
+    const { data, error } = await supabase.from('newsletter_issues').select('*').order('created_at', { ascending: false }).limit(24);
+    if (error){ $('nwi-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0114 — ' + esc(error.message) + '</p>'; return; }
+    nwiList = data || [];
+    const pend = nwiList.filter((i) => i.status === 'draft').length;
+    $('nwi-count').textContent = pend ? pend + ' para revisar' : '';
+    $('nwi-list').innerHTML = nwiList.map((n) => {
+      const badge = n.status === 'sent' ? '<span class="of-badge" style="color:var(--won);border-color:currentColor">✅ ' + (n.sent_count || 0) + ' enviados</span>'
+        : n.status === 'discarded' ? '<span class="of-badge" style="color:#8a93a6;border-color:currentColor">Descartada</span>'
+        : '<span class="of-badge" style="color:#f0c060;border-color:currentColor">⏳ Esperando aprobación</span>';
+      const subj = (n.content && n.content.en && n.content.en.subject) || '(sin asunto)';
+      return '<div class="of-card" style="margin-bottom:8px"><div class="of-card-open" data-nwi="' + n.id + '">' +
+        '<div class="of-card-main"><div class="of-card-title">📬 ' + esc(n.month) + ' — ' + esc(subj) + '</div>' +
+        '<div class="of-card-sub">' + new Date(n.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + (n.approved_by ? ' · aprobada por ' + esc(n.approved_by) : '') + '</div></div>' + badge + '</div></div>';
+    }).join('') || '<p class="muted-note">Sin ediciones todavía — el cron arma la primera el próximo primer martes del mes, o generala ahora con «Generar draft ahora».</p>';
+    $('nwi-list').querySelectorAll('[data-nwi]').forEach((c) => c.addEventListener('click', () => {
+      nwiCur = nwiList.find((x) => x.id === c.dataset.nwi) || null; if (!nwiCur) return;
+      $('nwi-detail').hidden = false;
+      $('nwi-send').hidden = nwiCur.status !== 'draft';
+      $('nwi-discard').hidden = nwiCur.status !== 'draft';
+      $('nwi-note').textContent = nwiCur.status === 'sent' ? 'Ya enviada — solo lectura.' : nwiCur.status === 'discarded' ? 'Descartada — solo lectura.' : '';
+      nwiShowLang('en');
+      $('nwi-detail').scrollIntoView({ behavior: 'smooth' });
+    }));
+  }
+  function nwiShowLang(lg){
+    if (!nwiCur) return;
+    const lang = lg || 'en';
+    document.querySelectorAll('.nwi-lang').forEach((b) => b.classList.toggle('btn-primary', b.dataset.lg === lang));
+    const ct = (nwiCur.content || {})[lang] || {};
+    $('nwi-subject').innerHTML = '<b>Asunto (' + lang.toUpperCase() + '):</b> ' + esc(ct.subject || '(vacío)') + (ct.ai === false ? ' · <b style="color:#f0c060">⚠️ copy de respaldo (la IA falló) — regenerá el draft o revisá el texto</b>' : '');
+    // preview client-side espejo del wrapper de newsletter-send (saludo DE = "Guten Tag" formal, sin nombre)
+    const greet = lang === 'de' ? '<p style="margin:0 0 16px;font-size:15px;color:#222">Guten Tag</p>' : lang === 'es' ? '<p style="margin:0 0 16px;font-size:15px;color:#222">Hola &lt;nombre&gt;,</p>' : '<p style="margin:0 0 16px;font-size:15px;color:#222">Hi &lt;name&gt;,</p>';
+    const html = '<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif"><div style="max-width:600px;margin:0 auto;padding:28px 16px">' +
+      '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px" /></div>' +
+      '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px">' + greet + (ct.html || '<p>(sin contenido)</p>') +
+      '<p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p></div>' +
+      '<p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · viven.ch · (link de baja por suscriptor)</p></div></body>';
+    $('nwi-preview').setAttribute('srcdoc', html);
+  }
+
   async function newsInit(){
+    nwiInit();
     const [nlRes, sendsRes] = await Promise.all([
       supabase.from('newsletters').select('*').order('created_at', { ascending: false }),
       supabase.from('newsletter_sends').select('newsletter_id,lead_id,opened_at,clicked_at'),

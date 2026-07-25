@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
     const tagVal = (k: string) => tags[k] || (Array.isArray(tags) ? (tags.find((t: any) => t.name === k) || {}).value : null);
     const offerId = tagVal("offer_id");
     const nlId = tagVal("nl_id");
-    if (!offerId && !nlId) return new Response("no known tag");
+    const issueId = tagVal("issue_id");   // edición mensual automática (SQL 0114)
+    if (!offerId && !nlId && !issueId) return new Response("no known tag");
 
     const admin = createClient(SB_URL, SERVICE);
     const at = evt?.created_at || new Date().toISOString();
@@ -62,18 +63,17 @@ Deno.serve(async (req) => {
       if (error) console.error("UPDATE_ERROR", error.message);
     }
 
-    if (nlId) {
+    if (nlId || issueId) {
       // el destinatario viene como data.to (array) o data.email según el shape del evento
       const toRaw = evt?.data?.to ?? evt?.data?.email;
       const recip = String(Array.isArray(toRaw) ? (toRaw[0] || "") : (toRaw || "")).toLowerCase().trim();
       if (recip) {
         const col = evt.type === "email.clicked" ? "clicked_at" : "opened_at";
-        // solo estampar si está null (primera apertura/click) — usa el índice por (newsletter_id, lower(email))
-        const { error } = await admin.from("newsletter_sends")
-          .update({ [col]: at })
-          .eq("newsletter_id", nlId)
-          .eq("email", recip)
-          .is(col, null);
+        // solo estampar si está null (primera apertura/click) — campañas por
+        // newsletter_id, ediciones mensuales por issue_id (SQL 0114)
+        let q = admin.from("newsletter_sends").update({ [col]: at }).eq("email", recip).is(col, null);
+        q = nlId ? q.eq("newsletter_id", nlId) : q.eq("issue_id", issueId);
+        const { error } = await q;
         if (error) console.error("NL_UPDATE_ERROR", error.message);
       }
     }

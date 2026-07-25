@@ -17,6 +17,15 @@
 //   • Bloques de contenido (nl.blocks): si hay, se renderizan en orden; si no,
 //     se cae al bodyHtml(nl.body) de siempre.
 //
+// NUEVO (0114): también envía la edición mensual automática — { issue_id }
+// manda el issue aprobado de newsletter_issues a TODOS los suscriptores
+// elegibles, cada uno EN SU idioma (EN/DE/ES, fallback EN), con el mismo
+// wrapper, link de baja, batch API, reintentos e idempotencia (índice único
+// parcial (issue_id,email)). { issue_id, test_to } manda solo un preview.
+// El envío real de un issue SIEMPRE requiere usuario logueado del dashboard
+// (la aprobación es humana — se registra en approved_by); el service role NO
+// alcanza a propósito: ningún cron puede disparar la edición mensual.
+//
 // Deploy:  supabase functions deploy newsletter-send --no-verify-jwt
 // Usa:     RESEND_API_KEY (ya seteado), SERVICE_ROLE para leer leads.
 
@@ -130,6 +139,30 @@ function blocksHtml(blocks: Block[], lang: string, nlId: string | number): strin
 
 const UNSUB_LABEL: Record<string, string> = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" };
 
+// Saludo por idioma. REGLA DURA (misma que 0089/0111): en DE jamás nombre de
+// pila ni du — "Guten Tag" formal a secas (no tenemos apellido/género
+// confiables en leads). EN/ES sí con nombre de pila si existe.
+function greeting(lang: string, firstName: string): string {
+  if (lang === "de") return `<p style="margin:0 0 16px;font-size:15px;color:#222">Guten Tag</p>`;
+  if (!firstName) return "";
+  const hi = lang === "es" ? "Hola" : "Hi";
+  return `<p style="margin:0 0 16px;font-size:15px;color:#222">${hi} ${esc(firstName)},</p>`;
+}
+
+// wrapper compartido (header navy + logo, tarjeta blanca, footer con baja de
+// un click) — el mismo look para campañas manuales y la edición mensual
+function wrapEmail(inner: string, unsub: string, lang: string): string {
+  return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
+<div style="max-width:600px;margin:0 auto;padding:28px 16px">
+  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
+  <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">
+    ${inner}
+    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p>
+  </div>
+  <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${UNSUB_LABEL[lang] || UNSUB_LABEL.en}</a></p>
+</div></body>`;
+}
+
 // POST a Resend con reintentos en 429/5xx (backoff exponencial). Devuelve la
 // respuesta final (ok o no) para que el caller cuente el resultado.
 async function resendPost(path: string, payload: unknown, attempts = 4): Promise<Response> {
@@ -159,14 +192,118 @@ Deno.serve(async (req) => {
     const auth = req.headers.get("Authorization") ?? "";
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const isInternal = !!SERVICE_ROLE_KEY && auth === `Bearer ${SERVICE_ROLE_KEY}`;
-    let user: { id: string } | null = null;
+    let user: { id: string; email?: string } | null = null;
     if (!isInternal) {
       const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
       ({ data: { user } } = await supabase.auth.getUser());
     }
     const bodyReq = await req.json();
-    const { id, test_to, mark_sent } = bodyReq;
+    const { id, test_to, mark_sent, issue_id } = bodyReq;
     if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
+
+    // ---- edición mensual automática (newsletter_issues, SQL 0114) ----------
+    if (issue_id) {
+      // aprobación SIEMPRE humana: JWT del dashboard, nunca service role/cron
+      if (!user) return json({ error: "el envío de la edición mensual requiere sesión del dashboard (aprobación humana)" }, 401);
+      const { data: issue } = await service.from("newsletter_issues").select("*").eq("id", issue_id).maybeSingle();
+      if (!issue) return json({ error: "issue no encontrado" }, 404);
+      if (issue.status === "discarded") return json({ error: "este issue fue descartado" }, 400);
+      if (issue.status === "sent" && !test_to) return json({ error: "este issue ya fue enviado" }, 400);
+      const content = (issue.content ?? {}) as Record<string, { subject?: string; html?: string }>;
+      if (!content.en?.html) return json({ error: "el issue no tiene contenido EN" }, 400);
+
+      // destinatarios: misma base y exclusiones que una campaña all/all —
+      // (1) sin email fuera, (2) dedupe por email, (3) emails de test fuera,
+      // (4) dados de baja fuera, (5) spam/descartados fuera
+      const TESTRX = /@viven\.ch$|@entropia|@example\.|test/i;
+      const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
+      let recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
+      if (test_to) {
+        const { data: matchLead } = await service.from("leads").select("id,lang").ilike("email", String(test_to)).maybeSingle();
+        recips = [{ email: String(test_to), id: matchLead?.id, lang: matchLead?.lang }];
+      } else {
+        // deno-lint-ignore no-explicit-any -- fallback re-select cambia el shape
+        let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
+        if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
+        const seen = new Set<string>();
+        for (const r of (q.data ?? []) as Record<string, string | number | boolean>[]) {
+          const em = String(r.email || "").toLowerCase().trim();
+          if (!em || seen.has(em) || TESTRX.test(em)) continue;
+          if ((r as { unsubscribed?: boolean }).unsubscribed) continue;
+          if (isOutSt(String(r.status || ""))) continue;
+          seen.add(em);
+          recips.push({ id: r.id as number, email: em, name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""), lang: String(r.lang || "en") });
+        }
+      }
+      if (!recips.length) return json({ error: "0 destinatarios elegibles" }, 400);
+
+      const totalIss = recips.length;
+      // IDEMPOTENCIA — un envío cortado se retoma sin duplicar (índice único
+      // parcial newsletter_sends_issue_uniq del SQL 0114)
+      let skippedIss = 0;
+      if (!test_to) {
+        const already = new Set<string>();
+        const { data: prev } = await service.from("newsletter_sends").select("email").eq("issue_id", issue_id);
+        for (const p of (prev || []) as { email: string }[]) already.add(String(p.email || "").toLowerCase());
+        const before = recips.length;
+        recips = recips.filter((r) => !already.has(r.email.toLowerCase()));
+        skippedIss = before - recips.length;
+      }
+
+      // email completo por destinatario: contenido EN SU idioma (fallback EN)
+      const buildIssue = async (r: { id?: number; email: string; name?: string; lang?: string }) => {
+        const lang = ["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en";
+        const ct = content[lang]?.html ? content[lang] : content.en;
+        const tok = r.id != null ? await unsubToken(r.id) : "";
+        const unsub = r.id != null ? `${SB_URL}/functions/v1/newsletter-unsub?l=${r.id}&t=${tok}` : "https://www.viven.ch";
+        return {
+          from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email],
+          subject: ct.subject || content.en.subject || "VIVEN",
+          html: wrapEmail(greeting(lang, r.name || "") + (ct.html || ""), unsub, lang),
+          tags: [{ name: "issue_id", value: String(issue_id) }],   // → resend-events estampa apertura/click
+        };
+      };
+
+      let sent = 0, failed = 0;
+      const failedEmails: string[] = [];
+      if (recips.length) {
+        const BATCH = 100;
+        for (let i = 0; i < recips.length; i += BATCH) {
+          const chunk = recips.slice(i, i + BATCH);
+          const payload = await Promise.all(chunk.map(buildIssue));
+          const res = chunk.length === 1 ? await resendPost("/emails", payload[0]) : await resendPost("/emails/batch", payload);
+          if (res.ok) {
+            let ids: (string | null)[] = [];
+            try {
+              const out = await res.clone().json();
+              ids = chunk.length === 1 ? [out?.id ?? null] : (out?.data || []).map((d: { id?: string }) => d?.id ?? null);
+            } catch { /* ignore */ }
+            sent += chunk.length;
+            if (!test_to) {
+              const rows = chunk.map((r, j) => ({ issue_id, lead_id: r.id ?? null, email: r.email.toLowerCase(), resend_id: ids[j] ?? null }));
+              await service.from("newsletter_sends").upsert(rows, { onConflict: "issue_id,email", ignoreDuplicates: true });
+            }
+          } else {
+            failed += chunk.length;
+            for (const r of chunk) failedEmails.push(r.email);
+            console.error("RESEND_ISSUE_FAIL", res.status, (await res.text()).slice(0, 200), "emails:", chunk.map((c) => c.email).join(","));
+          }
+          if (i + BATCH < recips.length) await new Promise((ok) => setTimeout(ok, 600));   // ≤2 req/s
+        }
+      }
+      if (failedEmails.length) console.error("ISSUE_FAILED_EMAILS", issue_id, failedEmails.join(","));
+
+      if (!test_to) {
+        const { count } = await service.from("newsletter_sends").select("*", { count: "exact", head: true }).eq("issue_id", issue_id);
+        await service.from("newsletter_issues").update({
+          status: "sent", sent_at: new Date().toISOString(), sent_count: count ?? (sent + skippedIss),
+          approved_by: user.email ?? "dashboard", updated_at: new Date().toISOString(),
+        }).eq("id", issue_id);
+      }
+      return json({ ok: true, sent, failed, skipped: skippedIss, total: totalIss, test: !!test_to, issue: issue_id });
+    }
+
+    // ---- campañas manuales (newsletters, comportamiento original) ----------
     if (!id) return json({ error: "falta id" }, 400);
 
     const { data: nl } = await service.from("newsletters").select("*").eq("id", id).maybeSingle();
@@ -234,16 +371,8 @@ Deno.serve(async (req) => {
       const inner = useBlocks ? blocksHtml(nl.blocks as Block[], lang, id) : bodyHtml(nl.body, id);
       const tok = r.id != null ? await unsubToken(r.id) : "";
       const unsub = r.id != null ? `${SB_URL}/functions/v1/newsletter-unsub?l=${r.id}&t=${tok}` : "https://www.viven.ch";
-      return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
-<div style="max-width:600px;margin:0 auto;padding:28px 16px">
-  <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
-  <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">
-    ${r.name ? `<p style="margin:0 0 16px;font-size:15px;color:#222">Hi ${esc(r.name)},</p>` : ""}
-    ${inner}
-    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p>
-  </div>
-  <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${UNSUB_LABEL[lang] || UNSUB_LABEL.en}</a></p>
-</div></body>`;
+      // saludo vía greeting(): en DE siempre "Guten Tag" formal, sin nombre de pila
+      return wrapEmail(greeting(lang, r.name || "") + inner, unsub, lang);
     };
 
     let sent = 0, failed = 0;

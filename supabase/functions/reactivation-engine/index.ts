@@ -40,8 +40,16 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 
 // mismos frenos que el resto de los motores del repo
 const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+// casillas de facturación/contabilidad (frecuentes en el import de Bexio):
+// jamás mandarles un email comercial cálido — nadie humano de decisión lo lee
+const BILLING = /invoic|accounts?@|billing|rechnung|payable|ekonomi|brokering|buchhalt|kreditor|accounting|finance@|ap@/i;
 const DAY = 864e5;
 const WON_DORMANT_DAYS = 183;      // 6 meses sin proyecto nuevo
+const WON_MAX_AGE_DAYS = 1095;     // >3 años sin facturar: email probablemente muerto
+                                   // (contactos Bexio viejos suelen ser de pago, no
+                                   // la persona real) — mandar ahí = rebotes que
+                                   // dañan la reputación del dominio. Esos quedan
+                                   // como archivo en Personas, reactivación manual.
 const LOST_MIN_DAYS = 60;          // ventana de rescate: perdido hace 60–90 días
 const LOST_MAX_DAYS = 90;
 const ACTIVE_REPLY_DAYS = 90;      // respondió hace <90d = conversación viva, robots afuera
@@ -174,6 +182,7 @@ async function contextFor(kind: "won" | "lost", lead: Lead, deal: Deal, news: { 
 function baseExclusion(lead: Lead): string | null {
   if (!lead.email) return "sin email";
   if (TEST.test(String(lead.email))) return "email interno/test";
+  if (BILLING.test(String(lead.email))) return "casilla de facturación — buscar contacto humano a mano";
   if (lead.unsubscribed) return "dado de baja";
   if (lead.reactivation_drafted_at) return "ya tuvo reactivación (flag)";
   if (lead.last_reply_at && Date.now() - new Date(String(lead.last_reply_at)).getTime() < ACTIVE_REPLY_DAYS * DAY) return "conversación activa reciente";
@@ -215,7 +224,8 @@ Deno.serve(async (req) => {
       const wons = deals.filter((d) => d.stage === "ganado" && d.won_at);
       if (wons.length) {
         const lastWon = wons.sort((a, b) => new Date(b.won_at!).getTime() - new Date(a.won_at!).getTime())[0];
-        if (now - new Date(lastWon.won_at!).getTime() >= WON_DORMANT_DAYS * DAY) wonCandidates.push({ lead_id: leadId, deal: lastWon });
+        const age = now - new Date(lastWon.won_at!).getTime();
+        if (age >= WON_DORMANT_DAYS * DAY && age <= WON_MAX_AGE_DAYS * DAY) wonCandidates.push({ lead_id: leadId, deal: lastWon });
         continue;   // un cliente ganado nunca cae en la vertiente de "perdidos"
       }
       const losts = deals.filter((d) => d.stage === "perdido" && d.lost_at);
@@ -225,6 +235,9 @@ Deno.serve(async (req) => {
         if (age >= LOST_MIN_DAYS * DAY && age <= LOST_MAX_DAYS * DAY) lostCandidates.push({ lead_id: leadId, deal: lastLost });
       }
     }
+
+    // dormidos MÁS RECIENTES primero: su email tiene más chances de seguir vivo
+    wonCandidates.sort((a, b) => String(b.deal.won_at).localeCompare(String(a.deal.won_at)));
 
     // ---- leads de los candidatos + filtros de exclusión ----
     const ids = [...new Set([...wonCandidates, ...lostCandidates].map((c) => c.lead_id))];
