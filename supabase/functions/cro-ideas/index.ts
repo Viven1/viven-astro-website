@@ -181,14 +181,16 @@ Respondé SOLO con JSON válido minificado, sin markdown:
     headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-5",
-      max_tokens: 2000,
+      max_tokens: 3500,
       system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary.",
       messages: [{ role: "user", content: prompt }],
     }),
   });
   if (!res.ok) throw new Error("Anthropic " + res.status + " " + (await res.text()).slice(0, 200));
   const data = await res.json();
-  let text = (data.content?.[0]?.text ?? "").trim();
+  // claude-sonnet-5 puede anteponer bloques que no son texto — quedarse solo con type:"text"
+  let text = ((data.content ?? []) as { type: string; text?: string }[])
+    .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim();
   text = text.replace(/```json|```/g, "").trim();
   // sin prefill (claude-sonnet-5 no lo soporta): extraer del primer { en adelante
   const first = text.indexOf("{");
@@ -197,7 +199,10 @@ Respondé SOLO con JSON válido minificado, sin markdown:
   if (last > -1) text = text.slice(0, last + 1);
   let parsed: { ideas?: unknown[] } | null = null;
   try { parsed = JSON.parse(text); } catch { parsed = null; }
-  if (!parsed || !Array.isArray(parsed.ideas) || !parsed.ideas.length) throw new Error("la IA no devolvió ideas válidas");
+  if (!parsed || !Array.isArray(parsed.ideas) || !parsed.ideas.length) {
+    console.error("CRO_PARSE_FAIL raw:", text.slice(0, 400), "stop:", data.stop_reason);
+    throw new Error("la IA no devolvió ideas válidas");
+  }
   const ideas = (parsed.ideas as Record<string, unknown>[]).map((i) => ({
     title: String(i.title ?? "").slice(0, 200),
     hypothesis: String(i.hypothesis ?? ""),
