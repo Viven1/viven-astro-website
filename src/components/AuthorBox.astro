@@ -1,0 +1,92 @@
+---
+// AuthorBox — cajita de autor al final de cada post (confianza + E-E-A-T).
+// Sin foto real del equipo en el repo: avatar de iniciales CSS puro (círculo navy, iniciales en acid).
+const { lang = 'en', author = 'sofia' } = Astro.props;
+
+const AUTHORS = {
+  sofia: {
+    name: 'Sofia Treviño',
+    initials: 'ST',
+    cred: {
+      en: 'Producer at VIVEN — the team behind the first Swiss feature film on Netflix. 187 brands, 32 industries.',
+      de: 'Producerin bei VIVEN — dem Team hinter dem ersten Schweizer Spielfilm auf Netflix. 187 Marken, 32 Branchen.',
+      es: 'Producer en VIVEN — el equipo detrás del primer film suizo en Netflix. 187 marcas, 32 industrias.',
+    },
+  },
+};
+
+const LINK_LABEL = {
+  en: 'Why VIVEN →',
+  de: 'Warum VIVEN →',
+  es: 'Por qué VIVEN →',
+};
+
+const a = AUTHORS[author] || AUTHORS.sofia;
+const cred = a.cred[lang] || a.cred.en;
+const linkLabel = LINK_LABEL[lang] || LINK_LABEL.en;
+const whyHref = `/${lang}/why-viven/`;
+---
+<section class="sec author-sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="author-box reveal">
+        <span class="author-avatar" aria-hidden="true">{a.initials}</span>
+        <div class="author-info">
+          <p class="author-name">{a.name}</p>
+          <p class="author-cred">{cred}</p>
+          <a class="author-link" href={whyHref}>{linkLabel}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .author-sec { padding-bottom: 0; }
+  .author-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    background: var(--navy-800);
+  }
+  .author-avatar {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--navy-600);
+    border: 1px solid var(--line-strong);
+    color: var(--acid);
+    font-family: 'Space Grotesk', 'Space Grotesk Fallback', 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: .04em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .author-info { flex: 1 1 240px; min-width: 0; }
+  .author-name {
+    font-weight: 700;
+    font-size: 16px;
+    margin: 2px 0 4px;
+  }
+  .author-cred {
+    color: var(--muted);
+    font-size: 14.5px;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .author-link {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--acid);
+    font-size: 13.5px;
+    text-decoration: none;
+  }
+  .author-link:hover { color: var(--acid-dim); text-decoration: underline; }
+</style>
