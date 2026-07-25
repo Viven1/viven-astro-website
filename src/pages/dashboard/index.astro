@@ -11436,7 +11436,7 @@ const newsCases = [
     $('ob-list').innerHTML = obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
       const CFW_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', howto: '🎓 How-to', social: '📱 Social', corporate: '🏢 Corporate' };
-      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : '⚙️ Workflow';
+      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : o.kind === 'reactivation' ? '♻️ Reactivación · ' + (o.category === 'won' ? 'cliente ganado' : 'lead perdido') : '⚙️ Workflow';
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       // content_followup: scheduled_at es la fecha real de envío (no un

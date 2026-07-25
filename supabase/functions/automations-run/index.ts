@@ -373,7 +373,9 @@ Deno.serve(async (req) => {
     // aprobados quedan tal cual, la próxima corrida en horario los agarra.
     if (!isSwissBusinessHours()) return json({ ok: true, ...out, automations: (autos ?? []).length, skipped_out_of_hours: true });
     const nowIso2 = new Date().toISOString();
-    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup"])
+    // 'reactivation' (SQL 0113 / reactivation-engine): mismo pipeline de envío
+    // que workflow — body de texto plano que pasa por fill()+wrap().
+    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup", "reactivation"])
       .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso2}`).limit(50);
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
