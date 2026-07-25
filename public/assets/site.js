@@ -1135,9 +1135,6 @@ window.vvFunnel = vvFunnel;
   });
 })();
 
-})();
-
-
 /* ---------- profundidad de video: hitos 25/50/75/100 (dropoff) ----------
    El player de Vimeo emite eventos por postMessage; nos suscribimos al estar
    ready y reportamos cada hito UNA vez por video y sesión → el dashboard arma
@@ -1199,3 +1196,5 @@ window.addEventListener('message', function(e){
     }
   });
 });
+
+})();
