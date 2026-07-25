@@ -161,6 +161,17 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
     if(window.sbInsertLead){ window.sbInsertLead(row).then(function(){ sendEmail(); done(); }, function(){ sendEmail(); done(); }); }
     else { sendEmail(); done(); }
   });
+
+  /* preset por URL (?type=brand|product|eb|employer|howto|social|corporate):
+     los links desde service pages entran con la pregunta 1 ya respondida */
+  try {
+    var pv = new URLSearchParams(location.search).get('type');
+    if (pv) {
+      pv = ({ employer: 'eb' })[pv] || pv;
+      var pb = document.querySelector('.calc-chips[data-group="type"] button[data-v="' + pv + '"]');
+      if (pb) pb.click();
+    }
+  } catch (e) {}
 })();
 </script>
 </Base>

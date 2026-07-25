@@ -496,11 +496,16 @@ document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadFor
     shown = true;
     window.removeEventListener('scroll', maybeShow);
     try{ sessionStorage.setItem('vv_calc_slidein', '1'); }catch(e){}
+    /* si estamos en una service page, el link entra con el tipo preseleccionado */
+    var typeMap = { 'brand-video': 'brand', 'product-video': 'product', 'employer-branding': 'eb', 'how-to-video': 'howto', 'social-media-video': 'social', 'corporate-video': 'corporate' };
+    var tKey = null;
+    for (var k in typeMap){ if (path.indexOf('/services/' + k) !== -1){ tKey = typeMap[k]; break; } }
+    var calcUrl = t.u + (tKey ? '?type=' + tKey : '');
     var box = document.createElement('div');
     box.className = 'vv-slidein';
     box.innerHTML = '<button class="vv-slidein-x" aria-label="Close">&times;</button>' +
       '<b>' + t.t + '</b><span>' + t.s + '</span>' +
-      '<a class="btn btn-primary" href="' + t.u + '">' + t.b + '</a>';
+      '<a class="btn btn-primary" href="' + calcUrl + '">' + t.b + '</a>';
     /* si el banner de cookies está visible, apilarse arriba (no taparse) */
     var cbar = document.getElementById('cookie-bar');
     if(cbar && cbar.offsetHeight) box.style.bottom = (cbar.offsetHeight + 16) + 'px';
