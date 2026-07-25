@@ -183,14 +183,16 @@ Respondé SOLO con JSON válido minificado, sin markdown:
       model: "claude-sonnet-5",
       max_tokens: 2000,
       system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary.",
-      messages: [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
+      messages: [{ role: "user", content: prompt }],
     }),
   });
   if (!res.ok) throw new Error("Anthropic " + res.status + " " + (await res.text()).slice(0, 200));
   const data = await res.json();
   let text = (data.content?.[0]?.text ?? "").trim();
-  if (!text.startsWith("{")) text = "{" + text;
   text = text.replace(/```json|```/g, "").trim();
+  // sin prefill (claude-sonnet-5 no lo soporta): extraer del primer { en adelante
+  const first = text.indexOf("{");
+  if (first > 0) text = text.slice(first);
   const last = text.lastIndexOf("}");
   if (last > -1) text = text.slice(0, last + 1);
   let parsed: { ideas?: unknown[] } | null = null;
