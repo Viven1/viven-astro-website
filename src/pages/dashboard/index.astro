@@ -2832,13 +2832,16 @@ const newsCases = [
       <h2>⚙️ Configuración</h2>
       <div class="pp-grid" style="--cols:1fr 1fr;gap:24px">
         <div>
-          <div class="bf"><label>Nuevo saldo bancario (CHF)</label><input id="cf-cfg-balance" type="number" min="0" step="10" /></div>
+          <div class="bf"><label>Nuevo saldo bancario (CHF — puede ser negativo)</label><input id="cf-cfg-balance" type="number" step="10" /></div>
           <button class="btn btn-primary small" id="cf-cfg-balance-save" type="button">💾 Guardar saldo</button>
           <p class="muted-note" id="cf-cfg-balance-cap" style="margin-top:8px"></p>
         </div>
         <div>
-          <div class="bf"><label>Umbral mínimo de alerta (CHF)</label><input id="cf-cfg-threshold" type="number" min="0" step="500" /></div>
+          <div class="bf"><label>Umbral mínimo de alerta (CHF)</label><input id="cf-cfg-threshold" type="number" step="500" /></div>
           <button class="btn btn-primary small" id="cf-cfg-threshold-save" type="button">💾 Guardar umbral</button>
+          <div class="bf" style="margin-top:14px"><label>Límite kontokorrent (CHF)</label><input id="cf-cfg-credit" type="number" min="0" step="1000" placeholder="p. ej. 250000" /></div>
+          <button class="btn btn-primary small" id="cf-cfg-credit-save" type="button">💾 Guardar límite</button>
+          <p class="muted-note" style="margin-top:8px">El piso real de liquidez es −límite: el runway cuenta los meses hasta agotar el crédito, no hasta cero.</p>
           <p class="muted-note" style="margin-top:8px">Se avisa por email a sebastian@viven.ch cuando el saldo proyectado cae bajo este valor (cron diario).</p>
         </div>
       </div>
@@ -11576,6 +11579,7 @@ const newsCases = [
       $('cf-loan-save').addEventListener('click', cfSaveLoan);
       $('cf-cfg-balance-save').addEventListener('click', cfSaveBalance);
       $('cf-cfg-threshold-save').addEventListener('click', cfSaveThreshold);
+      $('cf-cfg-credit-save').addEventListener('click', cfSaveCredit);
     }
     cfLoad();
   }
@@ -11598,6 +11602,7 @@ const newsCases = [
     cfEntries = entQ.data || [];
     cfTemplates = tplQ.data || [];
     cfLoans = loanQ.data || [];
+    if (cfSettings && $('cf-cfg-credit') && $('cf-cfg-credit').value === '') $('cf-cfg-credit').value = Number(cfSettings.credit_limit_chf || 0) || '';
     $('cf-cfg-balance-cap').textContent = cfBalance ? ('Último registrado: ' + cfCHF(cfBalance.balance_chf) + ' (al ' + cfBalance.as_of_date + ')') : 'Todavía no cargaste un saldo — cargalo abajo en Configuración.';
     $('cf-cfg-threshold').value = cfSettings.min_balance_threshold_chf ?? 15000;
     cfProject();
@@ -11710,10 +11715,17 @@ const newsCases = [
       // sin saldo cargado la proyección no significa nada — llevarlo directo
       kb.innerHTML = '<a href="#cf-cfg-balance" style="color:var(--acid);font-size:15px;text-decoration:underline" onclick="document.getElementById(\'cf-cfg-balance\').focus()">Cargar saldo →</a>';
     }
-    const zeroIdx = cfMonths.findIndex((m) => m.balance < 0);
+    // runway REAL: hasta agotar el kontokorrent (piso = −límite), no hasta cero
+    const creditLimit = Number((cfSettings && cfSettings.credit_limit_chf) || 0);
+    const floor = -creditLimit;
+    if (bal != null && creditLimit > 0){
+      const avail = bal - floor;   // margen disponible hasta el límite
+      $('cf-k-balance').innerHTML = cfCHF(bal) + '<span style="display:block;font-size:12px;font-weight:500;color:' + (avail > creditLimit * 0.2 ? 'var(--muted)' : '#ff8b8b') + '">quedan ' + cfCHF(avail) + ' del kontokorrent (' + cfCHF(creditLimit) + ')</span>';
+    }
+    const zeroIdx = cfMonths.findIndex((m) => m.balance < floor);
     const rw = $('cf-k-runway');
     if (zeroIdx === -1){ rw.textContent = '12+ meses'; rw.style.color = '#7ed957'; }
-    else { rw.textContent = (zeroIdx + 1) + (zeroIdx === 0 ? ' mes' : ' meses'); rw.style.color = '#ff8b8b'; }
+    else { rw.textContent = (zeroIdx + 1) + (zeroIdx === 0 ? ' mes' : ' meses') + (creditLimit > 0 ? ' hasta el límite' : ''); rw.style.color = '#ff8b8b'; }
     const threshold = Number((cfSettings && cfSettings.min_balance_threshold_chf) || 0);
     const redIdx = cfMonths.findIndex((m) => m.balance < threshold);
     const rm = $('cf-k-redmonth');
@@ -11740,8 +11752,10 @@ const newsCases = [
     const n = series.length, W = 1000, H = 260, padL = 66, padR = 14, padT = 16, padB = 28;
     const pw = W - padL - padR, ph = H - padT - padB;
     const threshold = Number((cfSettings && cfSettings.min_balance_threshold_chf) || 0);
+    const creditLimit = Number((cfSettings && cfSettings.credit_limit_chf) || 0);
+    const floor = -creditLimit;
     const vals = series.map((s) => s.balance);
-    const minV = Math.min(0, threshold, ...vals), maxV = Math.max(threshold, ...vals, 1);
+    const minV = Math.min(0, threshold, creditLimit > 0 ? floor : 0, ...vals), maxV = Math.max(threshold, ...vals, 1);
     const range = (maxV - minV) || 1;
     const X = (i) => padL + (n <= 1 ? pw / 2 : (i / (n - 1)) * pw);
     const Y = (v) => padT + (1 - (v - minV) / range) * ph;
@@ -11758,8 +11772,9 @@ const newsCases = [
     const hover = series.map((s, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(s.balance).toFixed(1) + '" r="10" fill="transparent"><title>' + s.label + ': ' + cfCHF(s.balance) + '</title></circle>').join('');
     box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gsvg">' + grid +
       '<line x1="' + padL + '" y1="' + thY.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + thY.toFixed(1) + '" stroke="#ff8b8b" stroke-width="1.5" stroke-dasharray="5,4"/>' +
+      (creditLimit > 0 ? '<line x1="' + padL + '" y1="' + Y(floor).toFixed(1) + '" x2="' + (W - padR) + '" y2="' + Y(floor).toFixed(1) + '" stroke="#ff4d4d" stroke-width="2" stroke-dasharray="3,3"/><text x="' + (W - padR) + '" y="' + (Y(floor) - 6).toFixed(1) + '" text-anchor="end" style="font-size:11px;fill:#ff4d4d">límite kontokorrent</text>' : '') +
       '<path d="' + linePath + '" class="g-line"/>' + hover + xls + '</svg>';
-    $('cf-chart-cap').textContent = 'Línea punteada roja = umbral mínimo (' + cfCHF(threshold) + ') · saldo proyectado en verde';
+    $('cf-chart-cap').textContent = 'Punteada rosa = umbral de alerta (' + cfCHF(threshold) + ')' + (creditLimit > 0 ? ' · punteada roja = límite kontokorrent (−' + cfCHF(creditLimit) + ')' : '') + ' · saldo proyectado en verde';
   }
 
   function cfRenderTable(){
@@ -11899,6 +11914,13 @@ const newsCases = [
     const { error } = await supabase.from('cashflow_bank_balance').insert({ balance_chf: v, as_of_date: new Date().toISOString().slice(0, 10), created_by: meEmail || null });
     if (error){ toast('⚠️ ' + error.message); return; }
     toast('💾 Saldo actualizado'); $('cf-cfg-balance').value = ''; cfLoad();
+  }
+  async function cfSaveCredit(){
+    const v = $('cf-cfg-credit').value === '' ? NaN : +$('cf-cfg-credit').value;
+    if (Number.isNaN(v) || v < 0){ toast('Ingresá el límite del kontokorrent'); return; }
+    const { error } = await supabase.from('cashflow_alert_settings').update({ credit_limit_chf: v }).eq('id', 1);
+    if (error){ toast('⚠️ ' + error.message); return; }
+    toast('💾 Límite kontokorrent actualizado'); cfLoad();
   }
   async function cfSaveThreshold(){
     const v = $('cf-cfg-threshold').value === '' ? NaN : +$('cf-cfg-threshold').value;
