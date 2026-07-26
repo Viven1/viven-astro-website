@@ -2286,7 +2286,7 @@ const newsCases = [
       <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">% rebote</th><th class="num">Págs. promedio</th></tr></thead><tbody id="rc-entry"><tr><td colspan="4"><p class="muted-note" style="margin:6px 0">Cargando…</p></td></tr></tbody></table></div>
 
       <h2 style="margin-top:24px">⚠️ Señales de fricción <span class="count">(rage clicks · dead clicks · errores JS)</span></h2>
-      <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Tipo</th><th>Página</th><th>Elemento / detalle</th><th class="num">Hits</th><th class="num">Sesiones</th></tr></thead><tbody id="rc-ux"><tr><td colspan="5"><p class="muted-note" style="margin:6px 0">Cargando…</p></td></tr></tbody></table></div>
+      <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Tipo</th><th>Página</th><th>Elemento / detalle</th><th class="num">Hits</th><th class="num">Sesiones</th><th></th></tr></thead><tbody id="rc-ux"><tr><td colspan="6"><p class="muted-note" style="margin:6px 0">Cargando…</p></td></tr></tbody></table></div>
     </div>
 
   </div>
@@ -3780,19 +3780,48 @@ const newsCases = [
     } catch (e) {
       eb.innerHTML = '<tr><td colspan="4"><p class="muted-note" style="margin:6px 0">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL 0106?</p></td></tr>';
     }
-    // 3) señales de fricción (rage / dead / jserror)
+    // 3) señales de fricción (rage / dead / jserror) — con resolución (SQL 0115):
+    // ✓ Corregido oculta la señal salvo que REAPAREZCA después del fix;
+    // 🤖 Claude la deja en cola 'requested' (Claude las levanta cada sesión).
     const ub = $('rc-ux');
     try {
-      const { data, error } = await supabase.rpc('rpc_ux_signals', { p_days: rcDays });
+      const [{ data, error }, { data: resols }] = await Promise.all([
+        supabase.rpc('rpc_ux_signals', { p_days: rcDays }),
+        supabase.from('ux_resolutions').select('kind,path,selector,status,created_at'),
+      ]);
       if (error) throw error;
-      ub.innerHTML = (data && data.length)
-        ? data.map((r) =>
-            '<tr><td class="rc-kind">' + (RC_KINDS[r.kind] || esc(r.kind)) + '</td><td>' + esc(r.path || '') + '</td>' +
-            '<td>' + esc(r.selector || '–') + '</td><td class="num">' + (Number(r.hits) || 0) + '</td><td class="num">' + (Number(r.sessions) || 0) + '</td></tr>')
-          .join('')
-        : '<tr><td colspan="5"><p class="muted-note" style="margin:6px 0">Sin señales — se empieza a registrar hoy.</p></td></tr>';
+      const resByKey = new Map((resols || []).map((x) => [x.kind + '|' + (x.path || '') + '|' + (x.selector || ''), x]));
+      let hiddenFixed = 0;
+      const rows = (data || []).filter((r) => {
+        const res = resByKey.get(r.kind + '|' + (r.path || '') + '|' + (r.selector || ''));
+        if (res && res.status === 'fixed' && (!r.last_at || new Date(res.created_at) >= new Date(r.last_at))) { hiddenFixed++; return false; }
+        r._res = res || null;
+        return true;
+      });
+      ub.innerHTML = (rows.length
+        ? rows.map((r, i) => {
+            const res = r._res;
+            const act = res && res.status === 'requested'
+              ? '<span style="color:var(--acid);font-size:11px;font-weight:700;white-space:nowrap">🤖 en cola de Claude</span>'
+              : '<button class="btn btn-ghost small" data-ux-fix="' + i + '" type="button" title="Marcar corregida — se oculta salvo que vuelva a ocurrir">✓ Corregido</button>' +
+                '<button class="btn btn-ghost small" data-ux-req="' + i + '" type="button" title="Dejarla en la cola de Claude — la arregla en la próxima sesión">🤖 Claude</button>';
+            const reap = res && res.status === 'fixed' ? ' <span title="Reapareció después de marcarla corregida" style="color:#ff8b8b;font-size:10.5px;font-weight:700">REAPARECIÓ</span>' : '';
+            return '<tr><td class="rc-kind">' + (RC_KINDS[r.kind] || esc(r.kind)) + reap + '</td><td>' + esc(r.path || '') + '</td>' +
+              '<td>' + esc(r.selector || '–') + '</td><td class="num">' + (Number(r.hits) || 0) + '</td><td class="num">' + (Number(r.sessions) || 0) + '</td>' +
+              '<td style="white-space:nowrap;display:flex;gap:6px">' + act + '</td></tr>';
+          }).join('')
+        : '<tr><td colspan="6"><p class="muted-note" style="margin:6px 0">Sin señales' + (hiddenFixed ? ' pendientes (' + hiddenFixed + ' corregidas ocultas)' : ' — se empieza a registrar hoy') + '.</p></td></tr>')
+        + (rows.length && hiddenFixed ? '<tr><td colspan="6"><p class="muted-note" style="margin:6px 0">' + hiddenFixed + ' señal(es) corregida(s) oculta(s) — reaparecen solas si vuelven a ocurrir.</p></td></tr>' : '');
+      const uxMark = async (i, status) => {
+        const r = rows[i]; if (!r) return;
+        const { error: e2 } = await supabase.from('ux_resolutions').insert({ kind: r.kind, path: r.path || '', selector: r.selector || '', status, created_by: (window.__vvMe || null) });
+        if (e2) { alert('No se pudo guardar: ' + (e2.message || 'error') + (String(e2.message || '').includes('ux_resolutions') ? ' — ¿ya corriste el SQL 0115?' : '')); return; }
+        rcLoad(true);
+      };
+      ub.querySelectorAll('[data-ux-fix]').forEach((b) => b.addEventListener('click', () => uxMark(parseInt(b.dataset.uxFix, 10), 'fixed')));
+      ub.querySelectorAll('[data-ux-req]').forEach((b) => b.addEventListener('click', () => uxMark(parseInt(b.dataset.uxReq, 10), 'requested')));
     } catch (e) {
-      ub.innerHTML = '<tr><td colspan="5"><p class="muted-note" style="margin:6px 0">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL 0106?</p></td></tr>';
+      ub.innerHTML = '<tr><td colspan="6"><p class="muted-note" style="margin:6px 0">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL 0106/0115?</p></td></tr>';
     }
   }
   document.querySelectorAll('#rc-period button').forEach((b) => b.addEventListener('click', () => {
