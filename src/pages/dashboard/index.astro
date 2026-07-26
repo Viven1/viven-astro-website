@@ -3600,6 +3600,7 @@ const newsCases = [
      del selector global (los funnels miran conversión reciente, no un día puntual). */
   let rcDays = 28, rcLoadedFor = 0;
   const RC_FUNNELS = [
+    { id: 'landing', name: '🎯 Landings de Ads (film-production)' },
     { id: 'calc', name: '🧮 Calculadora de costos' },
     { id: 'brief', name: '📋 Brief de proyecto' },
     { id: 'magnet', name: '🧲 Lead magnet' }
@@ -3608,7 +3609,8 @@ const newsCases = [
   const RC_LABELS = {
     calc: { view: 'Vio la calculadora', type: 'Eligió tipo', dur: 'Duración', days: 'Días de rodaje', locs: 'Locaciones', talent: 'Quién sale en cámara', chan: 'Dónde corre', lic: 'Licencia (buyout)', extras: 'Extras', email_submitted: 'Dejó su email' },
     brief: { view: 'Abrió el brief', goal: 'Objetivo', audience: 'Audiencia', distribution: 'Distribución', quantity: 'Cantidad', formats: 'Formatos', languages: 'Idiomas', oncamera: 'Quién sale en cámara', locations: 'Locaciones', timeline: 'Timing', budget: 'Presupuesto', action: 'Acción deseada', feeling: 'Emoción', destination: 'Destino', submitted: 'Envió el brief' },
-    magnet: { view: 'Vio el gate', email_submitted: 'Dejó su email' }
+    magnet: { view: 'Vio el gate', email_submitted: 'Dejó su email' },
+    landing: { view: 'Llegó a la landing', scroll50: 'Scrolleó la mitad', form_view: 'Vio el formulario', form_submit: 'Envió el formulario' }
   };
   const RC_KINDS = { rage: '😡 Rage', dead: '💀 Dead', jserror: '🐞 Error JS' };
   function rcRenderFunnel(f, res){
@@ -3765,11 +3767,15 @@ const newsCases = [
     try {
       const { data, error } = await supabase.rpc('rpc_entry_pages', { p_days: rcDays });
       if (error) throw error;
+      // las landings de ads (film-production.viven.ch) comparten tablas con el
+      // sitio pero tienen paths propios — acá se etiquetan para diferenciarlas
+      const LP_PATHS = new Set(['/', '/brand-video/', '/product-video-production/', '/employer-branding-video-production/', '/how-to-video-production/', '/video-production-agency/']);
       eb.innerHTML = (data && data.length)
         ? data.map((r) => {
             const s = Number(r.sessions) || 0, b = Number(r.bounces) || 0;
             const br = s ? Math.round((b / s) * 100) : 0;
-            return '<tr><td>' + esc(r.landing || '/') + '</td><td class="num">' + s + '</td>' +
+            const lpTag = LP_PATHS.has(String(r.landing || '/')) ? ' <span style="border:1px solid color-mix(in srgb,var(--acid) 45%,transparent);color:var(--acid);border-radius:999px;font-size:9.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;vertical-align:1px">ADS LP</span>' : '';
+            return '<tr><td>' + esc(r.landing || '/') + lpTag + '</td><td class="num">' + s + '</td>' +
               '<td class="num"' + (br >= 70 ? ' style="color:#ff8b8b;font-weight:700"' : '') + '>' + br + '%</td>' +
               '<td class="num">' + (r.avg_pages == null ? '–' : Number(r.avg_pages).toFixed(1)) + '</td></tr>';
           }).join('')
