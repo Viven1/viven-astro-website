@@ -4517,7 +4517,9 @@ const newsCases = [
       const isSpam = /^spam$/i.test(r.status || '');
       if (isSpam && psStage !== 'spam') return false;
       if (!isSpam && psStage === 'spam') return false;
-      if (!inRange(r.created_at)) return false;
+      // OJO: la lista de Personas NO se filtra por el período global — es el
+      // directorio completo del CRM (el período solo recorta los KPIs). Con el
+      // selector en "Hoy" la lista quedaba vacía y parecía un bug (2026-07-26).
       if (statusFilter === 'new' && !isNew(r.status)) return false;
       if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
       if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
