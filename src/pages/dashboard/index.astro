@@ -2357,18 +2357,15 @@ const newsCases = [
       <p class="muted-note" id="bg-pub-note" style="margin:-2px 0 10px"></p>
       <div class="pp-grid" style="--cols:1fr 1fr;align-items:start">
         <div class="bf"><label>🖼 Imagen héroe <span class="muted-note" style="font-weight:400">— click en un still para elegirla, o pegá un path/URL abajo</span></label>
+          <input id="bl2-imgfilter" type="search" placeholder="Filtrar por cliente (Siemens, FIFA, ON…)" style="margin-bottom:8px" />
           <div class="bl2-imgpick" id="bl2-imgpick"></div>
           <input id="bg-hero" list="bg-hero-opts" placeholder="/projects/…/still.jpg (vacío = sin imagen)" />
+          <!-- catálogo completo: TODOS los stills de projects.json, agrupados por cliente
+               (antes eran 9 fotos fijas y siempre las mismas — pedido 2026-07-26) -->
           <datalist id="bg-hero-opts">
-            <option value="/projects/siemens-shaping-the-future-together-employer-branding-campaign/02-RORES_clean_VIVEN.00_13_13_20.Still042.jpg">Siemens EB — set</option>
-            <option value="/projects/siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg">Siemens EB — entrevista</option>
-            <option value="/projects/meteomatics-product-campaign-brand-video/02-Meteomatics_VIVEN_Video_Agentur_040.jpg">Meteomatics — BTS</option>
-            <option value="/projects/meteomatics-product-campaign-brand-video/03-Meteomatics_VIVEN_Video_Agentur_060.jpg">Meteomatics — equipo</option>
-            <option value="/projects/kanebo-sensai-skincare-how-to-video-campaign/01-re_How_To_Videos_Viven_Video_Agency_51.jpg">Kanebo — beauty set</option>
-            <option value="/projects/fifa-living-football-social-media-campaign/01-Living_Football_Viven_Video_Agentur6.jpeg">FIFA — Living Football</option>
-            <option value="/projects/carvolution-tvc-social-media-campaign/01-2sec_EN_B_v20210824_COMPOSED.Still0013.jpg">Carvolution — TVC</option>
-            <option value="/projects/singularity-sci-fi-feature-film/01-Singularity_Feature_Film_7.jpeg">Singularity — film</option>
-            <option value="/projects/v-zug-combair-600-how-to-video-campaign/02-UG_How_To_Videos_Viven_Video_Agency_20.jpg">V-ZUG — how-to</option>
+            {stillsPool.flatMap((p) => p.stills.map((s, i) => (
+              <option value={s}>{p.client + ' — foto ' + (i + 1)}</option>
+            )))}
           </datalist></div>
         <div class="bf"><label>🎬 Video Vimeo <span class="muted-note" style="font-weight:400">— elegí uno del catálogo o pegá un ID/URL de Vimeo (se embebe al final del artículo)</span></label>
           <input id="bg-video" list="bg-video-opts" placeholder="502153490 o https://vimeo.com/502153490 (vacío = sin video)" />
@@ -10950,6 +10947,7 @@ const newsCases = [
     if (!cqBound){ cqBound = true;
       $('bg-save') && $('bg-save').addEventListener('click', () => saveBlogEdits(false));
       $('bg-hero') && $('bg-hero').addEventListener('input', () => { bl2MarkImgSel(); const i = $('bg-prevhero'); if (!i) return; const v = $('bg-hero').value.trim(); i.src = v; i.style.display = v ? '' : 'none'; });
+      $('bl2-imgfilter') && $('bl2-imgfilter').addEventListener('input', () => bl2RenderImgPick());
       $('bg-video') && $('bg-video').addEventListener('input', bl2MarkVidSel);
       $('bg-video') && $('bg-video').addEventListener('input', () => { const w = $('bg-prevvid'); if (!w) return; const v = $('bg-video').value.trim().replace(/\D/g, ''); if (v){ w.style.display = ''; w.innerHTML = '<iframe src="https://player.vimeo.com/video/' + v + '?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allowfullscreen></iframe>'; } else { w.style.display = 'none'; w.innerHTML = ''; } });
       $('bg-prop') && $('bg-prop').addEventListener('click', propagateBlog);
@@ -13159,7 +13157,11 @@ const newsCases = [
   function bl2RenderImgPick(){
     const box = $('bl2-imgpick'); if (!box) return;
     const cur = ($('bg-hero') && $('bg-hero').value.trim()) || '';
-    box.innerHTML = bl2ImgOptions().map((o) =>
+    // el catálogo ahora es TODO projects.json (~250 stills): el filtro por cliente
+    // evita scrollear infinito; sin filtro se muestran todas (lazy loading)
+    const q = (($('bl2-imgfilter') && $('bl2-imgfilter').value) || '').toLowerCase().trim();
+    const opts = bl2ImgOptions().filter((o) => !q || o.l.toLowerCase().includes(q) || o.v.toLowerCase().includes(q));
+    box.innerHTML = opts.map((o) =>
       '<button class="bl2-img' + (o.v === cur ? ' sel' : '') + '" data-v="' + esc(o.v) + '" type="button" title="' + esc(o.l) + '"><img src="' + esc(o.v) + '" alt="' + esc(o.l) + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></button>').join('') +
       '<button class="bl2-img none' + (cur ? '' : ' sel') + '" data-v="" type="button" title="Sin imagen">sin imagen</button>';
     box.querySelectorAll('.bl2-img').forEach((b) => b.addEventListener('click', () => {
