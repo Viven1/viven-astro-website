@@ -522,6 +522,16 @@ document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadFor
 document.querySelectorAll('.lm-gate').forEach(function(box){
   var form = box.querySelector('.lm-gate-form');
   if(!form) return;
+  /* el título parece accionable (señal de rage click en /tools/): clickearlo
+     lleva el foco al campo de email en vez de no hacer nada */
+  var lmTitle = box.querySelector('.lm-gate-copy h2');
+  if(lmTitle){
+    lmTitle.style.cursor = 'pointer';
+    lmTitle.addEventListener('click', function(){
+      var inp = form.querySelector('input[type="email"]');
+      if(inp){ inp.focus(); inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    });
+  }
   form.addEventListener('submit', function(ev){
     ev.preventDefault();
     var inp = form.querySelector('input[type="email"]');
