@@ -24,7 +24,10 @@ const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const MAILBOXES = [
   { key: "sebastian", email: "sebastian@viven.ch", refreshSecret: "GMAIL_REFRESH_TOKEN_SEBASTIAN" },
   { key: "sofia", email: "sofia@viven.ch", refreshSecret: "GMAIL_REFRESH_TOKEN_SOFIA" },
-  { key: "info", email: "info@viven.ch", refreshSecret: "GMAIL_REFRESH_TOKEN_INFO" },
+  // info@viven.ch es un ALIAS (confirmado por Sebastián 2026-07-27), no una
+  // casilla real — sus emails entran por el sync de sebastian/sofia. Sin token
+  // propio a propósito; no listarlo evita un "sin_secret" permanente que
+  // ensuciaba el monitoreo de crons.
 ];
 
 async function accessToken(refreshToken: string): Promise<string> {
