@@ -80,7 +80,10 @@ Respond ONLY with valid minified JSON, no markdown fences:
       return json({ error: `Anthropic ${res.status}: ${errText.slice(0, 300)}` });
     }
     const data = await res.json();
-    let text = (data.content?.[0]?.text ?? "").trim();
+    // la ruta source_html usa claude-sonnet-5, que puede anteponer bloques no-text
+    // — filtrar por type==="text" (content[0].text podía ser undefined → parse error)
+    let text = ((data.content ?? []) as { type: string; text?: string }[])
+      .filter((c) => c.type === "text").map((c) => c.text ?? "").join("").trim();
     if (source_html) { const fb = text.indexOf("{"); text = fb > -1 ? text.slice(fb) : "{" + text; }
     else if (!text.startsWith("{")) text = "{" + text;
     text = text.replace(/```json|```/g, "").trim();

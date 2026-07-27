@@ -3815,7 +3815,9 @@ const newsCases = [
         + (rows.length && hiddenFixed ? '<tr><td colspan="6"><p class="muted-note" style="margin:6px 0">' + hiddenFixed + ' señal(es) corregida(s) oculta(s) — reaparecen solas si vuelven a ocurrir.</p></td></tr>' : '');
       const uxMark = async (i, status) => {
         const r = rows[i]; if (!r) return;
-        const { error: e2 } = await supabase.from('ux_resolutions').insert({ kind: r.kind, path: r.path || '', selector: r.selector || '', status, created_by: (window.__vvMe || null) });
+        // fix: window.__vvMe no existe en ningún lado — created_by quedaba siempre null.
+        // myEmail() es la identidad real (login de Supabase Auth, mismo helper que las notas).
+        const { error: e2 } = await supabase.from('ux_resolutions').insert({ kind: r.kind, path: r.path || '', selector: r.selector || '', status, created_by: (typeof myEmail === 'function' ? myEmail() : null) });
         if (e2) { alert('No se pudo guardar: ' + (e2.message || 'error') + (String(e2.message || '').includes('ux_resolutions') ? ' — ¿ya corriste el SQL 0115?' : '')); return; }
         rcLoad(true);
       };
@@ -6454,7 +6456,10 @@ const newsCases = [
       // patrón que seoShowTitle, le da a la IA contexto real en vez de solo la URL.
       const fetchMeta = async (url) => {
         try {
-          const res = await fetch(url, { cache: 'no-store' });
+          // mismo fix que seoShowTitle: la URL de GSC viene con www y el dashboard
+          // puede correr en viven.ch sin www → fetch absoluto = CORS. Path same-origin.
+          const p = String(url).startsWith('http') ? new URL(url).pathname : url;
+          const res = await fetch(p, { cache: 'no-store' });
           const html = await res.text();
           const tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
           const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
@@ -11497,8 +11502,10 @@ const newsCases = [
   async function obBadgeRefresh(){
     try {
       const nowIso = new Date().toISOString();
-      const { data, error } = await supabase.from('outbox').select('id,scheduled_at').eq('status', 'pending');
-      const n = error ? 0 : (data || []).filter((o) => !o.scheduled_at || o.scheduled_at <= nowIso).length;
+      // mismo filtro que obLoad: content_followup con fecha futura SÍ cuenta —
+      // su scheduled_at es la fecha real de envío del paso (revisable ya), no un snooze
+      const { data, error } = await supabase.from('outbox').select('id,scheduled_at,kind').eq('status', 'pending');
+      const n = error ? 0 : (data || []).filter((o) => o.kind === 'content_followup' || !o.scheduled_at || o.scheduled_at <= nowIso).length;
       const b = $('tab-ob-count'); if (!b) return;
       b.textContent = n || ''; b.hidden = !n;
     } catch (e) { /* best-effort */ }
@@ -11597,7 +11604,9 @@ const newsCases = [
           : '<div class="ob-f"><label>Cuerpo</label><textarea class="ob-body">' + esc(o.body) + '</textarea></div>') +
         '<div class="ab-urlrow" style="margin-top:4px"><button class="btn btn-primary small" data-obact="ok" data-id="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
         '<button class="btn btn-ghost small" data-obact="lead" data-id="' + o.lead_id + '" type="button">👤 Ver ficha</button>' +
-        '<button class="btn btn-ghost small" data-obact="later" data-id="' + o.id + '" type="button">⏰ Más tarde</button>' +
+        // content_followup: scheduled_at ES la fecha real de envío del paso — el snooze
+        // de 4h la pisaría y un paso pensado para día+9 saldría al toque. Sin botón ahí.
+        (o.kind === 'content_followup' ? '' : '<button class="btn btn-ghost small" data-obact="later" data-id="' + o.id + '" type="button">⏰ Más tarde</button>') +
         '<button class="btn btn-ghost small danger" data-obact="no" data-id="' + o.id + '" type="button">✕ No enviar</button></div></div>';
     }).join('') || '<p class="muted-note">Bandeja vacía' + (snoozed ? ' (' + snoozed + ' pospuesto' + (snoozed > 1 ? 's' : '') + ' para más tarde)' : ' — los pasos 🤖 Email IA de tus workflows dejan acá sus borradores.') + '</p>';
     // content_followup guarda el body como HTML ya armado (thumbnails, link

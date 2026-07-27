@@ -133,8 +133,12 @@ Deno.serve(async (req) => {
     // ============ 2) SEND: aprobados en la Bandeja (kind='followup') ============
     // fuera de horario laboral suizo no se manda nada — el draft de arriba
     // (fase 1) SÍ sigue corriendo siempre, solo el envío real se demora.
+    // scheduled_at: la ventana de arrepentimiento de 10 min (2026-07-27) aprueba
+    // con scheduled_at = +10 min — sin este filtro, este cron mandaba el email
+    // al toque y la ventana de "Deshacer" del dashboard no servía para nada.
     const appr = isSwissBusinessHours()
-      ? (await service.from("outbox").select("*").eq("status", "approved").eq("kind", "followup").limit(50)).data
+      ? (await service.from("outbox").select("*").eq("status", "approved").eq("kind", "followup")
+          .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`).limit(50)).data
       : [];
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("*").eq("id", ob.lead_id).maybeSingle();

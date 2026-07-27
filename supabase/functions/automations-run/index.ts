@@ -47,7 +47,10 @@ async function aiDraft(lead: Record<string, unknown>, prompt: string, sender: st
   });
   if (!res.ok) { console.error("AI_DRAFT_FAIL", res.status); return null; }
   const data = await res.json();
-  let t = (data.content?.[0]?.text ?? "").trim().replace(/```json|```/g, "");
+  // claude-sonnet-5 puede anteponer bloques no-text — filtrar por type==="text"
+  // (mismo fix que cro-ideas/reactivation-engine; content[0].text podía ser undefined)
+  let t = ((data.content ?? []) as { type: string; text?: string }[])
+    .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim().replace(/```json|```/g, "");
   const m = t.match(/\{[\s\S]*\}/); if (m) t = m[0];
   try { const p = JSON.parse(t); return p.subject && p.body ? p : null; } catch { return null; }
 }
