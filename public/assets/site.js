@@ -188,7 +188,7 @@ function loadHeroVideo(){
    primera interacción del visitante — instantáneo para cualquiera que haga scroll o
    mueva el mouse, y sin penalizar el primer render ni la privacidad. */
 (function armHeroVideo(){
-  if(!heroBg || !heroId) return;
+  if(!heroBg || (!heroId && !heroMp4)) return;   /* mp4 propio sin data-vimeo también debe armarse */
   var done = false;
   var evs = ['pointermove', 'scroll', 'touchstart', 'keydown', 'wheel', 'click'];
   function go(){
@@ -547,6 +547,8 @@ document.querySelectorAll('.lm-gate').forEach(function(box){
     window.sbCallFunction('magnet-download', body).then(function(res){
       if(res && res.ok && res.url){
         if(window.vvFunnel) window.vvFunnel('magnet', 1, 'email_submitted');
+        /* lead del magnet: tampoco pasa por /thank-you/ — contarlo en GA4/Ads */
+        track('generate_lead', {method: 'lead_magnet', page: location.pathname});
         form.hidden = true;
         var d = box.querySelector('.lm-gate-done'); if(d) d.hidden = false;
         var a = document.createElement('a');
@@ -684,9 +686,12 @@ if(consent === 'accepted') loadGA();
 if(consent === null){
   var bar = document.createElement('div');
   bar.id = 'cookie-bar';
+  /* link a la privacy del idioma actual (el path viejo /privacy-policy/ era un 301 a /en/) */
+  var privLang = (document.documentElement.lang || 'en').slice(0,2);
+  if(['en','de','es'].indexOf(privLang) === -1) privLang = 'en';
   bar.innerHTML =
     '<p>Wir verwenden Cookies für Analysezwecke. / We use cookies for analytics. / Usamos cookies con fines analíticos. ' +
-    '<a href="/privacy-policy/">Privacy</a></p>' +
+    '<a href="/' + privLang + '/privacy-policy/">Privacy</a></p>' +
     '<div class="cookie-btns">' +
     '<button id="cookie-decline">Decline</button>' +
     '<button id="cookie-accept">Accept</button>' +
@@ -1045,7 +1050,12 @@ window.vvFunnel = vvFunnel;
     }, true);
     document.addEventListener('submit', function(e){
       var f = e.target;
-      if(f && f.querySelector && f.querySelector('#cf-email')) vvFunnel('calc', calcGroups().length + 1, 'email_submitted');
+      if(f && f.querySelector && f.querySelector('#cf-email')){
+        vvFunnel('calc', calcGroups().length + 1, 'email_submitted');
+        /* lead REAL (email + fila en leads) que nunca pasa por /thank-you/ —
+           sin esto Google Ads/GA4 no ve ninguna conversión de la calculadora */
+        track('generate_lead', {method: 'calculator', page: location.pathname});
+      }
     }, true);
   }
   /* --- funnel 'magnet': step 0 al ver un gate de lead magnet en la página;

@@ -3,7 +3,11 @@ import { T, pick, localePath, LANGS } from '../i18n.js';
 const { lang, slug = '', active = '', activeSub = '', switchSlug = null, langUrls = null } = Astro.props;
 const p = (s) => localePath(lang, s);
 const langSlug = switchSlug != null ? switchSlug : slug;
-const langHref = (l) => (langUrls && langUrls[l]) ? langUrls[l] : localePath(l, langSlug);
+/* Con langUrls (posts/case studies con URLs exactas por idioma): si falta un idioma
+   (post sin traducción), el selector NO debe inventar /es/blog/<slug-alemán>/ (404) —
+   cae al índice de la sección (p.ej. /es/blog/) o, si no hay sección, a la home. */
+const langFallback = (l) => localePath(l, switchSlug != null ? switchSlug : (slug.includes('/') ? slug.split('/')[0] : ''));
+const langHref = (l) => langUrls ? (langUrls[l] || langFallback(l)) : localePath(l, langSlug);
 const t = (k) => pick(T[k], lang);
 const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>';
 const services = [
