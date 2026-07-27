@@ -43,8 +43,10 @@ function urlToPath(url: string): string | null {
   } catch { return null; }
 }
 function isAllowedPath(path: string | null): path is string {
-  // incluye las homes por idioma (/en/ → src/pages/en/index.astro)
-  return !!path && /^src\/pages\/(en|de|es)\/([a-z0-9\-/]+\/)?index\.astro$/.test(path) && !path.includes("dashboard");
+  // incluye las homes por idioma (/en/ → src/pages/en/index.astro) y las páginas
+  // compartidas src/pages/[lang]/… (adonde cae el fallback de langFallbackPath —
+  // sin esto el mode:"commit" rechazaba justo los paths que el preview resolvió)
+  return !!path && /^src\/pages\/(en|de|es|\[lang\])\/([a-z0-9\-/]+\/)?index\.astro$/.test(path) && !path.includes("dashboard");
 }
 // las páginas compartidas viven en src/pages/[lang]/… — si la versión por idioma
 // no existe en el repo, se reintenta con [lang] (services, why-viven, tools, etc.)
@@ -123,12 +125,17 @@ Deno.serve(async (req) => {
     const { weakUrl, strongUrl, anchor, snippet, placement, query } = body;
     if (!weakUrl || !strongUrl || !anchor || !snippet) return json({ error: "faltan datos" }, 400);
 
-    const path = urlToPath(weakUrl);
+    let path = urlToPath(weakUrl);
     // allowlist estricta: solo páginas de contenido localizadas, nunca el dashboard
     // ni nada fuera de src/pages.
     if (!isAllowedPath(path)) return json({ error: `path no permitido: ${path ?? "(inválido)"}` }, 400);
 
-    const file = await ghGet(path, ghHeaders);
+    let file = await ghGet(path, ghHeaders);
+    if (!file) {
+      // páginas compartidas: /en/services/ no existe como src/pages/en/… — reintento en [lang]
+      const fb = langFallbackPath(path);
+      if (fb && isAllowedPath(fb)) { file = await ghGet(fb, ghHeaders); if (file) path = fb; }
+    }
     if (!file) return json({ error: `No pude leer ${path} de GitHub — ¿la URL corresponde a una página real del sitio?` }, 404);
     const { content: original, sha } = file;
 
