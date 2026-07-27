@@ -375,7 +375,10 @@ Deno.serve(async (req) => {
     const nowIso2 = new Date().toISOString();
     // 'reactivation' (SQL 0113 / reactivation-engine): mismo pipeline de envío
     // que workflow — body de texto plano que pasa por fill()+wrap().
-    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup", "reactivation"])
+    // 'followup' también sale por acá desde la ventana de arrepentimiento
+    // (2026-07-27): outbox-action ya no envía inline — solo aprueba con
+    // scheduled_at = +10 min, y este pipeline lo manda pasada la ventana.
+    const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup", "reactivation", "followup"])
       .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso2}`).limit(50);
     for (const ob of appr ?? []) {
       const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
@@ -391,6 +394,8 @@ Deno.serve(async (req) => {
       // escapa, a diferencia de wrap() que sí espera texto libre.
       const htmlFilled = ob.kind === "content_followup"
         ? wrapRaw(fill(ob.body, lead), unsub, String(lead.lang || "en"))
+        : ob.kind === "followup"
+        ? `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230"><div style="border:1px solid #e8eaef;border-radius:14px;padding:26px 28px"><div style="font-size:15px;line-height:1.7;white-space:pre-wrap">${esc(fill(ob.body, lead))}</div></div></div>` // mismo formato que mandaba outbox-action
         : wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), senderName); // wrap() escapea los campos del lead sustituidos — nunca guardar fill() crudo
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -399,6 +404,7 @@ Deno.serve(async (req) => {
       });
       if (res.ok) {
         await service.from("outbox").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.id);
+        if (ob.kind === "followup" && ob.followup_id) await service.from("lead_followups").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.followup_id).then(() => {}, () => {});
         await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id);
         await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: subjectFilled, body: htmlFilled, sender_label: senderName, source: "automations-run" }).then(() => {}, () => {});
         out.outbox_sent = (out.outbox_sent || 0) + 1;

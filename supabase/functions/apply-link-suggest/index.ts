@@ -43,7 +43,14 @@ function urlToPath(url: string): string | null {
   } catch { return null; }
 }
 function isAllowedPath(path: string | null): path is string {
-  return !!path && /^src\/pages\/(en|de|es)\/[a-z0-9\-/]+\/index\.astro$/.test(path) && !path.includes("dashboard");
+  // incluye las homes por idioma (/en/ → src/pages/en/index.astro)
+  return !!path && /^src\/pages\/(en|de|es)\/([a-z0-9\-/]+\/)?index\.astro$/.test(path) && !path.includes("dashboard");
+}
+// las páginas compartidas viven en src/pages/[lang]/… — si la versión por idioma
+// no existe en el repo, se reintenta con [lang] (services, why-viven, tools, etc.)
+function langFallbackPath(path: string): string | null {
+  const m = path.match(/^src\/pages\/(en|de|es)\/(.+)$/);
+  return m ? `src/pages/[lang]/${m[2]}` : null;
 }
 
 // diff mínimo pero real: como a la IA se le pide SOLO insertar (nunca tocar el
@@ -155,7 +162,9 @@ ${original}`;
       return json({ error: `Anthropic ${res.status}: ${t.slice(0, 300)}` });
     }
     const aiData = await res.json();
-    let updated = (aiData.content?.[0]?.text ?? "").trim();
+    // claude-sonnet-5 puede anteponer bloques que no son texto — filtrar type:"text"
+    let updated = ((aiData.content ?? []) as { type: string; text?: string }[])
+      .filter((c) => c.type === "text").map((c) => c.text ?? "").join("").trim();
     updated = updated.replace(/^```[a-z]*\n?/i, "").replace(/```$/, "").trim();
 
     // salvavidas: si la IA truncó o mangleó el archivo, no queda nada para aprobar.

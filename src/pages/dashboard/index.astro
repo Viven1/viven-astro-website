@@ -1736,6 +1736,7 @@ const newsCases = [
         <button class="side-sec" type="button">CRM<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="side-group-items">
           <button class="side-item" data-tab="leads" type="button"><span class="si-ic">👤</span>Personas <span class="pill" id="tab-leads-count">0</span></button>
+          <button class="side-item" data-tab="auto" type="button"><span class="si-ic">📤</span>Bandeja <span class="pill" id="tab-ob-count" hidden></span></button>
           <button class="side-item" data-tab="companies" type="button"><span class="si-ic">🏢</span>Empresas</button>
           <button class="side-item" data-tab="agenda" type="button"><span class="si-ic">📅</span>Agenda</button>
         </div>
@@ -1747,7 +1748,7 @@ const newsCases = [
           <button class="side-item" data-tab="contenido" type="button"><span class="si-ic">✍️</span>Contenido</button>
         </div>
       </div>
-      <button class="side-item" data-tab="sistema" type="button" style="margin-top:auto"><span class="si-ic">⚙️</span>Sistema <span class="pill" id="tab-ob-count" hidden></span></button>
+      <button class="side-item" data-tab="sistema" type="button" style="margin-top:auto"><span class="si-ic">⚙️</span>Sistema</button>
     </aside>
     <div class="dash-main">
 
@@ -6398,7 +6399,11 @@ const newsCases = [
     tr.hidden = false;
     td.innerHTML = '<div class="seo-title-box">Leyendo ' + esc(row.page) + '…</div>';
     try {
-      const res = await fetch(row.page, { cache: 'no-store' });
+      // fetch same-origin (el dashboard puede correr en viven.ch sin www y la URL
+      // de GSC viene con www → CORS "Failed to fetch"); el path alcanza porque
+      // ambos hosts sirven el mismo sitio
+      const seoPath = row.page.startsWith('http') ? new URL(row.page).pathname : row.page;
+      const res = await fetch(seoPath, { cache: 'no-store' });
       const html = await res.text();
       const tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
       const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
@@ -11523,22 +11528,51 @@ const newsCases = [
     frame.replaceWith(fresh);
     return fresh;
   }
+  let obAprCache = [], obUndoSched = () => new Date(Date.now() + 10 * 60e3).toISOString();
+  function obPorSalirHTML(rows){
+    if (!rows.length) return '';
+    return '<div style="border:1px solid color-mix(in srgb,var(--acid) 45%,transparent);border-radius:12px;padding:12px 16px;margin-bottom:14px">' +
+      '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--acid);font-weight:700;margin-bottom:8px">🕐 Por salir — todavía podés deshacer</div>' +
+      rows.map((o) => {
+        const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
+        const when = o.scheduled_at ? new Date(o.scheduled_at) : null;
+        const mins = when ? Math.max(0, Math.round((when - Date.now()) / 60000)) : 0;
+        const whenTxt = !when ? 'en el próximo ciclo'
+          : when - Date.now() > 24 * 3600e3 ? 'el ' + when.toLocaleDateString('es-CH', { day: 'numeric', month: 'short' })
+          : mins <= 0 ? 'saliendo…' : 'en ~' + mins + ' min';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:13px">' +
+          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(o.subject || '(sin asunto)') + ' → <b>' + esc(l.email || 'lead #' + o.lead_id) + '</b></span>' +
+          '<span class="muted-note" style="flex:none">sale ' + whenTxt + '</span>' +
+          '<button class="btn btn-ghost small" data-obundo="' + esc(String(o.id)) + '" type="button" style="flex:none">↩︎ Deshacer</button></div>';
+      }).join('') + '</div>';
+  }
   async function obLoad(){
    try {
     const nowIso = new Date().toISOString();
-    const { data, error } = await supabase.from('outbox').select('*').eq('status', 'pending').order('created_at');
+    const { data, error } = await supabase.from('outbox').select('*').in('status', ['pending', 'approved']).order('created_at');
     if (error){ $('ob-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(error.message) + '</p>'; return; }
+    // 🕐 VENTANA DE ARREPENTIMIENTO: aprobar programa el envío a +10 min; acá
+    // arriba se ven los "por salir" con ↩︎ Deshacer hasta que salen de verdad
+    const aprRows = (data || []).filter((o) => o.status === 'approved');
+    obAprCache = aprRows;
+    obUndoSched = (id) => {
+      const row = (data || []).find((o) => String(o.id) === String(id));
+      const undoAt = new Date(Date.now() + 10 * 60e3);
+      const prev = row && row.scheduled_at ? new Date(row.scheduled_at) : null;
+      return (prev && prev > undoAt ? prev : undoAt).toISOString();
+    };
     // "⏰ Más tarde" oculta el borrador hasta scheduled_at — no lo borra de la
     // bandeja real. PERO en content_followup scheduled_at significa otra cosa
     // (la fecha real de envío del paso, para poder revisar los 3 pasos de la
     // secuencia de una — pedido explícito) y ahí SÍ debe seguir visible aunque
     // sea futuro.
-    const obs = (data || []).filter((o) => o.kind === 'content_followup' || !o.scheduled_at || o.scheduled_at <= nowIso);
-    const snoozed = (data || []).length - obs.length;
+    const pend = (data || []).filter((o) => o.status === 'pending');
+    const obs = pend.filter((o) => o.kind === 'content_followup' || !o.scheduled_at || o.scheduled_at <= nowIso);
+    const snoozed = pend.length - obs.length;
     $('ob-count').textContent = obs.length || '';
     $('ob-approve-all').hidden = obs.length < 2;
     obBadgeRefresh();
-    $('ob-list').innerHTML = obs.map((o) => {
+    $('ob-list').innerHTML = obPorSalirHTML(aprRows) + obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
       const CFW_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', howto: '🎓 How-to', social: '📱 Social', corporate: '🏢 Corporate' };
       const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : o.kind === 'reactivation' ? '♻️ Reactivación · ' + (o.category === 'won' ? 'cliente ganado' : 'lead perdido') : '⚙️ Workflow';
@@ -11595,11 +11629,11 @@ const newsCases = [
         const bodyPreview = (card.querySelector('.ob-html-editor') ? obHtmlToPreviewText(rawBody) : rawBody).slice(0, 220);
         const schedTxt = card.querySelector('.ob-sched-note');
         const schedLine = schedTxt ? '\n\n' + schedTxt.textContent : '';
-        if (!confirm('¿Aprobar este email para ' + card.dataset.to + '?\n\nAsunto: ' + subj + '\n\n' + bodyPreview + (bodyPreview.length >= 220 ? '…' : '') + schedLine + '\n\nRevisá que esté todo bien — no se puede deshacer.')) return;
-        const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: subj, body: card.querySelector('.ob-body').value };
+        if (!confirm('¿Aprobar este email para ' + card.dataset.to + '?\n\nAsunto: ' + subj + '\n\n' + bodyPreview + (bodyPreview.length >= 220 ? '…' : '') + schedLine + '\n\nSale en 10 minutos — hasta entonces podés deshacerlo desde la Bandeja.')) return;
+        const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: subj, body: card.querySelector('.ob-body').value, scheduled_at: obUndoSched(b.dataset.id) };
         const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.id);
         if (e2){ toast(e2.message); return; }
-        toast(schedTxt ? '✅ Aprobado — ' + schedTxt.textContent.replace('📅 ', '') : '✅ Aprobado — sale en la próxima corrida en horario laboral');
+        toast('✅ Aprobado — 🕐 sale en 10 min (↩︎ Deshacer arriba en la Bandeja)');
       } else if (act === 'later'){
         const when = new Date(Date.now() + 4 * 3600e3).toISOString();
         const { error: e2 } = await supabase.from('outbox').update({ scheduled_at: when }).eq('id', b.dataset.id);
@@ -11611,12 +11645,22 @@ const newsCases = [
       }
       obLoad();
     }));
+    // ↩︎ Deshacer una aprobación (mientras está en la ventana de 10 min)
+    $('ob-list').querySelectorAll('[data-obundo]').forEach((b) => b.addEventListener('click', async () => {
+      const row = obAprCache.find((o) => String(o.id) === String(b.dataset.obundo));
+      // content_followup conserva su fecha real de envío; el resto vuelve limpio
+      const upd = row && row.kind === 'content_followup' ? { status: 'pending' } : { status: 'pending', scheduled_at: null };
+      const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.obundo).eq('status', 'approved');
+      if (e2){ toast('⚠️ ' + e2.message); return; }
+      toast('↩︎ Deshecho — volvió a pendiente, no se envía');
+      obLoad();
+    }));
     $('ob-approve-all').onclick = async () => {
-      if (!confirm('¿Aprobar TODOS los borradores tal como están?')) return;
+      if (!confirm('¿Aprobar TODOS los borradores tal como están?\n\nSalen en 10 minutos — hasta entonces podés deshacer cada uno (o todos) desde la Bandeja.')) return;
       for (const card of $('ob-list').querySelectorAll('.au-step')){
-        await supabase.from('outbox').update({ status: 'approved', sender: card.querySelector('.ob-sender').value, subject: card.querySelector('.ob-subject').value, body: card.querySelector('.ob-body').value }).eq('id', card.dataset.ob);
+        await supabase.from('outbox').update({ status: 'approved', sender: card.querySelector('.ob-sender').value, subject: card.querySelector('.ob-subject').value, body: card.querySelector('.ob-body').value, scheduled_at: obUndoSched(card.dataset.ob) }).eq('id', card.dataset.ob);
       }
-      toast('✅ Todos aprobados'); obLoad();
+      toast('✅ Todos aprobados — 🕐 salen en 10 min (↩︎ Deshacer arriba)'); obLoad();
     };
    } catch (e) { $('ob-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
   }

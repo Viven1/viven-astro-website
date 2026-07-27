@@ -128,37 +128,20 @@ Deno.serve(async (req) => {
       return page("Descartado — no se envía.");
     }
 
-    const notYetDue = ob.scheduled_at && new Date(ob.scheduled_at).getTime() > Date.now();
-    if (notYetDue || !isSwissBusinessHours()) {
-      await service.from("outbox").update({ status: "approved" }).eq("id", id);
-      const when = notYetDue ? new Date(ob.scheduled_at).toLocaleDateString("es-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" }) : "la próxima ventana de horario laboral";
-      return page("✅ Aprobado — sale automáticamente " + (notYetDue ? "el " + when : when) + ".");
+    // VENTANA DE ARREPENTIMIENTO (2026-07-27, tras una aprobación por error):
+    // aprobar NUNCA envía al instante. Se programa a +10 minutos (o la fecha
+    // futura ya agendada, si es posterior) y el envío real lo hace el pipeline
+    // (automations-run), que ya valida lead/baja/test y respeta horario laboral.
+    // Deshacer: Bandeja de salida del dashboard, mientras no haya salido.
+    const undoAt = new Date(Date.now() + 10 * 60e3);
+    const prevSched = ob.scheduled_at ? new Date(ob.scheduled_at) : null;
+    const sched = prevSched && prevSched > undoAt ? prevSched : undoAt;
+    await service.from("outbox").update({ status: "approved", scheduled_at: sched.toISOString() }).eq("id", id);
+    if (prevSched && prevSched > undoAt) {
+      const when = prevSched.toLocaleDateString("es-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" });
+      return page("✅ Aprobado — sale automáticamente el " + when + ". Hasta entonces podés deshacerlo desde la Bandeja del dashboard.");
     }
-
-    const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
-    if (!lead || !lead.email || lead.unsubscribed) {
-      await service.from("outbox").update({ status: "discarded" }).eq("id", id);
-      return page("El contacto no tiene email válido o está dado de baja — descartado.");
-    }
-    const F = FROMS[ob.sender] || FROMS.team;
-    const unsub = `${Deno.env.get("SUPABASE_URL")}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
-    const subjectFilled = fill(ob.subject, lead);
-    const htmlFilled = ob.kind === "followup"
-      ? `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230"><div style="border:1px solid #e8eaef;border-radius:14px;padding:26px 28px"><div style="font-size:15px;line-height:1.7;white-space:pre-wrap">${esc(fill(ob.body, lead))}</div></div></div>`
-      : ob.kind === "content_followup"
-      ? wrapRaw(fill(ob.body, lead), unsub, String(lead.lang || "en"))
-      : wrap(fill(ob.body, lead), unsub, String(lead.lang || "en"), F.name);
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: F.from, reply_to: F.reply, to: [lead.email], subject: subjectFilled, html: htmlFilled }),
-    });
-    if (!res.ok) { await service.from("outbox").update({ status: "failed" }).eq("id", id); return page("Resend falló al enviar — quedó marcado como fallido, revisá en el dashboard."); }
-    await service.from("outbox").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", id);
-    await service.from("leads").update({ last_automated_email_at: new Date().toISOString() }).eq("id", lead.id).then(() => {}, () => {});
-    if (ob.kind === "followup" && ob.followup_id) await service.from("lead_followups").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", ob.followup_id).then(() => {}, () => {});
-    await service.from("email_log").insert({ lead_id: String(lead.id), to_addr: lead.email, subject: subjectFilled, body: htmlFilled, sender_label: F.name, source: "outbox-action" }).then(() => {}, () => {});
-    return page("✅ Enviado a " + lead.email + ".");
+    return page("✅ Aprobado — sale en ~10 minutos (en horario laboral). ¿Te arrepentiste? Deshacelo desde la Bandeja del dashboard antes de que salga.");
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return page("Error inesperado — probá desde el dashboard.");
