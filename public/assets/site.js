@@ -500,6 +500,15 @@ document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadFor
     var typeMap = { 'brand-video': 'brand', 'product-video': 'product', 'employer-branding': 'eb', 'how-to-video': 'howto', 'social-media-video': 'social', 'corporate-video': 'corporate' };
     var tKey = null;
     for (var k in typeMap){ if (path.indexOf('/services/' + k) !== -1){ tKey = typeMap[k]; break; } }
+    /* páginas de localización (Basel/Genf/Lausanne/Zürich) y production services → preset corporate */
+    if(!tKey){
+      var localMap = {
+        '/en/video-production-basel': 'corporate', '/en/video-production-geneva': 'corporate', '/en/video-production-lausanne': 'corporate', '/en/video-production-zurich': 'corporate', '/en/video-production-services-zurich': 'corporate',
+        '/de/videoproduktion-basel': 'corporate', '/de/videoproduktion-genf': 'corporate', '/de/videoproduktion-lausanne': 'corporate', '/de/videoproduktion-zuerich': 'corporate', '/de/produktionsservices-schweiz': 'corporate',
+        '/es/produccion-de-video-basilea': 'corporate', '/es/produccion-de-video-ginebra': 'corporate', '/es/produccion-de-video-lausana': 'corporate', '/es/produccion-de-video-zurich': 'corporate', '/es/servicios-de-produccion-audiovisual-suiza': 'corporate'
+      };
+      for (var k2 in localMap){ if (path.indexOf(k2) !== -1){ tKey = localMap[k2]; break; } }
+    }
     var calcUrl = t.u + (tKey ? '?type=' + tKey : '');
     var box = document.createElement('div');
     box.className = 'vv-slidein';

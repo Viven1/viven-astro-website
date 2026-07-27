@@ -1,0 +1,99 @@
+---
+// Página de localización: Video Production in Zurich — long-tail local ("in Zurich", "local production company").
+// OJO canibalización: la home EN targetea el head keyword "Video Production Zurich" — esta página va al
+// long-tail hiperlocal (barrios, locaciones, permisos, clientes zuriqueses) y recibe link interno con anchor exacto.
+import Base from '../../layouts/Base.astro';
+import CalcBanner from '../../components/CalcBanner.astro';
+import Testimonials from '../../components/Testimonials.astro';
+const lang = "en";
+const d = {"title": "Video Production in Zurich — Your Local Production Company | Viven", "description": "Video production company based in Zurich Kreis 4. No travel costs, crews on set at short notice, locations and permits handled. Trusted by FIFA, UBS and ON.", "h1": "Video Production in Zurich — Your Production Company On Site", "lead": "Viven is a video production company based at Zeughausstrasse 31 in Zurich's Kreis 4 — five minutes from Hardbrücke, with camera, lighting and edit suites in the building. For companies in Zurich that means zero travel costs, crews on set at short notice, and a partner you can meet in person before anything is signed. We produce brand films, corporate videos and event coverage for the city's banks, insurers, tech companies and hospitals — including FIFA, UBS, ON and Stadtspital Zürich — and you review the first cut about two weeks after the shoot.", "sections": [{"h2": "A production company around the corner, not a vendor by email", "html": "<p>Plenty of agencies say they “also” shoot in Zurich. We live here, and that changes how a project runs:</p><ul><li><strong>Kickoff in person:</strong> briefing at your office or ours in Kreis 4 — same week, not next month.</li><li><strong>Short-notice shoots:</strong> when your CEO's calendar suddenly opens or an event moves, a crew with equipment can be on set within days, sometimes hours.</li><li><strong>No travel line items:</strong> our gear lives in Zurich. What you pay for is production, not kilometres.</li><li><strong>Pickups without drama:</strong> if a reshoot or an extra interview is needed after review, it's a tram ride, not a road trip.</li></ul><p>One producer owns your project from briefing to delivery, and post production happens in the same building the cameras come from.</p>"}, {"h2": "Zurich locations we shoot every month", "html": "<p>Eight years of producing in this city means we already know where your film should be shot — and what it takes to shoot there:</p><ul><li><strong>Kreis 5 and Hardbrücke:</strong> the industrial backdrops around Im Viadukt, Schiffbau and Prime Tower that give corporate films an editorial look.</li><li><strong>Old Town and Limmatquai:</strong> Grossmünster views, guild houses and alleys for brand films that should feel unmistakably Zurich.</li><li><strong>The lakefront:</strong> Bürkliplatz, Utoquai and Seefeld with the Alps behind — the classic establishing shot, best in morning light.</li><li><strong>ETH and the university quarter</strong> for research, education and innovation stories, including the terrace view over the rooftops.</li><li><strong>The Circle and Zurich Airport, Oerlikon's halls</strong> for congresses, product launches and employer-branding shoots.</li></ul><p>We know which locations need a filming permit from the city and which don't, how much lead time the authorities expect, and that drone shots near the lake sit inside the airport control zone and need clearance. You brief the film; we handle the paperwork.</p>"}, {"h2": "Made with Zurich's flagship brands", "html": "<p>Our client list reads like the city itself. We have produced for <strong>FIFA</strong>, headquartered on the Zürichberg, for <strong>UBS</strong> and <strong>Julius Bär</strong> in the banking district, for <strong>ON</strong>, Zurich's running success story, for <strong>Siemens Switzerland</strong>, and a multi-film employer-branding series for <strong>Stadtspital Zürich</strong>. That mix — banking, insurance, tech, sport, healthcare — is Zurich's economy in miniature, and it taught us what local decision-makers need: discretion on set in office towers, approval workflows that survive compliance departments, and films that work in (Swiss) German and English alike.</p><p>It also means references you can actually check: ask us for the Zurich case that matches your industry and we will show you the film and connect you with the client.</p>"}, {"h2": "Swiss German on set, budgets and how to start", "html": "<p>Interviews relax when people can speak the way they speak at work. We direct and shoot in Swiss German, High German, English and Spanish in-house, and deliver subtitled versions so one Zurich shoot covers your local audience and your international channels.</p><p>Zurich projects at Viven range from CHF 4,000 for a focused interview or event video to CHF 80,000 for multi-day brand campaigns — always as a fixed offer, never open-ended billing. You review the first cut about two weeks after the shoot. Viven was founded by the producer of the first Swiss feature film on Netflix, and that filmmaking background shows in how we light, frame and edit corporate work. Tell us what your video needs to achieve, and you will have a concrete concept and quote within days — or drop by Zeughausstrasse 31 and talk it through over a coffee.</p>"}]};
+const title = { "en": d.title };
+const description = { "en": d.description };
+const langUrls = { "en": "/en/video-production-zurich/", "de": "/de/videoproduktion-zuerich/", "es": "/es/produccion-de-video-zurich/" };
+const SITE = 'https://www.viven.ch';
+const ld = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: d.h1, description: d.description,
+  provider: { '@id': SITE + '/#organization' },
+  areaServed: { '@type': 'City', name: 'Zurich' },
+  serviceType: 'Video production',
+  url: SITE + '/en/video-production-zurich/',
+});
+---
+<Base lang={lang} slug="video-production-zurich" active="services" title={title} description={description} singleLang={true} switchSlug="services" langUrls={langUrls}>
+  <script type="application/ld+json" slot="jsonld" set:html={ld}></script>
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">Zurich — Switzerland</span>
+      <h1 class="rsrc-h1">{d.h1}</h1>
+      <p class="lead">{d.lead}</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap rsrc-body">
+      {d.sections.map((sec) => (
+        <div class="rsrc-sec">
+          <h2>{sec.h2}</h2>
+          <div set:html={sec.html}></div>
+        </div>
+      ))}
+      <div class="rsrc-ctabox">
+        <div>
+          <div class="rsrc-ctat">Planning a video in Zurich?</div>
+          <p class="rsrc-ctas">Tell us what you’re working on — clear quote, usually within one business day.</p>
+        </div>
+        <div class="rsrc-ctabtns">
+          <a class="btn btn-primary" href="#start">Start a project</a>
+          <a class="btn btn-ghost" href="/book/" target="_blank" rel="noopener">📅 Book a 15-min call</a>
+        </div>
+      </div>
+      <p class="rsrc-linkout">Wondering what this would cost? Try our <a href="/en/video-cost-calculator/?type=corporate">video cost calculator</a>.</p>
+    </div>
+  </section>
+
+  <Testimonials lang={lang} cat="corporate" />
+
+  <CalcBanner lang={lang} type="corporate" />
+
+  <!-- ============ CTA / FORM ============ -->
+  <section class="cta" id="start" style="padding-top:0">
+    <div class="wrap">
+      <div class="cta-card reveal">
+        <div>
+          <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+          <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+          <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="lead-form-mount"></div>
+          <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+          <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <style is:global>
+    .rsrc-h1{font-size:clamp(28px,4.4vw,44px)!important}
+    .rsrc-linkout{margin:18px 0 0;padding:14px 18px;border:1px solid var(--line);border-radius:13px;background:var(--navy-800);color:var(--muted);font-size:14.5px;line-height:1.6}
+    .rsrc-linkout a{color:var(--acid);font-weight:600;text-decoration:none}
+    .rsrc-linkout a:hover{text-decoration:underline}
+    .rsrc-body{max-width:820px}
+    .rsrc-sec{margin-bottom:30px}
+    .rsrc-sec h2{font-size:clamp(19px,2.6vw,24px);margin-bottom:12px}
+    .rsrc-sec p{color:var(--muted);font-size:15.5px;line-height:1.75;margin-bottom:12px}
+    .rsrc-sec ul{margin:0 0 12px 20px;color:var(--muted);font-size:15.5px;line-height:1.75}
+    .rsrc-sec li{margin-bottom:6px}
+    .rsrc-sec strong{color:var(--text)}
+    .rsrc-ctabox{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;border:1px solid var(--line-strong);background:var(--navy-800);border-radius:18px;padding:26px 28px;margin:40px 0 8px}
+    .rsrc-ctat{font-family:'Space Grotesk';font-weight:700;font-size:20px;margin-bottom:6px}
+    .rsrc-ctas{color:var(--muted);font-size:14px;max-width:460px;margin:0}
+    .rsrc-ctabtns{display:flex;gap:10px;flex-wrap:wrap}
+  </style>
+</Base>
