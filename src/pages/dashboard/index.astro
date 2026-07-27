@@ -921,6 +921,11 @@ const newsCases = [
   #contenido-sub-seo .seo-diff-rm{color:#ff8b8b;background:rgba(255,139,139,.08);text-decoration:line-through}
   #contenido-sub-seo td.seo-cannib-pages{white-space:normal;font-size:12px;color:var(--muted);line-height:1.6}
   #contenido-sub-seo tr.seo-opp-detail td{border-bottom:1px solid var(--line);padding-top:0}
+  /* 📈 Top páginas: mismos botoncitos que la cartera de keywords (ahí están scopeados a #kw-persist) */
+  #contenido-sub-seo .kw-acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  #contenido-sub-seo .kw-acts button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:11px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+  #contenido-sub-seo .kw-acts button:hover{border-color:var(--acid);color:var(--acid)}
+  #contenido-sub-seo .kw-acts button:disabled{opacity:.5;cursor:default}
 
   /* ---- SQL 0070/0071: cartera persistente de oportunidades de keywords ---- */
   #kw-persist{margin-top:16px}
@@ -1151,6 +1156,16 @@ const newsCases = [
   .ab-var .nums{display:flex;gap:16px;margin-top:auto;padding-top:10px}
   .ab-var .nums div b{font-family:'Space Grotesk';font-size:16px;display:block;line-height:1.2}
   .ab-var .nums div span{font-size:9px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em}
+  /* conteo de leads clickeable (mismo look que los otros números, pero botón) */
+  .ab-var .nums .ab-lc{background:transparent;border:0;padding:0;margin:0;font-family:inherit;color:inherit;cursor:pointer;text-align:left}
+  .ab-var .nums .ab-lc b{font-family:'Space Grotesk';font-size:16px;display:block;line-height:1.2;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+  .ab-var .nums .ab-lc span{font-size:9px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em}
+  .ab-var .nums .ab-lc:hover b,.ab-var .nums .ab-lc.on b{color:var(--acid);text-decoration-color:var(--acid)}
+  .ab-var .nums .ab-lc:hover span,.ab-var .nums .ab-lc.on span{color:var(--acid)}
+  .ab-leadlist{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:12px 14px;margin:0 0 12px}
+  .ab-leadlist .ab-ll-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:700;margin-bottom:8px}
+  .ab-leadlist .lead-table tr.ab-leadrow{cursor:pointer}
+  .ab-leadlist .lead-table tr.ab-leadrow:hover td{color:var(--acid)}
   .ab-vsmid{display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:800;color:var(--muted-2);font-size:13px}
   .verdictbar{border-radius:12px;padding:12px 15px;font-size:12.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}
   .verdictbar.wait{background:rgba(240,192,96,.09);border:1px solid rgba(240,192,96,.35)}
@@ -2499,7 +2514,13 @@ const newsCases = [
       <div class="of-bar" style="margin-bottom:14px">
         <div>
           <h2 style="margin:0">Search Console</h2>
-          <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentra Google: clicks, impresiones y las búsquedas reales del período elegido (mín. 7, máx. 90 días).</p>
+          <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentra Google: clicks, impresiones y las búsquedas reales del período elegido — siempre comparado contra el período anterior de la misma longitud.</p>
+        </div>
+        <div class="co-seg" id="seo-period">
+          <button data-days="7" type="button">7 días</button>
+          <button data-days="28" class="on" type="button">28 días</button>
+          <button data-days="90" type="button">90 días</button>
+          <button data-days="180" type="button">180 días</button>
         </div>
         <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
       </div>
@@ -4622,6 +4643,13 @@ const newsCases = [
   }
   $('ps-stage').addEventListener('change', (e) => { psStage = e.target.value; renderPeopleList(); });
   $('seo-reload') && $('seo-reload').addEventListener('click', loadSeo);
+  // período propio del sub-tab SEO (mismo patrón que rc-period): recarga TODOS
+  // los paneles — KPIs, top búsquedas/páginas, oportunidades CTR y canibalización
+  document.querySelectorAll('#seo-period button').forEach((b) => b.addEventListener('click', () => {
+    seoDays = parseInt(b.dataset.days, 10) || 28;
+    document.querySelectorAll('#seo-period button').forEach((x) => x.classList.toggle('on', x === b));
+    loadSeo();
+  }));
   $('ps-act').addEventListener('change', (e) => { psAct = e.target.value; renderPeopleList(); });
 
   /* ---------- HOME "Hoy": centro de comando accionable (KPIs + Para hoy + señales + agenda/ads/IA) ----------
@@ -6308,6 +6336,8 @@ const newsCases = [
 
   // ---- estado de sort + cache de la última respuesta de gsc-stats (para re-ordenar sin refetch) ----
   let seoData = null;
+  let seoDays = 28;              // selector propio del sub-tab (7/28/90/180) — #seo-period
+  let seoActionsCache = [];      // public.seo_actions (SQL 0116) — última acción por página
   let seoQSort = { k: 'clicks', dir: -1 };
   let seoPSort = { k: 'clicks', dir: -1 };
   let seoOppSort = { k: 'lost', dir: -1 };
@@ -6356,9 +6386,137 @@ const newsCases = [
     seoBindSort(cont, state, () => seoRenderQP(kind));
   }
 
+  /* ---- 📈 Top páginas accionables (SQL 0116): delta vs período anterior +
+     cola de acciones seo_actions ('requested' → Claude la trabaja en sesión →
+     'done', mismo patrón que ux_resolutions/CRO aprobadas) + evolución de
+     posición a largo plazo con los snapshots semanales de gsc_page_history. ---- */
+  async function loadSeoActions(){
+    try {
+      const { data, error } = await supabase.from('seo_actions').select('id,page,action_type,status,created_at').order('created_at', { ascending: false }).limit(400);
+      seoActionsCache = (!error && data) || [];
+    } catch (e) { seoActionsCache = []; }
+  }
+  // última acción registrada para la página (el cache viene ordenado desc)
+  function seoActionFor(page){ return seoActionsCache.find((a) => a.page === page) || null; }
+  async function seoActionAdd(page, actionType, status, note){
+    const { error } = await supabase.from('seo_actions').insert({ page, action_type: actionType, status, note, created_by: (typeof myEmail === 'function' ? myEmail() : null) });
+    if (error){ toast('No se pudo guardar: ' + error.message + (/seo_actions/.test(error.message || '') ? ' — ¿corriste el SQL 0116?' : '')); return false; }
+    await loadSeoActions();
+    return true;
+  }
+  function seoRenderTopPages(){
+    const cont = $('seo-p-wrap'), cnt = $('seo-p-count');
+    if (!cont || !seoData) return;
+    const src = seoData.pages || [];
+    // deltas por página: si la función deployada todavía no manda prevPages, se muestran sin delta
+    const prevBy = new Map((seoData.prevPages || []).map((p) => [p.key, p]));
+    if (cnt) cnt.textContent = src.length ? '(' + src.length + ')' : '';
+    if (!src.length){ cont.innerHTML = '<p class="muted-note">Sin datos todavía</p>'; return; }
+    const state = seoPSort;
+    const val = (r, k) => k === 'key' ? (r.key || '').toLowerCase() : (r[k] || 0);
+    const rows = src.slice().sort((a, b) => { const av = val(a, state.k), bv = val(b, state.k); return av < bv ? -state.dir : av > bv ? state.dir : 0; });
+    const fmtN = (n) => (n || 0).toLocaleString('de-CH');
+    const hasPrev = prevBy.size > 0;
+    const dClicks = (p, prev) => {
+      if (!hasPrev) return '';
+      if (!prev) return '<span class="up" style="font-size:11px">nueva</span>';
+      const df = (p.clicks || 0) - (prev.clicks || 0);
+      if (!df) return '<span class="muted-note" style="font-size:11px">=</span>';
+      return '<span class="' + (df > 0 ? 'up' : 'down') + '" style="font-size:11px">' + (df > 0 ? '▲ +' : '▼ −') + Math.abs(df) + '</span>';
+    };
+    // OJO: en posición BAJAR es mejorar (misma lógica que seoPosDelta)
+    const dPos = (p, prev) => {
+      if (!hasPrev || !prev) return '';
+      const df = (prev.position || 0) - (p.position || 0);
+      if (Math.abs(df) < 0.15) return '<span class="muted-note" style="font-size:11px">=</span>';
+      return '<span class="' + (df > 0 ? 'up' : 'down') + '" style="font-size:11px">' + (df > 0 ? '▲ ' : '▼ ') + Math.abs(df).toFixed(1) + '</span>';
+    };
+    let html = '<table class="lead-table seo-table"><thead><tr>' +
+      seoSortTh(state, 'Página', 'key') + seoSortTh(state, 'Clicks', 'clicks', 1) + seoSortTh(state, 'Impresiones', 'impressions', 1) +
+      seoSortTh(state, 'CTR', 'ctr', 1) + seoSortTh(state, 'Posición', 'position', 1) + '<th>Estado</th><th></th></tr></thead><tbody>';
+    rows.forEach((p, i) => {
+      const prev = prevBy.get(p.key);
+      const act = seoActionFor(p.key);
+      const badge = !act ? '' : act.status === 'requested'
+        ? '<span style="color:#8ab4ff;font-size:11px;white-space:nowrap">🤖 en cola</span>'
+        : '<span style="color:#7ed957;font-size:11px;white-space:nowrap">✓ hecha</span>';
+      html += '<tr><td><span style="white-space:normal;word-break:break-all">' + esc(p.key.replace(/^https?:\/\/[^/]+/, '')) + '</span></td>' +
+        '<td class="lt-num" style="white-space:nowrap">' + fmtN(p.clicks) + ' ' + dClicks(p, prev) + '</td>' +
+        '<td class="lt-num">' + fmtN(p.impressions) + '</td>' +
+        '<td class="lt-num">' + ((p.ctr || 0) * 100).toFixed(1) + '%</td>' +
+        '<td class="lt-num" style="white-space:nowrap">' + (p.position || 0).toFixed(1) + ' ' + dPos(p, prev) + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td><div class="kw-acts">' +
+          '<button type="button" class="seo-p-hist" data-i="' + i + '" title="Evolución de posición (snapshots semanales)">📉 evolución</button>' +
+          (act && act.status === 'requested' ? '' : '<button type="button" class="seo-p-ai" data-i="' + i + '" title="Se encola en seo_actions y Claude la trabaja en la próxima sesión">🤖 Mejorar (Claude)</button>') +
+          '<button type="button" class="seo-p-done" data-i="' + i + '" title="Marcar como mejorada a mano">✓ Hecha</button>' +
+        '</div></td></tr>' +
+        '<tr class="seo-opp-detail" id="seo-p-detail-' + i + '" hidden><td colspan="7"></td></tr>';
+    });
+    cont.innerHTML = html + '</tbody></table>';
+    seoBindSort(cont, state, seoRenderTopPages);
+    // el note lleva las métricas del momento: es el contexto con el que Claude
+    // (o quien revise la cola) decide QUÉ mejorar sin volver a mirar GSC
+    const mkNote = (p) => 'auto: período ' + (seoData.days || seoDays) + 'd — ' + (p.clicks || 0) + ' clicks, ' + (p.impressions || 0) + ' impresiones, CTR ' + ((p.ctr || 0) * 100).toFixed(1) + '%, posición ' + (p.position || 0).toFixed(1);
+    cont.querySelectorAll('.seo-p-hist').forEach((b) => b.addEventListener('click', () => seoPageHistory(+b.dataset.i, rows[+b.dataset.i].key)));
+    cont.querySelectorAll('.seo-p-ai').forEach((b) => b.addEventListener('click', async () => {
+      const p = rows[+b.dataset.i]; if (!p) return;
+      b.disabled = true;
+      if (await seoActionAdd(p.key, 'improve', 'requested', mkNote(p))){ toast('🤖 Encolada — Claude la trabaja en la próxima sesión'); seoRenderTopPages(); }
+      else b.disabled = false;
+    }));
+    cont.querySelectorAll('.seo-p-done').forEach((b) => b.addEventListener('click', async () => {
+      const p = rows[+b.dataset.i]; if (!p) return;
+      b.disabled = true;
+      if (await seoActionAdd(p.key, 'manual', 'done', mkNote(p))){ toast('✓ Marcada como hecha'); seoRenderTopPages(); }
+      else b.disabled = false;
+    }));
+  }
+  // evolución de posición de UNA página: sparkline + mini-tabla con los snapshots
+  // semanales de gsc_page_history (cron lunes 07:15 UTC → gsc-stats {snapshot:true})
+  async function seoPageHistory(i, page){
+    const tr = $('seo-p-detail-' + i); if (!tr) return;
+    if (!tr.hidden){ tr.hidden = true; return; }   // toggle
+    tr.hidden = false;
+    const td = tr.querySelector('td');
+    td.innerHTML = '<div class="seo-title-box">Leyendo snapshots…</div>';
+    try {
+      const { data, error } = await supabase.from('gsc_page_history').select('date,clicks,impressions,position,ctr').eq('page', page).order('date', { ascending: true }).limit(120);
+      if (error) throw error;
+      if (!data || !data.length){
+        td.innerHTML = '<div class="seo-title-box">Sin snapshots todavía para esta página — los datos se acumulan desde hoy, uno por semana (cron lunes 07:15 UTC). En unas semanas acá se ve la evolución real de la posición.</div>';
+        return;
+      }
+      const pts = data.filter((r) => r.position != null);
+      let spark = '';
+      if (pts.length >= 2){
+        const w = 320, h = 56, pad = 6;
+        const posMin = Math.min(...pts.map((r) => +r.position)), posMax = Math.max(...pts.map((r) => +r.position));
+        const span = Math.max(0.5, posMax - posMin);
+        const xy = pts.map((r, j) => {
+          const x = pad + j * (w - 2 * pad) / (pts.length - 1);
+          const y = pad + ((+r.position - posMin) / span) * (h - 2 * pad);   // posición más baja = más arriba
+          return x.toFixed(1) + ',' + y.toFixed(1);
+        });
+        spark = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="display:block;max-width:100%;margin:4px 0 8px" aria-hidden="true">' +
+          '<polyline fill="none" stroke="var(--acid)" stroke-width="2" points="' + xy.join(' ') + '"/></svg>' +
+          '<div class="muted-note" style="font-size:11px;margin-bottom:8px">Posición media por snapshot (arriba = mejor): ' + (+pts[0].position).toFixed(1) + ' → ' + (+pts[pts.length - 1].position).toFixed(1) + '</div>';
+      }
+      const last = data.slice(-12).reverse();
+      td.innerHTML = '<div class="seo-title-box">' + spark +
+        '<table class="lead-table"><thead><tr><th>Snapshot</th><th class="lt-num">Posición</th><th class="lt-num">Clicks (7d)</th><th class="lt-num">Impresiones</th><th class="lt-num">CTR</th></tr></thead><tbody>' +
+        last.map((r) => '<tr><td>' + esc(r.date) + '</td><td class="lt-num">' + (r.position != null ? (+r.position).toFixed(1) : '—') + '</td><td class="lt-num">' + (r.clicks || 0) + '</td><td class="lt-num">' + (r.impressions || 0) + '</td><td class="lt-num">' + (r.ctr != null ? (+r.ctr * 100).toFixed(1) + '%' : '—') + '</td></tr>').join('') +
+        '</tbody></table>' +
+        (data.length < 2 ? '<div class="muted-note" style="margin-top:6px">Primer snapshot guardado — la curva aparece cuando haya 2 o más.</div>' : '') +
+        '</div>';
+    } catch (e) {
+      td.innerHTML = '<div class="seo-title-box">¿Corriste el SQL 0116 (gsc_page_history)? ' + esc(e.message || String(e)) + '</div>';
+    }
+  }
+
   // oportunidad de CTR: 100% determinístico a partir de lo que ya trae gsc-stats (sin IA, sin llamada extra)
   function seoComputeOpp(data){
-    const days = data.days || Math.max(7, Math.min(90, rangeSpanDays()));
+    const days = data.days || seoDays;
     const scale = 30 / days; // clicks perdidos escalados a "por mes"
     return (data.queries || [])
       .filter((q) => q.impressions >= 50)
@@ -6421,16 +6579,39 @@ const newsCases = [
     }
   }
 
+  // title/description en vivo de una página propia (mismo origen, sin CORS) — le da
+  // a la IA contexto real en vez de solo la URL. Mismo fix que seoShowTitle: la URL
+  // de GSC viene con www y el dashboard puede correr en viven.ch sin www → fetch
+  // absoluto = CORS "Failed to fetch"; el path same-origin alcanza porque ambos
+  // hosts sirven el mismo sitio. Compartida por el flujo individual y el bulk.
+  async function seoFetchMeta(url){
+    try {
+      const p = String(url).startsWith('http') ? new URL(url).pathname : url;
+      const res = await fetch(p, { cache: 'no-store' });
+      const html = await res.text();
+      const tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
+      return { title: tm ? tm[1].trim() : '', desc: dm ? dm[1].trim() : '' };
+    } catch (_e) { return { title: '', desc: '' }; }
+  }
+
   // ⚔️ Canibalización: además de listar las páginas que compiten, cada página débil
   // (todas menos la dominante, r.pages[0]) tiene un botón "🔗 Sugerir link" — llama a
-  // ai-link-suggest para proponer anchor + oración + dónde insertarlo. Solo SUGIERE
-  // (pedido explícito de Sebastián: "sugerir el link, yo lo apruebo") — nunca edita ni
-  // commitea nada solo, él lo copia y lo mete a mano en el .astro correspondiente.
+  // ai-link-suggest para proponer anchor + oración + dónde insertarlo, con preview del
+  // diff real antes de commitear. "🔁 Arreglar todas" corre ese MISMO flujo en secuencia
+  // para todas las páginas débiles, con UNA confirmación inicial (los commits al repo
+  // los hace apply-link-suggest vía GitHub API, igual que el flujo individual).
+  let seoCannibRows = [];
   function seoRenderCannib(data){
     const cont = $('seo-cannib-wrap'); if (!cont) return;
     const rows = data.cannibalization || [];
+    seoCannibRows = rows;
     if (!rows.length){ cont.innerHTML = '<p class="muted-note">Sin canibalización detectada — cada búsqueda top tiene una sola página dominante.</p>'; return; }
-    let html = '<table class="lead-table"><thead><tr><th>Query</th><th>Páginas compitiendo</th></tr></thead><tbody>';
+    const nBulk = seoCannibBulkItems().length;
+    let html = '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">' +
+      '<button type="button" class="btn btn-ghost small" id="seo-cannib-all">🔁 Arreglar todas (' + nBulk + ')</button></div>' +
+      '<div id="seo-cannib-bulk"></div>' +
+      '<table class="lead-table"><thead><tr><th>Query</th><th>Páginas compitiendo</th></tr></thead><tbody>';
     rows.forEach((r, ri) => {
       const [strong, ...weak] = r.pages;
       html += '<tr><td>' + esc(r.query) + '</td><td class="seo-cannib-pages">' +
@@ -6443,6 +6624,70 @@ const newsCases = [
     cont.innerHTML = html + '</tbody></table>';
     cont.querySelectorAll('.seo-cannib-link').forEach((b) => b.addEventListener('click', () =>
       seoLinkSuggest(+b.dataset.ri, +b.dataset.pi, rows)));
+    const allBtn = $('seo-cannib-all'); if (allBtn) allBtn.addEventListener('click', seoCannibFixAll);
+  }
+  // items del bulk: una entrada por página débil, deduplicando pares débil→fuerte
+  // que aparecen bajo varias queries (un solo link alcanza para todas)
+  function seoCannibBulkItems(){
+    const seen = new Set(); const items = [];
+    (seoCannibRows || []).forEach((r) => {
+      const strong = r.pages[0];
+      r.pages.slice(1).forEach((weakP) => {
+        const k = weakP.page + '→' + strong.page;
+        if (seen.has(k)) return; seen.add(k);
+        items.push({ query: r.query, strong, weakP });
+      });
+    });
+    return items;
+  }
+  // "🔁 Arreglar todas": el flujo individual completo (meta en vivo → ai-link-suggest
+  // → apply-link-suggest preview → commit) por cada página débil, EN SECUENCIA — no en
+  // paralelo a propósito: si el mismo archivo recibe 2 links, el segundo preview ya lo
+  // lee con el sha del primer commit y no pisa nada. UNA confirmación inicial y después
+  // corre solo, con barra de progreso y resultado por fila.
+  async function seoCannibFixAll(){
+    const items = seoCannibBulkItems();
+    if (!items.length){ toast('Nada que arreglar'); return; }
+    if (!confirm('🔁 Arreglar todas las canibalizaciones\n\nVoy a insertar ' + items.length + ' link(s) interno(s): en cada página débil, un link con anchor exacto hacia su página dominante.\n\nPor cada uno: la IA redacta el anchor + la oración y el cambio se COMMITEA automáticamente al repo (rama dev, GitHub API — Cloudflare deploya solo), sin más confirmaciones.\n\n¿Dale?')) return;
+    const btn = $('seo-cannib-all'); if (btn){ btn.disabled = true; btn.textContent = '⏳ Aplicando…'; }
+    const box = $('seo-cannib-bulk');
+    const short = (u) => String(u || '').replace(/^https?:\/\/[^/]+/, '') || '/';
+    box.innerHTML = '<div class="seo-title-box" style="margin-bottom:10px">' +
+      '<div style="height:6px;background:var(--navy-900);border-radius:4px;overflow:hidden;margin-bottom:8px"><i id="seo-cb-bar" style="display:block;height:100%;width:0;background:var(--acid);transition:width .3s"></i></div>' +
+      items.map((it, i) => '<div id="seo-cb-line-' + i + '" class="muted-note" style="margin-bottom:3px">⏳ ' + esc(short(it.weakP.page)) + ' → ' + esc(short(it.strong.page)) + '</div>').join('') +
+      '<div class="muted-note" id="seo-cb-sum" style="margin-top:8px"></div></div>';
+    let okN = 0;
+    for (let i = 0; i < items.length; i++){
+      const it = items[i];
+      const line = $('seo-cb-line-' + i);
+      const label = esc(short(it.weakP.page)) + ' → ' + esc(short(it.strong.page));
+      const invoke = async (fn, body) => {
+        const { data, error } = await supabase.functions.invoke(fn, { body });
+        if (error || !data || data.error) throw new Error((data && data.error) || (error && error.message) || (fn + ' sin respuesta'));
+        return data;
+      };
+      try {
+        if (line) line.innerHTML = '🤔 ' + label + ' — pensando el link…';
+        const [weakMeta, strongMeta] = await Promise.all([seoFetchMeta(it.weakP.page), seoFetchMeta(it.strong.page)]);
+        const sug = await invoke('ai-link-suggest', {
+          query: it.query, weakUrl: it.weakP.page, weakTitle: weakMeta.title, weakDesc: weakMeta.desc,
+          strongUrl: it.strong.page, strongTitle: strongMeta.title,
+        });
+        if (line) line.innerHTML = '✏️ ' + label + ' — generando el cambio…';
+        const prev = await invoke('apply-link-suggest', { mode: 'preview', weakUrl: it.weakP.page, strongUrl: it.strong.page, anchor: sug.anchor, snippet: sug.snippet, placement: sug.placement, query: it.query });
+        if (line) line.innerHTML = '🚀 ' + label + ' — commiteando…';
+        const com = await invoke('apply-link-suggest', { mode: 'commit', path: prev.path, sha: prev.sha, updated: prev.updated, weakUrl: it.weakP.page, strongUrl: it.strong.page, anchor: sug.anchor, query: it.query });
+        okN++;
+        if (line) line.innerHTML = '<span style="color:#7ed957">✓</span> ' + label + ' — aplicado («' + esc(sug.anchor || '') + '»)' +
+          (com.commitUrl ? ' · <a href="' + esc(com.commitUrl) + '" target="_blank" rel="noopener">commit</a>' : '');
+      } catch (e) {
+        if (line) line.innerHTML = '<span style="color:#ff8b8b">✗</span> ' + label + ' — ' + esc(e.message || String(e));
+      }
+      const bar = $('seo-cb-bar'); if (bar) bar.style.width = Math.round((i + 1) / items.length * 100) + '%';
+    }
+    const sum = $('seo-cb-sum'); if (sum) sum.innerHTML = '<b>' + okN + '/' + items.length + '</b> aplicados — Cloudflare deploya en 1-2 min. Los que fallaron se pueden reintentar uno a uno con «🔗 Sugerir link».';
+    if (btn){ btn.disabled = false; btn.textContent = '🔁 Arreglar todas (' + items.length + ')'; }
+    toast(okN + '/' + items.length + ' links aplicados');
   }
   async function seoLinkSuggest(ri, pi, rows){
     const tr = $('seo-cannib-detail-' + ri); if (!tr) return;
@@ -6452,21 +6697,7 @@ const newsCases = [
     tr.hidden = false;
     td.innerHTML = '<div class="seo-title-box">Leyendo ambas páginas y pensando el link…</div>';
     try {
-      // title/description en vivo de la página débil (mismo origen, sin CORS) — mismo
-      // patrón que seoShowTitle, le da a la IA contexto real en vez de solo la URL.
-      const fetchMeta = async (url) => {
-        try {
-          // mismo fix que seoShowTitle: la URL de GSC viene con www y el dashboard
-          // puede correr en viven.ch sin www → fetch absoluto = CORS. Path same-origin.
-          const p = String(url).startsWith('http') ? new URL(url).pathname : url;
-          const res = await fetch(p, { cache: 'no-store' });
-          const html = await res.text();
-          const tm = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-          const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i) || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
-          return { title: tm ? tm[1].trim() : '', desc: dm ? dm[1].trim() : '' };
-        } catch (_e) { return { title: '', desc: '' }; }
-      };
-      const [weakMeta, strongMeta] = await Promise.all([fetchMeta(weakP.page), fetchMeta(strong.page)]);
+      const [weakMeta, strongMeta] = await Promise.all([seoFetchMeta(weakP.page), seoFetchMeta(strong.page)]);
       const { data, error } = await supabase.functions.invoke('ai-link-suggest', {
         body: {
           query: r.query, weakUrl: weakP.page, weakTitle: weakMeta.title, weakDesc: weakMeta.desc,
@@ -6653,16 +6884,21 @@ const newsCases = [
     const el = $('seo-body');
     el.innerHTML = '<p class="muted-note">Consultando Search Console…</p>';
     try {
-      // el período global manda (la función clampa igual: mín 7, máx 90 — límite razonable de GSC)
-      const gscDays = Math.max(7, Math.min(90, rangeSpanDays()));
-      const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: gscDays } });
+      // manda el selector propio del sub-tab (#seo-period, 7/28/90/180) — la
+      // función compara SIEMPRE contra el período inmediatamente anterior de
+      // igual longitud (y clampa 7–180 por su cuenta)
+      const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: seoDays } });
       if (error || (data && data.error)) throw new Error((data && data.error) || error.message);
       seoData = data;
       seoRenderKpis(data);
       el.innerHTML =
         '<div class="panel" style="margin-top:14px"><h2>🔎 Top búsquedas <span class="count" id="seo-q-count"></span></h2><div class="lead-table-wrap" id="seo-q-wrap"></div></div>' +
-        '<div class="panel" style="margin-top:14px"><h2>📄 Top páginas <span class="count" id="seo-p-count"></span></h2><div class="lead-table-wrap" id="seo-p-wrap"></div></div>';
-      seoRenderQP('q'); seoRenderQP('p');
+        '<div class="panel" style="margin-top:14px"><h2>📈 Top páginas <span class="count" id="seo-p-count"></span></h2>' +
+          '<p class="muted-note" style="margin:6px 0 10px">Con delta vs el período anterior. Por página: 🤖 la encola para que Claude la mejore (cola <code>seo_actions</code>, la trabaja en la próxima sesión) · ✓ la marcás como hecha · 📉 abre la evolución de posición (snapshots semanales — los datos se acumulan desde hoy).</p>' +
+          '<div class="lead-table-wrap" id="seo-p-wrap"></div></div>';
+      seoRenderQP('q');
+      await loadSeoActions();   // best-effort: sin SQL 0116 el panel igual renderiza
+      seoRenderTopPages();
       seoOppRows = seoComputeOpp(data);
       seoRenderOpp();
       seoRenderCannib(data);
@@ -7801,6 +8037,10 @@ const newsCases = [
      resto: split por visitante, exposiciones en ab_hits y leads taggeados (.ab). */
   let abBuilt = false, abTests = [], abCands = [], abEditing = null;
   let abExpandedId = null, abExp = {}, abLeadsCache = [];
+  let abLeadsOpen = null;   // 'testId:a' | 'testId:b' | null — qué lista de leads está desplegada
+  // el tag leads.ab es "testId:bucket" y puede traer varios separados por coma
+  // ("12:a,15:b") — match EXACTO por tag, no .includes() (el test 1 matcheaba "11:a")
+  const abTagMatch = (l, id, bucket) => String(l.ab || '').split(',').some((tg) => tg.trim() === id + ':' + bucket);
   function abInit(){
     if (!abBuilt){
       abBuilt = true;
@@ -8309,7 +8549,9 @@ const newsCases = [
     const [tq, hq, lq] = await Promise.all([
       supabase.from('ab_tests').select('*').order('created_at', { ascending: false }),
       supabase.from('ab_hits').select('test_id,bucket,session_id').limit(50000),
-      supabase.from('leads').select('id,ab,status').not('ab', 'is', null).limit(5000),
+      // columnas extra para la lista clickeable de leads por variante: identidad,
+      // etapa y lo que necesita leadScore (channel/gclid/email/phone/message/fechas)
+      supabase.from('leads').select('id,ab,status,name,company,email,channel,gclid,phone,message,created_at,videocall_at,proposal_at').not('ab', 'is', null).limit(5000),
     ]);
     if (tq.error){ $('ab-list').innerHTML = '<p class="muted-note">⚠️ Falta correr el SQL <b>0030</b> en Supabase para activar los A/B tests.</p>'; return; }
     abTests = tq.data || [];
@@ -8375,8 +8617,8 @@ const newsCases = [
     // métricas por test
     const rows = abTests.map((t) => {
       const ea = (exp[t.id + ':a'] || new Set()).size, eb = (exp[t.id + ':b'] || new Set()).size;
-      const la = abLeads.filter((l) => String(l.ab || '').includes(t.id + ':a')).length;
-      const lb = abLeads.filter((l) => String(l.ab || '').includes(t.id + ':b')).length;
+      const la = abLeads.filter((l) => abTagMatch(l, t.id, 'a')).length;
+      const lb = abLeads.filter((l) => abTagMatch(l, t.id, 'b')).length;
       const st = abStats(ea, la, eb, lb);
       return { t, ea, eb, la, lb, eff: abEffStatus(t), ...st };
     });
@@ -8420,11 +8662,18 @@ const newsCases = [
         '<div class="vtxt"><b>Todavía no hay nada que decidir.</b> ' + total + ' de ~' + needTot + ' sesiones necesarias para detectar una diferencia real. ' + eta + '.</div>' +
         '<div class="bar"><i style="width:' + Math.max(3, Math.min(100, confPct)) + '%;background:#f0c060"></i></div></div>';
     }
+    // leads clickeables (pedido de Sebastián: "si tienen leads, dejame tocar el botón
+    // a ver qué lead fue para entender si esa lead vale la pena o no") — con 0 leads
+    // no hay nada que abrir, queda el número plano
+    const leadsNum = (side, l2) => l2
+      ? '<button type="button" class="ab-lc' + (abLeadsOpen === t.id + ':' + side ? ' on' : '') + '" data-side="' + side + '" title="Ver QUÉ leads convirtieron con esta variante"><b>' + l2 + '</b><span>leads ' + (abLeadsOpen === t.id + ':' + side ? '▴' : '▾') + '</span></button>'
+      : '<div><b>0</b><span>leads</span></div>';
     const cell = (side, txt, e2, l2, conv) =>
       '<div class="ab-var' + (side === 'a' ? (aWins && r.eb ? ' win' : '') : (bWins ? ' win' : '')) + '">' +
         '<div class="k">' + (side === 'a' ? 'A — Original' : 'B — Variante') + '</div>' +
         '<div class="txt">' + esc(txt) + '</div>' +
-        '<div class="nums"><div><b>' + e2 + '</b><span>sesiones</span></div><div><b>' + l2 + '</b><span>leads</span></div><div><b>' + (e2 ? (conv * 100).toFixed(1) : '0') + '%</b><span>conv.</span></div></div></div>';
+        '<div class="nums"><div><b>' + e2 + '</b><span>sesiones</span></div>' + leadsNum(side, l2) + '<div><b>' + (e2 ? (conv * 100).toFixed(1) : '0') + '%</b><span>conv.</span></div></div></div>';
+    const leadList = (abLeadsOpen === t.id + ':a' || abLeadsOpen === t.id + ':b') ? abLeadListHtml(t, abLeadsOpen.slice(-1)) : '';
     // sub-línea: path · split · día · auto-stop
     const sub = esc(t.url_path) + ' · split ' + (t.split_pct || 50) + '/' + (100 - (t.split_pct || 50)) +
       (day ? ' · día ' + day : '') + (endTxt ? ' · termina ' + endTxt + ' (auto-stop)' : '') + ' · ' + changes.length + ' cambio(s)';
@@ -8455,8 +8704,28 @@ const newsCases = [
         '<div class="subline">' + sub + '</div></div></div>' +
       '<div class="ab-vs">' + cell('a', abVariantTxt(changes, 'a'), r.ea, r.la, r.ca) +
         '<div class="ab-vsmid">VS</div>' + cell('b', abVariantTxt(changes, 'b'), r.eb, r.lb, r.cb) + '</div>' +
+      leadList +
       verdict +
       '<div class="ab-actions" style="margin-top:12px">' + acts + '</div></div>';
+  }
+  // lista desplegable de los leads de UNA variante: quiénes son, en qué etapa están
+  // y su score — cada fila abre la ficha (openLead) para juzgar si el lead vale la pena
+  function abLeadListHtml(t, side){
+    const ls = (abLeadsCache || []).filter((l) => abTagMatch(l, t.id, side))
+      .sort((a, b) => leadScore(b).score - leadScore(a).score);
+    let html = '<div class="ab-leadlist"><div class="ab-ll-h">Leads de la variante ' + side.toUpperCase() + ' <span class="count">(' + ls.length + ')</span> — click en uno para abrir su ficha</div>';
+    if (!ls.length) return html + '<p class="muted-note" style="margin:0">Sin leads con este tag todavía.</p></div>';
+    html += '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Quién</th><th>Email</th><th>Etapa</th><th class="lt-num">Score</th></tr></thead><tbody>' +
+      ls.map((l) => {
+        const st = STAGES.find((s) => s.key === stageOf(l.status)) || STAGES[0];
+        const sc = leadScore(l);
+        return '<tr class="ab-leadrow" data-lead="' + l.id + '" title="Abrir la ficha">' +
+          '<td><b>' + esc(l.name || l.email || '(sin nombre)') + '</b>' + (l.company ? ' <span class="muted-note">· ' + esc(l.company) + '</span>' : '') + '</td>' +
+          '<td>' + esc(l.email || '') + '</td>' +
+          '<td><span style="color:' + st.color + ';font-weight:600">' + st.label + '</span></td>' +
+          '<td class="lt-num" style="color:' + sc.tier.c + ';white-space:nowrap" title="' + esc(sc.factors.join('\n')) + '">' + sc.tier.t + ' · ' + sc.score + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    return html;
   }
   function abCollapsedRow(r, chip){
     const t = r.t, c = chip[r.eff] || chip.draft, confPct = Math.round(r.conf * 100);
@@ -8483,9 +8752,16 @@ const newsCases = [
   function bindAbList(){
     const box = $('ab-list');
     box.querySelectorAll('.ab-crow').forEach((row) => row.addEventListener('click', () => {
-      abExpandedId = row.dataset.id; renderAbList(abExp, abLeadsCache);
+      abExpandedId = row.dataset.id; abLeadsOpen = null; renderAbList(abExp, abLeadsCache);
       box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
+    // conteo de leads clickeable → despliega/colapsa la lista de ESOS leads
+    box.querySelectorAll('.ab-lc').forEach((btn) => btn.addEventListener('click', () => {
+      const key = btn.closest('.ab-card').dataset.id + ':' + btn.dataset.side;
+      abLeadsOpen = abLeadsOpen === key ? null : key;
+      renderAbList(abExp, abLeadsCache);
+    }));
+    box.querySelectorAll('.ab-leadrow').forEach((tr) => tr.addEventListener('click', () => { gotoTab('leads'); openLead(tr.dataset.lead); }));
     box.querySelectorAll('.ab-card [data-act]').forEach((btn) => btn.addEventListener('click', async () => {
       if (btn.disabled) return;
       const id = btn.closest('.ab-card').dataset.id, act = btn.dataset.act;
