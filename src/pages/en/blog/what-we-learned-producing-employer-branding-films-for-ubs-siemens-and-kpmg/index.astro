@@ -1,0 +1,98 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"What We Learned Producing Employer Branding Films for UBS, Siemens and KPMG | Viven"};
+const description = {"en":"Three very different companies, three employer branding films, one recurring lesson: what actually makes enterprise employer branding work."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg" active="blog" singleLang={true} langUrls={{"en":"/en/blog/what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg/\"},\"headline\":\"What We Learned Producing Employer Branding Films for UBS, Siemens and KPMG\",\"description\":\"Three very different companies, three employer branding films, one recurring lesson: what actually makes enterprise employer branding work.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg/\",\"datePublished\":\"2026-07-27T13:47:55.463Z\",\"image\":\"https://www.viven.ch/projects/de/siemens-mobility-employer-branding-kampagne/07-Siemens_Mobility_Brand_Video_4.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"What We Learned Producing Employer Branding Films for UBS, Siemens and KPMG\",\"item\":\"https://www.viven.ch/en/blog/what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg/\"}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>What We Learned Producing Employer Branding Films for UBS, Siemens and KPMG</span></nav>
+  <span class="eyebrow">Employer Branding</span>
+  <h1>What We Learned Producing Employer Branding Films for UBS, Siemens and KPMG</h1>
+  <p class="lead">UBS, Siemens and KPMG don't compete for the same talent, and their employer branding films don't look alike either. But producing all three taught us the same thing about what large-enterprise employer branding actually requires.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>July 27, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/de/siemens-mobility-employer-branding-kampagne/07-Siemens_Mobility_Brand_Video_4.jpeg" alt="What We Learned Producing Employer Branding Films for UBS, Siemens and KPMG" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Scale doesn't excuse genericness</h2>
+<p>The instinct with a large, well-known employer is to lean on the logo and let it do the work. It never does. UBS, Siemens and KPMG are recognizable brands, but the films that actually move candidates are the ones that show specific people doing specific work — not an abstract idea of "a great place to work."</p>
+<h2>Internal buy-in takes longer than the shoot</h2>
+<p>With enterprise clients, the production itself is rarely the bottleneck — alignment is. Legal, HR, communications and the business unit each have a stake in how the company is represented, and that alignment has to happen before a camera rolls, not during the edit. Building that time into the schedule up front is what keeps a project like this from stalling.</p>
+<h2>One film, more than one job</h2>
+<p>None of these three films were built for a single channel. The same footage ended up on careers pages, in LinkedIn campaigns, in onboarding decks and shared internally by employees themselves. Planning for that from the brief — not just the recruiting use case — is what made the same production keep paying off months later.</p>
+<h2>The craft has to hold up at enterprise scrutiny</h2>
+<p>A film representing a bank, an industrial engineering company and a global consultancy gets reviewed by more people, more carefully, than most marketing content ever will. That level of scrutiny rewards real filmmaking discipline — considered shots, a real story — over anything that reads as generic corporate video.</p>
+<p>See the <a href="/en/projects/">full case studies</a>, or <a href="/en/contact/">tell us about your own employer branding project</a>.</p>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="what-we-learned-producing-employer-branding-films-for-ubs-siemens-and-kpmg" />
+  </div></section>
+</Base>
