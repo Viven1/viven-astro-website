@@ -1,0 +1,144 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Financiamiento para cine en Suiza: fondos y ayudas | Viven"};
+const description = {"es":"Guía de financiamiento para cine en Suiza: fondos federales y regionales, incentivos de coproducción y cómo Viven te ayuda a acceder a ellos."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "financiamiento-para-cine-en-suiza";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/financiamiento-para-cine-en-suiza" active="blog" singleLang={true} langUrls={{"es":"/es/blog/financiamiento-para-cine-en-suiza/","en":"/en/blog/understanding-film-funding-opportunities-in-switzerland/","de":"/de/blog/filmfoerderungsmoeglichkeiten-in-der-schweiz-verstehen/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/financiamiento-para-cine-en-suiza/\"},\"headline\":\"Financiamiento para cine en Suiza: fondos y ayudas\",\"description\":\"Guía de financiamiento para cine en Suiza: fondos federales y regionales, incentivos de coproducción y cómo Viven te ayuda a acceder a ellos.\",\"image\":\"https://www.viven.ch/projects/siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg\",\"datePublished\":\"2026-07-27T09:00:00.000Z\",\"dateModified\":\"2026-07-27T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/financiamiento-para-cine-en-suiza/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Financiamiento para cine en Suiza: fondos y ayudas\",\"item\":\"https://www.viven.ch/es/blog/financiamiento-para-cine-en-suiza/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Qué financiamiento de cine existe en Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Apoyo federal de la Oficina Federal de Cultura, fondos regionales como la Zürcher Filmstiftung y la Fondation Romande pour le Cinéma, e incentivos de coproducción — en conjunto, más de CHF 40 millones de inversión pública en 2023.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué necesitan los productores para calificar al financiamiento suizo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Por lo general, requisitos de gasto local y contratación de talento suizo, para que los fondos beneficien directamente a la industria del cine suiza.\"}},{\"@type\":\"Question\",\"name\":\"¿Cómo ayudan las coproducciones a acceder al financiamiento?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Asociarse con productoras suizas con experiencia ayuda a navegar el panorama de fondos y a cumplir más fácilmente los criterios de elegibilidad locales.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Financiamiento para cine en Suiza: fondos y ayudas</span>
+        </nav>
+        <span class="eyebrow">Industria</span>
+        <h1>Financiamiento para cine en Suiza: fondos y ayudas</h1>
+        <p class="lead">Explorá las oportunidades de financiamiento para cine en Suiza y descubrí cómo Viven te ayuda a navegar los incentivos de coproducción y el apoyo financiero.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>27 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="https://www.viven.ch/projects/siemens-shaping-the-future-together-employer-branding-campaign/03-RORES_clean_VIVEN.00_09_29_23.Still033.jpg" alt="Financiamiento para cine en Suiza: fondos y ayudas" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Panorama del financiamiento de cine en Suiza</h2>
+<p>Suiza financia la producción cinematográfica a través de instituciones federales, regionales y privadas que ofrecen subsidios, incentivos de coproducción y apoyo a colaboraciones internacionales — solo en 2023, el sector público suizo invirtió más de CHF 40 millones en financiamiento de cine. Los productores que cumplen los requisitos de elegibilidad locales, como el gasto en Suiza y la contratación de talento local, pueden acceder a este apoyo para hacer realidad sus proyectos.</p>
+<h3>Las fuentes de financiamiento clave</h3>
+<p>La Oficina Federal de Cultura de Suiza brinda apoyo financiero a películas con relevancia cultural, asegurando que los proyectos que aportan al patrimonio cultural suizo reciban el respaldo que merecen. Fondos regionales como la Zürcher Filmstiftung (la fundación de cine de Zúrich) y la Fondation Romande pour le Cinéma ofrecen financiamiento adicional para producciones suizas e internacionales, fomentando un entorno fértil para la creación cinematográfica en las distintas regiones lingüísticas del país.</p>
+<h3>Elegibilidad y requisitos</h3>
+<p>Para calificar al financiamiento, los productores suelen tener que cumplir criterios específicos. Esto incluye, en general, requisitos de gasto local y la contratación de talento suizo, de modo que los fondos beneficien directamente a la industria local. Entender estos requisitos temprano en la planificación ayuda a estructurar el presupuesto y el equipo de una forma que maximice las chances de conseguir apoyo.</p>
+<p>Los requisitos también varían entre los organismos federales y regionales, así que vale la pena mapear qué fondos encajan con la escala, el género y la región lingüística de cada proyecto antes de presentar una solicitud.</p>
+<h3>Coproducciones y acceso al financiamiento</h3>
+<p>Asociarse con empresas suizas en coproducciones también ayuda a ampliar el acceso a estos fondos. Al colaborar con <a href={p("services/corporate-video")}>servicios de producción suizos</a> con experiencia, los productores pueden navegar el panorama de financiamiento y aprovechar los recursos disponibles para maximizar el potencial del proyecto — desde la solicitud inicial hasta la entrega final.</p>
+<h3>Por qué importa el apoyo financiero</h3>
+<p>El acceso a fondos públicos y regionales puede cambiar de forma significativa lo que es posible en una producción: extender el plan de rodaje, sostener valores de producción más altos o hacer financieramente viable una coproducción internacional ambiciosa. Para los productores que comparan Suiza con otras locaciones, estas vías de financiamiento suelen ser un factor decisivo junto con las locaciones, la infraestructura y los equipos multilingües del país — temas que exploramos en nuestra guía sobre la <a href={p("blog/produccion-de-cine-en-suiza-polo-de-excelencia-creativa")}>producción de cine en Suiza</a>. Empezar la conversación sobre los fondos temprano, en paralelo a la planificación de locaciones y equipo, le da al proyecto la mejor chance de un camino fluido de la solicitud a la luz verde.</p>
+<h2>Navegá el financiamiento de cine suizo con Viven</h2>
+<p>Gestionar solicitudes de subsidios y acuerdos de coproducción puede ser complejo, sobre todo para productores internacionales que no conocen el sistema suizo. Mirá ejemplos de nuestro trabajo en nuestro <a href={p("projects")}>portfolio</a> y <a href={p("contact")}>asociate con Viven</a> para navegar las oportunidades de financiamiento de cine en Suiza y dar vida a tu próximo proyecto.</p>
+      </div>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Qué financiamiento de cine existe en Suiza?</summary>
+        <p>Apoyo federal de la Oficina Federal de Cultura, fondos regionales como la Zürcher Filmstiftung y la Fondation Romande pour le Cinéma, e incentivos de coproducción — en conjunto, más de CHF 40 millones de inversión pública en 2023.</p>
+      </details>
+      <details>
+        <summary>¿Qué necesitan los productores para calificar al financiamiento suizo?</summary>
+        <p>Por lo general, requisitos de gasto local y contratación de talento suizo, para que los fondos beneficien directamente a la industria del cine suiza.</p>
+      </details>
+      <details>
+        <summary>¿Cómo ayudan las coproducciones a acceder al financiamiento?</summary>
+        <p>Asociarse con productoras suizas con experiencia ayuda a navegar el panorama de fondos y a cumplir más fácilmente los criterios de elegibilidad locales.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="financiamiento-para-cine-en-suiza" />
+  </div></section>
+</Base>

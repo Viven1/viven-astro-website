@@ -1,0 +1,143 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Por qué las productoras suizas tienen tanta demanda | Viven"};
+const description = {"es":"Descubrí por qué las productoras de cine suizas tienen tanta demanda y cómo Viven entrega producciones de alta calidad, a tiempo y dentro del presupuesto."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "por-que-las-productoras-suizas-tienen-tanta-demanda";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/por-que-las-productoras-suizas-tienen-tanta-demanda" active="blog" singleLang={true} langUrls={{"es":"/es/blog/por-que-las-productoras-suizas-tienen-tanta-demanda/","en":"/en/blog/why-swiss-film-production-companies-are-in-high-demand/","de":"/de/blog/warum-schweizer-filmproduktionsfirmen-so-gefragt-sind/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/por-que-las-productoras-suizas-tienen-tanta-demanda/\"},\"headline\":\"Por qué las productoras de cine suizas tienen tanta demanda\",\"description\":\"Descubrí por qué las productoras de cine suizas tienen tanta demanda y cómo Viven entrega producciones de alta calidad, a tiempo y dentro del presupuesto.\",\"image\":\"https://www.viven.ch/projects/nccr-robotics-brand-video/05-s_Brand_Video_Viven_Video_Production_7.jpg\",\"datePublished\":\"2026-07-27T09:00:00.000Z\",\"dateModified\":\"2026-07-27T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/por-que-las-productoras-suizas-tienen-tanta-demanda/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Por qué las productoras de cine suizas tienen tanta demanda\",\"item\":\"https://www.viven.ch/es/blog/por-que-las-productoras-suizas-tienen-tanta-demanda/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué las productoras de cine suizas tienen tanta demanda?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Combinan equipos puntuales y detallistas con equipamiento de última generación e instalaciones de postproducción, entregando contenido de alta calidad a tiempo y dentro del presupuesto.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué crecimiento tuvo el sector suizo de cine y video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"La Oficina Federal de Estadística de Suiza reportó un aumento del 12% en el empleo del sector de cine y video, reflejo de la creciente demanda de la industria.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué ventaja ofrecen las productoras suizas a los clientes internacionales?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Equipos multilingües, cercanía a los principales mercados europeos y una cultura de producción basada en la puntualidad y los estándares internacionales.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Por qué las productoras de cine suizas tienen tanta demanda</span>
+        </nav>
+        <span class="eyebrow">Industria</span>
+        <h1>Por qué las productoras de cine suizas tienen tanta demanda</h1>
+        <p class="lead">Descubrí por qué las productoras de cine suizas tienen tanta demanda y cómo Viven entrega servicios de producción eficientes y de alta calidad.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>27 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="https://www.viven.ch/projects/nccr-robotics-brand-video/05-s_Brand_Video_Viven_Video_Production_7.jpg" alt="Por qué las productoras de cine suizas tienen tanta demanda" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Las productoras de cine suizas tienen tanta demanda porque combinan una gestión de proyectos meticulosa, equipos puntuales y equipamiento de última generación con una reputación de entregar contenido de alta calidad a tiempo y dentro del presupuesto. Sea un largometraje, una serie de TV o branded content, la infraestructura de producción de Suiza les da a los clientes internacionales la confiabilidad y el acabado que exige el trabajo de estándar global.</p>
+<h2>Las fortalezas de las productoras suizas</h2>
+<p>Las productoras suizas, con base en ciudades como Zúrich, Ginebra y Lausana, colaboran habitualmente con clientes internacionales. Su familiaridad con los estándares globales de la industria las convierte en un socio de confianza para producciones de cine y TV en todo el mundo, sea el brief un blockbuster o una serie de branded content.</p>
+<p>Una de sus fortalezas clave es la gestión de proyectos: los equipos son conocidos por su puntualidad y su atención meticulosa al detalle, lo que mantiene los proyectos en curso y evita demoras y sobrecostos innecesarios. Un informe reciente de la Oficina Federal de Estadística de Suiza mostró que el sector de cine y video tuvo un aumento del 12% en el empleo, reflejo de la demanda creciente y la expansión de las capacidades de la industria suiza.</p>
+<h2>Equipamiento y postproducción de primer nivel</h2>
+<p>Trabajar con productoras suizas da acceso a equipamiento de última generación e instalaciones de postproducción de clase mundial. Sea corrección de color, mezcla de sonido o efectos visuales, los profesionales suizos tienen las herramientas y la experiencia para entregar un producto final pulido que cumple con los más altos estándares internacionales — la misma infraestructura que sostiene el <a href={p("services/corporate-video")}>video corporativo</a> y el trabajo comercial a escala.</p>
+<h2>Qué significa esto para los clientes internacionales</h2>
+<p>Para las marcas y estudios que producen contenido en varios mercados, el atractivo de un socio suizo va más allá del paisaje. Equipos multilingües, cercanía a los principales mercados europeos y una cultura de producción construida sobre la precisión horaria permiten planificar un rodaje con la confianza de que va a llegar en fecha — una ventaja significativa cuando una producción abarca varios países o idiomas.</p>
+<h2>¿Por qué elegir una productora suiza?</h2>
+<p>Las productoras suizas tienen tanta demanda porque no solo cumplen las expectativas: las superan. Con un historial probado de entregar contenido de alta calidad a tiempo y dentro del presupuesto, las productoras de cine suizas se ganaron su reputación de socios confiables y capaces en la industria global del cine.</p>
+<p>En Viven ofrecemos <a href={p("services/corporate-video")}>servicios de producción</a> a medida que cumplen con estándares internacionales y ayudan a dar vida a tu proyecto con precisión y calidad. Nuestro equipo trabaja de cerca con los clientes para que cada aspecto de la producción sea fluido y profesional, apoyándose en las mismas fortalezas que hacen de <a href={p("blog/zurich-el-corazon-de-la-produccion-de-cine-suiza")}>Zúrich el corazón de la escena de producción de cine del país</a>.</p>
+<p><a href={p("contact")}>Contactá a Viven para hablar de tu próxima producción de cine o comercial en Suiza.</a></p>
+      </div>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué las productoras de cine suizas tienen tanta demanda?</summary>
+        <p>Combinan equipos puntuales y detallistas con equipamiento de última generación e instalaciones de postproducción, entregando contenido de alta calidad a tiempo y dentro del presupuesto.</p>
+      </details>
+      <details>
+        <summary>¿Qué crecimiento tuvo el sector suizo de cine y video?</summary>
+        <p>La Oficina Federal de Estadística de Suiza reportó un aumento del 12% en el empleo del sector de cine y video, reflejo de la creciente demanda de la industria.</p>
+      </details>
+      <details>
+        <summary>¿Qué ventaja ofrecen las productoras suizas a los clientes internacionales?</summary>
+        <p>Equipos multilingües, cercanía a los principales mercados europeos y una cultura de producción basada en la puntualidad y los estándares internacionales.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="por-que-las-productoras-suizas-tienen-tanta-demanda" />
+  </div></section>
+</Base>
