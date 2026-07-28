@@ -2582,6 +2582,17 @@ const newsCases = [
         </div>
       </div>
 
+      <div class="panel" style="margin-top:14px">
+        <div class="of-bar" style="margin-bottom:0">
+          <div>
+            <h2 style="margin:0">🩺 Salud del sitio</h2>
+            <p class="muted-note" style="margin:2px 0 0">Nuestro propio sitemap nunca debería apuntar a una URL rota — la causa raíz de la mayoría de los 404 reales que encontramos en Search Console. Corre sola cada lunes (cron semanal) y avisa por push solo si aparece algo NUEVO — el botón fuerza una revisión ahora.</p>
+          </div>
+          <button class="btn btn-ghost small" id="sh-run" type="button">🔄 Revisar ahora</button>
+        </div>
+        <div id="sh-body" style="margin-top:10px"><p class="muted-note">Cargando…</p></div>
+      </div>
+
       <div class="panel" style="margin-top:16px">
         <div class="draft-head">
           <h2 style="margin:0">🎯 Oportunidades de keywords <span class="count">GSC × competencia × IA</span></h2>
@@ -7002,6 +7013,61 @@ const newsCases = [
     }
   }
 
+  /* ---- 🩺 Salud del sitio (SQL 0117 + función site-health-check): última
+     corrida del chequeo semanal de que el sitemap propio no apunte a ninguna
+     URL rota — la causa raíz de la mayoría de los 404 reales del audit del
+     2026-07-26. Panel independiente de gsc-stats: se carga igual aunque
+     Search Console falle (mismo trato best-effort que loadSeoIndex). ---- */
+  let shData = null;
+  function shRender(){
+    const body = $('sh-body'); if (!body) return;
+    if (!shData){ body.innerHTML = '<p class="muted-note">Sin corridas todavía — tocá «🔄 Revisar ahora» o esperá al cron del lunes.</p>'; return; }
+    const when = new Date(shData.created_at).toLocaleString('es-CH');
+    const broken = shData.broken || [];
+    const redirects = shData.redirects || [];
+    let html = '<div class="muted-note" style="margin-bottom:8px">Última corrida: ' + esc(when) + '</div>' +
+      '<div style="font-size:14px;margin-bottom:10px"><b>' + (shData.total || 0) + '</b> URLs totales · <b style="' + (broken.length ? 'color:#ff8b8b' : '') + '">' + (shData.broken_count || 0) + ' rotas</b> · ' + (shData.redirect_count || 0) + ' redirigiendo</div>';
+    if (!shData.broken_count) {
+      html += '<div class="seo-okline">✅ Todo el sitemap responde 200.</div>';
+    } else {
+      html += '<details><summary style="cursor:pointer;font-weight:600;font-size:13.5px">Ver ' + broken.length + ' URL' + (broken.length === 1 ? '' : 's') + ' rota' + (broken.length === 1 ? '' : 's') + '</summary><div style="margin-top:8px">' +
+        broken.map((b) => '<div class="seo-badline">⚠ <a href="' + esc(b.url) + '" target="_blank" rel="noopener">' + esc(b.url) + '</a> — HTTP ' + esc(String(b.status || 'sin respuesta')) + '</div>').join('') +
+        '</div></details>';
+    }
+    if (redirects.length) {
+      html += '<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600;font-size:13.5px">Ver ' + redirects.length + ' redirigiendo</summary><div style="margin-top:8px">' +
+        redirects.map((r) => '<div class="seo-warnline">⏳ <a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.url) + '</a> — HTTP ' + esc(String(r.status)) + (r.location ? ' → ' + esc(r.location) : '') + '</div>').join('') +
+        '</div></details>';
+    }
+    body.innerHTML = html;
+  }
+  async function loadSiteHealth(){
+    const body = $('sh-body'); if (!body) return;
+    try {
+      const { data, error } = await supabase.from('site_health_runs').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (error) throw error;
+      shData = data;
+      shRender();
+    } catch (e) {
+      body.innerHTML = '<p class="muted-note">¿Corriste la migración 0117 (site_health_runs)? ' + esc(e.message || String(e)) + '</p>';
+    }
+  }
+  async function shRun(){
+    const btn = $('sh-run'); if (!btn || btn.disabled) return;
+    btn.disabled = true; btn.textContent = '⏳ Revisando…';
+    try {
+      const { data, error } = await supabase.functions.invoke('site-health-check', { body: {} });
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+      await loadSiteHealth();
+    } catch (e) {
+      alert('No se pudo revisar: ' + (e.message || e));
+    } finally {
+      btn.disabled = false; btn.textContent = '🔄 Revisar ahora';
+    }
+  }
+  (function(){ const b = $('sh-run'); if (b) b.addEventListener('click', shRun); })();
+
   // delta de posición: BAJAR es mejorar (al revés que clicks/impresiones) — verde cuando mejora
   function seoPosDelta(cur, prev){
     const el = $('seo-k-pos-d'); if (!el) return;
@@ -7060,6 +7126,7 @@ const newsCases = [
       seoRenderCannib(data);
       loadSeoTrend(data.queries);   // best-effort, en paralelo — no bloquea lo de arriba
       loadSeoIndex();               // idem
+      loadSiteHealth();             // idem — 🩺 salud del sitemap (SQL 0117)
     } catch (e) {
       el.innerHTML = '<div class="panel"><h2>Conectar Search Console</h2>' +
         '<p class="muted-note" style="line-height:1.7">No pude leer Search Console: <b>' + esc(e.message || e) + '</b><br><br>' +
@@ -7074,6 +7141,7 @@ const newsCases = [
       const cannibEl = $('seo-cannib-wrap'); if (cannibEl) cannibEl.innerHTML = '<p class="muted-note">Esperando datos de Search Console.</p>';
       const trendEl = $('seo-trend-wrap'); if (trendEl) trendEl.innerHTML = '<p class="muted-note">Esperando datos de Search Console.</p>';
       loadSeoIndex(); // esto no depende de gsc-stats — se puede mostrar igual
+      loadSiteHealth(); // idem
       loadSeoActions().then(seoRenderHistory); // el historial tampoco depende de gsc-stats
     }
   }
