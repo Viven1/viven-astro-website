@@ -4,6 +4,9 @@
 // con CUERPO VACÍO (pantalla en blanco) en vez de nuestra 404.
 // name/compatibility copiados EXACTOS del dashboard (Settings → Runtime) —
 // si el name no coincide, wrangler crearía un Worker nuevo sin el dominio.
+// run_worker_first:true (antes solo ["/"]) — 2026-07-28: el worker ahora
+// también hace el 301 apex→www para CUALQUIER path (ver worker.js), así que
+// tiene que correr en todas las requests, no solo en la raíz.
 {
   "name": "viven-astro-website",
   "main": "worker.js",
@@ -13,6 +16,6 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/"]
+    "run_worker_first": true
   }
 }
