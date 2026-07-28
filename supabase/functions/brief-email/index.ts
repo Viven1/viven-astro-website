@@ -22,6 +22,29 @@ const cors = {
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
+// Además de Supabase, el lead también va a HubSpot (mismo portal/form que el
+// contact form del sitio y el embed de las landings de Ads) — pedido de
+// Sebastián 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
+// Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
+async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string }) {
+  try {
+    await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: [
+          { name: "firstname", value: opts.firstname || "" },
+          { name: "lastname", value: opts.lastname || "" },
+          { name: "email", value: opts.email },
+          { name: "company", value: opts.company || "-" },
+          { name: "message", value: opts.message || "" },
+        ],
+        context: { pageUri: "https://www.viven.ch/" },
+      }),
+    });
+  } catch (_e) { /* best-effort */ }
+}
+
 async function rateLimited(fn: string, ip: string, max = 5, windowMin = 10): Promise<boolean> {
   const since = new Date(Date.now() - windowMin * 60_000).toISOString();
   const { count } = await service.from("rl_hits").select("id", { count: "exact", head: true }).eq("fn", fn).eq("key", ip).gte("at", since);
@@ -73,6 +96,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ from: "VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: t.subject, html }),
     });
     if (!res.ok) { console.error("RESEND_FAIL", await res.text()); return json({ error: "send_failed" }, 502); }
+    await hubspotSubmit({ firstname: first, lastname: last, email: to, message: `Brief de proyecto enviado (${pairs.length} respuestas)` });
     return json({ ok: true });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));

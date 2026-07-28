@@ -48,6 +48,29 @@ const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, 
 // Debe coincidir con booking-slots y con el backfill de la migración 0080.
 const slugify = (name: string) => String(name || "").trim().split(/\s+/)[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+// Adem\u00e1s de Supabase, el lead tambi\u00e9n va a HubSpot (mismo portal/form que el
+// contact form del sitio y el embed de las landings de Ads) \u2014 pedido de
+// Sebasti\u00e1n 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
+// Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
+async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string }) {
+  try {
+    await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: [
+          { name: "firstname", value: opts.firstname || "" },
+          { name: "lastname", value: opts.lastname || "" },
+          { name: "email", value: opts.email },
+          { name: "company", value: opts.company || "-" },
+          { name: "message", value: opts.message || "" },
+        ],
+        context: { pageUri: "https://www.viven.ch/book/" },
+      }),
+    });
+  } catch (_e) { /* best-effort */ }
+}
+
 async function googleToken(refreshToken?: string): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -295,6 +318,10 @@ Deno.serve(async (req) => {
         });
       }
     } catch (_e) { /* push opcional */ }
+
+    const bkFirst = name.trim().split(/\s+/)[0] || "";
+    const bkLast = name.trim().split(/\s+/).slice(1).join(" ");
+    await hubspotSubmit({ firstname: bkFirst, lastname: bkLast, email, message: `Call agendada — ${new Date(startMs).toISOString()} (${duration} min)${message ? " — " + message : ""}` });
 
     const customMsg = ({ en: cfg.msg_en, de: cfg.msg_de, es: cfg.msg_es } as Record<string, unknown>)[lang] || null;
     return json({ ok: true, meet_url: meet, start: new Date(startMs).toISOString(), duration, brief_url: briefUrl, msg: customMsg });

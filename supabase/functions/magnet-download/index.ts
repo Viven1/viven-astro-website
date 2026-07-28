@@ -17,6 +17,29 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
+// Además de Supabase, el lead también va a HubSpot (mismo portal/form que el
+// contact form del sitio y el embed de las landings de Ads) — pedido de
+// Sebastián 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
+// Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
+async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string }) {
+  try {
+    await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: [
+          { name: "firstname", value: opts.firstname || "" },
+          { name: "lastname", value: opts.lastname || "" },
+          { name: "email", value: opts.email },
+          { name: "company", value: opts.company || "-" },
+          { name: "message", value: opts.message || "" },
+        ],
+        context: { pageUri: "https://www.viven.ch/" },
+      }),
+    });
+  } catch (_e) { /* best-effort */ }
+}
+
 // el cliente NO elige el archivo — solo el magnet+lang; el mapeo vive acá
 // (nadie puede pedir paths arbitrarios del bucket).
 const MAGNETS: Record<string, { file: (lang: string) => string; label: string }> = {
@@ -48,6 +71,7 @@ Deno.serve(async (req) => {
       if (b.landing_path) row.landing_path = b.landing_path;
       await service.from("leads").insert(row);
     } catch (e) { console.error("LEAD_INSERT_WARN", String(e)); }
+    await hubspotSubmit({ email, message: magnet.label });
 
     const { data, error } = await service.storage.from("magnets").createSignedUrl(magnet.file(lang), 300);
     if (error || !data?.signedUrl) return json({ error: "no se pudo firmar: " + (error?.message || "?") }, 500);

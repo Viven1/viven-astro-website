@@ -586,6 +586,8 @@ document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){
       row.lang = extra.lang;
       if(extra.attrib){ row.channel = extra.attrib.channel; row.utm_source = extra.attrib.utm_source; row.landing_path = extra.attrib.landing_path; }
     }
+    /* también a HubSpot — pedido 2026-07-28: todo lead de viven.ch sincronizado en ambos */
+    hubspotSubmit('', '', email, 'Newsletter signup', '-');
     sbInsertLead(row).then(function(res){
       var box = form.closest('[data-nl]');
       if(res && res.ok){ form.hidden = true; var d = box.querySelector('.nl-done'); if(d) d.hidden = false; }
