@@ -5557,10 +5557,6 @@ const newsCases = [
         }
       }
     }
-    // al avanzar/cerrar se cancela la secuencia vieja (la nueva se genera para la etapa nueva)
-    if (['videocall', 'propuesta', 'ganado', 'perdido'].includes(stage)) {
-      supabase.from('lead_followups').update({ status: 'canceled' }).eq('lead_id', String(d.lead_id)).in('status', ['draft', 'approved']);
-    }
     await mirrorLeadStatus(d.lead_id);
     renderLeads();
     return true;
@@ -5998,9 +5994,6 @@ const newsCases = [
     if (stage === 'perdido') cascadeLost(lead, lostReason || null);
     // Ganado: las ofertas abiertas del lead pasan a ganadas (sync total deals ↔ ofertas)
     if (stage === 'ganado') cascadeWon(lead);
-    // el deal avanzó o cerró → cancelar follow-ups pendientes (además del guard del cron)
-    if (['videocall', 'propuesta', 'ganado', 'perdido'].includes(stage))
-      supabase.from('lead_followups').update({ status: 'canceled' }).eq('lead_id', String(id)).in('status', ['draft', 'approved']);
     return true;
   }
   // Deal ganado → sus ofertas abiertas (borrador/enviada) también, así Home y Ofertas dicen la verdad
@@ -7595,8 +7588,13 @@ const newsCases = [
       '<input id="lm2-task-t" placeholder="Nueva task…" style="width:100%" />' +
       '<div class="lm2-crow"><input id="lm2-task-d" type="date" /><input id="lm2-task-h" type="time" /><select id="lm2-task-a">' + teamOptions('', 'Responsable') + '</select><span class="sp"></span><button class="btn btn-primary small" id="lm2-task-save" type="button">+ Task</button></div>';
     else body =
+      // asunto editable (antes era fijo en send-outreach, sin relación con el cuerpo real) +
+      // hint opcional: la IA arma el email completo leyendo la conversación real, no
+      // solo el mensaje original — con hint vacío igual arma el próximo paso natural.
+      '<input id="lm2-mail-subj" placeholder="Asunto" value="' + esc(SUBJECTS[lang] || SUBJECTS.en) + '" style="margin-bottom:8px" />' +
       '<textarea id="lm2-mail-b" style="min-height:110px">' + esc(buildDraft(r)) + '</textarea>' +
-      '<div class="lm2-crow"><label style="font-size:12px;color:var(--muted)">De: <select id="lm2-mail-de"><option value="sofia"' + (sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option></select></label><button class="btn btn-ghost small" id="lm2-mail-ai" type="button" title="Sugerencia personalizada con IA">✨ IA</button><span class="sp"></span><button class="btn btn-primary small" id="lm2-mail-send" type="button">📨 Enviar al lead</button></div>';
+      '<div class="lm2-crow"><input id="lm2-mail-hint" placeholder="¿De qué debería hablar? (opcional — la IA lee la conversación real)" style="flex:1;min-width:200px" /></div>' +
+      '<div class="lm2-crow"><label style="font-size:12px;color:var(--muted)">De: <select id="lm2-mail-de"><option value="sofia"' + (sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option></select></label><button class="btn btn-ghost small" id="lm2-mail-ai" type="button" title="Escribe el email completo con IA, leyendo la conversación real">✨ Generar con IA</button><span class="sp"></span><button class="btn btn-primary small" id="lm2-mail-send" type="button">📨 Enviar al lead</button></div>';
     box.innerHTML = '<div class="lm2-ctabs">' + tab('nota', '📝 Nota') + tab('task', '✅ Task') + tab('email', '✉️ Email') + '</div><div class="lm2-cbody">' + body + '</div>';
     box.querySelectorAll('.lm2-ctabs button').forEach((b) => b.addEventListener('click', () => { lm2Tab = b.dataset.t; lm2RenderComposer(); }));
     const nb = $('lm2-note-save'); if (nb) nb.addEventListener('click', async () => {
@@ -7620,46 +7618,40 @@ const newsCases = [
       if (lm2Mobile()) lm2CompCollapsed = true; // móvil: guardó → el composer vuelve a plegarse
       toast('Task creada'); loadBell(); lm2RenderComposer(); lm2LoadTimeline(r); lm2RenderRight(r);
     });
-    /* ✨ IA en el email V2: misma edge function ai-suggest —
-       la IA devuelve SOLO la frase personalizada (proof) y buildDraft arma el resto,
-       así las CTAs y el brief nunca se pierden. Acá el error va por toast (no hay lm-status-note). */
+    /* ✨ Generar con IA: escribe el email COMPLETO (asunto + cuerpo) leyendo la
+       conversación real (email_log, ambas direcciones) — no solo el mensaje
+       original del lead como antes (ai-suggest solo daba una frase-gancho para
+       insertar en la plantilla fija de buildDraft). El hint es opcional: sin
+       él, arma el próximo follow-up natural según dónde quedó la charla. */
     const ab = $('lm2-mail-ai'); if (ab) ab.addEventListener('click', async () => {
       const prev = ab.textContent;
-      ab.disabled = true; ab.textContent = '✨ Pensando…';
+      ab.disabled = true; ab.textContent = '✨ Leyendo la conversación…';
       try {
-        const { data, error } = await supabase.functions.invoke('ai-suggest', {
-          body: { lead: r, lang: r.lang || 'es' }
+        const { data: hist } = await supabase.from('email_log').select('direction,subject,body,created_at').eq('lead_id', String(r.id)).order('created_at', { ascending: true }).limit(20);
+        const history = (hist || []).map((h) => ({ direction: h.direction, subject: h.subject, body: String(h.body || '').replace(/<[^>]+>/g, ' ').slice(0, 500) }));
+        const hint = ($('lm2-mail-hint') && $('lm2-mail-hint').value || '').trim();
+        const { data, error } = await supabase.functions.invoke('ai-email-draft', {
+          body: { lead: r, sender: $('lm2-mail-de') ? $('lm2-mail-de').value : sender, hint, history }
         });
-        if (error) throw new Error(data?.error || error?.message || 'sin respuesta');
-        let aiProof = (data && data.proof || '').trim();
-        // Si vino un email entero (versión vieja de ai-suggest, con saludo/firma/CTA) NO lo insertamos como frase.
-        const looksLikeFullEmail = /\n|hola|guten tag|hi\b|saludos|grüsse|best,|\[tu nombre\]|agendá|book|brief/i.test(aiProof);
-        if (data && data.suggestion && !data.proof) {
-          throw new Error('La función ai-suggest está desactualizada. Redeployala: supabase functions deploy ai-suggest --no-verify-jwt');
-        }
-        if (!aiProof) throw new Error(data?.error || 'sin respuesta');
-        if (looksLikeFullEmail || aiProof.length > 240) {
-          throw new Error('La IA devolvió un texto raro (no una frase corta). Probá de nuevo o redeployá ai-suggest.');
-        }
-        // limpiar comillas/punto final por las dudas
-        aiProof = aiProof.replace(/^["'«»]+|["'«».]+$/g, '').trim();
-        const ta = $('lm2-mail-b'); if (ta) ta.value = buildDraft(r, aiProof);
-        toast('✨ Frase personalizada con IA — revisalo antes de enviar');
+        if (error || data?.error) throw new Error(data?.error || error?.message || 'sin respuesta');
+        const ta = $('lm2-mail-b'); if (ta) ta.value = data.body;
+        const su = $('lm2-mail-subj'); if (su) su.value = data.subject;
+        toast('✨ Borrador generado — revisalo antes de enviar');
       } catch (e) {
-        toast('No se pudo generar con IA (¿deployaste la función ai-suggest?): ' + (e.message || e));
+        toast('No se pudo generar con IA: ' + (e.message || e));
       } finally {
         ab.disabled = false; ab.textContent = prev;
       }
     });
     const mb = $('lm2-mail-send'); if (mb) mb.addEventListener('click', async () => {
-      const lang = ['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en';
       const bodyTxt = $('lm2-mail-b').value.trim(); if (!bodyTxt) return;
+      const subjTxt = ($('lm2-mail-subj') && $('lm2-mail-subj').value.trim()) || SUBJECTS[['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en'];
       const de = $('lm2-mail-de').value;
       if (!confirm('¿Enviar este email a ' + r.email + '? Sale desde info@viven.ch.')) return;
       mb.disabled = true; mb.textContent = '📨 Enviando…';
       try {
         const { data, error } = await supabase.functions.invoke('send-outreach', {
-          body: { to: r.email, subject: SUBJECTS[lang], body: bodyTxt, lead_id: r.id, mark_contacted: true, fromName: (SENDERS[de] || SENDERS.sofia).name }
+          body: { to: r.email, subject: subjTxt, body: bodyTxt, lead_id: r.id, mark_contacted: true, fromName: (SENDERS[de] || SENDERS.sofia).name }
         });
         if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
         r.status = 'contactado'; renderLeads();
@@ -7911,8 +7903,7 @@ const newsCases = [
               : '<details><summary class="top" style="cursor:pointer;list-style:none">🔎 Enriquecido <span class="n">' + (r.enriched_at ? esc(fmtDMY(r.enriched_at)) : '') + '</span></summary><div style="font-size:12px;padding:4px 2px 2px">' + enrichHTML(r.enrichment || {}) + '</div></details>') +
           '</div>'
         : '') +
-      '<div class="lm2-as" id="lm2-brief-card" hidden><div class="top">📋 Brief <span class="n" id="lm2-brief-when"></span></div><div class="row" id="lm2-brief-row" style="color:var(--muted)"></div></div>' +
-      '<div class="lm2-as" id="lm2-fu-card" hidden><div class="top">📬 Automación <span class="n" id="lm2-fu-n"></span></div><div class="row" id="lm2-fu-row" style="color:var(--muted);cursor:default"></div></div>';
+      '<div class="lm2-as" id="lm2-brief-card" hidden><div class="top">📋 Brief <span class="n" id="lm2-brief-when"></span></div><div class="row" id="lm2-brief-row" style="color:var(--muted)"></div></div>';
     $('lm2-add-deal').addEventListener('click', async () => { const t = prompt('Nombre del nuevo proyecto:', 'Nuevo proyecto — ' + (r.name || r.email || '')); if (t === null) return; const d = await newDealForLead(r.id, t.trim() || 'Nuevo proyecto', 'nuevo'); if (d) { toast('🤝 Proyecto creado'); openLeadV2(r.id); } });
     $('lm2-add-of').addEventListener('click', () => { closeLead2(); makeOfferForLead(r); });
     $('lm2-r').querySelectorAll('.lm2-of').forEach((b) => b.addEventListener('click', () => { closeLead2(); gotoTab('offers'); openOffer(b.dataset.oid); }));
@@ -7922,14 +7913,6 @@ const newsCases = [
       $('lm2-brief-card').hidden = false;
       $('lm2-brief-when').textContent = new Date(b.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' });
       $('lm2-brief-row').textContent = [b.goal, b.budget, b.timeline].filter(Boolean).join(' · ') || 'ver en la timeline';
-    });
-    supabase.from('lead_followups').select('status,send_at').eq('lead_id', String(r.id)).order('send_at').then(({ data }) => {
-      if (!data || !data.length || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
-      const appr = data.filter((f) => f.status === 'approved'), draft = data.filter((f) => f.status === 'draft');
-      if (!appr.length && !draft.length) return;
-      $('lm2-fu-card').hidden = false;
-      $('lm2-fu-n').textContent = appr.length ? 'activa' : 'borradores';
-      $('lm2-fu-row').textContent = appr.length ? (appr.length + ' programado' + (appr.length === 1 ? '' : 's') + ' · próximo: ' + new Date(appr[0].send_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' })) : (draft.length + ' borrador' + (draft.length === 1 ? '' : 'es') + ' sin aprobar');
     });
   }
 
