@@ -3364,6 +3364,17 @@ const newsCases = [
 .lm2-morefields{margin-top:12px;font-size:11.5px;color:var(--muted)}
 .lm2-morefields summary{cursor:pointer;text-decoration:underline dotted}
 .lm2-morefields .lm2-kv{margin-top:10px}
+/* borrador(es) pendiente(s) de aprobar para ESTE contacto — visible en la ficha
+   misma (pedido explícito de Sebastián: "poné los emails a aprobar en el
+   contacto mismo, así todos vemos que se les envía"), no solo en la Bandeja. */
+.lm2-ob-card{border:1px solid color-mix(in srgb,var(--acid) 45%,var(--line-strong));border-left:3px solid var(--acid);border-radius:13px;background:var(--navy-800);margin-bottom:14px;padding:14px 16px}
+.lm2-ob-card+.lm2-ob-card{margin-top:-4px}
+.lm2-ob-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.lm2-ob-hd b{font-size:13px}
+.lm2-ob-subj{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.lm2-ob-body{font-size:13px;color:var(--muted);line-height:1.5;white-space:pre-wrap;max-height:110px;overflow:hidden;margin-bottom:10px}
+.lm2-ob-btns{display:flex;gap:8px;flex-wrap:wrap}
+#ob-list .au-step.ob-focus{outline:2px solid var(--acid);outline-offset:3px;transition:outline-color .3s}
 .lm2-composer{border:1px solid var(--line-strong);border-radius:13px;background:var(--navy-800);margin-bottom:16px;overflow:hidden}
 .lm2-ctabs{display:flex;border-bottom:1px solid var(--line);font-size:12px;font-weight:700}
 .lm2-ctabs button{background:transparent;border:0;color:var(--muted);font:inherit;font-weight:700;padding:9px 14px;cursor:pointer}
@@ -3452,6 +3463,7 @@ const newsCases = [
     <div class="lm2-grid">
       <aside class="lm2-l" id="lm2-l"></aside>
       <main class="lm2-c">
+        <div id="lm2-ob" hidden></div>
         <div class="lm2-composer" id="lm2-composer"></div>
         <div class="lm2-chips" id="lm2-chips"></div>
         <div class="lm2-tl" id="lm2-tl"><p class="muted-note">Cargando actividad…</p></div>
@@ -4063,7 +4075,7 @@ const newsCases = [
     __perfMark('login_role_done');
     show('dash');
     __perfMark('login_shell_shown');
-    loadAll().then(openFromQuery);
+    loadAll().then(async () => { await openTabFromQuery(); openFromQuery(); });
   });
   $('logout-btn').addEventListener('click', async () => {
     await supabase.auth.signOut();
@@ -7297,6 +7309,50 @@ const newsCases = [
     return '<div class="lm2-webbadge" title="Ventana del rango elegido — el historial completo está en el filtro 🌐 Web de abajo">🌐 Visitó la web hace ' + timeAgo(last.created_at) + ' · ' + hits.length + ' página' + (hits.length === 1 ? '' : 's') + '</div>';
   }
 
+  // borradores pendientes/aprobados de ESTE lead — misma tabla/lógica que la
+  // Bandeja de salida (obLoad), pero visible directo en la ficha del contacto.
+  async function lm2LoadPendingOutbox(r){
+    const box = $('lm2-ob'); if (!box) return;
+    try {
+      const { data, error } = await supabase.from('outbox').select('*').eq('lead_id', r.id).in('status', ['pending', 'approved']).order('created_at');
+      if (error || !data || !data.length){ box.hidden = true; box.innerHTML = ''; return; }
+      const KIND_LBL = { followup: '📬 Follow-up', content_followup: '🎯 Contenido', reactivation: '♻️ Reactivación', workflow: '⚙️ Workflow' };
+      box.hidden = false;
+      box.innerHTML = data.map((o) => {
+        const approved = o.status === 'approved';
+        return '<div class="lm2-ob-card" data-obid="' + o.id + '">' +
+          '<div class="lm2-ob-hd"><b>' + (KIND_LBL[o.kind] || '📤 Borrador') + (approved ? ' · sale en 10 min' : ' · para aprobar') + '</b>' +
+          '<button class="btn btn-ghost small" data-obedit="' + o.id + '" type="button">✏️ Editar en Bandeja</button></div>' +
+          '<div class="lm2-ob-subj">' + esc(o.subject || '') + '</div>' +
+          '<div class="lm2-ob-body">' + esc((o.kind === 'content_followup' ? obHtmlToPreviewText(o.body) : String(o.body || '')).slice(0, 240)) + '</div>' +
+          '<div class="lm2-ob-btns">' +
+          (approved
+            ? '<button class="btn btn-ghost small" data-obundo2="' + o.id + '" type="button">↩︎ Deshacer</button>'
+            : '<button class="btn btn-primary small" data-obok2="' + o.id + '" type="button">✅ Aprobar y enviar</button>' +
+              '<button class="btn btn-ghost small danger" data-obno2="' + o.id + '" type="button">✕ No enviar</button>') +
+          '</div></div>';
+      }).join('');
+      box.querySelectorAll('[data-obedit]').forEach((b) => b.addEventListener('click', () => { closeLead2(); gotoTab('sistema'); sistemaSetSub('auto'); obFocus(b.dataset.obedit); }));
+      box.querySelectorAll('[data-obok2]').forEach((b) => b.addEventListener('click', async () => {
+        const o = data.find((x) => String(x.id) === String(b.dataset.obok2));
+        if (!confirm('¿Aprobar este email para ' + (r.name || r.email) + '?\n\nAsunto: ' + (o.subject || '') + '\n\nSale en 10 minutos — hasta entonces podés deshacerlo.')) return;
+        const { error: e2 } = await supabase.from('outbox').update({ status: 'approved', scheduled_at: obUndoSched(o.id) }).eq('id', o.id);
+        if (e2){ toast('⚠️ ' + e2.message); return; }
+        toast('✅ Aprobado — 🕐 sale en 10 min'); lm2LoadPendingOutbox(r);
+      }));
+      box.querySelectorAll('[data-obno2]').forEach((b) => b.addEventListener('click', async () => {
+        await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.obno2);
+        toast('✕ No se envía'); lm2LoadPendingOutbox(r);
+      }));
+      box.querySelectorAll('[data-obundo2]').forEach((b) => b.addEventListener('click', async () => {
+        const o = data.find((x) => String(x.id) === String(b.dataset.obundo2));
+        const upd = o && o.kind === 'content_followup' ? { status: 'pending' } : { status: 'pending', scheduled_at: null };
+        const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', o.id).eq('status', 'approved');
+        if (e2){ toast('⚠️ ' + e2.message); return; }
+        toast('↩︎ Deshecho — volvió a pendiente'); lm2LoadPendingOutbox(r);
+      }));
+    } catch (e) { box.hidden = true; }
+  }
   function openLeadV2(id){
     const r = allLeads.find((l) => String(l.id) === String(id));
     if (!r) return;
@@ -7426,6 +7482,7 @@ const newsCases = [
     lm2RenderComposer();
     lm2RenderRight(r);   // pinta al toque con lo que hay en memoria; el brief/followups llegan async
     lm2LoadTimeline(r);
+    lm2LoadPendingOutbox(r);
 
     modal2.classList.add('open');
     modal2.setAttribute('aria-hidden', 'false');
@@ -15026,11 +15083,27 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       const qs = new URLSearchParams(location.search);
       const lid = qs.get('lead');
       const oid = qs.get('offer');
-      if (!lid && !oid) return;
+      const obid = qs.get('ob');
+      if (!lid && !oid && !obid) return;
       history.replaceState({}, '', location.pathname);
       if (lid) { gotoTab('leads'); openLead(lid); }
       else if (oid) { gotoTab('offers'); openOffer(oid); }
+      else if (obid) obFocus(obid); // tab/sub (sistema/auto) ya los puso openTabFromQuery()
     } catch (e) {}
+  }
+  // link de "nuevo borrador" del email: ?tab=sistema&sub=auto&ob=<id> ya deja
+  // parado en la bandeja (openTabFromQuery) — esto scrollea + resalta la tarjeta
+  // exacta, sin que Sebastián tenga que buscarla entre las demás (pedido explícito).
+  function obFocus(id, tries){
+    tries = tries || 0;
+    const card = document.querySelector('#ob-list [data-ob="' + String(id).replace(/"/g, '') + '"]');
+    if (card){
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ob-focus');
+      setTimeout(() => card.classList.remove('ob-focus'), 2800);
+    } else if (tries < 24){
+      setTimeout(() => obFocus(id, tries + 1), 150); // obLoad() es async — reintenta hasta que renderice
+    }
   }
   // restaura el tab (+ sub-tab) de la URL al entrar/refrescar — contraparte de
   // syncTabUrl(). Si además hay ?lead=/?offer= (link viejo o compartido), esos
