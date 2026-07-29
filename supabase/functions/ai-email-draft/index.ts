@@ -57,7 +57,16 @@ Deno.serve(async (req) => {
     // de responder — ahora se exige explícitamente una respuesta directa
     // (sí/no/depende) a cualquier pregunta puntual, citando el número o dato
     // concreto que el contacto mencionó, no una alusión genérica.
-    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully, especially anything labeled as the contact's own words. If the contact asked a specific, concrete question anywhere (a budget number, "would X be enough", feasibility, timeline), you MUST give a direct explicit answer (yes / no / it depends and why) to that EXACT question as the main point of the email — reference their specific number or detail back to them, don't just gesture at "the budget you mentioned" without saying whether it works. Never dodge a direct question with a vague acknowledgment. Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context — if unsure of an exact number, give the closest real range from the context and say it depends on scope, but still answer directly. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
+    //
+    // fix 3 (mismo lead, re-testeado en vivo): la IA seguía sin contestar el
+    // número puntual — resultó ser que latestBriefFor() (dashboard) traía el
+    // brief EQUIVOCADO: el botón "pedir cotización" del brief-tool inserta una
+    // fila-flag nueva (sin goal/answers, solo un extra sintético) segundos
+    // después del brief real, y por fecha quedaba como "la más reciente" —
+    // tapando el brief real con la pregunta del cliente. Fix real iba en
+    // latestBriefFor() (index.astro), no en este prompt — se lo deja reforzado
+    // igual porque ayuda independientemente de cuál sea la fuente del dato.
+    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully. If a block is marked ⚠️ / "SUS PROPIAS PALABRAS" / "own words", that is the contact's own literal free-text message — it overrides any multiple-choice bracket elsewhere in the context (e.g. a "<5k" budget checkbox is NOT the same thing as "CHF 500-1499"). If it contains a specific number, range, or direct question, quote that exact number/range back to them and give a direct explicit answer (yes / no / it depends and why) as the main point of the email — never dodge with a vague acknowledgment like "the budget you mentioned." Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
 
     // últimas entradas reales del hilo (ambas direcciones) — el dashboard ya las
     // tiene cargadas en la timeline, se las pasa acá tal cual, sin re-consultar.
@@ -68,8 +77,17 @@ Deno.serve(async (req) => {
         (h.subject ? ` ("${h.subject}")` : "") + ": " + String(h.body || "").slice(0, 800))
       .join("\n\n");
 
-    const ctx = `CONTACT: ${lead.name || lead.email || ""} · ${lead.company || ""} · stage: ${lead.status || "nuevo"} · channel: ${lead.channel || "direct"}\nORIGINAL MESSAGE (read in full, may contain specific questions): "${String(lead.message || "(none)").slice(0, 2000)}"` +
-      (brief && String(brief).trim() ? `\n\nDEEP BRIEF (read in full):\n${String(brief).slice(0, 2500)}` : "") +
+    // el texto libre del brief ("SUS PROPIAS PALABRAS...") se saca del bloque
+    // DEEP BRIEF y va PRIMERO en el ctx, antes que nada — enterrado a mitad de
+    // un volcado de 13 campos la IA lo trataba como dato menor y lo sustituía
+    // por el bracket de presupuesto de opción múltiple (fix 3, 2026-07-29).
+    const ownWordsMatch = String(brief || "").match(/^SUS PROPIAS PALABRAS[^\n]*\n\n/);
+    const ownWords = ownWordsMatch ? ownWordsMatch[0].trim() : "";
+    const briefRest = ownWordsMatch ? String(brief).slice(ownWordsMatch[0].length) : String(brief || "");
+
+    const ctx = (ownWords ? `⚠️ ${ownWords} — answer this directly and specifically, it overrides any bracket/checkbox below.\n\n` : "") +
+      `CONTACT: ${lead.name || lead.email || ""} · ${lead.company || ""} · stage: ${lead.status || "nuevo"} · channel: ${lead.channel || "direct"}\nORIGINAL MESSAGE (read in full, may contain specific questions): "${String(lead.message || "(none)").slice(0, 2000)}"` +
+      (briefRest && briefRest.trim() ? `\n\nDEEP BRIEF (read in full):\n${briefRest.slice(0, 2500)}` : "") +
       (histTxt ? `\n\nCONVERSATION SO FAR (oldest first):\n${histTxt}` : "\n\n(no previous email exchange yet)");
 
     const task = hint && String(hint).trim()

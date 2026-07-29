@@ -6129,12 +6129,20 @@ const newsCases = [
   function openLead(id){ openLeadV2(id); }
 
   /* ---------- Brief del cliente (tabla briefs): visible en el contacto ---------- */
+  // el botón "Sí, mandame una cotización" del brief-tool inserta OTRA fila en
+  // briefs (sin goal/answers, solo un extra sintético "🔔 QUIERE COTIZACIÓN...")
+  // unos segundos después del brief real, para que el team la vea como flag —
+  // pero por fecha queda como "la más reciente" y tapaba el brief profundo real
+  // (con sus respuestas y el texto libre del cliente) en toda la IA que usa este
+  // helper (email draft, oferta, propuesta). Preferimos la fila con goal (brief
+  // real) sobre una fila-flag más nueva sin goal (2026-07-29).
+  const pickDeepestBrief = (rows) => (rows || []).find((b) => b && b.goal) || (rows && rows[0]) || null;
   async function latestBriefFor(lead){
     try {
-      let { data } = await supabase.from('briefs').select('*').eq('lead_id', String(lead.id)).order('created_at', { ascending: false }).limit(1);
+      let { data } = await supabase.from('briefs').select('*').eq('lead_id', String(lead.id)).order('created_at', { ascending: false }).limit(5);
       if ((!data || !data.length) && lead.email)
-        ({ data } = await supabase.from('briefs').select('*').ilike('email', lead.email).order('created_at', { ascending: false }).limit(1));
-      return (data && data[0]) || null;
+        ({ data } = await supabase.from('briefs').select('*').ilike('email', lead.email).order('created_at', { ascending: false }).limit(5));
+      return pickDeepestBrief(data);
     } catch (e) { return null; }
   }
   // mismos campos que la card de brief en la timeline (lm2LoadTimeline) — texto
