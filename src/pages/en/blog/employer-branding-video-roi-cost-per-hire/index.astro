@@ -1,0 +1,138 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Employer Branding Video ROI: Cost-Per-Hire Impact | Viven"};
+const description = {"en":"How employer branding videos reduce cost-per-hire and time-to-hire. Metrics, ROI calculation, and real hiring impact for recruiters."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "employer-branding-video-roi-cost-per-hire";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/employer-branding-video-roi-cost-per-hire" active="blog" singleLang={true} langUrls={{"en":"/en/blog/employer-branding-video-roi-cost-per-hire/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/employer-branding-video-roi-cost-per-hire/\"},\"headline\":\"Employer Branding Video ROI: Cost-Per-Hire Impact\",\"description\":\"How employer branding videos reduce cost-per-hire and time-to-hire. Metrics, ROI calculation, and real hiring impact for recruiters.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/employer-branding-video-roi-cost-per-hire/\",\"datePublished\":\"2026-07-29T19:25:51.949Z\",\"image\":\"https://www.viven.ch/projects/siemens-shaping-the-future-together-employer-branding-campaign/01-RORES_clean_VIVEN.00_18_49_20.Still052.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Employer Branding Video ROI: Cost-Per-Hire Impact\",\"item\":\"https://www.viven.ch/en/blog/employer-branding-video-roi-cost-per-hire/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How much does an employer branding video cost, and when does it pay for itself?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"A professional employer branding video typically costs CHF 15,000–40,000 depending on scope and production quality. Most companies see ROI within 2–6 months through reduced cost-per-hire and faster hiring cycles. The video asset then generates value for 18–24 months before needing refresh.\"}},{\"@type\":\"Question\",\"name\":\"What percentage reduction in cost-per-hire can we realistically expect?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Companies using video-first employer branding typically see 20–30% reduction in cost-per-hire through fewer unqualified applications, shorter interview cycles, and higher offer acceptance rates. This translates to CHF 100,000–180,000 in annual savings for a 50-person hiring organization.\"}},{\"@type\":\"Question\",\"name\":\"How do we measure the impact of an employer branding video on hiring metrics?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Track four metrics: (1) application volume and quality (unqualified applications %), (2) time-to-hire (days from posting to offer acceptance), (3) offer acceptance rate, and (4) video engagement (watch time, drop-off points). Compare these 3 months before and 6 months after video launch to calculate ROI.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Employer Branding Video ROI: Cost-Per-Hire Impact</span></nav>
+  <span class="eyebrow">Employer Branding</span>
+  <h1>Employer Branding Video ROI: Cost-Per-Hire Impact</h1>
+  <p class="lead">Employer branding videos directly reduce cost-per-hire and time-to-hire by pre-qualifying candidates, improving application quality, and shortening the decision cycle. Instead of paying recruitment agencies or running expensive job campaigns, companies using video-first employer branding see 20–40% fewer unqualified applications, 30–50% faster hiring processes, and ROI payback within 6–12 months. This article breaks down the actual mechanics: what changes in your hiring funnel, how to measure impact, and why most companies leave this lever unpulled.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>July 29, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/siemens-shaping-the-future-together-employer-branding-campaign/01-RORES_clean_VIVEN.00_18_49_20.Still052.jpg" alt="Employer Branding Video ROI: Cost-Per-Hire Impact" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Traditional Recruiting Costs So Much</h2>
+<p>The average cost-per-hire in Switzerland and Germany ranges from CHF 8,000 to CHF 20,000, depending on role seniority and industry. That figure includes recruiter fees (15–25% of annual salary), job board listings, LinkedIn Recruiter subscriptions, interview time, and process overhead. The real hidden cost? Time-to-hire. Every week a role sits open costs the business—lost productivity, team strain, delayed projects. For knowledge workers, a 45-day hire cycle is normal. For competitive roles (engineering, design), it stretches to 60–90 days.</p>
+<p>The root cause: candidates don't self-select. They apply to roles without understanding company culture, team dynamics, or actual day-to-day work. HR screens 200 applications, interviews 15, and hires 1. That's an 86% waste rate in sourcing effort.</p>
+
+<h2>How Employer Branding Video Fixes the Funnel</h2>
+<p>An effective <a href={p("services/employer-branding")}>employer branding video</a> does three things simultaneously:</p>
+<ul>
+<li><strong>Attracts self-qualified candidates:</strong> A 2–3 minute authentic video showing real employees, workspace, and culture signals "this is who we are." Candidates who watch it and apply are already 60% aligned with reality. Unqualified noise drops.</li>
+<li><strong>Accelerates decision-making:</strong> Candidates see the company first, reducing their uncertainty. HR sees fewer rejections in the offer stage because candidates already know what they're signing up for.</li>
+<li><strong>Reduces interview cycles:</strong> When cultural fit is pre-established on video, interviews focus on competency. You can skip a preliminary culture round entirely.</li>
+</ul>
+
+<h2>The Metrics: What Actually Changes</h2>
+<p><strong>Application quality:</strong> Companies embedding video in career pages see 25–40% fewer "spray and pray" applications. That means your recruiter spends half as much time screening garbage.</p>
+<p><strong>Time-to-hire:</strong> With pre-qualified candidates and shorter interview cycles, time-to-hire typically drops 2–3 weeks (from 60 days to 40–50 days). For a knowledge worker earning CHF 150,000/year, that's CHF 5,700 in recovered productivity per hire.</p>
+<p><strong>Offer acceptance rate:</strong> When candidates have seen authentic video evidence of the company before interview, offer acceptance rates climb from 70% to 85–90%. Fewer rejections = fewer restart cycles = faster hiring.</p>
+<p><strong>Cost-per-hire reduction:</strong> If you hire 50 people/year at CHF 12,000 per hire, you're spending CHF 600,000. A video-first strategy reduces that by 20–30%—CHF 120,000–180,000 in annual savings.</p>
+
+<h2>ROI Calculation: The Math You Need</h2>
+<p>A professional employer branding video costs CHF 15,000–40,000 (depending on scope, talent, and production quality). That sounds expensive until you model it:</p>
+<ul>
+<li>Current cost-per-hire: CHF 12,000 × 50 hires = CHF 600,000</li>
+<li>Video investment: CHF 25,000 (one-time)</li>
+<li>Realistic improvement: 20% reduction in cost-per-hire = CHF 120,000 saved annually</li>
+<li>Payback period: 2.5 months</li>
+<li>Year 1 net: CHF 95,000 (savings minus production)</li>
+<li>Year 2–3: CHF 120,000 saved per year (video asset remains active)</li>
+</ul>
+<p>Most companies see positive ROI before the end of Q1 following video launch. The video asset then works for 18–24 months before needing refresh.</p>
+
+<h2>Why Video Works: Psychology + Proof</h2>
+<p>Video triggers emotional processing faster than text or images. When a candidate watches a real engineer explain her role, or sees the break room, or hears the CEO discuss company values, the brain allocates that information differently—it feels real. This reduces post-hire surprise and regret.</p>
+<p>Second: credibility. A text job description is easily dismissed. A video showing actual employees and space is harder to fake. Candidates trust it more, and because of that trust, they self-select more honestly.</p>
+<p>Third: shareability. Employees who see authentic employer brand videos are more likely to refer friends. Employee referrals have the lowest cost-per-hire (CHF 3,000–6,000) and highest retention. Video accelerates referral programs.</p>
+
+<h2>Common Implementation Mistakes</h2>
+<ul>
+<li><strong>Corporate polish without authenticity:</strong> Overly scripted, glossy videos that don't show real work repel candidates. They want messy truth, not marketing fantasy.</li>
+<li><strong>Not updating landing pages:</strong> Shooting a video and burying it on page 3 of your careers site wastes the asset. Video must be first thing candidates see on your careers homepage.</li>
+<li><strong>One-size-for-all approach:</strong> Different roles need different videos. One 3-minute culture overview + role-specific videos (engineering life, design life, sales life) perform 40% better than a single generic film.</li>
+<li><strong>Fire and forget:</strong> Videos should be tracked like any other marketing asset. Monitor watch time, drop-off points, and application conversion rate from video viewers. This data informs refresh timing.</li>
+</ul>
+
+<h2>Getting Started: The Practical Path</h2>
+<p>You don't need a budget-heavy production. <a href={p("services/corporate-video")}>A well-structured corporate video</a> shot in 1–2 days, featuring 4–6 real employees speaking for 30–45 seconds each, edited to 2–3 minutes, costs CHF 15,000–25,000 and outperforms expensive cinematic productions because it feels real.</p>
+<p>Start with interviews: identify 4–6 employees across different departments and tenure levels. Ask them three questions: (1) What surprised you most about working here? (2) What's a typical Tuesday for you? (3) What kind of person should join us? Let them talk naturally. Capture office environment footage. Edit tightly. Deploy on your careers homepage, LinkedIn, and job postings.</p>
+<p>At VIVEN, we've produced employer branding films for clients including Fortune 500 companies and fast-growth tech firms. We know what authenticity looks like on screen, and we know how to structure video to drive measurable hiring outcomes.</p>
+
+<p>If you're spending six figures annually on recruitment and your time-to-hire is creeping toward 90 days, a <a href={p("services/employer-branding")}>strategic employer branding video</a> is the most efficient lever you can pull. <strong>Let's talk about how to structure yours for maximum cost-per-hire impact.</strong> <a href="/contact">Contact us</a> for a free consultation on your hiring video strategy.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="employer-branding-video-roi-cost-per-hire" />
+  </div></section>
+</Base>
