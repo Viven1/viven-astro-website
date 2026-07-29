@@ -1,0 +1,143 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Producción de documentales en Suiza: locación ideal | Viven"};
+const description = {"es":"Descubrí por qué Suiza es una locación ideal para producir documentales, desde paisajes impresionantes hasta financiamiento y equipos multilingües."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "produccion-de-documentales-en-suiza-la-locacion-ideal";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/produccion-de-documentales-en-suiza-la-locacion-ideal" active="blog" singleLang={true} langUrls={{"es":"/es/blog/produccion-de-documentales-en-suiza-la-locacion-ideal/","en":"/en/blog/documentary-production-in-switzerland-why-its-a-prime-location-for-storytelling/","de":"/de/blog/dokumentarfilmproduktion-in-der-schweiz-warum-dieser-ort-ideal-fuer-storytelling-ist/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/produccion-de-documentales-en-suiza-la-locacion-ideal/\"},\"headline\":\"Producción de documentales en Suiza: una locación ideal\",\"description\":\"Descubrí por qué Suiza es una locación ideal para producir documentales, desde paisajes impresionantes hasta financiamiento y equipos multilingües.\",\"image\":\"https://www.viven.ch/projects/pmi-why-science-matters-brand-video/06-VIVEN_Film_Production_Why_Science_027.jpeg\",\"datePublished\":\"2026-07-29T09:00:00.000Z\",\"dateModified\":\"2026-07-29T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/produccion-de-documentales-en-suiza-la-locacion-ideal/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Producción de documentales en Suiza: una locación ideal\",\"item\":\"https://www.viven.ch/es/blog/produccion-de-documentales-en-suiza-la-locacion-ideal/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué Suiza es una buena locación para la producción de documentales?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ofrece paisajes impresionantes y variados, neutralidad y estabilidad política para temas sensibles, una fuerza de trabajo multilingüe, y sólidos servicios de apoyo a la producción local junto con oportunidades de financiamiento.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué tan segura es Suiza para filmar temas documentales sensibles?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Suiza se ubicó entre los 10 países más seguros del Índice Global de Paz en 2022, y su reputación de privacidad y discreción ofrece un entorno seguro para documentales de investigación y entrevistas.\"}},{\"@type\":\"Question\",\"name\":\"¿Hay financiamiento disponible para coproducciones documentales en Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Sí. La Oficina Federal de Cultura de Suiza y fundaciones como Succès Passage Antenne apoyan la producción de documentales, y las coproducciones internacionales suelen ser elegibles para financiamiento adicional, especialmente en proyectos culturalmente relevantes.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Producción de documentales en Suiza: una locación ideal</span>
+        </nav>
+        <span class="eyebrow">Industria</span>
+        <h1>Producción de documentales en Suiza: una locación ideal</h1>
+        <p class="lead">Descubrí por qué Suiza es una locación ideal para producir documentales, desde paisajes impresionantes hasta financiamiento y equipos multilingües.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>29 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="https://www.viven.ch/projects/pmi-why-science-matters-brand-video/06-VIVEN_Film_Production_Why_Science_027.jpeg" alt="Producción de documentales en Suiza: una locación ideal" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Suiza es una locación ideal para la producción de documentales porque combina paisajes impresionantes y variados con neutralidad política, equipos multilingües y un fuerte apoyo de financiamiento para el storytelling documental. Estos factores la vuelven especialmente atractiva para el periodismo de investigación y los documentales coproducidos internacionalmente.</p>
+<h2>Por qué Suiza es perfecta para el cine documental</h2>
+<p>Los paisajes de Suiza le ofrecen a los cineastas una gran variedad de oportunidades visuales impresionantes. Desde los picos imponentes de los Alpes hasta lagos serenos y pueblos históricos encantadores, la belleza natural del país agrega un atractivo cinematográfico a cualquier documental. Ciudades como Zúrich, Ginebra y Lausana ofrecen escenarios urbanos dinámicos, perfectos para documentales sociopolíticos o que exploran temas contemporáneos.</p>
+<p>La neutralidad y la estabilidad de Suiza la convierten en una locación especialmente atractiva para temas sensibles. Su reputación de privacidad y discreción garantiza un entorno seguro para documentales de investigación y entrevistas. De hecho, Suiza se ubicó entre los 10 países más seguros del Índice Global de Paz en 2022, lo que le da tranquilidad a los equipos y colaboradores internacionales.</p>
+<h2>Equipos multilingües y servicios de apoyo</h2>
+<p>La cultura multilingüe de Suiza es una ventaja importante para los productores de documentales. Con cuatro idiomas oficiales — alemán, francés, italiano y romanche — y un dominio generalizado del inglés, los equipos pueden comunicarse fácilmente con talento local, entrevistados y crew. Esta diversidad lingüística le permite a los cineastas internacionales conectarse sin fricciones con recursos con base en Suiza, un enfoque que exploramos en más profundidad en <a href={p("blog/colaborar-con-cineastas-suizos-lo-que-hay-que-saber")}>Colaborar con cineastas suizos: lo que hay que saber</a>.</p>
+<p>Suiza también ofrece excelentes servicios de apoyo para la producción de documentales, desde scouting de locaciones y reclutamiento de crew hasta alquiler de equipos y postproducción. Según <a href="http://swissfilms.ch/">Swiss Films</a>, más del 40&nbsp;% de los documentales extranjeros filmados en Suiza recurrieron a proveedores de servicios de producción locales.</p>
+<h2>Financiamiento y oportunidades de coproducción</h2>
+<p>Las iniciativas suizas de financiamiento de cine, incluyendo las de la Oficina Federal de Cultura y fundaciones como Succès Passage Antenne, apoyan la producción de documentales. Las coproducciones internacionales suelen ser elegibles para financiamiento adicional, en particular para proyectos culturalmente relevantes, lo que hace de Suiza una opción aún más atractiva para los cineastas de documentales. Para un panorama completo, mirá <a href={p("blog/financiamiento-para-cine-en-suiza")}>Financiamiento para cine en Suiza: fondos y ayudas</a>.</p>
+<h2>¿Listo para darle vida a tu documental?</h2>
+<p>Suiza ofrece el entorno ideal para producir documentales de nivel mundial. Ya sea que estés filmando en los Alpes, capturando la vida urbana o contando una historia sensible, sus recursos e infraestructura la convierten en la locación perfecta para tu próximo proyecto. Nuestro equipo de <a href={p("services/corporate-video")}>producción de video corporativo y documental</a> puede ayudarte a planificar un rodaje que aproveche al máximo lo que Suiza ofrece.</p>
+<p><strong><a href={p("contact")}>Asociate con Viven para tu próxima producción documental en Suiza.</a></strong></p>
+      </div>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué Suiza es una buena locación para la producción de documentales?</summary>
+        <p>Ofrece paisajes impresionantes y variados, neutralidad y estabilidad política para temas sensibles, una fuerza de trabajo multilingüe, y sólidos servicios de apoyo a la producción local junto con oportunidades de financiamiento.</p>
+      </details>
+      <details>
+        <summary>¿Qué tan segura es Suiza para filmar temas documentales sensibles?</summary>
+        <p>Suiza se ubicó entre los 10 países más seguros del Índice Global de Paz en 2022, y su reputación de privacidad y discreción ofrece un entorno seguro para documentales de investigación y entrevistas.</p>
+      </details>
+      <details>
+        <summary>¿Hay financiamiento disponible para coproducciones documentales en Suiza?</summary>
+        <p>Sí. La Oficina Federal de Cultura de Suiza y fundaciones como Succès Passage Antenne apoyan la producción de documentales, y las coproducciones internacionales suelen ser elegibles para financiamiento adicional, especialmente en proyectos culturalmente relevantes.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="produccion-de-documentales-en-suiza-la-locacion-ideal" />
+  </div></section>
+</Base>
