@@ -11689,7 +11689,6 @@ const newsCases = [
   // jsPDF client-side (mismo motor que las ofertas) o solo el diseño propuesto
   // si es una tool nueva (nunca se scaffoldea como página pública real).
   const LM_CALC_PATHS = ['/en/video-cost-calculator/', '/de/videoproduktion-kosten-rechner/', '/es/calculadora-costos-video/'];
-  const LM_BRIEF_PATH = '/brief/';
   const lmNormPath = (p) => { let s = String(p || '').split('?')[0].split('#')[0]; if (!s.startsWith('/')) s = '/' + s; if (!s.endsWith('/')) s += '/'; return s; };
   let lmBound = false;
   function magnetsInit(){
@@ -11707,11 +11706,25 @@ const newsCases = [
     try {
       const { data: views, error } = await fetchAllRows('pageviews', 'path,session_id', since(), until());
       if (error) throw error;
+      // brief profundo: NO se puede contar por leads.channel==='brief' — el trigger de
+      // auto-lead (0028/0056) solo taggea ese channel cuando el lead es NUEVO. El caso
+      // normal es alguien que YA es lead (se le manda el link de brief por email) y
+      // ahí el channel original (organic/paid/etc.) queda intacto — el submit quedaba
+      // invisible acá aunque existiera (bug real reportado por Sebastián). Se cuenta
+      // por la tabla briefs directamente, sin filtrar por fecha de alta del lead.
+      const { data: briefRows, error: briefErr } = await supabase.from('briefs').select('lead_id,email,created_at').gte('created_at', since()).lte('created_at', until());
+      if (briefErr) throw briefErr;
+      // Idem sesiones: /brief/ no carga site.js (no escribe en pageviews), tiene su
+      // propio tracker a funnel_events (funnel:'brief', step 0 = abrió el brief).
+      const { data: briefViews, error: bfErr } = await supabase.from('funnel_events').select('session_id').eq('funnel', 'brief').eq('step', 0).gte('created_at', since()).lte('created_at', until());
+      if (bfErr) throw bfErr;
       const calcLeads = (allLeads || []).filter((l) => /^🧮\s*CALCULADORA/.test(l.message || '') && inRange(l.created_at));
-      const briefLeads = (allLeads || []).filter((l) => l.channel === 'brief' && inRange(l.created_at));
+      const briefLeadIds = new Set((briefRows || []).filter((b) => b.lead_id).map((b) => String(b.lead_id)));
+      const briefEmails = new Set((briefRows || []).filter((b) => !b.lead_id && b.email).map((b) => b.email.toLowerCase()));
+      const briefLeads = (allLeads || []).filter((l) => briefLeadIds.has(String(l.id)) || (l.email && briefEmails.has(l.email.toLowerCase())));
       const wonSet = new Set((dealsList || []).filter((d) => stageOf(d.stage) === 'ganado').map((d) => String(d.lead_id)));
       const calcSessions = new Set((views || []).filter((v) => LM_CALC_PATHS.includes(lmNormPath(v.path))).map((v) => v.session_id)).size;
-      const briefSessions = new Set((views || []).filter((v) => lmNormPath(v.path) === LM_BRIEF_PATH).map((v) => v.session_id)).size;
+      const briefSessions = new Set((briefViews || []).map((v) => v.session_id)).size;
       const calcWon = calcLeads.filter((l) => wonSet.has(String(l.id))).length;
       const briefWon = briefLeads.filter((l) => wonSet.has(String(l.id))).length;
       const card = (label, sub, sessions, leads, won) => {
