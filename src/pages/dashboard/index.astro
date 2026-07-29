@@ -6137,6 +6137,19 @@ const newsCases = [
       return (data && data[0]) || null;
     } catch (e) { return null; }
   }
+  // mismos campos que la card de brief en la timeline (lm2LoadTimeline) — texto
+  // plano completo para pasarle a la IA, así "Responder con IA" contesta lo que
+  // realmente se preguntó (ej. presupuesto) y no queda genérico.
+  function briefFullText(b){
+    if (!b) return '';
+    const a = b.answers || {};
+    const li = (k, v) => { if (!v) return ''; const s = Array.isArray(v) ? v.join(', ') : String(v); return s.trim() ? k + ': ' + s + '\n' : ''; };
+    return (li('Objetivo', b.goal) + li('Audiencia', a.audience) + li('Dónde va a correr', b.distribution || a.distribution) +
+      li('Cantidad de videos', a.quantity) + li('Formatos', a.formats) + li('Idiomas y subtítulos', a.languages) +
+      li('En cámara', a.oncamera) + li('Locaciones', a.locations) + li('Timing', b.timeline) + li('Presupuesto', b.budget) +
+      li('Qué deben HACER después de verlo', a.action) + li('Qué deben sentir', a.feeling) + li('Adónde deben llegar', a.destination) +
+      li('Referencias', a.references) + (b.extra ? '\n' + b.extra : '')).trim();
+  }
   /* ---------- Enrich con IA: info actual de la persona + empresa (web search) ---------- */
   function enrichHTML(e){
     const link = (u, t) => u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t || u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]) + '</a>' : '';
@@ -7628,10 +7641,14 @@ const newsCases = [
       ab.disabled = true; ab.textContent = '✨ Leyendo la conversación…';
       try {
         const { data: hist } = await supabase.from('email_log').select('direction,subject,body,created_at').eq('lead_id', String(r.id)).order('created_at', { ascending: true }).limit(20);
-        const history = (hist || []).map((h) => ({ direction: h.direction, subject: h.subject, body: String(h.body || '').replace(/<[^>]+>/g, ' ').slice(0, 500) }));
+        const history = (hist || []).map((h) => ({ direction: h.direction, subject: h.subject, body: String(h.body || '').replace(/<[^>]+>/g, ' ').slice(0, 800) }));
+        // brief profundo completo (goal/budget/timeline/etc.) — antes NO se mandaba
+        // a la IA y el draft salía genérico, ignorando preguntas puntuales del
+        // cliente (ej. "¿me alcanza con mi presupuesto más bajo?").
+        const brief = briefFullText(await latestBriefFor(r));
         const hint = ($('lm2-mail-hint') && $('lm2-mail-hint').value || '').trim();
         const { data, error } = await supabase.functions.invoke('ai-email-draft', {
-          body: { lead: r, sender: $('lm2-mail-de') ? $('lm2-mail-de').value : sender, hint, history }
+          body: { lead: r, sender: $('lm2-mail-de') ? $('lm2-mail-de').value : sender, hint, history, brief }
         });
         if (error || data?.error) throw new Error(data?.error || error?.message || 'sin respuesta');
         const ta = $('lm2-mail-b'); if (ta) ta.value = data.body;

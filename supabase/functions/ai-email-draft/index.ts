@@ -40,11 +40,16 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: cors });
 
-    const { lead, sender = "team", hint = "", history = [] } = await req.json();
+    const { lead, sender = "team", hint = "", history = [], brief = "" } = await req.json();
     if (!lead) return new Response(JSON.stringify({ error: "falta lead" }), { status: 400, headers: cors });
     const lang = ["en", "de", "es"].includes(lead.lang) ? lead.lang : "en";
 
-    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Plain text only, 60-160 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context — if unsure, keep it general. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
+    // fix (2026-07-29, pedido de Sebastián: "lo que genera es muy genérico,
+    // tiene que leer todo el email... pregunté si mi presupuesto más bajo
+    // alcanzaría"): antes truncaba el mensaje original a 400 chars y NUNCA
+    // mandaba el brief profundo — cualquier pregunta puntual (presupuesto,
+    // feasibility) quedaba fuera del contexto y la IA escribía genérico.
+    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully — if the contact asked a specific question anywhere (budget, feasibility, timeline, "would X be enough"), you MUST answer that exact question directly and specifically as the main point of the email, not a generic reply. Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context — if unsure, say it depends on X rather than making up a number. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
 
     // últimas entradas reales del hilo (ambas direcciones) — el dashboard ya las
     // tiene cargadas en la timeline, se las pasa acá tal cual, sin re-consultar.
@@ -52,10 +57,11 @@ Deno.serve(async (req) => {
       .slice(-8)
       .map((h: { direction?: string; subject?: string; body?: string }) =>
         (h.direction === "in" ? "CLIENT REPLIED" : "WE SENT") +
-        (h.subject ? ` ("${h.subject}")` : "") + ": " + String(h.body || "").slice(0, 400))
+        (h.subject ? ` ("${h.subject}")` : "") + ": " + String(h.body || "").slice(0, 800))
       .join("\n\n");
 
-    const ctx = `CONTACT: ${lead.name || lead.email || ""} · ${lead.company || ""} · stage: ${lead.status || "nuevo"} · channel: ${lead.channel || "direct"}\nORIGINAL MESSAGE: "${String(lead.message || "(none)").slice(0, 400)}"` +
+    const ctx = `CONTACT: ${lead.name || lead.email || ""} · ${lead.company || ""} · stage: ${lead.status || "nuevo"} · channel: ${lead.channel || "direct"}\nORIGINAL MESSAGE (read in full, may contain specific questions): "${String(lead.message || "(none)").slice(0, 2000)}"` +
+      (brief && String(brief).trim() ? `\n\nDEEP BRIEF (read in full):\n${String(brief).slice(0, 2500)}` : "") +
       (histTxt ? `\n\nCONVERSATION SO FAR (oldest first):\n${histTxt}` : "\n\n(no previous email exchange yet)");
 
     const task = hint && String(hint).trim()
