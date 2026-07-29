@@ -81,8 +81,11 @@ gtag('consent', 'default', {
 });
 </script>
 
-<!-- Google Tag Manager + Microsoft Clarity — diferidos a después del load, para que no
-     compitan con el render inicial por tiempo de main thread (PageSpeed: TBT/JS sin usar) -->
+<!-- Google Tag Manager — diferido a después del load, para que no compita con el
+     render inicial por tiempo de main thread (PageSpeed: TBT/JS sin usar). El container
+     en sí puede cargar siempre (Consent Mode decide qué tag dispara adentro) — Clarity
+     NO tiene noción de Consent Mode propia, así que esa carga vive en site.js, gateada
+     por el mismo cookie-bar que ya gatea GA4 (pedido explícito de Sebastián). -->
 <script is:inline>
 function _vivenLoadTracking(){
   (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -90,11 +93,6 @@ function _vivenLoadTracking(){
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-M3TD9G4H');
-  (function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, "clarity", "script", "ifp27judw5");
 }
 if(document.readyState === 'complete') setTimeout(_vivenLoadTracking, 100);
 else window.addEventListener('load', function(){ setTimeout(_vivenLoadTracking, 100); });

@@ -691,6 +691,16 @@ function loadGA(){
   gtag('js', new Date());
   gtag('config', GA_ID);
 }
+/* Clarity no tiene noción propia de Consent Mode (no lee gtag) — a diferencia de
+   GTM/GA4, si no la gateamos acá arranca a grabar sesiones igual. Por eso vive
+   acá, junto a loadGA(), y no en el loader incondicional de Base.astro. */
+function loadClarity(){
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "ifp27judw5");
+}
 /* gtag/dataLayer ya vienen inicializados por el bloque de Consent Mode default en
    Base.astro <head> — esto solo actualiza la señal para que GTM/Ads la respeten. */
 function grantConsent(){
@@ -704,7 +714,7 @@ function grantConsent(){
 }
 var consent = null;
 try{ consent = localStorage.getItem('viven-cookie'); }catch(e){}
-if(consent === 'accepted'){ grantConsent(); loadGA(); }
+if(consent === 'accepted'){ grantConsent(); loadGA(); loadClarity(); }
 if(consent === null){
   var bar = document.createElement('div');
   bar.id = 'cookie-bar';
@@ -724,6 +734,7 @@ if(consent === null){
     bar.remove();
     grantConsent();
     loadGA();
+    loadClarity();
   };
   document.getElementById('cookie-decline').onclick = function(){
     try{ localStorage.setItem('viven-cookie','declined'); }catch(e){}
