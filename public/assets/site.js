@@ -691,9 +691,20 @@ function loadGA(){
   gtag('js', new Date());
   gtag('config', GA_ID);
 }
+/* gtag/dataLayer ya vienen inicializados por el bloque de Consent Mode default en
+   Base.astro <head> — esto solo actualiza la señal para que GTM/Ads la respeten. */
+function grantConsent(){
+  if(typeof gtag !== 'function') return;
+  gtag('consent', 'update', {
+    'ad_storage': 'granted',
+    'analytics_storage': 'granted',
+    'ad_user_data': 'granted',
+    'ad_personalization': 'granted'
+  });
+}
 var consent = null;
 try{ consent = localStorage.getItem('viven-cookie'); }catch(e){}
-if(consent === 'accepted') loadGA();
+if(consent === 'accepted'){ grantConsent(); loadGA(); }
 if(consent === null){
   var bar = document.createElement('div');
   bar.id = 'cookie-bar';
@@ -711,6 +722,7 @@ if(consent === null){
   document.getElementById('cookie-accept').onclick = function(){
     try{ localStorage.setItem('viven-cookie','accepted'); }catch(e){}
     bar.remove();
+    grantConsent();
     loadGA();
   };
   document.getElementById('cookie-decline').onclick = function(){
