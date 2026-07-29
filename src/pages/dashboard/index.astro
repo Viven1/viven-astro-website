@@ -7678,7 +7678,7 @@ const newsCases = [
     if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;   // cambió de contacto mientras cargaba
     const briefSeen = new Set(); const briefs = [...briefs1, ...briefs2].filter((b) => !briefSeen.has(b.id) && briefSeen.add(b.id));
     const ev = [];
-    if (r.message) ev.push({ t: r.created_at, ty: 'nota', chip: ['nota', '💬 Consulta'], title: '<b>Mensaje original del lead</b>', body: r.message });
+    if (r.message) ev.push({ t: r.created_at, ty: 'nota', chip: ['nota', '💬 Consulta'], title: '<b>Mensaje original del lead</b>', body: r.message, aiReply: true });
     emails.forEach((e2) => ev.push({ t: e2.created_at, ty: 'email', chip: ['email', e2.direction === 'in' ? '📥 Recibido' : '✉️ Enviado'], title: '<b>' + esc(e2.subject || '(sin asunto)') + '</b>', meta: esc(e2.sender_label || ''), body: String(e2.body || '').replace(/<[^>]+>/g, ' ') }));
     // notas agrupadas en HILOS estilo chat (0057: parent_id apunta a la nota RAÍZ, hilo plano de 1 nivel).
     // Un solo evento por hilo, fechado por el ÚLTIMO mensaje — las conversaciones activas flotan arriba.
@@ -7727,6 +7727,12 @@ const newsCases = [
     const list = lm2Filter === 'all' ? lm2Events : lm2Events.filter((e) => e.ty === lm2Filter || (lm2Filter === 'nota' && e.ty === 'brief'));
     if (!list.length) { box.innerHTML = '<p class="muted-note">Sin actividad todavía — las notas, emails y tasks van a aparecer acá.</p>'; return; }
     const replyLink = (i) => '<div><a href="#" class="lm2-nreply" data-i="' + i + '" style="color:var(--acid);font-size:11px;text-decoration:none">↩︎ Responder</a><div class="lm2-nreply-box" hidden></div></div>';
+    // "Mensaje original del lead" (y cualquier evento marcado aiReply): no es una nota
+    // interna, es la consulta del CLIENTE — responder ahí es mandarle un email, no una
+    // nota al team. Salta al composer (tab Email) y dispara "✨ Generar con IA" solo
+    // (pedido explícito: "que el mensaje original del lead también pueda ser
+    // respondido con IA" — antes ese evento no tenía ningún link de respuesta).
+    const aiReplyLink = (i) => '<div><a href="#" class="lm2-aireply" data-i="' + i + '" style="color:var(--acid);font-size:11px;text-decoration:none">✨ Responder con IA</a></div>';
     box.innerHTML = list.map((e, i) => {
       const head = '<div class="lm2-ev' + (i === 0 && lm2Filter === 'all' ? ' hot' : '') + '"><div class="when">' + lm2FmtDT(e.t) + ' · hace ' + timeAgo(e.t) + '</div><div class="card">';
       if (e.thread){
@@ -7738,8 +7744,16 @@ const newsCases = [
         (e.meta ? '<div class="meta">' + e.meta + '</div>' : '') +
         (e.body ? '<details><summary>ver completo</summary><div>' + esc(e.body) + '</div></details>' : '') +
         (e.nid ? replyLink(i) : '') +
+        (e.aiReply ? aiReplyLink(i) : '') +
         '</div></div>';
     }).join('');
+    box.querySelectorAll('.lm2-aireply').forEach((a) => a.addEventListener('click', (e2) => {
+      e2.preventDefault();
+      if (!lm2Lead) return;
+      lm2Tab = 'email'; lm2CompCollapsed = false; lm2RenderComposer();
+      const comp = $('lm2-composer'); if (comp) comp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const ab = $('lm2-mail-ai'); if (ab) ab.click(); // dispara "✨ Generar con IA" solo — ya lee la conversación real
+    }));
     box.querySelectorAll('.lm2-tk').forEach((cb) => cb.addEventListener('change', async () => {
       await supabase.from('lead_tasks').update({ done: cb.checked, done_at: cb.checked ? new Date().toISOString() : null }).eq('id', cb.dataset.id);
       loadBell(); if (lm2Lead) { lm2LoadTimeline(lm2Lead); lm2RenderRight(lm2Lead); }
