@@ -1573,8 +1573,14 @@ const newsCases = [
      reparte las 5 cards entre columnas balanceando la altura total, así no queda
      una columna corta con espacio muerto al lado de una larga (pedido explícito,
      con captura: "mira todo el dead space") */
-  .hm-masonry{columns:280px 3;column-gap:12px;margin-top:14px}
+  .hm-masonry{column-count:3;column-width:280px;column-gap:12px;margin-top:14px}
   .hm-masonry .hm-card{break-inside:avoid;margin-bottom:12px}
+  /* tablet (iPad portrait/landscape, ~620-1180px): "columns:280px 3" colapsaba a
+     1 columna ahí porque el ancho de contenido (sidebar + padding descontados)
+     no alcanzaba para 2×280px+gap — quedaba todo full-width y desperdiciando
+     el espacio (pedido explícito: "hace half width y masonry, usemos el espacio") */
+  @media(max-width:1180px) and (min-width:621px){.hm-masonry{column-count:2;column-width:auto}}
+  @media(max-width:620px){.hm-masonry{column-count:1;column-width:auto}}
   /* 🎯 Ritmo del mes (tab Hoy): mismo lenguaje visual que los KPIs .hk de abajo */
   .rm-panel{margin-bottom:12px}
   .rm-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
