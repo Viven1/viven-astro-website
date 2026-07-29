@@ -49,7 +49,15 @@ Deno.serve(async (req) => {
     // alcanzaría"): antes truncaba el mensaje original a 400 chars y NUNCA
     // mandaba el brief profundo — cualquier pregunta puntual (presupuesto,
     // feasibility) quedaba fuera del contexto y la IA escribía genérico.
-    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully — if the contact asked a specific question anywhere (budget, feasibility, timeline, "would X be enough"), you MUST answer that exact question directly and specifically as the main point of the email, not a generic reply. Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context — if unsure, say it depends on X rather than making up a number. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
+    //
+    // fix 2 (mismo día, mismo lead re-testeado): con el brief YA incluido, la
+    // IA seguía sin contestar — mencionaba "el presupuesto que anotaste" en
+    // vez de responder derecho al número puntual ("¿500-1499 alcanza?"). No
+    // era un problema de contexto faltante sino de la IA parafraseando en vez
+    // de responder — ahora se exige explícitamente una respuesta directa
+    // (sí/no/depende) a cualquier pregunta puntual, citando el número o dato
+    // concreto que el contacto mencionó, no una alusión genérica.
+    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully, especially anything labeled as the contact's own words. If the contact asked a specific, concrete question anywhere (a budget number, "would X be enough", feasibility, timeline), you MUST give a direct explicit answer (yes / no / it depends and why) to that EXACT question as the main point of the email — reference their specific number or detail back to them, don't just gesture at "the budget you mentioned" without saying whether it works. Never dodge a direct question with a vague acknowledgment. Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context — if unsure of an exact number, give the closest real range from the context and say it depends on scope, but still answer directly. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
 
     // últimas entradas reales del hilo (ambas direcciones) — el dashboard ya las
     // tiene cargadas en la timeline, se las pasa acá tal cual, sin re-consultar.

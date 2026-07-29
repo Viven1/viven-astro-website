@@ -6144,11 +6144,16 @@ const newsCases = [
     if (!b) return '';
     const a = b.answers || {};
     const li = (k, v) => { if (!v) return ''; const s = Array.isArray(v) ? v.join(', ') : String(v); return s.trim() ? k + ': ' + s + '\n' : ''; };
-    return (li('Objetivo', b.goal) + li('Audiencia', a.audience) + li('Dónde va a correr', b.distribution || a.distribution) +
+    const fields = (li('Objetivo', b.goal) + li('Audiencia', a.audience) + li('Dónde va a correr', b.distribution || a.distribution) +
       li('Cantidad de videos', a.quantity) + li('Formatos', a.formats) + li('Idiomas y subtítulos', a.languages) +
       li('En cámara', a.oncamera) + li('Locaciones', a.locations) + li('Timing', b.timeline) + li('Presupuesto', b.budget) +
       li('Qué deben HACER después de verlo', a.action) + li('Qué deben sentir', a.feeling) + li('Adónde deben llegar', a.destination) +
-      li('Referencias', a.references) + (b.extra ? '\n' + b.extra : '')).trim();
+      li('Referencias', a.references)).trim();
+    // extra (texto libre "Anything else?") va DESTACADO y arriba, no al final del
+    // volcado de campos — ahí es donde el cliente escribe preguntas puntuales
+    // (ej. presupuesto) y enterrado al final la IA lo pasaba por alto (2026-07-29).
+    const extra = b.extra && String(b.extra).trim() ? `SUS PROPIAS PALABRAS (leer y responder puntualmente): "${String(b.extra).trim()}"\n\n` : '';
+    return (extra + fields).trim();
   }
   /* ---------- Enrich con IA: info actual de la persona + empresa (web search) ---------- */
   function enrichHTML(e){
