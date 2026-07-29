@@ -515,9 +515,16 @@ document.querySelectorAll('.lead-form-mount').forEach(function(m){ renderLeadFor
     box.innerHTML = '<button class="vv-slidein-x" aria-label="Close">&times;</button>' +
       '<b>' + t.t + '</b><span>' + t.s + '</span>' +
       '<a class="btn btn-primary" href="' + calcUrl + '">' + t.b + '</a>';
-    /* si el banner de cookies está visible, apilarse arriba (no taparse) */
+    /* si el banner de cookies o la sticky-cta ("Start a project", mobile) están
+       visibles, apilarse arriba de lo que sea más alto — si no, tapaba/lo tapaban */
+    var extraBottom = 0;
     var cbar = document.getElementById('cookie-bar');
-    if(cbar && cbar.offsetHeight) box.style.bottom = (cbar.offsetHeight + 16) + 'px';
+    if(cbar && cbar.offsetHeight) extraBottom = cbar.offsetHeight + 16;
+    var stickyCta = document.querySelector('.sticky-cta');
+    if(stickyCta && getComputedStyle(stickyCta).display !== 'none'){
+      extraBottom = Math.max(extraBottom, stickyCta.offsetHeight + 16);
+    }
+    if(extraBottom) box.style.bottom = extraBottom + 'px';
     document.body.appendChild(box);
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ box.classList.add('in'); }); });
     box.querySelector('.vv-slidein-x').addEventListener('click', function(){ box.classList.remove('in'); setTimeout(function(){ box.remove(); }, 350); });
