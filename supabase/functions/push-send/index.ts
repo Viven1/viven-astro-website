@@ -73,25 +73,28 @@ Deno.serve(async (req) => {
       if (!user) return json({ error: "unauthorized" }, 401);
     }
 
-    const { to, title, body, url } = await req.json();
+    const { to, title, body, url, apnsOnly, debug } = await req.json();
     if (!title) return json({ error: "falta title" }, 400);
 
     const service = createClient(SB_URL, SB_SERVICE);
-    let q = service.from("push_subscriptions").select("*");
-    if (to) q = q.eq("user_email", String(to).toLowerCase());
-    const { data: subs, error } = await q;
-    if (error) return json({ error: error.message }, 500);
-
     const finalUrl = url || "/dashboard/";
     const payload = JSON.stringify({ title, body: body || "", url: finalUrl });
-    let sent = 0, dead = 0;
-    for (const s of subs ?? []) {
-      try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
-        sent++;
-      } catch (e) {
-        const code = (e as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) { await service.from("push_subscriptions").delete().eq("id", s.id); dead++; }
+    let sent = 0, dead = 0, webPushSent = 0, apnsSent = 0;
+    const apnsErrors: string[] = [];
+
+    if (!apnsOnly) {
+      let q = service.from("push_subscriptions").select("*");
+      if (to) q = q.eq("user_email", String(to).toLowerCase());
+      const { data: subs, error } = await q;
+      if (error) return json({ error: error.message }, 500);
+      for (const s of subs ?? []) {
+        try {
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
+          sent++; webPushSent++;
+        } catch (e) {
+          const code = (e as { statusCode?: number }).statusCode;
+          if (code === 404 || code === 410) { await service.from("push_subscriptions").delete().eq("id", s.id); dead++; }
+        }
       }
     }
 
@@ -102,13 +105,18 @@ Deno.serve(async (req) => {
       for (const d of devices ?? []) {
         try {
           const r = await sendAPNs(d.device_token, title, body || "", finalUrl);
-          if (r.ok) sent++;
-          else if (r.deadReason === "BadDeviceToken" || r.deadReason === "Unregistered") { await service.from("device_tokens").delete().eq("id", d.id); dead++; }
-        } catch (e) { console.error("APNS_ERROR", String(e)); }
+          if (r.ok) { sent++; apnsSent++; }
+          else {
+            apnsErrors.push(r.deadReason || "unknown");
+            if (r.deadReason === "BadDeviceToken" || r.deadReason === "Unregistered") { await service.from("device_tokens").delete().eq("id", d.id); dead++; }
+          }
+        } catch (e) { apnsErrors.push(String(e)); console.error("APNS_ERROR", String(e)); }
       }
+    } else if (debug) {
+      apnsErrors.push("apns not configured");
     }
 
-    return json({ ok: true, sent, removed: dead });
+    return json(debug ? { ok: true, sent, removed: dead, webPushSent, apnsSent, apnsConfigured, apnsErrors } : { ok: true, sent, removed: dead });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);
