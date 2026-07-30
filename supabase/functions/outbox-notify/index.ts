@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     } catch (_e) { /* best-effort */ }
 
     const to = SENDER_EMAIL[ob.sender] || SENDER_EMAIL.team;
-    const kindLabel = ob.kind === "followup" ? "📬 Follow-up" : ob.kind === "content_followup" ? "🎯 " + (ob.category || "Contenido") : ob.kind === "reactivation" ? "♻️ Reactivación · " + (ob.category === "won" ? "cliente ganado" : "lead perdido") : "⚙️ Workflow";
+    const kindLabel = ob.kind === "followup" ? "📬 Follow-up" : ob.kind === "content_followup" ? "🎯 " + (ob.category || "Contenido") : ob.kind === "reactivation" ? "♻️ Reactivación · " + (ob.category === "won" ? "cliente ganado" : "lead perdido") : ob.kind === "followup_later" ? "🕓 Seguimiento futuro" : "⚙️ Workflow";
     const leadUrl = `https://www.viven.ch/dashboard/?lead=${encodeURIComponent(ob.lead_id)}`;
 
     if (!RESEND) return json({ ok: true, skipped: "no_resend_key" });

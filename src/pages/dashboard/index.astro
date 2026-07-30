@@ -508,8 +508,10 @@ const newsCases = [
   .pipe-drop .pd-sum{display:block;font-family:'Inter',sans-serif;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:3px}
   .pipe-drop.win{border-color:rgba(126,217,87,.45);color:#7ed957}
   .pipe-drop.lose{border-color:rgba(255,107,107,.45);color:#ff8b8b}
+  .pipe-drop.snooze{border-color:rgba(94,199,209,.45);color:#5ec7d1}
   .pipe-drop.win.drop{background:rgba(126,217,87,.1);border-color:#7ed957}
   .pipe-drop.lose.drop{background:rgba(255,107,107,.1);border-color:#ff6b6b}
+  .pipe-drop.snooze.drop{background:rgba(94,199,209,.1);border-color:#5ec7d1}
   .dl-lbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .dl-lbar select{margin-left:auto}
 
@@ -2826,7 +2828,7 @@ const newsCases = [
           <option value="stage">Lead llega a etapa…</option>
           <option value="inactivity">Lead inactivo X días</option>
         </select></div>
-        <div class="bf au-cfg au-cfg-stage"><label>Etapa</label><select id="au-cfg-stage"><option value="contactado">Contactado</option><option value="videocall">Video call</option><option value="propuesta">Propuesta</option><option value="ganado" selected>Ganado</option><option value="perdido">Perdido</option></select></div>
+        <div class="bf au-cfg au-cfg-stage"><label>Etapa</label><select id="au-cfg-stage"><option value="contactado">Contactado</option><option value="videocall">Video call</option><option value="propuesta">Propuesta</option><option value="ganado" selected>Ganado</option><option value="perdido">Perdido</option><option value="seguimiento_futuro">Seguimiento futuro</option></select></div>
         <div class="bf au-cfg au-cfg-days"><label>Días de inactividad</label><input id="au-cfg-days" type="number" min="2" value="7" /></div>
         <div class="bf au-cfg au-cfg-days"><label>Sobre quién</label><select id="au-cfg-scope"><option value="nuevo">Leads sin cerrar</option><option value="dormant">😴 Clientes dormidos (ganados)</option></select></div>
         <div class="bf au-cfg au-cfg-source"><label>Fuente</label><select id="au-cfg-source"><option value="any">Cualquiera</option><option value="calculator">🧮 Calculadora</option><option value="form">Formulario</option></select></div>
@@ -5260,12 +5262,15 @@ const newsCases = [
     { key: 'propuesta',  label: 'Propuesta enviada', color: '#f0904e', prob: 0.8,  match: ['proposal', 'propuesta', 'qualified'] },
     { key: 'ganado',     label: 'Ganado',       color: '#7ed957', prob: 1,    match: ['won', 'cerrado', 'ganado'] },
     { key: 'perdido',    label: 'Perdido',      color: '#ff6b6b', prob: 0,    match: ['lost', 'perdido'] },
+    // "no por ahora, pero sí más adelante" — no cuenta en el pipeline abierto (como ganado/perdido),
+    // pero a diferencia de esos dos tiene una fecha objetivo (follow_up_target_at) para retomar solo.
+    { key: 'seguimiento_futuro', label: 'Seguimiento futuro', color: '#5ec7d1', prob: 0.1, match: ['seguimiento_futuro', 'snooze', 'follow_later'] },
   ];
   // color determinista del chip de empresa (por nombre)
   const CO_PALETTE = ['#8ab4ff', '#c58af9', '#7ed957', '#f0c060', '#ff8b5e', '#5ec7d1', '#e08ac5'];
   function coColor(name){ let h = 0; const s = String(name || ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return CO_PALETTE[h % CO_PALETTE.length]; }
   // columna de timestamp por etapa (para el funnel: conversión y tiempos)
-  const STAGE_TS = { contactado: 'contacted_at', videocall: 'videocall_at', propuesta: 'proposal_at', ganado: 'won_at', perdido: 'lost_at' };
+  const STAGE_TS = { contactado: 'contacted_at', videocall: 'videocall_at', propuesta: 'proposal_at', ganado: 'won_at', perdido: 'lost_at', seguimiento_futuro: 'snoozed_at' };
   const STAGE_ORDER = ['nuevo', 'contactado', 'videocall', 'propuesta', 'ganado'];
   function stageOf(status){
     const s = (status || '').toLowerCase();
@@ -5518,6 +5523,16 @@ const newsCases = [
       lostReason = prompt('¿Por qué se perdió este deal? (opcional)', d.lost_reason || '');
       if (lostReason === null) return false;
     }
+    let followUpTargetAt, followUpReason;
+    if (stage === 'seguimiento_futuro') {
+      const months = prompt('¿En cuántos meses lo volvemos a contactar?', '12');
+      if (months === null) return false;
+      const n = parseFloat(months.replace(',', '.')) || 12;
+      const dt = new Date(); dt.setMonth(dt.getMonth() + n);
+      followUpTargetAt = dt.toISOString();
+      followUpReason = prompt('¿Por qué no ahora? (opcional — presupuesto, timing, etc.)', d.follow_up_reason || '');
+      if (followUpReason === null) followUpReason = '';
+    }
     if (d.synthetic) { const real = await ensureRealDeal(d); if (!real) return setLeadStage(d.lead_id, stage); d = real; }
     const prev = d.stage;
     const nowIso = new Date().toISOString();
@@ -5526,6 +5541,11 @@ const newsCases = [
     const tsCol = STAGE_TS[stage];
     if (tsCol && !d[tsCol]) { patch[tsCol] = nowIso; d[tsCol] = nowIso; }
     if (stage === 'perdido') { patch.lost_reason = lostReason || null; d.lost_reason = lostReason || null; }
+    if (stage === 'seguimiento_futuro') {
+      patch.follow_up_target_at = followUpTargetAt; d.follow_up_target_at = followUpTargetAt;
+      patch.follow_up_reason = followUpReason || null; d.follow_up_reason = followUpReason || null;
+      patch.follow_up_drafted_at = null; d.follow_up_drafted_at = null;   // por si ya había pasado por acá antes
+    }
     renderLeads();
     const { error } = await supabase.from('deals').update(patch).eq('id', d.id);
     if (error) { d.stage = prev; renderLeads(); toast('No se pudo mover: ' + error.message); return false; }
@@ -5538,6 +5558,10 @@ const newsCases = [
         o.status = 'lost'; o.lost_reason = lostReason || null;
       }
       if (lead) supabase.from('lead_notes').insert({ lead_id: String(lead.id), author: 'Pipeline', body: '❌ Deal perdido' + (d.title ? ' «' + d.title + '»' : '') + (lostReason ? ' — motivo: ' + lostReason : '') }).then(() => {}, () => {});
+    }
+    if (stage === 'seguimiento_futuro' && lead) {
+      const when = new Date(followUpTargetAt).toLocaleDateString('es-CH', { year: 'numeric', month: 'long' });
+      supabase.from('lead_notes').insert({ lead_id: String(lead.id), author: 'Pipeline', body: '🕓 Seguimiento futuro — retomar en ' + when + (followUpReason ? ' — motivo: ' + followUpReason : '') }).then(() => {}, () => {});
     }
     if (stage === 'ganado') {
       // QUIRÚRGICO por número de oferta: gana UNA, las demás se archivan (nada de
@@ -5684,9 +5708,12 @@ const newsCases = [
     // drop-zones de cierre con resumen 30d (soltar acá = mismo setDealStage que las columnas)
     const won30r = rows.filter((d) => stageOf(d.stage) === 'ganado' && in30(d.won_at || d.last_stage_at));
     const lost30r = rows.filter((d) => stageOf(d.stage) === 'perdido' && in30(d.lost_at || d.last_stage_at));
+    const snoozeR = rows.filter((d) => stageOf(d.stage) === 'seguimiento_futuro');
+    const snoozeDueR = snoozeR.filter((d) => d.follow_up_target_at && new Date(d.follow_up_target_at) - now <= 7 * 864e5);
     if (drops) drops.innerHTML =
       '<div class="pipe-drop win" data-stage="ganado" title="Ver los ganados en la vista Lista">🏆 Soltá acá para GANADO<span class="pd-sum">últimos 30d: ' + won30r.length + ' · ' + fmtChf(dealsValue(won30r)) + '</span></div>' +
-      '<div class="pipe-drop lose" data-stage="perdido" title="Ver los perdidos en la vista Lista">✖ PERDIDO<span class="pd-sum">últimos 30d: ' + lost30r.length + ' · ' + fmtChf(dealsLostValue(lost30r)) + '</span></div>';
+      '<div class="pipe-drop lose" data-stage="perdido" title="Ver los perdidos en la vista Lista">✖ PERDIDO<span class="pd-sum">últimos 30d: ' + lost30r.length + ' · ' + fmtChf(dealsLostValue(lost30r)) + '</span></div>' +
+      '<div class="pipe-drop snooze" data-stage="seguimiento_futuro" title="Ver seguimiento futuro en la vista Lista">🕓 SEGUIMIENTO FUTURO<span class="pd-sum">' + snoozeR.length + ' en espera' + (snoozeDueR.length ? ' · ' + snoozeDueR.length + ' vencen en 7d' : '') + '</span></div>';
     bindPipeline();
     pipePager();
     // próximo paso: task abierta más cercana por persona visible (1 query cacheada, ver dlFetchNextTasks)
@@ -5698,7 +5725,7 @@ const newsCases = [
     let ds = rows.slice();
     if (dlStuck) ds = ds.filter((d) => DL_OPEN.includes(stageOf(d.stage)) && dealStageDays(d) > 14);
     if (dlListStage === 'open') ds = ds.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
-    else if (dlListStage === 'ganado' || dlListStage === 'perdido') ds = ds.filter((d) => stageOf(d.stage) === dlListStage);
+    else if (dlListStage === 'ganado' || dlListStage === 'perdido' || dlListStage === 'seguimiento_futuro') ds = ds.filter((d) => stageOf(d.stage) === dlListStage);
     const rowVal = (d) => stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
     const CMP = {
       value: (a, b) => rowVal(b) - rowVal(a),
@@ -5731,7 +5758,7 @@ const newsCases = [
         '<td class="lt-act">' + esc(actLabel(lastActivity(r))) + '</td></tr>';
     }).join('');
     cont.innerHTML =
-      '<div class="dl-lbar">' + chip('all', 'Todas') + chip('open', 'Abiertas') + chip('ganado', 'Ganadas') + chip('perdido', 'Perdidas') +
+      '<div class="dl-lbar">' + chip('all', 'Todas') + chip('open', 'Abiertas') + chip('ganado', 'Ganadas') + chip('perdido', 'Perdidas') + chip('seguimiento_futuro', 'Seguimiento futuro') +
         '<select id="dl-sort" class="status" title="Ordenar">' +
           '<option value="value"' + (dlSort === 'value' ? ' selected' : '') + '>Valor ↓</option>' +
           '<option value="days"' + (dlSort === 'days' ? ' selected' : '') + '>Días en etapa ↓</option>' +
@@ -7394,11 +7421,15 @@ const newsCases = [
     const last = r.last_name || (r.name || '').trim().split(/\s+/).slice(1).join(' ') || '';
     const cur = stageOf(r.status);
     const lost = cur === 'perdido';
-    const linear = STAGES.filter((s) => s.key !== 'perdido');
+    const snoozed = cur === 'seguimiento_futuro';
+    const linear = STAGES.filter((s) => s.key !== 'perdido' && s.key !== 'seguimiento_futuro');
     const curIdx = linear.findIndex((s) => s.key === cur);
+    const topDealSnz = latestDealOf(r.id);
+    const snoozeUntil = topDealSnz && topDealSnz.follow_up_target_at ? new Date(topDealSnz.follow_up_target_at).toLocaleDateString('es-CH', { year: 'numeric', month: 'long' }) : '';
     const pipe = '<div class="lm2-pipe">' + linear.map((s, i) =>
-      '<span class="' + (lost ? '' : i < curIdx ? 'done' : i === curIdx ? 'cur' : '') + '" data-st="' + s.key + '" title="Pasar a ' + s.label + '">' + s.label + '</span>').join('') + '</div>' +
-      (lost ? '<span class="lm2-lost" title="' + esc(r.lost_reason || '') + '">Perdido</span>' : '');
+      '<span class="' + (lost || snoozed ? '' : i < curIdx ? 'done' : i === curIdx ? 'cur' : '') + '" data-st="' + s.key + '" title="Pasar a ' + s.label + '">' + s.label + '</span>').join('') + '</div>' +
+      (lost ? '<span class="lm2-lost" title="' + esc(r.lost_reason || '') + '">Perdido</span>' : '') +
+      (snoozed ? '<span class="lm2-lost" style="color:#5ec7d1" title="' + esc((topDealSnz && topDealSnz.follow_up_reason) || '') + '">🕓 Seguimiento futuro' + (snoozeUntil ? ' · ' + snoozeUntil : '') + '</span>' : '');
     // orden de navegación ←→: la misma lista filtrada que ve Personas
     const order = filteredLeads().map((l) => String(l.id));
     const oi = order.indexOf(String(r.id));
@@ -11967,7 +11998,7 @@ const newsCases = [
   }
   /* ================= AUTOMATIZACIONES (constructor si→entonces) ================= */
   let auCur = null, auList = [], auSteps = { a: [], b: [] };
-  const AU_STAGE_L = { contactado: 'Contactado', videocall: 'Video call', propuesta: 'Propuesta', ganado: 'Ganado', perdido: 'Perdido' };
+  const AU_STAGE_L = { contactado: 'Contactado', videocall: 'Video call', propuesta: 'Propuesta', ganado: 'Ganado', perdido: 'Perdido', seguimiento_futuro: 'Seguimiento futuro' };
   function auTriggerLabel(a){
     const c = a.trigger_config || {};
     let t = a.trigger === 'stage' ? 'Al llegar a ' + (AU_STAGE_L[c.stage] || c.stage) : a.trigger === 'inactivity' ? 'Inactivo ' + (c.days || 7) + ' días' : 'Lead nuevo' + (c.source === 'calculator' ? ' (calculadora)' : c.source === 'form' ? ' (formulario)' : '');
@@ -12216,7 +12247,7 @@ const newsCases = [
     $('ob-list').innerHTML = obPorSalirHTML(aprRows) + obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
       const CFW_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', howto: '🎓 How-to', social: '📱 Social', corporate: '🏢 Corporate' };
-      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : o.kind === 'reactivation' ? '♻️ Reactivación · ' + (o.category === 'won' ? 'cliente ganado' : 'lead perdido') : '⚙️ Workflow';
+      const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : o.kind === 'reactivation' ? '♻️ Reactivación · ' + (o.category === 'won' ? 'cliente ganado' : 'lead perdido') : o.kind === 'followup_later' ? '🕓 Seguimiento futuro' : '⚙️ Workflow';
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       // content_followup: scheduled_at es la fecha real de envío (no un
