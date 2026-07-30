@@ -3516,6 +3516,18 @@ const newsCases = [
     'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca'
   );
 
+  // Puente para la app iOS nativa (WKWebView wrapper): Swift tiene el device
+  // token de APNs pero no la sesión de Supabase (vive en localStorage, del
+  // lado JS) — así que Swift llama esta función vía evaluateJavaScript() con
+  // el token, y acá SÍ tenemos el JWT del usuario logueado para registrarlo.
+  // No-op fuera de la app nativa (nadie más la llama).
+  window.__vivenRegisterDeviceToken = function (token) {
+    if (!token) return;
+    supabase.functions.invoke('register-device-token', { body: { device_token: token, platform: 'ios' } })
+      .then((r) => { alert('DEBUG token bridge OK: ' + JSON.stringify(r.data || r.error)); })
+      .catch((e) => { alert('DEBUG token bridge FAIL: ' + (e && e.message)); });
+  };
+
   // ---- perf instrumentation temporal (2026-07-14, reporte "tarda 30s en entrar") ----
   // best-effort: mide fases reales de carga y las manda a dash_perf_log (SQL 0083) +
   // console, para tener datos de la red/dispositivo real en vez de adivinar. Sacar
