@@ -30,9 +30,17 @@ const APNS_BUNDLE_ID = Deno.env.get("APNS_BUNDLE_ID") || "ch.viven.crm";
 const APNS_ENV = Deno.env.get("APNS_ENV") || "development";
 const apnsConfigured = !!(APNS_KEY_P8 && APNS_KEY_ID && APNS_TEAM_ID);
 
+// Apple limita cuántas veces por hora se puede firmar un provider token nuevo
+// (error "TooManyProviderTokenUpdates") — un JWT es válido ~1h, así que se
+// firma UNA vez por invocación y se reusa para todos los device tokens del
+// batch, nunca uno por dispositivo (bug real: 2026-07-31, mandaba 1 push a 3
+// dispositivos y Apple rechazaba el 2do/3er JWT firmado en la misma corrida).
+let cachedJwt: string | null = null;
 async function apnsJWT(): Promise<string> {
+  if (cachedJwt) return cachedJwt;
   const key = await importPKCS8(APNS_KEY_P8!.replace(/\\n/g, "\n"), "ES256");
-  return new SignJWT({}).setProtectedHeader({ alg: "ES256", kid: APNS_KEY_ID! }).setIssuedAt().setIssuer(APNS_TEAM_ID!).sign(key);
+  cachedJwt = await new SignJWT({}).setProtectedHeader({ alg: "ES256", kid: APNS_KEY_ID! }).setIssuedAt().setIssuer(APNS_TEAM_ID!).sign(key);
+  return cachedJwt;
 }
 
 async function sendAPNs(deviceToken: string, title: string, body: string, url: string): Promise<{ ok: boolean; deadReason?: string }> {

@@ -16,7 +16,6 @@
 // Dashboard, ver arriba; no se puede setear desde una migración SQL).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import webpush from "npm:web-push@3.6.7";
 
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
@@ -25,24 +24,17 @@ const FROM = "Viven Leads <leads@viven.ch>"; // dominio verificado en Resend
 const esc = (s: unknown) =>
   String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 
-// push al celular de todo el team (best-effort: sin VAPID/suscripciones, no molesta)
-async function pushBroadcast(title: string, body: string, url = "/dashboard/") {
-  const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
-  if (!pub || !priv) return;
-  try {
-    webpush.setVapidDetails("mailto:info@viven.ch", pub, priv);
-    const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: subs } = await service.from("push_subscriptions").select("*");
-    const payload = JSON.stringify({ title, body, url });
-    for (const s of subs ?? []) {
-      try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
-      } catch (e) {
-        const code = (e as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) await service.from("push_subscriptions").delete().eq("id", s.id);
-      }
-    }
-  } catch (e) { console.error("PUSH_ERROR", String(e)); }
+// fix (2026-07-31): esto reimplementaba Web Push a mano y nunca tocaba
+// device_tokens — un lead nuevo jamás llegaba como push nativo al iPhone/iPad,
+// solo a browsers con la PWA suscripta. Ahora delega en push-send (mismo
+// camino que reactivation-engine/deal-followup-later), que ya manda por
+// Web Push Y APNs con un solo JWT cacheado por corrida.
+function pushBroadcast(title: string, body: string, url = "/dashboard/") {
+  fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ title, body, url }),
+  }).catch((e) => console.error("PUSH_ERROR", String(e)));
 }
 
 Deno.serve(async (req) => {
@@ -89,7 +81,7 @@ Deno.serve(async (req) => {
       }),
     });
     // push al celular (además del email) — abre el lead directo al tocarla
-    await pushBroadcast("🎬 Nuevo lead: " + name, (r.message || "").slice(0, 120) || (r.email || ""), r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
+    pushBroadcast("🎬 Nuevo lead: " + name, (r.message || "").slice(0, 120) || (r.email || ""), r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
 
     if (!res.ok) return new Response(await res.text(), { status: 502 });
     return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });

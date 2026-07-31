@@ -5590,6 +5590,9 @@ const newsCases = [
           toast('Deal ganado — elegí después la oferta ganadora abriéndola y poniéndola en Ganada');
         }
       }
+      // aviso al team completo (push nativo + web) — evento de alto valor,
+      // no solo un draft de outbox esperando aprobación como el resto
+      if (lead) { const dv = dealValue(d); pushTo(null, '🏆 Deal ganado: ' + (lead.name || lead.email || ''), (d.title || 'Proyecto') + (dv ? ' · ' + fmtChf(dv) : ''), '/dashboard/?lead=' + lead.id); }
     }
     await mirrorLeadStatus(d.lead_id);
     renderLeads();
