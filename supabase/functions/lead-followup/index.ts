@@ -87,6 +87,15 @@ Deno.serve(async (req) => {
         <p style="font-family:sans-serif;font-size:13px"><a href="https://www.viven.ch/dashboard/">Abrir dashboard →</a></p>`,
     }),
   });
+  fetch(`${SB_URL}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SERVICE_KEY },
+    body: JSON.stringify({
+      title: `⏰ ${due.length} follow-up${due.length > 1 ? "s" : ""} pendiente${due.length > 1 ? "s" : ""} hoy`,
+      body: due.length === 1 ? String(due[0].name || due[0].email || "") : due.slice(0, 3).map((l) => l.name || l.email).join(", "),
+      url: "/dashboard/",
+    }),
+  }).catch(() => {});
 
   return new Response(JSON.stringify({ ok: true, due: due.length }), { headers: { "Content-Type": "application/json" } });
 });

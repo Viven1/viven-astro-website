@@ -119,7 +119,18 @@ Deno.serve(async (req) => {
     }
 
     if (newPeriod) {
-      // nuevo mes en rojo (o cambió el mes detectado) → avisar
+      // nuevo mes en rojo (o cambió el mes detectado) → avisar (push + email,
+      // señal financiera de alto valor, no debería depender solo del email)
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+        body: JSON.stringify({
+          to: settings.alert_email,
+          title: "⚠️ Cash flow bajo el umbral en " + monthLabel(newPeriod),
+          body: `Saldo proyectado ${chf(redMonth!.balance)} (umbral ${chf(threshold)})`,
+          url: "/dashboard/?tab=sistema&sub=cashflow",
+        }),
+      }).catch(() => {});
       if (RESEND_API_KEY) {
         const subject = `⚠️ Cash flow: saldo bajo el umbral en ${monthLabel(newPeriod)}`;
         const html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.6">

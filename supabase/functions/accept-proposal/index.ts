@@ -83,6 +83,18 @@ Deno.serve(async (req) => {
       if (!dealScoped) await admin.from("offers").update({ status: "won" }).eq("lead_id", String(data.lead_id)).in("status", ["draft", "sent"]);
     }
 
+    // aviso push al team (además del email) — evento de alto valor, no
+    // debería depender de que alguien abra el mail para enterarse
+    fetch(`${SB_URL}/functions/v1/push-send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SERVICE },
+      body: JSON.stringify({
+        title: "✅ Propuesta aceptada — " + (data.title || slug),
+        body: `${name}${tier ? " · " + tier : ""}${total ? " · CHF " + Number(total).toLocaleString("de-CH") : ""}`,
+        url: data.lead_id ? "/dashboard/?lead=" + data.lead_id : "/dashboard/",
+      }),
+    }).catch(() => {});
+
     // avisar a Viven (best-effort)
     if (RESEND_API_KEY) {
       const body = `✅ Propuesta ACEPTADA\n\n` +

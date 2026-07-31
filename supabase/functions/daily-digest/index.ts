@@ -287,19 +287,30 @@ Deno.serve(async (req) => {
       { to: "sofia@viven.ch", secs: sections.filter((s) => s.forSofia) },
     ];
     const sent: string[] = [];
-    if (RESEND_API_KEY) {
-      for (const r of recipients) {
+    for (const r of recipients) {
+      const subj = subjectFor(new Set(r.secs.map((s) => s.key)));
+      if (RESEND_API_KEY) {
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             from: "Viven Dashboard <leads@viven.ch>",
             to: [r.to],
-            subject: subjectFor(new Set(r.secs.map((s) => s.key))),
+            subject: subj,
             html: wrap(r.secs.map((s) => s.html).join("")),
           }),
         }).then((res) => { if (res.ok) sent.push(r.to); else console.error("RESEND_ERROR", r.to, res.status); })
           .catch((e) => console.error("RESEND_ERROR", r.to, String(e)));
+      }
+      // resumen condensado por push — el digest completo es largo, no tiene
+      // sentido repetirlo entero como notificación; el asunto ya resuelve
+      // "qué es lo más urgente hoy" por destinatario
+      if (r.secs.length) {
+        fetch(`${SB_URL}/functions/v1/push-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+          body: JSON.stringify({ to: r.to, title: subj, body: r.secs.map((s) => s.key).join(" · "), url: "/dashboard/" }),
+        }).catch(() => {});
       }
     }
 

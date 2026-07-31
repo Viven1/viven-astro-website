@@ -51,6 +51,17 @@ const htmlToPreviewText = (html: string) =>
 const SENDER_EMAIL: Record<string, string> = { sofia: "sofia@viven.ch", sebastian: "sebastian@viven.ch", team: "info@viven.ch" };
 const SENDER_NAME: Record<string, string> = { sofia: "Sofia", sebastian: "Sebastian", team: "el team" };
 
+// aviso también por push nativo (además del email) — al dueño del borrador,
+// mismo camino que reactivation-engine/lead-notify (Web Push + APNs, un solo
+// fetch best-effort que nunca bloquea el flujo si push-send falla).
+function pushNotify(to: string, title: string, body: string, url: string) {
+  fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + SERVICE_ROLE_KEY },
+    body: JSON.stringify({ to, title, body, url }),
+  }).catch((e) => console.error("PUSH_ERROR", String(e)));
+}
+
 Deno.serve(async (req) => {
   if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
     return json({ error: "unauthorized" }, 401);
@@ -71,6 +82,7 @@ Deno.serve(async (req) => {
     const to = SENDER_EMAIL[ob.sender] || SENDER_EMAIL.team;
     const kindLabel = ob.kind === "followup" ? "📬 Follow-up" : ob.kind === "content_followup" ? "🎯 " + (ob.category || "Contenido") : ob.kind === "reactivation" ? "♻️ Reactivación · " + (ob.category === "won" ? "cliente ganado" : "lead perdido") : ob.kind === "followup_later" ? "🕓 Seguimiento futuro" : "⚙️ Workflow";
     const leadUrl = `https://www.viven.ch/dashboard/?lead=${encodeURIComponent(ob.lead_id)}`;
+    pushNotify(to, `${kindLabel} — ${leadName}`, ob.subject || "", leadUrl);
 
     if (!RESEND) return json({ ok: true, skipped: "no_resend_key" });
     const html = `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
