@@ -22,6 +22,22 @@ gtag('consent', 'default', {
   'ad_personalization': 'denied',
   'wait_for_update': 500
 });
+/* Restaurar el consentimiento ya dado. Vive acá y no en site.js porque /book/ no
+   carga site.js: sin esto, quien ya aceptó cookies en el sitio era tratado como
+   "denied" al reservar — y una reserva confirmada es la conversión más valiosa,
+   así que se sub-reportaba justo donde más duele. En las páginas que sí cargan
+   site.js este update es redundante (site.js lo repite con los mismos valores,
+   que es inocuo) pero sale antes, que es mejor para los tags. */
+try{
+  if(localStorage.getItem('viven-cookie') === 'accepted'){
+    gtag('consent', 'update', {
+      'ad_storage': 'granted',
+      'analytics_storage': 'granted',
+      'ad_user_data': 'granted',
+      'ad_personalization': 'granted'
+    });
+  }
+}catch(e){}
 </script>
 
 <!-- Google Tag Manager — diferido a después del load, para que no compita con el
