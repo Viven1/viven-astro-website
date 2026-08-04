@@ -15,6 +15,20 @@
 //
 // 302+no-store en ambos: nunca cachear (el host/idioma pueden cambiar).
 // Todo lo demás va directo a los assets estáticos.
+//
+// 3) URLs retiradas → 301 a lo que las reemplaza (mapa RETIRED). Se agrega una
+//    entrada acá cada vez que se borra una página QUE YA ESTUVO PUBLICADA, para
+//    que no quede un 404 ni se pierda lo que haya juntado en buscadores.
+//    Con no-store como el resto: si algún día se reusa esa URL, ningún browser
+//    se queda pegado con el redirect viejo cacheado.
+
+const RETIRED = {
+  // 2026-08-03: se generaron dos traducciones ES del mismo artículo y las dos
+  // quedaron publicadas. Queda la que traduce fiel el título EN.
+  '/es/blog/videos-formacion-corporativa-formatos-efectivos/':
+    '/es/blog/videos-capacitacion-corporativa-formatos-efectivos/',
+};
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -23,6 +37,13 @@ export default {
       return new Response(null, {
         status: 301,
         headers: { Location: url.toString(), 'Cache-Control': 'no-store' },
+      });
+    }
+    const retiredTo = RETIRED[url.pathname.endsWith('/') ? url.pathname : url.pathname + '/'];
+    if (retiredTo) {
+      return new Response(null, {
+        status: 301,
+        headers: { Location: url.origin + retiredTo + url.search, 'Cache-Control': 'no-store' },
       });
     }
     if (url.pathname === '/') {
