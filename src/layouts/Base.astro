@@ -2,6 +2,7 @@
 import { T, pick, localePath, hreflangs, SITE, DEFAULT_LANG } from '../i18n.js';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import Tracking from '../components/Tracking.astro';
 
 const {
   lang = DEFAULT_LANG,
@@ -64,39 +65,7 @@ const orgGraph = {
 <meta name="robots" content={noindex ? 'noindex,nofollow' : 'index,follow,max-image-preview:large'} />
 <script is:inline>/* noindex del dominio de pruebas de Netlify (evita contenido duplicado con viven.ch). Se desactiva solo en el dominio final. */if(location.hostname.indexOf('netlify.app')>-1){var _m=document.createElement('meta');_m.name='robots';_m.content='noindex,nofollow';document.head.appendChild(_m);}</script>
 
-<!-- Google Consent Mode v2 — default state, debe correr antes de GTM/gtag para que los
-     tags que respetan Consent Mode no disparen (o queden bloqueados) sin ninguna señal.
-     Container propio y separado del de la agencia (GTM-MVFQ7T7, usado por las
-     landings de Ads) — así el tráfico orgánico del sitio principal no se mezcla
-     con las audiencias de remarketing / conversiones de las campañas pagas. -->
-<script is:inline>
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('consent', 'default', {
-  'ad_storage': 'denied',
-  'analytics_storage': 'denied',
-  'ad_user_data': 'denied',
-  'ad_personalization': 'denied',
-  'wait_for_update': 500
-});
-</script>
-
-<!-- Google Tag Manager — diferido a después del load, para que no compita con el
-     render inicial por tiempo de main thread (PageSpeed: TBT/JS sin usar). El container
-     en sí puede cargar siempre (Consent Mode decide qué tag dispara adentro) — Clarity
-     NO tiene noción de Consent Mode propia, así que esa carga vive en site.js, gateada
-     por el mismo cookie-bar que ya gatea GA4 (pedido explícito de Sebastián). -->
-<script is:inline>
-function _vivenLoadTracking(){
-  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-M3TD9G4H');
-}
-if(document.readyState === 'complete') setTimeout(_vivenLoadTracking, 100);
-else window.addEventListener('load', function(){ setTimeout(_vivenLoadTracking, 100); });
-</script>
+<Tracking />
 
 <link rel="canonical" href={canonical} />
 {!singleLang && alts.map((a) => (<link rel="alternate" hreflang={a.lang} href={a.href} />))}

@@ -1,0 +1,42 @@
+---
+/* Consent Mode v2 + carga del container de GTM.
+   Fuente única: lo usa Base.astro (todo el sitio) y además cada página que arma
+   su propio <head> sin Base — /thank-you/, /danke/, /gracias/. Esas tres son las
+   páginas de conversión: si les falta el container, el tag de conversión de
+   Google Ads no dispara nunca, por más bien configurado que esté del lado de la
+   agencia. Ya pasó una vez; por eso vive acá y no copiado en cada layout.
+
+   GTM-M3TD9G4H es el container propio. El de la agencia (GTM-MVFQ7T7) quedó del
+   sitio anterior y hoy no carga en ninguna página; la decisión (3 ago 2026) es que
+   migren sus tags acá en vez de restaurar el viejo. */
+---
+<!-- Google Consent Mode v2 — default state, debe correr antes de GTM/gtag para que los
+     tags que respetan Consent Mode no disparen (o queden bloqueados) sin ninguna señal. -->
+<script is:inline>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('consent', 'default', {
+  'ad_storage': 'denied',
+  'analytics_storage': 'denied',
+  'ad_user_data': 'denied',
+  'ad_personalization': 'denied',
+  'wait_for_update': 500
+});
+</script>
+
+<!-- Google Tag Manager — diferido a después del load, para que no compita con el
+     render inicial por tiempo de main thread (PageSpeed: TBT/JS sin usar). El container
+     en sí puede cargar siempre (Consent Mode decide qué tag dispara adentro) — Clarity
+     NO tiene noción de Consent Mode propia, así que esa carga vive en site.js, gateada
+     por el mismo cookie-bar que ya gatea GA4 (pedido explícito de Sebastián). -->
+<script is:inline>
+function _vivenLoadTracking(){
+  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-M3TD9G4H');
+}
+if(document.readyState === 'complete') setTimeout(_vivenLoadTracking, 100);
+else window.addEventListener('load', function(){ setTimeout(_vivenLoadTracking, 100); });
+</script>

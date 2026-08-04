@@ -5,6 +5,7 @@
 // calendario (booking-slots?all=1): los horarios ocupados se ven EN GRIS, semanas
 // navegables ‹ ›. booking-create crea el evento con Meet. Fallback: si la API no
 // responde, link de respaldo (HubSpot).
+import Tracking from './Tracking.astro';
 const FN = 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1';
 // fix (pedido explícito 2026-07-14): el respaldo era un solo link fijo al HubSpot de Sofía
 // sin importar con quién había fallado la reserva — mismo patrón de bug que ya arreglamos
@@ -23,6 +24,7 @@ const { preHost = null } = Astro.props;
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex,nofollow" />
+<Tracking />
 <title>Book a call — Viven Film Production</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="preload" href="/assets/fonts/sg-var.woff2" as="font" type="font/woff2" crossorigin />
@@ -429,6 +431,15 @@ const { preHost = null } = Astro.props;
       if (r.status === 409) { err.hidden = false; err.textContent = t('taken'); $('bk-step2').hidden = true; $('bk-step1').hidden = false; load(); return; }
       if (!d.ok) throw new Error(d.error || 'error');
       $('bk-step2').hidden = true; $('bk-ok').hidden = false;
+      /* Reserva confirmada = la conversión más valiosa del sitio (call agendada con
+         nombre + email). Esta página no carga site.js, así que el push va directo.
+         Mismo evento que el resto de los leads, separado por `method` — así la
+         agencia arma una sola acción de conversión segmentada por origen. */
+      try {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: 'generate_lead', method: 'booking', page: location.pathname });
+        if (typeof window.gtag === 'function') window.gtag('event', 'generate_lead', { method: 'booking', page: location.pathname });
+      } catch (_) {}
       $('bk-ok-when').textContent = '📅 ' + fmtDay(d.start, { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + fmtTime(d.start) + ' (' + d.duration + ' min)';
       const cm = d.msg || (window.__bkMsg && window.__bkMsg[lang]);
       if (cm) { const p = document.createElement('p'); p.textContent = cm; p.style.cssText = 'color:#dfe6f3;font-size:14px'; $('bk-ok-when').after(p); }

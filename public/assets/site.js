@@ -597,7 +597,12 @@ document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){
     hubspotSubmit('', '', email, 'Newsletter signup', '-');
     sbInsertLead(row).then(function(res){
       var box = form.closest('[data-nl]');
-      if(res && res.ok){ form.hidden = true; var d = box.querySelector('.nl-done'); if(d) d.hidden = false; }
+      if(res && res.ok){
+        form.hidden = true; var d = box.querySelector('.nl-done'); if(d) d.hidden = false;
+        /* lead real (fila en leads + HubSpot) que tampoco pasa por /thank-you/ —
+           sin esto la suscripción al newsletter es invisible en GA4 y en Ads */
+        track('generate_lead', {method: 'newsletter', page: location.pathname});
+      }
       else { btn.disabled = false; }
     });
   });
@@ -621,8 +626,25 @@ if(document.querySelector('.lead-form')) setLang(document.documentElement.lang |
   });
 })();
 
-/* ---------- Lead conversion tracking (GA4, consent-gated: no-ops until gtag exists) ---------- */
-function track(name, params){ if(typeof window.gtag === 'function') window.gtag('event', name, params || {}); }
+/* ---------- Lead conversion tracking (GA4, consent-gated: no-ops until gtag exists) ----------
+   Cada evento sale por dos vías:
+   1) gtag('event', ...) → GA4 directo (el config de GA vive en loadGA, con consentimiento).
+   2) dataLayer.push({event: name, ...params}) → GTM. La vía gtag empuja un objeto
+      `arguments` ({0:'event',1:'generate_lead',...}), que NO es un Custom Event trigger
+      confiable en GTM; con el push explícito la agencia puede disparar los tags de
+      conversión de Google Ads sobre {event:'generate_lead', method:'calculator'|...}.
+   OJO: GA4 ya recibe estos eventos por la vía 1 — un tag GA4 en GTM sobre el mismo
+   evento los contaría dos veces. El push es para los tags de Ads, no para GA4. */
+function track(name, params){
+  var p = params || {};
+  if(typeof window.gtag === 'function') window.gtag('event', name, p);
+  try{
+    window.dataLayer = window.dataLayer || [];
+    var msg = {event: name};
+    for(var k in p){ if(Object.prototype.hasOwnProperty.call(p, k)) msg[k] = p[k]; }
+    window.dataLayer.push(msg);
+  }catch(_){ }
+}
 /* Meeting booking click → book_call */
 document.querySelectorAll('a.book-call').forEach(function(a){
   a.addEventListener('click', function(){ track('book_call', {method: 'hubspot_meetings'}); });
