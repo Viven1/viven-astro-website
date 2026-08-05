@@ -22,11 +22,30 @@
 //    Con no-store como el resto: si algún día se reusa esa URL, ningún browser
 //    se queda pegado con el redirect viejo cacheado.
 
+// Las claves se escriben con el carácter real (á, ü…), no percent-encoded: la
+// búsqueda decodifica y normaliza a NFC antes de comparar, así una sola entrada
+// cubre las dos codificaciones (%C3%BC y fu%CC%88r) y las dos formas Unicode.
 const RETIRED = {
   // 2026-08-03: se generaron dos traducciones ES del mismo artículo y las dos
   // quedaron publicadas. Queda la que traduce fiel el título EN.
   '/es/blog/videos-formacion-corporativa-formatos-efectivos/':
     '/es/blog/videos-capacitacion-corporativa-formatos-efectivos/',
+
+  // 2026-08-04: cinco posts DE tenían la diéresis en el slug. macOS los guardó
+  // en forma NFD y el sitemap publicaba la NFC, así que Google recibía 404 y
+  // nunca pudo indexarlos (navegando sí se llegaba: el índice usaba la NFD).
+  // Pasaron a ASCII — la misma transliteración que esos slugs ya usaban en
+  // "staerkere" y "verkuerzen".
+  '/de/blog/so-arbeitest-du-mit-deiner-videoagentur-zusammen-für-mehr-umsatz-und-staerkere-kundenbindung/':
+    '/de/blog/so-arbeitest-du-mit-deiner-videoagentur-zusammen-fuer-mehr-umsatz-und-staerkere-kundenbindung/',
+  '/de/blog/stärke-die-unternehmenskommunikation-mit-corporate-videoproduktion/':
+    '/de/blog/staerke-die-unternehmenskommunikation-mit-corporate-videoproduktion/',
+  '/de/blog/warum-kunden-testimonial-videos-für-marken-ein-echter-gamechanger-sind/':
+    '/de/blog/warum-kunden-testimonial-videos-fuer-marken-ein-echter-gamechanger-sind/',
+  '/de/blog/wie-brands-mit-video-fallstudien-neue-kundinnen-überzeugen/':
+    '/de/blog/wie-brands-mit-video-fallstudien-neue-kundinnen-ueberzeugen/',
+  '/de/blog/wie-produktvideos-den-verkaufsprozess-für-marken-verkuerzen/':
+    '/de/blog/wie-produktvideos-den-verkaufsprozess-fuer-marken-verkuerzen/',
 };
 
 export default {
@@ -39,7 +58,9 @@ export default {
         headers: { Location: url.toString(), 'Cache-Control': 'no-store' },
       });
     }
-    const retiredTo = RETIRED[url.pathname.endsWith('/') ? url.pathname : url.pathname + '/'];
+    let lookup = url.pathname;
+    try { lookup = decodeURIComponent(lookup).normalize('NFC'); } catch (_) { /* path mal formado: se compara crudo */ }
+    const retiredTo = RETIRED[lookup.endsWith('/') ? lookup : lookup + '/'];
     if (retiredTo) {
       return new Response(null, {
         status: 301,
