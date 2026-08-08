@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Konferenz-Videokonzept: Aus einem Event ein Monat Content | Viven"};
+const description = {"de":"Wie Sie eine Konferenz filmen und daraus 4 Wochen Social-Media-, Website- und Newsletter-Content gewinnen. Strategie + Checkliste von Viven."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "konferenz-video-mehrfach-content";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/konferenz-video-mehrfach-content" active="blog" singleLang={true} langUrls={{"en":"/en/blog/conference-video-production-content-repurposing/","de":"/de/blog/konferenz-video-mehrfach-content/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/konferenz-video-mehrfach-content/\"},\"headline\":\"Konferenz-Videokonzept: Aus einem Event ein Monat Content\",\"description\":\"Wie Sie eine Konferenz filmen und daraus 4 Wochen Social-Media-, Website- und Newsletter-Content gewinnen. Strategie + Checkliste von Viven.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/konferenz-video-mehrfach-content/\",\"datePublished\":\"2026-08-08T13:41:39.419Z\",\"image\":\"https://www.viven.ch/projects/pmi-why-science-matters-brand-video/01-PMI_on_background.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Konferenz-Videokonzept: Aus einem Event ein Monat Content\",\"item\":\"https://www.viven.ch/de/blog/konferenz-video-mehrfach-content/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie viele Kameras braucht man für eine Konferenz?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Mindestens zwei: eine fest auf der Bühne für Sprecher und Folien, eine mobil für Publikum und Gänge. Für grössere Events empfehlen wir drei bis vier, um verschiedene Winkel und Details zu fangen. Das macht den Schnitt dynamischer und liefert mehr verwertbare Assets.\"}},{\"@type\":\"Question\",\"name\":\"Wie lange dauert der Schnitt und Bearbeitung nach einem 2-Tage-Event?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Mit striktem Zeit- und Format-Plan: 3–4 Wochen für 40–50 polierte Videos (je nach Komplexität). Erste Teaser und Highlights können bereits nach 24–48 Stunden online gehen. Ein erfahrenes Team wie Viven nutzt dabei Automatisierung und Vorlagen, um schneller zu werden.\"}},{\"@type\":\"Question\",\"name\":\"Welches Format funktioniert am besten auf LinkedIn?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Vertical-Videos (9:16) mit Untertiteln, 30–90 Sekunden lang, mit echten Zitaten und Emotion. LinkedIn bevorzugt authentische, persönliche Momente vor polierter Werbung. Behind-the-Scenes und Interview-Snippets performen meist besser als Highlight-Reels allein.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Konferenz-Videokonzept: Aus einem Event ein Monat Content</span></nav>
+  <span class="eyebrow">Produktvideo</span>
+  <h1>Konferenz-Videokonzept: Aus einem Event ein Monat Content</h1>
+  <p class="lead">Eine Konferenz, ein Produktlaunch oder ein internes Event kostet Zeit und Budget – aber nur wenige Unternehmen nutzen das Videomaterial danach optimal aus. Mit einem durchdachten Konferenz-Videokonzept lassen sich aus einem zweitägigen Event vier Wochen verwertbares Content-Material generieren: Highlight-Videos für LinkedIn, Kurz-Clips für Instagram und TikTok, vollständige Vortragsaufzeichnungen, Behind-the-Scenes-Sequenzen und Interview-Schnipsel. Das spart Produktionsbudget und erhöht die Reichweite enorm. Viven zeigt, wie's geht.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>8. August 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/pmi-why-science-matters-brand-video/01-PMI_on_background.jpg" alt="Konferenz-Videokonzept: Aus einem Event ein Monat Content" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Warum Events allein nicht genug Content generieren</h2><p>Die meisten Veranstaltungen werden nur live gestreamt oder komplett aufgezeichnet – und dann vergessen. Das ist verschwendetes Potenzial. Ein Event bietet:</p><ul><li>echte Menschen und Stimmen (glaubwürdig, authentic)</li><li>Live-Momente, die nicht gestellt wirken</li><li>Fachkompetenz in sichtbarer Form</li><li>Netzwerk-Aufnahmen und Diskussionen</li></ul><p>Wer diese Rohstoffe von Anfang an für Multi-Format-Nutzung plant, multipliziert den ROI um das Drei- bis Fünffache – ohne zusätzliche Drehkosten. Das ist bei Konferenzen, Kundenevent oder Messen entscheidend.</p><h2>Die Pre-Production-Checkliste: Was vor dem Event geplant werden muss</h2><p>Erfolg beginnt lange vor der ersten Kamera:</p><ul><li><strong>Sprecher und Key-Sessions identifizieren:</strong> Welche Vorträge liefern Zitate und Insights, die auch danach interessant sind?</li><li><strong>Drehplan für die Nebengeschichten:</strong> Interview-Slots mit Speakern, Networking-Momente, Q&amp;A-Aufnahmen einplanen</li><li><strong>Kamerapositionen und Technik festlegen:</strong> Fest-Kameras für Bühne, mobil-Team für Publikum und Gänge, Lavalier-Mikros für klaren Ton</li><li><strong>Lizenzen und Rechte klären:</strong> Consent-Formulare für Teilnehmende, Einwilligung von Speakern für Nachnutzung</li><li><strong>Audio-Feed vom Veranstalter:</strong> Direkter Ton von Rednerpult und Mikrofonen ist essentiell</li></ul><p>Viven empfiehlt: Ein kurzes Pre-Production-Gespräch mit dem Event-Team kostet zwei Stunden und spart später Tage an Produktionsstress.</p><h2>Content-Formate, die Sie aus einer Konferenz herausholen</h2><p>Ein einzelnes Event, professionell gefilmt, ergibt mindestens diese verwertbaren Formate:</p><ul><li><strong>Teaser &amp; Highlight-Reels (30–90 Sekunden):</strong> Beste Zitate, emotionale Momente, Zahlen-Facts für LinkedIn und YouTube</li><li><strong>Vertical-Videos (9:16 Format):</strong> Kurz-Clips (15–30 Sekunden) für Instagram Reels und TikTok; ideal für Zitate der Sprecher</li><li><strong>Interview-Schnipsel (2–4 Minuten):</strong> Tiefere Gespräche mit Key-Speakern, direkt nach ihrem Talk, für Newsletter und Website</li><li><strong>Full-Length-Aufzeichnungen:</strong> Komplette Vorträge für Ihre Video-Mediathek und zur Weitergabe an Teilnehmende (added value)</li><li><strong>Behind-the-Scenes:</strong> Backstage-Momente, Aufbau, Pausen-Szenen – authentisch und niedrigschwellig</li><li><strong>Grafik-Videos:</strong> Aus Folien und Key-Stats animierte Motion-Graphics für Website und Social Media</li></ul><p>Mit drei bis vier Kamerapositionen und einem erfahrenen Editor erreichen Sie aus einem 2-Tage-Event 40–60 verwertbare Video-Assets.</p><h2>Distribution im Rhythmus: Ein Month-Calendar</h2><p>Die beste Strategie ist: Nicht alles auf einmal posten. Ein strukturierter Kalender hält die Aufmerksamkeit vier Wochen am Leben:</p><ul><li><strong>Woche 1:</strong> Teaser &amp; Ankündigung (Video-Snippets vom Event); Full-Stream für Nicht-Teilnehmende</li><li><strong>Woche 2:</strong> Individuelle Sprecher-Highlights auf LinkedIn; Vertical-Videos auf Reels</li><li><strong>Woche 3:</strong> Interview-Schnipsel in der E-Mail-Serie; Website-Integration der Aufzeichnungen</li><li><strong>Woche 4:</strong> Thematische Zusammenfassungen mit animierten Stats; CTA zur nächsten Veranstaltung</li></ul><p>Dieser Rhythmus hält Ihre Community aktiv und maximiert organische Reichweite ohne zusätzliche Produktion.</p><h2>Warum ein professioneller Produktionspartner den Unterschied macht</h2><p>Viele Firmen versuchen, ihre Konferenz mit einer mobilen Kamera und freiem Schnittprogramm abzudecken. Das Ergebnis wirkt amateurhaft und zieht kein LinkedIn-Engagement. Ein erfahrenes Team wie Viven bringt:</p><ul><li>Mehrfach-Kameras und Professionelle Tonanlage (klare Audio ist 80 % der Arbeit)</li><li>Erfahrung im Pace und Schnitt für verschiedene Plattformen (TikTok braucht anderes Tempo als LinkedIn)</li><li>Rechtliche Sicherheit und Konformität</li><li>Schnelle Turnaround-Zeiten (Teasers am nächsten Morgen)</li></ul><p>Viven hat diese Strategie bereits für <a href={p("projects")}>interne Konferenzen und Kundenevent</a> von UBS, Siemens und Porsche umgesetzt. Der Unterschied zwischen "nur aufgezeichnet" und "strategisch produziert" ist messbar – in Clicks, Kommentaren und Leads.</p><h2>Praktisches Rechenbeispiel</h2><p>Ein typisches Setup kostet in der Schweiz zwischen CHF 8'000 und CHF 15'000 für zwei Tage. Daraus entstehen 50+ Video-Assets über vier Wochen. Das bedeutet:</p><ul><li>Kosten pro Video-Asset: CHF 160–300</li><li>Zum Vergleich: Ein professionelles Einzelvideo kostet CHF 3'000–8'000</li><li>Einsparung: 70–80 % gegenüber regulärer Produktion</li></ul><p>Zusätzlich: Längere Sichtbarkeit in Feeds, mehr Engagement, und Sie haben Material für zukünftige Case Studies und <a href={p("services/corporate-video")}>Unternehmensvideos</a>.</p>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="konferenz-video-mehrfach-content" />
+  </div></section>
+</Base>
