@@ -1,6 +1,13 @@
 # Redirects Cloudflare Workers — ESTÁTICAS PRIMERO, wildcards AL FINAL.
 # ⚠️ El parser de wrangler cuenta como "dinámica" (límite 100) TODA regla que aparezca
 # después de la primera con *. No intercalar. El matching NO depende del orden del archivo.
+#
+# ⚠️ HAY UN SEGUNDO LUGAR: el mapa RETIRED de worker.js. Como wrangler.jsonc tiene
+# run_worker_first:true, el worker corre ANTES que este archivo y sus redirects ganan.
+# Este archivo NO matchea rutas con acentos o diéresis: la request llega en una forma
+# Unicode distinta a la escrita acá (pasó con /blog/author/sofia-treviño, que estaba
+# acá y aun así devolvía 404). Esas van al worker, que decodifica y normaliza a NFC.
+# Regla práctica: slug ASCII → acá; con acentos → worker.js.
 
 # sitemap.xml ahora lo genera @astrojs/sitemap como sitemap-index.xml —
 # la URL vieja (registrada en GSC) sigue funcionando vía este 301.
