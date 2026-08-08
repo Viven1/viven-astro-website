@@ -46,6 +46,66 @@ const RETIRED = {
     '/de/blog/wie-brands-mit-video-fallstudien-neue-kundinnen-ueberzeugen/',
   '/de/blog/wie-produktvideos-den-verkaufsprozess-für-marken-verkuerzen/':
     '/de/blog/wie-produktvideos-den-verkaufsprozess-fuer-marken-verkuerzen/',
+
+  // 2026-08-08: URLs del sitio viejo (HubSpot) que Search Console sigue reportando
+  // como 404. Eran las páginas de recursos, que vivían en /{idioma}/{slug} y hoy
+  // están en /{idioma}/resources/{slug}/. Cada una va al artículo del MISMO tema;
+  // donde el artículo exacto ya no existe, al más cercano de ese idioma.
+  // Los `?hsLang=xx` de HubSpot quedan cubiertos solos: la búsqueda usa el pathname.
+  '/de/blog/author/sofia-treviño':
+    '/de/blog/',
+  '/de/warum-sind-testimonial-videos-effektiv':
+    '/de/resources/was-ist-die-produktion-von-testimonial-videos/',
+  '/de/was-ist-die-videoproduktion-mit-drohnen':
+    '/de/resources/warum-sollten-drohnenaufnahmen-in-der-videoproduktion-verwendet-werden/',
+  '/de/was-ist-eine-videoproduktion':
+    '/de/resources/was-geschieht-bei-der-videoproduktion/',
+  '/de/was-sind-die-vorteile-von-live-streaming-veranstaltungen':
+    '/de/resources/was-ist-eine-live-video-produktion/',
+  '/de/welche-arten-von-animierten-videos-gibt-es':
+    '/de/resources/was-ist-die-produktion-von-animierten-videos/',
+  '/de/welche-branchen-nutzen-animierte-videos':
+    '/de/resources/was-ist-die-produktion-von-animierten-videos/',
+  '/de/wie-steigern-marketingvideos-das-engagement':
+    '/de/resources/was-ist-videomarketing/',
+  '/en/blog/author/sofia-treviño':
+    '/en/blog/',
+  '/en/what-are-the-stages-of-video-production':
+    '/en/resources/video-production-process/',
+  '/en/what-is-animated-video-production':
+    '/en/resources/what-types-of-animated-videos-are-there/',
+  '/en/what-is-video-production':
+    '/en/resources/what-is-video-production/',
+  '/en/what-should-be-included-in-a-testimonial-video':
+    '/en/resources/what-is-testimonial-video-production/',
+  '/en/why-are-testimonial-videos-effective':
+    '/en/resources/what-is-testimonial-video-production/',
+  '/en/why-are-videos-important-for-social-media':
+    '/en/resources/what-is-social-media-video-production/',
+  '/es/cuales-son-los-beneficios-de-transmitir-eventos-en-vivo':
+    '/es/resources/que-es-la-produccion-de-video-en-vivo/',
+  '/es/mejore-la-imagen-de-su-empresa-con-contenidos-de-video-basados-en-historias':
+    '/es/resources/que-es-la-produccion-de-video-corporativo/',
+  '/es/por-que-son-efectivos-los-videos-testimoniales':
+    '/es/resources/que-es-la-produccion-de-videos-testimoniales/',
+  '/es/que-es-la-edicion-de-video-en-postproduccion':
+    '/es/resources/cuales-son-las-etapas-de-la-produccion-de-video/',
+  '/es/que-es-la-produccion-de-video-animado':
+    '/es/resources/por-que-utilizar-la-animacion-en-la-produccion-de-video/',
+  '/es/que-es-la-produccion-de-video-con-drones':
+    '/es/resources/por-que-utilizar-imagenes-de-drones-en-la-produccion-de-video/',
+  '/es/que-es-la-produccion-de-video-para-eventos':
+    '/es/resources/por-que-invertir-en-la-produccion-de-videos-para-eventos/',
+  '/es/que-es-la-produccion-de-video-para-redes-sociales':
+    '/es/resources/por-que-son-importantes-los-videos-para-las-redes-sociales/',
+  '/es/que-es-la-produccion-de-videos-de-marca':
+    '/es/resources/como-pueden-los-videos-de-marca-apoyar-el-marketing/',
+  '/es/que-es-un-video-promocional':
+    '/es/resources/que-hace-que-un-video-promocional-sea-efectivo/',
+  '/terms-and-conditions-viven-ag':
+    '/en/terms/',
+  '/viven/author/sebastian-e-cepeda':
+    '/en/blog/',
 };
 
 export default {
@@ -60,7 +120,11 @@ export default {
     }
     let lookup = url.pathname;
     try { lookup = decodeURIComponent(lookup).normalize('NFC'); } catch (_) { /* path mal formado: se compara crudo */ }
-    const retiredTo = RETIRED[lookup.endsWith('/') ? lookup : lookup + '/'];
+    /* Se prueban las dos formas: las URLs del sitio viejo vienen sin barra final
+       y las nuestras con ella, y una entrada tiene que servir para las dos. */
+    const conBarra = lookup.endsWith('/') ? lookup : lookup + '/';
+    const sinBarra = lookup.endsWith('/') ? lookup.slice(0, -1) : lookup;
+    const retiredTo = RETIRED[conBarra] || RETIRED[sinBarra];
     if (retiredTo) {
       return new Response(null, {
         status: 301,
