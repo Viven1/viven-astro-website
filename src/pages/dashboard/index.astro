@@ -1769,7 +1769,7 @@ const newsCases = [
         <button class="side-sec" type="button">CRM<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="side-group-items">
           <button class="side-item" data-tab="leads" type="button"><span class="si-ic">👤</span>Personas <span class="pill" id="tab-leads-count">0</span></button>
-          <button class="side-item" data-tab="auto" type="button"><span class="si-ic">📤</span>Bandeja <span class="pill" id="tab-ob-count" hidden></span></button>
+          <button class="side-item" data-tab="auto" type="button"><span class="si-ic">📤</span>Bandeja <span class="pill js-ob-count" id="tab-ob-count" hidden></span></button>
           <button class="side-item" data-tab="companies" type="button"><span class="si-ic">🏢</span>Empresas</button>
           <button class="side-item" data-tab="agenda" type="button"><span class="si-ic">📅</span>Agenda</button>
         </div>
@@ -2653,7 +2653,7 @@ const newsCases = [
       <button data-sub="licenses" type="button">📄 Licencias</button>
       <button data-sub="booking" type="button">📅 Booking</button>
       <button data-sub="ab" type="button">🧪 A/B Tests</button>
-      <button data-sub="auto" type="button">⚙️ Workflows<span class="pill" id="tab-ob-count" hidden></span></button>
+      <button data-sub="auto" type="button">⚙️ Workflows<span class="pill js-ob-count" hidden></span></button>
       <button data-sub="tmpl" type="button">📚 Plantillas</button>
       <button data-sub="cashflow" type="button" id="sistema-seg-cashflow-btn" hidden>💰 Cash Flow</button>
       <button data-sub="profile" type="button">👤 Mi perfil</button>
@@ -3280,6 +3280,7 @@ const newsCases = [
 
   <!-- Navegación inferior estilo app (solo móvil) -->
   <div class="mob-sheet" id="mob-sheet" hidden>
+    <button data-tab="auto" type="button">📤 Bandeja <span class="pill js-ob-count" hidden></span></button>
     <button data-tab="deals" type="button">🤝 Pipeline</button>
     <button data-tab="companies" type="button">🏢 Empresas</button>
     <button data-tab="analytics" type="button">📊 Analytics</button>
@@ -12174,8 +12175,12 @@ const newsCases = [
       // su scheduled_at es la fecha real de envío del paso (revisable ya), no un snooze
       const { data, error } = await supabase.from('outbox').select('id,scheduled_at,kind').eq('status', 'pending');
       const n = error ? 0 : (data || []).filter((o) => o.kind === 'content_followup' || !o.scheduled_at || o.scheduled_at <= nowIso).length;
-      const b = $('tab-ob-count'); if (!b) return;
-      b.textContent = n || ''; b.hidden = !n;
+      /* por clase y no por id: el contador vive en tres lugares (sidebar,
+         Workflows y la barra inferior del móvil) y getElementById solo
+         encontraba el primero — los otros dos nunca se actualizaban */
+      document.querySelectorAll('.js-ob-count').forEach((b) => {
+        b.textContent = n || ''; b.hidden = !n;
+      });
     } catch (e) { /* best-effort */ }
   }
   // content_followup guarda el body como HTML de email ya armado — envuelve
