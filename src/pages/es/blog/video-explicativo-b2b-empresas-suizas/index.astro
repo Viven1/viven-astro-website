@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Vídeos explicativos B2B: cómo clarifican empresas suizas productos complejos | Viven"};
+const description = {"es":"Descubre cómo los vídeos explicativos B2B ayudan a empresas suizas como UBS y Siemens a comunicar productos técnicos de forma clara y persuasiva."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "video-explicativo-b2b-empresas-suizas";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/video-explicativo-b2b-empresas-suizas" active="blog" singleLang={true} langUrls={{"en":"/en/blog/b2b-erklaervideo-komplexe-produkte/","de":"/de/blog/","es":"/es/blog/video-explicativo-b2b-empresas-suizas/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/video-explicativo-b2b-empresas-suizas/\"},\"headline\":\"Vídeos explicativos B2B: cómo clarifican empresas suizas productos complejos\",\"description\":\"Descubre cómo los vídeos explicativos B2B ayudan a empresas suizas como UBS y Siemens a comunicar productos técnicos de forma clara y persuasiva.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/video-explicativo-b2b-empresas-suizas/\",\"datePublished\":\"2026-08-10T13:03:35.757Z\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Vídeos explicativos B2B: cómo clarifican empresas suizas productos complejos\",\"item\":\"https://www.viven.ch/es/blog/video-explicativo-b2b-empresas-suizas/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo debe durar un vídeo explicativo B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Lo ideal es entre 90 segundos y 3 minutos. Los espectadores en contexto laboral tienen atención limitada. Vídeos muy cortos (menos de 60 seg) pueden parecer superficiales; muy largos pierden engagement rápidamente.\"}},{\"@type\":\"Question\",\"name\":\"¿Dónde publico un vídeo explicativo para máxima visibilidad?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Comienza en tu sitio web (página de producto o inicio), luego reparte en email marketing, LinkedIn, YouTube y anuncios digitales. Cada canal requiere formato ligeramente distinto, pero el mensaje central permanece.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuál es el presupuesto típico para producir un vídeo explicativo de calidad?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"En Suiza, varía entre CHF 8,000–25,000 dependiendo de complejidad, duración y calidad de animación. Empresas que exigen estándar profesional alto (como en fintech o industria) invierten más. El ROI lo justifica en ciclos de venta B2B.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Vídeos explicativos B2B: cómo clarifican empresas suizas productos complejos</span></nav>
+  <span class="eyebrow">Estrategia de marketing B2B</span>
+  <h1>Vídeos explicativos B2B: cómo clarifican empresas suizas productos complejos</h1>
+  <p class="lead">Los productos técnicos y servicios complejos son difíciles de explicar en una página web o en una reunión de ventas. Los vídeos explicativos B2B resuelven este problema: transforman conceptos densos en narrativas visuales claras que generan comprensión inmediata, aumentan la confianza y aceleran ciclos de venta. Empresas suizas líderes como UBS, Siemens, ON y Porsche ya utilizan esta estrategia para diferenciarse en mercados competitivos y captar leads cualificados.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>10 de agosto de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+
+<h2>Por qué las empresas B2B suizas necesitan vídeos explicativos</h2><p>En el mercado suizo, donde la precisión técnica y la claridad son valores clave, los vídeos explicativos se han convertido en herramientas indispensables. Un producto financiero complejo, una solución industrial o un servicio SaaS no se venden solos con especificaciones de texto. El vídeo explicativo B2B cierra la brecha entre la intención del cliente y la comprensión real.</p><p>Las decisiones de compra B2B ahora comienzan en línea. Los tomadores de decisiones buscan rapidez, claridad y prueba de concepto antes de contactar con el equipo de ventas. Un vídeo de 2-3 minutos que explique «qué es», «cómo funciona» y «por qué importa» puede reducir significativamente las objeciones en la fase de consulta inicial.</p><h2>Elementos clave de un vídeo explicativo B2B efectivo</h2><ul><li><strong>Narrativa clara:</strong> Estructura problema-solución que el espectador reconozca de inmediato</li><li><strong>Visualización de conceptos:</strong> Animaciones, infografías y diagramas que hacen tangible lo abstracto</li><li><strong>Voz y lenguaje técnico equilibrado:</strong> Profesional pero accesible, sin jerga innecesaria</li><li><strong>Duración óptima:</strong> Entre 90 segundos y 3 minutos para mantener atención en contextos de oficina</li><li><strong>Call-to-action claro:</strong> Invitación a descargar recursos, agendar demo o contactar ventas</li></ul><h2>Casos de uso en la industria suiza</h2><p>Las empresas suizas utilizan vídeos explicativos en diferentes fases del customer journey:</p><p><strong>En el sitio web:</strong> Colocados en páginas de producto o servicio principal, estos vídeos aumentan el tiempo de permanencia y reducen la tasa de rebote. Los visitantes comprenden el valor propuesta en segundos.</p><p><strong>En email marketing:</strong> Incluir un enlace a un vídeo explicativo en campañas B2B B2B incrementa tasas de click-through y engagement. Los leads se sienten más informados antes de la llamada de ventas.</p><p><strong>En presentaciones de ventas:</strong> Los equipos comerciales utilizan estos vídeos para estandarizar las explicaciones técnicas y ganar confianza ante clientes escépticos.</p><p>Las soluciones SaaS, fintech, maquinaria industrial y servicios de consultoría se benefician especialmente de este formato. <a href={p("services/product-video")}>Vídeos de producto</a> dirigidos a decisores técnicos y financieros abren puertas que el texto solo no puede.</p><h2>Diferencias entre vídeo explicativo y otros formatos B2B</h2><p>No todos los vídeos B2B son iguales. El vídeo explicativo se enfoca en la <strong>educación y claridad del concepto</strong>, a diferencia de:</p><ul><li><strong>Vídeos de marca o corporativos:</strong> Cuentan la historia de la empresa, no el producto</li><li><strong>Testimonios de clientes:</strong> Generan confianza mediante casos reales, no explicación de función</li><li><strong>Webinars o demostraciones en vivo:</strong> Son más largos, requieren registro y son síncronos</li></ul><p>El vídeo explicativo es conciso, focalizado y diseñado para conversión. Por eso <a href={p("services/how-to-video")}>vídeos explicativos</a> funcionan particularmente bien en anuncios digitales, landing pages y secuencias de email automático.</p><h2>Retorno de inversión (ROI) medible</h2><p>Las empresas suizas que implementan vídeos explicativos reportan:</p><ul><li>Aumento del 50-80% en comprensión de valor propuesta entre espectadores</li><li>Reducción en la duración del ciclo de venta (especialmente en B2B técnico)</li><li>Mejora en tasas de conversión en landing pages (hasta 80% según estudios de HubSpot)</li><li>Menor número de preguntas técnicas repetidas en reuniones de ventas</li><li>Mayor tasa de descarga de recursos técnicos (whitepapers, datasheets)</li></ul><p>Para empresas con productos complejos, el ROI se recupera típicamente en 3-6 meses. Cada vídeo sigue generando valor durante años.</p><h2>Próximos pasos: crear tu primer vídeo explicativo</h2><p>Si tu empresa vende soluciones técnicas o servicios B2B complejos, un vídeo explicativo es inversión estratégica. El proceso comienza con una auditoría clara: ¿cuáles son las 3 preguntas más frecuentes que recibe tu equipo de ventas? La respuesta a cada una puede ser un vídeo.</p><p>En Viven AG, trabajamos con empresas suizas para crear <a href={p("services/corporate-video")}>vídeos corporativos</a> y <a href={p("services/brand-video")}>vídeos de marca</a> que comunican con precisión técnica y claridad visual. Contamos con experiencia produciendo contenido visual para UBS, Siemens, Porsche, ON, FIFA y Philips—empresas que entienden que la calidad del storytelling técnico es competitiva.</p><p>¿Tu empresa tiene un producto complejo que merece una explicación clara? <a href={p("contact")}>Contacta con nuestro equipo</a> para una consulta sin obligación. Te ayudaremos a definir la estrategia de vídeo que más retorno genera para tu negocio.</p>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="video-explicativo-b2b-empresas-suizas" />
+  </div></section>
+</Base>
