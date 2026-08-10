@@ -6,6 +6,10 @@ import Base from '../../../layouts/Base.astro';
 import { localePath } from '../../../i18n.js';
 import resources from '../../../data/resources.json';
 import rmap from '../../../data/resources-map.json';
+/* Las páginas de recursos son intención de investigación pura ("cuánto cuesta",
+   "cuánto tarda") y eran las ÚNICAS 118 del sitio sin acceso a la calculadora:
+   solo ofrecían contacto o llamada, que es mucho más compromiso. */
+const CALC_URL = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' };
 
 export function getStaticPaths(){
   return resources.map((r) => ({ params: { lang: r.lang, slug: r.slug }, props: { entry: r } }));
@@ -102,6 +106,7 @@ const L = {
   }[lang],
   ctaBtn: { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un proyecto' }[lang],
   ctaCall: { en: '📅 Book a 15-min call', de: '📅 15-Min-Call buchen', es: '📅 Agendar 15 min' }[lang],
+  ctaCalc: { en: '🧮 What will it cost?', de: '🧮 Was kostet das?', es: '🧮 ¿Cuánto cuesta?' }[lang],
 };
 
 const pageUrl = SITE + '/' + lang + '/resources/' + entry.slug + '/';
@@ -183,7 +188,8 @@ const description = { [lang]: entry.description };
           <p class="rsrc-ctas">{L.ctaS}</p>
         </div>
         <div class="rsrc-ctabtns">
-          <a class="btn btn-primary" href={p('contact')}>{L.ctaBtn}</a>
+          <a class="btn btn-primary" href={CALC_URL[lang] || CALC_URL.en}>{L.ctaCalc}</a>
+          <a class="btn btn-ghost" href={p('contact')}>{L.ctaBtn}</a>
           <a class="btn btn-ghost" href="/book/" target="_blank" rel="noopener">{L.ctaCall}</a>
         </div>
       </div>
