@@ -102,6 +102,11 @@ const RETIRED = {
     '/es/resources/como-pueden-los-videos-de-marca-apoyar-el-marketing/',
   '/es/que-es-un-video-promocional':
     '/es/resources/que-hace-que-un-video-promocional-sea-efectivo/',
+  // 2026-08-10: el editor publicó el artículo ALEMÁN dentro de /en/blog/ con
+  // lang="en". El alemán se movió a /de/ y /en/ recibió la traducción real.
+  '/en/blog/b2b-erklaervideo-komplexe-produkte/':
+    '/en/blog/b2b-explainer-video-complex-products/',
+
   '/terms-and-conditions-viven-ag':
     '/en/terms/',
   '/viven/author/sebastian-e-cepeda':

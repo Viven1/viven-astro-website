@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"B2B explainer video: making complex products clear | Viven"};
+const description = {"en":"How Swiss companies use explainer videos to make complex products understandable — what works, and why."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "b2b-explainer-video-complex-products";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/b2b-explainer-video-complex-products" active="blog" singleLang={true} langUrls={{"en":"/en/blog/b2b-explainer-video-complex-products/","de":"/de/blog/b2b-erklaervideo-komplexe-produkte/","es":"/es/blog/video-explicativo-b2b-empresas-suizas/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/b2b-explainer-video-complex-products/\"},\"headline\":\"B2B explainer video: making complex products clear\",\"description\":\"How Swiss companies use explainer videos to make complex products understandable — what works, and why.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/b2b-explainer-video-complex-products/\",\"datePublished\":\"2026-08-10T13:02:19.504Z\",\"image\":\"https://www.viven.ch/projects/carvolution-tvc-social-media-campaign/06-sec_EN_B_v20210824_COMPOSED.Still0011.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"B2B explainer video: making complex products clear\",\"item\":\"https://www.viven.ch/en/blog/b2b-explainer-video-complex-products/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How long should a B2B explainer video be?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Between 90 and 180 seconds is the sweet spot. Shorter cuts (30–60 seconds) for social, longer ones (3–5 minutes) for detailed technical explanation or training. What matters is that every second earns its place.\"}},{\"@type\":\"Question\",\"name\":\"What does a professional explainer video cost?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"High-quality B2B video production in Switzerland runs between CHF 8,000 and CHF 50,000 depending on complexity, animation and length. It pays back through higher conversion and lower support load.\"}},{\"@type\":\"Question\",\"name\":\"How do I measure whether an explainer video worked?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Track engagement (watch time, click-through), conversion on the page carrying the video, support requests, and feedback from the sales team. A/B testing shows which version performs.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>B2B explainer video: making complex products clear</span></nav>
+  <span class="eyebrow">Industry insight</span>
+  <h1>B2B explainer video: making complex products clear</h1>
+  <p class="lead">B2B buyers want to understand what they are buying, but complex technology and processes are hard to explain. Explainer videos solve that: they break complicated material into steps people follow, lift conversion and defuse objections before they reach your sales team. Swiss industrial and financial companies — UBS, Siemens, Porsche among them — use video to carry their B2B message clearly. This article shows how to use explainer videos with a plan rather than by reflex.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>August 10, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/carvolution-tvc-social-media-campaign/06-sec_EN_B_v20210824_COMPOSED.Still0011.jpeg" alt="B2B explainer video: making complex products clear" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why explainer videos matter for B2B products</h2><p>In B2B, time is the scarcest thing in the room. Decision-makers have little patience for long documentation. A well-made explainer video does in 90 to 180 seconds what a ten-minute presentation cannot: it shows the core of a solution so the benefit lands immediately.</p><p>Research puts video recall as much as 80 percent above text. For technical or abstract products that means something concrete: prospects understand your solution faster, ask better questions and arrive closer to a decision. It also cuts support load, because the questions everyone asks are already answered.</p><h2>The four kinds of B2B explainer video</h2><ul><li><strong>Product videos:</strong> features and use cases in action. Best for software, machinery or services. <a href={p("services/product-video")}>More about product videos</a>.</li><li><strong>Process and how-to videos:</strong> steps explained in order. Made for onboarding, training and implementation. <a href={p("services/how-to-video")}>How-to videos for your training</a>.</li><li><strong>Concept videos:</strong> abstract ideas made visible through animation and graphics. Particularly effective for complex B2B concepts or business models.</li><li><strong>Customer testimonials:</strong> other companies showing how they use your product. In B2B, credibility is built by other people, not by you.</li></ul><h2>What separates a good one: story, not a feature list</h2><p>The commonest mistake in B2B explainer video is listing features instead of solving a problem. An effective video answers the customer&rsquo;s question — &laquo;why would I need this?&raquo; — not yours: &laquo;what can it do?&raquo;</p><p>The structure that works:</p><ul><li><strong>Hook (0–5 seconds):</strong> a real problem or question that earns the next ten seconds.</li><li><strong>Context (5–30 seconds):</strong> why the problem matters, and who has it.</li><li><strong>Solution (30–120 seconds):</strong> how your product solves it, concretely, with examples or visualisation.</li><li><strong>Call to action (120–180 seconds):</strong> one clear next step — request a demo, book a call, download the paper.</li></ul><p>Swiss companies tend to lean on a particular register: reliability, quality, efficiency. Those values land here in a way that hype does not.</p><h2>Where B2B explainer videos are used</h2><p>An explainer video is not a finished asset — it is one piece of a wider strategy. The usual places:</p><ul><li><strong>Website and landing pages:</strong> video on the home or product page lifts time on page and conversion.</li><li><strong>Sales enablement:</strong> sales teams use video inside calls or by email, and save the explanation each time.</li><li><strong>LinkedIn and social:</strong> <a href={p("services/social-media-video")}>shorter cuts for social media</a> earn reach and engagement.</li><li><strong>Webinars and events:</strong> an explainer at the start removes the basic questions and leaves room for the real discussion.</li><li><strong>Training and onboarding:</strong> after the sale, video gets new users productive sooner.</li></ul><h2>Quality standards for Swiss B2B production</h2><p>Professional video is an investment. In B2B, quality is not negotiable: a quickly-made video with poor audio or dated animation costs you credibility rather than buying it.</p><p>What actually matters:</p><ul><li><strong>Clear language and timing:</strong> no marketing jargon. Short sentences, and pauses that earn their place.</li><li><strong>Professional voiceover:</strong> a native speaker, in the right register — in B2B, serious beats funny.</li><li><strong>Strong graphics and animation:</strong> consistent with your brand. A distinctive visual style is what gets remembered.</li><li><strong>Technical execution:</strong> 1080p or 4K, built for mobile and desktop, properly colour-graded.</li></ul><p><a href={p("services/corporate-video")}>More about how we produce video</a> and how we bring your message to life.</p><h2>Measurement and ROI</h2><p>Video should not be produced on instinct. Measure:</p><ul><li>How long people watch. Drop-off tells you exactly where you lose them.</li><li>Which cut converts better — 90 seconds or 180.</li><li>Which audience engages, from LinkedIn and YouTube analytics.</li><li>Whether support load falls and lead quality rises after the video goes live.</li></ul><p>What we see with Swiss companies is consistent: the time to a decision gets shorter, and satisfaction after the sale goes up.</p><h2>Video is no longer a nice-to-have</h2><p>B2B buyers expect video now. It stopped being a differentiator and became a baseline, much like having a site that works on a phone. The companies that explain complex products clearly and professionally earn trust and close faster.</p><p>Your expertise deserves communication that matches it. If you are ready to tell your product visually, <a href={p("contact")}>talk to our team</a>. We know B2B in the Swiss context — and how to make technology understandable.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036679041?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="b2b-explainer-video-complex-products" />
+  </div></section>
+</Base>
