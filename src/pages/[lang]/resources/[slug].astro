@@ -6,6 +6,16 @@ import Base from '../../../layouts/Base.astro';
 import { localePath } from '../../../i18n.js';
 import resources from '../../../data/resources.json';
 import rmap from '../../../data/resources-map.json';
+import LeadMagnet from '../../../components/LeadMagnet.astro';
+/* El cheat sheet es de REDES SOCIALES: va solo en los recursos de ese tema.
+   Son 5 de 115 — ponerlo en todas sería spam y le quitaría fuerza. */
+const SOCIAL = new Set([
+  'was-ist-die-produktion-von-social-media-videos',
+  'wie-lang-sollte-ein-social-media-video-sein',
+  'how-long-should-a-social-media-video-be',
+  'what-is-social-media-video-production',
+  'por-que-son-importantes-los-videos-para-las-redes-sociales',
+]);
 /* Las páginas de recursos son intención de investigación pura ("cuánto cuesta",
    "cuánto tarda") y eran las ÚNICAS 118 del sitio sin acceso a la calculadora:
    solo ofrecían contacto o llamada, que es mucho más compromiso. */
@@ -182,7 +192,9 @@ const description = { [lang]: entry.description };
         </div>
       )}
 
-      <div class="rsrc-ctabox">
+      {SOCIAL.has(entry.slug) && <LeadMagnet lang={lang} magnet="social-formats" />}
+
+  <div class="rsrc-ctabox">
         <div>
           <div class="rsrc-ctat">{L.ctaT}</div>
           <p class="rsrc-ctas">{L.ctaS}</p>
