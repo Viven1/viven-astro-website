@@ -1336,6 +1336,10 @@ const newsCases = [
   .of-drag:active{cursor:grabbing}
   .of-table tr[data-i].of-dragging{opacity:.4}
   .of-table tr[data-i].of-dragover{box-shadow:inset 0 0 0 1px var(--acid)}
+  /* táctil: el drag&drop de HTML no dispara con el dedo, así que el ⠿ levanta
+     la fila de un toque y el segundo toque la suelta (mismo patrón que el Pipeline) */
+  .sv-row.sv-picked,.of-table tr[data-i].of-picked{box-shadow:inset 0 0 0 2px var(--acid)}
+  .sv-row.sv-picked .sv-drag,.of-table tr[data-i].of-picked .of-drag{color:var(--acid)}
   .of-summary{margin:18px 0 8px;margin-left:auto;max-width:420px;background:var(--navy-800);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .of-sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;color:var(--muted)}
   .of-sum-row b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -9523,6 +9527,11 @@ const newsCases = [
     seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { svFilter = b.dataset.f; renderServices(); }));
   }
   // reordenar dentro de la MISMA fase: reasigna `sort` 0..n y persiste
+  /* En pantalla táctil el drag & drop de HTML nunca dispara: el ⠿ no hacía nada
+     ni acá ni en Ofertas. NO se reemplaza por ▲▼ porque el pedido explícito fue
+     no ir de a uno (ver comentario en offerReorder). Un toque levanta, el
+     siguiente suelta: dos toques a cualquier posición. */
+  const TACTIL = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   async function svReorder(fromId, toId){
     if (!fromId || !toId || String(fromId) === String(toId)) return;
     const from = servicesList.find((x) => String(x.id) === String(fromId));
@@ -9599,6 +9608,19 @@ const newsCases = [
       });
       h.addEventListener('dragend', () => { box.querySelectorAll('.sv-row').forEach((r) => r.classList.remove('sv-dragging', 'sv-dragover')); svDragId = null; });
     });
+    if (TACTIL) {
+      let svPick = null;
+      const pintar = () => box.querySelectorAll('.sv-row').forEach((r) => r.classList.toggle('sv-picked', r.dataset.id === svPick));
+      box.querySelectorAll('.sv-drag').forEach((h) => {
+        h.title = 'Tocar para mover: uno levanta, el siguiente suelta';
+        h.addEventListener('click', () => {
+          const id = h.closest('.sv-row').dataset.id;
+          if (svPick === null) { svPick = id; pintar(); return; }
+          if (svPick === id) { svPick = null; pintar(); return; }
+          const from = svPick; svPick = null; pintar(); svReorder(from, id);
+        });
+      });
+    }
     box.querySelectorAll('.sv-row').forEach((row) => {
       row.addEventListener('dragover', (e) => { if (svDragId == null) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('sv-dragover'); });
       row.addEventListener('dragleave', () => row.classList.remove('sv-dragover'));
@@ -10062,6 +10084,19 @@ const newsCases = [
     tb.querySelectorAll('.of-del').forEach((b) => b.addEventListener('click', () => { ofCur.items.splice(+b.dataset.i, 1); renderRows(); }));
     tb.querySelectorAll('.of-up').forEach((b) => b.addEventListener('click', () => moveItem(+b.dataset.i, -1)));
     tb.querySelectorAll('.of-down').forEach((b) => b.addEventListener('click', () => moveItem(+b.dataset.i, 1)));
+    if (TACTIL) {
+      let ofPick = null;
+      const pintarOf = () => tb.querySelectorAll('tr[data-i]').forEach((r) => r.classList.toggle('of-picked', r.dataset.i === ofPick));
+      tb.querySelectorAll('.of-drag').forEach((h) => {
+        h.title = 'Tocar para mover: uno levanta, el siguiente suelta';
+        h.addEventListener('click', () => {
+          const i = h.closest('tr').dataset.i;
+          if (ofPick === null) { ofPick = i; pintarOf(); return; }
+          if (ofPick === i) { ofPick = null; pintarOf(); return; }
+          const from = ofPick; ofPick = null; pintarOf(); offerReorder(Number(from), Number(i));
+        });
+      });
+    }
     tb.querySelectorAll('.of-drag').forEach((h) => {
       h.addEventListener('dragstart', (e) => {
         ofDragI = +h.closest('tr').dataset.i;
