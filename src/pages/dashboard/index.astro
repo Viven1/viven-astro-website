@@ -690,6 +690,8 @@ const newsCases = [
   .pp3-it .iname{flex:1;min-width:0}
   .pp3-it .iqty{width:64px}
   .pp3-it .iprice{width:96px}
+  .pp3-it .icostin{width:88px;opacity:.75}
+  .pp3-it .icostin:focus{opacity:1}
   .pp3-it .icost{font-size:11px;color:var(--muted-2);white-space:nowrap;min-width:70px;text-align:right}
   .pp3-it-bar{display:flex;gap:6px;align-items:center;margin-top:4px}
   .pp3-it-bar select{flex:1;min-width:0;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:12px;padding:7px 8px;font-family:inherit}
@@ -11280,6 +11282,7 @@ const newsCases = [
         '<input class="iname" placeholder="Posición" value="' + esc(it.name || '') + '"/>' +
         '<input class="iqty" type="number" step="0.25" title="Cantidad" value="' + (it.qty ?? 1) + '"/>' +
         '<input class="iprice" type="number" step="10" title="Precio unitario CHF" value="' + (it.price ?? 0) + '"/>' +
+        '<input class="icostin" type="number" step="10" title="Costo interno unitario CHF (freelancer, alquiler) — solo para esta propuesta, no toca el catálogo" placeholder="costo" value="' + (it.cost ?? 0) + '"/>' +
         '<span class="icost">' + fmtM((Number(it.qty) || 0) * (Number(it.price) || 0)) + '</span>' +
         '<button class="rm it-rm" type="button" title="Sacar posición">✕</button></div>').join('');
       return '<div class="pp-row pp-tier-row" data-ti="' + i + '"><div class="rowtop"><input class="t-name grow" placeholder="Nombre paquete" value="' + esc(t.name || '') + '"/>' +
@@ -11289,7 +11292,7 @@ const newsCases = [
         '<label class="t-price-lbl" title="Se muestra tachado en la propuesta pública — el paquete más caro suele llevar más % que el más barato">% desc.<input class="t-disc" type="number" min="0" max="90" value="' + (t.discount_pct || 0) + '"/></label>' +
         '<b class="t-disc-final">' + tierDiscFinalTxt(t) + '</b>' +
         '<select class="t-from" data-i="' + i + '" title="Copiar nombre, precio y posiciones de una oferta existente">' + offerOpts + '</select>' +
-        '<span class="pp-tier-margin">' + (cost ? 'margen ' + mp + '% · costo interno CHF ' + cost.toLocaleString('de-CH') : 'sin costo interno cargado') + '</span>' +
+        '<span class="pp-tier-margin">' + (cost ? 'ganancia CHF ' + (net - cost).toLocaleString('de-CH') + ' · margen ' + mp + '% · costo CHF ' + cost.toLocaleString('de-CH') : '⚠️ sin costo interno — el margen no es real') + '</span>' +
         (t.offer_id ? (() => { const o = (offersList || []).find((x) => String(x.id) === String(t.offer_id)); return o ? '<span class="pp3-sync">⇄ sync</span><button class="pp-oflink" data-oid="' + o.id + '" type="button" title="Abrir la oferta ligada — los ítems van y vienen (⇄)">🧾 ' + esc(o.number || 'oferta') + ' ↗</button>' : ''; })() : '') + '</div>' +
         '<div class="pp3-items">' + itemsHTML +
         '<div class="pp3-it-bar"><select class="pp3-it-cat">' + catOpts + '</select><button class="btn btn-ghost xs it-blank" type="button">＋ vacía</button></div></div>' +
@@ -11307,12 +11310,16 @@ const newsCases = [
           const it = t.items[tj];
           if (inp.classList.contains('iname')) it.name = inp.value;
           else if (inp.classList.contains('iqty')) it.qty = parseFloat(inp.value) || 0;
+          /* el costo va ANTES del else: sin esta rama caía en price y editar el
+             costo cambiaba el precio al cliente. Queda solo en esta propuesta —
+             no se escribe de vuelta al catálogo de servicios (decisión de Sebastián). */
+          else if (inp.classList.contains('icostin')) it.cost = parseFloat(inp.value) || 0;
           else it.price = parseFloat(inp.value) || 0;
           // refresco en vivo, sin re-render (no perder el foco)
           ir.querySelector('.icost').textContent = fmtM((Number(it.qty) || 0) * (Number(it.price) || 0));
           if ((t.items || []).length){ t.price = Math.round(tierNet(t)); row.querySelector('.t-price').value = t.price; }
           const net = tierNet(t), cost = tierCostSum(t), mp = net ? Math.round((net - cost) / net * 100) : 0;
-          row.querySelector('.pp-tier-margin').textContent = cost ? 'margen ' + mp + '% · costo interno CHF ' + cost.toLocaleString('de-CH') : 'sin costo interno cargado';
+          row.querySelector('.pp-tier-margin').textContent = cost ? 'ganancia CHF ' + (net - cost).toLocaleString('de-CH') + ' · margen ' + mp + '% · costo CHF ' + cost.toLocaleString('de-CH') : '⚠️ sin costo interno — el margen no es real';
           if (t.offer_id){ t.includes = (t.items || []).map((x) => x.name).filter(Boolean); row.querySelector('.t-inc').value = t.includes.join('\n'); }
           ppPushTierToOffer(t);
         }));
