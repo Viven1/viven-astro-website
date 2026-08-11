@@ -667,6 +667,9 @@ const newsCases = [
   .pp-oflink{background:none;border:1px solid var(--line-strong);border-radius:8px;color:var(--acid);font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 9px;cursor:pointer;margin-left:8px}
   .pp-oflink:hover{border-color:var(--acid)}
   .pp-tier-margin{font-size:12px;color:var(--muted-2);margin-top:6px}
+  .pp-sum{font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px solid var(--line-strong);background:var(--navy-900);color:var(--muted);white-space:nowrap}
+  .pp-sum b{color:var(--text)}
+  .pp-sum.warn{border-color:rgba(255,180,90,.5);color:#ffc46b}
   /* ---- Propuestas V3 (pp3-): editor por bloques ---- */
   .pp3-split{display:grid;grid-template-columns:216px minmax(0,1fr);gap:18px;align-items:start;margin-top:6px}
   .pp3-blocks{position:sticky;top:12px;background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:8px;font-size:12.5px}
@@ -3184,6 +3187,7 @@ const newsCases = [
         <button class="btn btn-ghost small" id="pp-back" type="button">← Volver</button>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="pp-status-badge" id="pp-status-badge">Borrador</span>
+          <span class="pp-sum" id="pp-sum" hidden title="Del paquete recomendado. Si no marcaste ninguno, del más caro."></span>
           <span class="pp3-auto" id="pp3-autosave" hidden></span>
           <button class="btn btn-ghost small" id="pp-preview" type="button">👁 Vista previa</button>
           <button class="btn btn-ghost small" id="pp-view" type="button" hidden>🔗 Ver link</button>
@@ -11258,6 +11262,26 @@ const newsCases = [
     ppPushTierToOffer(t);
     ppMarkDirty();
   }
+  /* Resumen para mirar ANTES de publicar: cuánto entra, cuánto cuesta y qué
+     queda. Toma el paquete marcado como recomendado, que es el que el cliente
+     elige casi siempre; si no hay ninguno marcado, el más caro. */
+  function ppUpdateSum(){
+    const el = $('pp-sum'); if (!el) return;
+    const ts = (ppCur && ppCur.tiers) || [];
+    if (!ts.length){ el.hidden = true; return; }
+    const t = ts.find((x) => x.recommended) || ts.slice().sort((a, b) => tierNet(b) - tierNet(a))[0];
+    const net = tierNet(t), cost = tierCostSum(t);
+    const chf = (n) => 'CHF ' + Math.round(n).toLocaleString('de-CH');
+    el.hidden = false;
+    if (!cost){
+      el.className = 'pp-sum warn';
+      el.innerHTML = '⚠️ ' + chf(net) + ' · sin costo cargado, no se puede saber la ganancia';
+      return;
+    }
+    el.className = 'pp-sum';
+    el.innerHTML = (t.recommended ? 'Recomendado' : 'Más caro') + ': ' + chf(net) +
+      ' · ganancia <b>' + chf(net - cost) + '</b> · ' + Math.round((net - cost) / net * 100) + '%';
+  }
   function renderTierRows(){
     // select "usar oferta": alinear un paquete con una oferta ya creada (Lite/Starter/Pro a mano)
     const offerOpts = '<option value="">⟵ usar oferta…</option>' + (offersList || []).filter((o) => !o.archived)
@@ -11298,6 +11322,7 @@ const newsCases = [
         '<div class="pp3-it-bar"><select class="pp3-it-cat">' + catOpts + '</select><button class="btn btn-ghost xs it-blank" type="button">＋ vacía</button></div></div>' +
         '<textarea class="t-inc" placeholder="Qué incluye (uno por línea)">' + esc((t.includes || []).join('\n')) + '</textarea></div>';
     }).join('') || '<p class="muted-note">Sin paquetes. Generá con IA, agregá uno, o alineá ofertas existentes con "usar oferta".</p>';
+    ppUpdateSum();
     $('pp-tiers-list').querySelectorAll('.t-del').forEach((b) => b.addEventListener('click', () => { collectEditor(); ppCur.tiers.splice(+b.dataset.i, 1); renderTierRows(); }));
     $('pp-tiers-list').querySelectorAll('.pp-oflink').forEach((b) => b.addEventListener('click', () => { window.open(location.pathname + '?offer=' + b.dataset.oid, '_blank'); }));
     // ítems: editar en vivo (qty/precio/nombre), sacar, agregar del catálogo o vacía — todo ⇄ con la oferta ligada
@@ -11321,6 +11346,7 @@ const newsCases = [
           const net = tierNet(t), cost = tierCostSum(t), mp = net ? Math.round((net - cost) / net * 100) : 0;
           row.querySelector('.pp-tier-margin').textContent = cost ? 'ganancia CHF ' + (net - cost).toLocaleString('de-CH') + ' · margen ' + mp + '% · costo CHF ' + cost.toLocaleString('de-CH') : '⚠️ sin costo interno — el margen no es real';
           if (t.offer_id){ t.includes = (t.items || []).map((x) => x.name).filter(Boolean); row.querySelector('.t-inc').value = t.includes.join('\n'); }
+          ppUpdateSum();
           ppPushTierToOffer(t);
         }));
         ir.querySelector('.it-rm').addEventListener('click', () => {
