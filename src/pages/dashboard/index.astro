@@ -689,11 +689,17 @@ const newsCases = [
   .pp-status-badge.lost{color:#ff8b8b;border-color:#ff8b8b}
   /* ítems de paquete inline (⇄ sync con la oferta ligada) */
   .pp3-items{margin-top:8px;border-top:1px dashed var(--line-strong);padding-top:8px}
-  .pp3-it{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .pp3-it{display:flex;gap:6px;align-items:flex-end;margin-bottom:6px}
   .pp3-it .iname{flex:1;min-width:0}
-  .pp3-it .iqty{width:64px}
-  .pp3-it .iprice{width:96px}
-  .pp3-it .icostin{width:88px;opacity:.75}
+  /* cada número con su rótulo visible: en el celular no hay tooltip que valga y
+     tres casillas "1 / 8370 / 0" sin etiqueta no se entienden (mismo patrón que
+     .t-price-lbl del precio del paquete, que ya se lee bien) */
+  .pp3-it .ppf{display:flex;flex-direction:column;gap:2px;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-2);font-weight:600}
+  .pp3-it .ppf input{width:100%;text-transform:none;letter-spacing:normal;font-weight:400;color:var(--text)}
+  .pp3-it .ppf-q{width:64px}
+  .pp3-it .ppf-p{width:96px}
+  .pp3-it .ppf-c{width:88px}
+  .pp3-it .icostin{opacity:.75}
   .pp3-it .icostin:focus{opacity:1}
   .pp3-it .icost{font-size:11px;color:var(--muted-2);white-space:nowrap;min-width:70px;text-align:right}
   .pp3-it-bar{display:flex;gap:6px;align-items:center;margin-top:4px}
@@ -1444,6 +1450,31 @@ const newsCases = [
     .of-card-net{font-size:16px}
     .of-actions{padding:0 10px 10px;gap:6px}
     .of-act{font-size:12px;padding:7px 10px}
+    /* Editor de propuestas en el celular. Una fila de posición pedía 376pt fijos
+       (cant. 64 + precio 96 + costo 88 + total 70 + ✕, más gaps) y el iPhone tiene
+       375–430pt: como .dash-wrap es overflow-x:hidden, no se cortaba con scroll
+       sino que se RECORTABA — cantidad, precio y costo quedaban invisibles e
+       intocables desde el teléfono. Ahora el nombre toma la línea entera y los
+       números bajan a la siguiente. (Reporte de Sebastián con captura, 11 ago 2026.) */
+    .pp3-it{flex-wrap:wrap;row-gap:8px;padding-bottom:9px;border-bottom:1px dashed var(--line)}
+    .pp3-it .iname{flex:1 1 100%}
+    .pp3-it .ppf{flex:1 1 0;width:auto;min-width:0}
+    /* con el padding de escritorio (11px por lado) entraban 4 dígitos justos:
+       un precio de 5 cifras se cortaba mientras se tipeaba */
+    .pp3-it .ppf input{padding:9px 6px;text-align:right}
+    .pp3-it .icost{flex:0 0 auto;margin-left:auto;align-self:center}
+    .pp3-it .it-rm{align-self:center}
+    /* la ✕ medía 42x23: imposible de acertar con el dedo, y borra una posición */
+    .pp-row .rm{min-width:38px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0}
+    .pp-oflink,.pp3-it-bar .btn.xs{min-height:36px;padding:8px 12px}
+    /* nombre y subtítulo del paquete, uno por línea (antes el subtítulo se comía
+       la mitad del ancho y ninguno de los dos se leía) */
+    .pp-tier-row .rowtop{flex-wrap:wrap}
+    .pp-tier-row .t-name{flex:1 1 auto}
+    .pp-tier-row .t-sub{order:3;flex:1 1 100%}
+    /* la línea de ganancia/margen no comparte renglón con el botón de la oferta */
+    .pp-tier-row .pp-tier-margin{flex:1 1 100%;margin-top:0}
+    .pp-oflink{margin-left:0}
     /* modal de contacto: header respeta el notch */
     .lead-card-wide{padding-top:calc(10px + env(safe-area-inset-top))}
     .dash-head{margin-bottom:12px;flex-wrap:nowrap;gap:8px}
@@ -11304,9 +11335,9 @@ const newsCases = [
       const itemsHTML = (t.items || []).map((it, j) =>
         '<div class="pp3-it" data-tj="' + j + '">' +
         '<input class="iname" placeholder="Posición" value="' + esc(it.name || '') + '"/>' +
-        '<input class="iqty" type="number" step="0.25" title="Cantidad" value="' + (it.qty ?? 1) + '"/>' +
-        '<input class="iprice" type="number" step="10" title="Precio unitario CHF" value="' + (it.price ?? 0) + '"/>' +
-        '<input class="icostin" type="number" step="10" title="Costo interno unitario CHF (freelancer, alquiler) — solo para esta propuesta, no toca el catálogo" placeholder="costo" value="' + (it.cost ?? 0) + '"/>' +
+        '<label class="ppf ppf-q">Cant.<input class="iqty" type="number" step="0.25" value="' + (it.qty ?? 1) + '"/></label>' +
+        '<label class="ppf ppf-p">Precio<input class="iprice" type="number" step="10" title="Precio unitario CHF que ve el cliente" value="' + (it.price ?? 0) + '"/></label>' +
+        '<label class="ppf ppf-c">Costo int.<input class="icostin" type="number" step="10" title="Costo interno unitario CHF (freelancer, alquiler) — solo para esta propuesta, no toca el catálogo. El cliente nunca lo ve." placeholder="0" value="' + (it.cost ?? 0) + '"/></label>' +
         '<span class="icost">' + fmtM((Number(it.qty) || 0) * (Number(it.price) || 0)) + '</span>' +
         '<button class="rm it-rm" type="button" title="Sacar posición">✕</button></div>').join('');
       return '<div class="pp-row pp-tier-row" data-ti="' + i + '"><div class="rowtop"><input class="t-name grow" placeholder="Nombre paquete" value="' + esc(t.name || '') + '"/>' +
