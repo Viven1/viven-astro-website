@@ -46,6 +46,15 @@ const newsCases = [
   try { var t = localStorage.getItem('viven_theme'); if (t === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}
 </script>
 <style is:global>
+  /* La página no tenía box-sizing en ningún lado. Con content-box, un campo con
+     width:100% mide 100% MÁS el padding y el borde, así que se sale de su
+     contenedor: 17 reglas del dashboard usan ese patrón (propuestas, ofertas,
+     blog, bandeja, automatizaciones). En escritorio sobra lugar y no se nota;
+     en el celular el editor de propuestas se salía ~26px de la pantalla y,
+     como .dash-wrap es overflow-x:hidden, el texto quedaba cortado sin forma
+     de alcanzarlo. (Capturas de Sebastián, 11 ago 2026.)
+     Solo 4 controles tienen ancho fijo en px, y todos siguen entrando. */
+  input,select,textarea{box-sizing:border-box}
   /* Tema del dashboard: dark = el navy de siempre (site.css). bright = gris claro
      estilo Claude Code, más descansado de día. Se alterna con el botón ◐ y persiste. */
   :root[data-theme="light"]{
@@ -653,6 +662,9 @@ const newsCases = [
   .pp-row .rm:hover{color:#ff8b8b}
   .pp-tier-row .tnums{display:flex;gap:8px;flex-wrap:wrap}
   .pp-tier-row .tnums input{width:90px}
+  /* el selector de arriba también agarraba el checkbox de "recomendado" y lo
+     estiraba a 90px: se veía como un cuadrado enorme separado de su texto */
+  .pp-tier-row .tnums input[type=checkbox]{width:auto}
   /* fix: el <select> "usar oferta" no tenía ancho acotado — con títulos largos de oferta
      empujaba toda la fila (y la página entera) más ancha que la pantalla en celular */
   .pp-tier-row .tnums select.t-from{flex:1 1 160px;min-width:0;max-width:100%}
@@ -736,7 +748,12 @@ const newsCases = [
   .lp-x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:14px;padding:0 2px}
   .lp-x:hover{color:#ff8b8b}
   @media(max-width:820px){.pp-grid{grid-template-columns:1fr 1fr}.pp-grid3{grid-template-columns:1fr}
-    .pp3-split{grid-template-columns:1fr}
+    /* 1fr = minmax(auto,1fr): la columna no puede achicarse por debajo del
+       min-content de su contenido, así que crecía a 453px dentro de un
+       contenedor de 386 y se llevaba puesto todo el editor. El escritorio ya
+       usaba minmax(0,1fr) justamente por esto; faltaba acá. */
+    .pp3-split{grid-template-columns:minmax(0,1fr)}
+    .pp3-blocks,.pp3-main{min-width:0}
     .pp3-blocks{position:sticky;top:0;z-index:5;display:flex;overflow-x:auto;gap:4px;padding:6px;scrollbar-width:none}
     .pp3-blocks::-webkit-scrollbar{display:none}
     .pp3-b{flex:0 0 auto;white-space:nowrap;padding:6px 8px}
