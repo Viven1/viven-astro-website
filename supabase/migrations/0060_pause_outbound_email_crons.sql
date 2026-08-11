@@ -24,6 +24,16 @@
 --  REVERTIR (cuando el Outbox esté aprobado): re-correr los bloques
 --  cron.schedule de las migraciones 0041, 0040, 0020 (viven-followup-send)
 --  y 0033, y poner app_settings.nurture.enabled = true.
+--
+--  ── ACTUALIZACIÓN 2026-08-11 — NO REVERTIR viven-nurture NI viven-review-request.
+--  La condición de arriba ("cuando el Outbox esté aprobado") YA SE CUMPLIÓ, así
+--  que este comentario, tal como estaba, empujaba a reactivarlos. Sebastián
+--  decidió expresamente dejarlos apagados. Estado real verificado en cron.job
+--  ese día: viven-automations SÍ está activo (*/20, reactivado por la 0088) y
+--  es el que corre las secuencias de contenido y los follow-ups; nurture y
+--  review-request siguen sin agendar, y así se quedan.
+--  O sea: los leads nuevos NO quedan sin seguimiento — los cubre el motor de
+--  automations (trigger lead_new), que es lo que reemplazó a nurture.
 -- ============================================================================
 
 do $$ begin

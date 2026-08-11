@@ -7456,12 +7456,17 @@ const newsCases = [
         const min = Math.round((d - new Date()) / 60000);
         if (min <= 1) return ' · sale ya';
         if (min < 60) return ' · sale en ' + min + ' min';
-        const hhmm = d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
-        const hoy = new Date(); const manana = new Date(hoy.getTime() + 86400000);
-        const mismoDia = (a, b) => a.toDateString() === b.toDateString();
-        if (mismoDia(d, hoy)) return ' · sale hoy ' + hhmm;
-        if (mismoDia(d, manana)) return ' · sale mañana ' + hhmm;
-        return ' · sale el ' + d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + ', ' + hhmm;
+        /* SIEMPRE en hora de Zúrich, no la del dispositivo. El envío se rige por
+           el horario laboral suizo, así que mostrar la hora local del teléfono es
+           informar otra cosa: un envío a las 12:40 de Zúrich se leía como "07:40"
+           desde Argentina y parecía de madrugada. (Sebastián, 11 ago 2026.) */
+        const ZH = { timeZone: 'Europe/Zurich' };
+        const hhmm = d.toLocaleTimeString('es-CH', { ...ZH, hour: '2-digit', minute: '2-digit' });
+        const diaZH = (x) => x.toLocaleDateString('en-CA', ZH);   // AAAA-MM-DD en Zúrich
+        const hoy = new Date();
+        if (diaZH(d) === diaZH(hoy)) return ' · sale hoy ' + hhmm;
+        if (diaZH(d) === diaZH(new Date(hoy.getTime() + 86400000))) return ' · sale mañana ' + hhmm;
+        return ' · sale el ' + d.toLocaleDateString('es-CH', { ...ZH, day: '2-digit', month: 'short' }) + ', ' + hhmm;
       };
       /* «¿cómo pueden salir dos al mismo tiempo?» — no salen juntos: son pasos
          de UNA secuencia, que se crean de una para poder aprobarlos todos
@@ -12423,7 +12428,8 @@ const newsCases = [
       // snooze) — se muestra siempre para dejar claro que aprobar HOY no
       // manda antes de esa fecha, respeta el espaciado de la secuencia.
       const schedNote = (o.kind === 'content_followup' && o.scheduled_at)
-        ? '<div class="ob-sched-note">📅 ' + (o.scheduled_at <= nowIso ? 'Ya puede salir — próxima corrida en horario laboral' : 'Sale automáticamente el ' + new Date(o.scheduled_at).toLocaleDateString('es-CH', { day: 'numeric', month: 'long' })) + '</div>'
+        // fecha Y hora, en Zúrich: es el horario que manda el envío, no el del teléfono
+        ? '<div class="ob-sched-note">📅 ' + (o.scheduled_at <= nowIso ? 'Ya puede salir — próxima corrida en horario laboral' : 'Sale automáticamente el ' + new Date(o.scheduled_at).toLocaleDateString('es-CH', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'long' }) + ' a las ' + new Date(o.scheduled_at).toLocaleTimeString('es-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' }) + ' (hora de Zúrich)') + '</div>'
         : '';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
         '<div class="ob-hd"><div class="ob-who">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b>' + (l.company ? '<span class="muted-note">' + esc(l.company) + '</span>' : '') + '</div>' +
