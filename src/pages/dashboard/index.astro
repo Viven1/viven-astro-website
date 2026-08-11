@@ -7383,11 +7383,27 @@ const newsCases = [
       const { data, error } = await supabase.from('outbox').select('*').eq('lead_id', r.id).in('status', ['pending', 'approved']).order('created_at');
       if (error || !data || !data.length){ box.hidden = true; box.innerHTML = ''; return; }
       const KIND_LBL = { followup: '📬 Follow-up', content_followup: '🎯 Contenido', reactivation: '♻️ Reactivación', workflow: '⚙️ Workflow' };
+      /* Antes decía siempre «sale en 10 min», que es falso: los content_followup
+         tienen fecha propia y pueden salir dentro de días. Ahora dice cuándo sale
+         de verdad, leyendo scheduled_at. (Reporte de Sebastián, 11 ago 2026.) */
+      const obCuando = (o) => {
+        if (!o.scheduled_at) return ' · sale en ~10 min';
+        const d = new Date(o.scheduled_at); if (isNaN(d)) return ' · sale en ~10 min';
+        const min = Math.round((d - new Date()) / 60000);
+        if (min <= 1) return ' · sale ya';
+        if (min < 60) return ' · sale en ' + min + ' min';
+        const hhmm = d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+        const hoy = new Date(); const manana = new Date(hoy.getTime() + 86400000);
+        const mismoDia = (a, b) => a.toDateString() === b.toDateString();
+        if (mismoDia(d, hoy)) return ' · sale hoy ' + hhmm;
+        if (mismoDia(d, manana)) return ' · sale mañana ' + hhmm;
+        return ' · sale el ' + d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + ', ' + hhmm;
+      };
       box.hidden = false;
       box.innerHTML = data.map((o) => {
         const approved = o.status === 'approved';
         return '<div class="lm2-ob-card" data-obid="' + o.id + '">' +
-          '<div class="lm2-ob-hd"><b>' + (KIND_LBL[o.kind] || '📤 Borrador') + (approved ? ' · sale en 10 min' : ' · para aprobar') + '</b>' +
+          '<div class="lm2-ob-hd"><b>' + (KIND_LBL[o.kind] || '📤 Borrador') + (approved ? obCuando(o) : ' · para aprobar') + '</b>' +
           '<button class="btn btn-ghost small" data-obedit="' + o.id + '" type="button">✏️ Editar en Bandeja</button></div>' +
           '<div class="lm2-ob-subj">' + esc(o.subject || '') + '</div>' +
           '<div class="lm2-ob-body">' + esc((o.kind === 'content_followup' ? obHtmlToPreviewText(o.body) : String(o.body || '')).slice(0, 240)) + '</div>' +
@@ -7401,10 +7417,10 @@ const newsCases = [
       box.querySelectorAll('[data-obedit]').forEach((b) => b.addEventListener('click', () => { closeLead2(); gotoTab('sistema'); sistemaSetSub('auto'); obFocus(b.dataset.obedit); }));
       box.querySelectorAll('[data-obok2]').forEach((b) => b.addEventListener('click', async () => {
         const o = data.find((x) => String(x.id) === String(b.dataset.obok2));
-        if (!confirm('¿Aprobar este email para ' + (r.name || r.email) + '?\n\nAsunto: ' + (o.subject || '') + '\n\nSale en 10 minutos — hasta entonces podés deshacerlo.')) return;
+        if (!confirm('¿Aprobar este email para ' + (r.name || r.email) + '?\n\nAsunto: ' + (o.subject || '') + '\n\nSale según lo programado — hasta entonces podés deshacerlo.')) return;
         const { error: e2 } = await supabase.from('outbox').update({ status: 'approved', scheduled_at: obUndoSched(o.id) }).eq('id', o.id);
         if (e2){ toast('⚠️ ' + e2.message); return; }
-        toast('✅ Aprobado — 🕐 sale en 10 min'); lm2LoadPendingOutbox(r);
+        toast('✅ Aprobado — 🕐 sale según lo programado'); lm2LoadPendingOutbox(r);
       }));
       box.querySelectorAll('[data-obno2]').forEach((b) => b.addEventListener('click', async () => {
         await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.obno2);
@@ -12350,7 +12366,7 @@ const newsCases = [
         const upd = { status: 'approved', sender: card.querySelector('.ob-sender').value, subject: subj, body: card.querySelector('.ob-body').value, scheduled_at: obUndoSched(b.dataset.id) };
         const { error: e2 } = await supabase.from('outbox').update(upd).eq('id', b.dataset.id);
         if (e2){ toast(e2.message); return; }
-        toast('✅ Aprobado — 🕐 sale en 10 min (↩︎ Deshacer arriba en la Bandeja)');
+        toast('✅ Aprobado — 🕐 sale según lo programado (↩︎ Deshacer arriba en la Bandeja)');
       } else if (act === 'later'){
         const when = new Date(Date.now() + 4 * 3600e3).toISOString();
         const { error: e2 } = await supabase.from('outbox').update({ scheduled_at: when }).eq('id', b.dataset.id);
@@ -12373,11 +12389,11 @@ const newsCases = [
       obLoad();
     }));
     $('ob-approve-all').onclick = async () => {
-      if (!confirm('¿Aprobar TODOS los borradores tal como están?\n\nSalen en 10 minutos — hasta entonces podés deshacer cada uno (o todos) desde la Bandeja.')) return;
+      if (!confirm('¿Aprobar TODOS los borradores tal como están?\n\nSalen según lo programado — hasta entonces podés deshacer cada uno (o todos) desde la Bandeja.')) return;
       for (const card of $('ob-list').querySelectorAll('.au-step')){
         await supabase.from('outbox').update({ status: 'approved', sender: card.querySelector('.ob-sender').value, subject: card.querySelector('.ob-subject').value, body: card.querySelector('.ob-body').value, scheduled_at: obUndoSched(card.dataset.ob) }).eq('id', card.dataset.ob);
       }
-      toast('✅ Todos aprobados — 🕐 salen en 10 min (↩︎ Deshacer arriba)'); obLoad();
+      toast('✅ Todos aprobados — 🕐 salen según lo programado (↩︎ Deshacer arriba)'); obLoad();
     };
    } catch (e) { $('ob-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(e && e.message || e) + '</p>'; }
   }
