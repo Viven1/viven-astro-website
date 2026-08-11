@@ -1501,12 +1501,18 @@ const newsCases = [
     .dash-head .btn.small{padding:8px 11px;font-size:12.5px;white-space:nowrap}
     /* ➕ Crear ▾ era el único botón de texto sin compactar en la barra — quedaba
        empujando/cortando al resto en pantallas angostas (mismo trato que refresh/logout) */
-    #vv-create-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
+    /* El texto original de estos tres botones sigue en el DOM (oculto con
+       font-size:0) y, siendo el botón una grilla, ocupaba una SEGUNDA fila: el
+       ícono del ::before quedaba centrado en la primera fila, ~7px arriba del
+       centro real. Se notaba al lado de 🔍/◐/🔔, que centran bien porque son
+       flex con un solo hijo. (Reporte de Sebastián con captura, 11 ago 2026.)
+       Solución: el ::before sale del flujo y se centra contra el botón entero,
+       así la altura del texto invisible deja de importar. */
+    #vv-create-btn,#refresh-btn,#logout-btn{font-size:0;width:38px;height:38px;padding:0;border-radius:10px;position:relative}
+    #vv-create-btn::before,#refresh-btn::before,#logout-btn::before{position:absolute;inset:0;display:grid;place-items:center;line-height:1}
     #vv-create-btn::before{content:'➕';font-size:16px}
-    #refresh-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
     #refresh-btn::before{content:'↻';font-size:17px}
     .dash-actions{gap:7px;flex-wrap:nowrap!important}
-    #logout-btn{font-size:0;width:38px;height:38px;padding:0;display:grid;place-items:center;border-radius:10px}
     #logout-btn::before{content:'⏻';font-size:16px}
     /* inputs a 16px: iOS no hace zoom al enfocar */
     input,select,textarea{font-size:16px!important}
