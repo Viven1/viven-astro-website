@@ -73,6 +73,37 @@ function isSwissBusinessHours(d = new Date()): boolean {
   return (mins >= 9 * 60 && mins < 12 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60);
 }
 
+// Los content_step se programaban como "cuando entró el lead + N días", o sea
+// conservando la HORA de entrada: un lead que llegó 07:40 dejaba toda su
+// secuencia agendada 07:40, fuera de horario. No se mandaba a esa hora
+// (isSwissBusinessHours lo frena) pero la Bandeja mostraba 07:40, que no era
+// cierto, y encima dependía de cuándo corriera el cron. Ahora se apoya en un
+// horario fijo dentro de la ventana. (Reporte de Sebastián, 11 ago 2026.)
+const HORA_ENVIO = 9, MIN_ENVIO = 30;   // 09:30 Zúrich, dentro de 09:00-12:00
+function slotZurich(base: Date, hour = HORA_ENVIO, minute = MIN_ENVIO): Date {
+  const dmy = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" });
+  const diaSem = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", weekday: "short" });
+  let [y, m, d] = dmy.format(base).split("-").map(Number);
+  // fin de semana → al lunes siguiente (nunca mandamos sábado ni domingo)
+  for (let i = 0; i < 7; i++) {
+    if (!["Sat", "Sun"].includes(diaSem.format(new Date(Date.UTC(y, m - 1, d, 12))))) break;
+    const nx = new Date(Date.UTC(y, m - 1, d + 1, 12));
+    y = nx.getUTCFullYear(); m = nx.getUTCMonth() + 1; d = nx.getUTCDate();
+  }
+  // buscamos el instante UTC cuya hora en Zúrich es hour:minute — iterando en
+  // vez de restar un offset fijo, así el cambio CET/CEST no lo corre una hora
+  let t = Date.UTC(y, m - 1, d, hour, minute);
+  const hm = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit", hour12: false });
+  for (let i = 0; i < 3; i++) {
+    const p = hm.formatToParts(new Date(t));
+    const g = (k: string) => +(p.find((x) => x.type === k)?.value || 0);
+    const dif = (hour * 60 + minute) - (g("hour") * 60 + g("minute"));
+    if (!dif) break;
+    t += dif * 60000;
+  }
+  return new Date(t);
+}
+
 const FROMS: Record<string, { from: string; reply: string }> = {
   sofia: { from: "Sofia Treviño — VIVEN <info@viven.ch>", reply: "sofia@viven.ch" },
   sebastian: { from: "Sebastian Cepeda — VIVEN <info@viven.ch>", reply: "sebastian@viven.ch" },
@@ -341,7 +372,13 @@ Deno.serve(async (req) => {
             const subject = fill(pick(st.subject, lang), lead);
             const bodyHtml = renderBlocks(st.blocks || [], lang, lead);
             const stepNum = steps.slice(0, i + 1).filter((s: { type: string }) => s.type === "content_step").length;
-            const schedAt = new Date(enrolledAt + cumulativeDays(i) * 864e5).toISOString();
+            // el paso sin espera sale cuanto antes (no lo corremos a las 09:30, que
+            // ya pasó y demoraría el primer contacto); los que esperan días caen
+            // siempre a las 09:30 de un día hábil
+            const dias = cumulativeDays(i);
+            const schedAt = (dias > 0
+              ? slotZurich(new Date(enrolledAt + dias * 864e5))
+              : new Date(enrolledAt)).toISOString();
             const { data: obIns } = await service.from("outbox").insert({
               lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "content_followup",
               category: cfg.category || null, step: stepNum, sender: st.from || "team", subject, body: bodyHtml,

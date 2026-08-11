@@ -3290,9 +3290,13 @@ const newsCases = [
             <div class="pp-grid3">
               <div class="bf"><label>Outputs (uno por línea)</label><textarea id="pp-outputs" class="pp-ta"></textarea></div>
               <div>
-                <div class="bf"><label>Location</label><input id="pp-loc" /></div>
-                <div class="bf"><label>Timing</label><input id="pp-timing" /></div>
-                <div class="bf"><label>Delivery</label><input id="pp-delivery" /></div>
+                <!-- textarea y no input: un <input> no puede envolver el texto, y estos
+                     tres traen frases largas ("H.264 Master files, subtitled versions,
+                     social-optimized cuts…") que en el celular quedaban cortadas sin
+                     manera de leerlas. Crecen solas con ppAutoGrow. -->
+                <div class="bf"><label>Location</label><textarea id="pp-loc" rows="1"></textarea></div>
+                <div class="bf"><label>Timing</label><textarea id="pp-timing" rows="1"></textarea></div>
+                <div class="bf"><label>Delivery</label><textarea id="pp-delivery" rows="1"></textarea></div>
               </div>
             </div>
           </div>
@@ -7453,11 +7457,16 @@ const newsCases = [
         if (mismoDia(d, manana)) return ' · sale mañana ' + hhmm;
         return ' · sale el ' + d.toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) + ', ' + hhmm;
       };
+      /* «¿cómo pueden salir dos al mismo tiempo?» — no salen juntos: son pasos
+         de UNA secuencia, que se crean de una para poder aprobarlos todos
+         juntos. Sin el número de paso parecían dos emails sueltos al mismo
+         lead. La Bandeja ya lo mostraba; faltaba acá. (Sebastián, 11 ago 2026.) */
+      const obPaso = (o) => (o.kind === 'content_followup' && o.step) ? ' · paso ' + o.step : '';
       box.hidden = false;
       box.innerHTML = data.map((o) => {
         const approved = o.status === 'approved';
         return '<div class="lm2-ob-card" data-obid="' + o.id + '">' +
-          '<div class="lm2-ob-hd"><b>' + (KIND_LBL[o.kind] || '📤 Borrador') + (approved ? obCuando(o) : ' · para aprobar') + '</b>' +
+          '<div class="lm2-ob-hd"><b>' + (KIND_LBL[o.kind] || '📤 Borrador') + obPaso(o) + (approved ? obCuando(o) : ' · para aprobar') + '</b>' +
           '<button class="btn btn-ghost small" data-obedit="' + o.id + '" type="button">✏️ Editar en Bandeja</button></div>' +
           '<div class="lm2-ob-subj">' + esc(o.subject || '') + '</div>' +
           '<div class="lm2-ob-body">' + esc((o.kind === 'content_followup' ? obHtmlToPreviewText(o.body) : String(o.body || '')).slice(0, 240)) + '</div>' +
@@ -11192,7 +11201,13 @@ const newsCases = [
   }
   function newProp(){ ppCur = blankProp(); fillPropEditor(); showPropEditor(true); }
   function openProp(id){ const src = ppList.find((p) => String(p.id) === String(id)); if (!src) return; ppCur = fromRow(src); fillPropEditor(); showPropEditor(true); }
-  function showPropEditor(on){ $('pp-editor').hidden = !on; $('combo-list-view').hidden = on; }
+  /* ppAutoGrow tiene que correr con el editor YA visible: todos los llamadores
+     hacen fillPropEditor() y recién después showPropEditor(true), así que las
+     alturas se calculaban con el panel oculto (scrollHeight = 0) y las cajas se
+     quedaban en el min-height. Con overflow:hidden eso no deja ni scrollear:
+     el texto sobrante era directamente inalcanzable. (Captura de Sebastián,
+     11 ago 2026 — el objetivo y los outputs cortados a media línea.) */
+  function showPropEditor(on){ $('pp-editor').hidden = !on; $('combo-list-view').hidden = on; if (on) requestAnimationFrame(ppAutoGrow); }
 
   function fillPropEditor(){
     $('pp-title').value = ppCur.title; $('pp-cname').value = ppCur.client_name; $('pp-cemail').value = ppCur.client_email;
@@ -11279,11 +11294,19 @@ const newsCases = [
   }
   function ppAutoGrow(){
     document.querySelectorAll('#pp-editor textarea').forEach((t) => {
-      const fit = () => { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; };
+      const fit = () => {
+        // oculto → scrollHeight es 0 y fijaríamos una altura falsa que después
+        // nadie recalcula; mejor no tocar y esperar a que se muestre
+        if (!t.offsetParent && t.style.display !== 'block') return;
+        t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px';
+      };
       if (!t.dataset.fit){ t.dataset.fit = '1'; t.addEventListener('input', fit); }
       fit();
     });
   }
+  /* al girar el teléfono o cambiar el ancho, el texto re-envuelve y necesita otra
+     altura: sin esto quedaba cortado de nuevo al pasar a horizontal */
+  window.addEventListener('resize', () => { if (!$('pp-editor').hidden) ppAutoGrow(); });
   function renderScopeRows(){
     $('pp-scope-list').innerHTML = (ppCur.scope || []).map((s, i) =>
       '<div class="pp-row"><div class="rowtop"><input class="s-title grow" placeholder="Título (Pre-Production)" value="' + esc(s.title || '') + '"/><button class="rm" type="button" data-i="' + i + '">✕</button></div>' +
