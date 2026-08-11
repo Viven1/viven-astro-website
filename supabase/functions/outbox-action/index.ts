@@ -84,6 +84,11 @@ function wrap(bodyText: string, unsub: string, lang: string, sender: string): st
 // saltarse ni la fecha programada (scheduled_at, content_followup) ni el
 // horario laboral suizo — si no corresponde mandar YA, se deja 'approved'
 // para que el cron lo mande en la próxima ventana válida.
+//
+// EL CORTE DE MEDIODÍA (12:00-13:30) ES A PROPÓSITO. Confirmado por Sebastián
+// el 11 ago 2026 al revisar la ventana: NO unificar en un 09:30-17:00 corrido
+// aunque parezca más simple. Copia exacta de la de automations-run — si tocás
+// una, tocá la otra.
 function isSwissBusinessHours(d = new Date()): boolean {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Zurich", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
