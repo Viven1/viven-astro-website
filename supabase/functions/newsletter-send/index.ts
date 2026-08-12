@@ -186,7 +186,12 @@ async function resendPost(path: string, payload: unknown, attempts = 4): Promise
    El panel "quién lo recibe" del dashboard llama exactamente a esto, en modo
    preview, para que lo mostrado sea lo enviado. (Pedido de Sebastián, 11 ago 2026:
    no podía ver ni quién lo recibe, ni en qué idioma, ni a qué hora sale.) */
-const TESTRX = /@viven\.ch$|@entropia|@example\.|test/i;
+/* @viven.ch YA NO se excluye: Sebastián quiere que el equipo reciba el newsletter
+   SIEMPRE, para ver con sus propios ojos lo que sale afuera (11 ago 2026). Siguen
+   fuera las direcciones falsas de verdad. Vale SOLO para el newsletter: los emails
+   1:1 automáticos a leads siguen filtrando lo interno (mandarle al equipo una
+   secuencia de venta no tiene sentido). */
+const TESTRX = /@entropia|@example\.|test/i;
 const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
 const isWonSt = (st: string) => /ganado|won|cerrado/i.test(st || "");
 /* seg = el segmento elegido en la campaña (etapa e idioma). El preview TIENE que
@@ -341,7 +346,7 @@ Deno.serve(async (req) => {
     const trackThis = !test_to || mark_sent;
 
     // destinatarios
-    const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+    const TEST = TESTRX;   // mismo criterio que el resto: el equipo SÍ recibe el newsletter
     const isWon = (st: string) => /ganado|won|cerrado/i.test(st || "");
     const isOut = (st: string) => /spam|descartado/i.test(st || "");
     let recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
