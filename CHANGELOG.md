@@ -31,4 +31,32 @@ Cómo revertir a un checkpoint: `git log --oneline` para ver commits, o `git che
 
 ---
 
+## 2026-08-12 — barrido de los 404 heredados del sitio viejo
+
+**Por qué:** revisando qué hacer con backlinks apareció que Google todavía
+muestra URLs del sitio viejo (WordPress/HubSpot) y que varias daban 404 — o
+sea que el link externo que apunta ahí no le suma nada al dominio.
+
+**Cómo se midió (esto es lo importante para repetirlo):** no se fue de a una.
+Se le pidió a Wayback la lista de TODAS las URLs archivadas de viven.ch (1041
+rutas reales), se probó cada una contra producción y quedaron 381 en 404.
+
+**Qué se hizo:** 196 eran páginas de contenido y ahora tienen su 301 a la
+página del mismo tema y del mismo idioma — el portfolio viejo (`/project/*`),
+el glosario (`/what-is-*`, `/de/was-ist-*`), las landings de servicio, las
+páginas de ciudad y las de "production services". Las otras 185 eran archivos
+por fecha/categoría/autor/tag del WordPress: wildcard al índice de blog o de
+proyectos del idioma. Cada uno de los 90 destinos se verificó que devolviera
+200 ANTES de escribir la regla — un 301 a un 404 es peor que el 404.
+
+**Verificación:** se volvió a pasar el barrido entero (661 rutas) contra
+producción después del deploy. Queda 1 sola en 404, `/xmlrpc.php`, que es
+ruido de bots de WordPress y tiene que seguir rota. Cero regresiones: ninguna
+URL que ya daba 200 cambió de destino.
+
+**Estado:** desplegado con `npx wrangler deploy` y pusheado a `main`.
+`_redirects` quedó en 900 estáticas + 39 wildcards (los límites son 2000/100).
+
+---
+
 <!-- Próxima entrada: agregar arriba de esta línea, mismo formato -->
