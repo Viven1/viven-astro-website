@@ -14015,10 +14015,17 @@ const newsCases = [
     // la gente del segmento sale del servidor; los ticks son locales y el TOTAL
     // se vuelve a pedir al servidor (con debounce) para que nunca sea una cuenta mía
     let gente = [];
+    // el desglose tiene que SUMAR al total, si no el número no se explica
     const pintarTotal = (p) => {
       if (!p){ $sub.innerHTML = '⚠️ ' + esc(nwPrevErr || 'no se pudo contar'); return; }
+      const nEquipo = (p.recips || []).filter((r) => r.equipo).length;
+      const nSueltos = (p.recips || []).filter((r) => r.manual && !r.equipo).length;
+      const nSeg = p.total - nEquipo - nSueltos;
+      const partes = [nSeg + ' del segmento'];
+      if (nEquipo) partes.push(nEquipo + ' del equipo');
+      if (nSueltos) partes.push(nSueltos + (nSueltos === 1 ? ' agregado a mano' : ' agregados a mano'));
       $sub.innerHTML = '<b style="color:var(--acid)">' + p.total + '</b> destinatario' + (p.total === 1 ? '' : 's') +
-        ' de ' + gente.length + ' en el segmento' +
+        ' — ' + partes.join(' + ') +
         '<div class="nw-sum">' + nwLangLine(p.por_idioma) + '</div>' +
         (nwFueraLine(p.fuera) ? '<div style="margin-top:4px">' + nwFueraLine(p.fuera) + '</div>' : '');
     };
