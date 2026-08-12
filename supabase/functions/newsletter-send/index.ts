@@ -180,6 +180,44 @@ async function resendPost(path: string, payload: unknown, attempts = 4): Promise
   return res;
 }
 
+/* ÚNICA fuente de verdad de a quién le llega el newsletter. Antes esta selección
+   estaba copiada en los dos caminos (issue mensual y campaña suelta): así es como
+   el número que ves en pantalla y el que realmente se manda terminan separándose.
+   El panel "quién lo recibe" del dashboard llama exactamente a esto, en modo
+   preview, para que lo mostrado sea lo enviado. (Pedido de Sebastián, 11 ago 2026:
+   no podía ver ni quién lo recibe, ni en qué idioma, ni a qué hora sale.) */
+const TESTRX = /@viven\.ch$|@entropia|@example\.|test/i;
+const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
+const isWonSt = (st: string) => /ganado|won|cerrado/i.test(st || "");
+/* seg = el segmento elegido en la campaña (etapa e idioma). El preview TIENE que
+   respetarlo: si no, muestra "todos" y después sale a un subconjunto. */
+// deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
+async function elegirDestinatarios(service: any, seg?: { stage?: string; lang?: string }) {
+  const fuera = { duplicados: 0, test: 0, baja: 0, descartados: 0, fueraDeSegmento: 0 };
+  // deno-lint-ignore no-explicit-any
+  let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
+  if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
+  const seen = new Set<string>();
+  const recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
+  for (const r of (q.data ?? []) as Record<string, string | number | boolean>[]) {
+    const em = String(r.email || "").toLowerCase().trim();
+    if (!em) continue;
+    if (seen.has(em)) { fuera.duplicados++; continue; }
+    if (TESTRX.test(em)) { fuera.test++; continue; }
+    if ((r as { unsubscribed?: boolean }).unsubscribed) { fuera.baja++; continue; }
+    const st = String(r.status || "");
+    if (isOutSt(st)) { fuera.descartados++; continue; }
+    if (seg) {
+      if (seg.stage === "won" && !isWonSt(st)) { fuera.fueraDeSegmento++; continue; }
+      if (seg.stage === "open" && isWonSt(st)) { fuera.fueraDeSegmento++; continue; }
+      if (seg.lang && seg.lang !== "all" && String(r.lang || "en") !== seg.lang) { fuera.fueraDeSegmento++; continue; }
+    }
+    seen.add(em);
+    recips.push({ id: r.id as number, email: em, name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""), lang: String(r.lang || "en") });
+  }
+  return { recips, fuera };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -215,25 +253,12 @@ Deno.serve(async (req) => {
       // destinatarios: misma base y exclusiones que una campaña all/all —
       // (1) sin email fuera, (2) dedupe por email, (3) emails de test fuera,
       // (4) dados de baja fuera, (5) spam/descartados fuera
-      const TESTRX = /@viven\.ch$|@entropia|@example\.|test/i;
-      const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
       let recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
       if (test_to) {
         const { data: matchLead } = await service.from("leads").select("id,lang").ilike("email", String(test_to)).maybeSingle();
         recips = [{ email: String(test_to), id: matchLead?.id, lang: matchLead?.lang }];
       } else {
-        // deno-lint-ignore no-explicit-any -- fallback re-select cambia el shape
-        let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
-        if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
-        const seen = new Set<string>();
-        for (const r of (q.data ?? []) as Record<string, string | number | boolean>[]) {
-          const em = String(r.email || "").toLowerCase().trim();
-          if (!em || seen.has(em) || TESTRX.test(em)) continue;
-          if ((r as { unsubscribed?: boolean }).unsubscribed) continue;
-          if (isOutSt(String(r.status || ""))) continue;
-          seen.add(em);
-          recips.push({ id: r.id as number, email: em, name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""), lang: String(r.lang || "en") });
-        }
+        recips = (await elegirDestinatarios(service)).recips;
       }
       if (!recips.length) return json({ error: "0 destinatarios elegibles" }, 400);
 
