@@ -186,20 +186,29 @@ async function resendPost(path: string, payload: unknown, attempts = 4): Promise
    El panel "quién lo recibe" del dashboard llama exactamente a esto, en modo
    preview, para que lo mostrado sea lo enviado. (Pedido de Sebastián, 11 ago 2026:
    no podía ver ni quién lo recibe, ni en qué idioma, ni a qué hora sale.) */
-/* @viven.ch y @entropia YA NO se excluyen: Sebastián quiere que el equipo y
-   Entropia reciban el newsletter SIEMPRE, para ver con sus propios ojos lo que
-   sale afuera (11 ago 2026). Estaban metidos en el mismo saco que las direcciones
-   inventadas, pero son casillas reales de gente real.
-   Vale SOLO para el newsletter: los emails 1:1 automáticos a leads siguen
-   filtrando lo interno (mandarle al equipo una secuencia de venta no tiene
-   sentido). */
-/* Direcciones que no existen. OJO CON "test": el patrón era /@example\.|test/i —
-   la palabra suelta, en cualquier posición del email. Eso dejaba afuera para
-   siempre y EN SILENCIO a direcciones reales y plausibles: testimonios@empresa.ch,
-   protest@…, contest@… — y Viven justamente vende videos de testimonios. Ahora
-   solo lo que de verdad es de prueba: la casilla test@ de un dominio, o un dominio
-   @test.* — el mismo criterio que ya usaba daily-digest. (12 ago 2026) */
-const TESTRX = /@example\.|^test@|@test\./i;
+/* EL NEWSLETTER NO FILTRA DIRECCIONES: LO RECIBEN TODOS.
+   Decisión de Sebastián, 12 ago 2026 — explícita, después de ver el problema.
+   Historia corta de por qué el filtro se fue del todo:
+     · era /@example\.|test/i — "test" como palabra suelta, en CUALQUIER posición.
+       Eso dejaba afuera para siempre y en silencio a direcciones reales y
+       plausibles: testimonios@empresa.ch, protest@…, contest@… — y Viven
+       justamente vende videos de testimonios.
+     · el 11-12 ago ya habían salido @viven.ch y @entropia del mismo saco, porque
+       son casillas reales de gente real.
+     · lo acoté a ^test@ y @test., y al medirlo contra la base real el filtro no
+       estaba bloqueando a NADIE (0 direcciones). O sea: costo real de perder
+       clientes en silencio, beneficio cero.
+   Así que se saca. Quedan solo las exclusiones que son reglas de verdad y no
+   adivinanzas sobre si una casilla existe: dados de baja, spam/descartado y
+   duplicados.
+   CONTRAPARTIDA ACEPTADA: si alguien carga a mano un @example.com o un test@,
+   ese email va a bouncear, y los bounces le bajan reputación al dominio en
+   Resend. Se banca: es preferible a perder un cliente sin enterarse.
+   VALE SOLO PARA EL NEWSLETTER. Los emails 1:1 automáticos a leads
+   (automations-run, reactivation-engine, deal-followup-later, review-request,
+   bexio-import-clients) siguen filtrando lo interno y las de prueba — mandarle al
+   equipo una secuencia de venta no tiene sentido. Si algún día se quiere sacar
+   también ahí, es una decisión aparte. */
 const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
 const isWonSt = (st: string) => /ganado|won|cerrado/i.test(st || "");
 
@@ -234,7 +243,7 @@ async function equipoSiempre(service: any): Promise<string[]> {
 type Seg = { stage?: string; lang?: string; exclude_ids?: (number | string)[]; extra_emails?: string[] };
 // deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
 async function elegirDestinatarios(service: any, seg?: Seg) {
-  const fuera = { duplicados: 0, test: 0, baja: 0, descartados: 0, fueraDeSegmento: 0, sacadosAMano: 0 };
+  const fuera = { duplicados: 0, baja: 0, descartados: 0, fueraDeSegmento: 0, sacadosAMano: 0 };
   // deno-lint-ignore no-explicit-any
   let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
   if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
@@ -251,7 +260,6 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
     const em = String(r.email || "").toLowerCase().trim();
     if (!em) continue;
     if (seen.has(em)) { fuera.duplicados++; continue; }
-    if (TESTRX.test(em)) { fuera.test++; continue; }
     if ((r as { unsubscribed?: boolean }).unsubscribed) { fuera.baja++; continue; }
     const st = String(r.status || "");
     if (isOutSt(st)) { fuera.descartados++; continue; }
