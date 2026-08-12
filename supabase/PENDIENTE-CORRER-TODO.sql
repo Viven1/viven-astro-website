@@ -234,3 +234,52 @@ create policy bkset_auth_all on public.booking_settings for all to authenticated
 
 -- limpieza: borrar el lead de diagnóstico del test del formulario
 delete from public.leads where email = 'diagtest@example.invalid';
+-- ============================================================================
+--  Viven — ENCENDER EL DESPACHADOR DEL NEWSLETTER + el equipo recibe siempre
+--  (12 ago 2026). Son las DOS migraciones nuevas, pegadas acá para correrlas de
+--  una en el SQL Editor. Idempotentes: se pueden correr varias veces.
+--
+--  Sin esto, "Programar fecha y hora" sigue guardando la fecha y no mandando
+--  nunca (que es el bug que estamos arreglando). Todo lo demás — el panel de
+--  destinatarios, la vista por idioma, el equipo en la lista — YA está andando
+--  sin tocar la base.
+--
+--  Detalle y por qué de cada decisión: migrations/0120_newsletter_dispatch_cron.sql
+--  y migrations/0121_newsletter_equipo_siempre.sql
+-- ============================================================================
+
+-- ---- 0120: el cron del despachador ---------------------------------------
+-- Cada 15 min. El horario laboral suizo (Lun-Vie 09:00-12:00 y 13:30-17:00 hora
+-- de Zúrich, con el corte del mediodía a propósito) lo decide la edge function,
+-- no este cron: pg_cron solo entiende UTC y Zúrich cambia de hora dos veces al
+-- año. La ventana UTC de acá es a propósito más amplia.
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+do $$ begin perform cron.unschedule('viven-newsletter-dispatch'); exception when others then null; end $$;
+do $$ begin perform cron.unschedule('newsletter-dispatch');       exception when others then null; end $$;
+
+select cron.schedule('viven-newsletter-dispatch', '*/15 5-16 * * 1-5', $$
+  select net.http_post(
+    url := 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1/newsletter-dispatch',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization',
+      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')),
+    body := '{}'::jsonb
+  );
+$$);
+
+-- ---- 0121: las casillas del equipo (el interruptor, editable) -------------
+-- Sin esta fila el código ya usa el mismo default, así que es opcional: sirve
+-- para poder cambiar las direcciones sin tocar código. Array vacío = apagado.
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+insert into public.app_settings (key, value)
+values ('newsletter', '{"always_to": ["info@viven.ch", "sofia@viven.ch"]}')
+on conflict (key) do nothing;
+
+-- ---- verificación (no cambia nada) ---------------------------------------
+-- select jobname, schedule, active from cron.job where jobname = 'viven-newsletter-dispatch';
+-- select value from public.app_settings where key = 'newsletter';
