@@ -8891,12 +8891,26 @@ const newsCases = [
       // Newsletter
       $('nw-count') && $('nw-count').addEventListener('click', () => { nwShowRecipients(); });   // al cerrar guarda y refresca el conteo
       $('nw-blog') && $('nw-blog').addEventListener('click', async () => {
-        const { data } = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
-        const b = (data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
+        /* Prefill VISUAL. Somos una productora de video: un newsletter de puro
+           texto no muestra lo que hacemos (Sebastián, 12 ago 2026).
+           La imagen es hero_image — EXACTAMENTE la portada del artículo publicado
+           (el mismo campo que usa blog-approve para el <img> de la página). Si el
+           post no tiene portada, no se inventa ninguna: va sin imagen. */
+        let q = await supabase.from('blogs').select('title,lead,published_url,lang,published_at,hero_image').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
+        if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
+        const b = (q.data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
         $('nw-subject').value = b.title; if (b.lang) $('nw-lang').value = b.lang;
-        const txt = (b.lead || '') + '\n\n' + ((b.lang === 'de' ? 'Weiterlesen: ' : b.lang === 'es' ? 'Leé el artículo completo: ' : 'Read the full article: ') + (b.published_url || 'https://www.viven.ch/blog/'));
-        nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = []; nwSetBodyText(txt); nwUpdateSendPanel();
-        $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
+        const url = b.published_url || 'https://www.viven.ch/blog/';
+        const leer = b.lang === 'de' ? 'Weiterlesen →' : b.lang === 'es' ? 'Leer el artículo →' : 'Read the article →';
+        nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = [];
+        nwBlocks = [];
+        if (b.hero_image) nwBlocks.push({ type: 'still', src: b.hero_image, caption: '' });
+        nwBlocks.push({ type: 'text', text: (b.lead || '') });
+        nwBlocks.push({ type: 'cta', label: leer, dest: url });
+        nwRenderEditor(); nwUpdateSendPanel();
+        $('nw-note').textContent = b.hero_image
+          ? 'Prefill con el último artículo: su portada + el copete + botón al artículo. Es la misma imagen que ve el lector en la página.'
+          : 'Prefill con el último artículo. Ese post no tiene imagen de portada, así que va sin imagen — si querés una, agregá un bloque 🖼 still.';
       });
       $('nw-test') && $('nw-test').addEventListener('click', async () => {
         const id = await nwSave(); if (!id) return;
@@ -13506,6 +13520,14 @@ const newsCases = [
   function nwCtaMode(b){ return (b.dest === 'calculator' || b.dest === 'brief' || b.dest === 'call') ? b.dest : 'custom'; }
   function nwStillOptions(cur){
     let out = '<option value="">— elegir still —</option>';
+    /* Si la imagen actual no está en el pool (p. ej. la portada de un artículo,
+       que viene de blogs.hero_image), se agrega como opción propia. Sin esto el
+       select mostraría "elegir still" con una imagen ya puesta, y al tocarlo se
+       perdía en silencio. */
+    const enPool = (window.STILLS_POOL || []).some((g) => (g.stills || []).some((s) => String(s) === cur));
+    if (cur && !enPool){
+      out += '<optgroup label="Del artículo"><option value="' + esc(cur) + '" selected>' + esc(String(cur).split('/').pop()) + '</option></optgroup>';
+    }
     (window.STILLS_POOL || []).forEach((grp) => {
       out += '<optgroup label="' + esc(grp.client) + '">';
       (grp.stills || []).forEach((s) => { const p = String(s); out += '<option value="' + esc(p) + '"' + (p === cur ? ' selected' : '') + '>' + esc(p.split('/').pop()) + '</option>'; });

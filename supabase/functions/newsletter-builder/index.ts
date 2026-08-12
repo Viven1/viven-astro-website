@@ -43,9 +43,22 @@ const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, 
 type Lang = "en" | "de" | "es";
 const LANGS: Lang[] = ["en", "de", "es"];
 
-interface BlogRow { id: number; group_id: string; lang: string; title: string; lead: string | null; published_url: string | null; published_at: string; slug: string | null }
+interface BlogRow { id: number; group_id: string; lang: string; title: string; lead: string | null; published_url: string | null; published_at: string; slug: string | null; hero_image: string | null }
 interface PostGroup { group_id: string; views: number; byLang: Partial<Record<Lang, BlogRow>> }
 interface Copy { subject: string; intro: string; post_blurbs: string[]; project_blurb: string; outro: string }
+
+/* LA MISMA IMAGEN QUE EL ARTÍCULO, o ninguna.
+   Regla de Sebastián (12 ago 2026): "que sean las mismas imágenes o rompemos la
+   confianza". Mostrar una foto que no está en el artículo es un anzuelo.
+   Por eso sale de blogs.hero_image, que es EXACTAMENTE el campo con el que
+   blog-approve arma el <img> de portada de la página publicada (ver
+   blog-approve/index.ts, heroImg). Mismo campo = imposible que se despeguen.
+   Si un post no tiene hero_image, ese post va SIN imagen — nunca una de relleno. */
+const abs = (u: string | null): string | null => {
+  const x = String(u || "").trim();
+  if (!x) return null;
+  return x.startsWith("http") ? x : "https://www.viven.ch" + (x.startsWith("/") ? x : "/" + x);
+};
 
 // añade utm respetando query strings existentes — misma atribución que las
 // campañas manuales (site.js mapea utm_source=newsletter → canal email)
@@ -156,14 +169,15 @@ Write a JSON object with:
 // HTML del cuerpo (sin wrapper/saludo/footer — eso lo pone newsletter-send por
 // destinatario, con su link de baja). Mismo look que los emails existentes.
 // ---------------------------------------------------------------------------
-function renderHtml(lang: Lang, copy: Copy, posts: { title: string; url: string }[], project: { client: string; headline: string; url: string; still: string | null }, month: string): string {
+function renderHtml(lang: Lang, copy: Copy, posts: { title: string; url: string; hero: string | null }[], project: { client: string; headline: string; url: string; still: string | null }, month: string): string {
   const P = (t: string) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#222">${t}</p>`;
   let h = P(esc(copy.intro));
   h += `<p style="margin:22px 0 10px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#8a93a6;font-weight:700">${FROM_BLOG[lang]}</p>`;
   posts.forEach((p, i) => {
     const blurb = copy.post_blurbs[i] || "";
     const url = addUtm(p.url, month);
-    h += `<div style="margin:0 0 18px;padding:0 0 16px;border-bottom:1px solid #edf0f4">
+    h += `<div style="margin:0 0 22px;padding:0 0 18px;border-bottom:1px solid #edf0f4">
+  ${p.hero ? `<a href="${url}" style="display:block;margin:0 0 11px"><img src="${p.hero}" alt="${esc(p.title)}" width="548" style="width:100%;height:auto;display:block;border-radius:12px" /></a>` : ""}
   <p style="margin:0 0 5px;font-size:16px;line-height:1.4;font-weight:700"><a href="${url}" style="color:#0f1826;text-decoration:none">${esc(p.title)}</a></p>
   ${blurb ? `<p style="margin:0 0 7px;font-size:14px;line-height:1.6;color:#4a5262">${esc(blurb)}</p>` : ""}
   <a href="${url}" style="font-size:13.5px;color:#5b7cfa;font-weight:600">${READ_MORE[lang]} →</a>
@@ -172,7 +186,7 @@ function renderHtml(lang: Lang, copy: Copy, posts: { title: string; url: string 
   const pUrl = addUtm(project.url, month);
   h += `<p style="margin:24px 0 10px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#8a93a6;font-weight:700">${FEATURED[lang]}</p>`;
   h += `<div style="margin:0 0 20px;border:1px solid #edf0f4;border-radius:12px;overflow:hidden">
-  ${project.still ? `<a href="${pUrl}"><img src="${project.still}" alt="${esc(project.client)}" width="548" style="width:100%;height:auto;display:block" /></a>` : ""}
+  ${abs(project.still) ? `<a href="${pUrl}"><img src="${abs(project.still)}" alt="${esc(project.client)}" width="548" style="width:100%;height:auto;display:block" /></a>` : ""}
   <div style="padding:16px 18px">
     <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#0f1826">${esc(project.headline)}</p>
     <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#4a5262">${esc(copy.project_blurb)}</p>
@@ -225,7 +239,7 @@ Deno.serve(async (req) => {
     // ---- 1) mejores posts del último mes y medio -------------------------
     const since = new Date(Date.now() - 45 * 864e5).toISOString();
     let { data: blogs } = await service.from("blogs")
-      .select("id,group_id,lang,title,lead,published_url,published_at,slug")
+      .select("id,group_id,lang,title,lead,published_url,published_at,slug,hero_image")
       .eq("status", "published").gte("published_at", since)
       .order("published_at", { ascending: false });
     let recentOnly = false;
@@ -233,7 +247,7 @@ Deno.serve(async (req) => {
       // sin posts nuevos: caemos a los más recientes publicados
       recentOnly = true;
       const q = await service.from("blogs")
-        .select("id,group_id,lang,title,lead,published_url,published_at,slug")
+        .select("id,group_id,lang,title,lead,published_url,published_at,slug,hero_image")
         .eq("status", "published").order("published_at", { ascending: false }).limit(40);
       blogs = q.data;
     }
@@ -282,14 +296,14 @@ Deno.serve(async (req) => {
       // por idioma: post en ese idioma o fallback a EN
       const posts = ranked.map((g) => {
         const b = g.byLang[lang] ?? g.byLang.en ?? g.byLang.de ?? g.byLang.es!;
-        return { title: b!.title, lead: (b!.lead || "").slice(0, 260), url: b!.published_url! };
+        return { title: b!.title, lead: (b!.lead || "").slice(0, 260), url: b!.published_url!, hero: abs(b!.hero_image) };
       });
       const pj = project.langs[lang] ?? project.langs.en;
       const ai = await aiCopy(lang, posts.map((p) => ({ title: p.title, lead: p.lead })), { client: project.client, headline: pj.headline, summary: pj.summary });
       const copy: Copy = ai ?? { ...FALLBACK[lang], post_blurbs: [] };
       content[lang] = {
         subject: copy.subject,
-        html: renderHtml(lang, copy, posts.map((p) => ({ title: p.title, url: p.url })), { client: project.client, headline: pj.headline, url: pj.url, still: project.still }, month),
+        html: renderHtml(lang, copy, posts.map((p) => ({ title: p.title, url: p.url, hero: p.hero })), { client: project.client, headline: pj.headline, url: pj.url, still: project.still }, month),
         posts: posts.map((p) => ({ title: p.title, url: p.url })),
         ai: !!ai,
       };
