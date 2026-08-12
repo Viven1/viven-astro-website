@@ -236,8 +236,13 @@ create policy bkset_auth_all on public.booking_settings for all to authenticated
 delete from public.leads where email = 'diagtest@example.invalid';
 -- ============================================================================
 --  Viven — ENCENDER EL DESPACHADOR DEL NEWSLETTER + el equipo recibe siempre
---  (12 ago 2026). Son las DOS migraciones nuevas, pegadas acá para correrlas de
---  una en el SQL Editor. Idempotentes: se pueden correr varias veces.
+--  (12 ago 2026).
+--
+--  >>> YA CORRIDO el 12 ago 2026, 21:06 UTC, desde el SQL Editor. <<<
+--  Queda acá como registro. Es idempotente: correrlo de nuevo no rompe nada.
+--  El `create table app_settings` se omitió a propósito al correrlo: la tabla ya
+--  existía (migración 0040, con RLS y política) y el linter de Supabase avisaba
+--  por eso — no hacía falta tocar permisos.
 --
 --  Sin esto, "Programar fecha y hora" sigue guardando la fecha y no mandando
 --  nunca (que es el bug que estamos arreglando). Todo lo demás — el panel de

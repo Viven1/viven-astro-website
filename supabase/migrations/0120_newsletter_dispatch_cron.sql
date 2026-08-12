@@ -42,6 +42,16 @@
 --  aprobación humana con sesión del dashboard — ningún cron la puede disparar.
 --
 --  Idempotente: se puede correr varias veces.
+--
+--  ── CORRIDA REAL: 12 ago 2026, 21:06 UTC (23:06 Zurich), desde el SQL Editor.
+--  Verificado ahi mismo: cron.job tiene viven-newsletter-dispatch activo con
+--  '*/15 5-16 * * 1-5'; vault tiene 'cron_secret'; y en las 3 horas previas los
+--  demas crons que usan el MISMO header dieron 80 respuestas 200 y cero 401 — o
+--  sea que el secret del Vault coincide con el CRON_SECRET de las funciones, que
+--  era lo unico que podia fallar en silencio.
+--  No se llego a ver una corrida propia del job porque se agendo despues de que
+--  cerrara la ventana diaria (21:06 UTC > 16). Primera corrida: 05:00 UTC del dia
+--  siguiente; primera ventana real de envio: 09:00 Zurich.
 -- ============================================================================
 
 create extension if not exists pg_cron;
