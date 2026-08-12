@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Kundenstimmen im Video: So sagen Ihre Kunden Ja zur Kamera | Viven"};
+const description = {"de":"Testimonial Videos überzeugen Interessenten wie kein anderes Format. Erfahren Sie, wie Sie Ihre Kunden gekonnt vor die Kamera bringen."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "kundenstimmen-video-kamera";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/kundenstimmen-video-kamera" active="blog" singleLang={true} langUrls={{"en":"/en/blog/testimonial-videos-customers-camera/","de":"/de/blog/kundenstimmen-video-kamera/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/kundenstimmen-video-kamera/\"},\"headline\":\"Kundenstimmen im Video: So sagen Ihre Kunden Ja zur Kamera\",\"description\":\"Testimonial Videos überzeugen Interessenten wie kein anderes Format. Erfahren Sie, wie Sie Ihre Kunden gekonnt vor die Kamera bringen.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/kundenstimmen-video-kamera/\",\"datePublished\":\"2026-08-12T13:15:39.482Z\",\"image\":\"https://www.viven.ch/projects/devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Kundenstimmen im Video: So sagen Ihre Kunden Ja zur Kamera\",\"item\":\"https://www.viven.ch/de/blog/kundenstimmen-video-kamera/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie lange dauert die Produktion eines Testimonial Videos?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ein Testimonial Video dauert typischerweise 2–4 Wochen von der Kundenanfrage bis zur finalen Lieferung. Das eigentliche Drehen mit einem Kunden benötigt 30–60 Minuten. Die Postproduktion (Schnitt, Farb- und Sounddesign) dauert 3–7 Arbeitstage.\"}},{\"@type\":\"Question\",\"name\":\"Wie viele Kunden sollte ich für ein starkes Testimonial Video-Set befragen?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Drei bis fünf verschiedene Kundenstimmen schaffen eine überzeugende Sammlung. Dies zeigt Vielfalt und verstärkt Glaubwürdigkeit. Idealerweise aus unterschiedlichen Branchen oder Rollen.\"}},{\"@type\":\"Question\",\"name\":\"Was kostet ein professionelles Testimonial Video in der Schweiz?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ein einzelnes Testimonial Video kostet zwischen CHF 2'500 und CHF 5'000. Ein Package mit 3–5 Videos ist kostengünstiger pro Stück. Genaue Preise hängen von Aufwand, Drehort und Schnittumfang ab.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Kundenstimmen im Video: So sagen Ihre Kunden Ja zur Kamera</span></nav>
+  <span class="eyebrow">Branchen-Insight</span>
+  <h1>Kundenstimmen im Video: So sagen Ihre Kunden Ja zur Kamera</h1>
+  <p class="lead">Testimonial Videos sind eines der wirkungsvollsten Marketinginstrumente überhaupt – doch nur wenn die Kundenstimmen authentisch, vertrauenswürdig und emotional überzeugend wirken. Die Herausforderung für viele Unternehmen ist nicht das Video selbst, sondern der erste Schritt: die Kunden überhaupt dazu zu bringen, vor der Kamera zu sprechen. In diesem Leitfaden zeigen wir Ihnen bewährte Strategien, wie Sie Ihre bestehenden Kunden als Markenbotschafter gewinnen – und mit welchen Tipps zur Vorbereitung und Produktion die Aufnahmen natürlich und überzeugend werden.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>12. August 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg" alt="Kundenstimmen im Video: So sagen Ihre Kunden Ja zur Kamera" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Warum Testimonial Videos so mächtig sind</h2><p>Vertrauen ist der wichtigste Faktor bei Kaufentscheidungen. Während Ihre Website-Texte und klassische Werbung von aussen kommen, wirkt eine echte Kundenaussage unmittelbar glaubwürdig. Video verstärkt diesen Effekt exponentiell: Potenzielle Kunden sehen echte Menschen, hören deren Stimmen, lesen Körpersprache – und entscheiden unterbewusst: «Dieser Person kann ich vertrauen.» <a href={p("services/corporate-video")}>Professionell produzierte Testimonials</a> erzielen nachweislich höhere Conversion-Raten als Text-Testimonials allein.</p><h2>Die richtige Kundenauswahl treffen</h2><p>Nicht jeder zufriedene Kunde eignet sich für ein Testimonial Video. Die Auswahl ist entscheidend:</p><ul><li><strong>Vielfalt in Branchen und Rollen:</strong> Wählen Sie Kunden aus unterschiedlichen Branchen oder Unternehmensgrössenkategorien – das macht Ihre Erfolgsgeschichten glaubwürdiger.</li><li><strong>Längerfristige Kundenbeziehungen:</strong> Kunden, die schon mehrere Jahre bei Ihnen sind, wirken authentischer als Neu-Kunden.</li><li><strong>Spezifische Erfolgsbeispiele:</strong> Ideal sind Kunden, bei denen Ihr Service/Produkt ein konkretes Problem gelöst oder messbar Wert geschaft hat.</li><li><strong>Kommunikationsfähigkeit:</strong> Der Kunde sollte in der Lage sein, in eigenen Worten zu erzählen – nicht nur zu nicken.</li></ul><h2>Die Anfrage stellen: So erhöhen Sie die Zusage-Quote</h2><p>Die meisten Unternehmen unterschätzen, wie wichtig die Anfrage selbst ist. Folgende Punkte erhöhen die Akzeptanzquote deutlich:</p><ul><li><strong>Zeitlicher Rahmen klarmachen:</strong> «Wir drehen zwischen Montag und Mittwoch, die Aufnahme dauert 20–30 Minuten» ist konkreter und weniger beängstigend als «irgendwann mal».</li><li><strong>Den Mehrwert für den Kunden kommunizieren:</strong> Nicht: «Wir brauchen ein Video von Ihnen.» Sondern: «Ihre Erfolgsgeschichte hilft anderen Unternehmen und positioniert Sie gleichzeitig als Branchenexperte.» Das ist psychologisch ein grosser Unterschied.</li><li><strong>Professionelle Produktion hervorheben:</strong> Erzählen Sie, dass Sie ein <a href={p("services/corporate-video")}>professionelles Produktionsteam</a> einbinden. Das nimmt den Druck – die Kunden wissen, dass die Profis schon viele Interviews gemacht haben.</li><li><strong>Persönlich anfragen:</strong> Eine handschriftliche Notiz oder ein kurzes Telefonat überzeugt mehr als eine generische E-Mail.</li></ul><h2>Vorbereitung ist die halbe Miete</h2><p>Wenn der Kunde zusagt, ist die Arbeit nicht vorbei – sie fängt erst an. Eine gute Vorbereitung führt zu besseren, entspannteren Aufnahmen:</p><ul><li><strong>Pre-Interview führen:</strong> Telefonieren Sie vorab mit dem Kunden. Fragen Sie nach deren Herausforderung vor dem Einsatz Ihres Produkts, dem Moment der Entscheidung und dem konkreten Nutzen heute. Diese Informationen helfen der Produktion, bessere Folgefragen zu stellen.</li><li><strong>Leitfaden mitschicken:</strong> Ein kurzes Skript oder ein Leitfaden mit 3–5 Leitfragen nimmt Unsicherheit. Der Kunde weiss, worauf es ankommt.</li><li><strong>Auf Authentizität hinweisen:</strong> «Bitte sprechen Sie natürlich und in Ihren eigenen Worten» – das ist wichtiger, als dass der Text perfekt ist.</li></ul><h2>Am Drehtag: Atmosphäre schafft Authentizität</h2><p>Kameras machen Menschen nervös. Darum sollte Ihr Produktionsteam darauf trainiert sein, eine angenehme Atmosphäre zu schaffen:</p><ul><li>Ankommen lassen: 10 Minuten lockerer Smalltalk vor dem Start</li><li>Technisches erklären: Der Kunde soll verstehen, was die Kamera macht und dass sie einfach «Stille und Natürlichkeit» aufzeichnet</li><li>Mehrere Takes ermöglichen: «Wir machen das so lange, bis Sie sich wohlfühlen» entspannt unglaublich</li><li>Mit Musik oder leichten Schnittbildern arbeiten: In der <a href={p("services/product-video")}>Postproduktion</a> können Pausen und Ähs entfernt, Spannung durch Schnitte erzeugt werden</li></ul><h2>Distribution: Von der Aufnahme zur Sichtbarkeit</h2><p>Ein perfektes Testimonial Video nützt nichts, wenn es niemand sieht. Planen Sie die Verbreitung von Anfang an:</p><ul><li>Website-Homepage oder Testimonial-Sektion</li><li>LinkedIn und andere Social-Media-Kanäle (<a href={p("services/social-media-video")}>gerade kürzere Schnitte funktionieren gut</a>)</li><li>Sales-Pitch-Decks: Verkäufer können Videos in Kundengespräche einbauen</li><li>E-Mail-Kampagnen: Testimonials erhöhen Click-Raten deutlich</li></ul><p>Viven AG hat diese Prozesse mit Dutzenden Schweizer KMU, UBS, Siemens, Porsche und ON erfolgreich durchführt. Wir wissen, wie man echte Geschichten vor der Kamera zum Leben erweckt.</p><p>Sie möchten ein Testimonial Video Projekt starten? <a href={p("contact")}>Kontaktieren Sie uns</a> – wir beraten Sie kostenlos, welche Kunden ideal eignen würden und wie wir den Prozess für Sie so einfach wie möglich machen.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036679041?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="kundenstimmen-video-kamera" />
+  </div></section>
+</Base>
