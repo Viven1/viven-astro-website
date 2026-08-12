@@ -345,6 +345,18 @@ Deno.serve(async (req) => {
         exclude_ids: bodyReq.exclude_ids, exclude_emails: bodyReq.exclude_emails,
         extra_emails: bodyReq.extra_emails,
       };
+      // preview de una edición mensual: { preview:true, issue_id }
+      if (issue_id && (seg.stage === undefined || seg.lang === undefined)) {
+        const { data: isp } = await service.from("newsletter_issues")
+          .select("segment_stage,segment_lang,exclude_ids,exclude_emails,extra_emails").eq("id", issue_id).maybeSingle();
+        if (isp) {
+          seg.stage = seg.stage ?? isp.segment_stage;
+          seg.lang = seg.lang ?? isp.segment_lang;
+          seg.exclude_ids = seg.exclude_ids ?? isp.exclude_ids ?? [];
+          seg.exclude_emails = seg.exclude_emails ?? isp.exclude_emails ?? [];
+          seg.extra_emails = seg.extra_emails ?? isp.extra_emails ?? [];
+        }
+      }
       if (id && (seg.stage === undefined || seg.lang === undefined)) {
         const { data: nlp } = await service.from("newsletters")
           .select("segment_stage,segment_lang,exclude_ids,exclude_emails,extra_emails").eq("id", id).maybeSingle();
@@ -386,7 +398,15 @@ Deno.serve(async (req) => {
         const { data: matchLead } = await service.from("leads").select("id,lang").ilike("email", String(test_to)).maybeSingle();
         recips = [{ email: String(test_to), id: matchLead?.id, lang: matchLead?.lang }];
       } else {
-        recips = (await elegirDestinatarios(service)).recips;
+        /* La edición mensual también elige a quién (SQL 0123). Antes salía a toda
+           la base sin nada que tocar; Sebastián pidió el mismo control que la
+           campaña manual. Misma función, mismo significado de cada campo — no hay
+           una segunda copia del filtro. */
+        recips = (await elegirDestinatarios(service, {
+          stage: issue.segment_stage, lang: issue.segment_lang,
+          exclude_ids: issue.exclude_ids || [], exclude_emails: issue.exclude_emails || [],
+          extra_emails: issue.extra_emails || [],
+        })).recips;
       }
       if (!recips.length) return json({ error: "0 destinatarios elegibles" }, 400);
 

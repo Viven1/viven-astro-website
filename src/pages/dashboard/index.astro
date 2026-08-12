@@ -2519,6 +2519,13 @@ const newsCases = [
         </div>
         <p class="muted-note" id="nwi-subject" style="margin:0 0 8px"></p>
         <iframe id="nwi-preview" title="Preview newsletter mensual" style="width:100%;height:520px;border:1px solid var(--line-strong);border-radius:10px;background:#f4f5f7"></iframe>
+        <div class="nw-sec-h" style="margin-top:14px">Destinatarios</div>
+        <div class="nw-row">
+          <select id="nwi-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select>
+          <select id="nwi-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
+          <button class="btn btn-ghost small" id="nwi-count" type="button">👥 Ver / editar lista</button>
+        </div>
+        <p class="muted-note" id="nwi-recips" style="margin:6px 0 0"></p>
         <div class="ab-urlrow" style="margin-top:10px">
           <button class="btn btn-ghost small" id="nwi-test" type="button">✉️ Test a mi email</button>
           <button class="btn btn-primary small" id="nwi-send" type="button">✅ Aprobar y enviar</button>
@@ -8861,6 +8868,9 @@ const newsCases = [
       });
       document.querySelectorAll('.nwi-lang').forEach((b) => b.addEventListener('click', () => nwiShowLang(b.dataset.lg)));
       $('nwi-close') && $('nwi-close').addEventListener('click', () => { $('nwi-detail').hidden = true; nwiCur = null; });
+      $('nwi-count') && $('nwi-count').addEventListener('click', () => { nwShowRecipients(nwCtxIssue()); });
+      $('nwi-stage') && $('nwi-stage').addEventListener('change', () => { nwiSaveSeg(); nwiUpdateRecips(); });
+      $('nwi-lang') && $('nwi-lang').addEventListener('change', () => { nwiSaveSeg(); nwiUpdateRecips(); });
       $('nwi-test') && $('nwi-test').addEventListener('click', async () => {
         if (!nwiCur) return;
         const { data: s2 } = await supabase.auth.getUser();
@@ -8872,7 +8882,13 @@ const newsCases = [
       $('nwi-send') && $('nwi-send').addEventListener('click', async () => {
         if (!nwiCur) return;
         if (nwiCur.status === 'sent'){ toast('Este issue ya fue enviado'); return; }
-        if (!confirm('¿Aprobar y ENVIAR la edición ' + nwiCur.month + ' a todos los suscriptores?\n\nCada uno la recibe en su idioma. No se puede deshacer.')) return;
+        // el segmento elegido se guarda ANTES de mandar: si no, el envío lee lo
+        // último persistido y no lo que está en pantalla
+        await nwiSaveSeg();
+        const pv = await nwiFetchPrev(true);
+        if (pv && pv.total === 0){ toast('0 destinatarios con este segmento — revisá «Ver / editar lista»'); return; }
+        const cuantos = pv ? pv.total + ' persona' + (pv.total === 1 ? '' : 's') : 'los suscriptores elegidos';
+        if (!confirm('¿Aprobar y ENVIAR la edición ' + nwiCur.month + ' a ' + cuantos + '?\n\nCada uno la recibe en su idioma. No se puede deshacer.')) return;
         $('nwi-note').textContent = 'Enviando por tandas…'; $('nwi-send').disabled = true;
         const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { issue_id: nwiCur.id } });
         $('nwi-send').disabled = false;
@@ -13861,6 +13877,57 @@ const newsCases = [
 
   // ---- Edición mensual automática (newsletter_issues, SQL 0114) ----
   let nwiCur = null, nwiList = [];
+  /* Destinatarios de la edición mensual (SQL 0123). Antes salía a toda la base sin
+     nada que elegir — Sebastián: "el newsletter mensual no tiene opción de a quién
+     enviar, solo el de abajo". Mismos campos, mismo panel y MISMA función de
+     selección en el servidor que la campaña manual. */
+  let nwiExcludeIds = new Set(), nwiExcludeEmails = new Set(), nwiExtraEmails = [];
+  let nwiPrev = null, nwiPrevKey = '', nwiPrevErr = '', nwiPrevSeq = 0;
+  function nwiSegNow(){
+    return {
+      segment_stage: $('nwi-stage') ? $('nwi-stage').value : 'all',
+      segment_lang: $('nwi-lang') ? $('nwi-lang').value : 'all',
+      exclude_ids: [...nwiExcludeIds].map(Number),
+      exclude_emails: [...nwiExcludeEmails],
+      extra_emails: nwiExtraEmails.slice(),
+    };
+  }
+  async function nwiFetchPrev(force){
+    const seg = nwiSegNow(), key = JSON.stringify(seg);
+    if (!force && key === nwiPrevKey && nwiPrev) return nwiPrev;
+    const seq = ++nwiPrevSeq;
+    const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { preview: true, ...seg } });
+    if (seq !== nwiPrevSeq) return nwiPrev;
+    if (error || !data || data.error){ nwiPrev = null; nwiPrevKey = ''; nwiPrevErr = (error && error.message) || (data && data.error) || 'no se pudo contar'; return null; }
+    nwiPrev = data; nwiPrevKey = key; nwiPrevErr = ''; return data;
+  }
+  async function nwiUpdateRecips(){
+    const el = $('nwi-recips'); if (!el || !nwiCur) return;
+    if (nwiCur.status !== 'draft'){ el.innerHTML = ''; return; }
+    el.innerHTML = 'Contando destinatarios…';
+    const p = await nwiFetchPrev();
+    if (!p){ el.innerHTML = '⚠️ ' + esc(nwiPrevErr || 'no se pudo contar'); return; }
+    el.innerHTML = '<b style="color:var(--acid)">' + p.total + '</b> destinatario' + (p.total === 1 ? '' : 's') +
+      ', cada uno en su idioma.<div class="nw-sum">' + nwLangLine(p.por_idioma) + '</div>' +
+      (nwFueraLine(p.fuera) ? '<div style="margin-top:2px">' + nwFueraLine(p.fuera) + '</div>' : '');
+  }
+  async function nwiSaveSeg(){
+    if (!nwiCur || nwiCur.status !== 'draft') return;
+    const seg = nwiSegNow();
+    const row = { segment_stage: seg.segment_stage, segment_lang: seg.segment_lang,
+      exclude_ids: seg.exclude_ids, exclude_emails: seg.exclude_emails, extra_emails: seg.extra_emails,
+      updated_at: new Date().toISOString() };
+    const { error } = await supabase.from('newsletter_issues').update(row).eq('id', nwiCur.id);
+    if (error){ toast(/column/i.test(error.message || '') ? 'Falta correr el SQL 0123' : '⚠️ ' + error.message); return; }
+    Object.assign(nwiCur, row);
+  }
+  const nwCtxIssue = () => ({
+    id: 'nwi-recip-composer',
+    titulo: '👥 Quién recibe la edición mensual',
+    exclIds: nwiExcludeIds, exclEmails: nwiExcludeEmails, extras: nwiExtraEmails,
+    fetch: (f) => nwiFetchPrev(f),
+    onClose: async () => { await nwiSaveSeg(); nwiUpdateRecips(); },
+  });
   async function nwiInit(){
     const { data, error } = await supabase.from('newsletter_issues').select('*').order('created_at', { ascending: false }).limit(24);
     if (error){ $('nwi-list').innerHTML = '<p class="muted-note">Falta correr el SQL 0114 — ' + esc(error.message) + '</p>'; return; }
@@ -13882,6 +13949,16 @@ const newsCases = [
       $('nwi-send').hidden = nwiCur.status !== 'draft';
       $('nwi-discard').hidden = nwiCur.status !== 'draft';
       $('nwi-note').textContent = nwiCur.status === 'sent' ? 'Ya enviada — solo lectura.' : nwiCur.status === 'discarded' ? 'Descartada — solo lectura.' : '';
+      // destinatarios guardados de esta edición
+      nwiExcludeIds = new Set((nwiCur.exclude_ids || []).map(String));
+      nwiExcludeEmails = new Set((nwiCur.exclude_emails || []).map((x) => String(x).toLowerCase()));
+      nwiExtraEmails = (nwiCur.extra_emails || []).slice();
+      if ($('nwi-stage')) $('nwi-stage').value = nwiCur.segment_stage || 'all';
+      if ($('nwi-lang')) $('nwi-lang').value = nwiCur.segment_lang || 'all';
+      const soloLectura = nwiCur.status !== 'draft';
+      ['nwi-stage', 'nwi-lang', 'nwi-count'].forEach((k) => { if ($(k)) $(k).disabled = soloLectura; });
+      nwiPrev = null; nwiPrevKey = '';
+      nwiUpdateRecips();
       nwiShowLang('en');
       $('nwi-detail').scrollIntoView({ behavior: 'smooth' });
     }));
@@ -14034,19 +14111,31 @@ const newsCases = [
   const nwMatch = (p, q) => !q || (String(p.name || '') + ' ' + String(p.email || '')).toLowerCase().includes(q);
 
   // --- 1) el botón "Ver / editar lista" de la campaña -------------------------
-  async function nwShowRecipients(){
+  /* Un solo panel de destinatarios para los dos caminos: la campaña manual y la
+     edición mensual. El `ctx` dice de dónde sale y a dónde vuelve el estado; el
+     filtro y el total siguen viniendo del servidor en los dos casos. */
+  const nwCtxCampana = () => ({
+    id: 'nw-recip-composer',
+    titulo: '👥 Quién recibe esta campaña',
+    exclIds: nwExcludeIds, exclEmails: nwExcludeEmails, extras: nwExtraEmails,
+    fetch: (f) => nwFetchPrev(f),
+    onClose: async () => { if ($('nw-subject').value.trim() && nwDerivedBody().trim()) await nwSave(); nwUpdateSendPanel(); },
+  });
+  async function nwShowRecipients(ctx){
+    ctx = ctx || nwCtxCampana();
+    const EXCL = ctx.exclIds, EXCLEM = ctx.exclEmails, EXTRAS = ctx.extras;
     const ov = nwBox({
-      id: 'nw-recip-composer',
-      title: '👥 Quién recibe esta campaña',
+      id: ctx.id,
+      title: ctx.titulo,
       sub: 'Leyendo del servidor…',
       head: '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="nw-recip-add" class="nw-ov-inp" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div><div id="nw-recip-equipo"></div><div id="nw-recip-extra"></div>',
       foot: '<p class="muted-note" style="margin-top:10px">Destildar saca a esa persona de este envío. La selección se guarda con el borrador. El total lo calcula la misma función que hace el envío.</p>',
-      onClose: async () => { if ($('nw-subject').value.trim() && nwDerivedBody().trim()) await nwSave(); nwUpdateSendPanel(); },
+      onClose: ctx.onClose,
     });
-    const $sub = ov.querySelector('#nw-recip-composer-sub');
-    const $list = ov.querySelector('#nw-recip-composer-list');
+    const $sub = ov.querySelector('#' + ctx.id + '-sub');
+    const $list = ov.querySelector('#' + ctx.id + '-list');
     const $extra = ov.querySelector('#nw-recip-extra');
-    const $q = ov.querySelector('#nw-recip-composer-q');
+    const $q = ov.querySelector('#' + ctx.id + '-q');
 
     // la gente del segmento sale del servidor; los ticks son locales y el TOTAL
     // se vuelve a pedir al servidor (con debounce) para que nunca sea una cuenta mía
@@ -14069,26 +14158,26 @@ const newsCases = [
     const refrescarTotal = () => {
       $sub.innerHTML = 'Contando en el servidor…';
       clearTimeout(tmr);
-      tmr = setTimeout(async () => pintarTotal(await nwFetchPrev(true)), 350);
+      tmr = setTimeout(async () => pintarTotal(await ctx.fetch(true)), 350);
     };
     const pintarLista = () => {
       const q = ($q && $q.value || '').trim().toLowerCase();
       const vis = gente.filter((p) => nwMatch(p, q));
       $list.innerHTML = vis.map((p) => {
-        const fuera = p.id != null && nwExcludeIds.has(String(p.id));
+        const fuera = p.id != null && EXCL.has(String(p.id));
         const cb = '<input type="checkbox" data-lid="' + p.id + '"' + (fuera ? '' : ' checked') + ' style="flex:none" />';
         return '<label style="display:block' + (fuera ? ';opacity:.45' : '') + '">' + nwPersonRow(p, cb) + '</label>';
       }).join('') || '<p class="muted-note">' + (q ? 'Nadie con ese nombre o email.' : 'Nadie matchea este segmento.') + '</p>';
       $list.querySelectorAll('[data-lid]').forEach((cb) => cb.addEventListener('change', () => {
         const lid = cb.dataset.lid;
-        if (cb.checked) nwExcludeIds.delete(lid); else nwExcludeIds.add(lid);
+        if (cb.checked) EXCL.delete(lid); else EXCL.add(lid);
         pintarLista(); refrescarTotal();
       }));
     };
     const pintarExtras = () => {
-      $extra.innerHTML = nwExtraEmails.map((em, i) => '<div class="nw-prow"><div class="who"><div class="nm">' + esc(em) + '</div><div class="em">agregado a mano</div></div><button type="button" class="nw-recip-x" data-i="' + i + '" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px">✕</button></div>').join('');
+      $extra.innerHTML = EXTRAS.map((em, i) => '<div class="nw-prow"><div class="who"><div class="nm">' + esc(em) + '</div><div class="em">agregado a mano</div></div><button type="button" class="nw-recip-x" data-i="' + i + '" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px">✕</button></div>').join('');
       $extra.querySelectorAll('.nw-recip-x').forEach((b) => b.addEventListener('click', () => {
-        nwExtraEmails.splice(+b.dataset.i, 1); pintarExtras(); refrescarTotal();
+        EXTRAS.splice(+b.dataset.i, 1); pintarExtras(); refrescarTotal();
       }));
     };
 
@@ -14104,7 +14193,7 @@ const newsCases = [
       const box = ov.querySelector('#nw-recip-equipo');
       box.innerHTML = eq.length
         ? eq.map((r) => {
-            const fuera = nwExcludeEmails.has(String(r.email).toLowerCase());
+            const fuera = EXCLEM.has(String(r.email).toLowerCase());
             const cb = '<input type="checkbox" data-lem="' + esc(r.email) + '"' + (fuera ? '' : ' checked') + ' style="flex:none" />';
             return '<label style="display:block' + (fuera ? ';opacity:.45' : '') + '">' +
               nwPersonRow(r, cb, '<span class="nw-lgtag">equipo</span>') + '</label>';
@@ -14112,12 +14201,12 @@ const newsCases = [
         : '';
       box.querySelectorAll('[data-lem]').forEach((cb) => cb.addEventListener('change', () => {
         const em = String(cb.dataset.lem).toLowerCase();
-        if (cb.checked) nwExcludeEmails.delete(em); else nwExcludeEmails.add(em);
-        nwFetchPrev(true).then((p2) => { if (p2){ pintarTotal(p2); pintarEquipo(p2); } });
+        if (cb.checked) EXCLEM.delete(em); else EXCLEM.add(em);
+        ctx.fetch(true).then((p2) => { if (p2){ pintarTotal(p2); pintarEquipo(p2); } });
       }));
     };
 
-    const p = await nwFetchPrev(true);
+    const p = await ctx.fetch(true);
     if (!p){ $sub.innerHTML = '⚠️ ' + esc(nwPrevErr || 'no se pudo leer'); $list.innerHTML = ''; return; }
     // el segmento completo = los que reciben (menos los sueltos y el equipo) + los sacados a mano
     gente = (p.recips || []).filter((r) => !r.manual).concat(p.sacados || [])
@@ -14127,8 +14216,8 @@ const newsCases = [
     ov.querySelector('#nw-recip-add-btn').addEventListener('click', () => {
       const inp = ov.querySelector('#nw-recip-add'), em = inp.value.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Poné un email válido'); return; }
-      if (gente.some((r) => String(r.email || '').toLowerCase() === em) || nwExtraEmails.includes(em)){ toast('Ese email ya está en la lista'); return; }
-      nwExtraEmails.push(em); inp.value = ''; pintarExtras(); refrescarTotal();
+      if (gente.some((r) => String(r.email || '').toLowerCase() === em) || EXTRAS.includes(em)){ toast('Ese email ya está en la lista'); return; }
+      EXTRAS.push(em); inp.value = ''; pintarExtras(); refrescarTotal();
     });
   }
 
