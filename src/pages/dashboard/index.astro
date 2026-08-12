@@ -891,6 +891,20 @@ const newsCases = [
   #contenido-sub-news .kmini .k{flex:1;border:1px solid var(--line);border-radius:11px;background:var(--navy-900);padding:10px 12px}
   #contenido-sub-news .kmini .k .n{font-family:'Space Grotesk';font-weight:700;font-size:18px;color:var(--acid)}
   #contenido-sub-news .kmini .k .l{font-size:9px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  /* los tres números abren la lista de gente real detrás (pedido de Sebastián, 12 ago) */
+  #contenido-sub-news .kmini .k.clickable{cursor:pointer;transition:border-color .12s,background .12s}
+  #contenido-sub-news .kmini .k.clickable:hover{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 6%,transparent)}
+  /* listas de personas de los overlays (destinatarios, aperturas, bajas) */
+  .nw-plist{max-height:min(52vh,420px);overflow-y:auto;margin-top:8px}
+  .nw-prow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .nw-prow .who{flex:1;min-width:0;overflow:hidden}
+  .nw-prow .who .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nw-prow .who .em{font-size:11px;color:var(--muted-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nw-lgtag{flex:none;font-size:10px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line-strong);border-radius:6px;padding:1px 5px;color:var(--muted)}
+  .nw-sum{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+  .nw-sum span{border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:11.5px;color:var(--muted)}
+  .nw-sum b{font-family:'Space Grotesk';color:var(--acid)}
+  .nw-langtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   /* lista de campañas */
   #contenido-sub-news .nw-sr{display:flex;align-items:flex-start;gap:9px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12.5px}
   #contenido-sub-news .nw-sr:last-child{border-bottom:0}
@@ -2562,7 +2576,8 @@ const newsCases = [
             <select id="nw-sched-mode" class="nw-sel"><option value="now">Enviar ahora</option><option value="at">Programar fecha/hora</option></select>
             <input id="nw-sched-at" class="nw-inp" type="datetime-local" style="flex:1;min-width:200px" hidden />
           </div>
-          <p class="muted-note" id="nw-sched-note" style="margin:2px 0 0;font-size:11.5px">El envío programado queda listo pero el despachador automático está apagado (política del proyecto) — hasta activarlo, mandá con «Enviar ahora».</p>
+          <p class="muted-note" id="nw-sched-note" style="margin:2px 0 0;font-size:11.5px">Los programados salen solos, <b>en horario laboral suizo</b>: lunes a viernes, 09:00–12:00 y 13:30–17:00 (hora de Zúrich). Si elegís una hora fuera de esas ventanas, sale en la siguiente. Se revisa cada 15 minutos.</p>
+          <p class="muted-note" id="nw-sched-real" style="margin:5px 0 0;font-size:11.5px" hidden></p>
 
           <!-- ===== send box ===== -->
           <div class="nw-sendbox">
@@ -2581,10 +2596,11 @@ const newsCases = [
 
         <!-- ===== columna derecha: KPIs + campañas ===== -->
         <div class="nw-rgt">
+          <!-- los tres números se tocan y muestran QUIÉNES son (pedido de Sebastián, 12 ago) -->
           <div class="kmini" id="nw-kmini">
-            <div class="k"><div class="n" id="nw-kmini-subs">—</div><div class="l">Suscriptos</div></div>
-            <div class="k"><div class="n" id="nw-kmini-open">—</div><div class="l">Apertura últ. envío</div></div>
-            <div class="k"><div class="n" id="nw-kmini-unsub">—</div><div class="l">Bajas</div></div>
+            <div class="k clickable" id="nw-k-subs" title="Ver quiénes lo reciben"><div class="n" id="nw-kmini-subs">—</div><div class="l">Suscriptos&nbsp;›</div></div>
+            <div class="k clickable" id="nw-k-open" title="Ver quiénes abrieron y quiénes no"><div class="n" id="nw-kmini-open">—</div><div class="l">Apertura últ. envío&nbsp;›</div></div>
+            <div class="k clickable" id="nw-k-unsub" title="Ver quiénes se dieron de baja"><div class="n" id="nw-kmini-unsub">—</div><div class="l">Bajas&nbsp;›</div></div>
           </div>
           <div class="nw-sec-h">Envíos anteriores <span class="count" id="nw-listcount" style="margin-left:auto"></span></div>
           <div id="nw-list"><p class="muted-note">Sin campañas todavía.</p></div>
@@ -4820,7 +4836,7 @@ const newsCases = [
      pipeline (dealValue: ofertas ganadas > ofertas abiertas > deal_value crudo).
      `offsetDays` corre la ventana hacia atrás para poder comparar vs el período
      anterior (mismo patrón que setDelta/renderAnalytics). */
-  const ADS_LEAD_TEST_RE = /@viven\.ch$|@entropia|@example\.|test/i;
+  const ADS_LEAD_TEST_RE = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
   const adsLeadOk = (r) => !!r.gclid && !r.ads_exclude && !ADS_LEAD_TEST_RE.test(r.email || '') && !/spam|descartado|perdido-spam/i.test(r.status || '');
   function adsRoasFor(days, offsetDays){
     const end = Date.now() - (offsetDays || 0) * 864e5, win = (days || 30) * 864e5, start = end - win;
@@ -8873,7 +8889,7 @@ const newsCases = [
       });
 
       // Newsletter
-      $('nw-count') && $('nw-count').addEventListener('click', async () => { await nwShowRecipients(); nwUpdateSendPanel(); });
+      $('nw-count') && $('nw-count').addEventListener('click', () => { nwShowRecipients(); });   // al cerrar guarda y refresca el conteo
       $('nw-blog') && $('nw-blog').addEventListener('click', async () => {
         const { data } = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
         const b = (data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
@@ -8900,6 +8916,14 @@ const newsCases = [
         $('nw-sched-at').hidden = $('nw-sched-mode').value !== 'at';
         nwUpdateSendPanel();
       });
+      // al elegir fecha/hora se avisa a qué hora sale DE VERDAD (horario laboral suizo)
+      $('nw-sched-at') && $('nw-sched-at').addEventListener('input', nwSchedHint);
+      $('nw-sched-at') && $('nw-sched-at').addEventListener('change', nwSchedHint);
+      // los tres números → quiénes son (pedido de Sebastián, 12 ago)
+      const nwGuard = (fn) => () => { try { const r = fn(); if (r && r.catch) r.catch((e) => toast('⚠️ ' + (e && e.message || e))); } catch (e) { toast('⚠️ ' + (e && e.message || e)); } };
+      $('nw-k-subs') && $('nw-k-subs').addEventListener('click', nwGuard(nwShowSubs));
+      $('nw-k-open') && $('nw-k-open').addEventListener('click', nwGuard(nwShowOpens));
+      $('nw-k-unsub') && $('nw-k-unsub').addEventListener('click', nwGuard(nwShowUnsubs));
       $('nw-add-text') && $('nw-add-text').addEventListener('click', () => nwAddBlock('text'));
       $('nw-add-video') && $('nw-add-video').addEventListener('click', () => nwAddBlock('video'));
       $('nw-add-still') && $('nw-add-still').addEventListener('click', () => nwAddBlock('still'));
@@ -8926,9 +8950,17 @@ const newsCases = [
         if (scheduled){
           const when = $('nw-sched-at').value;
           if (!when){ toast('Elegí fecha y hora'); return; }
+          const pedido = new Date(when);
+          if (pedido.getTime() < Date.now() - 6e4){ toast('Esa fecha ya pasó — elegí una hora futura'); return; }
+          const real = nwProxSalida(pedido);
           const id = await nwSave(); if (!id) return;
-          $('nw-note').textContent = '⏰ Campaña programada para ' + new Date(when).toLocaleString('es-CH') + '. NOTA: el despachador automático está apagado — se enviará solo cuando el dueño active el cron; hasta entonces usá «Enviar ahora».';
-          toast('⏰ Programada (despachador inactivo)'); newsInit();
+          const p = nwPrev;
+          $('nw-note').textContent = '⏰ Programada. ' + (real
+            ? 'Sale sola el ' + nwFechaZH(real) + ' (hora de Zúrich)' + (Math.abs(real - pedido) > 9e5 ? ' — la hora que elegiste cae fuera del horario laboral suizo, así que sale en la ventana siguiente' : '') + '.'
+            : 'No pude calcular la ventana de salida — revisá la fecha.') +
+            (p ? ' Van ' + p.total + ' destinatarios.' : '');
+          toast('⏰ Programada' + (real ? ' — sale ' + real.toLocaleString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''));
+          newsInit();
           return;
         }
         const id = await nwSave(); if (!id) return;
@@ -13596,54 +13628,195 @@ const newsCases = [
       return '';
     }).join('');
   }
-  function nwEmailHtml(){
+  /* Saludo por idioma — espejo EXACTO de greeting() en newsletter-send:
+     en alemán NUNCA nombre de pila ni du, "Guten Tag" formal a secas (no tenemos
+     apellido ni género confiables en leads). EN/ES sí con nombre de pila. */
+  const NW_UNSUB = { en: 'Unsubscribe', de: 'Abmelden', es: 'Darse de baja' };
+  function nwGreetPreview(lang){
+    if (lang === 'de') return '<p style="margin:0 0 16px;font-size:15px;color:#222">Guten Tag</p>';
+    const hi = lang === 'es' ? 'Hola' : 'Hi';
+    return '<p style="margin:0 0 16px;font-size:15px;color:#222">' + hi + ' <span style="background:#fff3bf;padding:0 3px;border-radius:3px">&lt;nombre&gt;</span>,</p>';
+  }
+  function nwEmailHtml(langArg){
     const id = (nwCur && nwCur.id) || 'preview';
-    const lang = $('nw-lang').value === 'all' ? 'en' : $('nw-lang').value;
+    const lang = langArg || ($('nw-lang').value === 'all' ? 'en' : $('nw-lang').value);
     const useBlocks = nwBlocks.some((b) => b.type !== 'text' || String(b.text || '').trim());
     const inner = useBlocks ? nwBlocksHtml(nwBlocks, lang, id) : nwTextHtml(nwDerivedBody(), id);
     return '<div style="max-width:600px;margin:0 auto">' +
       '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><span style="font-family:\'Space Grotesk\',sans-serif;font-weight:800;color:#ddf98f;font-size:16px">viven</span> <span style="font-size:8px;color:#8290ab;text-transform:uppercase;letter-spacing:.05em">Film Production</span></div>' +
-      '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px"><p style="margin:0 0 16px;font-size:15px;color:#222">Hi Pedro,</p>' + inner + '<p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p></div>' +
-      '<p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · viven.ch · <u>' + (lang === 'de' ? 'Abmelden' : lang === 'es' ? 'Darse de baja' : 'Unsubscribe') + '</u></p></div>';
+      '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px">' + nwGreetPreview(lang) + inner + '<p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p></div>' +
+      '<p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · viven.ch · <u>' + (NW_UNSUB[lang] || NW_UNSUB.en) + '</u></p></div>';
   }
+  /* Qué cambia de verdad entre un alemán, un inglés y un español. Lo digo en la
+     pantalla porque el malentendido natural es creer que el cuerpo se traduce:
+     NO se traduce. Una campaña suelta se escribe una vez, en un idioma, y sale
+     igual para todos; lo que cambia por destinatario es el saludo, el link de
+     baja y el destino de los botones (la calculadora tiene una URL por idioma).
+     La que sí tiene texto propio por idioma es la Edición mensual automática. */
+  function nwLangDiffs(lang){
+    const calc = (nwBlocks || []).some((b) => b && b.type === 'cta' && b.dest === 'calculator');
+    const items = [
+      'Saludo: <b>' + (lang === 'de' ? 'Guten Tag' : lang === 'es' ? 'Hola &lt;nombre&gt;,' : 'Hi &lt;name&gt;,') + '</b>' +
+        (lang === 'de' ? ' <span style="color:var(--muted-2)">(en alemán, siempre formal y sin nombre de pila)</span>' : ''),
+      'Link de baja: <b>' + NW_UNSUB[lang] + '</b>',
+    ];
+    if (calc) items.push('Botón a la calculadora: <b>' + esc(NW_CALC[lang] || NW_CALC.en) + '</b>');
+    return items;
+  }
+  let nwPrevLang = 'en';
   function nwPreview(){
     let ov = $('nw-preview-ov'); if (!ov){ ov = document.createElement('div'); ov.id = 'nw-preview-ov'; document.body.appendChild(ov); }
     ov.className = 'of-composer';
-    ov.innerHTML = '<div class="ofc-card" style="max-width:640px"><h3 style="margin:0 0 4px">👁 Preview — así le llega al cliente</h3>' +
-      '<p class="muted-note" style="margin:0 0 12px">El saludo real usa el nombre de cada destinatario y el link de baja es personal. Los links salen con utm_campaign=nl-{id}.</p>' +
-      '<div style="background:#f4f5f7;border-radius:14px;padding:20px;max-height:65vh;overflow-y:auto">' + nwEmailHtml() + '</div>' +
+    const seg = $('nw-lang').value;
+    if (seg !== 'all') nwPrevLang = seg;                      // segmento de un idioma: arrancá por ese
+    else if (!['en', 'de', 'es'].includes(nwPrevLang)) nwPrevLang = 'en';
+    const pintar = () => {
+      const lg = nwPrevLang, p = nwPrev;
+      const cuantos = p && p.por_idioma ? p.por_idioma[lg] : null;
+      ov.querySelector('#nw-prev-tabs').innerHTML = ['de', 'en', 'es'].map((x) => {
+        const n = p && p.por_idioma ? p.por_idioma[x] : null;
+        return '<button class="btn ' + (x === lg ? 'btn-primary' : 'btn-ghost') + ' small" data-plg="' + x + '" type="button">' +
+          NW_LG[x] + (n != null ? ' · ' + n : '') + '</button>';
+      }).join('');
+      ov.querySelector('#nw-prev-diffs').innerHTML =
+        (cuantos != null ? '<b style="color:var(--acid)">' + cuantos + '</b> ' + (cuantos === 1 ? 'persona lo recibe' : 'personas lo reciben') + ' así. ' : '') +
+        'Lo que cambia en esta versión: ' + nwLangDiffs(lg).join(' · ') + '.' +
+        '<div style="margin-top:4px;color:var(--muted-2)">El texto que escribís NO se traduce: sale igual en los tres. La que tiene texto propio por idioma es la Edición mensual automática.</div>';
+      ov.querySelector('#nw-prev-body').innerHTML = nwEmailHtml(lg);
+      ov.querySelectorAll('[data-plg]').forEach((b) => b.addEventListener('click', () => { nwPrevLang = b.dataset.plg; pintar(); }));
+    };
+    ov.innerHTML = '<div class="ofc-card" style="max-width:640px"><h3 style="margin:0 0 4px">👁 Así le llega — por idioma</h3>' +
+      '<p class="muted-note" style="margin:0 0 8px">El nombre y el link de baja son personales de cada destinatario. Los links salen con utm_campaign=nl-{id}.</p>' +
+      '<div class="nw-langtabs" id="nw-prev-tabs"></div>' +
+      '<p class="muted-note" id="nw-prev-diffs" style="margin:0 0 12px;font-size:11.5px"></p>' +
+      '<div id="nw-prev-body" style="background:#f4f5f7;border-radius:14px;padding:20px;max-height:55vh;overflow-y:auto"></div>' +
       '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost small" id="nw-prev-close" type="button">Cerrar</button></div></div>';
+    pintar();
     ov.querySelector('#nw-prev-close').addEventListener('click', () => ov.remove());
     ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    nwFetchPrev().then((p) => { if (p && $('nw-preview-ov')) pintar(); });   // cuántos por idioma
+  }
+
+  // ===== destinatarios: SIEMPRE del servidor =====
+  /* El filtro real de a quién le llega el newsletter vive en la edge function
+     newsletter-send (elegirDestinatarios) y su modo { preview:true } usa esa MISMA
+     función, sin mandar nada. Todo lo que se muestre acá — el contador del panel,
+     el KPI "Suscriptos", la lista de "Ver / editar lista" — sale de ahí.
+     Antes este archivo tenía su propia copia del filtro en JavaScript y ya estaba
+     dando OTRO número: excluía @viven.ch y @entropia, que sí reciben el newsletter,
+     y mataba cualquier email con la palabra "test" adentro (testimonios@…).
+     Regla: no reimplementar el filtro acá nunca más. */
+  let nwPrev = null, nwPrevKey = '', nwPrevErr = '', nwPrevSeq = 0;
+  function nwSegNow(){
+    return {
+      segment_stage: $('nw-stage') ? $('nw-stage').value : 'all',
+      segment_lang: $('nw-lang') ? $('nw-lang').value : 'all',
+      exclude_ids: [...nwExcludeIds].map(Number),
+      extra_emails: nwExtraEmails.slice(),
+    };
+  }
+  async function nwFetchPrev(force){
+    const seg = nwSegNow(), key = JSON.stringify(seg);
+    if (!force && key === nwPrevKey && nwPrev) return nwPrev;
+    const seq = ++nwPrevSeq;
+    const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { preview: true, ...seg } });
+    if (seq !== nwPrevSeq) return nwPrev;   // llegó vieja: ya se pidió otra
+    if (error || !data || data.error){
+      nwPrev = null; nwPrevKey = ''; nwPrevErr = (error && error.message) || (data && data.error) || 'no se pudo contar';
+      return null;
+    }
+    nwPrev = data; nwPrevKey = key; nwPrevErr = '';
+    return data;
+  }
+  // resumen por idioma, con el mismo fallback que el envío (sin idioma → inglés)
+  function nwLangLine(porIdioma){
+    const p = porIdioma || {};
+    return ['de', 'en', 'es'].filter((lg) => p[lg]).map((lg) => '<span>' + { de: '🇩🇪 Alemán', en: '🇬🇧 Inglés', es: '🇪🇸 Español' }[lg] + ' <b>' + p[lg] + '</b></span>').join('') || '<span>Sin destinatarios</span>';
+  }
+  function nwFueraLine(f){
+    if (!f) return '';
+    const items = [
+      [f.baja, 'dados de baja'], [f.descartados, 'spam/descartados'], [f.duplicados, 'emails repetidos'],
+      [f.test, 'direcciones de prueba'], [f.fueraDeSegmento, 'fuera del segmento elegido'], [f.sacadosAMano, 'sacados a mano'],
+    ].filter(([n]) => n > 0).map(([n, l]) => n + ' ' + l);
+    return items.length ? 'No lo reciben: ' + items.join(' · ') + '.' : '';
+  }
+
+  /* ===== horario laboral suizo (solo para AVISAR, no para decidir) =====
+     La decisión de mandar o no la toma newsletter-dispatch → enHorarioLaboral().
+     Esto es una copia de las ventanas para poder decirle a Sebastián, en la
+     pantalla, a qué hora va a salir de verdad lo que programó. Si algún día se
+     cambia el horario, se cambia en newsletter-dispatch/index.ts (que es la
+     autoridad) Y acá. El corte del mediodía es a propósito. */
+  const NW_VENTANAS = [[9 * 60, 12 * 60], [13 * 60 + 30, 17 * 60]];
+  function nwZurich(d){
+    const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || '';
+    const dias = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return { dow: dias[g('weekday')] != null ? dias[g('weekday')] : 1, min: +g('hour') * 60 + +g('minute') };
+  }
+  function nwEnHorario(d){
+    const { dow, min } = nwZurich(d);
+    if (dow < 1 || dow > 5) return false;
+    return NW_VENTANAS.some(([a, b]) => min >= a && min < b);
+  }
+  // primer instante ≥ d que caiga en horario laboral, buscando de 15 en 15 min
+  function nwProxSalida(d){
+    let t = new Date(Math.ceil(d.getTime() / 9e5) * 9e5);   // redondeo al slot de 15 min
+    for (let i = 0; i < 4 * 24 * 14; i++){                  // hasta 14 días adelante
+      if (nwEnHorario(t)) return t;
+      t = new Date(t.getTime() + 9e5);
+    }
+    return null;
+  }
+  const nwFechaZH = (d) => d.toLocaleString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  function nwSchedHint(){
+    const el = $('nw-sched-real'); if (!el) return;
+    const modo = $('nw-sched-mode') && $('nw-sched-mode').value === 'at';
+    const val = $('nw-sched-at') && $('nw-sched-at').value;
+    if (!modo || !val){ el.hidden = true; el.innerHTML = ''; return; }
+    const pedido = new Date(val);
+    if (isNaN(pedido)){ el.hidden = true; return; }
+    const real = nwProxSalida(pedido);
+    el.hidden = false;
+    if (!real){ el.innerHTML = '⚠️ No pude calcular la próxima ventana laboral.'; return; }
+    el.innerHTML = Math.abs(real - pedido) < 9e5
+      ? '✅ Sale el <b>' + nwFechaZH(real) + '</b> (hora de Zúrich).'
+      : '⏰ Esa hora cae fuera del horario laboral suizo — sale el <b>' + nwFechaZH(real) + '</b> (hora de Zúrich).';
   }
 
   // ===== panel de envío (conteo, tandas, cupo, progreso) =====
-  function nwRecipCount(){
-    const seen = new Set(); let n = 0;
-    (allLeads || []).forEach((r) => { const e = (r.email || '').toLowerCase(); if (!e || seen.has(e) || !nwSegFilter(r)) return; seen.add(e); if (nwExcludeIds.has(String(r.id))) return; n++; });
-    (nwExtraEmails || []).forEach((em) => { if (!seen.has(em)){ seen.add(em); n++; } });
-    return n;
-  }
-  function nwSubsCount(){
-    const seen = new Set(); let n = 0; const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
-    (allLeads || []).forEach((r) => { const e = (r.email || '').toLowerCase(); if (!e || seen.has(e) || TEST.test(e) || r.unsubscribed) return; if (/spam|descartado/i.test(r.status || '')) return; seen.add(e); n++; });
-    return n;
-  }
-  function nwUpdateSendPanel(){
+  async function nwUpdateSendPanel(){
     const title = $('nw-send-title'), info = $('nw-send-info'); if (!title || !info) return;
-    if ($('nw-mode') && $('nw-mode').value === 'one'){ title.textContent = '📤 Envío directo a 1 persona'; info.innerHTML = 'Queda registrado en el historial (con utm y link de baja). El self-test rápido NO deja rastro.'; const b0 = $('nw-send'); if (b0) b0.textContent = '📤 Enviar ahora'; return; }
-    const n = nwRecipCount();
+    nwSchedHint();
+    const sched = $('nw-sched-mode') && $('nw-sched-mode').value === 'at';
+    const btn0 = $('nw-send'); if (btn0) btn0.textContent = sched ? '⏰ Programar' : '📤 Enviar ahora';
+    if ($('nw-mode') && $('nw-mode').value === 'one'){
+      title.textContent = '📤 Envío directo a 1 persona';
+      info.innerHTML = 'Queda registrado en el historial (con utm y link de baja). El self-test rápido NO deja rastro.';
+      if (btn0) btn0.textContent = '📤 Enviar ahora';
+      return;
+    }
+    if (!nwPrev){ title.textContent = '📤 Contando destinatarios…'; info.innerHTML = 'Preguntándole al servidor quiénes lo reciben.'; }
+    const p = await nwFetchPrev();
+    if (!p){
+      title.textContent = '📤 No pude contar los destinatarios';
+      info.innerHTML = '⚠️ ' + esc(nwPrevErr || 'error') + '<br/>No mandes a ciegas: abrí «Ver / editar lista» y volvé a intentar.';
+      return;
+    }
+    const n = p.total;
     const batches = Math.max(1, Math.ceil(n / 100));
     const secs = Math.max(1, Math.round(batches * 0.6 + n * 0.02));
-    const CAP = 100;
-    const cap = n > CAP
+    const cap = n > 100
       ? '<br/><span class="cap-over">⚠️ ' + n + " supera el tope diario del plan Free (100/día) — conviene Pro (USD 20/mes = 50'000).</span>"
       : "<br/>Cupo Free: <b>" + n + " de 3'000 este mes</b> ✓";
-    const sched = $('nw-sched-mode') && $('nw-sched-mode').value === 'at';
+    const fuera = nwFueraLine(p.fuera);
     title.textContent = '📤 Listo para enviar a ' + n + ' persona' + (n === 1 ? '' : 's');
-    info.innerHTML = 'En <b>' + batches + ' tanda' + (batches === 1 ? '' : 's') + ' de 100</b> (API batch de Resend) · duración estimada: <b>~' + secs + 's</b>' + cap +
-      '<br/>Si el envío se corta, se retoma solo sin duplicar a nadie ✓' + (sched ? '<br/>⏰ Programado — se enviará cuando el despachador esté activo.' : '');
-    const btn = $('nw-send'); if (btn) btn.textContent = sched ? '⏰ Programar' : '📤 Enviar ahora';
+    info.innerHTML = '<div class="nw-sum">' + nwLangLine(p.por_idioma) + '</div>' +
+      'En <b>' + batches + ' tanda' + (batches === 1 ? '' : 's') + ' de 100</b> (API batch de Resend) · duración estimada: <b>~' + secs + 's</b>' + cap +
+      '<br/>Si el envío se corta, se retoma solo sin duplicar a nadie ✓' +
+      (fuera ? '<br/><span style="color:var(--muted-2)">' + fuera + '</span>' : '') +
+      '<br/><span style="color:var(--muted-2)">Este número lo calcula la misma función que hace el envío.</span>';
   }
 
   // ===== atribución de ventas por campaña =====
@@ -13711,8 +13884,14 @@ const newsCases = [
     const agg = {};
     sends.forEach((s) => { const a = agg[s.newsletter_id] = agg[s.newsletter_id] || { n: 0, open: 0, click: 0, openLeads: [] }; a.n++; if (s.opened_at){ a.open++; if (s.lead_id) a.openLeads.push(s.lead_id); } if (s.clicked_at) a.click++; });
 
-    // KPI mini
-    if ($('nw-kmini-subs')) $('nw-kmini-subs').textContent = nwSubsCount();
+    // KPI mini — "Suscriptos" sale del servidor (misma función que el envío),
+    // sin segmento ni exclusiones: es toda la lista.
+    if ($('nw-kmini-subs')){
+      $('nw-kmini-subs').textContent = '…';
+      supabase.functions.invoke('newsletter-send', { body: { preview: true, segment_stage: 'all', segment_lang: 'all', exclude_ids: [], extra_emails: [] } })
+        .then(({ data, error }) => { $('nw-kmini-subs').textContent = (error || !data || data.error) ? '?' : data.total; })
+        .catch(() => { $('nw-kmini-subs').textContent = '?'; });
+    }
     const lastSent = nwList.find((n) => n.status === 'sent');
     if ($('nw-kmini-open')){ if (lastSent){ const a = agg[lastSent.id] || { n: 0, open: 0 }; const sn = lastSent.sent_count || a.n; $('nw-kmini-open').textContent = sn ? Math.round(a.open / sn * 100) + '%' : '—'; } else $('nw-kmini-open').textContent = '—'; }
     if ($('nw-kmini-unsub')) $('nw-kmini-unsub').textContent = (allLeads || []).filter((l) => l.unsubscribed).length;
@@ -13737,7 +13916,14 @@ const newsCases = [
         else attr = '<span style="color:var(--muted-2)">sin ventas atribuidas</span>';
         right = '<span class="nw-pill ' + (openPct >= 35 ? 'ok' : 'warn') + '">' + openPct + '% abrió</span> <span class="nw-pill ' + (clickPct >= 5 ? 'ok' : 'warn') + '">' + clickPct + '% click</span><br/>' + attr;
       } else if (n.scheduled_at){
-        right = '<span class="nw-pill warn">⏰ ' + new Date(n.scheduled_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>';
+        /* el despachador no manda nada programado hace más de 48 h (guarda contra
+           que un borrador viejo salga de golpe) — se avisa acá para reprogramar */
+        const venc = Date.now() - Date.parse(n.scheduled_at) > 48 * 3600e3;
+        const salida = venc ? null : nwProxSalida(new Date(Math.max(Date.now(), Date.parse(n.scheduled_at))));
+        right = venc
+          ? '<span class="nw-pill warn">⏰ venció — reprogramala</span>'
+          : '<span class="nw-pill warn">⏰ ' + new Date(n.scheduled_at).toLocaleString('es-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>' +
+            (salida && Math.abs(salida - Date.parse(n.scheduled_at)) > 9e5 ? '<br/><span style="color:var(--muted-2)">sale ' + salida.toLocaleString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit' }) + '</span>' : '');
       } else {
         right = '<span class="of-badge" style="color:#8ab4ff;border-color:currentColor">Borrador</span>';
       }
@@ -13780,62 +13966,166 @@ const newsCases = [
     if (error){ toast(/does not exist|relation/i.test(error.message) ? 'Falta correr el SQL 0039' : error.message); return null; }
     return id;
   }
-  function nwSegFilter(r){
-    const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
-    if (!r.email || TEST.test(r.email) || r.unsubscribed) return false;
-    if (/spam|descartado/i.test(r.status || '')) return false;
-    const won = /ganado|won|cerrado/i.test(r.status || '');
-    const st = $('nw-stage').value; if (st === 'won' && !won) return false; if (st === 'open' && won) return false;
-    const lg = $('nw-lang').value; if (lg !== 'all' && (r.lang || 'en') !== lg) return false;
-    return true;
+  /* ===== overlays "quiénes son" =====
+     Los tres números del panel (Suscriptos / Apertura / Bajas) y el botón
+     "Ver / editar lista" abren una lista de gente real. Pedido de Sebastián
+     (12 ago 2026): "todos esos números me tienen que mostrar quiénes se dieron
+     de baja, quiénes están suscriptos, etc." */
+  const NW_LG = { de: '🇩🇪 DE', en: '🇬🇧 EN', es: '🇪🇸 ES' };
+  function nwPersonRow(p, izq, der){
+    const nm = p.name || String(p.email || '').split('@')[0];
+    return '<div class="nw-prow">' + (izq || '') +
+      '<div class="who"><div class="nm">' + esc(nm) + '</div><div class="em">' + esc(p.email || '') + '</div></div>' +
+      '<span class="nw-lgtag">' + (NW_LG[p.lang] || NW_LG.en) + '</span>' + (der || '') + '</div>';
   }
-  async function nwShowRecipients(){
-    let q = await supabase.from('leads').select('id,name,first_name,email,status,lang,unsubscribed').not('email', 'is', null);
-    if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('leads').select('id,name,first_name,email,status,lang').not('email', 'is', null);
-    const seen = new Set();
-    const matched = (q.data || []).filter((r) => {
-      const e2 = (r.email || '').toLowerCase(); if (seen.has(e2) || !nwSegFilter(r)) return false;
-      seen.add(e2); return true;
-    }).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
-
-    let ov = $('nw-recip-composer');
-    if (!ov){ ov = document.createElement('div'); ov.id = 'nw-recip-composer'; document.body.appendChild(ov); }
+  // overlay reutilizable con buscador
+  function nwBox(o){
+    let ov = $(o.id); if (!ov){ ov = document.createElement('div'); ov.id = o.id; document.body.appendChild(ov); }
     ov.className = 'of-composer';
-    const renderList = () => {
-      const rows = matched.map((r) => {
-        const excluded = nwExcludeIds.has(String(r.id));
-        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px' + (excluded ? ';opacity:.45' : '') + '"><input type="checkbox" data-lid="' + r.id + '"' + (excluded ? '' : ' checked') + ' style="flex:none" /><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.name || r.email) + '</span><span class="muted-note">' + esc((r.lang || 'en').toUpperCase()) + '</span></label>';
-      }).join('') || '<p class="muted-note">Nadie matchea este segmento.</p>';
-      const extraRows = nwExtraEmails.map((em, i) => '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px"><span style="flex:1">' + esc(em) + '</span><span class="muted-note">agregado a mano</span><button type="button" class="nw-recip-x" data-i="' + i + '" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px">✕</button></div>').join('');
-      const total = matched.length - nwExcludeIds.size + nwExtraEmails.length;
-      ov.querySelector('#nw-recip-total').textContent = total + ' destinatario' + (total === 1 ? '' : 's') + ' (de ' + matched.length + ' en el segmento' + (nwExtraEmails.length ? ' + ' + nwExtraEmails.length + ' agregados' : '') + ')';
-      ov.querySelector('#nw-recip-list').innerHTML = rows;
-      ov.querySelector('#nw-recip-extra').innerHTML = extraRows;
-      ov.querySelectorAll('[data-lid]').forEach((cb) => cb.addEventListener('change', () => {
+    ov.innerHTML = '<div class="ofc-card" style="max-width:520px">' +
+      '<h3 style="margin:0 0 4px">' + o.title + '</h3>' +
+      '<div class="muted-note" style="margin:0 0 8px" id="' + o.id + '-sub">' + (o.sub || '') + '</div>' +
+      (o.head || '') +
+      (o.buscador === false ? '' : '<input class="nw-ov-inp" id="' + o.id + '-q" placeholder="buscar por nombre o email" style="width:100%;margin-top:4px" />') +
+      '<div class="nw-plist" id="' + o.id + '-list"></div>' +
+      (o.foot || '') +
+      '<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary small" data-nwclose="1" type="button">Listo</button></div></div>';
+    const cerrar = () => { ov.remove(); if (o.onClose) o.onClose(); };
+    ov.querySelector('[data-nwclose]').addEventListener('click', cerrar);
+    ov.addEventListener('click', (e) => { if (e.target === ov) cerrar(); });
+    return ov;
+  }
+  const nwMatch = (p, q) => !q || (String(p.name || '') + ' ' + String(p.email || '')).toLowerCase().includes(q);
+
+  // --- 1) el botón "Ver / editar lista" de la campaña -------------------------
+  async function nwShowRecipients(){
+    const ov = nwBox({
+      id: 'nw-recip-composer',
+      title: '👥 Quién recibe esta campaña',
+      sub: 'Leyendo del servidor…',
+      head: '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="nw-recip-add" class="nw-ov-inp" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div><div id="nw-recip-extra"></div>',
+      foot: '<p class="muted-note" style="margin-top:10px">Destildar saca a esa persona de este envío. La selección se guarda con el borrador. El total lo calcula la misma función que hace el envío.</p>',
+      onClose: async () => { if ($('nw-subject').value.trim() && nwDerivedBody().trim()) await nwSave(); nwUpdateSendPanel(); },
+    });
+    const $sub = ov.querySelector('#nw-recip-composer-sub');
+    const $list = ov.querySelector('#nw-recip-composer-list');
+    const $extra = ov.querySelector('#nw-recip-extra');
+    const $q = ov.querySelector('#nw-recip-composer-q');
+
+    // la gente del segmento sale del servidor; los ticks son locales y el TOTAL
+    // se vuelve a pedir al servidor (con debounce) para que nunca sea una cuenta mía
+    let gente = [];
+    const pintarTotal = (p) => {
+      if (!p){ $sub.innerHTML = '⚠️ ' + esc(nwPrevErr || 'no se pudo contar'); return; }
+      $sub.innerHTML = '<b style="color:var(--acid)">' + p.total + '</b> destinatario' + (p.total === 1 ? '' : 's') +
+        ' de ' + gente.length + ' en el segmento' +
+        '<div class="nw-sum">' + nwLangLine(p.por_idioma) + '</div>' +
+        (nwFueraLine(p.fuera) ? '<div style="margin-top:4px">' + nwFueraLine(p.fuera) + '</div>' : '');
+    };
+    let tmr = null;
+    const refrescarTotal = () => {
+      $sub.innerHTML = 'Contando en el servidor…';
+      clearTimeout(tmr);
+      tmr = setTimeout(async () => pintarTotal(await nwFetchPrev(true)), 350);
+    };
+    const pintarLista = () => {
+      const q = ($q && $q.value || '').trim().toLowerCase();
+      const vis = gente.filter((p) => nwMatch(p, q));
+      $list.innerHTML = vis.map((p) => {
+        const fuera = p.id != null && nwExcludeIds.has(String(p.id));
+        const cb = '<input type="checkbox" data-lid="' + p.id + '"' + (fuera ? '' : ' checked') + ' style="flex:none" />';
+        return '<label style="display:block' + (fuera ? ';opacity:.45' : '') + '">' + nwPersonRow(p, cb) + '</label>';
+      }).join('') || '<p class="muted-note">' + (q ? 'Nadie con ese nombre o email.' : 'Nadie matchea este segmento.') + '</p>';
+      $list.querySelectorAll('[data-lid]').forEach((cb) => cb.addEventListener('change', () => {
         const lid = cb.dataset.lid;
         if (cb.checked) nwExcludeIds.delete(lid); else nwExcludeIds.add(lid);
-        renderList();
+        pintarLista(); refrescarTotal();
       }));
-      ov.querySelectorAll('.nw-recip-x').forEach((b) => b.addEventListener('click', () => { nwExtraEmails.splice(+b.dataset.i, 1); renderList(); }));
     };
-    ov.innerHTML = '<div class="ofc-card" style="max-width:480px">' +
-      '<h3 style="margin:0 0 4px">👥 Destinatarios</h3>' +
-      '<p class="muted-note" style="margin:0 0 10px" id="nw-recip-total"></p>' +
-      '<div style="display:flex;gap:8px;margin-bottom:10px"><input id="nw-recip-add" class="nw-ov-inp" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div>' +
-      '<div id="nw-recip-extra"></div>' +
-      '<div id="nw-recip-list" style="max-height:320px;overflow-y:auto;margin-top:6px"></div>' +
-      '<p class="muted-note" style="margin-top:10px">Destildar saca a esa persona de este envío. La selección se guarda con el borrador.</p>' +
-      '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary small" id="nw-recip-close" type="button">Listo</button></div>' +
-      '</div>';
-    renderList();
-    ov.querySelector('#nw-recip-close').addEventListener('click', async () => { if ($('nw-subject').value.trim() && $('nw-body').value.trim()) await nwSave(); ov.remove(); });
-    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    const pintarExtras = () => {
+      $extra.innerHTML = nwExtraEmails.map((em, i) => '<div class="nw-prow"><div class="who"><div class="nm">' + esc(em) + '</div><div class="em">agregado a mano</div></div><button type="button" class="nw-recip-x" data-i="' + i + '" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px">✕</button></div>').join('');
+      $extra.querySelectorAll('.nw-recip-x').forEach((b) => b.addEventListener('click', () => {
+        nwExtraEmails.splice(+b.dataset.i, 1); pintarExtras(); refrescarTotal();
+      }));
+    };
+
+    const p = await nwFetchPrev(true);
+    if (!p){ $sub.innerHTML = '⚠️ ' + esc(nwPrevErr || 'no se pudo leer'); $list.innerHTML = ''; return; }
+    // el segmento completo = los que reciben (menos los sueltos) + los sacados a mano
+    gente = (p.recips || []).filter((r) => !r.manual).concat(p.sacados || [])
+      .sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
+    pintarTotal(p); pintarLista(); pintarExtras();
+    if ($q) $q.addEventListener('input', pintarLista);
     ov.querySelector('#nw-recip-add-btn').addEventListener('click', () => {
-      const inp = ov.querySelector('#nw-recip-add'); const em = inp.value.trim().toLowerCase();
+      const inp = ov.querySelector('#nw-recip-add'), em = inp.value.trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Poné un email válido'); return; }
-      if (matched.some((r) => (r.email || '').toLowerCase() === em) || nwExtraEmails.includes(em)){ toast('Ese email ya está en la lista'); return; }
-      nwExtraEmails.push(em); inp.value = ''; renderList();
+      if (gente.some((r) => String(r.email || '').toLowerCase() === em) || nwExtraEmails.includes(em)){ toast('Ese email ya está en la lista'); return; }
+      nwExtraEmails.push(em); inp.value = ''; pintarExtras(); refrescarTotal();
     });
+  }
+
+  // --- 2) KPI "Suscriptos" → toda la base que recibe el newsletter -----------
+  async function nwShowSubs(){
+    const ov = nwBox({ id: 'nw-subs-box', title: '📮 Quiénes reciben el newsletter', sub: 'Leyendo del servidor…' });
+    const $sub = ov.querySelector('#nw-subs-box-sub'), $list = ov.querySelector('#nw-subs-box-list'), $q = ov.querySelector('#nw-subs-box-q');
+    // base entera, sin segmento ni exclusiones: esto es "toda la lista"
+    const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { preview: true, segment_stage: 'all', segment_lang: 'all', exclude_ids: [], extra_emails: [] } });
+    if (error || !data || data.error){ $sub.innerHTML = '⚠️ ' + esc((error && error.message) || (data && data.error)); return; }
+    const gente = (data.recips || []).slice().sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
+    $sub.innerHTML = '<b style="color:var(--acid)">' + data.total + '</b> personas, cada una en su idioma.' +
+      '<div class="nw-sum">' + nwLangLine(data.por_idioma) + '</div>' +
+      (nwFueraLine(data.fuera) ? '<div style="margin-top:4px">' + nwFueraLine(data.fuera) + '</div>' : '') +
+      '<div style="margin-top:4px;color:var(--muted-2)">No hay lista de suscriptores aparte: es toda la base de leads con email, menos bajas, spam/descartados y repetidos.</div>';
+    const pintar = () => {
+      const q = ($q.value || '').trim().toLowerCase();
+      const vis = gente.filter((p) => nwMatch(p, q));
+      $list.innerHTML = vis.map((p) => nwPersonRow(p)).join('') || '<p class="muted-note">Nadie con ese nombre o email.</p>';
+    };
+    pintar(); $q.addEventListener('input', pintar);
+  }
+
+  // --- 3) KPI "Apertura últ. envío" → quién abrió y quién no -----------------
+  async function nwShowOpens(){
+    const last = (nwList || []).find((n) => n.status === 'sent');
+    if (!last){ toast('Todavía no hay ninguna campaña enviada'); return; }
+    const ov = nwBox({ id: 'nw-open-box', title: '👀 Quién abrió el último envío', sub: 'Leyendo…' });
+    const $sub = ov.querySelector('#nw-open-box-sub'), $list = ov.querySelector('#nw-open-box-list'), $q = ov.querySelector('#nw-open-box-q');
+    const { data, error } = await supabase.from('newsletter_sends').select('email,lead_id,opened_at,clicked_at').eq('newsletter_id', last.id);
+    if (error){ $sub.innerHTML = '⚠️ ' + esc(error.message); return; }
+    const byId = new Map((allLeads || []).map((l) => [String(l.id), l]));
+    const gente = (data || []).map((s) => {
+      const l = s.lead_id != null ? byId.get(String(s.lead_id)) : null;
+      return { id: s.lead_id, email: s.email, name: (l && (l.first_name || l.name)) || '', lang: (l && l.lang) || 'en', abrio: !!s.opened_at, click: !!s.clicked_at, cuando: s.opened_at };
+    }).sort((a, b) => (b.abrio - a.abrio) || String(a.name || a.email).localeCompare(String(b.name || b.email)));
+    const nAbrio = gente.filter((p) => p.abrio).length, nClick = gente.filter((p) => p.click).length;
+    $sub.innerHTML = '«' + esc(last.subject) + '» · enviado a <b style="color:var(--acid)">' + gente.length + '</b>' +
+      '<div class="nw-sum"><span>Abrieron <b>' + nAbrio + '</b></span><span>Clickearon <b>' + nClick + '</b></span><span>Sin abrir <b>' + (gente.length - nAbrio) + '</b></span></div>' +
+      (nAbrio === 0 ? '<div style="margin-top:4px;color:var(--muted-2)">0 aperturas puede ser real, o que el tracking de Resend no esté llegando (webhook resend-events).</div>' : '');
+    const pintar = () => {
+      const q = ($q.value || '').trim().toLowerCase();
+      $list.innerHTML = gente.filter((p) => nwMatch(p, q)).map((p) => nwPersonRow(p, '',
+        '<span class="nw-lgtag" style="' + (p.abrio ? 'border-color:var(--won);color:var(--won)' : '') + '">' + (p.click ? '🖱 click' : p.abrio ? '👀 abrió' : 'sin abrir') + '</span>',
+      )).join('') || '<p class="muted-note">Nadie con ese nombre o email.</p>';
+    };
+    pintar(); $q.addEventListener('input', pintar);
+  }
+
+  // --- 4) KPI "Bajas" → quiénes se dieron de baja ----------------------------
+  function nwShowUnsubs(){
+    const ov = nwBox({ id: 'nw-unsub-box', title: '🚫 Quiénes se dieron de baja' });
+    const $sub = ov.querySelector('#nw-unsub-box-sub'), $list = ov.querySelector('#nw-unsub-box-list'), $q = ov.querySelector('#nw-unsub-box-q');
+    const gente = (allLeads || []).filter((l) => l.unsubscribed).map((l) => ({
+      id: l.id, email: l.email, name: l.first_name || l.name || '', lang: l.lang || 'en', empresa: l.company || '',
+    })).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
+    $sub.innerHTML = gente.length
+      ? '<b style="color:var(--acid)">' + gente.length + '</b> ' + (gente.length === 1 ? 'persona' : 'personas') + ' pidieron no recibir más. No entran en ningún envío, ni siquiera si las agregás a mano.'
+      : 'Nadie se dio de baja todavía.';
+    const pintar = () => {
+      const q = ($q.value || '').trim().toLowerCase();
+      $list.innerHTML = gente.filter((p) => nwMatch(p, q)).map((p) => nwPersonRow(p, '', p.empresa ? '<span class="nw-lgtag">' + esc(p.empresa) + '</span>' : '')).join('') ||
+        '<p class="muted-note">' + (q ? 'Nadie con ese nombre o email.' : 'Sin bajas.') + '</p>';
+    };
+    pintar(); $q.addEventListener('input', pintar);
   }
   // Embudo real por video (rediseño): arranque→25→50→75→100 con Leads Y Ganados.
   // "Arrancó" en 0 con la bandera "no contabilizado" señala el hueco que existía

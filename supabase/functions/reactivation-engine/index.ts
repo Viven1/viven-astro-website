@@ -39,7 +39,10 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Content-Type": "application/json" } });
 
 // mismos frenos que el resto de los motores del repo
-const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+// "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
+// y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
+// protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
+const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
 // casillas de facturación/contabilidad (frecuentes en el import de Bexio):
 // jamás mandarles un email comercial cálido — nadie humano de decisión lo lee
 const BILLING = /invoic|accounts?@|billing|rechnung|payable|ekonomi|brokering|buchhalt|kreditor|accounting|finance@|ap@/i;

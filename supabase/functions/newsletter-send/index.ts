@@ -190,23 +190,40 @@ async function resendPost(path: string, payload: unknown, attempts = 4): Promise
    Entropia reciban el newsletter SIEMPRE, para ver con sus propios ojos lo que
    sale afuera (11 ago 2026). Estaban metidos en el mismo saco que las direcciones
    inventadas, pero son casillas reales de gente real.
-   Quedan fuera solo las que no existen: @example. y cualquier cosa con "test".
    Vale SOLO para el newsletter: los emails 1:1 automáticos a leads siguen
    filtrando lo interno (mandarle al equipo una secuencia de venta no tiene
    sentido). */
-const TESTRX = /@example\.|test/i;
+/* Direcciones que no existen. OJO CON "test": el patrón era /@example\.|test/i —
+   la palabra suelta, en cualquier posición del email. Eso dejaba afuera para
+   siempre y EN SILENCIO a direcciones reales y plausibles: testimonios@empresa.ch,
+   protest@…, contest@… — y Viven justamente vende videos de testimonios. Ahora
+   solo lo que de verdad es de prueba: la casilla test@ de un dominio, o un dominio
+   @test.* — el mismo criterio que ya usaba daily-digest. (12 ago 2026) */
+const TESTRX = /@example\.|^test@|@test\./i;
 const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
 const isWonSt = (st: string) => /ganado|won|cerrado/i.test(st || "");
-/* seg = el segmento elegido en la campaña (etapa e idioma). El preview TIENE que
-   respetarlo: si no, muestra "todos" y después sale a un subconjunto. */
+
+type Recip = { id?: number; email: string; name?: string; lang?: string; manual?: boolean };
+/* seg = todo lo que la campaña decide sobre su lista: etapa, idioma, la gente
+   destildada a mano (exclude_ids) y los emails sueltos agregados (extra_emails).
+   El preview TIENE que respetarlo entero: si no, muestra "todos" y después sale a
+   un subconjunto. Sin seg (edición mensual) = toda la base elegible. */
+type Seg = { stage?: string; lang?: string; exclude_ids?: (number | string)[]; extra_emails?: string[] };
 // deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
-async function elegirDestinatarios(service: any, seg?: { stage?: string; lang?: string }) {
-  const fuera = { duplicados: 0, test: 0, baja: 0, descartados: 0, fueraDeSegmento: 0 };
+async function elegirDestinatarios(service: any, seg?: Seg) {
+  const fuera = { duplicados: 0, test: 0, baja: 0, descartados: 0, fueraDeSegmento: 0, sacadosAMano: 0 };
   // deno-lint-ignore no-explicit-any
   let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
   if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
+  const excl = new Set((seg?.exclude_ids || []).map(String));
   const seen = new Set<string>();
-  const recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
+  const recips: Recip[] = [];
+  const sacados: Recip[] = [];   // destildados a mano: se devuelven para poder re-tildarlos
+  const fila = (r: Record<string, string | number | boolean>, em: string): Recip => ({
+    id: r.id as number, email: em,
+    name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""),
+    lang: String(r.lang || "en"),
+  });
   for (const r of (q.data ?? []) as Record<string, string | number | boolean>[]) {
     const em = String(r.email || "").toLowerCase().trim();
     if (!em) continue;
@@ -219,11 +236,32 @@ async function elegirDestinatarios(service: any, seg?: { stage?: string; lang?: 
       if (seg.stage === "won" && !isWonSt(st)) { fuera.fueraDeSegmento++; continue; }
       if (seg.stage === "open" && isWonSt(st)) { fuera.fueraDeSegmento++; continue; }
       if (seg.lang && seg.lang !== "all" && String(r.lang || "en") !== seg.lang) { fuera.fueraDeSegmento++; continue; }
+      // igual que antes: un excluido NO consume su email — si dos leads comparten
+      // dirección y sacás uno, el otro sigue recibiendo
+      if (excl.has(String(r.id))) { fuera.sacadosAMano++; sacados.push(fila(r, em)); continue; }
     }
     seen.add(em);
-    recips.push({ id: r.id as number, email: em, name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""), lang: String(r.lang || "en") });
+    recips.push(fila(r, em));
   }
-  return { recips, fuera };
+  // emails sueltos agregados a mano en "Ver / editar lista"
+  for (const raw of (seg?.extra_emails || [])) {
+    const em = String(raw || "").toLowerCase().trim();
+    if (!em || seen.has(em) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) continue;
+    // deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
+    let mq: any = await service.from("leads").select("id,first_name,name,lang,unsubscribed").ilike("email", em).maybeSingle();
+    if (mq.error && /column/.test(mq.error.message || "")) mq = await service.from("leads").select("id,first_name,name,lang").ilike("email", em).maybeSingle();
+    const m = mq.data;
+    /* LA BAJA MANDA SIEMPRE, incluso acá. Antes un email tipeado a mano se
+       agregaba sin mirar nada: alcanzaba con escribir la dirección de alguien que
+       se había dado de baja para volver a mandarle. Es la única regla que no
+       admite "pero lo puse a propósito". (12 ago 2026) */
+    if (m?.unsubscribed) { fuera.baja++; continue; }
+    seen.add(em);
+    recips.push({ id: m?.id, email: em, name: String(m?.first_name || String(m?.name || "").split(" ")[0] || ""), lang: String(m?.lang || "en"), manual: true });
+  }
+  const porIdioma: Record<string, number> = { en: 0, de: 0, es: 0 };
+  for (const r of recips) porIdioma[["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en"]++;
+  return { recips, fuera, porIdioma, sacados };
 }
 
 Deno.serve(async (req) => {
@@ -246,6 +284,42 @@ Deno.serve(async (req) => {
     const bodyReq = await req.json();
     const { id, test_to, mark_sent, issue_id } = bodyReq;
     if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
+
+    /* ---- PREVIEW: quién lo recibe, en qué idioma (NO MANDA NADA) -------------
+       El contador del panel de envío, el KPI "Suscriptos" y la lista de
+       "Ver / editar lista" del dashboard salen todos de acá. El punto es que el
+       número que Sebastián ve es, por construcción, el que sale: lo calcula
+       elegirDestinatarios(), la misma función que abajo alimenta el envío real.
+       Antes el dashboard tenía su propia copia del filtro en JavaScript y ya
+       estaba dando otro número (excluía @viven.ch y @entropia, que sí reciben).
+       Se puede pedir con { preview:true, id } (usa el segmento guardado de la
+       campaña) o con el segmento explícito, para que el contador se actualice
+       mientras se toca el selector sin tener que guardar el borrador. */
+    if (bodyReq.preview) {
+      const seg: Seg = {
+        stage: bodyReq.segment_stage, lang: bodyReq.segment_lang,
+        exclude_ids: bodyReq.exclude_ids, extra_emails: bodyReq.extra_emails,
+      };
+      if (id && (seg.stage === undefined || seg.lang === undefined)) {
+        const { data: nlp } = await service.from("newsletters")
+          .select("segment_stage,segment_lang,exclude_ids,extra_emails").eq("id", id).maybeSingle();
+        if (nlp) {
+          seg.stage = seg.stage ?? nlp.segment_stage;
+          seg.lang = seg.lang ?? nlp.segment_lang;
+          seg.exclude_ids = seg.exclude_ids ?? nlp.exclude_ids ?? [];
+          seg.extra_emails = seg.extra_emails ?? nlp.extra_emails ?? [];
+        }
+      }
+      const { recips, fuera, porIdioma, sacados } = await elegirDestinatarios(service, seg);
+      return json({
+        preview: true,
+        total: recips.length,          // exactamente lo que mandaría "Enviar ahora"
+        por_idioma: porIdioma,
+        fuera,                         // por qué quedó afuera cada grupo
+        recips: recips.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en", manual: !!r.manual })),
+        sacados: sacados.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en" })),
+      });
+    }
 
     // ---- edición mensual automática (newsletter_issues, SQL 0114) ----------
     if (issue_id) {
@@ -348,39 +422,19 @@ Deno.serve(async (req) => {
     // sin dejar rastro, como siempre.
     const trackThis = !test_to || mark_sent;
 
-    // destinatarios
-    const TEST = TESTRX;   // mismo criterio que el resto: el equipo SÍ recibe el newsletter
-    const isWon = (st: string) => /ganado|won|cerrado/i.test(st || "");
-    const isOut = (st: string) => /spam|descartado/i.test(st || "");
-    let recips: { id?: number; email: string; name?: string; lang?: string }[] = [];
+    // destinatarios — MISMA función que usa el preview del dashboard (ver
+    // elegirDestinatarios más arriba). Esta selección estaba duplicada acá con su
+    // propia copia de los filtros: por eso el número de la pantalla y el del envío
+    // podían separarse. Ahora hay una sola.
+    let recips: Recip[] = [];
     if (test_to) {
       const { data: matchLead } = await service.from("leads").select("id,lang").ilike("email", String(test_to)).maybeSingle();
       recips = [{ email: String(test_to), id: matchLead?.id, lang: matchLead?.lang }];
     } else {
-      // deno-lint-ignore no-explicit-any -- fallback re-select cambia el shape; el tipo estricto no aplica
-      let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
-      if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
-      const seen = new Set<string>();
-      for (const r of (q.data ?? []) as Record<string, string | number | boolean>[]) {
-        const em = String(r.email || "").toLowerCase().trim();
-        if (!em || seen.has(em) || TEST.test(em)) continue;
-        if ((r as { unsubscribed?: boolean }).unsubscribed) continue;
-        const st = String(r.status || "");
-        if (isOut(st)) continue;
-        if (nl.segment_stage === "won" && !isWon(st)) continue;
-        if (nl.segment_stage === "open" && isWon(st)) continue;
-        if (nl.segment_lang !== "all" && String(r.lang || "en") !== nl.segment_lang) continue;
-        if ((nl.exclude_ids || []).includes(r.id)) continue;   // sacado a mano en "Ver destinatarios"
-        seen.add(em);
-        recips.push({ id: r.id as number, email: em, name: String((r as { first_name?: string }).first_name || String(r.name || "").split(" ")[0] || ""), lang: String(r.lang || "en") });
-      }
-      for (const raw of (nl.extra_emails || []) as string[]) {
-        const em = String(raw || "").toLowerCase().trim();
-        if (!em || seen.has(em) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) continue;
-        seen.add(em);
-        const { data: matchLead } = await service.from("leads").select("id,first_name,name,lang").ilike("email", em).maybeSingle();
-        recips.push({ id: matchLead?.id, email: em, name: String(matchLead?.first_name || String(matchLead?.name || "").split(" ")[0] || ""), lang: String(matchLead?.lang || "en") });
-      }
+      recips = (await elegirDestinatarios(service, {
+        stage: nl.segment_stage, lang: nl.segment_lang,
+        exclude_ids: nl.exclude_ids || [], extra_emails: nl.extra_emails || [],
+      })).recips;
     }
     if (!recips.length) return json({ error: "el segmento quedó vacío (0 destinatarios)" }, 400);
 

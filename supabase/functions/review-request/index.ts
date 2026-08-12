@@ -23,7 +23,10 @@ const MAIL = {
   de: { subject: "Wie war die Zusammenarbeit mit Viven? 🌟", html: (n: string) => `<p>Guten Tag ${n},</p><p>Es war uns eine Freude, Ihr Video zu produzieren — wir hoffen, es arbeitet bereits fleissig für Sie.</p><p>Wenn Sie 60 Sekunden haben: Eine kurze Google-Bewertung würde unserem kleinen Team enorm helfen:</p><p><a href="${REVIEW_LINK}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:12px 22px;border-radius:100px;text-decoration:none">⭐ Kurze Bewertung schreiben</a></p><p>Herzlichen Dank — bis zum nächsten Projekt!<br>Sebastian &amp; das Viven-Team</p>` },
   es: { subject: "¿Cómo fue trabajar con Viven? 🌟", html: (n: string) => `<p>Hola ${n}:</p><p>Fue un placer producir tu video — esperamos que ya esté trabajando duro para vos.</p><p>Si tenés 60 segundos, una reseña corta en Google ayuda muchísimo a nuestro equipo:</p><p><a href="${REVIEW_LINK}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:12px 22px;border-radius:100px;text-decoration:none">⭐ Dejar una reseña</a></p><p>¡Gracias — y hasta el próximo proyecto!<br>Sebastian y el equipo de Viven</p>` },
 };
-const isInternal = (em: string) => /@viven\.ch$|@entropia|@example\.|test/.test(em.toLowerCase());
+// "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
+// y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
+// protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
+const isInternal = (em: string) => /@viven\.ch$|@entropia|@example\.|^test@|@test\./.test(em.toLowerCase());
 
 async function pushAll(title: string, body: string, url: string) {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");

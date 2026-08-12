@@ -146,7 +146,10 @@ Deno.serve(async (req) => {
     const { data, error } = q;
     if (error) return json({ error: error.message }, 500);
     // nunca reportar spam/tests: exclusión manual (ads_exclude), emails de prueba y estados descartados
-    const ADS_TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+    // "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
+    // y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
+    // protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
+    const ADS_TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
     const clean = (data ?? []).filter((r) => !(r as { ads_exclude?: boolean }).ads_exclude && !ADS_TEST.test((r as { email?: string }).email || "") && !/spam|descartado|perdido-spam/i.test(r.status || ""));
     const isWon = (r: { status?: string }) => /ganado|won|cerrado/i.test(r.status || "");
     // hora LOCAL de Zúrich con offset explícito (+01:00/+02:00 según DST) — el Data

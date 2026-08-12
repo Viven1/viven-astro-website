@@ -30,7 +30,10 @@ const RESEND = Deno.env.get("RESEND_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
 const ANTHROPIC = Deno.env.get("ANTHROPIC_API_KEY")!;
-const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+// "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
+// y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
+// protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
+const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
 const VOICE: Record<string, string> = {
   sofia: "You write as Sofia Treviño, producer at VIVEN: warm, precise, service-minded, zero fluff.",
   sebastian: "You write as Sebastian Cepeda, founder of VIVEN (produced the first Swiss feature film on Netflix): direct, generous, entrepreneurial, zero hype.",

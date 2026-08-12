@@ -26,7 +26,10 @@ const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const BEXIO = Deno.env.get("BEXIO_API_TOKEN") ?? "";
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
-const TEST = /@viven\.ch$|@entropia|@example\.|test/i;
+// "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
+// y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
+// protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
+const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
 
 async function bexioGet(path: string): Promise<unknown[]> {
   const out: unknown[] = [];

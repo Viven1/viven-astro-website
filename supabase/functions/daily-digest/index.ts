@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       l.channel !== "manual" &&
       !/spam/i.test(l.status || "") &&
       !/^claude-/.test(l.session_id || "") &&
-      !/@example\.|@test\./i.test(l.email || ""));
+      !/@example\.|^test@|@test\./i.test(l.email || ""));
     let unanswered: Lead[] = [];
     if (candidates.length) {
       const { data: notes } = await service.from("lead_notes").select("lead_id").in("lead_id", candidates.map((l) => String(l.id)));
