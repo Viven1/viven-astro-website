@@ -203,7 +203,30 @@ const TESTRX = /@example\.|^test@|@test\./i;
 const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
 const isWonSt = (st: string) => /ganado|won|cerrado/i.test(st || "");
 
-type Recip = { id?: number; email: string; name?: string; lang?: string; manual?: boolean };
+type Recip = { id?: number; email: string; name?: string; lang?: string; manual?: boolean; equipo?: boolean };
+
+/* EL EQUIPO SIEMPRE RECIBE. Sebastián quiere ver con sus propios ojos lo que sale
+   afuera, en cada campaña. Sacar @viven.ch del filtro de direcciones falsas (los
+   commits del 11-12 ago) era necesario pero no alcanzaba: verificado contra la
+   base real el 12 ago, NO HAY ningún lead @viven.ch ni @entropia — el newsletter
+   salía a 186 personas y a él no le llegaba. Así que las direcciones del equipo se
+   agregan siempre, no dependen de que alguien esté cargado como lead.
+   Editable sin tocar código: app_settings.key='newsletter' → {"always_to":[...]}.
+   El default son las dos casillas que el sistema YA usa para mandar (el From y el
+   Reply-To de estos mismos emails), o sea que existen con seguridad. */
+const EQUIPO_DEFAULT = ["info@viven.ch", "sofia@viven.ch"];
+// deno-lint-ignore no-explicit-any
+async function equipoSiempre(service: any): Promise<string[]> {
+  try {
+    const { data } = await service.from("app_settings").select("value").eq("key", "newsletter").maybeSingle();
+    const lista = (data?.value ?? {}).always_to;
+    if (Array.isArray(lista)) {
+      // [] a propósito = apagado; sin la clave = default
+      return lista.map((x: unknown) => String(x || "").toLowerCase().trim()).filter((x: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    }
+  } catch { /* sin la tabla o sin la fila: el default */ }
+  return EQUIPO_DEFAULT;
+}
 /* seg = todo lo que la campaña decide sobre su lista: etapa, idioma, la gente
    destildada a mano (exclude_ids) y los emails sueltos agregados (extra_emails).
    El preview TIENE que respetarlo entero: si no, muestra "todos" y después sale a
@@ -243,8 +266,11 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
     seen.add(em);
     recips.push(fila(r, em));
   }
-  // emails sueltos agregados a mano en "Ver / editar lista"
-  for (const raw of (seg?.extra_emails || [])) {
+  // emails sueltos agregados a mano en "Ver / editar lista" + el equipo, que va
+  // siempre (ver equipoSiempre). Mismo camino: si ya están arriba no se duplican,
+  // y la baja sigue mandando.
+  const delEquipo = new Set(await equipoSiempre(service));
+  for (const raw of [...(seg?.extra_emails || []), ...delEquipo]) {
     const em = String(raw || "").toLowerCase().trim();
     if (!em || seen.has(em) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) continue;
     // deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
@@ -257,7 +283,7 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
        admite "pero lo puse a propósito". (12 ago 2026) */
     if (m?.unsubscribed) { fuera.baja++; continue; }
     seen.add(em);
-    recips.push({ id: m?.id, email: em, name: String(m?.first_name || String(m?.name || "").split(" ")[0] || ""), lang: String(m?.lang || "en"), manual: true });
+    recips.push({ id: m?.id, email: em, name: String(m?.first_name || String(m?.name || "").split(" ")[0] || ""), lang: String(m?.lang || "en"), manual: true, equipo: delEquipo.has(em) });
   }
   const porIdioma: Record<string, number> = { en: 0, de: 0, es: 0 };
   for (const r of recips) porIdioma[["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en"]++;
@@ -316,7 +342,7 @@ Deno.serve(async (req) => {
         total: recips.length,          // exactamente lo que mandaría "Enviar ahora"
         por_idioma: porIdioma,
         fuera,                         // por qué quedó afuera cada grupo
-        recips: recips.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en", manual: !!r.manual })),
+        recips: recips.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en", manual: !!r.manual, equipo: !!r.equipo })),
         sacados: sacados.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en" })),
       });
     }

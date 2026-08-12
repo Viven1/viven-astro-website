@@ -14003,7 +14003,7 @@ const newsCases = [
       id: 'nw-recip-composer',
       title: '👥 Quién recibe esta campaña',
       sub: 'Leyendo del servidor…',
-      head: '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="nw-recip-add" class="nw-ov-inp" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div><div id="nw-recip-extra"></div>',
+      head: '<div style="display:flex;gap:8px;margin-bottom:8px"><input id="nw-recip-add" class="nw-ov-inp" type="email" placeholder="agregar un email suelto" style="flex:1" /><button class="btn btn-ghost small" id="nw-recip-add-btn" type="button">➕</button></div><div id="nw-recip-equipo"></div><div id="nw-recip-extra"></div>',
       foot: '<p class="muted-note" style="margin-top:10px">Destildar saca a esa persona de este envío. La selección se guarda con el borrador. El total lo calcula la misma función que hace el envío.</p>',
       onClose: async () => { if ($('nw-subject').value.trim() && nwDerivedBody().trim()) await nwSave(); nwUpdateSendPanel(); },
     });
@@ -14049,12 +14049,22 @@ const newsCases = [
       }));
     };
 
+    // el equipo va siempre (no sale de los leads, no se puede destildar acá) —
+    // se muestra igual, porque un total sin la gente que lo explica no sirve
+    const pintarEquipo = (p) => {
+      const eq = (p.recips || []).filter((r) => r.equipo);
+      const box = ov.querySelector('#nw-recip-equipo');
+      box.innerHTML = eq.length
+        ? eq.map((r) => nwPersonRow(r, '', '<span class="nw-lgtag">equipo · siempre</span>')).join('')
+        : '';
+    };
+
     const p = await nwFetchPrev(true);
     if (!p){ $sub.innerHTML = '⚠️ ' + esc(nwPrevErr || 'no se pudo leer'); $list.innerHTML = ''; return; }
-    // el segmento completo = los que reciben (menos los sueltos) + los sacados a mano
+    // el segmento completo = los que reciben (menos los sueltos y el equipo) + los sacados a mano
     gente = (p.recips || []).filter((r) => !r.manual).concat(p.sacados || [])
       .sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
-    pintarTotal(p); pintarLista(); pintarExtras();
+    pintarTotal(p); pintarLista(); pintarExtras(); pintarEquipo(p);
     if ($q) $q.addEventListener('input', pintarLista);
     ov.querySelector('#nw-recip-add-btn').addEventListener('click', () => {
       const inp = ov.querySelector('#nw-recip-add'), em = inp.value.trim().toLowerCase();
@@ -14075,11 +14085,12 @@ const newsCases = [
     $sub.innerHTML = '<b style="color:var(--acid)">' + data.total + '</b> personas, cada una en su idioma.' +
       '<div class="nw-sum">' + nwLangLine(data.por_idioma) + '</div>' +
       (nwFueraLine(data.fuera) ? '<div style="margin-top:4px">' + nwFueraLine(data.fuera) + '</div>' : '') +
-      '<div style="margin-top:4px;color:var(--muted-2)">No hay lista de suscriptores aparte: es toda la base de leads con email, menos bajas, spam/descartados y repetidos.</div>';
+      '<div style="margin-top:4px;color:var(--muted-2)">No hay lista de suscriptores aparte: es toda la base de leads con email, menos bajas, spam/descartados y repetidos' +
+      ((data.recips || []).some((r) => r.equipo) ? ', más las casillas del equipo (marcadas «equipo»), que reciben siempre para que veas lo que sale afuera' : '') + '.</div>';
     const pintar = () => {
       const q = ($q.value || '').trim().toLowerCase();
       const vis = gente.filter((p) => nwMatch(p, q));
-      $list.innerHTML = vis.map((p) => nwPersonRow(p)).join('') || '<p class="muted-note">Nadie con ese nombre o email.</p>';
+      $list.innerHTML = vis.map((p) => nwPersonRow(p, '', p.equipo ? '<span class="nw-lgtag">equipo</span>' : '')).join('') || '<p class="muted-note">Nadie con ese nombre o email.</p>';
     };
     pintar(); $q.addEventListener('input', pintar);
   }
