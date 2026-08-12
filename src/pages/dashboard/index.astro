@@ -8899,7 +8899,20 @@ const newsCases = [
         let q = await supabase.from('blogs').select('title,lead,published_url,lang,published_at,hero_image').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
         if (q.error && /column/.test(q.error.message || '')) q = await supabase.from('blogs').select('title,lead,published_url,lang,published_at').eq('status', 'published').order('published_at', { ascending: false }).limit(1);
         const b = (q.data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
-        $('nw-subject').value = b.title; if (b.lang) $('nw-lang').value = b.lang;
+        $('nw-subject').value = b.title;
+        /* El idioma del artículo se adopta como segmento SOLO si hay a quién
+           mandarle. Prefillar desde un artículo en español, quedar con el segmento
+           en ES y que no exista ni un contacto ES da un envío a nadie que en
+           pantalla se lee "listo para enviar a 2 personas" (las 2 del equipo).
+           Pasó de verdad al probarlo el 12 ago 2026. */
+        let notaIdioma = '';
+        if (b.lang){
+          $('nw-lang').value = 'all';
+          const pv = await nwFetchPrev(true);
+          const cuantos = pv && pv.por_idioma ? (pv.por_idioma[b.lang] || 0) : null;
+          if (cuantos === null || cuantos > 0) $('nw-lang').value = b.lang;
+          else notaIdioma = ' ⚠️ El artículo está en ' + b.lang.toUpperCase() + ' pero no hay ningún contacto con ese idioma, así que dejé «todos los idiomas»: si lo pasás a ' + b.lang.toUpperCase() + ', el envío no le llega a nadie.';
+        }
         const url = b.published_url || 'https://www.viven.ch/blog/';
         const leer = b.lang === 'de' ? 'Weiterlesen →' : b.lang === 'es' ? 'Leer el artículo →' : 'Read the article →';
         nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = [];
@@ -8908,9 +8921,9 @@ const newsCases = [
         nwBlocks.push({ type: 'text', text: (b.lead || '') });
         nwBlocks.push({ type: 'cta', label: leer, dest: url });
         nwRenderEditor(); nwUpdateSendPanel();
-        $('nw-note').textContent = b.hero_image
+        $('nw-note').textContent = (b.hero_image
           ? 'Prefill con el último artículo: su portada + el copete + botón al artículo. Es la misma imagen que ve el lector en la página.'
-          : 'Prefill con el último artículo. Ese post no tiene imagen de portada, así que va sin imagen — si querés una, agregá un bloque 🖼 still.';
+          : 'Prefill con el último artículo. Ese post no tiene imagen de portada, así que va sin imagen — si querés una, agregá un bloque 🖼 still.') + notaIdioma;
       });
       $('nw-test') && $('nw-test').addEventListener('click', async () => {
         const id = await nwSave(); if (!id) return;
