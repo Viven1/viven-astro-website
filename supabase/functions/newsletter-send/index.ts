@@ -240,7 +240,7 @@ async function equipoSiempre(service: any): Promise<string[]> {
    destildada a mano (exclude_ids) y los emails sueltos agregados (extra_emails).
    El preview TIENE que respetarlo entero: si no, muestra "todos" y después sale a
    un subconjunto. Sin seg (edición mensual) = toda la base elegible. */
-type Seg = { stage?: string; lang?: string; exclude_ids?: (number | string)[]; extra_emails?: string[] };
+type Seg = { stage?: string; lang?: string; exclude_ids?: (number | string)[]; exclude_emails?: string[]; extra_emails?: string[] };
 // deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
 async function elegirDestinatarios(service: any, seg?: Seg) {
   const fuera = { duplicados: 0, baja: 0, descartados: 0, fueraDeSegmento: 0, sacadosAMano: 0 };
@@ -248,6 +248,10 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
   let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
   if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
   const excl = new Set((seg?.exclude_ids || []).map(String));
+  /* destildados por DIRECCIÓN (0122). Vale para todos: los del segmento, los
+     agregados a mano y las casillas del equipo — esas no tienen lead_id, así que
+     exclude_ids no las alcanzaba y quedaban fijas sin check. */
+  const exclEm = new Set((seg?.exclude_emails || []).map((x) => String(x || "").toLowerCase().trim()).filter(Boolean));
   const seen = new Set<string>();
   const recips: Recip[] = [];
   const sacados: Recip[] = [];   // destildados a mano: se devuelven para poder re-tildarlos
@@ -269,7 +273,7 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
       if (seg.lang && seg.lang !== "all" && String(r.lang || "en") !== seg.lang) { fuera.fueraDeSegmento++; continue; }
       // igual que antes: un excluido NO consume su email — si dos leads comparten
       // dirección y sacás uno, el otro sigue recibiendo
-      if (excl.has(String(r.id))) { fuera.sacadosAMano++; sacados.push(fila(r, em)); continue; }
+      if (excl.has(String(r.id)) || exclEm.has(em)) { fuera.sacadosAMano++; sacados.push(fila(r, em)); continue; }
     }
     seen.add(em);
     recips.push(fila(r, em));
@@ -290,6 +294,12 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
        se había dado de baja para volver a mandarle. Es la única regla que no
        admite "pero lo puse a propósito". (12 ago 2026) */
     if (m?.unsubscribed) { fuera.baja++; continue; }
+    // destildado a mano en el panel: vale también para el equipo
+    if (exclEm.has(em)) {
+      fuera.sacadosAMano++;
+      sacados.push({ id: m?.id, email: em, name: String(m?.first_name || String(m?.name || "").split(" ")[0] || ""), lang: String(m?.lang || "en"), manual: true, equipo: delEquipo.has(em) });
+      continue;
+    }
     seen.add(em);
     recips.push({ id: m?.id, email: em, name: String(m?.first_name || String(m?.name || "").split(" ")[0] || ""), lang: String(m?.lang || "en"), manual: true, equipo: delEquipo.has(em) });
   }
@@ -332,15 +342,17 @@ Deno.serve(async (req) => {
     if (bodyReq.preview) {
       const seg: Seg = {
         stage: bodyReq.segment_stage, lang: bodyReq.segment_lang,
-        exclude_ids: bodyReq.exclude_ids, extra_emails: bodyReq.extra_emails,
+        exclude_ids: bodyReq.exclude_ids, exclude_emails: bodyReq.exclude_emails,
+        extra_emails: bodyReq.extra_emails,
       };
       if (id && (seg.stage === undefined || seg.lang === undefined)) {
         const { data: nlp } = await service.from("newsletters")
-          .select("segment_stage,segment_lang,exclude_ids,extra_emails").eq("id", id).maybeSingle();
+          .select("segment_stage,segment_lang,exclude_ids,exclude_emails,extra_emails").eq("id", id).maybeSingle();
         if (nlp) {
           seg.stage = seg.stage ?? nlp.segment_stage;
           seg.lang = seg.lang ?? nlp.segment_lang;
           seg.exclude_ids = seg.exclude_ids ?? nlp.exclude_ids ?? [];
+          seg.exclude_emails = seg.exclude_emails ?? nlp.exclude_emails ?? [];
           seg.extra_emails = seg.extra_emails ?? nlp.extra_emails ?? [];
         }
       }
@@ -351,7 +363,7 @@ Deno.serve(async (req) => {
         por_idioma: porIdioma,
         fuera,                         // por qué quedó afuera cada grupo
         recips: recips.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en", manual: !!r.manual, equipo: !!r.equipo })),
-        sacados: sacados.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en" })),
+        sacados: sacados.map((r) => ({ id: r.id ?? null, email: r.email, name: r.name || "", lang: ["en", "de", "es"].includes(r.lang || "") ? r.lang : "en", manual: !!r.manual, equipo: !!r.equipo })),
       });
     }
 
@@ -467,7 +479,8 @@ Deno.serve(async (req) => {
     } else {
       recips = (await elegirDestinatarios(service, {
         stage: nl.segment_stage, lang: nl.segment_lang,
-        exclude_ids: nl.exclude_ids || [], extra_emails: nl.extra_emails || [],
+        exclude_ids: nl.exclude_ids || [], exclude_emails: nl.exclude_emails || [],
+        extra_emails: nl.extra_emails || [],
       })).recips;
     }
     if (!recips.length) return json({ error: "el segmento quedó vacío (0 destinatarios)" }, 400);

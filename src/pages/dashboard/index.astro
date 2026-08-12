@@ -8895,7 +8895,7 @@ const newsCases = [
         const b = (data || [])[0]; if (!b){ toast('Todavía no hay artículos publicados'); return; }
         $('nw-subject').value = b.title; if (b.lang) $('nw-lang').value = b.lang;
         const txt = (b.lead || '') + '\n\n' + ((b.lang === 'de' ? 'Weiterlesen: ' : b.lang === 'es' ? 'Leé el artículo completo: ' : 'Read the full article: ') + (b.published_url || 'https://www.viven.ch/blog/'));
-        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; nwSetBodyText(txt); nwUpdateSendPanel();
+        nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = []; nwSetBodyText(txt); nwUpdateSendPanel();
         $('nw-note').textContent = 'Prefill con el último artículo — editá y mandá.';
       });
       $('nw-test') && $('nw-test').addEventListener('click', async () => {
@@ -8977,7 +8977,7 @@ const newsCases = [
         if (fill) fill.style.width = '100%';
         if (barT) barT.textContent = 'Listo · ' + (data.sent || 0) + ' enviados' + (data.skipped ? ' · ' + data.skipped + ' ya estaban (no duplicados)' : '') + (data.failed ? ' · ' + data.failed + ' fallaron' : '');
         $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + (data.sent || 0) + ' contactos' + (data.skipped ? ' (+' + data.skipped + ' ya registrados)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') + '.';
-        nwCur = null; nwExcludeIds = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; nwBlocks = []; nwRenderEditor(); newsInit();
+        nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; nwBlocks = []; nwRenderEditor(); newsInit();
       });
       // Automatizaciones — cada handler blindado: si algo falla, se ve en un toast (nunca "no pasa nada" en silencio)
       const auGuard = (fn) => (...args) => { try { const r = fn(...args); if (r && r.catch) r.catch((e) => toast('⚠️ ' + (e && e.message || e))); } catch (e) { toast('⚠️ ' + (e && e.message || e)); } };
@@ -13496,7 +13496,7 @@ const newsCases = [
     auCfgVis(); auRenderFlow(); $('au-editor').scrollIntoView({ behavior: 'smooth' });
   }
 
-  let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExtraEmails = [], nwBlocks = [];
+  let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExcludeEmails = new Set(), nwExtraEmails = [], nwBlocks = [];
   // ===== bloques de contenido (editor) =====
   const NW_CTA_DESTS = [['calculator', 'Calculadora'], ['brief', 'Brief'], ['call', 'Agendar call'], ['custom', 'URL propia…']];
   function nwDerivedBody(){ return nwBlocks.filter((b) => b.type === 'text').map((b) => String(b.text || '').trim()).filter(Boolean).join('\n\n'); }
@@ -13712,6 +13712,7 @@ const newsCases = [
       segment_stage: $('nw-stage') ? $('nw-stage').value : 'all',
       segment_lang: $('nw-lang') ? $('nw-lang').value : 'all',
       exclude_ids: [...nwExcludeIds].map(Number),
+      exclude_emails: [...nwExcludeEmails],
       extra_emails: nwExtraEmails.slice(),
     };
   }
@@ -13937,7 +13938,7 @@ const newsCases = [
       nwCur = n.status === 'sent' ? null : n;
       $('nw-subject').value = n.subject; $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
       nwBlocks = nwBlocksFromRow(n); nwRenderEditor();
-      nwExcludeIds = new Set((n.exclude_ids || []).map(String)); nwExtraEmails = (n.extra_emails || []).slice();
+      nwExcludeIds = new Set((n.exclude_ids || []).map(String)); nwExcludeEmails = new Set((n.exclude_emails || []).map((x) => String(x).toLowerCase())); nwExtraEmails = (n.extra_emails || []).slice();
       if (n.scheduled_at && n.status !== 'sent'){ $('nw-sched-mode').value = 'at'; $('nw-sched-at').hidden = false; try { $('nw-sched-at').value = new Date(n.scheduled_at).toISOString().slice(0, 16); } catch (e) {} }
       else { $('nw-sched-mode').value = 'now'; $('nw-sched-at').hidden = true; }
       $('nw-note').textContent = n.status === 'sent' ? 'Cargada como COPIA (la original ya se envió) — al enviar se crea una campaña nueva.' : 'Borrador cargado.';
@@ -13952,14 +13953,14 @@ const newsCases = [
     const subject = $('nw-subject').value.trim();
     if (!subject || !hasContent){ toast('Falta asunto o contenido'); return null; }
     const schedAt = ($('nw-sched-mode') && $('nw-sched-mode').value === 'at' && $('nw-sched-at').value) ? new Date($('nw-sched-at').value).toISOString() : null;
-    const row = { subject, body, blocks: cleanBlocks, scheduled_at: schedAt, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
+    const row = { subject, body, blocks: cleanBlocks, scheduled_at: schedAt, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), exclude_emails: [...nwExcludeEmails], extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
     const saveRow = async (r) => {
       if (nwCur && nwCur.id){ const { error } = await supabase.from('newsletters').update(r).eq('id', nwCur.id); return { id: nwCur.id, error }; }
       const { data, error } = await supabase.from('newsletters').insert(r).select().single(); if (!error) nwCur = data; return { id: data && data.id, error };
     };
     let { id, error } = await saveRow(row);
-    if (error && /blocks|scheduled_at|column/i.test(error.message || '')){
-      const legacy = { subject: row.subject, body: row.body, segment_stage: row.segment_stage, segment_lang: row.segment_lang, exclude_ids: row.exclude_ids, extra_emails: row.extra_emails, updated_at: row.updated_at };
+    if (error && /blocks|scheduled_at|exclude_emails|column/i.test(error.message || '')){
+      const legacy = { subject: row.subject, body: row.body, segment_stage: row.segment_stage, segment_lang: row.segment_lang, exclude_ids: row.exclude_ids, extra_emails: row.extra_emails, updated_at: row.updated_at };   // sin exclude_emails: base sin el SQL 0122
       ({ id, error } = await saveRow(legacy));
       if (!error) toast('Guardado sin bloques/programación — corré el SQL 0075');
     }
@@ -14058,12 +14059,27 @@ const newsCases = [
 
     // el equipo va siempre (no sale de los leads, no se puede destildar acá) —
     // se muestra igual, porque un total sin la gente que lo explica no sirve
+    /* El equipo se agrega solo, pero TAMBIEN con check: Sebastian elige a quien,
+       incluido a si mismo, campana por campana (12 ago 2026). No tienen lead_id,
+       asi que se destildan por direccion (exclude_emails, SQL 0122). */
     const pintarEquipo = (p) => {
-      const eq = (p.recips || []).filter((r) => r.equipo);
+      const eq = (p.recips || []).filter((r) => r.equipo)
+        .concat((p.sacados || []).filter((r) => r.equipo))
+        .sort((a, b) => String(a.email).localeCompare(String(b.email)));
       const box = ov.querySelector('#nw-recip-equipo');
       box.innerHTML = eq.length
-        ? eq.map((r) => nwPersonRow(r, '', '<span class="nw-lgtag">equipo · siempre</span>')).join('')
+        ? eq.map((r) => {
+            const fuera = nwExcludeEmails.has(String(r.email).toLowerCase());
+            const cb = '<input type="checkbox" data-lem="' + esc(r.email) + '"' + (fuera ? '' : ' checked') + ' style="flex:none" />';
+            return '<label style="display:block' + (fuera ? ';opacity:.45' : '') + '">' +
+              nwPersonRow(r, cb, '<span class="nw-lgtag">equipo</span>') + '</label>';
+          }).join('')
         : '';
+      box.querySelectorAll('[data-lem]').forEach((cb) => cb.addEventListener('change', () => {
+        const em = String(cb.dataset.lem).toLowerCase();
+        if (cb.checked) nwExcludeEmails.delete(em); else nwExcludeEmails.add(em);
+        nwFetchPrev(true).then((p2) => { if (p2){ pintarTotal(p2); pintarEquipo(p2); } });
+      }));
     };
 
     const p = await nwFetchPrev(true);
