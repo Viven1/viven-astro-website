@@ -216,6 +216,42 @@ function loadHeroVideo(){
   else window.addEventListener('load', later, { once: true });
 })();
 
+/* ---------- Carrusel de palabras del titular ----------
+   Arranca DESPUÉS del load y con un respiro: el titular del hero es el elemento
+   LCP de la home, así que no se toca hasta que la métrica ya se midió. Todas las
+   palabras ya están en el HTML — esto solo mueve la clase .on.
+   Vuelve a consultar el DOM en cada vuelta a propósito: setLang() reescribe el
+   titular al cambiar de idioma, y si guardáramos referencias quedarían apuntando
+   a nodos que ya no están en la página. Y si alguien pidió menos movimiento en su
+   sistema, no rota: se queda en la primera palabra. */
+(function rotWords(){
+  var quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(quieto) return;
+  /* AUTO-CORRECTOR: no se guarda un indice. Se mira cual palabra esta visible AHORA,
+     se apagan TODAS y se prende la siguiente. Con un indice guardado, cualquier
+     desincronizacion (setLang reescribiendo el titular, o dos tickers) hacia que se
+     apagara una palabra que no estaba prendida y quedaran dos encima de la otra —
+     se veia "tarlsht." en vez de "trust.". Asi es imposible. */
+  function tick(){
+    document.querySelectorAll('.rot').forEach(function(slot){
+      var ws = slot.querySelectorAll('.rot-w');
+      if(ws.length < 2) return;
+      var cur = 0;
+      for(var a = 0; a < ws.length; a++) if(ws[a].classList.contains('on')) cur = a;
+      for(var b = 0; b < ws.length; b++) { ws[b].classList.remove('on'); ws[b].classList.remove('out'); }
+      /* la que estaba se va hacia arriba; la siguiente entra desde abajo */
+      ws[cur].classList.add('out');
+      ws[(cur + 1) % ws.length].classList.add('on');
+      (function(saliente){
+        setTimeout(function(){ saliente.classList.remove('out'); }, 460);
+      })(ws[cur]);
+    });
+  }
+  function arm(){ setInterval(tick, 2400); }
+  if(document.readyState === 'complete') setTimeout(arm, 1200);
+  else window.addEventListener('load', function(){ setTimeout(arm, 1200); }, { once: true });
+})();
+
 /* ---------- Video modal (shared) ---------- */
 var modal = document.getElementById('video-modal');
 var mount = document.getElementById('video-mount');
