@@ -21,6 +21,14 @@ const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const TO = "info@viven.ch";
 const FROM = "Viven Leads <leads@viven.ch>"; // dominio verificado en Resend
+
+/* Probar el aviso sin avisarle a todo el equipo (13 ago 2026).
+ * `to` solo acepta direcciones @viven.ch: un body armado a mano nunca puede
+ * mandarle el aviso —con los datos del lead adentro— a un tercero. `test` además
+ * apaga la push, porque una notificación "Nuevo lead" que no es un lead nuevo
+ * hace que la próxima de verdad se ignore. */
+const destinoValido = (v: unknown): v is string =>
+  typeof v === "string" && /^[^@\s]+@viven\.ch$/i.test(v.trim());
 const esc = (s: unknown) =>
   String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 
@@ -141,6 +149,8 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const r = body.record ?? body; // webhook trae { type, table, record }
+    const esTest = body.test === true;
+    const to = destinoValido(body.to) ? body.to.trim() : TO;
 
     // 'manual' = lo cargó el equipo mismo desde Personas → no es un lead nuevo real,
     // avisarnos de algo que acabamos de hacer nosotros no tiene sentido
@@ -165,7 +175,7 @@ Deno.serve(async (req) => {
     ]);
 
     // guardar la ficha en el lead: el dashboard la muestra sin volver a investigar
-    if (fi.ok && r.id) {
+    if (fi.ok && r.id && !esTest) {
       await service.from("leads").update({ enrichment: fi.e, enriched_at: new Date().toISOString() }).eq("id", r.id).then(() => {}, () => {});
     }
 
@@ -175,13 +185,13 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: FROM, to: [TO], reply_to: r.email || undefined,
-        subject: `Nuevo lead: ${name}${r.email ? " · " + r.email : ""}`,
+        from: FROM, to: [to], reply_to: r.email || undefined,
+        subject: `${esTest ? "[TEST] " : ""}Nuevo lead: ${name}${r.email ? " · " + r.email : ""}`,
         html,
       }),
     });
     // push al celular (además del email) — abre el lead directo al tocarla
-    pushBroadcast(
+    if (!esTest) pushBroadcast(
       "🎬 Nuevo lead: " + name,
       [(r.message || "").slice(0, 90) || r.email,
        rec ? `${rec.paginas} pág · ${rec.minutos} min` : null,
@@ -189,7 +199,7 @@ Deno.serve(async (req) => {
       r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
 
     if (!res.ok) return new Response(await res.text(), { status: 502 });
-    return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, to, test: esTest, ficha: fi.ok, recorrido: !!rec }), { headers: { "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
