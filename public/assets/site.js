@@ -69,8 +69,17 @@ var LANGS = ['en','de','es'];
 function setLang(lang){
   if(LANGS.indexOf(lang) === -1) lang = 'en';
   document.documentElement.lang = lang;
+  /* LCP: no reescribir lo que YA está bien. Antes esto reasignaba innerHTML a todos
+     los elementos con data-<lang>, incluido el titular del hero — que ya venía con
+     ese mismo texto en el HTML. Para el navegador reasignar innerHTML destruye el
+     texto y lo vuelve a crear, así que el LCP se corría al momento en que corría
+     este JS: PageSpeed móvil medía "descarga 0 ms, render delay 2.280 ms" y un LCP
+     de 5,7 s sobre un texto que estaba disponible desde el primer byte. (13 ago 2026)
+     Saltear cuando es idéntico es además más seguro: reasignar innerHTML mata los
+     listeners de los hijos. */
   document.querySelectorAll('[data-' + lang + ']').forEach(function(el){
-    el.innerHTML = el.getAttribute('data-' + lang);
+    var v = el.getAttribute('data-' + lang);
+    if(el.innerHTML !== v) el.innerHTML = v;
   });
   document.querySelectorAll('[data-' + lang + '-ph]').forEach(function(el){
     el.setAttribute('placeholder', el.getAttribute('data-' + lang + '-ph'));
