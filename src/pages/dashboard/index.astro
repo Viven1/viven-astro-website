@@ -1824,6 +1824,10 @@ const newsCases = [
         </div>
       </div>
       <button class="bell-btn" id="theme-btn" type="button" title="Cambiar tema (oscuro/claro)" aria-label="Cambiar tema">◐</button>
+      <!-- Si no hay suscripción push, se ve ACÁ, no escondido dentro del panel de la
+           campana. El 13 ago 2026 Sebastián estuvo sin recibir un solo lead: el permiso
+           estaba concedido, la suscripción no existía, y nada lo decía. -->
+      <button class="bell-btn" id="push-warn" type="button" hidden title="No estás recibiendo notificaciones en este dispositivo — tocá para activarlas" aria-label="Activar notificaciones" style="width:auto;padding:0 11px;gap:6px;border-color:#ff8b5e;color:#ff8b5e;font-size:12px;font-weight:600">🔕 Sin avisos</button>
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
         <div class="bell-panel" id="bell-panel" hidden>
@@ -4648,6 +4652,7 @@ const newsCases = [
       $('bell-panel').addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { $('bell-panel').hidden = true; });
       $('bell-push').addEventListener('click', (e) => { e.stopPropagation(); enablePush(); });
+      $('push-warn') && $('push-warn').addEventListener('click', (e) => { e.stopPropagation(); enablePush(); });
       refreshPushBtn();
     }
     try {
@@ -4779,14 +4784,46 @@ const newsCases = [
     });
   }
   $('app-update-btn') && $('app-update-btn').addEventListener('click', () => location.reload());
+  /* Estado real de push, en cada carga. Antes esto solo cambiaba el texto de un botón
+     escondido en el panel de la campana: si la suscripción desaparecía (Chrome las rota,
+     un perfil nuevo, o el servidor la borró tras un 410), quedaba permiso concedido +
+     cero suscripción = ningún aviso y ninguna señal. Sebastián perdió leads así.
+     Ahora: si el permiso YA está concedido, se vuelve a suscribir solo (no hace falta
+     preguntar nada, el permiso está dado), se re-guarda siempre en la base — así una
+     suscripción borrada del servidor vuelve sola — y si aun así no hay, se enciende un
+     aviso VISIBLE en el header. */
   async function refreshPushBtn(){
-    const btn = $('bell-push'); if (!btn) return;
-    if (!pushSupported()){ btn.textContent = '📲 Push no disponible'; btn.title = 'En iPhone: instalá la app (Compartir → Añadir a pantalla de inicio) y abrila desde el ícono'; return; }
+    const btn = $('bell-push'), warn = $('push-warn');
+    const sinPush = (motivo) => { if (warn){ warn.hidden = false; warn.title = motivo; } };
+    if (!pushSupported()){
+      if (btn){ btn.textContent = '📲 Push no disponible'; btn.title = 'En iPhone: instalá la app (Compartir → Añadir a pantalla de inicio) y abrila desde el ícono'; }
+      sinPush('Este navegador no soporta notificaciones. En iPhone: instalá la app desde Compartir → Añadir a inicio.');
+      return;
+    }
     try {
-      const reg = await navigator.serviceWorker.getRegistration('/dashboard/');
-      const sub = reg && await reg.pushManager.getSubscription();
-      if (sub && Notification.permission === 'granted') btn.textContent = '📲 Push activado ✓';
-    } catch (e) {}
+      const reg = await navigator.serviceWorker.getRegistration('/dashboard/')
+        || await navigator.serviceWorker.register('/dashboard-sw.js', { scope: '/dashboard/' });
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub && Notification.permission === 'granted'){
+        // permiso ya dado: re-suscribir en silencio, sin molestar
+        try { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUB) }); }
+        catch (e) { /* si el navegador se niega, cae al aviso de abajo */ }
+      }
+      if (sub){
+        const j = sub.toJSON();
+        if (meEmail){
+          const { error } = await supabase.from('push_subscriptions').upsert(
+            { endpoint: sub.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_email: meEmail }, { onConflict: 'endpoint' });
+          if (error){ sinPush('La suscripción no se pudo guardar: ' + error.message); return; }
+        }
+        if (btn) btn.textContent = '📲 Push activado ✓';
+        if (warn) warn.hidden = true;
+      } else {
+        sinPush(Notification.permission === 'denied'
+          ? 'Bloqueaste las notificaciones para este sitio — hay que permitirlas en el candado de la barra de direcciones.'
+          : 'No estás recibiendo notificaciones en este dispositivo — tocá para activarlas.');
+      }
+    } catch (e) { sinPush('No se pudo verificar el estado de las notificaciones: ' + (e.message || e)); }
   }
   async function enablePush(){
     if (!pushSupported()){ toast('Este navegador no soporta push. En iPhone: instalá la app (Compartir → Añadir a inicio) y abrila desde el ícono.'); return; }
@@ -4800,6 +4837,7 @@ const newsCases = [
         { endpoint: sub.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_email: meEmail || null }, { onConflict: 'endpoint' });
       if (error){ toast('No se pudo guardar (¿SQL 0015?): ' + error.message); return; }
       $('bell-push').textContent = '📲 Push activado ✓';
+      if ($('push-warn')) $('push-warn').hidden = true;
       toast('📲 Push activado — este dispositivo recibe leads, menciones y tasks');
     } catch (e){ toast('No se pudo activar push: ' + (e.message || e)); }
   }
