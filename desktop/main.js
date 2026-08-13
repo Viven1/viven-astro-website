@@ -30,6 +30,38 @@ const DOMINIO_OK = /(^|\.)viven\.ch$/i;
 const ES_LOGIN = (host) => /(^|\.)supabase\.co$|(^|\.)accounts\.google\.com$/i.test(host);
 
 let win = null;
+let pendiente = null;   // enlace viven:// que llegó antes de que existiera la ventana
+
+/* ── Enlaces viven:// ────────────────────────────────────────────────────────
+ * Sebastián, 13 ago 2026: el email de un lead nuevo tiene "Abrir la ficha en el
+ * dashboard" y eso abría el navegador, no la app. Ahora el email lleva también
+ * `viven://lead/274` y macOS lo entrega acá.
+ *
+ * Regla de seguridad: el enlace llega de un email, así que NO se navega a lo que
+ * diga el enlace. Solo se saca de él un id numérico y la URL se arma acá con
+ * nuestro propio dominio. Un `viven://lead/https://otro-sitio` no lleva a
+ * ningún lado que no sea el dashboard. */
+function idDeEnlace(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'viven:') return null;
+    const crudo = u.searchParams.get('lead') || (u.pathname + u.hostname).match(/\d+/)?.[0];
+    const id = String(crudo || '').match(/^\d{1,12}$/)?.[0];
+    return id || '';           // '' = abrir el dashboard sin ficha puntual
+  } catch { return null; }
+}
+
+function abrirEnlace(url) {
+  const id = idDeEnlace(url);
+  if (id === null) return;     // no es nuestro esquema: no hacemos nada
+  const destino = id ? `${INICIO}?lead=${id}` : INICIO;
+  console.log('[viven] enlace', url, '→', destino);   // queda: es la única forma de ver por qué un enlace no abrió lo que se esperaba
+  if (!win) { pendiente = destino; return; }
+  win.loadURL(destino);
+  if (win.isMinimized()) win.restore();
+  win.show(); win.focus();
+  app.focus({ steal: true });
+}
 
 function crearVentana() {
   win = new BrowserWindow({
@@ -46,7 +78,8 @@ function crearVentana() {
     },
   });
 
-  win.loadURL(INICIO);
+  win.loadURL(pendiente || INICIO);
+  pendiente = null;
 
   // links externos → navegador del sistema, nunca dentro de la app
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -132,6 +165,22 @@ function menu() {
     { role: 'windowMenu', label: 'Ventana' },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(plantilla));
+}
+
+// macOS entrega los viven:// por acá; puede llegar ANTES del ready (app cerrada),
+// por eso el handler se registra arriba de todo y guarda el destino en `pendiente`.
+app.on('open-url', (e, url) => { e.preventDefault(); abrirEnlace(url); });
+app.setAsDefaultProtocolClient('viven');
+
+// una sola instancia: un segundo click en el email enfoca la ventana que ya está
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', (_e, argv) => {
+    const url = argv.find((a) => typeof a === 'string' && a.startsWith('viven://'));
+    if (url) abrirEnlace(url);
+    else if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+  });
 }
 
 app.whenReady().then(() => {

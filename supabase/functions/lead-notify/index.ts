@@ -98,6 +98,9 @@ async function ficha(lead: Record<string, unknown>, ms = 22000) {
 // deno-lint-ignore no-explicit-any
 export function emailHtml(name: string, r: any, rows: [string, unknown][], rec: any, fi: any): string {
   const S = 'font-family:sans-serif';
+  // el id va dentro de un href: numérico o vacío, nunca texto libre (esc() no
+  // escapa comillas y un id raro rompería el atributo)
+  const idNum = String(Number(r.id) || "");
   const bloqueRecorrido = rec ? `
     <h3 style="${S};font-size:14px;margin:22px 0 6px">🧭 Qué vio antes de escribirte</h3>
     <p style="${S};font-size:13.5px;margin:0 0 8px;color:#333">
@@ -137,8 +140,14 @@ export function emailHtml(name: string, r: any, rows: [string, unknown][], rec: 
     </table>
     ${bloqueRecorrido}
     ${bloqueFicha}
+    ${/* El primero abre la app de Mac (esquema viven://, lo maneja desktop/main.js);
+          el segundo queda para el iPhone y para Sofía, que leen el mail sin la app.
+          Solo va el id numérico: la app arma la URL con nuestro dominio, nunca con
+          lo que diga el enlace. */""}
     <p style="${S};font-size:13px;margin-top:20px">
-      <a href="https://www.viven.ch/dashboard/?lead=${esc(r.id ?? "")}">Abrir la ficha en el dashboard →</a>
+      <a href="viven://lead/${idNum}"><strong>Abrir la ficha en la app →</strong></a>
+      <span style="color:#aab">&nbsp;·&nbsp;</span>
+      <a href="https://www.viven.ch/dashboard/?lead=${idNum}" style="color:#667">abrir en el navegador</a>
     </p>`;
 }
 
