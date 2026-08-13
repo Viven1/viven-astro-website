@@ -2534,7 +2534,7 @@ const newsCases = [
     <div id="contenido-sub-news" hidden>
     <div class="panel" style="margin-bottom:14px">
       <div class="draft-head">
-        <h2 style="margin:0">📬 Edición mensual automática <span class="count" id="nwi-count"></span></h2>
+        <h2 style="margin:0">📬 Edición mensual automática <span class="count" id="nwi-count"></span></h2>{/* OJO: nwi-count es ESTE span (el "N para revisar"). El botón de destinatarios usa nwi-recips-btn — el 12 ago 2026 le puse el mismo id que a este span y getElementById devolvía el span, así que el botón quedó sin listener y no hacía nada. */}
         <button class="btn btn-ghost small" id="nwi-gen" type="button">⚙️ Generar draft ahora</button>
       </div>
       <p class="muted-note" style="margin:6px 0 10px">El primer martes del mes (07:00 UTC) se arma solo un draft con los mejores posts del blog (por visitas) + un proyecto destacado que rota sin repetirse, en EN/DE/ES. <b>Nada se envía sin tu aprobación</b> — cada suscriptor lo recibe en su idioma, con su link de baja.</p>
@@ -2551,7 +2551,7 @@ const newsCases = [
         <div class="nw-row">
           <select id="nwi-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option><option value="followup">Follow up — clientes viejos de bexio</option></select>
           <select id="nwi-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
-          <button class="btn btn-ghost small" id="nwi-count" type="button">👥 Ver / editar lista</button>
+          <button class="btn btn-ghost small" id="nwi-recips-btn" type="button">👥 Ver / editar lista</button>
         </div>
         <p class="muted-note" id="nwi-recips" style="margin:6px 0 0"></p>
         <div class="ab-urlrow" style="margin-top:10px">
@@ -8975,7 +8975,7 @@ const newsCases = [
       });
       document.querySelectorAll('.nwi-lang').forEach((b) => b.addEventListener('click', () => nwiShowLang(b.dataset.lg)));
       $('nwi-close') && $('nwi-close').addEventListener('click', () => { $('nwi-detail').hidden = true; nwiCur = null; });
-      $('nwi-count') && $('nwi-count').addEventListener('click', () => { nwShowRecipients(nwCtxIssue()); });
+      $('nwi-recips-btn') && $('nwi-recips-btn').addEventListener('click', () => { nwShowRecipients(nwCtxIssue()); });
       $('nwi-stage') && $('nwi-stage').addEventListener('change', () => { nwiSaveSeg(); nwiUpdateRecips(); });
       $('nwi-lang') && $('nwi-lang').addEventListener('change', () => { nwiSaveSeg(); nwiUpdateRecips(); });
       $('nwi-test') && $('nwi-test').addEventListener('click', async () => {
@@ -14064,7 +14064,7 @@ const newsCases = [
       if ($('nwi-stage')) $('nwi-stage').value = nwiCur.segment_stage || 'all';
       if ($('nwi-lang')) $('nwi-lang').value = nwiCur.segment_lang || 'all';
       const soloLectura = nwiCur.status !== 'draft';
-      ['nwi-stage', 'nwi-lang', 'nwi-count'].forEach((k) => { if ($(k)) $(k).disabled = soloLectura; });
+      ['nwi-stage', 'nwi-lang', 'nwi-recips-btn'].forEach((k) => { if ($(k)) $(k).disabled = soloLectura; });
       nwiPrev = null; nwiPrevKey = '';
       nwiUpdateRecips();
       nwiShowLang('en');
