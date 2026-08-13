@@ -2203,6 +2203,27 @@ const newsCases = [
         <div class="kpi"><div class="n" id="ka-rate">–</div><div class="kdelta" id="ka-rate-d"></div><div class="l">Tasa de conversión</div></div>
       </div>
 
+      <!-- Conversión real por período (pedido de Sebastián, 12 ago 2026: "el % es
+           mensual, podemos dejar uno anual, quartal 1,2,3,4 para ver como nos
+           movemos mes por mes, por quartal y por anio"). Cohorte por fecha de alta:
+           de los leads que entraron en el período, cuántos terminaron ganados.
+           Excluye la cartera de bexio (ver esCartera) — con ella daba 89% plano. -->
+      <div class="panel">
+        <div class="of-bar" style="margin-bottom:10px">
+          <div>
+            <h2 style="margin:0">📈 Conversión real <span class="count" id="cvp-count"></span></h2>
+            <p class="muted-note" style="margin:2px 0 0">De los leads que entraron en cada período, cuántos terminaron como clientes. Solo leads de origen real — la cartera importada de bexio se cuenta aparte, abajo.</p>
+          </div>
+          <div class="co-seg" id="cvp-seg">
+            <button data-cvp="mes" class="on" type="button">Mes</button>
+            <button data-cvp="trim" type="button">Trimestre</button>
+            <button data-cvp="anio" type="button">Año</button>
+          </div>
+        </div>
+        <div id="cvp-body"><p class="muted-note">Cargando…</p></div>
+        <p class="muted-note" id="cvp-cartera" style="margin:10px 0 0"></p>
+      </div>
+
       <div class="panel">
         <h2>Tráfico y leads por día <span class="count" id="daily-label">(en el período)</span></h2>
         <div class="chart" id="daily-chart"></div>
@@ -4330,6 +4351,80 @@ const newsCases = [
   let rangeDay = null;     // 'YYYY-MM-DD' → un día puntual (pisa el preset)
   const rangeStart = () => rangeDay ? new Date(rangeDay + 'T00:00:00').getTime() : Date.now() - rangeDays * 864e5;
   const rangeEnd = () => rangeDay ? new Date(rangeDay + 'T23:59:59.999').getTime() : Date.now();
+  /* ===== CARTERA vs PERFORMANCE — una sola definición para todo el dashboard =====
+     El import de bexio (channel='bexio-import') creó 168 leads y los marcó TODOS
+     como ganados: son facturas ya pagadas, clientes de antes. Es tu cartera, no
+     rendimiento de marketing. Contarlos deformaba todos los porcentajes: medido el
+     12 ago 2026, el dashboard mostraba 89,4% de conversión cuando la conversión de
+     los leads que trae el marketing es 4,8% (21 leads reales, 1 ganado). Y de las
+     184 altas de los últimos 28 días, 168 eran el import.
+     Regla: los números de PERFORMANCE usan solo leads de origen real; la cartera se
+     muestra aparte y con nombre, nunca se esconde. (Aprobado por Sebastián.) */
+  const esCartera = (l) => /bexio/i.test((l && l.channel) || '');
+  const esGanado = (l) => /ganado|won|cerrado/i.test((l && l.status) || '');
+  const leadsPerf = () => (allLeads || []).filter((l) => !esCartera(l));
+  const leadsCartera = () => (allLeads || []).filter(esCartera);
+
+  /* ===== Conversión real por mes / trimestre / año =====
+     Cohorte por fecha de alta: de los leads que ENTRARON en el período, cuántos
+     terminaron ganados. Es la lectura honesta para marketing — un ganado se cuenta
+     en el período en que llegó el lead, no en el que cerró, así se ve si lo que
+     entra mejora. Sin la cartera de bexio (esCartera). */
+  let cvpModo = 'mes';
+  function cvpPeriodos(modo){
+    const L = leadsPerf().filter((l) => l.created_at);
+    if (!L.length) return [];
+    const clave = (d) => modo === 'anio' ? String(d.getFullYear())
+      : modo === 'trim' ? d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1)
+      : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const etiqueta = (k) => {
+      if (modo === 'anio') return k;
+      if (modo === 'trim') return 'Q' + k.split('-Q')[1] + ' ' + k.split('-')[0];
+      const [y, m] = k.split('-');
+      return new Date(+y, +m - 1, 1).toLocaleDateString('es-CH', { month: 'long' }) + ' ' + y;
+    };
+    const acc = new Map();
+    L.forEach((l) => {
+      const k = clave(new Date(l.created_at));
+      const a = acc.get(k) || { k, label: etiqueta(k), leads: 0, ganados: 0 };
+      a.leads++; if (esGanado(l)) a.ganados++;
+      acc.set(k, a);
+    });
+    return [...acc.values()].sort((a, b) => b.k.localeCompare(a.k))
+      .map((a) => ({ ...a, pct: a.leads ? Math.round(1000 * a.ganados / a.leads) / 10 : 0 }));
+  }
+  function cvpRender(){
+    const box = $('cvp-body'); if (!box) return;
+    const filas = cvpPeriodos(cvpModo);
+    const cart = leadsCartera();
+    $('cvp-count').textContent = filas.length ? '(' + filas.length + (cvpModo === 'mes' ? ' meses' : cvpModo === 'trim' ? ' trimestres' : ' años') + ' con datos)' : '';
+    if (!filas.length){ box.innerHTML = '<p class="muted-note">Todavía no hay leads de origen real cargados.</p>'; }
+    else {
+      const max = Math.max(...filas.map((f) => f.leads), 1);
+      box.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+        '<tr style="text-align:left;color:var(--muted-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em">' +
+        '<th style="padding:6px 8px 6px 0;font-weight:600">Período</th><th style="padding:6px 8px;font-weight:600">Leads</th>' +
+        '<th style="padding:6px 8px;font-weight:600">Clientes</th><th style="padding:6px 8px;font-weight:600">Conversión</th>' +
+        '<th style="padding:6px 0;font-weight:600;min-width:90px"></th></tr>' +
+        filas.map((f) => '<tr style="border-top:1px solid var(--line)">' +
+          '<td style="padding:8px 8px 8px 0;color:var(--text)">' + esc(f.label) + '</td>' +
+          '<td style="padding:8px;font-family:\'Space Grotesk\';font-weight:700">' + f.leads + '</td>' +
+          '<td style="padding:8px">' + f.ganados + '</td>' +
+          '<td style="padding:8px;font-family:\'Space Grotesk\';font-weight:700;color:' + (f.pct >= 10 ? 'var(--won)' : f.pct > 0 ? 'var(--acid)' : 'var(--muted-2)') + '">' + f.pct + '%</td>' +
+          '<td style="padding:8px 0"><div style="height:7px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:' + Math.round(100 * f.leads / max) + '%;background:var(--acid);border-radius:6px"></i></div></td>' +
+          '</tr>').join('') + '</table></div>';
+    }
+    const cg = cart.filter(esGanado).length;
+    $('cvp-cartera').innerHTML = cart.length
+      ? '<b>Aparte — cartera existente:</b> ' + cart.length + ' clientes importados de bexio (' + cg + ' con factura pagada). No entran en los porcentajes de arriba porque no vinieron del marketing: son clientes de antes, traídos desde las facturas. Contarlos daba <b>89% de conversión</b> en vez de la real.'
+      : '';
+  }
+  document.querySelectorAll('#cvp-seg button').forEach((b) => b.addEventListener('click', () => {
+    cvpModo = b.dataset.cvp;
+    document.querySelectorAll('#cvp-seg button').forEach((x) => x.classList.toggle('on', x === b));
+    cvpRender();
+  }));
+
   const inRange = (d) => { const t = new Date(d).getTime(); return t >= rangeStart() && t <= rangeEnd(); };
   const rangeLabel = () => rangeDay
     ? new Date(rangeDay + 'T00:00:00').toLocaleDateString('es-CH', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -8241,8 +8336,11 @@ const newsCases = [
     const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
     const entries = real.filter((r) => r.is_entry);
     const sessions = new Set(real.map((r) => r.session_id));
+    /* la cartera de bexio queda afuera de los KPIs de performance (ver esCartera):
+       si no, el import del 25 jul mete 168 "conversiones" en cualquier período que
+       lo contenga y la tasa deja de significar nada */
     const periodLeads = (leads || []).filter((l) =>
-      inRange(l.created_at) && !/^claude-/.test(l.session_id || ''));
+      inRange(l.created_at) && !/^claude-/.test(l.session_id || '') && !esCartera(l));
 
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     $('ka-views').textContent = real.length;
@@ -8252,12 +8350,14 @@ const newsCases = [
     $('ka-time').textContent = fmtTime(avg);
     $('ka-conv').textContent = periodLeads.length;
     $('ka-rate').textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
+    cvpRender();   // conversión real por mes/trimestre/año (no depende del período de arriba)
 
     /* ▲▼ vs el período anterior de igual longitud (pageviews de prevViews, leads por created_at) */
     const pReal = (prevViews || []).filter((r) => !/^claude-/.test(r.session_id || ''));
     const pSessions = new Set(pReal.map((r) => r.session_id));
     const pLeads = (leads || []).filter((l) => {
       if (/^claude-/.test(l.session_id || '')) return false;
+      if (esCartera(l)) return false;   // mismo criterio que el período actual, si no la flecha ▲▼ compara distinto
       const t = new Date(l.created_at).getTime();
       return t >= prevWin.start && t <= prevWin.end;
     });

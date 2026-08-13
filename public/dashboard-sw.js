@@ -1,6 +1,13 @@
 /* Service worker del Viven CRM: recibe Web Push, abre el dashboard al tocar,
    y cachea el shell para que la app instale y abra rápido (incluso offline). */
-var CACHE = 'viven-crm-v3';
+/* OJO: este numero se bumpea EN CADA TANDA DE DEPLOYS del dashboard.
+   El aviso "hay una version nueva" del dashboard se dispara con 'controllerchange',
+   que solo ocurre si se instala un SW distinto. Si este archivo no cambia, el
+   navegador no instala nada, el aviso no aparece nunca y las pestanas abiertas
+   (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
+   12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
+   'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
+var CACHE = 'viven-crm-v5';
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));
