@@ -895,6 +895,13 @@ const newsCases = [
   #contenido-sub-news .kmini .k.clickable{cursor:pointer;transition:border-color .12s,background .12s}
   #contenido-sub-news .kmini .k.clickable:hover{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 6%,transparent)}
   /* listas de personas de los overlays (destinatarios, aperturas, bajas) */
+  /* La tarjeta NO puede pasar el alto de la ventana: si pasa, la lista de checks y
+     el boton "Listo" quedan abajo del borde y parece que no se puede editar
+     (reportado por Sebastian el 12 ago 2026 — la tarjeta media 868px en una
+     ventana de 746 y no llegaba a los checks). La tarjeta se limita y lo unico
+     que scrollea es la lista. */
+  .nw-peoplecard{display:flex;flex-direction:column;max-height:88vh}
+  .nw-peoplecard > .nw-plist{flex:1 1 auto;min-height:96px;max-height:none}
   .nw-plist{max-height:min(52vh,420px);overflow-y:auto;margin-top:8px}
   .nw-prow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
   .nw-prow .who{flex:1;min-width:0;overflow:hidden}
@@ -2521,7 +2528,7 @@ const newsCases = [
         <iframe id="nwi-preview" title="Preview newsletter mensual" style="width:100%;height:520px;border:1px solid var(--line-strong);border-radius:10px;background:#f4f5f7"></iframe>
         <div class="nw-sec-h" style="margin-top:14px">Destinatarios</div>
         <div class="nw-row">
-          <select id="nwi-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select>
+          <select id="nwi-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option><option value="followup">Follow up — clientes viejos de bexio</option></select>
           <select id="nwi-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
           <button class="btn btn-ghost small" id="nwi-count" type="button">👥 Ver / editar lista</button>
         </div>
@@ -2537,7 +2544,7 @@ const newsCases = [
     </div>
     <div class="panel">
       <h2>📰 Newsletter</h2>
-      <p class="muted-note" style="margin:6px 0 14px">Envíos segmentados vía Resend (API batch + reintentos + retomable sin duplicar). Se excluyen solos: dados de baja, spam/descartados y repetidos — nada más: el newsletter va a toda la base. Cada mail sale con link de baja de un click y con los links taggeados <code>utm_campaign=nl-{'{id}'}</code> para la atribución de ventas.</p>
+      <p class="muted-note" style="margin:6px 0 14px">Envíos segmentados vía Resend (API batch + reintentos + retomable sin duplicar). Se excluyen solos: dados de baja, spam/descartados, repetidos y el grupo <b>Follow up</b> (los clientes viejos importados de bexio, que hace mucho no escuchan nada nuestro — mandarles un newsletter de golpe quema la reputación del dominio). Para escribirles, elegí el segmento «Follow up» a propósito. Cada mail sale con link de baja de un click y con los links taggeados <code>utm_campaign=nl-{'{id}'}</code> para la atribución de ventas.</p>
 
       <div class="nw-grid">
         <!-- ===== columna izquierda: redactar + destinatarios + envío ===== -->
@@ -2569,7 +2576,7 @@ const newsCases = [
 
           <div class="nw-sec-h">Destinatarios</div>
           <div class="nw-row">
-            <select id="nw-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select>
+            <select id="nw-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option><option value="followup">Follow up — clientes viejos de bexio</option></select>
             <select id="nw-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
             <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver / editar lista</button>
           </div>
@@ -13788,6 +13795,7 @@ const newsCases = [
   function nwFueraLine(f){
     if (!f) return '';
     const items = [
+      [f.followUp, 'en Follow up (clientes viejos de bexio, no reciben el newsletter)'],
       [f.baja, 'dados de baja'], [f.descartados, 'spam/descartados'], [f.duplicados, 'emails repetidos'],
       [f.fueraDeSegmento, 'fuera del segmento elegido'], [f.sacadosAMano, 'sacados a mano'],
     ].filter(([n]) => n > 0).map(([n, l]) => n + ' ' + l);
@@ -14095,7 +14103,7 @@ const newsCases = [
   function nwBox(o){
     let ov = $(o.id); if (!ov){ ov = document.createElement('div'); ov.id = o.id; document.body.appendChild(ov); }
     ov.className = 'of-composer';
-    ov.innerHTML = '<div class="ofc-card" style="max-width:520px">' +
+    ov.innerHTML = '<div class="ofc-card nw-peoplecard" style="max-width:520px">' +
       '<h3 style="margin:0 0 4px">' + o.title + '</h3>' +
       '<div class="muted-note" style="margin:0 0 8px" id="' + o.id + '-sub">' + (o.sub || '') + '</div>' +
       (o.head || '') +
@@ -14232,7 +14240,7 @@ const newsCases = [
     $sub.innerHTML = '<b style="color:var(--acid)">' + data.total + '</b> personas, cada una en su idioma.' +
       '<div class="nw-sum">' + nwLangLine(data.por_idioma) + '</div>' +
       (nwFueraLine(data.fuera) ? '<div style="margin-top:4px">' + nwFueraLine(data.fuera) + '</div>' : '') +
-      '<div style="margin-top:4px;color:var(--muted-2)">No hay lista de suscriptores aparte: es toda la base de leads con email, menos bajas, spam/descartados y repetidos' +
+      '<div style="margin-top:4px;color:var(--muted-2)">No hay lista de suscriptores aparte: es la base de leads con email, menos bajas, spam/descartados, repetidos y el grupo Follow up (clientes viejos de bexio)' +
       ((data.recips || []).some((r) => r.equipo) ? ', más las casillas del equipo (marcadas «equipo»), que reciben siempre para que veas lo que sale afuera' : '') + '.</div>';
     const pintar = () => {
       const q = ($q.value || '').trim().toLowerCase();

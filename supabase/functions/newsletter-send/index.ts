@@ -209,6 +209,16 @@ async function resendPost(path: string, payload: unknown, attempts = 4): Promise
    bexio-import-clients) siguen filtrando lo interno y las de prueba — mandarle al
    equipo una secuencia de venta no tiene sentido. Si algún día se quiere sacar
    también ahí, es una decisión aparte. */
+/* GRUPO "FOLLOW UP" — los clientes importados de bexio NO reciben el newsletter.
+   Decisión de Sebastián, 12 ago 2026: "hace tiempo no escuchan nada nuestro".
+   Medido ese día contra la base real: de 186 destinatarios, 168 (el 90%) venían de
+   channel='bexio-import' — clientes viejos sacados de facturas pagadas el 25 jul,
+   que nunca recibieron un email de Viven. Mandarles un newsletter de golpe es la
+   forma más rápida de juntar quejas de spam y quemar la reputación del dominio en
+   Resend, y de paso arruinar la entrega para los 18 contactos que sí nos conocen.
+   Siguen en la base y visibles como grupo aparte (segmento "followup") para
+   trabajarlos con una reactivación pensada, no con el newsletter. */
+const esFollowUp = (canal: string) => /bexio/i.test(canal || "");
 const isOutSt = (st: string) => /spam|descartado/i.test(st || "");
 const isWonSt = (st: string) => /ganado|won|cerrado/i.test(st || "");
 
@@ -243,9 +253,9 @@ async function equipoSiempre(service: any): Promise<string[]> {
 type Seg = { stage?: string; lang?: string; exclude_ids?: (number | string)[]; exclude_emails?: string[]; extra_emails?: string[] };
 // deno-lint-ignore no-explicit-any -- el fallback de re-select cambia el shape
 async function elegirDestinatarios(service: any, seg?: Seg) {
-  const fuera = { duplicados: 0, baja: 0, descartados: 0, fueraDeSegmento: 0, sacadosAMano: 0 };
+  const fuera = { duplicados: 0, baja: 0, descartados: 0, fueraDeSegmento: 0, sacadosAMano: 0, followUp: 0 };
   // deno-lint-ignore no-explicit-any
-  let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed").not("email", "is", null);
+  let q: any = await service.from("leads").select("id,email,name,first_name,status,lang,unsubscribed,channel").not("email", "is", null);
   if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("id,email,name,first_name,status,lang").not("email", "is", null);
   const excl = new Set((seg?.exclude_ids || []).map(String));
   /* destildados por DIRECCIÓN (0122). Vale para todos: los del segmento, los
@@ -267,6 +277,13 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
     if ((r as { unsubscribed?: boolean }).unsubscribed) { fuera.baja++; continue; }
     const st = String(r.status || "");
     if (isOutSt(st)) { fuera.descartados++; continue; }
+    const canal = String((r as { channel?: string }).channel || "");
+    if (seg?.stage === "followup") {
+      // el grupo Follow up es EXACTAMENTE lo contrario: solo los de bexio
+      if (!esFollowUp(canal)) { fuera.fueraDeSegmento++; continue; }
+    } else if (esFollowUp(canal)) {
+      fuera.followUp++; continue;   // ningún otro segmento los incluye
+    }
     if (seg) {
       if (seg.stage === "won" && !isWonSt(st)) { fuera.fueraDeSegmento++; continue; }
       if (seg.stage === "open" && isWonSt(st)) { fuera.fueraDeSegmento++; continue; }
