@@ -142,7 +142,12 @@ video.hero-video.on{opacity:1}
    llega desde abajo. overflow:clip recorta lo que se sale del hueco, y el padding
    + margin negativo dan aire para que no se coman las colas de las letras (la "g"
    de ingresos, la "j"...). clip en vez de hidden: no crea contexto de scroll. */
-.rot{display:inline-grid;vertical-align:top;text-align:left;overflow:clip;padding:.14em 0 .1em;margin:-.14em 0 -.1em}
+/* El hueco tiene que medir EXACTAMENTE la linea del titular. Con padding para las
+   colas de las letras medía 49px contra 40 de la linea, y ese excedente se derramaba
+   sobre el renglon de abajo: se veia la palabra entrante asomando (capturado en
+   produccion, 13 ago 2026). overflow-clip-margin deja salir la cola de la "g" de
+   "ingresos" —.12em— sin dejar salir la palabra que viaja, que recorre .6em. */
+.rot{display:inline-grid;vertical-align:top;text-align:left;overflow:clip;overflow-clip-margin:.12em}
 /* visibility, no solo opacity: con opacity:0 las palabras ocultas SIGUEN contando
    como texto de la página — innerText devolvía "attention into revenue leads talent
    trust" y Google las indexaría todas (aria-hidden no cuenta para el buscador).
@@ -150,10 +155,10 @@ video.hero-video.on{opacity:1}
    de display:none conserva el espacio, que es lo que mantiene el ancho reservado.
    La transición de visibility es discreta: se aplica al final al ocultar y al
    principio al mostrar, justo lo que necesita un fundido. */
-.rot-w{grid-area:1/1;opacity:0;visibility:hidden;transform:translateY(.85em);
+.rot-w{grid-area:1/1;opacity:0;visibility:hidden;transform:translateY(.6em);
   transition:opacity .42s ease,transform .42s cubic-bezier(.22,1,.36,1),visibility .42s;white-space:nowrap}
 .rot-w.on{opacity:1;visibility:visible;transform:none}
-.rot-w.out{opacity:0;visibility:visible;transform:translateY(-.85em)}   /* la que sale, hacia arriba */
+.rot-w.out{opacity:0;visibility:visible;transform:translateY(-.6em)}   /* la que sale, hacia arriba */
 @media(prefers-reduced-motion:reduce){
   .rot-w,.rot-w.on,.rot-w.out{transition:none;transform:none}
   .rot-w.out{visibility:hidden}
