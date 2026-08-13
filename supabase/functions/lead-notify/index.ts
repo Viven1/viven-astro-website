@@ -37,6 +37,103 @@ function pushBroadcast(title: string, body: string, url = "/dashboard/") {
   }).catch((e) => console.error("PUSH_ERROR", String(e)));
 }
 
+
+/* ── RECORRIDO: qué vio esta persona antes de escribirnos ─────────────────────
+   Todo esto ya se estaba guardando (pageviews/video_plays por session_id) y nadie
+   lo miraba. Es instantáneo: son dos consultas por id de sesión. */
+type Vista = { path: string; duration: number | null; created_at: string; is_entry: boolean; referrer: string | null; device: string | null };
+// deno-lint-ignore no-explicit-any -- el cliente tipado generico no aporta acá
+async function recorrido(service: any, sessionId: string | null) {
+  if (!sessionId) return null;
+  const [pv, vp] = await Promise.all([
+    service.from("pageviews").select("path,duration,created_at,is_entry,referrer,device")
+      .eq("session_id", sessionId).order("created_at", { ascending: true }).limit(60),
+    service.from("video_plays").select("label,created_at").eq("session_id", sessionId).limit(20),
+  ]);
+  const vistas = (pv.data ?? []) as Vista[];
+  if (!vistas.length) return null;
+  const entrada = vistas.find((v) => v.is_entry) ?? vistas[0];
+  const segundos = vistas.reduce((a, v) => a + (Number(v.duration) || 0), 0);
+  return {
+    paginas: vistas.length,
+    minutos: Math.round(segundos / 6) / 10,
+    entrada: entrada?.path ?? null,
+    referrer: entrada?.referrer ?? null,
+    device: entrada?.device ?? null,
+    camino: vistas.map((v) => ({ path: v.path, seg: Math.round(Number(v.duration) || 0) })),
+    videos: ((vp.data ?? []) as { label: string }[]).map((v) => v.label).filter(Boolean),
+  };
+}
+
+/* ── FICHA: quién es. Con un límite duro de tiempo: el aviso tiene que salir YA,
+   así que si la investigación no llega, el mail sale igual y lo dice. ───────── */
+async function ficha(lead: Record<string, unknown>, ms = 22000) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-enrich`, {
+      method: "POST", signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+      body: JSON.stringify({ lead }),
+    });
+    clearTimeout(t);
+    const d = await res.json().catch(() => ({}));
+    if (d?.enrichment) return { ok: true as const, e: d.enrichment };
+    return { ok: false as const, motivo: d?.error ? String(d.error) : "la investigación no devolvió nada" };
+  } catch (e) {
+    return { ok: false as const, motivo: String(e).includes("abort") ? "la investigación tardó más de 22 s" : String(e) };
+  }
+}
+
+/* El HTML del aviso, como funcion PURA: recibe datos y devuelve el email. Asi se
+   puede probar con datos reales sin crear un lead de mentira en el CRM. */
+// deno-lint-ignore no-explicit-any
+export function emailHtml(name: string, r: any, rows: [string, unknown][], rec: any, fi: any): string {
+  const S = 'font-family:sans-serif';
+  const bloqueRecorrido = rec ? `
+    <h3 style="${S};font-size:14px;margin:22px 0 6px">🧭 Qué vio antes de escribirte</h3>
+    <p style="${S};font-size:13.5px;margin:0 0 8px;color:#333">
+      <strong>${rec.paginas} página${rec.paginas === 1 ? "" : "s"}</strong> · ${rec.minutos} min en el sitio${rec.device ? " · desde " + esc(rec.device) : ""}<br>
+      Entró por <strong>${esc(rec.entrada || "—")}</strong>${rec.referrer ? " · viniendo de <strong>" + esc(rec.referrer) + "</strong>" : ""}
+    </p>
+    <ol style="${S};font-size:13px;color:#444;margin:0;padding-left:18px">
+      ${rec.camino.slice(0, 12).map((c: { path: string; seg: number }) => `<li>${esc(c.path)}${c.seg ? ` <span style="color:#889">— ${c.seg}s</span>` : ""}</li>`).join("")}
+    </ol>
+    ${rec.videos.length ? `<p style="${S};font-size:13.5px;margin:8px 0 0">🎬 Miró: <strong>${rec.videos.map((v: string) => esc(v)).join(", ")}</strong></p>` : ""}`
+    : `<h3 style="${S};font-size:14px;margin:22px 0 6px">🧭 Qué vio antes de escribirte</h3>
+       <p style="${S};font-size:13.5px;color:#885">No tengo el recorrido de esta persona — llegó sin sesión registrada (formulario directo, o bloqueó el tracking).</p>`;
+
+  const e = fi.ok ? fi.e : null;
+  const seg = e?.seguridad || (fi.ok ? "media" : null);
+  const avisoSeguridad = seg === "alta" ? "" :
+    `<p style="${S};font-size:12.5px;color:#a06000;background:#fff6e5;padding:8px 10px;border-radius:6px;margin:8px 0 0">
+       ⚠️ ${seg === "baja" ? "Confianza BAJA" : "Confianza media"} — ${esc(e?.por_que || "no pude confirmar que sea esta persona exacta")}. Verificá antes de usarlo en una conversación.</p>`;
+  const bloqueFicha = !fi.ok
+    ? `<h3 style="${S};font-size:14px;margin:22px 0 6px">🔎 Quién es</h3>
+       <p style="${S};font-size:13.5px;color:#885">No pude averiguar nada todavía (${esc(fi.motivo)}). Podés investigarlo desde el dashboard con «✨ Enriquecer».</p>`
+    : `<h3 style="${S};font-size:14px;margin:22px 0 6px">🔎 Quién es</h3>
+       ${e.persona?.resumen ? `<p style="${S};font-size:13.5px;margin:0 0 6px;color:#333">${esc(e.persona.resumen)}${e.persona.cargo ? ` <span style="color:#667">· ${esc(e.persona.cargo)}</span>` : ""}</p>` : ""}
+       ${e.empresa?.resumen ? `<p style="${S};font-size:13.5px;margin:0 0 6px;color:#333"><strong>${esc(e.empresa.nombre || "")}</strong> — ${esc(e.empresa.resumen)}</p>` : ""}
+       ${!e.persona?.resumen && !e.empresa?.resumen ? `<p style="${S};font-size:13.5px;color:#885">La investigación no encontró información confiable sobre esta persona.</p>` : ""}
+       ${(e.hooks || []).length ? `<p style="${S};font-size:13.5px;margin:10px 0 4px"><strong>Por dónde entrarle:</strong></p>
+         <ul style="${S};font-size:13.5px;color:#333;margin:0;padding-left:18px">${(e.hooks || []).slice(0, 4).map((h: string) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
+       ${avisoSeguridad}`;
+
+  return `
+    <h2 style="${S};margin:0 0 12px">🎬 Nuevo lead — ${esc(name)}</h2>
+    ${r.message ? `<p style="${S};font-size:15px;background:#f4f6f9;padding:12px 14px;border-radius:8px;margin:0 0 14px;color:#111">"${esc(r.message)}"</p>` : ""}
+    <table style="${S};font-size:14px;border-collapse:collapse">
+      ${rows.map(([k, v]) => `<tr>
+        <td style="padding:4px 12px 4px 0;color:#667;white-space:nowrap">${k}</td>
+        <td style="padding:4px 0"><strong>${esc(v)}</strong></td></tr>`).join("")}
+    </table>
+    ${bloqueRecorrido}
+    ${bloqueFicha}
+    <p style="${S};font-size:13px;margin-top:20px">
+      <a href="https://www.viven.ch/dashboard/?lead=${esc(r.id ?? "")}">Abrir la ficha en el dashboard →</a>
+    </p>`;
+}
+
 Deno.serve(async (req) => {
   if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
     return new Response("forbidden", { status: 403 });
@@ -53,23 +150,26 @@ Deno.serve(async (req) => {
     const rows: [string, unknown][] = [
       ["Nombre", name],
       ["Email", r.email],
-      ["Mensaje", r.message || "—"],
+      // el mensaje NO va acá: ya se muestra arriba, destacado en su propio bloque
       ["Canal", r.channel || "direct"],
       ["Campaña", r.utm_campaign || "—"],
       ["Google Ads (gclid)", r.gclid ? "sí" : "no"],
       ["Landing", r.landing_path || "—"],
       ["Idioma", r.lang || "—"],
     ];
-    const html = `
-      <h2 style="font-family:sans-serif;margin:0 0 12px">🎬 Nuevo lead — ${esc(name)}</h2>
-      <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
-        ${rows.map(([k, v]) => `<tr>
-          <td style="padding:4px 12px 4px 0;color:#667;white-space:nowrap">${k}</td>
-          <td style="padding:4px 0"><strong>${esc(v)}</strong></td></tr>`).join("")}
-      </table>
-      <p style="font-family:sans-serif;font-size:13px;margin-top:16px">
-        <a href="https://www.viven.ch/dashboard/">Abrir en el dashboard →</a>
-      </p>`;
+    // el recorrido es instantáneo; la ficha va con límite de tiempo
+    const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const [rec, fi] = await Promise.all([
+      recorrido(service, (r.session_id as string) ?? null).catch(() => null),
+      ficha({ name, email: r.email, company: r.company, domain: String(r.email || "").split("@")[1] || null }),
+    ]);
+
+    // guardar la ficha en el lead: el dashboard la muestra sin volver a investigar
+    if (fi.ok && r.id) {
+      await service.from("leads").update({ enrichment: fi.e, enriched_at: new Date().toISOString() }).eq("id", r.id).then(() => {}, () => {});
+    }
+
+    const html = emailHtml(name, r, rows, rec, fi);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -81,7 +181,12 @@ Deno.serve(async (req) => {
       }),
     });
     // push al celular (además del email) — abre el lead directo al tocarla
-    pushBroadcast("🎬 Nuevo lead: " + name, (r.message || "").slice(0, 120) || (r.email || ""), r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
+    pushBroadcast(
+      "🎬 Nuevo lead: " + name,
+      [(r.message || "").slice(0, 90) || r.email,
+       rec ? `${rec.paginas} pág · ${rec.minutos} min` : null,
+       r.gclid ? "Google Ads" : (r.utm_source || r.channel || null)].filter(Boolean).join(" · "),
+      r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
 
     if (!res.ok) return new Response(await res.text(), { status: 502 });
     return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });

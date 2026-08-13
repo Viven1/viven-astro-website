@@ -22,10 +22,16 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const auth = req.headers.get("Authorization") ?? "";
-    const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
+    /* Bypass interno: lead-notify llama a esta funcion apenas entra un lead, con el
+       service role. Es el mismo patron que push-send/newsletter-send — lo unico que
+       no se puede forjar sin tener el secret. Un usuario logueado del dashboard
+       sigue entrando por el camino de siempre. */
+    if (req.headers.get("Authorization") !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`) {
+      const auth = req.headers.get("Authorization") ?? "";
+      const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return json({ error: "unauthorized" }, 401);
+    }
 
     const { lead = {} } = await req.json();
     const name = (lead.name || "").trim();
@@ -49,8 +55,18 @@ Respond ONLY with valid minified JSON (no markdown):
 {"persona":{"resumen":"2-3 frases sobre quién es y qué hace","cargo":null,"ubicacion":null,"linkedin":null,"redes":[{"tipo":"instagram|x|otro","url":"..."}]},
 "empresa":{"nombre":"...","resumen":"2-3 frases: qué hace, tamaño, mercado","web":null,"industria":null,"empleados":null,"ubicacion":null,"redes":[{"tipo":"linkedin|instagram|youtube","url":"..."}],"noticias":[{"titulo":"...","url":"...","fecha":"YYYY-MM"}]},
 "hooks":["2-4 ganchos CONCRETOS para la conversación de venta de video (ej: acaban de lanzar X → video de producto; están contratando mucho → employer branding)"],
-"fuentes":["urls consultadas"]}
-All text values in SPANISH (except names/titles). Max 3 noticias, the most recent.`;
+"fuentes":["urls consultadas"],
+"seguridad":"alta|media|baja",
+"por_que":"una frase: en que te basaste, o por que no encontraste nada"}
+All text values in SPANISH (except names/titles). Max 3 noticias, the most recent.
+
+SOBRE "seguridad" — es obligatorio y Sebastián lo pidió expresamente:
+- "alta": encontraste a ESTA persona/empresa concreta y las fuentes lo confirman.
+- "media": encontraste la empresa pero no a la persona, o hay homónimos posibles.
+- "baja": no encontraste nada confiable, o estás infiriendo por el dominio del email.
+Con "baja", dejá persona.resumen y empresa.resumen en null y explicá en "por_que" qué
+buscaste y por qué no alcanzó. NUNCA rellenes con lo que parece probable: un dato
+inventado sobre un cliente es peor que no tener dato.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
