@@ -1745,6 +1745,12 @@ const newsCases = [
   .hm-item .tx b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hm-item .tx small{display:block;color:var(--muted);font-size:12px;margin-top:1px;line-height:1.35}
   .hm-item .go{flex:none;color:var(--acid);font-size:11.5px;font-weight:700;white-space:nowrap}
+  /* botones de la cola "aprobado, falta hacerlo" — tienen que ser tocables con el
+     pulgar en el teléfono, de ahí los 30px */
+  .wq-acts{flex:none;display:flex;gap:4px}
+  .wq-b{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--muted);font-size:13px;cursor:pointer;line-height:1}
+  .wq-b:hover{border-color:var(--acid);color:var(--acid)}
+  .wq-b.ok:hover{border-color:var(--acid);color:#142033;background:var(--acid)}
   .hm-more{width:100%;background:none;border:0;border-top:1px solid var(--line);color:var(--acid);font-family:inherit;font-weight:600;font-size:12.5px;padding:10px 6px;cursor:pointer;text-align:left}
   .hm-spark{display:flex;align-items:flex-end;gap:5px;height:62px}
   .hm-spark i{flex:1;background:color-mix(in srgb,var(--acid) 28%,transparent);border-radius:3px 3px 0 0;min-height:3px}
@@ -2030,6 +2036,15 @@ const newsCases = [
       <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
     </div>
     <div class="hm-masonry">
+      <!-- Aprobado y sin hacer. Va PRIMERO y solo aparece si hay algo: es lo que
+           Sebastián aprobó desde el teléfono y todavía está esperando que alguien
+           lo ejecute. La espera se muestra al lado de cada cosa, para que "hace
+           ocho días" no sea una sorpresa cuando se pregunte. -->
+      <div class="panel hm-card" id="wq-card" hidden>
+        <h2>🤖 Aprobado, falta hacerlo <span class="count" id="wq-n"></span></h2>
+        <div class="hm-list" id="wq-list"></div>
+        <p class="muted-note" id="wq-note" style="margin:8px 0 0"></p>
+      </div>
       <div class="panel hm-card">
         <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
         <div class="hm-list" id="hm-today"></div>
@@ -4133,6 +4148,7 @@ const newsCases = [
         sel.value = '0';
       }
       croRender();
+      croBackfillCola();
     } catch (e) {
       box.innerHTML = '<p class="muted-note">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿ya corriste el SQL <b>0112</b>?</p>';
     }
@@ -4166,7 +4182,7 @@ const newsCases = [
         (idea.hypothesis ? '<p class="cro-hypo"><b>Por qué:</b> ' + esc(idea.hypothesis) + '</p>' : '') +
         (idea.evidence ? '<p class="cro-evidence"><b>📊 El dato:</b> ' + esc(idea.evidence) + '</p>' : '') +
         (idea.how ? '<p class="cro-how"><b>Qué haría:</b> ' + esc(idea.how) + '</p>' : '') +
-        (st === 'approved' ? '<p class="cro-approved-note">🤖 Aprobada — Claude la implementa en la próxima sesión de trabajo y la marca ✅ Hecha al terminar.</p>' : '') +
+        (st === 'approved' ? '<p class="cro-approved-note">🤖 Aprobada — está en la cola de Hoy ("Aprobado, falta hacerlo") con los días que lleva esperando, hasta que se marque hecha.</p>' : '') +
         '<div class="cro-actions">' +
           (st !== 'done' ? '<button class="btn small" data-cro-st="approved" data-cro-i="' + i + '" type="button">' + (st === 'approved' ? '↩︎ Quitar aprobación' : '🤖 Aprobar — la hace Claude') + '</button>' : '') +
           '<button class="btn btn-ghost small" data-cro-st="done" data-cro-i="' + i + '" type="button">' + (st === 'done' ? '↩︎ Reabrir' : '✅ Hecha') + '</button>' +
@@ -4176,13 +4192,42 @@ const newsCases = [
     }).join('') : '<p class="muted-note">Esta semana quedó sin ideas — regenerá con 🔄.</p>';
     box.querySelectorAll('[data-cro-st]').forEach((b) => b.addEventListener('click', () => croSetStatus(parseInt(b.dataset.croI, 10), b.dataset.croSt)));
   }
+  /* Las ideas aprobadas ANTES de que existiera la cola quedaron como una marca en
+     el jsonb y nada más — justamente el problema. Al cargar el tab se encolan las
+     que sigan aprobadas y sin hacer; el índice único evita duplicarlas. */
+  async function croBackfillCola(){
+    for (const row of croRows){
+      if (!Array.isArray(row.ideas)) continue;
+      for (let i = 0; i < row.ideas.length; i++){
+        const idea = row.ideas[i];
+        if ((idea && idea.status) !== 'approved') continue;
+        await wqAdd({ source: 'cro', ref: row.id + ':' + i, title: idea.title || 'Idea de CRO',
+          detail: idea.how || idea.hypothesis || '', url: '/dashboard/?tab=analytics&sub=cro' });
+      }
+    }
+  }
   async function croSetStatus(i, st){
     const row = croRows[croIdx]; if (!row || !Array.isArray(row.ideas) || !row.ideas[i]) return;
     const cur = row.ideas[i].status || '';
-    row.ideas[i].status = cur === st ? null : st; // segundo click = deshacer
+    const nuevo = cur === st ? null : st;          // segundo click = deshacer
+    row.ideas[i].status = nuevo;
     croRender(); // optimista — el update va por detrás
     const { error } = await supabase.from('cro_ideas').update({ ideas: row.ideas }).eq('id', row.id);
-    if (error){ row.ideas[i].status = cur || null; croRender(); alert('No se pudo guardar: ' + (error.message || 'error')); }
+    if (error){ row.ideas[i].status = cur || null; croRender(); alert('No se pudo guardar: ' + (error.message || 'error')); return; }
+    /* Aprobar ahora ENCOLA. Antes solo escribía 'approved' en el jsonb y el
+       cartel prometía que Claude la haría "en la próxima sesión": si esa sesión
+       no la miraba, la idea moría ahí. Ahora cae en work_queue y se ve en Hoy
+       con los días que lleva esperando. Desaprobar la saca. */
+    const idea = row.ideas[i], ref = row.id + ':' + i;
+    if (nuevo === 'approved'){
+      await wqAdd({ source: 'cro', ref, title: idea.title || 'Idea de CRO',
+        detail: idea.how || idea.hypothesis || '', url: '/dashboard/?tab=analytics&sub=cro' });
+      toast('🤖 Aprobada y en la cola de Hoy');
+    } else if (cur === 'approved'){
+      await wqCancelRef('cro', ref);
+    } else if (nuevo === 'done' || nuevo === 'dismissed'){
+      await wqCancelRef('cro', ref);   // ya está hecha o descartada: fuera de la cola
+    }
   }
   async function croGenerate(){
     const btn = $('cro-gen'); if (!btn || btn.disabled) return;
@@ -5490,7 +5535,84 @@ const newsCases = [
   });
   $('rm-goal-inp').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('rm-goal-save').click(); });
 
+  /* ---------- 🤖 Cola de "aprobado, falta hacerlo" (tabla work_queue — SQL 0124) ----------
+     Sebastián, 14 ago 2026: aprobar una idea de CRO no hacía nada — escribía una
+     marca en un jsonb y mostraba un cartel. "Hacelo y hacé que funcione bien o no
+     sirve para nada". Esto es el lugar que hay que vaciar: lo aprobado queda acá,
+     con los días de espera a la vista, hasta que alguien lo marca hecho. Sirve
+     igual para las ideas de CRO y para las acciones sobre un cliente. */
+  let wqRows = [];
+  const wqDias = (iso) => Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
+  const wqEspera = (iso) => { const d = wqDias(iso); return d <= 0 ? 'hoy' : d === 1 ? 'hace 1 día' : 'hace ' + d + ' días'; };
+
+  async function wqLoad(){
+    const { data, error } = await supabase.from('work_queue')
+      .select('id,source,ref,title,detail,url,status,approved_at')
+      .in('status', ['pending', 'doing']).order('approved_at', { ascending: true });
+    if (error){ wqRows = []; wqRender(); return; }   // tabla sin crear todavía: el panel no molesta
+    wqRows = data || [];
+    wqRender();
+  }
+  function wqRender(){
+    const card = $('wq-card'), list = $('wq-list'); if (!card || !list) return;
+    card.hidden = wqRows.length === 0;
+    $('wq-n').textContent = wqRows.length || '';
+    // mismas clases que el resto de las listas de Hoy (.ic/.tx/.go): una fila
+    // aprobada tiene que verse igual que cualquier otra cosa pendiente
+    const ICONO = { cro: '🧪', accion: '📣', manual: '📌' };
+    list.innerHTML = wqRows.map((r) => {
+      const dias = wqDias(r.approved_at);
+      return '<div class="hm-item' + (dias >= 7 ? ' ambar' : '') + '" style="cursor:default">' +
+        '<span class="ic">' + (ICONO[r.source] || '📌') + '</span>' +
+        '<span class="tx"><b>' + esc(r.title || '') + '</b><small>' +
+          (r.detail ? esc(String(r.detail).slice(0, 120)) + ' · ' : '') +
+          'aprobado ' + wqEspera(r.approved_at) + (r.status === 'doing' ? ' · en curso' : '') +
+        '</small></span>' +
+        '<span class="wq-acts">' +
+          (r.url ? '<button class="wq-b" data-wq-ir="' + r.id + '" type="button" title="Ver dónde">↗</button>' : '') +
+          '<button class="wq-b ok" data-wq-done="' + r.id + '" type="button" title="Marcar como hecho">✓</button>' +
+          '<button class="wq-b" data-wq-cancel="' + r.id + '" type="button" title="Ya no hace falta">✕</button>' +
+        '</span></div>';
+    }).join('');
+    const masViejo = wqRows.length ? wqDias(wqRows[0].approved_at) : 0;
+    $('wq-note').textContent = wqRows.length
+      ? (masViejo >= 7 ? '⚠️ Lo más viejo espera hace ' + masViejo + ' días.' : 'Se vacía a medida que se hacen.')
+      : '';
+    list.querySelectorAll('[data-wq-ir]').forEach((b) => b.addEventListener('click', () => {
+      const r = wqRows.find((x) => String(x.id) === b.dataset.wqIr); if (r && r.url) location.href = r.url;
+    }));
+    list.querySelectorAll('[data-wq-done]').forEach((b) => b.addEventListener('click', () => wqSet(b.dataset.wqDone, 'done')));
+    list.querySelectorAll('[data-wq-cancel]').forEach((b) => b.addEventListener('click', () => wqSet(b.dataset.wqCancel, 'cancelled')));
+  }
+  /* Encolar. El índice único (source, ref) con status pendiente hace que aprobar
+     dos veces lo mismo —o un tap repetido en el teléfono— no cree dos pendientes. */
+  async function wqAdd(item){
+    const fila = { source: item.source || 'manual', ref: item.ref || null, title: item.title || '(sin título)',
+      detail: item.detail || null, url: item.url || null, status: 'pending', approved_by: meEmail || null };
+    const { error } = await supabase.from('work_queue').insert(fila);
+    if (error && !/duplicate key|unique/i.test(error.message || '')){ toast('No se pudo encolar: ' + error.message); return false; }
+    await wqLoad();
+    return true;
+  }
+  async function wqCancelRef(source, ref){
+    await supabase.from('work_queue').update({ status: 'cancelled' })
+      .eq('source', source).eq('ref', ref).in('status', ['pending', 'doing']);
+    await wqLoad();
+  }
+  async function wqSet(id, status, nota){
+    const r = wqRows.find((x) => String(x.id) === String(id));
+    const patch = { status };
+    if (status === 'done'){ patch.done_at = new Date().toISOString(); if (nota) patch.done_note = nota; }
+    const { error } = await supabase.from('work_queue').update(patch).eq('id', id);
+    if (error){ toast('No se pudo actualizar: ' + error.message); return; }
+    // avisar al equipo que se hizo: el que aprobó no tiene que venir a preguntar
+    if (status === 'done' && r) pushTo(null, '✅ Hecho: ' + (r.title || '').slice(0, 60), 'Lo aprobado ya está resuelto.', '/dashboard/?tab=hoy');
+    toast(status === 'done' ? '✅ Marcado como hecho' : 'Sacado de la cola');
+    await wqLoad();
+  }
+
   function renderHome(){
+    wqLoad();
     const now = Date.now(), D = 864e5;
     /* --- KPIs --- */
     const k = hmDealKpis();
