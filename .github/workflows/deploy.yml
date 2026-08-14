@@ -51,6 +51,12 @@ jobs:
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Sin fijar versión, la action trae wrangler 3.90, que NO sabe leer
+          # wrangler.jsonc (soporte de JSONC recién desde la 4) y falla con
+          # "Missing entry-point" — un error que apunta al main y no a la causa.
+          # Fijada a la misma versión que se usa en local, para que publicar
+          # desde GitHub y desde una máquina den exactamente lo mismo.
+          wranglerVersion: "4.123.0"
 
       # Verificar, no suponer. Un deploy "exitoso" que devuelve 404 en la home
       # ya pasó; el paso falla y queda registrado en Actions en vez de descubrirse
