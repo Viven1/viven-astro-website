@@ -840,12 +840,24 @@ const newsCases = [
   .bl2-ltab.miss{border-style:dashed;color:var(--muted-2)}
   .bl2-ltab.miss:hover{border-color:var(--acid);color:var(--acid)}
   .bl2-imgpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;margin-bottom:8px}
-  .bl2-img{position:relative;aspect-ratio:16/10;border-radius:8px;overflow:hidden;border:2px solid var(--line);cursor:pointer;background:var(--navy-900);padding:0}
-  .bl2-img img{width:100%;height:100%;object-fit:cover;display:block}
+  /* La altura la pone la IMAGEN, no el botón. Con `aspect-ratio` en el botón y
+     `height:100%` en la img, la fila de la grilla se calculaba por el contenido
+     —que era cero— y quedaba de 23px con miniaturas de 197px: cada foto se
+     montaba sobre las seis siguientes. Eso es lo que Sebastián vio el 14 ago
+     ("están todos juntos, no se las ve bien") y venía de antes. Medido:
+     grid-template-rows 22.9px vs tile 197px. */
+  .bl2-img{position:relative;border-radius:8px;overflow:hidden;border:2px solid var(--line);cursor:pointer;background:var(--navy-900);padding:0}
+  .bl2-img img{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;display:block}
   .bl2-img:hover{border-color:var(--line-strong)}
   .bl2-img.sel{border-color:var(--acid);box-shadow:0 0 0 2px color-mix(in srgb,var(--acid) 30%,transparent)}
   .bl2-img.sel::after{content:'✓';position:absolute;top:4px;right:4px;background:var(--acid);color:#142033;border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:11px;font-weight:800}
-  .bl2-img.none{display:grid;place-items:center;font-size:10px;color:var(--muted-2);font-weight:700}
+  .bl2-img.none{display:grid;place-items:center;min-height:64px;font-size:10px;color:var(--muted-2);font-weight:700}
+  /* el nombre encima de la miniatura: sin esto, en el teléfono son 24 cuadraditos
+     iguales y no se sabe cuál es cuál */
+  .bl2-cap{position:absolute;left:0;right:0;bottom:0;padding:10px 6px 4px;font:600 10px Inter,sans-serif;color:#fff;
+    background:linear-gradient(transparent,rgba(0,0,0,.78));text-align:left;line-height:1.15;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .bl2-mas{grid-column:1/-1;aspect-ratio:auto;padding:9px 0;font-size:11.5px;color:var(--acid);border-style:dashed}
   /* catálogos plegables: cerrados no tapan el artículo, abiertos son la grilla de siempre */
   .bl2-det{margin:8px 0 0;border:1px solid var(--line);border-radius:10px;background:var(--navy-900)}
   .bl2-det>summary{cursor:pointer;padding:8px 11px;font:700 12px Inter,sans-serif;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px}
@@ -865,7 +877,12 @@ const newsCases = [
     .bl2-pend-acts{width:100%}
     .bl2-pend-acts .btn{flex:1;white-space:nowrap}
     .bl2-table th:nth-child(4),.bl2-table td:nth-child(4){display:none}
-    .bl2-imgpick{grid-template-columns:repeat(3,1fr)}
+    /* En el iPhone tres columnas dejan miniaturas de ~90px: no se ve qué foto es
+       (reporte de Sebastián, 14 ago). Dos columnas, más altas, y el cajón usa
+       media pantalla en vez de 290px fijos. */
+    .bl2-imgpick{grid-template-columns:repeat(2,1fr);gap:8px}
+    .bl2-det .bl2-imgpick{max-height:52vh}
+    .bl2-det[open]{padding:0 8px 10px}
   }
   .gads-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
   .gads-kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
@@ -14726,21 +14743,33 @@ const newsCases = [
     blogsList.forEach((b) => { if (b.hero_image && !seen.has(b.hero_image)) { seen.add(b.hero_image); opts.push({ v: b.hero_image, l: (b.title || 'de otro post').slice(0, 34) }); } });
     return opts;
   }
+  /* De a tandas. Sebastián, 14 ago, desde el iPhone: "cuando voy a abrir las
+     fotos y videos están todos juntos, no se las ve bien. Y se corta la app".
+     Eran ~250 fotos y 155 miniaturas de Vimeo pedidas de una: el teléfono se
+     clavaba. Se muestran 24 y hay un botón para traer el resto; el filtro
+     sigue buscando sobre el catálogo COMPLETO, no sobre las 24. */
+  const BL2_TANDA = 24;
+  let bl2ImgTodas = false, bl2VidTodas = false;
+  const bl2VerMas = (n, cual) => '<button class="bl2-img none bl2-mas" data-mas="' + cual + '" type="button">ver ' + n + ' más</button>';
+
   function bl2RenderImgPick(){
     const box = $('bl2-imgpick'); if (!box) return;
     const cur = ($('bg-hero') && $('bg-hero').value.trim()) || '';
-    // el catálogo ahora es TODO projects.json (~250 stills): el filtro por cliente
-    // evita scrollear infinito; sin filtro se muestran todas (lazy loading)
     const q = (($('bl2-imgfilter') && $('bl2-imgfilter').value) || '').toLowerCase().trim();
-    const opts = bl2ImgOptions().filter((o) => !q || o.l.toLowerCase().includes(q) || o.v.toLowerCase().includes(q));
+    const todas = bl2ImgOptions().filter((o) => !q || o.l.toLowerCase().includes(q) || o.v.toLowerCase().includes(q));
+    const opts = bl2ImgTodas ? todas : todas.slice(0, BL2_TANDA);
+    const faltan = todas.length - opts.length;
     box.innerHTML = opts.map((o) =>
-      '<button class="bl2-img' + (o.v === cur ? ' sel' : '') + '" data-v="' + esc(o.v) + '" type="button" title="' + esc(o.l) + '"><img src="' + esc(o.v) + '" alt="' + esc(o.l) + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></button>').join('') +
-      '<button class="bl2-img none' + (cur ? '' : ' sel') + '" data-v="" type="button" title="Sin imagen">sin imagen</button>';
-    box.querySelectorAll('.bl2-img').forEach((b) => b.addEventListener('click', () => {
+      '<button class="bl2-img' + (o.v === cur ? ' sel' : '') + '" data-v="' + esc(o.v) + '" type="button" title="' + esc(o.l) + '"><img src="' + esc(o.v) + '" alt="' + esc(o.l) + '" loading="lazy" decoding="async" onerror="this.parentElement.style.display=\'none\'" /></button>').join('') +
+      '<button class="bl2-img none' + (cur ? '' : ' sel') + '" data-v="" type="button" title="Sin imagen">sin imagen</button>' +
+      (faltan > 0 ? bl2VerMas(faltan, 'img') : '');
+    box.querySelectorAll('.bl2-img[data-v]').forEach((b) => b.addEventListener('click', () => {
       const inp = $('bg-hero'); if (!inp) return;
       inp.value = b.dataset.v || '';
       inp.dispatchEvent(new Event('input', { bubbles: true }));   // actualiza preview + selección
     }));
+    const mas = box.querySelector('.bl2-mas');
+    if (mas) mas.addEventListener('click', () => { bl2ImgTodas = true; bl2RenderImgPick(); });
     bl2Resumen();   // al abrir un post, el título plegado ya dice qué foto tiene puesta
   }
   function bl2MarkImgSel(){
@@ -14757,15 +14786,20 @@ const newsCases = [
     const box = $('bl2-vidpick'); if (!box) return;
     const cur = ($('bg-video') && $('bg-video').value.trim().replace(/\D/g, '')) || '';
     const q = (($('bl2-vidfilter') && $('bl2-vidfilter').value) || '').toLowerCase().trim();
-    const opts = (window.BLOG_VIDEOS || []).filter((v) => !q || (v.label + ' ' + v.client + ' ' + v.cat).toLowerCase().includes(q));
+    const todas = (window.BLOG_VIDEOS || []).filter((v) => !q || (v.label + ' ' + v.client + ' ' + v.cat).toLowerCase().includes(q));
+    const opts = bl2VidTodas ? todas : todas.slice(0, BL2_TANDA);
+    const faltan = todas.length - opts.length;
     box.innerHTML = opts.map((o) =>
-      '<button class="bl2-img' + (o.id === cur ? ' sel' : '') + '" data-v="' + esc(o.id) + '" type="button" title="' + esc(o.label) + '"><img src="' + esc(o.thumb) + '" alt="' + esc(o.label) + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></button>').join('') +
-      '<button class="bl2-img none' + (cur ? '' : ' sel') + '" data-v="" type="button">sin video</button>';
-    box.querySelectorAll('.bl2-img').forEach((b) => b.addEventListener('click', () => {
+      '<button class="bl2-img' + (o.id === cur ? ' sel' : '') + '" data-v="' + esc(o.id) + '" type="button" title="' + esc(o.label) + '"><img src="' + esc(o.thumb) + '" alt="' + esc(o.label) + '" loading="lazy" decoding="async" onerror="this.parentElement.style.display=\'none\'" /><span class="bl2-cap">' + esc(o.label) + '</span></button>').join('') +
+      '<button class="bl2-img none' + (cur ? '' : ' sel') + '" data-v="" type="button">sin video</button>' +
+      (faltan > 0 ? bl2VerMas(faltan, 'vid') : '');
+    box.querySelectorAll('.bl2-img[data-v]').forEach((b) => b.addEventListener('click', () => {
       const inp = $('bg-video'); if (!inp) return;
       inp.value = b.dataset.v || '';
       inp.dispatchEvent(new Event('input', { bubbles: true }));   // actualiza embed + selección
     }));
+    const mas = box.querySelector('.bl2-mas');
+    if (mas) mas.addEventListener('click', () => { bl2VidTodas = true; bl2RenderVidPick(); });
     bl2Resumen();
   }
   function bl2MarkVidSel(){
