@@ -5407,7 +5407,7 @@ const newsCases = [
        en 30 días" y 4,9% de conversión cuando lo real son 19 y 0,5% — un número
        lindo y falso, que es peor que no tener número. */
     const leads30 = (allLeads || []).filter((l) =>
-      Date.now() - Date.parse(l.created_at || '') < 30 * 864e5 && !/bexio/i.test(l.channel || '')).length;
+      Date.now() - Date.parse(l.created_at || '') < 30 * 864e5 && !esCartera(l)).length;
     const personas = dem.reduce((a, d) => a + (+d.personas || 0), 0);
     const conv = personas ? (leads30 / personas * 100) : 0;
     const top = dem.slice(0, 5);
@@ -5679,7 +5679,16 @@ const newsCases = [
       return;
     }
     const t90 = Date.now() - 90 * D;
-    const leads90 = (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && !/spam/i.test(l.status || '') && Date.parse(l.created_at || '') >= t90);
+    /* Los 168 contactos importados de bexio NO son leads: entraron de la
+       contabilidad, no pidieron nada. Metidos en el denominador daban una
+       conversión de 6/192 = 3% y la pantalla pedía 183 leads este mes; sin
+       ellos son 6 de ~24 y la cuenta se parece a la realidad.
+       Decisión de Sebastián, 14 ago 2026: "no, los de bexio no pueden contar,
+       si no no hace sentido". Se reusa esCartera(), el mismo criterio que ya
+       usa el panel de Conversión real — un solo lugar que define qué es cartera
+       vieja y qué es un lead de verdad. */
+    const leads90 = (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && !/spam/i.test(l.status || '')
+      && !esCartera(l) && Date.parse(l.created_at || '') >= t90);
     const won90 = all.filter((d) => stageOf(d.stage) === 'ganado' && Date.parse(d.won_at || d.last_stage_at || '') >= t90);
     const lead90Ids = new Set(leads90.map((l) => String(l.id)));
     const wonFromLeads90 = won90.filter((d) => lead90Ids.has(String(d.lead_id))).length;
