@@ -6,6 +6,25 @@ const stillsPool = projects
   .filter((p) => p.lang === 'en' && Array.isArray(p.stills) && p.stills.length)
   .map((p) => ({ client: p.client || p.headline || 'Project', stills: p.stills }));
 
+/* Catálogo de videos para el blog. Antes eran DIEZ escritos a mano acá abajo,
+   y por eso el mismo video salía en 13 posts distintos (medido 14 ago 2026:
+   33 posts con video, 6 videos diferentes). El catálogo real tiene 155 con
+   thumbnail público — los mismos que ya usa la galería del sitio. */
+const V_JUNK = (t) => !t || /VIVEN_|prores|_\d+$|\.mo?v|_16x9|multichannel|clean|nooutro/i.test(t);
+const V_IMPORTANT = ['UBS', 'Siemens', 'Porsche', 'ON', 'FIFA', 'Philips', 'V-ZUG', 'SENSAI', 'Meteomatics', 'Franke', 'KPMG', 'SV Group', 'PMI Science', 'ANYbotics', 'Nile', 'ABB', 'Sonova', 'Büchi', 'Stadtspital', 'Carvolution', 'LEM', 'TomFit', 'Capgemini', 'Calda Clinic'];
+const vRank = (c) => { const i = V_IMPORTANT.indexOf(c); return i === -1 ? 99 : i; };
+const blogVideos = videos
+  .filter((v) => v && v.id && v.thumb && (v.access ? v.access === 'public' : true))
+  .map((v) => ({
+    id: String(v.id),
+    thumb: v.thumb,
+    client: v.client || '',
+    cat: v.cat || '',
+    // el corte a 58 dejaba colgando un "|" o un guion del título original
+    label: [v.client, V_JUNK(v.title) ? (v.category || 'Video') : v.title].filter(Boolean).join(' — ').slice(0, 58).replace(/[\s|–—-]+$/, ''),
+  }))
+  .sort((a, b) => vRank(a.client) - vRank(b.client) || a.label.localeCompare(b.label));
+
 // catálogo de videos (Vimeo) para las tarjetas de video del newsletter
 const newsVideos = videos
   .filter((v) => v && v.id && v.thumb && (v.access ? v.access === 'public' : true))
@@ -827,6 +846,16 @@ const newsCases = [
   .bl2-img.sel{border-color:var(--acid);box-shadow:0 0 0 2px color-mix(in srgb,var(--acid) 30%,transparent)}
   .bl2-img.sel::after{content:'✓';position:absolute;top:4px;right:4px;background:var(--acid);color:#142033;border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:11px;font-weight:800}
   .bl2-img.none{display:grid;place-items:center;font-size:10px;color:var(--muted-2);font-weight:700}
+  /* catálogos plegables: cerrados no tapan el artículo, abiertos son la grilla de siempre */
+  .bl2-det{margin:8px 0 0;border:1px solid var(--line);border-radius:10px;background:var(--navy-900)}
+  .bl2-det>summary{cursor:pointer;padding:8px 11px;font:700 12px Inter,sans-serif;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px}
+  .bl2-det>summary::-webkit-details-marker{display:none}
+  .bl2-det>summary::before{content:'▸';font-size:10px;color:var(--muted-2)}
+  .bl2-det[open]>summary::before{content:'▾'}
+  .bl2-det>summary:hover{color:var(--acid)}
+  .bl2-det[open]{padding:0 11px 11px}
+  .bl2-det .bl2-imgpick{max-height:290px;overflow-y:auto}
+  .bl2-det-now{font-weight:500;color:var(--muted-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .bl2-vidpick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .bl2-vid{background:transparent;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:600 11px Inter,sans-serif;padding:5px 11px;cursor:pointer}
   .bl2-vid:hover{border-color:var(--acid);color:var(--acid)}
@@ -2501,10 +2530,17 @@ const newsCases = [
       </div>
       <p class="muted-note" id="bg-pub-note" style="margin:-2px 0 10px"></p>
       <div class="pp-grid" style="--cols:1fr 1fr;align-items:start">
-        <div class="bf"><label>🖼 Imagen héroe <span class="muted-note" style="font-weight:400">— click en un still para elegirla, o pegá un path/URL abajo</span></label>
-          <input id="bl2-imgfilter" type="search" placeholder="Filtrar por cliente (Siemens, FIFA, ON…)" style="margin-bottom:8px" />
-          <div class="bl2-imgpick" id="bl2-imgpick"></div>
+        {/* Los dos catálogos van PLEGADOS. Sebastián, 14 ago 2026: "las fotos me
+            tapan todo el camino" — 250 stills abiertos siempre dejaban el texto
+            del artículo, que es lo que viene a revisar, fuera de pantalla.
+            Cerrado se ve qué está elegido; se abre solo si lo va a cambiar. */}
+        <div class="bf"><label>🖼 Imagen héroe</label>
           <input id="bg-hero" list="bg-hero-opts" placeholder="/projects/…/still.jpg (vacío = sin imagen)" />
+          <details class="bl2-det" id="bl2-imgdet">
+            <summary>📂 Elegir otra foto <span class="bl2-det-now" id="bl2-imgnow"></span></summary>
+            <input id="bl2-imgfilter" type="search" placeholder="Filtrar por cliente (Siemens, FIFA, ON…)" style="margin:8px 0" />
+            <div class="bl2-imgpick" id="bl2-imgpick"></div>
+          </details>
           <!-- catálogo completo: TODOS los stills de projects.json, agrupados por cliente
                (antes eran 9 fotos fijas y siempre las mismas — pedido 2026-07-26) -->
           <datalist id="bg-hero-opts">
@@ -2512,20 +2548,16 @@ const newsCases = [
               <option value={s}>{p.client + ' — foto ' + (i + 1)}</option>
             )))}
           </datalist></div>
-        <div class="bf"><label>🎬 Video Vimeo <span class="muted-note" style="font-weight:400">— elegí uno del catálogo o pegá un ID/URL de Vimeo (se embebe al final del artículo)</span></label>
+        <div class="bf"><label>🎬 Video Vimeo</label>
           <input id="bg-video" list="bg-video-opts" placeholder="502153490 o https://vimeo.com/502153490 (vacío = sin video)" />
-          <div class="bl2-vidpick" id="bl2-vidpick"></div>
+          <details class="bl2-det" id="bl2-viddet">
+            <summary>🎬 Elegir otro video <span class="bl2-det-now" id="bl2-vidnow"></span></summary>
+            <input id="bl2-vidfilter" type="search" placeholder="Filtrar por cliente o tipo (Siemens, product, how-to…)" style="margin:8px 0" />
+            <div class="bl2-imgpick" id="bl2-vidpick"></div>
+          </details>
+          {/* el catálogo entero (155 con thumb público), no diez escritos a mano */}
           <datalist id="bg-video-opts">
-            <option value="1057568537">Viven — Showreel</option>
-            <option value="502153490">Siemens — The Circle</option>
-            <option value="412290258">UBS — Apprenticeship</option>
-            <option value="1068759296">V-ZUG — Combair V600</option>
-            <option value="1026464530">V-ZUG — How-to</option>
-            <option value="828322230">Siemens — Working Students</option>
-            <option value="861150876">SV Group — Innovation Film</option>
-            <option value="757649241">FIFA — Living Football</option>
-            <option value="1068759356">ON — Product Launch</option>
-            <option value="1036679041">Testimonials 2023 (Siemens+Meteo+SV)</option>
+            {blogVideos.map((v) => (<option value={v.id}>{v.label}</option>))}
           </datalist></div>
       </div>
       <div class="pp-sec-h">Vista previa <span class="count">todo editable — click sobre el texto y escribís</span></div>
@@ -3634,7 +3666,7 @@ const newsCases = [
   </div>
 </div>
 
-<script is:inline define:vars={{ stillsPool, newsVideos, newsCases }}>window.STILLS_POOL = stillsPool; window.NEWS_VIDEOS = newsVideos; window.NEWS_CASES = newsCases;</script>
+<script is:inline define:vars={{ stillsPool, newsVideos, newsCases, blogVideos }}>window.STILLS_POOL = stillsPool; window.NEWS_VIDEOS = newsVideos; window.NEWS_CASES = newsCases; window.BLOG_VIDEOS = blogVideos;</script>
 <script>
   import { createClient } from '@supabase/supabase-js';
 
@@ -12032,6 +12064,7 @@ const newsCases = [
       $('bg-save') && $('bg-save').addEventListener('click', () => saveBlogEdits(false));
       $('bg-hero') && $('bg-hero').addEventListener('input', () => { bl2MarkImgSel(); const i = $('bg-prevhero'); if (!i) return; const v = $('bg-hero').value.trim(); i.src = v; i.style.display = v ? '' : 'none'; });
       $('bl2-imgfilter') && $('bl2-imgfilter').addEventListener('input', () => bl2RenderImgPick());
+      $('bl2-vidfilter') && $('bl2-vidfilter').addEventListener('input', () => bl2RenderVidPick());
       $('bg-video') && $('bg-video').addEventListener('input', bl2MarkVidSel);
       $('bg-video') && $('bg-video').addEventListener('input', () => { const w = $('bg-prevvid'); if (!w) return; const v = $('bg-video').value.trim().replace(/\D/g, ''); if (v){ w.style.display = ''; w.innerHTML = '<iframe src="https://player.vimeo.com/video/' + v + '?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allowfullscreen></iframe>'; } else { w.style.display = 'none'; w.innerHTML = ''; } });
       $('bg-prop') && $('bg-prop').addEventListener('click', propagateBlog);
@@ -14694,15 +14727,21 @@ const newsCases = [
     const box = $('bl2-imgpick'); if (!box) return;
     const cur = ($('bg-hero') && $('bg-hero').value.trim()) || '';
     box.querySelectorAll('.bl2-img').forEach((b) => b.classList.toggle('sel', (b.dataset.v || '') === cur));
+    bl2Resumen();
   }
+  /* El picker de video ahora es una grilla con thumbnails, igual que el de fotos,
+     y sale del catálogo entero (window.BLOG_VIDEOS, 155) — no de los diez que
+     estaban escritos a mano. Con diez opciones, el mismo video terminó en 13
+     posts distintos. */
   function bl2RenderVidPick(){
     const box = $('bl2-vidpick'); if (!box) return;
     const cur = ($('bg-video') && $('bg-video').value.trim().replace(/\D/g, '')) || '';
-    const opts = [...document.querySelectorAll('#bg-video-opts option')].map((o) => ({ v: o.value, l: o.textContent || o.value }));
+    const q = (($('bl2-vidfilter') && $('bl2-vidfilter').value) || '').toLowerCase().trim();
+    const opts = (window.BLOG_VIDEOS || []).filter((v) => !q || (v.label + ' ' + v.client + ' ' + v.cat).toLowerCase().includes(q));
     box.innerHTML = opts.map((o) =>
-      '<button class="bl2-vid' + (o.v === cur ? ' sel' : '') + '" data-v="' + esc(o.v) + '" type="button">🎬 ' + esc(o.l) + '</button>').join('') +
-      '<button class="bl2-vid' + (cur ? '' : ' sel') + '" data-v="" type="button">sin video</button>';
-    box.querySelectorAll('.bl2-vid').forEach((b) => b.addEventListener('click', () => {
+      '<button class="bl2-img' + (o.id === cur ? ' sel' : '') + '" data-v="' + esc(o.id) + '" type="button" title="' + esc(o.label) + '"><img src="' + esc(o.thumb) + '" alt="' + esc(o.label) + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></button>').join('') +
+      '<button class="bl2-img none' + (cur ? '' : ' sel') + '" data-v="" type="button">sin video</button>';
+    box.querySelectorAll('.bl2-img').forEach((b) => b.addEventListener('click', () => {
       const inp = $('bg-video'); if (!inp) return;
       inp.value = b.dataset.v || '';
       inp.dispatchEvent(new Event('input', { bubbles: true }));   // actualiza embed + selección
@@ -14711,7 +14750,21 @@ const newsCases = [
   function bl2MarkVidSel(){
     const box = $('bl2-vidpick'); if (!box) return;
     const cur = ($('bg-video') && $('bg-video').value.trim().replace(/\D/g, '')) || '';
-    box.querySelectorAll('.bl2-vid').forEach((b) => b.classList.toggle('sel', (b.dataset.v || '') === cur));
+    box.querySelectorAll('.bl2-img').forEach((b) => b.classList.toggle('sel', (b.dataset.v || '') === cur));
+    bl2Resumen();
+  }
+  /* Con los catálogos cerrados hay que ver QUÉ está elegido sin abrirlos. */
+  function bl2Resumen(){
+    const img = $('bl2-imgnow'), vid = $('bl2-vidnow');
+    if (img){
+      const h = ($('bg-hero') && $('bg-hero').value.trim()) || '';
+      img.textContent = h ? '· ahora: ' + (h.split('/').filter(Boolean)[1] || h).slice(0, 34) : '· sin imagen';
+    }
+    if (vid){
+      const v = ($('bg-video') && $('bg-video').value.trim().replace(/\D/g, '')) || '';
+      const m = (window.BLOG_VIDEOS || []).find((x) => x.id === v);
+      vid.textContent = v ? '· ahora: ' + (m ? m.label : v) : '· sin video';
+    }
   }
   function fillBlogEditor(b){
     bgCur = b;
