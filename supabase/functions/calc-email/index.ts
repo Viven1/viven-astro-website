@@ -75,34 +75,46 @@ const T: Record<string, Record<string, string>> = {
   en: {
     subject: "Your video cost estimate: CHF",
     hi: "Hi",
-    intro: "Thank you for your enquiry — here is the cost estimate you requested, itemised, based on real budgets from 1137+ Swiss productions for brands like UBS, Siemens and FIFA.",
+    intro: "Thank you for your enquiry — here is the range for what you put together, calculated on real budgets from 1137+ Swiss productions for brands like UBS, Siemens and FIFA.",
     basedOn: "Your cost breakdown:",
-    note: "Every project is different: this quote holds for the scope you selected, and the final number moves with it. If the estimate sits above your budget, we can usually help bring the costs down: adjusting shoot days, scope or format, without compromising the result. If you'd like to go through the details, don't hesitate to contact us — we're happy to think along with you.",
+    note: "It is a reference range for that scope. The final number depends on the location, the crew it takes and the timing — which is why we prefer to go through it with you before putting a fixed price on it. If the estimate sits above your budget, we can usually help bring the costs down: adjusting shoot days, scope or format, without compromising the result. If you'd like to go through the details, don't hesitate to contact us — we're happy to think along with you.",
     cta: "Book a free 15-min call →",
     bye: "Prefer email? Just reply to this message — it lands directly with me.",
     sign: "Sofia Treviño, Producer",
+    briefT: "Want the exact price for your project?",
+    briefP: "Tell us the project in 2 minutes and we come back with a real proposal — scope, timing and a fixed price.",
+    briefB: "Fill the brief (2 min) →",
+    callB: "Or book a 15-min call →",
     foot: "You're receiving this because you used our video cost calculator.",
   },
   de: {
     subject: "Ihre Videokosten-Schätzung: CHF",
     hi: "Guten Tag",
-    intro: "vielen Dank für Ihre Anfrage — hier ist die gewünschte Kostenschätzung, Position für Position, basierend auf echten Budgets aus 1137+ Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.",
+    intro: "vielen Dank für Ihre Anfrage — hier ist die Spanne für Ihre Auswahl, berechnet auf echten Budgets aus 1137+ Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.",
     basedOn: "Ihre Kostenaufstellung:",
-    note: "Jedes Projekt ist anders: diese Offerte gilt für den gewählten Umfang, die finale Zahl bewegt sich mit ihm. Liegt die Schätzung über Ihrem Budget, helfen wir gerne, die Kosten zu senken: über Drehtage, Umfang oder Format, ohne Kompromisse beim Resultat. Möchten Sie ins Detail gehen? Kontaktieren Sie uns jederzeit — wir denken gerne mit.",
+    note: "Es ist ein Richtwert für diesen Umfang. Die finale Zahl hängt von Location, nötiger Crew und Timing ab — deshalb schauen wir sie lieber gemeinsam mit Ihnen an, bevor wir einen Festpreis nennen. Liegt die Schätzung über Ihrem Budget, helfen wir gerne, die Kosten zu senken: über Drehtage, Umfang oder Format, ohne Kompromisse beim Resultat. Möchten Sie ins Detail gehen? Kontaktieren Sie uns jederzeit — wir denken gerne mit.",
     cta: "Gratis 15-Min-Call buchen →",
     bye: "Lieber per E-Mail? Antworten Sie einfach auf diese Nachricht — sie landet direkt bei mir.",
     sign: "Sofia Treviño, Producerin",
+    briefT: "Möchten Sie den genauen Preis für Ihr Projekt?",
+    briefP: "Beschreiben Sie das Projekt in 2 Minuten und wir kommen mit einer echten Offerte zurück — Umfang, Timing und Festpreis.",
+    briefB: "Briefing ausfüllen (2 Min) →",
+    callB: "Oder 15-Min-Call buchen →",
     foot: "Sie erhalten dies, weil Sie unseren Videokosten-Rechner genutzt haben.",
   },
   es: {
     subject: "Tu estimación de costos de video: CHF",
     hi: "Hola",
-    intro: "gracias por tu consulta — acá tenés la estimación línea por línea, armada sobre presupuestos reales de 1137+ producciones suizas para marcas como UBS, Siemens y FIFA.",
+    intro: "gracias por tu consulta — acá va el rango para lo que armaste, calculado sobre presupuestos reales de 1137+ producciones suizas para marcas como UBS, Siemens y FIFA.",
     basedOn: "Tu desglose de costos:",
-    note: "Cada proyecto es distinto: esta oferta vale para el alcance que elegiste, y el número final se mueve con él. Si la estimación queda por encima de tu presupuesto, normalmente podemos ayudarte a bajar los costos: ajustando días de rodaje, alcance o formato, sin comprometer el resultado. Si querés entrar en más detalle, no dudes en contactarnos — pensamos el proyecto con vos.",
+    note: "Es un rango de referencia para ese alcance. El número final depende de la locación, del equipo que haga falta y de los tiempos — por eso preferimos verlo con vos antes de ponerle un precio cerrado. Si la estimación queda por encima de tu presupuesto, normalmente podemos ayudarte a bajar los costos: ajustando días de rodaje, alcance o formato, sin comprometer el resultado. Si querés entrar en más detalle, no dudes en contactarnos — pensamos el proyecto con vos.",
     cta: "Reservar llamada gratis de 15 min →",
     bye: "¿Preferís por email? Respondé este mensaje — me llega directo a mí.",
     sign: "Sofia Treviño, Producer",
+    briefT: "¿Querés el precio exacto para tu proyecto?",
+    briefP: "Contanos el proyecto en 2 minutos y volvemos con una propuesta real: alcance, tiempos y precio cerrado.",
+    briefB: "Llenar el brief (2 min) →",
+    callB: "O agendar una llamada de 15 min →",
     foot: "Recibís esto porque usaste nuestra calculadora de costos de video.",
   },
 };
@@ -144,9 +156,16 @@ Deno.serve(async (req) => {
       <div style="font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#888">${cfgLine ? esc(cfgLine) : ""}</div>
       <div style="font-size:30px;font-weight:800;color:#0f1826;margin-top:6px">${range}</div>
     </div>
-    ${rows ? `<p style="margin:0 0 6px;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:#888">${esc(t.basedOn)}</p><table style="width:100%;border-collapse:collapse;margin-bottom:18px">${rows}</table>` : ""}
     ${noteHtml}
-    <p style="margin:0 0 20px"><a href="https://www.viven.ch/book/" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:14.5px;padding:12px 22px;border-radius:100px;display:inline-block">${t.cta}</a></p>
+    <!-- Salida al brief. El rango es un rango; la propuesta de verdad necesita
+         saber del proyecto. Sebastián, 14 ago: "ahí le decimos ¿querés una
+         propuesta propia? llená el brief que tenemos, o agendá una llamada". -->
+    <div style="border:1px solid #e4e7ec;border-radius:14px;padding:20px 22px;margin:0 0 20px">
+      <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#111">${esc(t.briefT)}</p>
+      <p style="margin:0 0 14px;font-size:14px;color:#555;line-height:1.55">${esc(t.briefP)}</p>
+      <p style="margin:0 0 10px"><a href="https://www.viven.ch/brief/?lang=${lang}" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:14.5px;padding:12px 22px;border-radius:100px;display:inline-block">${esc(t.briefB)}</a></p>
+      <p style="margin:0"><a href="https://www.viven.ch/book/" style="color:#0f1826;font-weight:600;font-size:13.5px">${esc(t.callB)}</a></p>
+    </div>
     <p style="margin:0;font-size:13.5px;color:#777">${t.bye}</p>
     <p style="margin:22px 0 0;font-size:14px;color:#444">— ${t.sign} · VIVEN AG</p>
   </div>
@@ -154,7 +173,7 @@ Deno.serve(async (req) => {
 </div></body>`;
 
     const textLines = (Array.isArray(lines) ? lines : []).map((l: [string, number]) => `  ${l[0]}: ${fmt(l[1])}`).join("\n");
-    const text = `${t.hi}${sal ? " " + sal : ""},\n\n${tmpl ? tok(tmpl.body) : t.intro}\n\n${range}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${textLines ? t.basedOn + "\n" + textLines + "\n\n" : ""}${tmpl ? "" : t.note + "\n\n"}${t.cta.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
+    const text = `${t.hi}${sal ? " " + sal : ""},\n\n${tmpl ? tok(tmpl.body) : t.intro}\n\n${range}\n${cfgLine ? "(" + config.join(" · ") + ")\n" : ""}\n${tmpl ? "" : t.note + "\n\n"}${t.briefT}\n${t.briefP}\n${t.briefB.replace(" →", "")}: https://www.viven.ch/brief/?lang=${lang}\n${t.callB.replace(" →", "")}: https://www.viven.ch/book/\n\n${t.bye}\n\n— ${t.sign} · VIVEN AG · viven.ch`;
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
