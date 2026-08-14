@@ -42,6 +42,10 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   .bprog i{display:block;height:100%;background:var(--acid);width:0;transition:width .35s ease}
   /* preguntas */
   .q{margin-bottom:26px}
+  /* preguntas todavía no destapadas (ver destaparSiguiente) */
+  .q-oculta{display:none}
+  .brief-todas{background:none;border:0;color:var(--muted);font:600 12.5px Inter,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;margin:-10px 0 24px}
+  .brief-todas:hover{color:var(--acid)}
   .q > .qh{font-size:15.5px;font-weight:600;color:var(--text);margin-bottom:4px}
   .q > .qs{font-size:12.5px;color:var(--muted-2);margin-bottom:12px}
   .opts{display:grid;gap:9px}
@@ -439,11 +443,47 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
           opt.classList.add('sel');
         }
         updateProgress();
+        destaparSiguiente();
         var vvKey = q.getAttribute('data-key');
         vvFunnel(vvQKeys.indexOf(vvKey) + 1, vvKey);
       });
     });
   });
+
+  /* Una pregunta por vez. La página tenía las 14 preguntas abiertas y casi
+     6000px de alto: el 90% se iba sin contestar ni la primera (funnel medido;
+     idea de CRO aprobada). Cada respuesta destapa la siguiente y lo contestado
+     queda a la vista para poder volver. El que prefiere el formulario largo lo
+     abre entero de un botón. */
+  var vvQAll = [].slice.call(form.querySelectorAll('.q[data-key]'));
+  var vvTodas = false;
+  function destaparSiguiente(){
+    if (vvTodas) return;
+    var corte = vvQAll.length - 1;
+    for (var i = 0; i < vvQAll.length; i++){
+      if (!vvQAll[i].querySelector('.opt.sel')) { corte = i; break; }
+    }
+    vvQAll.forEach(function(q, i){ q.classList.toggle('q-oculta', i > corte); });
+    var btn = document.getElementById('brief-todas');
+    if (btn) btn.hidden = corte >= vvQAll.length - 1;
+  }
+  (function(){
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.id = 'brief-todas'; btn.className = 'brief-todas';
+    btn.setAttribute('data-en', 'Show all questions');
+    btn.setAttribute('data-de', 'Alle Fragen anzeigen');
+    btn.setAttribute('data-es', 'Ver todas las preguntas');
+    btn.textContent = 'Show all questions';
+    btn.addEventListener('click', function(){
+      vvTodas = true;
+      vvQAll.forEach(function(q){ q.classList.remove('q-oculta'); });
+      btn.hidden = true;
+    });
+    var ultima = vvQAll[vvQAll.length - 1];
+    if (ultima && ultima.parentNode) ultima.parentNode.insertBefore(btn, ultima.nextSibling);
+    destaparSiguiente();
+  })();
+
   form.email.addEventListener('input', updateProgress);
   form.first_name.addEventListener('input', updateProgress);
   form.last_name.addEventListener('input', updateProgress);
