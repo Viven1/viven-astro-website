@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Produktvideo oder Produktdemo: Was konvertiert besser? | Viven"};
+const description = {"de":"Erfahren Sie, wann Produktvideos und Produktdemos am wirkungsvollsten sind – mit echten Beispielen von UBS bis Siemens."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "produktvideo-vs-produktdemo-konversion";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/produktvideo-vs-produktdemo-konversion" active="blog" singleLang={true} langUrls={{"en":"/en/blog/product-video-vs-demo-conversion/","de":"/de/blog/produktvideo-vs-produktdemo-konversion/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/produktvideo-vs-produktdemo-konversion/\"},\"headline\":\"Produktvideo oder Produktdemo: Was konvertiert besser?\",\"description\":\"Erfahren Sie, wann Produktvideos und Produktdemos am wirkungsvollsten sind – mit echten Beispielen von UBS bis Siemens.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/produktvideo-vs-produktdemo-konversion/\",\"datePublished\":\"2026-08-14T13:18:10.479Z\",\"image\":\"https://www.viven.ch/projects/anybotics-anymal-c-product-launch/05-C_VIVEN_AG_Video_Production_1024x512.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Produktvideo oder Produktdemo: Was konvertiert besser?\",\"item\":\"https://www.viven.ch/de/blog/produktvideo-vs-produktdemo-konversion/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Sollte ich zuerst ein Produktvideo oder eine Demo drehen?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das kommt auf Ihre Buyer Journey an. In der Awareness-Phase funktionieren emotionale Produktvideos besser. In der Decision-Phase brauchen Sie eine detaillierte Demo. Ideal: beide Formate nacheinander einsetzen.\"}},{\"@type\":\"Question\",\"name\":\"Wie lang sollte ein Produktvideo sein?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Für Social Media: 15–60 Sekunden. Für YouTube oder Website: 60–120 Sekunden. Eine Demo kann länger sein (3–10 Minuten), da die Zuschauer bereits interessiert sind.\"}},{\"@type\":\"Question\",\"name\":\"Welches Format konvertiert besser für B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das hängt vom Produkt ab. Komplexe Software-Lösungen brauchen Demos. Unternehmensdienstleistungen profitieren von Vertrauens-Videos. Die beste Conversion erreichen Sie mit einer kombinierten Strategie.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Produktvideo oder Produktdemo: Was konvertiert besser?</span></nav>
+  <span class="eyebrow">Video-Marketing für B2B</span>
+  <h1>Produktvideo oder Produktdemo: Was konvertiert besser?</h1>
+  <p class="lead">Viele Schweizer Unternehmen stellen sich die Frage: Soll ich ein emotionales Produktvideo drehen oder eine technische Produktdemo? Die Antwort ist nicht eindeutig – es kommt auf Ihre Zielgruppe, Ihr Budget und Ihren Sales-Prozess an. In diesem Artikel zeigen wir, wie beide Formate funktionieren und wann Sie welches Format wählen sollten.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>14. August 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/anybotics-anymal-c-product-launch/05-C_VIVEN_AG_Video_Production_1024x512.jpg" alt="Produktvideo oder Produktdemo: Was konvertiert besser?" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Der Unterschied: Emotional vs. funktional</h2><p>Ein Produktvideo konzentriert sich auf die Emotionen und den Nutzen – es zeigt, wie das Produkt das Leben oder die Arbeit des Kunden vereinfacht oder verbessert. Eine Produktdemo hingegen ist funktional und detailliert; sie führt Schritt für Schritt durch die Features und die Bedienung.</p><p>Für B2B-Unternehmen wie Siemens oder UBS gilt oft: Eine Demo spricht Einkäufer und technische Entscheider an. Ein <a href={p("services/product-video")}>Produktvideo</a> weckt zunächst Interesse und Vertrauen. Ideal ist eine Kombination aus beiden – je nach Stadium der Buyer Journey.</p><h2>Wann Produktvideos konvertieren besser</h2><ul><li><strong>Awareness-Phase:</strong> Wenn Sie einen neuen Markt erschliessen, brauchen Sie emotionale Videos, die zeigen, warum Ihr Produkt anders ist.</li><li><strong>Kurzere Aufmerksamkeitsspanne:</strong> Auf LinkedIn oder Instagram funktionieren kurze, packende Produktvideos (15–60 Sekunden) deutlich besser als lange Demos.</li><li><strong>Hoher Kaufpreis:</strong> Bei Investitionen (wie Software-Lösungen oder Maschinen) bauen Produktvideos zuerst Vertrauen und emotionale Bindung auf.</li><li><strong>B2C und Consumer Tech:</strong> Hier entscheiden oft Gefühl und Lifestyle. Ein gutes Produktvideo schlägt technische Details.</li></ul><h2>Wann Produktdemos mehr Leads bringen</h2><ul><li><strong>Sales-Prozess fortgeschritten:</strong> Am Ende der Buyer Journey wollen Einkäufer konkrete Features und Lösungen sehen – eine Demo beantwortet diese Fragen präzise.</li><li><strong>Komplexe oder erklärungsbedürftige Produkte:</strong> Software, SaaS, Engineering-Lösungen (wie bei Siemens oder Philips) erfordern detaillierte Demos.</li><li><strong>Technische Zielgruppe:</strong> Entwickler, IT-Manager und Spezialisten wollen sehen, wie das Produkt funktioniert, nicht nur, was es tut.</li><li><strong>ROI-Nachweise:</strong> Eine Demo zeigt messbare Ergebnisse und Effizienzgewinne – entscheidend für Einkäufer auf der Suche nach konkretem Nutzen.</li></ul><h2>Best Practice: Die Kombination aus Video und Demo</h2><p>Die erfolgreichsten Kampagnen nutzen beide Formate. Ein emotionales <a href={p("services/brand-video")}>Produktvideo</a> zieht potenzielle Kunden an und macht neugierig. Dann folgt eine angeforderte oder interactive Demo für qualifizierte Leads. ON Sportswear und Porsche nutzen beispielsweise zunächst Lifestyle-Videos, führen interessierte Käufer dann aber in persönliche oder digitale Demos.</p><p>Auch bei technischen Produkten funktioniert dies: Ein kurzes Teaser-Video mit den wichtigsten Benefits, gefolgt von einer ausführlichen Demo auf der Website oder im Sales-Gespräch.</p><h2>Metriken: So messen Sie Erfolg</h2><ul><li><strong>Produktvideo:</strong> Messung über View-Through-Rate, Engagement (Likes, Shares, Kommentare) und Traffic auf die Landing-Page.</li><li><strong>Produktdemo:</strong> Messung über Demo-Anfragen, Completion-Rate (wie weit schauen Zuschauer?) und direkte Konversionen zu Sales-Gesprächen.</li><li><strong>Kombiniert:</strong> Tracking der Customer Journey von Video zu Demo zu Kauf – so sehen Sie, welche Kombination beste Ergebnisse bringt.</li></ul><h2>Praktischer Tipp für Schweizer KMU</h2><p>Wenn Ihr Budget begrenzt ist: Starten Sie mit einem hochwertigen Produktvideo (30–90 Sekunden), das Ihre Kernbotschaft transportiert. Nutzen Sie dieses auf LinkedIn, YouTube und Ihrer Website. Eine interaktive oder angeforderte Demo können Sie später ergänzen oder per Zoom durchführen. <a href={p("services/how-to-video")}>How-to-Videos</a> eignen sich auch hervorragend, um Schritt-für-Schritt-Inhalte zu zeigen – günstiger als eine professionelle Demo, aber informativer als ein reines Produktvideo.</p><p>Viven AG hat mit Kunden wie UBS, Siemens und Philips gelernt, dass der richtige Mix entscheidend ist. Jedes Format hat seinen Platz – es kommt auf Timing und Zielgruppe an.</p><h2>Nächste Schritte: So starten Sie</h2><p>Definieren Sie zunächst, wo in Ihrer Buyer Journey Sie den grössten Bedarf haben. Fehlende Awareness? Ein emotionales Produktvideo. Zu viele Anfragen ohne Konversion? Eine bessere Demo. Dann sprechen Sie mit einem Video-Profi, der beide Formate kennt und umsetzen kann.</p><p><strong>Lassen Sie uns helfen:</strong> Viven AG berät Schweizer Unternehmen kostenlos, welches Video-Format am besten zu Ihrer Strategie passt. <a href={p("contact")}>Kontaktieren Sie uns</a>, um Ihre nächste Kampagne zu planen – von der Idee bis zur Ausstrahlung.</p>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="produktvideo-vs-produktdemo-konversion" />
+  </div></section>
+</Base>
