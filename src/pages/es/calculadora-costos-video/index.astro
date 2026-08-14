@@ -88,6 +88,7 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
   var LICL = {"y1": "1 año", "y2": "2 años", "y3": "3 años", "unl": "ilimitada"}; var CHANL = {"tv": "TV", "online": "ads online", "owned": "medios propios", "cine": "cine"};
   var sel = { type:null, dur:null, days:0, locs:0, talent:null, lic:null, chan:{}, extras:{} };
   function round500(n){ return Math.round(n/500)*500; }
+  function round1000(n){ return Math.round(n/1000)*1000; }
   function calc(){
     if(!sel.type || !sel.dur || !sel.talent) return null;
     var chansOn = []; for(var c in sel.chan){ if(sel.chan[c]) chansOn.push(c); }
@@ -104,7 +105,15 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
       var lc = Math.round(rate*pct*PRICE.lic[sel.lic]); t += lc;
       lines.push(['Buyout / licencia de uso ' + cn.join(' + ') + ' (' + LICL[sel.lic] + ')', lc]); }
     for(var k in sel.extras){ if(sel.extras[k]){ t += PRICE.extras[k]; lines.push([ITEMS[k], PRICE.extras[k]]); } }
-    return { lo: round500(t*.9), hi: round500(t*1.15), lines: lines, total: Math.round(t) };
+    /* Rango −20% / +30%, redondeado a mil. Elegido por Sebastián el 14 ago 2026
+       ("creo que es mejor un rango más grande, donde es entre x e y, y luego con
+       detalles vamos al fino") después de comparar la tabla de la calculadora
+       contra las 931 líneas de sus ofertas reales: animación, subtítulos y drone
+       estaban por encima de lo que cobra, y la "jornada extra" es un número
+       redondo que no existe como línea suelta. El rango ancho dice la verdad
+       —esto es una orientación— en vez de fingir una precisión de ±12%.
+       Piso de CHF 1'000 para que un proyecto mínimo no muestre 0. */
+    return { lo: Math.max(round1000(t*.8), 1000), hi: round1000(t*1.3), lines: lines, total: Math.round(t) };
   }
   function fmt(n){ return 'CHF ' + n.toLocaleString('de-CH'); }
   function refresh(){
