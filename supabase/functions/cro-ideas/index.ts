@@ -125,8 +125,24 @@ async function buildSnapshot() {
     const since = new Date(Date.now() - 28 * 864e5).toISOString();
     const [{ data: leads }, { data: won }] = await Promise.all([
       service.from("leads").select("id,channel").gte("created_at", since).limit(5000),
-      service.from("deals").select("lead_id,deal_value").eq("stage", "ganado").gte("won_at", since).limit(1000),
+      service.from("deals").select("id,lead_id,deal_value").eq("stage", "ganado").gte("won_at", since).limit(1000),
     ]);
+    /* La plata NO vive en deals.deal_value: está en las ofertas ganadas ligadas
+     * al deal (así la calcula el dashboard, con offerNet = Σ qty × price − dto).
+     * Medido el 14 ago 2026: 173 de 173 deals ganados tienen deal_value en NULL,
+     * o sea que este bloque siempre reportaba won_chf = 0 y el motor de CRO
+     * "veía" que ningún canal genera plata. Ese era el bug de la idea aprobada
+     * "Reparar el tracking de CHF en deals ganados (won=1, won_chf=0)". */
+    const dealIds = (won ?? []).map((d: { id: string }) => d.id).filter(Boolean);
+    const { data: ofertas } = dealIds.length
+      ? await service.from("offers").select("deal_id,status,items,discount_pct").in("deal_id", dealIds).eq("status", "won")
+      : { data: [] as { deal_id: string; items: { qty?: number; price?: number }[]; discount_pct?: number }[] };
+    const neto = (o: { items?: { qty?: number; price?: number }[]; discount_pct?: number }) =>
+      (o.items ?? []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0) * (1 - (Number(o.discount_pct) || 0) / 100);
+    const chfDeDeal: Record<string, number> = {};
+    (ofertas ?? []).forEach((o: { deal_id: string }) => {
+      chfDeDeal[String(o.deal_id)] = (chfDeDeal[String(o.deal_id)] || 0) + neto(o as never);
+    });
     const wonLeadIds = [...new Set((won ?? []).map((d: { lead_id: number | string }) => d.lead_id).filter((x) => x != null))];
     // el lead de un deal ganado puede ser más viejo que 28d — su canal se busca aparte
     const { data: wonLeads } = wonLeadIds.length
@@ -139,12 +155,17 @@ async function buildSnapshot() {
       const c = l.channel || "(directo)";
       (channels[c] = channels[c] || { leads: 0, won: 0, won_chf: 0 }).leads++;
     });
-    (won ?? []).forEach((d: { lead_id: number | string; deal_value: number | null }) => {
+    let sinPlata = 0;
+    (won ?? []).forEach((d: { id: string; lead_id: number | string; deal_value: number | null }) => {
       const c = chOfLead[String(d.lead_id)] || "(directo)";
       const e = (channels[c] = channels[c] || { leads: 0, won: 0, won_chf: 0 });
-      e.won++; e.won_chf += Number(d.deal_value) || 0;
+      const chf = chfDeDeal[String(d.id)] || Number(d.deal_value) || 0;
+      if (!chf) sinPlata++;
+      e.won++; e.won_chf += chf;
     });
     snapshot.channels_28d = channels;
+    // que la IA sepa cuántos ganados no tienen importe, en vez de leer un 0 como "no rinde"
+    snapshot.won_sin_importe_28d = sinPlata;
   } catch (_) { snapshot.channels_28d = {}; }
 
   return snapshot;
