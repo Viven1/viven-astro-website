@@ -1750,7 +1750,8 @@ const newsCases = [
   /* el título acá NO se corta con puntos suspensivos: "Rescatar el funn…" no dice
      qué hay que hacer. Dos líneas de título, tres de detalle. */
   #wq-list .tx b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  #wq-list .tx small{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  #wq-list .wq-det{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  #wq-list .wq-age{opacity:.75;margin-top:2px}
   #wq-list .hm-item{align-items:flex-start}
   .wq-acts{flex:none;display:flex;gap:4px}
   .wq-b{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--muted);font-size:13px;cursor:pointer;line-height:1}
@@ -5569,10 +5570,12 @@ const newsCases = [
       const dias = wqDias(r.approved_at);
       return '<div class="hm-item' + (dias >= 7 ? ' ambar' : '') + '" style="cursor:default">' +
         '<span class="ic">' + (ICONO[r.source] || '📌') + '</span>' +
-        '<span class="tx"><b>' + esc(r.title || '') + '</b><small>' +
-          (r.detail ? esc(String(r.detail).slice(0, 120)) + ' · ' : '') +
-          'aprobado ' + wqEspera(r.approved_at) + (r.status === 'doing' ? ' · en curso' : '') +
-        '</small></span>' +
+        '<span class="tx"><b>' + esc(r.title || '') + '</b>' +
+          (r.detail ? '<small class="wq-det">' + esc(String(r.detail).slice(0, 160)) + '</small>' : '') +
+          // la espera va en su propia línea: es el dato del panel y no puede
+          // quedar cortada por el recorte del detalle
+          '<small class="wq-age">aprobado ' + wqEspera(r.approved_at) + (r.status === 'doing' ? ' · en curso' : '') + '</small>' +
+        '</span>' +
         '<span class="wq-acts">' +
           (r.url ? '<button class="wq-b" data-wq-ir="' + r.id + '" type="button" title="Ver dónde">↗</button>' : '') +
           '<button class="wq-b ok" data-wq-done="' + r.id + '" type="button" title="Marcar como hecho">✓</button>' +
