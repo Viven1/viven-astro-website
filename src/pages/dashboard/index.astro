@@ -3684,7 +3684,20 @@ const newsCases = [
   // No-op fuera de la app nativa (nadie más la llama).
   window.__vivenRegisterDeviceToken = function (token) {
     if (!token) return;
-    supabase.functions.invoke('register-device-token', { body: { device_token: token, platform: 'ios' } }).catch(() => {});
+    supabase.functions.invoke('register-device-token', { body: { device_token: token, platform: 'ios' } })
+      .then(({ error }) => {
+        if (error) return;
+        /* Dentro de la app del iPhone los avisos llegan por APNs, no por Web Push:
+           WKWebView no tiene Push API, así que el chequeo de siempre daba "no
+           soportado" y el header mostraba 🔕 Sin avisos AUNQUE el teléfono
+           estuviera perfectamente registrado. Sebastián lo vio así el 14 ago y
+           preguntó si era normal: no lo era, era el cartel midiendo lo que no
+           corresponde en ese contexto. */
+        window.__apnsOk = true;
+        const w = document.getElementById('push-warn'); if (w) w.hidden = true;
+        const b = document.getElementById('bell-push'); if (b) b.textContent = '📲 Avisos por la app ✓';
+      })
+      .catch(() => {});
   };
 
   // ---- perf instrumentation temporal (2026-07-14, reporte "tarda 30s en entrar") ----
@@ -4827,6 +4840,12 @@ const newsCases = [
   async function refreshPushBtn(){
     const btn = $('bell-push'), warn = $('push-warn');
     const sinPush = (motivo) => { if (warn){ warn.hidden = false; warn.title = motivo; } };
+    // app nativa del iPhone: los avisos van por APNs y el token ya se registró
+    if (window.__apnsOk){
+      if (btn) btn.textContent = '📲 Avisos por la app ✓';
+      if (warn) warn.hidden = true;
+      return;
+    }
     if (!pushSupported()){
       if (btn){ btn.textContent = '📲 Push no disponible'; btn.title = 'En iPhone: instalá la app (Compartir → Añadir a pantalla de inicio) y abrila desde el ícono'; }
       sinPush('Este navegador no soporta notificaciones. En iPhone: instalá la app desde Compartir → Añadir a inicio.');
