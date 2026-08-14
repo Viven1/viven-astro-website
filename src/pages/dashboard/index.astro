@@ -5693,6 +5693,23 @@ const newsCases = [
     const lead90Ids = new Set(leads90.map((l) => String(l.id)));
     const wonFromLeads90 = won90.filter((d) => lead90Ids.has(String(d.lead_id))).length;
     const avgWon = won90.length ? dealsValue(won90) / won90.length : 0;
+    /* Antes que "conseguí N leads nuevos" está lo que YA está afuera esperando
+       respuesta: si las propuestas enviadas cubren el gap, el mes se cierra
+       cobrando eso, no saliendo a buscar gente. Con los números de hoy: faltan
+       CHF 21'220 y hay CHF 39'557 en 4 propuestas — decir "necesitás 137 leads"
+       en vez de eso es empujar al lado equivocado. */
+    const enviadas = (ppList || []).filter((p) => p.status === 'sent' && !p.archived && !p.is_template);
+    const valEnviadas = enviadas.reduce((a, p) => a + propVal(p), 0);
+    if (enviadas.length && valEnviadas >= Math.abs(gap)){
+      const ord = enviadas.map(propVal).sort((a, b) => b - a);
+      let acum = 0, cuantas = 0;
+      for (const v of ord){ acum += v; cuantas++; if (acum >= Math.abs(gap)) break; }
+      act.className = 'rm-action bad';
+      act.textContent = '⚠ Faltan ' + fmtChf(Math.abs(Math.round(gap))) + ' — tenés ' + fmtChf(Math.round(valEnviadas)) +
+        ' afuera en ' + enviadas.length + (enviadas.length === 1 ? ' propuesta enviada' : ' propuestas enviadas') +
+        '. Con que entren ' + (cuantas === 1 ? 'la más grande' : 'las ' + cuantas + ' más grandes') + ', el mes está hecho.';
+      return;
+    }
     // historia suficiente = al menos 10 leads y 2 cierres en 90 días; si no, no inventamos una tasa
     if (leads90.length >= 10 && won90.length >= 2 && wonFromLeads90 >= 1 && avgWon > 0){
       const conv = wonFromLeads90 / leads90.length;
@@ -5884,6 +5901,7 @@ const newsCases = [
     /* --- datos async con cache (los TTLs evitan refetch en cada auto-refresh) --- */
     hmFetchWeeks();
     hmFetchAds();
+    ppEnsureForHome();
     hmAi(false);
     hmOportunidades(false);
     // tasks abiertas por lead (mismo cache que el board de Deals) — alimenta (c) y (e) de Para hoy
@@ -11545,6 +11563,20 @@ const newsCases = [
     const { data, error } = await supabase.from('proposals').select('*').order('updated_at', { ascending: false });
     if (error){ $('opl-empty').hidden = false; $('opl-empty').textContent = 'No se pudo cargar propuestas (¿corriste el SQL 0004_proposals?): ' + error.message; return; }
     ppList = data || []; renderPropList();
+  }
+  /* Hoy necesita las propuestas para dos cosas —"Enviados, esperando" y el pie
+     del mes ("tenés X afuera en N propuestas")— pero ppList solo se llenaba al
+     entrar al tab de Ofertas. Recién ahí aparecían los números: entrando
+     directo a Hoy decía "nada pendiente" con 4 propuestas afuera. Se cargan una
+     vez por sesión, sin renderizar la lista escondida. */
+  let ppHomeFetched = false;
+  async function ppEnsureForHome(){
+    if (ppHomeFetched || ppList.length) return;
+    ppHomeFetched = true;
+    const { data, error } = await supabase.from('proposals').select('*').order('updated_at', { ascending: false });
+    if (error) return;
+    ppList = data || [];
+    try { if (!$('tab-hoy').hidden) renderHome(); } catch (e) { /* ya se va a redibujar solo */ }
   }
   // valor de la propuesta: lo aceptado si ya cerró; si no, el paquete recomendado (o el 1ro)
   const propVal = (p) => {
