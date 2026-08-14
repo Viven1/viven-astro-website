@@ -1697,16 +1697,25 @@ const newsCases = [
      (24px) que hacía sentir todo muy espaciado */
   .hm-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;margin-top:14px;align-items:start}
   .hm-grid .panel{margin-bottom:0}
-  .hm-card{padding:15px 17px}
-  .hm-card h2{font-size:14px;margin-bottom:8px}
+  .hm-card{padding:18px 20px}
+  .hm-card h2{font-size:14px;margin-bottom:11px}
+  /* las filas de todas las listas de Hoy respiran igual */
+  .hm-card .hm-item{padding:13px 6px 13px 14px;gap:12px}
+  .hm-card .hm-item .tx b{line-height:1.35}
+  .hm-card .hm-item .tx small{line-height:1.45;margin-top:3px}
   /* masonry con CSS multi-column (no grid): con un grid de 3 columnas fijas, "Para
      hoy"/"Señales calientes" (cortas) dejaban un agujero enorme debajo mientras la
      3ª columna (Visitas/Ads/IA apiladas) seguía mucho más abajo — acá el browser
      reparte las 5 cards entre columnas balanceando la altura total, así no queda
      una columna corta con espacio muerto al lado de una larga (pedido explícito,
      con captura: "mira todo el dead space") */
-  .hm-masonry{column-count:3;column-width:280px;column-gap:12px;margin-top:14px}
-  .hm-masonry .hm-card{break-inside:avoid;margin-bottom:12px}
+  /* Tres columnas de 280px dejaban títulos partidos en cuatro renglones y
+     botones amontonados — "mirá qué apretado todo, dame más espacio"
+     (Sebastián, 14 ago 2026, con la pantalla llena de tarjetas). Ahora las
+     columnas arrancan en 360px: en un monitor normal siguen entrando dos o
+     tres, pero cada una respira. */
+  .hm-masonry{column-count:3;column-width:360px;column-gap:16px;margin-top:16px}
+  .hm-masonry .hm-card{break-inside:avoid;margin-bottom:16px}
   /* tablet (iPad portrait/landscape, ~620-1180px): "columns:280px 3" colapsaba a
      1 columna ahí porque el ancho de contenido (sidebar + padding descontados)
      no alcanzaba para 2×280px+gap — quedaba todo full-width y desperdiciando
@@ -1772,6 +1781,15 @@ const newsCases = [
   .hm-ads-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   .hm-ads-grid div b{display:block;font-family:'Space Grotesk';font-size:16px}
   .hm-ads-grid div span{color:var(--muted);font-size:11.5px}
+  /* resumen de analítica (ocupa el lugar de Ads cuando no hay inversión) */
+  .hm-an-list{display:grid;gap:7px}
+  .hm-an-row{display:grid;grid-template-columns:1fr 46px 34px 58px;align-items:center;gap:8px;font-size:12.5px}
+  .hm-an-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hm-an-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.10);overflow:hidden}
+  .hm-an-bar i{display:block;height:100%;background:var(--acid);opacity:.75}
+  .hm-an-n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .hm-an-l{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted-2);font-size:11.5px}
+  .hm-an-l.seco{color:#ff8b5e}
   .hm-verdict{font-weight:700;font-size:12.5px;margin-top:10px}
   @media(max-width:1280px){.hm-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:920px){.hm-grid{grid-template-columns:1fr}}
@@ -5371,11 +5389,53 @@ const newsCases = [
     if (cap) cap.textContent = 'esta semana: ' + b[7].toLocaleString('de-CH');
   }
 
+  /* Resumen de analítica: qué temas mira la gente y cuántos leads deja cada uno
+     (rpc_demanda_28d, el mismo dato que alimenta las oportunidades) + visitas y
+     conversión del mes. Ocupa el lugar de Google Ads cuando no hay inversión. */
+  async function hmRenderAnalitica(box){
+    box.innerHTML = '<p class="muted-note">Cargando la analítica…</p>';
+    const dem = await hmDemanda();
+    if (!dem || !dem.length){
+      box.innerHTML = '<p class="muted-note">Sin datos todavía. (Google Ads: cargá la inversión en Analytics → Google Ads.)</p>';
+      return;
+    }
+    // visitas de los últimos 30 días desde el mismo array que ya usa el sparkline
+    const desde30 = Date.now() - 30 * 864e5;
+    const visitas = (hmViews60 || []).filter((v) => Date.parse(v.created_at || '') >= desde30).length;
+    const leads30 = (allLeads || []).filter((l) => Date.now() - Date.parse(l.created_at || '') < 30 * 864e5).length;
+    const personas = dem.reduce((a, d) => a + (+d.personas || 0), 0);
+    const conv = personas ? (leads30 / personas * 100) : 0;
+    const top = dem.slice(0, 5);
+    box.innerHTML =
+      '<p class="muted-note" style="margin:0 0 10px">Sin inversión en Ads cargada — mientras tanto, lo que sí sabemos:</p>' +
+      '<div class="hm-ads-grid" style="margin-bottom:12px">' +
+        '<div><b>' + (visitas ? visitas.toLocaleString('de-CH') : '—') + '</b><span>visitas (30 días)</span></div>' +
+        '<div><b>' + leads30 + '</b><span>leads (30 días)</span></div>' +
+        '<div><b>' + conv.toFixed(1) + '%</b><span>de visitantes deja lead</span></div>' +
+        '<div><b>' + dem.length + '</b><span>temas con tráfico</span></div>' +
+      '</div>' +
+      '<div class="hm-an-list">' + top.map((d) => {
+        const pct = top[0].personas ? Math.round(d.personas / top[0].personas * 100) : 0;
+        const seco = +d.leads === 0;
+        return '<div class="hm-an-row">' +
+          '<span class="hm-an-t">' + esc(d.tema) + '</span>' +
+          '<span class="hm-an-bar"><i style="width:' + pct + '%"></i></span>' +
+          '<span class="hm-an-n">' + d.personas + '</span>' +
+          '<span class="hm-an-l' + (seco ? ' seco' : '') + '">' + d.leads + (seco ? ' leads' : (+d.leads === 1 ? ' lead' : ' leads')) + '</span>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<p class="muted-note" style="margin:10px 0 0">Personas distintas por tema, 28 días. En naranja, lo que trae gente y no deja nada.</p>';
+  }
+
   function hmRenderAds(){
     const box = $('hm-ads'); if (!box) return;
     const spend = hmAds ? (+hmAds.spend || 0) : 0;
     if (!spend){
-      box.innerHTML = '<p class="muted-note">' + (hmAds ? 'Sin datos de Ads — cargá la inversión en Analytics → Google Ads.' : 'Cargando datos de Ads…') + '</p>';
+      /* Sin inversión cargada, esta tarjeta era un cartel muerto ocupando un
+         cuarto de la pantalla. Sebastián, 14 ago: "google ads no tiene info
+         pero sí tenemos toda la analítica, poné resumen ahí". Así que muestra
+         de dónde viene la gente y qué mira — datos que ya tenemos. */
+      hmRenderAnalitica(box);
       return;
     }
     const st = hmAdsStats();
@@ -5511,8 +5571,10 @@ const newsCases = [
     body.querySelectorAll('[data-op]').forEach((b) => b.addEventListener('click', async () => {
       const o = list[+b.dataset.op]; if (!o) return;
       b.disabled = true;
+      // sin url: una oportunidad no tiene "dónde ir", y un ↗ que te deja en la
+      // misma pantalla es peor que no tener botón (lo reportó Sebastián)
       const ok = await wqAdd({ source: 'idea', ref: 'op:' + String(o.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40),
-        title: o.title || 'Oportunidad de la web', detail: o.detail || '', url: '/dashboard/?tab=hoy' });
+        title: o.title || 'Oportunidad de la web', detail: o.detail || '' });
       b.textContent = ok ? '✓ En la cola' : 'Ya estaba';
     }));
   }
@@ -5685,7 +5747,9 @@ const newsCases = [
           '<small class="wq-age">aprobado ' + wqEspera(r.approved_at) + (r.status === 'doing' ? ' · en curso' : '') + '</small>' +
         '</span>' +
         '<span class="wq-acts">' +
-          (r.url ? '<button class="wq-b" data-wq-ir="' + r.id + '" type="button" title="Ver dónde">↗</button>' : '') +
+          // el ↗ solo si lleva a otro lado: un botón que te deja donde ya estás
+          // parece roto (reportado el 14 ago sobre las oportunidades de la web)
+          (r.url && !/^\/dashboard\/\?tab=hoy$/.test(r.url) ? '<button class="wq-b" data-wq-ir="' + r.id + '" type="button" title="Ver dónde">↗</button>' : '') +
           '<button class="wq-b ok" data-wq-done="' + r.id + '" type="button" title="Marcar como hecho">✓</button>' +
           '<button class="wq-b" data-wq-cancel="' + r.id + '" type="button" title="Ya no hace falta">✕</button>' +
         '</span></div>';
@@ -11660,6 +11724,7 @@ const newsCases = [
     const p = ppList.find((x) => String(x.id) === String(btn.dataset.id)); if (!p) return;
     menu.dataset.id = String(p.id);
     menu.innerHTML =
+      (p.slug ? '<button data-act="mail" type="button">📨 Enviar por email</button>' : '') +
       (p.slug ? '<button data-act="link" type="button">🔗 Copiar link</button>' : '') +
       '<button data-act="prev" type="button">👁 Vista previa</button>' +
       '<button data-act="dup" type="button">⧉ Duplicar</button>' +
@@ -11674,7 +11739,8 @@ const newsCases = [
     menu.querySelectorAll('button').forEach((mb) => mb.addEventListener('click', (ev) => {
       ev.stopPropagation(); menu.hidden = true;
       const act = mb.dataset.act;
-      if (act === 'link') copyPropLink(p);
+      if (act === 'mail') sendPropEmail(p);
+      else if (act === 'link') copyPropLink(p);
       else if (act === 'prev') previewPropRow(p);
       else if (act === 'dup') dupProp(p);
       else if (act === 'won') markPropWon(p);
@@ -12216,10 +12282,44 @@ const newsCases = [
       view.hidden = false; view.onclick = () => window.open(url + '&s=1', '_blank');
     } else { box.hidden = true; view.hidden = true; }
   }
+  function propUrl(p){ return PROP_BASE + '/proposal/?id=' + encodeURIComponent(p.slug); }
   function copyPropLink(p){
     if (!p || !p.slug){ toast('Publicá la propuesta primero'); return; }
-    const url = PROP_BASE + '/proposal/?id=' + encodeURIComponent(p.slug);
-    navigator.clipboard.writeText('Propuesta Viven: ' + url + '\nAccess code: ' + (p.password || '')).then(() => toast('Link + password copiados 📋'));
+    navigator.clipboard.writeText('Propuesta Viven: ' + propUrl(p) + '\nAccess code: ' + (p.password || '')).then(() => toast('Link + password copiados 📋'));
+  }
+  /* Mandar ESTA propuesta por email, con SU link y SU password.
+     Sebastián, 14 ago 2026: "dejame enviar propuestas con un link propio, ahora
+     van siempre a propuestas o ofertas y me toca buscar manualmente". El link
+     por propuesta ya existía; lo que faltaba era mandarlo sin salir de la lista:
+     copiar, abrir el mail, pegar, buscar el password. Usa el MISMO send-outreach
+     que el composer del lead, así queda en su timeline como cualquier otro email
+     y no hay un segundo camino de envío que mantener. */
+  const PROP_MAIL = {
+    es: (p, url) => ({ subject: 'Propuesta Viven — ' + (p.title || 'tu proyecto'),
+      body: 'Hola ' + (String(p.client_name || '').split(' ')[0] || '') + ',\n\nAcá está la propuesta:\n' + url +
+        '\n\nCódigo de acceso: ' + (p.password || '—') + '\n\nCualquier duda, respondeme este mail y lo vemos.\n' }),
+    en: (p, url) => ({ subject: 'Viven proposal — ' + (p.title || 'your project'),
+      body: 'Hi ' + (String(p.client_name || '').split(' ')[0] || '') + ',\n\nHere is the proposal:\n' + url +
+        '\n\nAccess code: ' + (p.password || '—') + '\n\nAny questions, just reply to this email.\n' }),
+    de: (p, url) => ({ subject: 'Viven Offerte — ' + (p.title || 'Ihr Projekt'),
+      body: 'Guten Tag ' + (String(p.client_name || '').split(' ')[0] || '') + ',\n\nHier ist die Offerte:\n' + url +
+        '\n\nZugangscode: ' + (p.password || '—') + '\n\nBei Fragen einfach auf diese E-Mail antworten.\n' }),
+  };
+  async function sendPropEmail(p){
+    if (!p || !p.slug){ toast('Publicá la propuesta primero — todavía no tiene link'); return; }
+    const to = String(p.client_email || '').trim();
+    if (!to){ toast('Esta propuesta no tiene email del cliente'); return; }
+    const lang = ['en', 'de', 'es'].includes(p.lang) ? p.lang : 'en';
+    const m = PROP_MAIL[lang](p, propUrl(p));
+    const de = p.sender_key === 'sebastian' ? 'sebastian' : 'sofia';
+    if (!confirm('¿Enviar la propuesta a ' + to + '?\n\nAsunto: ' + m.subject + '\n\nVa con su link y su código de acceso. Sale desde info@viven.ch como ' + (SENDERS[de] || SENDERS.sofia).name + '.')) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('send-outreach', {
+        body: { to, subject: m.subject, body: m.body, lead_id: p.lead_id || null, fromName: (SENDERS[de] || SENDERS.sofia).name },
+      });
+      if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
+      toast('📨 Propuesta enviada a ' + to);
+    } catch (e) { toast('No se pudo enviar: ' + (e.message || e)); }
   }
   // Al cambiar el lead ligado, la consulta/cliente/email SIGUEN al lead nuevo
   // (antes quedaban pegados al primero — mismo bug que tuvimos en ofertas).
