@@ -17,11 +17,23 @@ const T = {
   done: { en: '✓ Downloading — check your folder.', de: '✓ Download läuft — im Ordner nachsehen.', es: '✓ Descargando — revisá tu carpeta.' },
   note: { en: 'No spam — unsubscribe any time.', de: 'Kein Spam — jederzeit abmeldbar.', es: 'Sin spam — baja cuando quieras.' },
 };
+const T2 = {
+  jump: { en: 'Get the free PDF →', de: 'Gratis-PDF holen →', es: 'Bajate el PDF gratis →' },
+};
 const t = (k) => T[k][lang] || T[k].en;
+const t2 = (k) => T2[k][lang] || T2[k].en;
 ---
+{/* El gate quedaba a la mitad del artículo (medido: 2771px de 5637, 49%) y
+    arriba no había nada que dijera que existe un PDF gratis. Este aviso se
+    inserta después de la entradilla y lleva al gate. Idea de CRO aprobada:
+    "si falta el CTA visible, agregarlo above the fold". */}
+<a class="lm-top" href="#lm-gate" data-lm-top>
+  <span class="lm-top-ic">📄</span>
+  <span class="lm-top-tx"><b>{t('title')}</b><small>{t('eyebrow')} · {t2('jump')}</small></span>
+</a>
 <section class="sec" style="padding-top:0">
   <div class="wrap">
-    <div class="lm-gate reveal" data-magnet={magnet}>
+    <div class="lm-gate reveal" id="lm-gate" data-magnet={magnet}>
       <div class="lm-gate-copy">
         <span class="eyebrow">{t('eyebrow')}</span>
         <h2>{t('title')}</h2>
@@ -38,3 +50,35 @@ const t = (k) => T[k][lang] || T[k].en;
     </div>
   </div>
 </section>
+
+<style is:global>
+  /* el aviso viaja al principio del artículo por JS (ver abajo): acá solo el estilo */
+  .lm-top{display:flex;align-items:center;gap:12px;margin:18px 0 26px;padding:11px 14px;
+    border:1px solid rgba(221,249,143,.35);border-radius:12px;background:rgba(221,249,143,.06);
+    text-decoration:none;color:inherit}
+  .lm-top:hover{border-color:var(--acid,#ddf98f)}
+  .lm-top-ic{font-size:20px;flex:none}
+  .lm-top-tx{min-width:0}
+  .lm-top-tx b{display:block;font-size:14.5px;line-height:1.25}
+  .lm-top-tx small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+</style>
+<script is:inline>
+  (function(){
+    var aviso = document.querySelector('[data-lm-top]');
+    var gate = document.getElementById('lm-gate');
+    if (!aviso || !gate) return;
+    /* lo movemos justo después de la entradilla del artículo; si no hay, queda
+       donde está (después del contenido) y no molesta */
+    /* la entradilla real de estas páginas es `.lead` dentro de .wrap; si algún
+       día cambia, el fallback es el primer párrafo largo de la página */
+    var ancla = document.querySelector('.lead')
+      || [].slice.call(document.querySelectorAll('p')).filter(function(p){ return p.textContent.trim().length > 60; })[0];
+    if (ancla && ancla.parentNode) ancla.parentNode.insertBefore(aviso, ancla.nextSibling);
+    aviso.addEventListener('click', function(ev){
+      ev.preventDefault();
+      gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var inp = gate.querySelector('input[type="email"]');
+      if (inp) setTimeout(function(){ inp.focus({ preventScroll: true }); }, 450);
+    });
+  })();
+</script>
