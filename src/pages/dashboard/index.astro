@@ -4207,8 +4207,12 @@ const newsCases = [
       for (let i = 0; i < row.ideas.length; i++){
         const idea = row.ideas[i];
         if ((idea && idea.status) !== 'approved') continue;
+        /* No sabemos el día exacto en que se aprobó (el jsonb no lo guardaba):
+           usamos cuándo se generaron las ideas de esa semana. Es una cota, y se
+           dice en el detalle para no inventar precisión que no tenemos. */
         await wqAdd({ source: 'cro', ref: row.id + ':' + i, title: idea.title || 'Idea de CRO',
-          detail: idea.how || idea.hypothesis || '', url: '/dashboard/?tab=analytics&sub=cro' });
+          detail: (idea.how || idea.hypothesis || '') + ' · aprobada antes de que existiera esta cola',
+          url: '/dashboard/?tab=analytics&sub=cro', approved_at: row.created_at });
       }
     }
   }
@@ -5597,6 +5601,9 @@ const newsCases = [
   async function wqAdd(item){
     const fila = { source: item.source || 'manual', ref: item.ref || null, title: item.title || '(sin título)',
       detail: item.detail || null, url: item.url || null, status: 'pending', approved_by: meEmail || null };
+    // el backfill sabe desde cuándo espera de verdad: sin esto todo lo viejo
+    // aparecía como "aprobado hoy", que es justo lo que hay que poder ver
+    if (item.approved_at) fila.approved_at = item.approved_at;
     const { error } = await supabase.from('work_queue').insert(fila);
     if (error && !/duplicate key|unique/i.test(error.message || '')){ toast('No se pudo encolar: ' + error.message); return false; }
     await wqLoad();
