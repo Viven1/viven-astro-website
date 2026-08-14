@@ -11,9 +11,9 @@
 #
 # Ahora: lo que está en `main` es lo que está publicado. Se merge y sale solo.
 #
-# Necesita dos secrets en el repo (Settings → Secrets → Actions):
-#   CLOUDFLARE_API_TOKEN   — token con permiso "Edit Cloudflare Workers"
-#   CLOUDFLARE_ACCOUNT_ID  — el ID de la cuenta de Cloudflare
+# Necesita UN secret en el repo (Settings → Secrets → Actions):
+#   CLOUDFLARE_API_TOKEN — token con permiso "Edit Cloudflare Workers"
+# (el account_id no es secreto y vive en wrangler.jsonc)
 
 name: Publicar viven.ch
 
@@ -46,10 +46,11 @@ jobs:
       # propósito: esas dos cosas no rompen la compilación pero sí el sitio vivo.
       - run: npm run build
 
+      # El account_id vive en wrangler.jsonc (identifica, no autoriza), así que
+      # el único secret que hace falta es el token.
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # Verificar, no suponer. Un deploy "exitoso" que devuelve 404 en la home
       # ya pasó; el paso falla y queda registrado en Actions en vez de descubrirse
