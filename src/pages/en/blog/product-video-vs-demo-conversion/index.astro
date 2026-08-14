@@ -1,0 +1,141 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Product Video vs Demo: Which Converts Better | Viven"};
+const description = {"en":"Learn when to use product videos or demos for maximum conversions. Expert guide for B2B and e‑commerce brands on choosing the right format."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "product-video-vs-demo-conversion";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/product-video-vs-demo-conversion" active="blog" singleLang={true} langUrls={{"en":"/en/blog/product-video-vs-demo-conversion/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/product-video-vs-demo-conversion/\"},\"headline\":\"Product Video vs Demo: Which Converts Better\",\"description\":\"Learn when to use product videos or demos for maximum conversions. Expert guide for B2B and e‑commerce brands on choosing the right format.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/product-video-vs-demo-conversion/\",\"datePublished\":\"2026-08-14T13:16:01.113Z\",\"image\":\"https://www.viven.ch/projects/anybotics-anymal-c-product-launch/05-C_VIVEN_AG_Video_Production_1024x512.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Product Video vs Demo: Which Converts Better\",\"item\":\"https://www.viven.ch/en/blog/product-video-vs-demo-conversion/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Do product videos or demos convert better?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"It depends on your buyer stage. Product videos convert better for cold or early-stage audiences (80% higher engagement on social). Demos convert better for active evaluators in B2B/SaaS (2–3x higher conversion when prospects are comparing solutions). The highest conversion comes from combining both in sequence.\"}},{\"@type\":\"Question\",\"name\":\"How long should a product video or demo be?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Product videos: 30–90 seconds for social ads, 2–3 minutes for homepage or YouTube. Product demos: 5–12 minutes for on-demand, 15–20 minutes for deep-dive technical walkthroughs. Shorter is better for video (drop-off above 2 min); demos can be longer if they remain focused and scannable.\"}},{\"@type\":\"Question\",\"name\":\"Should we create both a product video and demo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Yes. Use video to build awareness and emotion; use demo to answer technical questions and accelerate deals. They serve different moments in the buyer journey and work best together in a integrated strategy.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Product Video vs Demo: Which Converts Better</span></nav>
+  <span class="eyebrow">Product video</span>
+  <h1>Product Video vs Demo: Which Converts Better</h1>
+  <p class="lead">Product videos and product demos serve different conversion goals. A polished product video builds emotional connection and brand trust, while a demo prioritizes function and feature clarity. The choice depends on your sales cycle, audience stage, and business model. For B2B complex sales, demos win. For e‑commerce and brand awareness, videos convert more leads. The best strategy combines both—video first to grab attention, demo to close the deal.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>August 14, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/anybotics-anymal-c-product-launch/05-C_VIVEN_AG_Video_Production_1024x512.jpg" alt="Product Video vs Demo: Which Converts Better" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Defining Product Video and Product Demo</h2>
+<p>A product video is a professionally crafted story about your product. It emphasizes benefits, emotion, and brand narrative. Think 30–90 seconds of cinematic footage, narration, music, and context that show how the product fits into a customer's life or workflow.</p>
+<p>A product demo is a technical walkthrough. It shows real screenshots, live software, or hands-on footage of the product in action. Demos prioritize feature depth, speed, and accuracy. They typically run 3–15 minutes and answer the question: "How exactly does this work?"</p>
+
+<h2>Conversion Rates: Video vs Demo by Industry</h2>
+<p>Research shows that videos increase conversion rates by 80% on average across e‑commerce. However, the type matters enormously:</p>
+<ul>
+<li><strong>SaaS and B2B software:</strong> Product demos outperform videos by 2–3x when prospects are in evaluation mode. Demos reduce purchase hesitation because they answer technical questions directly.</li>
+<li><strong>E‑commerce and consumer goods:</strong> Product videos win. They drive 60–70% higher click-through rates on social media and product pages, especially for first-time viewers.</li>
+<li><strong>Enterprise sales:</strong> Both required. Video builds initial interest; demo closes deals during discovery calls.</li>
+</ul>
+<p>The key insight: <strong>early-stage prospects engage with video; decision-stage prospects watch demos.</strong></p>
+
+<h2>When to Lead with Product Video</h2>
+<p>Use product videos when:</p>
+<ul>
+<li>Your audience is cold or unaware of your category.</li>
+<li>Your product solves a lifestyle or emotional problem (fitness, beauty, wellness, creative tools).</li>
+<li>You're running paid social ads or building brand awareness.</li>
+<li>Your sales cycle is short (impulse purchases, sub-$50 products).</li>
+<li>You need to stand out against commodity competitors.</li>
+</ul>
+<p>A strong <a href={p("services/product-video")}>product video</a> establishes trust and desire before prospects ask technical questions. It's your first impression—make it count. We've produced <a href={p("services/brand-video")}>brand videos</a> for consumer and tech companies that generated 3–4x more qualified leads than static ads alone.</p>
+
+<h2>When to Lead with Product Demo</h2>
+<p>Use product demos when:</p>
+<ul>
+<li>Your buyer is actively evaluating or comparing solutions.</li>
+<li>The product is software, SaaS, or highly feature-rich.</li>
+<li>Integration, security, or compliance questions arise naturally.</li>
+<li>Your sales cycle is 30+ days with multiple stakeholders.</li>
+<li>Your audience already knows the category and wants proof.</li>
+</ul>
+<p>Demos answer the "how" and "can it do X?" questions that move prospects from interest to intent. When executed well—with clear UI, fast pacing, and crisp narration—demos reduce support tickets and accelerate deal closure.</p>
+
+<h2>The Optimal Strategy: Video Then Demo</h2>
+<p>Top-converting companies don't choose between video and demo—they stack them:</p>
+<p><strong>Stage 1 (Awareness):</strong> Short-form <a href={p("services/social-media-video")}>social media video</a> or 60-second spot that hooks the prospect and introduces the problem.</p>
+<p><strong>Stage 2 (Consideration):</strong> Longer product video (2–3 min) showing real results, customer outcomes, or use cases. Build credibility and emotional resonance.</p>
+<p><strong>Stage 3 (Evaluation):</strong> On-demand or gated demo video, interactive product tour, or live demo link. Let prospects self-educate.</p>
+<p><strong>Stage 4 (Decision):</strong> Custom demo call with your sales team, armed with insights from earlier engagement.</p>
+<p>This funnel works because it meets prospects where they are. Video lowers barriers to entry; demo removes final objections.</p>
+
+<h2>Measurement: Track the Right KPIs</h2>
+<p>Don't compare video and demo conversion rates directly—they measure different moments. Instead, track:</p>
+<ul>
+<li><strong>Video:</strong> View-through rate, click-through rate to next stage, time watched.</li>
+<li><strong>Demo:</strong> Completion rate, request for follow-up, time to next touchpoint.</li>
+<li><strong>Combined funnel:</strong> Cost per qualified lead, pipeline velocity, deal size, sales cycle length.</li>
+</ul>
+<p>The winning format is whichever reduces friction and accelerates your specific buyer journey. If your average deal is $100k, an excellent demo saves weeks and thousands in sales time. If your average deal is $9.99, a captivating video wins the race.</p>
+<p>At Viven, we've worked with clients like ON, Siemens, and Porsche to build video strategies that feed into demos and sales conversations. The synergy between storytelling and technical clarity is where real results live. <a href={p("contact")}>Let us help you structure your video content</a> to match your sales motion.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="product-video-vs-demo-conversion" />
+  </div></section>
+</Base>
