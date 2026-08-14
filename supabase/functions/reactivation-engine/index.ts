@@ -35,6 +35,15 @@ const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABA
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
+/* Regla de Sebastián, 14 ago 2026: "nunca digas vi que miraste la propuesta o la
+ * página web, eso es creepy. Pero si mira algo de eso nos avisás y mandamos un
+ * follow-up — más de casualidad que de stalker."
+ *
+ * Las señales de comportamiento (abrió la propuesta, entró al sitio, vio un
+ * video) deciden CUÁNDO escribimos, nunca QUÉ decimos. Adentro del texto no
+ * aparecen jamás, ni insinuadas. */
+const SIN_ESPIAR = "NEVER mention or hint at tracking signals: that they opened the proposal, visited the website, watched a video, how many pages they saw, or when. Those signals are internal only — they decide when we write, never what we say. Write as if we simply thought of them; a light, casual nudge, never surveillance.";
+
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Content-Type": "application/json" } });
 
@@ -118,7 +127,7 @@ async function aiDraft(kind: "won" | "lost", lead: Lead, context: string): Promi
   const lang = langOf(lead);
   const sys = `You write as Sebastian Cepeda, founder of VIVEN AG, a video production company in Zürich (produced the first Swiss feature film on Netflix; clients include UBS, Siemens, Porsche, FIFA): direct, generous, entrepreneurial, zero hype.
 Language: ${LANG_RULES[lang]}
-Plain text only, 80-140 words, short paragraphs separated by \\n\\n, exactly ONE call to action, no bullet lists, no emojis, no multiple exclamation marks. Sign with "Sebastian" only. NEVER invent facts, projects, numbers or news not present in the context. Internal CRM notes in the context are background only — never quote or reveal them.
+Plain text only, 80-140 words, short paragraphs separated by \\n\\n, exactly ONE call to action, no bullet lists, no emojis, no multiple exclamation marks. Sign with "Sebastian" only. NEVER invent facts, projects, numbers or news not present in the context. Internal CRM notes in the context are background only — never quote or reveal them. ${SIN_ESPIAR}
 Output ONLY a single valid minified JSON object {"subject":"...","body":"..."} — no markdown, no fences, no commentary.`;
   const task = kind === "won"
     ? `TASK: Re-engagement email to a PAST CLIENT we already delivered a project for. Reference the concrete previous project (what we produced, for which brand/company — use the real project data below). Warmly propose picking things up again: a follow-up, an update of the existing video, or a new project for this year. Low pressure, high familiarity — we know each other. CTA: a short call or reply to exchange ideas.`

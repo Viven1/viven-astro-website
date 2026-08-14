@@ -26,6 +26,15 @@ const cors = {
 
 // mismo tono por remitente que automations-run (aiDraft) — coherencia de voz
 // entre los emails automáticos y los que se generan a mano desde la ficha.
+/* Regla de Sebastián, 14 ago 2026: "nunca digas vi que miraste la propuesta o la
+ * página web, eso es creepy. Pero si mira algo de eso nos avisás y mandamos un
+ * follow-up — más de casualidad que de stalker."
+ *
+ * Las señales de comportamiento (abrió la propuesta, entró al sitio, vio un
+ * video) deciden CUÁNDO escribimos, nunca QUÉ decimos. Adentro del texto no
+ * aparecen jamás, ni insinuadas. */
+const SIN_ESPIAR = "NEVER mention or hint at tracking signals: that they opened the proposal, visited the website, watched a video, how many pages they saw, or when. Those signals are internal only — they decide when we write, never what we say. Write as if we simply thought of them; a light, casual nudge, never surveillance.";
+
 const VOICE: Record<string, string> = {
   sofia: "You write as Sofia Treviño, producer at VIVEN: warm, precise, service-minded, zero fluff.",
   sebastian: "You write as Sebastian Cepeda, founder of VIVEN (produced the first Swiss feature film on Netflix): direct, generous, entrepreneurial, zero hype.",
@@ -66,7 +75,7 @@ Deno.serve(async (req) => {
     // tapando el brief real con la pregunta del cliente. Fix real iba en
     // latestBriefFor() (index.astro), no en este prompt — se lo deja reforzado
     // igual porque ayuda independientemente de cuál sea la fuente del dato.
-    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully. If a block is marked ⚠️ / "SUS PROPIAS PALABRAS" / "own words", that is the contact's own literal free-text message — it overrides any multiple-choice bracket elsewhere in the context (e.g. a "<5k" budget checkbox is NOT the same thing as "CHF 500-1499"). If it contains a specific number, range, or direct question, quote that exact number/range back to them and give a direct explicit answer (yes / no / it depends and why) as the main point of the email — never dodge with a vague acknowledgment like "the budget you mentioned." Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
+    const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Write a COMPLETE, ready-to-send email — greeting, body, sign-off. Read the ENTIRE context below carefully. If a block is marked ⚠️ / "SUS PROPIAS PALABRAS" / "own words", that is the contact's own literal free-text message — it overrides any multiple-choice bracket elsewhere in the context (e.g. a "<5k" budget checkbox is NOT the same thing as "CHF 500-1499"). If it contains a specific number, range, or direct question, quote that exact number/range back to them and give a direct explicit answer (yes / no / it depends and why) as the main point of the email — never dodge with a vague acknowledgment like "the budget you mentioned." Plain text only, 60-180 words, ONE clear next step, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts, prices, or commitments not present in the context. ${SIN_ESPIAR} Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \\n\\n.`;
 
     // últimas entradas reales del hilo (ambas direcciones) — el dashboard ya las
     // tiene cargadas en la timeline, se las pasa acá tal cual, sin re-consultar.

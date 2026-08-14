@@ -34,6 +34,18 @@ const ANTHROPIC = Deno.env.get("ANTHROPIC_API_KEY")!;
 // y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
 // protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
 const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
+/* Regla de Sebastián, 14 ago 2026: "nunca digas vi que miraste la propuesta o la
+ * página web, eso es creepy. Pero si mira algo de eso nos avisás y mandamos un
+ * follow-up — más de casualidad que de stalker."
+ *
+ * O sea: las señales de comportamiento (abrió la propuesta, entró al sitio, vio
+ * un video, cuántas páginas) sirven para decidir CUÁNDO escribir y con qué tono.
+ * Adentro del texto no aparecen nunca, ni insinuadas. El mail tiene que poder
+ * leerse como si nos hubiéramos acordado de esa persona, no como si la
+ * estuviéramos mirando por la ventana. Va en TODOS los prompts que escriben a
+ * un cliente. */
+const SIN_ESPIAR = "NEVER mention or hint at tracking signals: that they opened the proposal, visited the website, watched a video, how many pages they saw, or when. Those signals are internal only — they decide when we write, never what we say. Write as if we simply thought of them; a light, casual nudge, never surveillance.";
+
 const VOICE: Record<string, string> = {
   sofia: "You write as Sofia Treviño, producer at VIVEN: warm, precise, service-minded, zero fluff.",
   sebastian: "You write as Sebastian Cepeda, founder of VIVEN (produced the first Swiss feature film on Netflix): direct, generous, entrepreneurial, zero hype.",
@@ -41,7 +53,7 @@ const VOICE: Record<string, string> = {
 };
 async function aiDraft(lead: Record<string, unknown>, prompt: string, sender: string): Promise<{ subject: string; body: string } | null> {
   const lang = ["en", "de", "es"].includes(String(lead.lang)) ? String(lead.lang) : "en";
-  const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Plain text only, 60-120 words, ONE call to action, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts not present in the context. Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \n\n.`;
+  const sys = `${VOICE[sender] || VOICE.team} Language: ${lang === "de" ? "Swiss High German (Sie form, NEVER ß — always ss)" : lang === "es" ? "Spanish (voseo friendly but professional)" : "English"}. Plain text only, 60-120 words, ONE call to action, no marketing hype, no multiple exclamation marks, no emojis unless natural. Sign with the sender's first name only. Never invent facts not present in the context. ${SIN_ESPIAR} Output ONLY minified JSON {"subject":"...","body":"..."} — body paragraphs separated by \n\n.`;
   const ctx = `CONTACT: ${lead.name || ""} · ${lead.company || ""} · stage: ${lead.status || "nuevo"} · source: ${lead.source || "form"} · their original message: "${String(lead.message || "").slice(0, 500)}"`;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
