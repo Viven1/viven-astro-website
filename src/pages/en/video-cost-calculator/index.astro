@@ -34,15 +34,15 @@ const description = {"en":"Get an instant CHF price range for your video project
   </div>
 
   <div class="calc-form" id="calc-form-box" hidden>
-    <h2>Want a no-strings quote with real numbers?</h2>
-    <p class="form-note" style="margin:-4px 0 12px">We'll put together a real proposal for your project, itemised. No obligation.</p>
+    <h2>Want the breakdown by email?</h2>
+    <p class="form-note" style="margin:-4px 0 12px">You'll get it itemised, to keep on hand and share internally.</p>
     <form id="calc-form" autocomplete="on">
       <input type="text" id="cf-first" placeholder="First name" autocomplete="given-name" required />
       <input type="text" id="cf-last" placeholder="Last name" autocomplete="family-name" required />
       <input type="email" id="cf-email" placeholder="Work email" required />
-      <input type="text" id="cf-co" placeholder="Company" autocomplete="organization" required />
+      <input type="text" id="cf-co" placeholder="Company (optional)" autocomplete="organization" />
       <input type="text" id="cf-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
-      <button class="btn btn-primary" type="submit">Send me the proposal →</button>
+      <button class="btn btn-primary" type="submit">Email me the breakdown →</button>
     </form>
     <p class="form-note">We reply within one business day with a concrete proposal. No spam, ever.</p>
     <p class="form-note calc-privacy">By submitting, you agree we may email you your estimate and follow up about your project. See our <a href="/en/privacy-policy/" style="color:inherit;text-decoration:underline">Privacy Policy</a>. No spam, ever.</p>
@@ -160,37 +160,7 @@ const description = {"en":"Get an instant CHF price range for your video project
     var b = document.querySelector('.calc-chips[data-group="' + g + '"] button[data-v="0"]');
     if(b) b.classList.add('on');
   });
-  var T3 = { chico: { n: 'Essential', s: 'what it takes to ship', i: 'Full production, no extras' },
-             medio: { n: 'What you asked for', s: 'your exact configuration', i: '' },
-             grande:{ n: 'Extended', s: 'with what usually gets added', i: '' } };
 
-  /* Los TRES paquetes de la propuesta. Salen de lo que la persona eligió, no de
-     una plantilla: el del medio ES su configuración exacta (Sebastián: "si eligió
-     un precio como base usa ese también"), el chico saca lo prescindible y el
-     grande suma lo que no marcó. Los precios se calculan acá porque acá vive la
-     tabla de precios — la edge function no la duplica. */
-  function tresPaquetes(r){
-    var incluye = r.lines.map(function(l){ return l[0] + ' — ' + fmt(l[1]); });
-    var base = r.total;
-    // chico: sin extras marcados y con una sola jornada
-    var sinExtras = 0; for(var k in sel.extras){ if(sel.extras[k]) sinExtras += PRICE.extras[k]; }
-    var menosDias = PRICE.days[sel.days] || 0;
-    var chico = Math.max(Math.round((base - sinExtras - menosDias) / 500) * 500, Math.round(base * 0.6 / 500) * 500);
-    // grande: lo elegido + los extras que NO marcó
-    var sumaExtras = 0, nuevos = [];
-    Object.keys(PRICE.extras).forEach(function(k){
-      if(!sel.extras[k]){ sumaExtras += PRICE.extras[k]; nuevos.push(ITEMS[k] + ' — ' + fmt(PRICE.extras[k])); }
-    });
-    var grande = Math.round((base + sumaExtras) / 500) * 500;
-    return [
-      { name: T3.chico.n, subtitle: T3.chico.s, price: chico, discount_pct: 0,
-        includes: [T3.chico.i].concat(incluye.filter(function(x){ return !/(\+|extra)/i.test(x); }).slice(0, 6)) },
-      { name: T3.medio.n, subtitle: T3.medio.s, price: Math.round(base / 100) * 100, discount_pct: 0, recommended: true,
-        includes: incluye },
-      { name: T3.grande.n, subtitle: T3.grande.s, price: grande, discount_pct: 0,
-        includes: incluye.concat(nuevos) }
-    ];
-  }
 
   document.getElementById('calc-form').addEventListener('submit', function(ev){
     ev.preventDefault();
@@ -203,7 +173,7 @@ const description = {"en":"Get an instant CHF price range for your video project
     var co = document.getElementById('cf-co').value.trim();
     /* nombre, apellido y empresa son obligatorios: con eso se puede armar una
        propuesta de verdad sin volver a preguntar (pedido de Sebastián, 14 ago) */
-    if (!first || !last || !co || !email) return;
+    if (!first || !last || !email) return;
     var cfg = [];
     document.querySelectorAll('.calc-chips button.on').forEach(function(b){ cfg.push(b.textContent.trim()); });
     var row = { name: name, first_name: first, last_name: last || null,
@@ -214,7 +184,7 @@ const description = {"en":"Get an instant CHF price range for your video project
       if(extra.attrib){ row.channel = extra.attrib.channel; row.gclid = extra.attrib.gclid; row.utm_source = extra.attrib.utm_source; row.utm_campaign = extra.attrib.utm_campaign; row.landing_path = extra.attrib.landing_path; } }
     var abT = window.vvAbTags ? window.vvAbTags() : window.__vvAB; if(abT) row.ab = abT;   /* tags A/B de esta u otras páginas */
     var submitBtn = document.querySelector('#calc-form button[type="submit"]');
-    var origLabel = submitBtn.textContent; submitBtn.disabled = true; submitBtn.textContent = 'Building your proposal…';
+    var origLabel = submitBtn.textContent; submitBtn.disabled = true; submitBtn.textContent = 'Sending your breakdown…';
     var done = function(){
       document.getElementById('calc-form-box').hidden = true;
       var res = document.getElementById('calc-result');
@@ -222,27 +192,15 @@ const description = {"en":"Get an instant CHF price range for your video project
       res.hidden = false;
       res.scrollIntoView({behavior:'smooth', block:'start'});
     };
-    /* La propuesta se crea con TODO lo que dio la persona: sus datos, su
-       configuración y los tres paquetes. Queda en borrador y nos avisa por push
-       y email para aprobarla — al cliente no le sale nada de acá. */
-    var crearPropuesta = function(leadId){
-      if(!window.sbCallFunction) return;
-      window.sbCallFunction('calc-proposal', {
-        lead_id: leadId || null, first_name: first, last_name: last, email: email, company: co,
-        lang: (extra && extra.lang) || document.documentElement.lang || 'en',
-        tiers: tresPaquetes(r), config: cfg, rango: fmt(r.lo) + '–' + fmt(r.hi),
-        session_id: extra && extra.session_id
-      });
-    };
     var sendEmail = function(){
       if(window.sbCallFunction){
         window.sbCallFunction('calc-email', { to: email, name: name, lang: (extra && extra.lang) || document.documentElement.lang || 'en', lines: r.lines, lo: r.lo, hi: r.hi, config: cfg });
       }
     };
     if(window.sbInsertLead){ window.sbInsertLead(row).then(function(res){
-        crearPropuesta(res && (res.id || (res.data && res.data.id))); sendEmail(); done();
-      }, function(){ crearPropuesta(null); sendEmail(); done(); }); }
-    else { crearPropuesta(null); sendEmail(); done(); }
+        sendEmail(); done();
+      }, function(){ sendEmail(); done(); }); }
+    else { sendEmail(); done(); }
   });
 
   /* preset por URL (?type=brand|product|eb|employer|howto|social|corporate):
