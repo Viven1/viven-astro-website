@@ -1769,6 +1769,10 @@ const newsCases = [
   .hm-op-t{font-weight:700;font-size:13.5px;line-height:1.3}
   .hm-op-d{color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:3px}
   .hm-op-a{margin-top:8px}
+  /* borradores para mandar: asunto en blanco, cuerpo en gris y recortado, para
+     poder decidir sin abrir nada */
+  .sq-subj{color:var(--text)!important;font-weight:600}
+  .sq-body{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .wq-acts{flex:none;display:flex;gap:4px}
   .wq-b{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--muted);font-size:13px;cursor:pointer;line-height:1}
   .wq-b:hover{border-color:var(--acid);color:var(--acid)}
@@ -2075,6 +2079,15 @@ const newsCases = [
         <h2>🤖 Aprobado, falta hacerlo <span class="count" id="wq-n"></span></h2>
         <div class="hm-list" id="wq-list"></div>
         <p class="muted-note" id="wq-note" style="margin:8px 0 0"></p>
+      </div>
+      <!-- Borradores listos esperando tu ok. Es la mitad "a quién le escribo"
+           del pedido: el texto ya está escrito, vos aprobás y sale. Aprobar deja
+           10 minutos de arrepentimiento antes de que salga de verdad. -->
+      <div class="panel hm-card" id="sq-card" hidden>
+        <h2>📤 Para mandar <span class="count" id="sq-n"></span></h2>
+        <div class="hm-list" id="sq-list"></div>
+        <div style="margin-top:10px"><button class="btn btn-ghost small" id="sq-write" type="button">✍️ Escribir el próximo</button></div>
+        <p class="muted-note" id="sq-note" style="margin:8px 0 0"></p>
       </div>
       <div class="panel hm-card">
         <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
@@ -5193,7 +5206,7 @@ const newsCases = [
       const l = leadById(o.lead_id) || {};
       const opened = o.last_open_at && (now - Date.parse(o.last_open_at)) < 2 * D;
       if (o.lead_id) busyLeads.add(String(o.lead_id));
-      items.push({ rank: opened ? -1 : 0, sev: 'rojo', icon: '🧾', at: ref,
+      items.push({ rank: opened ? -1 : 0, sev: 'rojo', icon: '🧾', at: ref, leadId: o.lead_id || null,
         t: o.title || ('Oferta ' + (o.number || '#' + o.id)),
         ctx: [l.name || l.email || o.client || '', 'esperando hace ' + days + ' d'].filter(Boolean).join(' · ') +
           (opened ? ' · abrió el email hace ' + timeAgo(o.last_open_at) + ' → seguir HOY' : ''),
@@ -5207,11 +5220,11 @@ const newsCases = [
       const goP = p.lead_id ? () => openLead(p.lead_id) : () => gotoTab('props');
       if (days > 8){
         if (p.lead_id) busyLeads.add(String(p.lead_id));
-        items.push({ rank: 1, sev: 'rojo', icon: '🌐', at: ref, t: p.title || 'Propuesta',
+        items.push({ rank: 1, sev: 'rojo', icon: '🌐', at: ref, leadId: p.lead_id || null, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', 'publicada hace ' + days + ' d sin respuesta'].filter(Boolean).join(' · '),
           hint: 'Follow-up →', go: goP });
       } else if (days > 2 && !p.last_view_at){
-        items.push({ rank: 5, sev: 'azul', icon: '👁', at: ref, t: p.title || 'Propuesta',
+        items.push({ rank: 5, sev: 'azul', icon: '👁', at: ref, leadId: p.lead_id || null, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', 'publicada hace ' + days + ' d · 0 vistas — ¿le llegó el link?'].filter(Boolean).join(' · '),
           hint: 'Reenviar →', go: goP });
       }
@@ -5225,14 +5238,14 @@ const newsCases = [
         const r = leadById(d.lead_id) || {};
         if (dlTasksMap[String(d.lead_id)] || r.next_follow_up_at) return;
         const stLabel = (STAGES.find((s) => s.key === stageOf(d.stage)) || {}).label || '';
-        items.push({ rank: 2, sev: 'rojo', icon: '🤝', at: now - days * D, t: d.title || r.name || r.email || '(deal)',
+        items.push({ rank: 2, sev: 'rojo', icon: '🤝', at: now - days * D, leadId: d.lead_id || null, t: d.title || r.name || r.email || '(deal)',
           ctx: days + ' d en ' + stLabel + ' · sin próximo paso',
           hint: 'Definir paso →', go: () => (d.lead_id ? openLead(d.lead_id) : gotoTab('deals')) });
       });
     }
     // (d) leads nuevos sin contactar <72h (los manuales los cargamos nosotros — no urgen)
     (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && isNew(l.status) && l.channel !== 'manual' && (now - Date.parse(l.created_at)) < 72 * 36e5).forEach((l) => {
-      items.push({ rank: 3, sev: 'ambar', icon: '📥', at: Date.parse(l.created_at), t: l.name || l.email || '(lead)',
+      items.push({ rank: 3, sev: 'ambar', icon: '📥', at: Date.parse(l.created_at), leadId: l.id, t: l.name || l.email || '(lead)',
         ctx: 'lead nuevo hace ' + timeAgo(l.created_at) + ' · sin contactar', hint: 'Contactar →', go: () => openLead(l.id) });
     });
     // (e) tasks para hoy o vencidas, mías o sin asignar (mismo criterio que la campana)
@@ -5533,6 +5546,95 @@ const newsCases = [
   }
   $('hm-ai-btn').addEventListener('click', () => hmAi(true));
 
+  /* ---------- 📤 Para mandar: borradores esperando el ok ----------
+     Reusa la bandeja de salida que ya existe (tabla outbox) y su camino de
+     envío: aprobar deja status='approved' con 10 minutos de ventana, y
+     automations-run lo manda pasada la ventana. NO hay un segundo camino de
+     envío — un email que sale por dos lados distintos es un email que algún día
+     sale dos veces. */
+  let sqRows = [];
+  async function sqLoad(){
+    const { data, error } = await supabase.from('outbox')
+      .select('id,lead_id,subject,body,sender,kind,created_at')
+      .eq('status', 'pending').order('created_at', { ascending: true }).limit(12);
+    sqRows = error ? [] : (data || []);
+    sqRender();
+  }
+  function sqRender(){
+    const card = $('sq-card'), list = $('sq-list'); if (!card || !list) return;
+    card.hidden = false;                                  // el botón de escribir vive acá aunque no haya nada
+    $('sq-n').textContent = sqRows.length || '';
+    if (!sqRows.length){
+      list.innerHTML = '<p class="muted-note" style="margin:0">Ningún borrador esperando. Escribí el próximo con el botón de abajo.</p>';
+      $('sq-note').textContent = '';
+      return;
+    }
+    list.innerHTML = sqRows.map((o) => {
+      const l = leadById(o.lead_id) || {};
+      const quien = l.name || l.company || l.email || ('lead ' + o.lead_id);
+      const cuerpo = String(o.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return '<div class="hm-item" style="cursor:default;align-items:flex-start">' +
+        '<span class="ic">✉️</span>' +
+        '<span class="tx">' +
+          '<b>' + esc(quien) + '</b>' +
+          '<small class="sq-subj">' + esc(o.subject || '(sin asunto)') + '</small>' +
+          '<small class="sq-body">' + esc(cuerpo.slice(0, 180)) + (cuerpo.length > 180 ? '…' : '') + '</small>' +
+        '</span>' +
+        '<span class="wq-acts">' +
+          '<button class="wq-b ok" data-sq-ok="' + o.id + '" type="button" title="Aprobar y enviar">✓</button>' +
+          '<button class="wq-b" data-sq-ed="' + o.id + '" type="button" title="Editar en la Bandeja">✎</button>' +
+          '<button class="wq-b" data-sq-no="' + o.id + '" type="button" title="No enviar">✕</button>' +
+        '</span></div>';
+    }).join('');
+    $('sq-note').textContent = 'Al aprobar quedan 10 minutos para deshacerlo antes de que salga.';
+    list.querySelectorAll('[data-sq-ok]').forEach((b) => b.addEventListener('click', async () => {
+      const o = sqRows.find((x) => String(x.id) === b.dataset.sqOk); if (!o) return;
+      const l = leadById(o.lead_id) || {};
+      if (!confirm('¿Aprobar este email para ' + (l.name || l.email || 'este contacto') + '?\n\nAsunto: ' + (o.subject || '') + '\n\nSale en 10 minutos — hasta entonces se puede deshacer desde la Bandeja.')) return;
+      const { error } = await supabase.from('outbox').update({ status: 'approved', scheduled_at: obUndoSched(o.id) }).eq('id', o.id);
+      if (error){ toast('No se pudo aprobar: ' + error.message); return; }
+      toast('✅ Aprobado — sale en 10 minutos'); sqLoad();
+    }));
+    list.querySelectorAll('[data-sq-ed]').forEach((b) => b.addEventListener('click', () => {
+      gotoTab('sistema'); sistemaSetSub('auto'); obFocus(b.dataset.sqEd);
+    }));
+    list.querySelectorAll('[data-sq-no]').forEach((b) => b.addEventListener('click', async () => {
+      await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.sqNo);
+      toast('✕ No se envía'); sqLoad();
+    }));
+  }
+  /* Escribir el próximo: agarra a la persona más urgente de "Para hoy" que
+     todavía no tenga borrador, le escribe el email con la IA (leyendo su
+     conversación real) y lo deja acá para aprobar. Nunca manda solo. */
+  async function sqWriteNext(){
+    const btn = $('sq-write'); if (!btn || btn.disabled) return;
+    const conBorrador = new Set(sqRows.map((o) => String(o.lead_id)));
+    const cand = hmTodayItems().map((i) => i.leadId).filter(Boolean)
+      .find((id) => !conBorrador.has(String(id)));
+    if (!cand){ toast('No hay nadie pendiente sin borrador'); return; }
+    const r = leadById(cand);
+    if (!r || !r.email){ toast('Ese contacto no tiene email'); return; }
+    btn.disabled = true; btn.textContent = '✍️ Escribiendo a ' + (r.name || r.email) + '…';
+    try {
+      const { data: hist } = await supabase.from('email_log').select('direction,subject,body').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(8);
+      const history = (hist || []).map((h) => ({ direction: h.direction, subject: h.subject, body: String(h.body || '').replace(/<[^>]+>/g, ' ').slice(0, 800) }));
+      /* lead ACOTADO: mandar la fila entera arrastra el enrichment de la IA y
+         otros campos largos, y el modelo devolvía texto suelto en vez del JSON
+         ("formato inesperado", visto al probarlo). Con los campos que la
+         función realmente usa, contesta bien. */
+      const magro = { id: r.id, name: r.name, first_name: r.first_name, email: r.email, company: r.company,
+        status: r.status, channel: r.channel, lang: r.lang, message: String(r.message || '').slice(0, 1500) };
+      const { data, error } = await supabase.functions.invoke('ai-email-draft', { body: { lead: magro, sender, hint: '', history, brief: '' } });
+      if (error || !data || data.error || !data.body) throw new Error(data?.error || error?.message || 'sin respuesta');
+      const { error: e2 } = await supabase.from('outbox').insert({
+        lead_id: r.id, kind: 'followup', sender, subject: data.subject || '', body: data.body, status: 'pending' });
+      if (e2) throw new Error(e2.message);
+      toast('✍️ Borrador listo para ' + (r.name || r.email));
+      await sqLoad();
+    } catch (e) { toast('No se pudo escribir: ' + (e.message || e)); }
+    finally { btn.disabled = false; btn.textContent = '✍️ Escribir el próximo'; }
+  }
+
   /* ---------- 🌐 Oportunidades de la web ----------
      El CRM dice a quién escribirle hoy; esto dice qué construir para que mañana
      haya más a quién escribirle. Sale de la demanda REAL del sitio
@@ -5609,6 +5711,7 @@ const newsCases = [
     } finally { if (btn) btn.disabled = false; }
   }
   $('hm-op-btn').addEventListener('click', () => hmOportunidades(true));
+  $('sq-write') && $('sq-write').addEventListener('click', () => sqWriteNext());
 
   /* ---------- 🎯 Ritmo del mes: metas vs realidad (SQL 0108 business_goals) ----------
      Pesos del pipeline ponderado = STAGES.prob (nuevo .2 · contactado .4 · videocall .6 ·
@@ -5902,6 +6005,7 @@ const newsCases = [
     hmFetchWeeks();
     hmFetchAds();
     ppEnsureForHome();
+    sqLoad();
     hmAi(false);
     hmOportunidades(false);
     // tasks abiertas por lead (mismo cache que el board de Deals) — alimenta (c) y (e) de Para hoy

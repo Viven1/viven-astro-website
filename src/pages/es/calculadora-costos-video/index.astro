@@ -26,18 +26,19 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
   <div class="calc-est" id="calc-est" hidden>
     <div class="calc-est-label">Tu estimación</div>
     <div class="calc-est-range" id="calc-range">—</div>
-    <p class="muted-note">Rango realista para calidad de producción suiza, sobre 1137+ presupuestos reales. Se ve sin dejar el email.</p>
+    <p class="muted-note">Rango realista para calidad de producción suiza, sobre 1137+ presupuestos reales.</p>
   </div>
 
   <div class="calc-form" id="calc-form-box" hidden>
-    <h2>¿Lo querés desglosado línea por línea?</h2>
-    <p class="form-note" style="margin:-4px 0 12px">Te mandamos por email el detalle de qué cuesta cada parte y por qué.</p>
+    <h2>¿Querés una oferta sin compromiso con detalles reales?</h2>
+    <p class="form-note" style="margin:-4px 0 12px">Armamos una propuesta real para tu proyecto — línea por línea, qué cuesta cada parte y por qué. Sin compromiso.</p>
     <form id="calc-form" autocomplete="on">
-      <input type="text" id="cf-name" placeholder="Nombre" required />
+      <input type="text" id="cf-first" placeholder="Nombre" autocomplete="given-name" required />
+      <input type="text" id="cf-last" placeholder="Apellido" autocomplete="family-name" required />
       <input type="email" id="cf-email" placeholder="Email de trabajo" required />
-      <input type="text" id="cf-co" placeholder="Empresa (opcional)" />
+      <input type="text" id="cf-co" placeholder="Empresa" autocomplete="organization" required />
       <input type="text" id="cf-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
-      <button class="btn btn-primary" type="submit">Mandame el desglose →</button>
+      <button class="btn btn-primary" type="submit">Mandame la propuesta →</button>
     </form>
     <p class="form-note">Respondemos en un día hábil con una propuesta concreta. Nunca spam.</p>
     <p class="form-note calc-privacy">Al enviar, aceptás que te mandemos tu estimación por email y te contactemos sobre tu proyecto. Ver <a href="/es/privacy-policy/" style="color:inherit;text-decoration:underline">política de privacidad</a>. Nunca spam.</p>
@@ -67,7 +68,7 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
 .calc-privacy{font-size:11.5px;opacity:.65;margin-top:6px}
 .calc-form form{display:grid;gap:10px;grid-template-columns:1fr 1fr}
 .calc-form input{background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:10px;color:inherit;font-family:inherit;font-size:14.5px;padding:12px 14px}
-.calc-form input#cf-name{grid-column:1/2}
+.calc-form input#cf-first,.calc-form input#cf-last{grid-column:auto}
 .calc-form button{grid-column:1/-1}
 @media(max-width:640px){.calc-form form{grid-template-columns:1fr}}
 .calc-result{border:1px solid var(--acid,#ddf98f);border-radius:16px;padding:22px;margin-top:8px}
@@ -157,12 +158,17 @@ const description = {"es":"Obtené al instante un rango de precio en CHF para tu
     ev.preventDefault();
     if(document.getElementById('cf-hp').value) return;
     var r = calc(); if(!r) return;
-    var name = document.getElementById('cf-name').value.trim();
+    var first = document.getElementById('cf-first').value.trim();
+    var last = document.getElementById('cf-last').value.trim();
+    var name = (first + ' ' + last).trim();
     var email = document.getElementById('cf-email').value.trim();
     var co = document.getElementById('cf-co').value.trim();
+    /* nombre, apellido y empresa son obligatorios: con eso se puede armar una
+       propuesta de verdad sin volver a preguntar (pedido de Sebastián, 14 ago) */
+    if (!first || !last || !co || !email) return;
     var cfg = [];
     document.querySelectorAll('.calc-chips button.on').forEach(function(b){ cfg.push(b.textContent.trim()); });
-    var row = { name: name, first_name: name.split(' ')[0], last_name: name.split(' ').slice(1).join(' ') || null,
+    var row = { name: name, first_name: first, last_name: last || null,
       email: email, company: co || null, form_path: location.pathname,
       message: '🧮 CALCULADORA — ' + cfg.join(' · ') + ' → ' + fmt(r.lo) + '–' + fmt(r.hi) };
     var extra = window.vivenAttribution ? window.vivenAttribution() : null;
