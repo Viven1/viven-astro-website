@@ -134,15 +134,33 @@ async function buildSnapshot() {
      * "veía" que ningún canal genera plata. Ese era el bug de la idea aprobada
      * "Reparar el tracking de CHF en deals ganados (won=1, won_chf=0)". */
     const dealIds = (won ?? []).map((d: { id: string }) => d.id).filter(Boolean);
-    const { data: ofertas } = dealIds.length
-      ? await service.from("offers").select("deal_id,status,items,discount_pct").in("deal_id", dealIds).eq("status", "won")
-      : { data: [] as { deal_id: string; items: { qty?: number; price?: number }[]; discount_pct?: number }[] };
-    const neto = (o: { items?: { qty?: number; price?: number }[]; discount_pct?: number }) =>
-      (o.items ?? []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0) * (1 - (Number(o.discount_pct) || 0) / 100);
     const chfDeDeal: Record<string, number> = {};
-    (ofertas ?? []).forEach((o: { deal_id: string }) => {
-      chfDeDeal[String(o.deal_id)] = (chfDeDeal[String(o.deal_id)] || 0) + neto(o as never);
-    });
+    if (dealIds.length) {
+      // ofertas ganadas (offerNet = Σ qty × price − descuento)
+      const { data: ofertas } = await service.from("offers")
+        .select("deal_id,items,discount_pct").in("deal_id", dealIds).eq("status", "won");
+      (ofertas ?? []).forEach((o: { deal_id: string; items?: { qty?: number; price?: number }[]; discount_pct?: number }) => {
+        const neto = (o.items ?? []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0) * (1 - (Number(o.discount_pct) || 0) / 100);
+        chfDeDeal[String(o.deal_id)] = (chfDeDeal[String(o.deal_id)] || 0) + neto;
+      });
+      /* Y las PROPUESTAS aceptadas: hoy la plata de Viven vive acá, no en las
+       * ofertas. Medido el 14 ago 2026: de 53 ofertas, 51 son plantillas y 2
+       * borradores — ninguna 'won'. Sumar solo ofertas habría dejado el mismo
+       * cero que se venía reportando. El importe es accepted_total, o el precio
+       * del paquete recomendado (mismo criterio que propVal en el dashboard). */
+      const { data: props } = await service.from("proposals")
+        .select("deal_id,lead_id,status,accepted_total,content").eq("status", "accepted");
+      const dealDeLead: Record<string, string> = {};
+      (won ?? []).forEach((d: { id: string; lead_id: number | string }) => { if (d.lead_id != null) dealDeLead[String(d.lead_id)] = d.id; });
+      (props ?? []).forEach((p: { deal_id?: string | null; lead_id?: string | null; accepted_total?: number | null; content?: { tiers?: { price?: number; recommended?: boolean }[] } }) => {
+        const id = p.deal_id ? String(p.deal_id) : (p.lead_id != null ? dealDeLead[String(p.lead_id)] : null);
+        if (!id || !dealIds.includes(id)) return;
+        const tiers = p.content?.tiers ?? [];
+        const rec = tiers.find((t) => t.recommended) ?? tiers[0];
+        const v = Number(p.accepted_total) || Number(rec?.price) || 0;
+        chfDeDeal[id] = (chfDeDeal[id] || 0) + v;
+      });
+    }
     const wonLeadIds = [...new Set((won ?? []).map((d: { lead_id: number | string }) => d.lead_id).filter((x) => x != null))];
     // el lead de un deal ganado puede ser más viejo que 28d — su canal se busca aparte
     const { data: wonLeads } = wonLeadIds.length
