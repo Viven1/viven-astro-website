@@ -23,21 +23,25 @@ const description = {"en":"Get an instant CHF price range for your video project
     <div id="calc-lic" hidden style="margin-top:12px"><p style="font-size:14px;margin:0 0 8px;opacity:.85">📡 Where will the video run? (select all that apply)</p><div class="calc-chips calc-multi" data-group="chan"><button type="button" data-v="tv">📺 TV</button><button type="button" data-v="online">💻 Online & social ads (paid)</button><button type="button" data-v="owned">🌐 Own website & social channels</button><button type="button" data-v="cine">🎦 Cinema</button></div><p style="font-size:14px;margin:14px 0 8px;opacity:.85">🪪 Usage license (buyout) — for how long?</p><div class="calc-chips" data-group="lic"><button type="button" data-v="y1">🪪 1 year</button><button type="button" data-v="y2">🪪 2 years</button><button type="button" data-v="y3">🪪 3 years</button><button type="button" data-v="unl">🪪 Unlimited</button></div><p style="font-size:12.5px;margin:12px 0 0;opacity:.6">ℹ️ Buyout logic per the official <a href="https://www.ssfv.ch/de/cast/schauspielgagen-werbung" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">SSFV / SzeneSchweiz guidelines</a> (buyout % per placement and duration) — calculated for 1 lead role; the final cost depends on the cast.</p></div></div>
   <div class="calc-q"><h2>5. Extras</h2><div class="calc-chips calc-multi" data-group="extras"><button type="button" data-v="anim">✨ Animation / motion graphics</button><button type="button" data-v="drone">🚁 Drone footage</button><button type="button" data-v="ml">🌍 Extra language version</button><button type="button" data-v="subs">💬 Subtitles</button><button type="button" data-v="fotos">📸 Photo stills</button><button type="button" data-v="testi">⭐ Client testimonial add-on</button></div></div>
 
+  {/* El precio se muestra SIN pedir el email. Antes estaba detrás del formulario
+      ("🔒 enter your details to unlock") y el 48% de la gente se iba justo ahí
+      — idea de CRO aprobada por Sebastián. El email ahora compra otra cosa: el
+      desglose línea por línea. */}
   <div class="calc-est" id="calc-est" hidden>
-    <div class="calc-est-label">🔒 Your estimate is ready</div>
-    <div class="calc-est-range calc-locked">Enter your details below to unlock it →</div>
-    <span id="calc-range" hidden></span>
-    <p class="muted-note">Realistic range for Swiss-quality production — enter your details below to see it.</p>
+    <div class="calc-est-label">Your estimate</div>
+    <div class="calc-est-range" id="calc-range">—</div>
+    <p class="muted-note">Realistic range for Swiss-quality production, from 1137+ real Swiss budgets. No email needed to see it.</p>
   </div>
 
   <div class="calc-form" id="calc-form-box" hidden>
-    <h2>Get your detailed breakdown</h2>
+    <h2>Want it broken down line by line?</h2>
+    <p class="form-note" style="margin:-4px 0 12px">We'll email the itemised breakdown — what each part costs and why — plus what we'd need to firm it up.</p>
     <form id="calc-form" autocomplete="on">
       <input type="text" id="cf-name" placeholder="Name" required />
       <input type="email" id="cf-email" placeholder="Work email" required />
       <input type="text" id="cf-co" placeholder="Company (optional)" />
       <input type="text" id="cf-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
-      <button class="btn btn-primary" type="submit">Show my breakdown →</button>
+      <button class="btn btn-primary" type="submit">Email me the breakdown →</button>
     </form>
     <p class="form-note">We reply within one business day with a concrete proposal. No spam, ever.</p>
     <p class="form-note calc-privacy">By submitting, you agree we may email you your estimate and follow up about your project. See our <a href="/en/privacy-policy/" style="color:inherit;text-decoration:underline">Privacy Policy</a>. No spam, ever.</p>
@@ -122,12 +126,38 @@ const description = {"en":"Get an instant CHF price range for your video project
           if(group==='talent'){ sel.talent = b.dataset.v;
             var lq = document.getElementById('calc-lic'), need = !!PRICE.talent[sel.talent];
             lq.hidden = !need;
-            if(!need){ sel.lic = null; sel.chan = {}; lq.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); } }
+            if(!need){ sel.lic = null; sel.chan = {}; lq.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); }
+            /* Con modelos o actores hay que elegir canal Y licencia o no aparece
+               ningún precio: 78% de fuga ahí. Arranca con lo más barato y más
+               común marcado (web y redes propias, 1 año) y se cambia si no es
+               eso; así el precio se ve enseguida en vez de quedar en blanco. */
+            else if(!sel.lic && !Object.keys(sel.chan).some(function(c){ return sel.chan[c]; })){
+              var bo = lq.querySelector('.calc-chips[data-group="chan"] button[data-v="owned"]');
+              var by = lq.querySelector('.calc-chips[data-group="lic"] button[data-v="y1"]');
+              if(bo){ bo.classList.add('on'); sel.chan.owned = true; }
+              if(by){ by.classList.add('on'); sel.lic = 'y1'; }
+            } }
           if(group==='lic') sel.lic = b.dataset.v; }
         refresh();
-        var est = document.getElementById('calc-est'); if(est && !est.hidden) est.scrollIntoView({behavior:'smooth', block:'nearest'});
+        /* Feedback inmediato: al elegir, llevamos a la pregunta que falta (o al
+           precio si ya está). Antes, elegir el tipo de video no movía nada en
+           pantalla y la mitad de la gente se iba en ese primer paso. */
+        var est = document.getElementById('calc-est');
+        if(est && !est.hidden){ est.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+        else if(!multi){
+          var qs = [].slice.call(document.querySelectorAll('.calc-q'));
+          var falta = qs.filter(function(q){ return !q.querySelector('.calc-chips button.on'); })[0];
+          if(falta) falta.scrollIntoView({behavior:'smooth', block:'center'});
+        }
       });
     });
+  });
+  /* Arranca con lo más común ya marcado: 1 jornada y 1 locación. No cambian el
+     precio (ambos suman 0) pero eran dos clicks obligatorios en apariencia —
+     56% de fuga medida en ese paso. Se pueden cambiar como siempre. */
+  ['days', 'locs'].forEach(function(g){
+    var b = document.querySelector('.calc-chips[data-group="' + g + '"] button[data-v="0"]');
+    if(b) b.classList.add('on');
   });
   document.getElementById('calc-form').addEventListener('submit', function(ev){
     ev.preventDefault();

@@ -24,20 +24,20 @@ const description = {"de":"Sofort eine ehrliche CHF-Preisspanne für Ihr Videopr
   <div class="calc-q"><h2>5. Extras</h2><div class="calc-chips calc-multi" data-group="extras"><button type="button" data-v="anim">✨ Animation / Motion Graphics</button><button type="button" data-v="drone">🚁 Drohnenaufnahmen</button><button type="button" data-v="ml">🌍 Zusätzliche Sprachversion</button><button type="button" data-v="subs">💬 Untertitel</button><button type="button" data-v="fotos">📸 Foto-Stills</button><button type="button" data-v="testi">⭐ Kunden-Testimonial</button></div></div>
 
   <div class="calc-est" id="calc-est" hidden>
-    <div class="calc-est-label">🔒 Ihre Schätzung ist bereit</div>
-    <div class="calc-est-range calc-locked">Geben Sie unten Ihre Daten ein, um sie freizuschalten →</div>
-    <span id="calc-range" hidden></span>
-    <p class="muted-note">Realistische Spanne für Schweizer Produktionsqualität — Angaben unten eingeben, um sie zu sehen.</p>
+    <div class="calc-est-label">Ihre Schätzung</div>
+    <div class="calc-est-range" id="calc-range">—</div>
+    <p class="muted-note">Realistische Spanne für Schweizer Produktionsqualität, aus 1137+ echten Schweizer Budgets. Ohne E-Mail sichtbar.</p>
   </div>
 
   <div class="calc-form" id="calc-form-box" hidden>
-    <h2>Detaillierte Aufschlüsselung erhalten</h2>
+    <h2>Position für Position aufgeschlüsselt?</h2>
+    <p class="form-note" style="margin:-4px 0 12px">Wir schicken die detaillierte Aufstellung per E-Mail — was jeder Posten kostet und warum.</p>
     <form id="calc-form" autocomplete="on">
       <input type="text" id="cf-name" placeholder="Name" required />
       <input type="email" id="cf-email" placeholder="Geschäftliche E-Mail" required />
       <input type="text" id="cf-co" placeholder="Firma (optional)" />
       <input type="text" id="cf-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
-      <button class="btn btn-primary" type="submit">Aufschlüsselung anzeigen →</button>
+      <button class="btn btn-primary" type="submit">Aufschlüsselung per E-Mail →</button>
     </form>
     <p class="form-note">Wir antworten innerhalb eines Werktags mit einem konkreten Vorschlag. Kein Spam.</p>
     <p class="form-note calc-privacy">Mit dem Absenden stimmen Sie zu, dass wir Ihnen Ihre Schätzung per E-Mail zusenden und uns bezüglich Ihres Projekts melden dürfen. Siehe <a href="/de/privacy-policy/" style="color:inherit;text-decoration:underline">Datenschutzerklärung</a>. Kein Spam.</p>
@@ -122,12 +122,36 @@ const description = {"de":"Sofort eine ehrliche CHF-Preisspanne für Ihr Videopr
           if(group==='talent'){ sel.talent = b.dataset.v;
             var lq = document.getElementById('calc-lic'), need = !!PRICE.talent[sel.talent];
             lq.hidden = !need;
-            if(!need){ sel.lic = null; sel.chan = {}; lq.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); } }
+            if(!need){ sel.lic = null; sel.chan = {}; lq.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); }
+            /* Con modelos o actores hay que elegir canal Y licencia o no aparece
+               ningun precio: 78% de fuga ahi. Arranca con lo mas barato y comun
+               marcado y se cambia si no es eso. */
+            else if(!sel.lic && !Object.keys(sel.chan).some(function(c){ return sel.chan[c]; })){
+              var bo = lq.querySelector('.calc-chips[data-group="chan"] button[data-v="owned"]');
+              var by = lq.querySelector('.calc-chips[data-group="lic"] button[data-v="y1"]');
+              if(bo){ bo.classList.add('on'); sel.chan.owned = true; }
+              if(by){ by.classList.add('on'); sel.lic = 'y1'; }
+            } }
           if(group==='lic') sel.lic = b.dataset.v; }
         refresh();
-        var est = document.getElementById('calc-est'); if(est && !est.hidden) est.scrollIntoView({behavior:'smooth', block:'nearest'});
+        /* Feedback inmediato: al elegir, llevamos a la pregunta que falta (o al
+           precio si ya esta). Antes, elegir el tipo de video no movia nada en
+           pantalla y la mitad de la gente se iba en ese primer paso. */
+        var est = document.getElementById('calc-est');
+        if(est && !est.hidden){ est.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+        else if(!multi){
+          var qs = [].slice.call(document.querySelectorAll('.calc-q'));
+          var falta = qs.filter(function(q){ return !q.querySelector('.calc-chips button.on'); })[0];
+          if(falta) falta.scrollIntoView({behavior:'smooth', block:'center'});
+        }
       });
     });
+  });
+  /* Arranca con lo mas comun ya marcado: 1 jornada y 1 locacion. No cambian el
+     precio (ambos suman 0) pero eran dos clicks obligatorios en apariencia. */
+  ['days', 'locs'].forEach(function(g){
+    var b = document.querySelector('.calc-chips[data-group="' + g + '"] button[data-v="0"]');
+    if(b) b.classList.add('on');
   });
   document.getElementById('calc-form').addEventListener('submit', function(ev){
     ev.preventDefault();
