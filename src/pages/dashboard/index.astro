@@ -5402,7 +5402,12 @@ const newsCases = [
     // visitas de los últimos 30 días desde el mismo array que ya usa el sparkline
     const desde30 = Date.now() - 30 * 864e5;
     const visitas = (hmViews60 || []).filter((v) => Date.parse(v.created_at || '') >= desde30).length;
-    const leads30 = (allLeads || []).filter((l) => Date.now() - Date.parse(l.created_at || '') < 30 * 864e5).length;
+    /* SIN los importados de bexio: son 168 contactos que entraron de la
+       contabilidad, no gente que llegó por el sitio. Contarlos daba "187 leads
+       en 30 días" y 4,9% de conversión cuando lo real son 19 y 0,5% — un número
+       lindo y falso, que es peor que no tener número. */
+    const leads30 = (allLeads || []).filter((l) =>
+      Date.now() - Date.parse(l.created_at || '') < 30 * 864e5 && !/bexio/i.test(l.channel || '')).length;
     const personas = dem.reduce((a, d) => a + (+d.personas || 0), 0);
     const conv = personas ? (leads30 / personas * 100) : 0;
     const top = dem.slice(0, 5);
@@ -5410,7 +5415,7 @@ const newsCases = [
       '<p class="muted-note" style="margin:0 0 10px">Sin inversión en Ads cargada — mientras tanto, lo que sí sabemos:</p>' +
       '<div class="hm-ads-grid" style="margin-bottom:12px">' +
         '<div><b>' + (visitas ? visitas.toLocaleString('de-CH') : '—') + '</b><span>visitas (30 días)</span></div>' +
-        '<div><b>' + leads30 + '</b><span>leads (30 días)</span></div>' +
+        '<div><b>' + leads30 + '</b><span>leads de la web (30 días)</span></div>' +
         '<div><b>' + conv.toFixed(1) + '%</b><span>de visitantes deja lead</span></div>' +
         '<div><b>' + dem.length + '</b><span>temas con tráfico</span></div>' +
       '</div>' +
