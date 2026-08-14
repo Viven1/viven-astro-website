@@ -75,7 +75,7 @@ const T: Record<string, Record<string, string>> = {
   en: {
     subject: "Your video cost estimate: CHF",
     hi: "Hi",
-    intro: "Thank you for your enquiry — here is the cost estimate you requested, itemised, based on real budgets from over 100 Swiss productions for brands like UBS, Siemens and FIFA.",
+    intro: "Thank you for your enquiry — here is the cost estimate you requested, itemised, based on real budgets from 1137+ Swiss productions for brands like UBS, Siemens and FIFA.",
     basedOn: "Your cost breakdown:",
     note: "Every project is different: this quote holds for the scope you selected, and the final number moves with it. If the estimate sits above your budget, we can usually help bring the costs down: adjusting shoot days, scope or format, without compromising the result. If you'd like to go through the details, don't hesitate to contact us — we're happy to think along with you.",
     cta: "Book a free 15-min call →",
@@ -86,7 +86,7 @@ const T: Record<string, Record<string, string>> = {
   de: {
     subject: "Ihre Videokosten-Schätzung: CHF",
     hi: "Guten Tag",
-    intro: "vielen Dank für Ihre Anfrage — hier ist die gewünschte Kostenschätzung, Position für Position, basierend auf echten Budgets aus über 100 Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.",
+    intro: "vielen Dank für Ihre Anfrage — hier ist die gewünschte Kostenschätzung, Position für Position, basierend auf echten Budgets aus 1137+ Schweizer Produktionen für Marken wie UBS, Siemens und FIFA.",
     basedOn: "Ihre Kostenaufstellung:",
     note: "Jedes Projekt ist anders: diese Offerte gilt für den gewählten Umfang, die finale Zahl bewegt sich mit ihm. Liegt die Schätzung über Ihrem Budget, helfen wir gerne, die Kosten zu senken: über Drehtage, Umfang oder Format, ohne Kompromisse beim Resultat. Möchten Sie ins Detail gehen? Kontaktieren Sie uns jederzeit — wir denken gerne mit.",
     cta: "Gratis 15-Min-Call buchen →",
@@ -97,7 +97,7 @@ const T: Record<string, Record<string, string>> = {
   es: {
     subject: "Tu estimación de costos de video: CHF",
     hi: "Hola",
-    intro: "gracias por tu consulta — acá tenés la estimación línea por línea, armada sobre presupuestos reales de más de 100 producciones suizas para marcas como UBS, Siemens y FIFA.",
+    intro: "gracias por tu consulta — acá tenés la estimación línea por línea, armada sobre presupuestos reales de 1137+ producciones suizas para marcas como UBS, Siemens y FIFA.",
     basedOn: "Tu desglose de costos:",
     note: "Cada proyecto es distinto: esta oferta vale para el alcance que elegiste, y el número final se mueve con él. Si la estimación queda por encima de tu presupuesto, normalmente podemos ayudarte a bajar los costos: ajustando días de rodaje, alcance o formato, sin comprometer el resultado. Si querés entrar en más detalle, no dudes en contactarnos — pensamos el proyecto con vos.",
     cta: "Reservar llamada gratis de 15 min →",
