@@ -43,8 +43,9 @@ async function apnsJWT(): Promise<string> {
   return cachedJwt;
 }
 
-async function sendAPNs(deviceToken: string, title: string, body: string, url: string): Promise<{ ok: boolean; deadReason?: string }> {
-  const host = APNS_ENV === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
+const PROD = "api.push.apple.com", SANDBOX = "api.sandbox.push.apple.com";
+
+async function enviarA(host: string, deviceToken: string, title: string, body: string, url: string): Promise<{ ok: boolean; deadReason?: string }> {
   const jwt = await apnsJWT();
   const res = await fetch(`https://${host}/3/device/${deviceToken}`, {
     method: "POST",
@@ -59,6 +60,29 @@ async function sendAPNs(deviceToken: string, title: string, body: string, url: s
   if (res.ok) return { ok: true };
   const errBody = await res.json().catch(() => ({}));
   return { ok: false, deadReason: (errBody as { reason?: string }).reason };
+}
+
+/* Un device token pertenece a UN entorno: el de TestFlight/App Store es de
+ * producción, el que da un build corrido desde Xcode es de sandbox. Mandado al
+ * entorno equivocado, Apple contesta BadDeviceToken y —peor— el token se
+ * borraba de la base como si el dispositivo ya no existiera.
+ *
+ * Eso fue exactamente el bug del 14 ago 2026: el iPhone de Sebastián, con la
+ * app de TestFlight, registraba su token, la primera notificación lo mandaba a
+ * sandbox, Apple lo rechazaba y el token desaparecía. No llegaba ninguna push
+ * y no quedaba rastro de por qué.
+ *
+ * Ahora, si el entorno configurado lo rechaza, se prueba el otro antes de dar
+ * el token por muerto. Así conviven el teléfono con TestFlight y un build de
+ * Xcode sin que ninguno de los dos rompa al otro. */
+async function sendAPNs(deviceToken: string, title: string, body: string, url: string): Promise<{ ok: boolean; deadReason?: string }> {
+  const primero = APNS_ENV === "production" ? PROD : SANDBOX;
+  const segundo = primero === PROD ? SANDBOX : PROD;
+  const r = await enviarA(primero, deviceToken, title, body, url);
+  if (r.ok || r.deadReason !== "BadDeviceToken") return r;
+  const r2 = await enviarA(segundo, deviceToken, title, body, url);
+  if (r2.ok) console.log("APNS_OTRO_ENTORNO", segundo);   // el token era del otro entorno: no estaba muerto
+  return r2;
 }
 
 const cors = {
