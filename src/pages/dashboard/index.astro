@@ -1753,6 +1753,13 @@ const newsCases = [
   #wq-list .wq-det{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   #wq-list .wq-age{opacity:.75;margin-top:2px}
   #wq-list .hm-item{align-items:flex-start}
+  /* oportunidades de la web: mismo peso visual que una fila de Para hoy, con la
+     acción abajo porque el texto es lo que se lee primero */
+  .hm-op-it{border-top:1px solid var(--line);padding:11px 0}
+  .hm-op-it:first-child{border-top:0;padding-top:2px}
+  .hm-op-t{font-weight:700;font-size:13.5px;line-height:1.3}
+  .hm-op-d{color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:3px}
+  .hm-op-a{margin-top:8px}
   .wq-acts{flex:none;display:flex;gap:4px}
   .wq-b{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);background:transparent;color:var(--muted);font-size:13px;cursor:pointer;line-height:1}
   .wq-b:hover{border-color:var(--acid);color:var(--acid)}
@@ -2062,6 +2069,12 @@ const newsCases = [
       <div class="panel hm-card"><h2>📈 Visitas por semana</h2><div class="hm-spark" id="hm-spark"></div><div class="hm-spark-cap" id="hm-spark-cap"></div></div>
       <div class="panel hm-card"><h2>🎯 Google Ads <span class="count">(30 días)</span></h2><div id="hm-ads"><p class="muted-note">Cargando…</p></div></div>
       <div class="panel hm-card"><h2 style="justify-content:space-between">🪄 Resumen IA del día <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-ai"><p class="muted-note">Generando…</p></div></div>
+      <!-- Oportunidades de la web: lo que la gente está mirando y no estamos
+           aprovechando. Sebastián, 14 ago: "mucha gente está viendo employer
+           branding, hagamos un lead magnet, o más blogs... tenemos que cubrir
+           todo, no solo el CRM". Cada una se puede aprobar y cae en la misma
+           cola de arriba. -->
+      <div class="panel hm-card"><h2 style="justify-content:space-between">🌐 Oportunidades de la web <button class="btn btn-ghost small" id="hm-op-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-op"><p class="muted-note">Mirando qué busca la gente…</p></div></div>
     </div>
   </div>
 
@@ -4201,6 +4214,22 @@ const newsCases = [
   /* Las ideas aprobadas ANTES de que existiera la cola quedaron como una marca en
      el jsonb y nada más — justamente el problema. Al cargar el tab se encolan las
      que sigan aprobadas y sin hacer; el índice único evita duplicarlas. */
+  /* La cola y la tarjeta de CRO tienen que decir lo mismo. ref = "<fila>:<índice>". */
+  async function croMarcarIdea(ref, estado){
+    const [rowId, i] = String(ref).split(':');
+    const fila = (croRows || []).find((r) => String(r.id) === String(rowId));
+    if (!fila || !Array.isArray(fila.ideas) || !fila.ideas[+i]) {
+      // el tab de CRO puede no estar cargado en esta sesión: se actualiza directo
+      const { data } = await supabase.from('cro_ideas').select('ideas').eq('id', rowId).maybeSingle();
+      if (!data || !Array.isArray(data.ideas) || !data.ideas[+i]) return;
+      data.ideas[+i].status = estado;
+      await supabase.from('cro_ideas').update({ ideas: data.ideas }).eq('id', rowId);
+      return;
+    }
+    fila.ideas[+i].status = estado;
+    await supabase.from('cro_ideas').update({ ideas: fila.ideas }).eq('id', rowId);
+    try { croRender(); } catch (e) { /* el tab puede no estar montado */ }
+  }
   async function croBackfillCola(){
     for (const row of croRows){
       if (!Array.isArray(row.ideas)) continue;
@@ -5439,6 +5468,81 @@ const newsCases = [
   }
   $('hm-ai-btn').addEventListener('click', () => hmAi(true));
 
+  /* ---------- 🌐 Oportunidades de la web ----------
+     El CRM dice a quién escribirle hoy; esto dice qué construir para que mañana
+     haya más a quién escribirle. Sale de la demanda REAL del sitio
+     (rpc_demanda_28d, SQL 0125: personas por tema y cuántos leads dejó cada uno)
+     cruzada con lo que ya existe: un solo lead magnet, los posts publicados.
+
+     La demanda se agrega en Postgres a propósito: son 7.640 pageviews en 28
+     días y PostgREST devuelve como mucho 1000 filas SIN avisar — contarlas en el
+     navegador daba el 13% del mes y parecía el mes entero. */
+  const HM_OP_LS = 'viven_hm_op_v1';
+  let hmDem = null, hmOpTried = false;
+  async function hmDemanda(){
+    if (hmDem) return hmDem;
+    const { data, error } = await supabase.rpc('rpc_demanda_28d');
+    if (error) return null;                       // SQL 0125 sin correr → la tarjeta lo dice
+    hmDem = data || [];
+    return hmDem;
+  }
+  function hmOpSummary(dem){
+    const k = hmDealKpis();
+    const posts = (blogsList || []).filter((b) => b.status === 'published');
+    return {
+      contexto: 'Viven, productora de video en Zúrich. Estos son los TEMAS que la gente miró en el sitio en 28 días y cuántos leads dejó cada uno. Devolvé 3 oportunidades CONCRETAS de contenido/web para convertir ese tráfico en leads: lead magnets, artículos, cambios en una página, campañas. Nada de CRM ni de seguimiento a clientes puntuales — eso ya está cubierto en otra pantalla. Cada una tiene que citar el número que la justifica y decir qué archivo/página tocar.',
+      demanda_28d: (dem || []).map((d) => ({ tema: d.tema, personas: d.personas, leads: d.leads })),
+      lead_magnets_existentes: ['social media formats (PDF, EN/DE/ES) — es el único'],
+      posts_publicados: posts.length,
+      idiomas_del_sitio: ['en', 'de', 'es'],
+      kpis: { leads_30d: (allLeads || []).filter((l) => Date.now() - Date.parse(l.created_at || '') < 30 * 864e5).length,
+        pipeline_abierto_chf: Math.round(k.openVal) },
+    };
+  }
+  function hmOpRender(list){
+    const body = $('hm-op'); if (!body) return;
+    if (!list || !list.length){ body.innerHTML = '<p class="muted-note">Sin oportunidades nuevas hoy.</p>'; return; }
+    body.innerHTML = list.map((o, i) =>
+      '<div class="hm-op-it">' +
+        '<div class="hm-op-t">' + esc(o.icon || '💡') + ' ' + esc(o.title || '') + '</div>' +
+        '<div class="hm-op-d">' + esc(o.detail || '') + '</div>' +
+        '<div class="hm-op-a"><button class="btn btn-primary small" data-op="' + i + '" type="button">Aprobar</button></div>' +
+      '</div>').join('');
+    body.querySelectorAll('[data-op]').forEach((b) => b.addEventListener('click', async () => {
+      const o = list[+b.dataset.op]; if (!o) return;
+      b.disabled = true;
+      const ok = await wqAdd({ source: 'idea', ref: 'op:' + String(o.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40),
+        title: o.title || 'Oportunidad de la web', detail: o.detail || '', url: '/dashboard/?tab=hoy' });
+      b.textContent = ok ? '✓ En la cola' : 'Ya estaba';
+    }));
+  }
+  async function hmOportunidades(force){
+    const body = $('hm-op'); if (!body) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (!force){
+      try {
+        const c = JSON.parse(localStorage.getItem(HM_OP_LS) || 'null');
+        if (c && c.date === today && Array.isArray(c.list)){ hmOpRender(c.list); return; }
+      } catch (e) { /* cache corrupto → regenerar */ }
+      if (hmOpTried) return;
+    }
+    hmOpTried = true;
+    const btn = $('hm-op-btn'); if (btn) btn.disabled = true;
+    body.innerHTML = '<p class="ai-loading">Mirando qué busca la gente…</p>';
+    try {
+      const dem = await hmDemanda();
+      if (!dem) { body.innerHTML = '<p class="muted-note">Falta correr el SQL <b>0125</b> (demanda por tema).</p>'; return; }
+      const { data, error } = await supabase.functions.invoke('ai-insights', { body: { summary: hmOpSummary(dem), lang: 'es' } });
+      const list = data && Array.isArray(data.insights) ? data.insights.slice(0, 3) : null;
+      if (error || !list) throw new Error(data?.error || error?.message || 'sin respuesta');
+      try { localStorage.setItem(HM_OP_LS, JSON.stringify({ date: today, list })); } catch (e) { /* sin espacio */ }
+      hmOpRender(list);
+    } catch (e) {
+      body.innerHTML = '<p class="muted-note">No se pudo generar: ' + esc(e.message) + '</p>';
+    } finally { if (btn) btn.disabled = false; }
+  }
+  $('hm-op-btn').addEventListener('click', () => hmOportunidades(true));
+
   /* ---------- 🎯 Ritmo del mes: metas vs realidad (SQL 0108 business_goals) ----------
      Pesos del pipeline ponderado = STAGES.prob (nuevo .2 · contactado .4 · videocall .6 ·
      propuesta .8): los MISMOS que ya usa todo el dashboard (KPI "Ponderado", board) —
@@ -5599,6 +5703,15 @@ const newsCases = [
   /* Encolar. El índice único (source, ref) con status pendiente hace que aprobar
      dos veces lo mismo —o un tap repetido en el teléfono— no cree dos pendientes. */
   async function wqAdd(item){
+    /* Si eso mismo ya pasó por la cola —hecho o cancelado— NO vuelve a entrar.
+       Sin esto, el backfill de CRO revivía cada idea ya resuelta en cuanto se
+       abría el tab: la cola se llenaba sola de trabajo terminado. El índice
+       único de la base solo cubre lo pendiente, así que el filtro va acá. */
+    if (item.ref){
+      const { data: previa } = await supabase.from('work_queue').select('id')
+        .eq('source', item.source || 'manual').eq('ref', item.ref).limit(1);
+      if (previa && previa.length) return false;
+    }
     const fila = { source: item.source || 'manual', ref: item.ref || null, title: item.title || '(sin título)',
       detail: item.detail || null, url: item.url || null, status: 'pending', approved_by: meEmail || null };
     // el backfill sabe desde cuándo espera de verdad: sin esto todo lo viejo
@@ -5620,6 +5733,10 @@ const newsCases = [
     if (status === 'done'){ patch.done_at = new Date().toISOString(); if (nota) patch.done_note = nota; }
     const { error } = await supabase.from('work_queue').update(patch).eq('id', id);
     if (error){ toast('No se pudo actualizar: ' + error.message); return; }
+    /* Cerrar el círculo del lado del CRO: si no se marca la idea en su propio
+       jsonb, la tarjeta sigue diciendo "🤖 Aprobada" para siempre y el estado
+       queda contradiciendo a la cola. */
+    if (r && r.source === 'cro' && r.ref) await croMarcarIdea(r.ref, status === 'done' ? 'done' : null);
     // avisar al equipo que se hizo: el que aprobó no tiene que venir a preguntar
     if (status === 'done' && r) pushTo(null, '✅ Hecho: ' + (r.title || '').slice(0, 60), 'Lo aprobado ya está resuelto.', '/dashboard/?tab=hoy');
     toast(status === 'done' ? '✅ Marcado como hecho' : 'Sacado de la cola');
@@ -5690,6 +5807,7 @@ const newsCases = [
     hmFetchWeeks();
     hmFetchAds();
     hmAi(false);
+    hmOportunidades(false);
     // tasks abiertas por lead (mismo cache que el board de Deals) — alimenta (c) y (e) de Para hoy
     dlFetchNextTasks([...new Set((dealsList || []).filter((d) => !d.archived && DL_OPEN.includes(stageOf(d.stage))).map((d) => String(d.lead_id)).filter((x) => x && x !== 'undefined' && x !== 'null'))]);
   }
