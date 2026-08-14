@@ -145,7 +145,7 @@ export function emailHtml(name: string, r: any, rows: [string, unknown][], rec: 
           Solo va el id numérico: la app arma la URL con nuestro dominio, nunca con
           lo que diga el enlace. */""}
     <p style="${S};font-size:13px;margin-top:20px">
-      <a href="viven://lead/${idNum}"><strong>Abrir la ficha en la app →</strong></a>
+      <a href="https://www.viven.ch/abrir/?lead=${idNum}"><strong>Abrir la ficha en la app →</strong></a>
       <span style="color:#aab">&nbsp;·&nbsp;</span>
       <a href="https://www.viven.ch/dashboard/?lead=${idNum}" style="color:#667">abrir en el navegador</a>
     </p>`;
