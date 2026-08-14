@@ -7,25 +7,20 @@
 // Secrets:   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, RESEND_API_KEY (ya seteados)
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import webpush from "npm:web-push@3.6.7";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // fix (auditoría 2026-07-14): invocable sin auth cada 5 min — cron-only, exige el secret
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
+/* Delegar en push-send (Web Push + APNs). Ver nota en las demás funciones: la
+ * versión de acá solo mandaba Web Push y el iPhone nunca recibía nada. */
 async function pushTo(email: string | null, title: string, body: string, url: string) {
-  const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
-  if (!pub || !priv) return;
-  webpush.setVapidDetails("mailto:info@viven.ch", pub, priv);
-  let q = service.from("push_subscriptions").select("*");
-  if (email) q = q.eq("user_email", email.toLowerCase());
-  const { data: subs } = await q;
-  const payload = JSON.stringify({ title, body, url });
-  for (const s of subs ?? []) {
-    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); }
-    catch (e) { const c = (e as { statusCode?: number }).statusCode; if (c === 404 || c === 410) await service.from("push_subscriptions").delete().eq("id", s.id); }
-  }
+  await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ to: email || undefined, title, body, url }),
+  }).catch((e) => console.error("PUSH_ERROR", String(e)));
 }
 
 Deno.serve(async (req) => {

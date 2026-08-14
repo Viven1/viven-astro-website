@@ -6,7 +6,6 @@
 // Deploy: supabase functions deploy portal-message --no-verify-jwt
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import webpush from "npm:web-push@3.6.7";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const cors = {
@@ -23,16 +22,17 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/* Delegar en push-send, que manda Web Push Y APNs. Estaba reimplementado acá
+ * y solo salía por Web Push: al iPhone, donde los avisos van por APNs, no
+ * llegaba NUNCA. (14 ago 2026 — Sebastián: "quiero notificaciones de blogs a
+ * publicar, emails que tenemos que aprobar, nuevas leads". Los avisos existían;
+ * el teléfono no era destinatario de ninguno.) */
 async function pushAll(title: string, body: string, url: string) {
-  const pub = Deno.env.get("VAPID_PUBLIC_KEY"), priv = Deno.env.get("VAPID_PRIVATE_KEY");
-  if (!pub || !priv) return;
-  webpush.setVapidDetails("mailto:info@viven.ch", pub, priv);
-  const { data: subs } = await service.from("push_subscriptions").select("*");
-  const payload = JSON.stringify({ title, body, url });
-  for (const s of subs ?? []) {
-    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); }
-    catch (e) { const c = (e as { statusCode?: number }).statusCode; if (c === 404 || c === 410) await service.from("push_subscriptions").delete().eq("id", s.id); }
-  }
+  await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ title, body, url }),
+  }).catch((e) => console.error("PUSH_ERROR", String(e)));
 }
 
 Deno.serve(async (req) => {
