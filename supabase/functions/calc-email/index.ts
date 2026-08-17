@@ -181,6 +181,38 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject, html, text }),
     });
     if (!res.ok) { console.error("RESEND_FAIL", await res.text()); return json({ error: "send_failed" }, 502); }
+
+    /* Dejar constancia en el hilo del contacto.
+       Este email SALE de verdad y hasta hoy no se anotaba en ningún lado: al
+       abrir la ficha de alguien que había usado la calculadora, la timeline
+       estaba vacía y parecía que nunca le habíamos escrito. Sebastián preguntó
+       justamente eso el 17 ago ("¿salen?") mirando gente que sí había recibido
+       su estimación. Un email invisible es peor que uno que no salió: te hace
+       escribir dos veces, o no escribir por las dudas.
+
+       Va DESPUÉS del envío y dentro de su propio try: el email ya está mandado,
+       así que un problema para registrarlo no puede devolverle un error al
+       formulario ni hacer que el visitante reintente y reciba dos estimaciones.
+
+       El lead lo crea el sitio antes de llamar acá, no esta función — por eso se
+       busca por email (el más reciente, si hay repetidos). Si no aparece, se
+       registra igual con lead_id null: mejor un renglón suelto que ninguno. */
+    try {
+      const { data: lead } = await service.from("leads")
+        .select("id").ilike("email", to)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { error: logErr } = await service.from("email_log").insert({
+        lead_id: lead?.id != null ? String(lead.id) : null,   // la columna es text, leads.id es bigint
+        to_addr: to,
+        subject,
+        body: text,
+        sender_label: "Sofia",
+        source: "calc-email",   // misma convención que automations-run / booking-create
+        direction: "out",
+      });
+      if (logErr) console.error("EMAIL_LOG_FAIL", logErr.message);
+    } catch (e) { console.error("EMAIL_LOG_FAIL", String(e)); }
+
     await hubspotSubmit({ firstname: first, lastname: last, email: to, message: `Calculadora de costos: ${range}${cfgLine ? " · " + cfgLine : ""}` });
     return json({ ok: true });
   } catch (e) {
