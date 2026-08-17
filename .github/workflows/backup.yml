@@ -14,6 +14,10 @@
 #   SUPABASE_BACKUP_DBURL — usuario de SOLO LECTURA (viven_backup_ro), no la
 #                           llave maestra. Si se filtrara, no puede escribir nada.
 #   CLOUDFLARE_API_TOKEN  — el mismo que ya usa el deploy (necesita R2: Edit)
+#
+# ALCANCE: se respalda el esquema `public`, que es donde vive todo lo del
+# negocio. Las cuentas de acceso (`auth`) no entran: son dos, están en
+# user_roles, y se recrean desde la pantalla de Usuarios.
 
 name: Respaldo de la base
 
@@ -27,65 +31,54 @@ on:
 jobs:
   respaldar:
     runs-on: ubuntu-latest
+    # Si algo se cuelga, que muera acá y avise. La primera versión de este
+    # workflow se quedó clavada instalando paquetes y habría seguido así horas.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      # El servidor es PostgreSQL 17 y pg_dump se niega a trabajar contra un
-      # servidor más nuevo que él. Ubuntu trae el 16, así que hay que sumar el
-      # repositorio oficial de Postgres: sin esto el paso falla con un error
-      # sobre versiones que no dice qué hacer.
-      - name: Instalar pg_dump 17
-        run: |
-          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
-          # Instalar el paquete NO alcanza: Ubuntu deja /usr/bin/pg_dump apuntando
-          # al 16 igual, y el 16 se niega a hablar con un servidor 17. La primera
-          # corrida falló justo acá y el error decía "version mismatch" sin
-          # aclarar que había dos pg_dump instalados. Hay que poner el 17 primero
-          # en el PATH y comprobar que la versión que responde sea la correcta.
-          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
-          /usr/lib/postgresql/17/bin/pg_dump --version | grep -q " 17\." \
-            || { echo "::error::pg_dump 17 no quedó instalado"; exit 1; }
-
+      # pg_dump viene de la imagen oficial de Postgres, no de apt.
+      #
+      # POR QUÉ ASÍ: el servidor es PostgreSQL 17 y pg_dump se niega a trabajar
+      # contra un servidor más nuevo que él. El runner trae el 16, y sumar el
+      # repositorio oficial de Postgres para instalar el 17 falló dos veces
+      # seguidas: la primera dejó /usr/bin/pg_dump apuntando igual al 16 (el
+      # paquete instala en otra ruta), y la segunda se colgó indefinidamente en
+      # el paso de apt. Con Docker la versión es exacta y no depende de cómo
+      # venga armado el runner esta semana.
       - name: Bajar la base
         env:
           DBURL: ${{ secrets.SUPABASE_BACKUP_DBURL }}
         run: |
           # pipefail: sin esto, si pg_dump falla el resultado de la tubería es el
           # de gzip —que comprime la nada perfectamente— y el paso da VERDE con
-          # un archivo de 20 bytes. Pasó en la primera corrida: el respaldo salió
-          # vacío y solo lo detectó la comprobación de más abajo.
+          # un archivo de 20 bytes. Pasó en la primera corrida.
           set -o pipefail
           FECHA=$(date -u +%Y-%m-%d)
-          pg_dump --version
-          # --no-owner / --no-privileges: el rol de backup no es dueño de nada,
-          # y sin esto el dump lleva instrucciones de permisos que fallan al
-          # restaurar en otro proyecto.
-          pg_dump "$DBURL" \
-            --schema=public --schema=auth \
-            --no-owner --no-privileges \
-            --format=plain \
-            | gzip -9 > "viven-$FECHA.sql.gz"
           echo "FECHA=$FECHA" >> "$GITHUB_ENV"
+          # --no-owner / --no-privileges: el usuario de respaldo no es dueño de
+          # nada, y sin esto el dump lleva instrucciones de permisos que fallan
+          # al restaurar en otro proyecto.
+          docker run --rm -e DBURL postgres:17-alpine \
+            sh -c 'pg_dump "$DBURL" --schema=public --no-owner --no-privileges --format=plain' \
+            | gzip -9 > "viven-$FECHA.sql.gz"
 
-      # Un backup que nadie mira no es un backup. Si el rol perdiera `bypassrls`,
-      # el dump saldría con el esquema y CERO filas — y pesaría poco, pero no
-      # cero. Por eso no alcanza con "el archivo existe": se comprueba que
-      # adentro haya datos de las tablas que importan.
+      # Un backup que nadie mira no es un backup. Si el usuario perdiera sus
+      # permisos de lectura, el dump saldría con el esquema y CERO filas — poco
+      # peso, pero no cero, y con toda la cara de haber funcionado. Por eso no
+      # alcanza con "el archivo existe": se cuentan filas de verdad.
       - name: Comprobar que el respaldo sirve
         run: |
           PESO=$(stat -c%s "viven-$FECHA.sql.gz")
           echo "peso: $PESO bytes"
           [ "$PESO" -gt 20000 ] || { echo "::error::El respaldo pesa $PESO bytes — demasiado poco, algo salió mal"; exit 1; }
           for t in leads deals proposals offers email_log; do
-            n=$(zcat "viven-$FECHA.sql.gz" | grep -c "COPY public.$t " || true)
-            [ "$n" -ge 1 ] || { echo "::error::Falta la tabla $t en el respaldo"; exit 1; }
+            zcat "viven-$FECHA.sql.gz" | grep -q "COPY public.$t " \
+              || { echo "::error::Falta la tabla $t en el respaldo"; exit 1; }
           done
-          FILAS=$(zcat "viven-$FECHA.sql.gz" | awk '/^COPY public.leads /{f=1;next} /^\\\.$/{f=0} f' | wc -l)
+          FILAS=$(zcat "viven-$FECHA.sql.gz" | awk '/^COPY public\.leads /{f=1;next} /^\\\.$/{f=0} f' | wc -l)
           echo "filas en leads: $FILAS"
-          [ "$FILAS" -gt 0 ] || { echo "::error::leads vino VACÍA — el rol perdió bypassrls"; exit 1; }
+          [ "$FILAS" -gt 0 ] || { echo "::error::leads vino VACÍA — el usuario perdió permiso de lectura"; exit 1; }
 
       - name: Guardar en R2
         uses: cloudflare/wrangler-action@v3
