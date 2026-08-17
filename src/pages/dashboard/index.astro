@@ -4509,6 +4509,10 @@ const newsCases = [
     history.replaceState(null, '', location.pathname + (location.hash ? location.search : ''));
   })();
   $('logout-btn').addEventListener('click', async () => {
+    // marca de "me fui yo" — la lee onAuthStateChange para no mostrar el cartel de
+    // sesión vencida (se pone ANTES del signOut porque el evento llega durante)
+    window.__vvSalidaVoluntaria = true;
+    const av = $('login-expired'); if (av) av.hidden = true;
     await supabase.auth.signOut();
     show('login');
   });
@@ -4947,7 +4951,10 @@ const newsCases = [
       actNotes = {}; if (notesQ && !notesQ.error) (notesQ.data || []).forEach((n) => maxTo(actNotes, String(n.lead_id), n.created_at));
       actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
       if (!videosQ.error) renderVideoAna(videosQ.data || [], allLeads);
-      anaCargada = true;
+      // solo se marca cargada si los pageviews VINIERON. Si fallaron y la dejábamos
+      // en true, volver a entrar al tab no reintentaba nunca y el KPI de visitas se
+      // quedaba en '–' hasta recargar la página entera.
+      anaCargada = !viewsQ.error;
       renderLeads(); renderHome();
     } catch (e) {
       avisoCarga('tab-analytics', '⚠️ No se pudo cargar la analítica: ' + (e.message || e));
@@ -6169,7 +6176,11 @@ const newsCases = [
     $('hm-wr-t').textContent = k.dec90 ? 'ganado / decidido: ' + k.won90 + '/' + k.dec90 : 'sin decididos en 90 d';
     // visitas 30d: con el rango global en 30d uso lastViews/prevViews (ya en memoria); si no, el cache de 60d
     let visCur = null, visPrev = null;
-    if (!rangeDay && rangeDays === 30){
+    // El anaCargada NO es decorativo: desde que la carga se parte en dos, Hoy se
+    // dibuja ANTES de que lleguen los pageviews. Sin este chequeo, lastViews está
+    // vacío y el KPI mostraba "0 visitas" con su flecha de caída durante unos
+    // segundos — un número falso puesto como si fuera un dato. Mejor '–'.
+    if (anaCargada && !rangeDay && rangeDays === 30){
       visCur = (lastViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
       visPrev = (prevViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
     } else if (hmViews60){
@@ -17295,7 +17306,12 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || (!session && ['TOKEN_REFRESHED', 'USER_UPDATED'].includes(event))){
       meEmail = null; isSuperadmin = false;
-      const av = $('login-expired'); if (av) av.hidden = false;
+      // El cartel de "se venció" SOLO cuando la sesión se murió sola. Tocar el botón
+      // de salir dispara este mismo evento, y decirle "se venció tu sesión" a alguien
+      // que acaba de cerrarla a propósito es mentirle.
+      const av = $('login-expired');
+      if (av) av.hidden = window.__vvSalidaVoluntaria === true;
+      window.__vvSalidaVoluntaria = false;
       show('login');
     }
   });
