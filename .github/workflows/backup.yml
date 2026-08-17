@@ -54,14 +54,20 @@ jobs:
         env:
           DBURL: ${{ secrets.SUPABASE_BACKUP_DBURL }}
         run: |
+          # Comillas de dólar ($q$…$q$) en vez de comillas simples: el SQL viaja
+          # por dos capas de shell (la del runner y la del contenedor) y las
+          # comillas simples no sobreviven — el primer intento llegó a psql con
+          # las barras invertidas literales y murió con "syntax error at or near".
+          # Si no falta ninguna tabla, string_agg devuelve NULL y psql -tA
+          # imprime vacío, que es lo que se comprueba abajo.
           FALTAN=$(docker run --rm -e DBURL postgres:17-alpine sh -c 'psql "$DBURL" -tAc "
-            select coalesce(string_agg(t.tablename, \x27, \x27), \x27\x27)
+            select string_agg(t.tablename, $q$, $q$)
             from pg_tables t
-            where t.schemaname = \x27public\x27
+            where t.schemaname = $q$public$q$
               and not exists (select 1 from pg_policies p
-                              where p.schemaname = \x27public\x27
+                              where p.schemaname = $q$public$q$
                                 and p.tablename = t.tablename
-                                and p.policyname = \x27backup_ro_read\x27)"')
+                                and p.policyname = $q$backup_ro_read$q$)"')
           if [ -n "$FALTAN" ]; then
             echo "::error::Estas tablas quedarían VACÍAS en el respaldo: $FALTAN — falta darles la política backup_ro_read"
             exit 1
