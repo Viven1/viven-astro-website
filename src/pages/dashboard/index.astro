@@ -134,6 +134,18 @@ const newsCases = [
   .login-card .logo-mark{height:32px;width:auto;aspect-ratio:1374/288;color:var(--acid);display:block}
   .login-card .lc-sub{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-2);margin-top:8px;margin-bottom:18px}
   .login-card p{color:var(--muted);font-size:14px;margin-bottom:24px}
+  /* Botón de Google: blanco, como lo pide la guía de marca de Google y como lo
+     espera cualquiera que ya lo vio en otras apps. Es el único blanco del login
+     a propósito — es el camino principal y se tiene que ver antes que el resto. */
+  .lg-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+    background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:100px;
+    font:600 15px/1 Inter,sans-serif;padding:13px 18px;cursor:pointer;transition:.2s}
+  .lg-google:hover{background:#f6f7f9;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+  .lg-google[disabled]{opacity:.6;cursor:default}
+  /* separador con el texto en el medio: deja claro que abajo hay otra puerta, no otro paso */
+  .lg-sep{display:flex;align-items:center;gap:12px;margin:22px 0 18px;color:var(--muted-2);font-size:12px}
+  .lg-sep::before,.lg-sep::after{content:'';flex:1;height:1px;background:var(--line)}
+  .login-card .lead-form{opacity:.85}
 
   /* tabs */
   .tabs{display:flex;gap:8px;margin-bottom:28px;border-bottom:1px solid var(--line);padding-bottom:0}
@@ -439,6 +451,9 @@ const newsCases = [
   .lead-table .lt-mail{color:var(--muted);font-size:12.5px}
   .lead-table .lt-stage{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600}
   .lead-table .lt-stage .dot{width:8px;height:8px;border-radius:50%}
+  /* medidor de fuerza de contraseña (Sistema → Usuarios) */
+  .usr-meter{height:6px;border-radius:99px;background:rgba(255,255,255,.10);margin-top:8px;overflow:hidden}
+  .usr-meter i{display:block;height:100%;width:0;border-radius:99px;transition:width .2s,background .2s}
   .lead-table .lt-val{font-family:'Space Grotesk';font-weight:700;white-space:nowrap}
   .lead-table .lt-act{color:var(--muted);font-size:12.5px;white-space:nowrap}
   .lead-table .lt-num{text-align:right;white-space:nowrap;color:var(--muted)}
@@ -617,9 +632,9 @@ const newsCases = [
   #ob-list .ob-preview-frame{width:100%;height:360px;border:1px solid var(--line-strong);border-radius:11px;background:#fff}
   #ob-list .ob-row .ob-f{flex:1;min-width:180px}
   /* ---- editor de propuestas ---- */
-  #pp-editor .bf,#contenido-sub-blog .bf,#sistema-sub-services .bf{margin-bottom:14px}
-  #pp-editor .bf label,#contenido-sub-blog .bf label,#sistema-sub-services .bf label,#sistema-sub-licenses .bf label,#sistema-sub-cashflow .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  #pp-editor .bf input,#pp-editor .bf select,#pp-editor .bf textarea,#contenido-sub-blog .bf input,#contenido-sub-blog .bf select,#contenido-sub-blog .bf textarea,#sistema-sub-licenses .bf input,#sistema-sub-licenses .bf select,#sistema-sub-licenses .bf textarea,#sistema-sub-cashflow .bf input,#sistema-sub-cashflow .bf select,#sistema-sub-cashflow .bf textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
+  #pp-editor .bf,#contenido-sub-blog .bf,#sistema-sub-services .bf,#sistema-sub-usuarios .bf{margin-bottom:14px}
+  #pp-editor .bf label,#contenido-sub-blog .bf label,#sistema-sub-services .bf label,#sistema-sub-licenses .bf label,#sistema-sub-cashflow .bf label,#sistema-sub-usuarios .bf label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  #pp-editor .bf input,#pp-editor .bf select,#pp-editor .bf textarea,#contenido-sub-blog .bf input,#contenido-sub-blog .bf select,#contenido-sub-blog .bf textarea,#sistema-sub-licenses .bf input,#sistema-sub-licenses .bf select,#sistema-sub-licenses .bf textarea,#sistema-sub-cashflow .bf input,#sistema-sub-cashflow .bf select,#sistema-sub-cashflow .bf textarea,#sistema-sub-usuarios .bf input,#sistema-sub-usuarios .bf select{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px}
   /* ---------- Cash Flow (SQL 0077/0078/0079) ---------- */
   .cf-tag{display:inline-block;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:600;white-space:nowrap}
   .cf-tag.rec{color:var(--acid);background:rgba(221,249,143,.12)}
@@ -1877,12 +1892,33 @@ const newsCases = [
   <div class="login-card">
     <svg class="logo-mark" aria-label="Viven"><use href="#viven-logo"/></svg>
     <p class="lc-sub">Dashboard</p>
-    <p>Acceso privado. Inicia sesión con tu usuario.</p>
+    <p>Acceso privado. Entrá con tu cuenta de Viven.</p>
+    <!-- Google primero y grande: es la puerta de todos los días y no hay contraseña
+         que perder. Email+contraseña queda abajo como puerta de emergencia (si Google
+         se cae, o para una cuenta sin Workspace). Quien manda sobre el acceso NO es
+         esto: es public.user_roles (SQL 0127, is_member()). -->
+    <button type="button" id="login-google" class="lg-google">
+      <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.34A8.99 8.99 0 0 0 9 18Z"/>
+        <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a8.99 8.99 0 0 0 0 8.12l3.01-2.34Z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A8.99 8.99 0 0 0 .96 4.94l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58Z"/>
+      </svg>
+      Entrar con Google
+    </button>
+    <p id="login-google-err" class="muted-note" hidden style="color:#ff8b5e;margin:10px 0 0"></p>
+    <div class="lg-sep"><span>o con email y contraseña</span></div>
     <form id="login-form" class="lead-form">
       <div class="field"><label>Email</label><input type="email" name="email" required autocomplete="username" /></div>
       <div class="field"><label>Contraseña</label><input type="password" name="password" required autocomplete="current-password" /></div>
       <button type="submit">Entrar</button>
       <p class="form-error">Login incorrecto — revisa email y contraseña.</p>
+      <!-- Aviso de sesión vencida: lo enciende onAuthStateChange cuando el token
+           muere mientras se trabaja (antes las queries fallaban calladas y la
+           pantalla quedaba muerta, sin mandar a nadie al login). -->
+      <p id="login-expired" class="muted-note" hidden style="border:1px solid rgba(240,192,96,.45);background:rgba(240,192,96,.10);color:#f0c060;border-radius:10px;padding:9px 12px;margin:10px 0 0">⏱ Se venció la sesión — volvé a entrar.</p>
+      <p style="margin:12px 0 0"><button type="button" id="login-forgot" style="background:none;border:0;padding:0;color:var(--acid);font:600 13px Inter,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer">¿Olvidaste tu contraseña?</button></p>
+      <p id="login-forgot-msg" class="muted-note" hidden style="margin:8px 0 0"></p>
     </form>
   </div>
 </div>
@@ -2891,6 +2927,8 @@ const newsCases = [
       <button data-sub="auto" type="button">⚙️ Workflows<span class="pill js-ob-count" hidden></span></button>
       <button data-sub="tmpl" type="button">📚 Plantillas</button>
       <button data-sub="cashflow" type="button" id="sistema-seg-cashflow-btn" hidden>💰 Cash Flow</button>
+      <button data-sub="crons" type="button">🩺 Crons</button>
+      <button data-sub="usuarios" type="button" id="sistema-seg-usuarios-btn" hidden>🔑 Usuarios</button>
       <button data-sub="profile" type="button">👤 Mi perfil</button>
     </div>
     <div id="sistema-sub-services">
@@ -3206,6 +3244,60 @@ const newsCases = [
       </div>
     </div>
   </div>
+    <!-- ============ SALUD DE CRONS ============
+         Hay 25 tareas programadas (newsletter, blog, avisos, syncs). Si una se
+         apaga no se entera nadie hasta que falta algo: este panel es el único
+         lugar donde eso se ve. Rojo arriba, porque lo que está bien no necesita
+         atención. Lee la RPC cron_health(). -->
+    <div id="sistema-sub-crons" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">🩺 Salud de los crons</h2>
+        <p class="muted-note" style="margin:2px 0 0">Cada tarea programada, cuándo corrió por última vez y si terminó bien. En rojo lo que falló, lo que está apagado y lo que hace más de dos ciclos que no corre.</p>
+      </div>
+      <button class="btn btn-ghost small" id="crons-refresh" type="button">↻ Actualizar</button>
+    </div>
+    <div class="panel"><div id="crons-list"><p class="muted-note">Cargando…</p></div></div>
+    </div>
+
+    <!-- ============ USUARIOS ============
+         Crear gente, ponerle contraseña, cambiarla y darla de baja sin entrar
+         nunca al panel de Supabase. Todo pasa por la edge function admin-users
+         (service role del lado del server): desde acá NO se toca auth.users
+         directo ni se guarda una contraseña en ningún lado. Solo superadmin. -->
+    <div id="sistema-sub-usuarios" hidden>
+    <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">🔑 Usuarios</h2>
+        <p class="muted-note" style="margin:2px 0 0">Quién puede entrar al dashboard. Las contraseñas se ponen acá y no se guardan en ningún lado: si alguien la pierde, se le pone una nueva.</p>
+      </div>
+      <button class="btn btn-primary small" id="usr-new" type="button">➕ Nuevo usuario</button>
+    </div>
+
+    <div class="panel" id="usr-form-panel" hidden style="margin-bottom:14px">
+      <h3 style="margin:0 0 12px;font-size:15px">➕ Nuevo usuario</h3>
+      <div class="pp-grid" style="--cols:1fr 1fr;align-items:end">
+        <div class="bf"><label>Email</label><input id="usr-email" type="email" placeholder="nombre@viven.ch" autocomplete="off" /></div>
+        <div class="bf"><label>Rol</label><select id="usr-role"><option value="member">Miembro</option><option value="superadmin">Superadmin</option></select></div>
+      </div>
+      <div class="bf" style="margin-top:10px"><label>Contraseña <span class="muted-note" style="font-weight:400">— mínimo 12 caracteres</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="usr-pass" type="text" autocomplete="new-password" spellcheck="false" placeholder="poné una o generá al azar" style="flex:1;min-width:220px" />
+          <button class="btn btn-ghost small" id="usr-gen" type="button">🎲 Generar</button>
+        </div>
+        <div class="usr-meter" id="usr-meter"><i></i></div>
+        <p class="muted-note" id="usr-meter-txt" style="margin:4px 0 0">—</p>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary small" id="usr-create" type="button">Crear usuario</button>
+        <button class="btn btn-ghost small" id="usr-cancel" type="button">Cancelar</button>
+      </div>
+      <p class="muted-note" style="margin:10px 0 0">Copiá la contraseña ahora y pasásela por un canal seguro — no queda guardada en ningún lado, ni acá ni en el navegador.</p>
+    </div>
+
+    <div class="panel"><div id="usr-list"><p class="muted-note">Cargando…</p></div></div>
+    </div>
+
     <div id="sistema-sub-profile" hidden>
     <div class="panel" style="max-width:640px">
       <h2 style="margin:0 0 4px">👤 Mi perfil</h2>
@@ -3782,29 +3874,6 @@ const newsCases = [
       .catch(() => {});
   };
 
-  // ---- perf instrumentation temporal (2026-07-14, reporte "tarda 30s en entrar") ----
-  // best-effort: mide fases reales de carga y las manda a dash_perf_log (SQL 0083) +
-  // console, para tener datos de la red/dispositivo real en vez de adivinar. Sacar
-  // cuando ya no haga falta — no afecta nada del flujo normal si la insert falla.
-  const __perfT0 = performance.now();
-  const __perfMarks = {};
-  function __perfMark(label){ __perfMarks[label] = Math.round(performance.now() - __perfT0); }
-  function __perfTimed(label, p){
-    const s = performance.now();
-    return Promise.resolve(p).then(
-      (r) => { __perfMarks[label] = Math.round(performance.now() - s); return r; },
-      (e) => { __perfMarks[label] = 'ERR:' + Math.round(performance.now() - s); throw e; }
-    );
-  }
-  let __perfReported = false;
-  let __perfKind = 'initial_load';
-  function __perfReport(kind){
-    const snapshot = { ...__perfMarks, total: Math.round(performance.now() - __perfT0) };
-    console.log('[perf ' + kind + ']', snapshot);
-    try {
-      supabase.from('dash_perf_log').insert({ email: meEmail || null, phases: { kind, ...snapshot }, ua: navigator.userAgent }).then(() => {}, () => {});
-    } catch (e) { /* best-effort */ }
-  }
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3829,8 +3898,17 @@ const newsCases = [
   async function loadTeamProfiles(){
     try {
       const { data, error } = await supabase.from('team_profiles').select('*');
-      if (!error && data) teamProfiles = Object.fromEntries(data.map((p) => [String(p.email || '').toLowerCase(), p]));
-    } catch (e) { /* tabla pendiente (SQL 0064) — sigue con hardcode */ }
+      if (!error && data){
+        teamProfiles = Object.fromEntries(data.map((p) => [String(p.email || '').toLowerCase(), p]));
+        // la tabla manda; si viene vacía nos quedamos con los tres de siempre para
+        // no dejar los selectores de responsable sin nadie
+        const dela = data.filter((p) => p.email).map((p) => ({ email: String(p.email).toLowerCase(), name: p.name || p.email }));
+        if (dela.length){
+          const vistos = new Set(dela.map((t) => t.email));
+          TEAM = dela.concat(TEAM_FALLBACK.filter((t) => !vistos.has(t.email)));
+        }
+      }
+    } catch (e) { /* tabla pendiente (SQL 0064) — sigue con el fallback */ }
   }
   const profileFor = (email) => teamProfiles[String(email || '').toLowerCase()] || null;
   // mini-avatar: foto de team_profiles si hay, si no círculo con inicial (mismo patrón que Personas)
@@ -3864,7 +3942,8 @@ const newsCases = [
   // Nurture…), no solo en el que ya tenías cargado en memoria al abrir el dashboard.
   async function refreshLeadsList(){
     try {
-      const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000);
+      // sin .limit(2000): ese techo dejaba contactos afuera en silencio (ver fetchAllRowsFull)
+      const { data, error } = await fetchAllRowsFull('leads', '*', 'created_at');
       if (!error && data) allLeads = data;
     } catch (e) { /* si falla, seguimos con lo que ya había en memoria */ }
   }
@@ -3875,7 +3954,7 @@ const newsCases = [
     if (tab === 'props') tab = 'offers';
     if (tab === 'home') tab = 'hoy';
     if (['blog', 'news', 'seo', 'magnets'].includes(tab)){ contenidoSetSub(tab); tab = 'contenido'; }
-    if (['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'profile'].includes(tab)){ sistemaSetSub(tab); tab = 'sistema'; }
+    if (['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'crons', 'usuarios', 'profile'].includes(tab)){ sistemaSetSub(tab); tab = 'sistema'; }
     document.querySelectorAll('.side-item').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
     // barra inferior móvil: marcar activo ("Más" queda activo si el tab está en la hoja)
     const SHEET_TABS = ['deals', 'companies', 'analytics', 'contenido', 'sistema'];
@@ -3885,6 +3964,9 @@ const newsCases = [
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
     window.scrollTo(0, 0);
     await refreshLeadsList();
+    // la analítica se trae en segunda fase: si entrás a un tab que la usa y todavía
+    // no llegó, se pide acá (ver loadAnalytics)
+    if (['hoy', 'analytics', 'leads'].includes(tab)) loadAnalytics();
     if (tab === 'hoy') renderHome(); // KPIs + Para hoy/Señales/Agenda-mini/IA viven en Hoy (portada)
     if (tab === 'agenda'){ hmRenderAgenda(); hmRenderCalls(); }
     if (tab === 'companies') renderCompanies();
@@ -4343,9 +4425,10 @@ const newsCases = [
   if (!['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'profile'].includes(sistemaSub)) sistemaSub = 'services';
   function sistemaSetSub(sub){
     if (sub === 'cashflow' && !isSuperadmin) sub = 'services'; // defensivo: nunca aterrizar en cashflow sin ser superadmin
+    if (sub === 'usuarios' && !isSuperadmin) sub = 'services';  // ídem: crear usuarios es solo superadmin
     sistemaSub = sub;
     try { localStorage.setItem('vv_sistema_sub', sub); } catch (e) { /* modo privado */ }
-    ['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'profile'].forEach((k) => { const el = $('sistema-sub-' + k); if (el) el.hidden = k !== sub; });
+    ['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'crons', 'usuarios', 'profile'].forEach((k) => { const el = $('sistema-sub-' + k); if (el) el.hidden = k !== sub; });
     document.querySelectorAll('#sistema-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
     if (sub === 'services') servicesInit();
     if (sub === 'licenses') licensesInit();
@@ -4354,6 +4437,8 @@ const newsCases = [
     if (sub === 'auto') autoInit();
     if (sub === 'tmpl') tmplInit();
     if (sub === 'cashflow') cfInit();
+    if (sub === 'crons') cronsInit();
+    if (sub === 'usuarios') usuariosInit();
     if (sub === 'profile') profileInit();
     syncTabUrl();
   }
@@ -4381,20 +4466,48 @@ const newsCases = [
     e.preventDefault();
     const f = e.target;
     f.classList.remove('has-error');
-    __perfKind = 'login_submit';
     const { error } = await supabase.auth.signInWithPassword({
       email: f.email.value.trim(),
       password: f.password.value
     });
-    __perfMark('login_signin');
     if (error) { f.classList.add('has-error'); return; }
     meEmail = (f.email.value.trim() || '').toLowerCase();
     await checkRole();
-    __perfMark('login_role_done');
     show('dash');
-    __perfMark('login_shell_shown');
     loadAll().then(async () => { await openTabFromQuery(); openFromQuery(); });
   });
+  /* Entrar con Google. El destino va escrito y no location.origin: en localhost no
+     está en la lista blanca de Supabase y el único resultado sería un error raro.
+     El hd=viven.ch solo hace que Google proponga la cuenta de la casa — NO es un
+     candado: el candado es user_roles (SQL 0127). */
+  const OAUTH_DESTINO = 'https://www.viven.ch/dashboard/';
+  $('login-google') && $('login-google').addEventListener('click', async (e) => {
+    const b = e.currentTarget, err = $('login-google-err');
+    err.hidden = true; b.disabled = true; b.textContent = 'Abriendo Google…';
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: OAUTH_DESTINO, queryParams: { hd: 'viven.ch' } }
+    });
+    // si falla acá no hubo redirección: se avisa y se devuelve el botón
+    if (error){ err.textContent = 'No se pudo abrir Google: ' + (error.message || error); err.hidden = false; b.disabled = false; b.textContent = 'Entrar con Google'; }
+  });
+  /* El "no" de Google no vuelve por el promise de arriba: vuelve como parámetro en la
+     URL de /dashboard/. Sin esto, alguien sin acceso ve el login otra vez y entiende
+     que el botón está roto, cuando lo que pasa es que falta darle de alta. */
+  (function avisarErrorOAuth(){
+    const p = new URLSearchParams(location.hash.replace(/^#/, '') || location.search.replace(/^\?/, ''));
+    const raw = p.get('error_description') || p.get('error');
+    if (!raw) return;
+    const txt = decodeURIComponent(raw).replace(/\+/g, ' ');
+    const el = $('login-google-err'); if (!el) return;
+    el.textContent = /signup|not allowed|disabled/i.test(txt)
+      ? 'Esa cuenta de Google todavía no tiene acceso al dashboard. Pedile a Sebastián que te dé de alta — no es un error del botón.'
+      : 'Google no completó el ingreso: ' + txt;
+    el.hidden = false;
+    // se limpia la URL para que un F5 no repita el cartel de algo ya leído, sin
+    // llevarse puesto un ?lead=… que el error puede haber venido acompañando
+    history.replaceState(null, '', location.pathname + (location.hash ? location.search : ''));
+  })();
   $('logout-btn').addEventListener('click', async () => {
     await supabase.auth.signOut();
     show('login');
@@ -4655,43 +4768,83 @@ const newsCases = [
     return { data: results.flatMap((r) => r.data || []), error: null };
   }
 
+  /* Igual que fetchAllRows pero para tablas SIN ventana de fechas (leads, notas,
+     tasks, propuestas). Existe porque los .limit(1000/2000) de loadAll eran techos
+     mudos: al pasarlos, la "última actividad" de los contactos más viejos quedaba
+     vacía y la pantalla no lo decía en ningún lado. Un número incompleto que no se
+     declara incompleto es peor que no mostrarlo. */
+  async function fetchAllRowsFull(table, cols, orderCol){
+    const PAGE = 1000;
+    const { count, error: countErr } = await supabase.from(table).select(cols, { count: 'exact', head: true });
+    if (countErr) return { data: null, error: countErr };
+    const total = Math.min(count || 0, 200000);   // mismo salvavidas que fetchAllRows
+    if (!total) return { data: [], error: null, total: 0 };
+    const pages = Math.ceil(total / PAGE);
+    const results = await Promise.all(Array.from({ length: pages }, (_, i) =>
+      supabase.from(table).select(cols).order(orderCol, { ascending: false }).range(i * PAGE, i * PAGE + PAGE - 1)));
+    const err = results.find((r) => r.error);
+    if (err) return { data: null, error: err.error };
+    return { data: results.flatMap((r) => r.data || []), error: null, total };
+  }
+
+  /* Cartel de "esto no cargó" DENTRO del panel afectado. Antes, si fallaba leads o
+     pageviews, loadAll tiraba un alert() y cortaba: se perdía el CRM entero porque
+     falló la analítica. Ahora cada consulta que falla ensucia solo su panel y el
+     resto de la pantalla sigue viva. */
+  function avisoCarga(contenedorId, texto){
+    const cont = $(contenedorId); if (!cont) return;
+    let av = cont.querySelector(':scope > .carga-mal');
+    if (!texto){ if (av) av.remove(); return; }
+    if (!av){
+      av = document.createElement('p');
+      av.className = 'muted-note carga-mal';
+      av.style.cssText = 'border:1px solid rgba(255,139,94,.4);background:rgba(255,139,94,.08);color:#ff8b5e;border-radius:10px;padding:9px 12px;margin:0 0 12px';
+      cont.insertBefore(av, cont.firstChild);
+    }
+    av.textContent = texto;
+  }
+
   // ventana ANTERIOR de igual longitud: pageviews para los ▲▼ de KPIs y la línea punteada
   // del gráfico. Se trae UNA vez por corrida de loadAll (misma Promise.all) y queda cacheada
   // en módulo para los re-render intermedios (realtime, cambio de sub-tab).
   let prevViews = [];
   let prevWin = { start: 0, end: 0 };
+  // último timestamp por clave — lo usan la carga core (propuestas) y la de analítica
+  const maxTo = (map, key, iso) => { const t = Date.parse(iso); if (t && (!map[key] || t > map[key])) map[key] = t; };
 
-  async function loadAll(){
-    // límites congelados ACÁ (rangeStart usa Date.now — llamarlo dos veces derivaría ventanas distintas)
-    const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
-    prevWin = { start: winStart - winLen, end: winStart - 1 };
-    const [leadsQ, viewsQ, videosQ, offersQ, coQ, notesQ, tasksQ, propsQ, dealsQ, bookQ, bookHistQ, prevQ] = await Promise.all([
-      __perfTimed('q_leads', supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(2000)),
-      __perfTimed('q_pageviews', fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until())),
-      __perfTimed('q_videoplays', fetchAllRows('video_plays', '*', since(), until())),
-      __perfTimed('q_offers', supabase.from('offers').select('*').order('updated_at', { ascending: false })),
-      __perfTimed('q_companies', supabase.from('companies').select('*')),
-      // para "última actividad" (best-effort: si faltan las tablas, queda vacío)
-      __perfTimed('q_notes', supabase.from('lead_notes').select('lead_id,created_at').order('created_at', { ascending: false }).limit(1000)),
-      __perfTimed('q_tasks', supabase.from('lead_tasks').select('lead_id,created_at,done_at').order('created_at', { ascending: false }).limit(1000)),
-      __perfTimed('q_proposals', supabase.from('proposals').select('*').limit(1000)),
-      __perfTimed('q_deals', supabase.from('deals').select('*').order('created_at', { ascending: false })),
-      __perfTimed('q_bookings', supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8)),
+  /* ---------- Carga en dos tiempos ----------
+     Antes esto era UNA función con doce consultas en paralelo que no dibujaba nada
+     hasta tenerlas todas, y si fallaba leads O pageviews tiraba un alert() y se
+     iba: se perdía el CRM entero porque falló la analítica. En el iPhone, con red
+     de rodaje, eso son varios segundos de pantalla muerta.
+
+     Ahora:
+       · loadCore()      → lo que necesita Hoy y el CRM (personas, deals, ofertas,
+                           propuestas, empresas, agenda). Dibuja apenas está.
+       · loadAnalytics() → pageviews, videos y la actividad por contacto, que es lo
+                           caro. Sale por detrás y redibuja cuando llega; si estás
+                           parado en Analytics y todavía no vino, se pide al entrar.
+     Cada consulta que falla pinta su propio cartel (avisoCarga) y no toca al resto. */
+  let anaCargada = false, anaCargando = false;
+
+  async function loadCore(){
+    const [leadsQ, offersQ, coQ, propsQ, dealsQ, bookQ, bookHistQ] = await Promise.all([
+      fetchAllRowsFull('leads', '*', 'created_at'),
+      supabase.from('offers').select('*').order('updated_at', { ascending: false }),
+      supabase.from('companies').select('*'),
+      fetchAllRowsFull('proposals', '*', 'updated_at'),
+      supabase.from('deals').select('*').order('created_at', { ascending: false }),
+      supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8),
       // histórico 30d (pedido explícito: trackear video calls booked por persona) — created_at
       // = cuándo se hizo la reserva, no cuándo es la call, así cuenta "booked" de verdad
-      __perfTimed('q_bookingshist', supabase.from('bookings').select('host_email,created_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString())),
-      // ventana anterior (solo columnas que usan los comparativos)
-      __perfTimed('q_prevviews', fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString()))
+      supabase.from('bookings').select('host_email,created_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()),
     ]);
-    __perfMark('queries_done');
-    if (leadsQ.error || viewsQ.error) {
-      alert('Error cargando datos: ' + (leadsQ.error || viewsQ.error).message);
-      return;
-    }
-    allLeads = leadsQ.data || [];
+    // personas: es lo único sin lo cual la pantalla no tiene sentido — igual no se
+    // corta la carga, se avisa en su tab y se sigue con lo que haya
+    if (leadsQ.error) avisoCarga('tab-leads', '⚠️ No se pudieron cargar los contactos: ' + leadsQ.error.message + '. Probá 🔄 Actualizar.');
+    else avisoCarga('tab-leads', '');
+    allLeads = leadsQ.data || allLeads || [];
     window.__vvLoadedAt = Date.now();
-    lastViews = viewsQ.data || [];
-    prevViews = (prevQ && !prevQ.error) ? (prevQ.data || []) : [];
     // ofertas: best-effort (si no corrió el SQL 0003 todavía, seguimos sin romper el dashboard)
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
     // DEALS (SQL 0022): la entidad REAL del pipeline (varios proyectos por persona).
@@ -4704,12 +4857,10 @@ const newsCases = [
     allLeads.forEach((l) => { if (!_withDeal.has(String(l.id))) dealsList.push(synthDeal(l)); });
     // companies: best-effort (si no corrió el SQL 0011, coMeta queda vacío)
     coMeta = {}; if (coQ && !coQ.error) (coQ.data || []).forEach((c) => { if (c.domain) coMeta[c.domain] = c; });
-    // última actividad: mapa lead_id → timestamp más reciente por tipo
-    const maxTo = (map, key, iso) => { const t = Date.parse(iso); if (t && (!map[key] || t > map[key])) map[key] = t; };
-    actNotes = {}; if (notesQ && !notesQ.error) (notesQ.data || []).forEach((n) => maxTo(actNotes, String(n.lead_id), n.created_at));
-    actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
     actProps = {}; if (propsQ && !propsQ.error) (propsQ.data || []).forEach((p) => { if (p.lead_id) maxTo(actProps, String(p.lead_id), p.updated_at); });
     propsAll = (propsQ && !propsQ.error) ? (propsQ.data || []) : [];
+    if (propsQ && propsQ.error) avisoCarga('tab-offers', '⚠️ No se pudieron cargar las propuestas: ' + propsQ.error.message);
+    else avisoCarga('tab-offers', '');
     servicesLoad();   // catálogo de servicios (best-effort; sin tabla → RATECARD)
     loadTeamProfiles();   // 👤 Mi perfil (best-effort; sin tabla → sigue con SENDERS/TEAM hardcodeados)
     obBadgeRefresh();     // 📤 badge de pendientes en el sidebar (visible sin entrar a Workflows)
@@ -4739,13 +4890,8 @@ const newsCases = [
       const l = allLeads.find((x) => String(x.id) === String(p.lead_id));
       if (l && !['ganado', 'perdido'].includes(stageOf(l.status))) setLeadStage(l.id, 'ganado');
     });
-    actWeb = {}; (viewsQ.data || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
     renderLeads();
-    renderAnalytics(lastViews, allLeads);
     renderHome();
-    // video analytics con profundidad (plays + hitos de retención + conversión)
-    const plays = (videosQ && !videosQ.error) ? (videosQ.data || []) : [];
-    renderVideoAna(plays, allLeads);
     // Deals/Ofertas/Propuestas/Companies ya se refrescan arriba en memoria (dealsList/offersList/
     // propsAll/coMeta), pero antes solo se volvían a DIBUJAR en pantalla si estabas en Home o
     // volvías a entrar al tab — si te quedabas parado en Pipeline/Ofertas/Propuestas/Companies,
@@ -4770,8 +4916,50 @@ const newsCases = [
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     loadBell();
     subscribeRealtime();
-    __perfMark('render_done');
-    if (!__perfReported) { __perfReported = true; __perfReport(__perfKind); }
+  }
+
+  /* Segunda fase: lo caro. pageviews de dos ventanas, videos y la actividad por
+     contacto (notas/tasks). No bloquea nada — cuando llega, redibuja. */
+  async function loadAnalytics(force){
+    if (anaCargando || (anaCargada && !force)) return;
+    anaCargando = true;
+    try {
+      const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
+      prevWin = { start: winStart - winLen, end: winStart - 1 };
+      const [viewsQ, prevQ, videosQ, notesQ, tasksQ] = await Promise.all([
+        fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
+        fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString()),
+        fetchAllRows('video_plays', '*', since(), until()),
+        fetchAllRowsFull('lead_notes', 'lead_id,created_at', 'created_at'),
+        fetchAllRowsFull('lead_tasks', 'lead_id,created_at,done_at', 'created_at'),
+      ]);
+      if (viewsQ.error){
+        avisoCarga('tab-analytics', '⚠️ No se pudo cargar la analítica web: ' + viewsQ.error.message + '. El resto del dashboard funciona igual.');
+      } else {
+        avisoCarga('tab-analytics', '');
+        lastViews = viewsQ.data || [];
+        prevViews = (prevQ && !prevQ.error) ? (prevQ.data || []) : [];
+        actWeb = {}; (lastViews || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
+        renderAnalytics(lastViews, allLeads);
+      }
+      // actividad por contacto: si falla, las fichas quedan sin "última actividad"
+      // pero Personas sigue andando
+      actNotes = {}; if (notesQ && !notesQ.error) (notesQ.data || []).forEach((n) => maxTo(actNotes, String(n.lead_id), n.created_at));
+      actTasks = {}; if (tasksQ && !tasksQ.error) (tasksQ.data || []).forEach((t) => { maxTo(actTasks, String(t.lead_id), t.created_at); if (t.done_at) maxTo(actTasks, String(t.lead_id), t.done_at); });
+      if (!videosQ.error) renderVideoAna(videosQ.data || [], allLeads);
+      anaCargada = true;
+      renderLeads(); renderHome();
+    } catch (e) {
+      avisoCarga('tab-analytics', '⚠️ No se pudo cargar la analítica: ' + (e.message || e));
+    } finally { anaCargando = false; }
+  }
+
+  /* Compatibilidad: todo el archivo llama loadAll() (refresh, cambio de rango,
+     realtime). Sigue existiendo y ahora significa "traé lo del CRM y después, por
+     detrás, la analítica". */
+  async function loadAll(){
+    await loadCore();
+    loadAnalytics(true);
   }
 
   /* ---------- Realtime: leads nuevos aparecen solos (gratis, sin polling) ---------- */
@@ -4796,6 +4984,24 @@ const newsCases = [
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_tasks' }, () => { loadBell(); })
       .subscribe();
   }
+  /* ¿Estamos dentro de la app del iPhone (WKWebView) o en un navegador normal?
+     Importa para el botón "Imprimir / Guardar PDF" de ofertas y facturas: en un
+     WKWebView sin el puente nativo, window.print() no hace absolutamente nada y el
+     botón queda muerto —pendiente viejo—. La app de Viven inyecta window.print y
+     ahí sí funciona; en cualquier otro WKWebView (por ejemplo la PWA agregada a
+     inicio) no existe, y en vez de un botón que miente ofrecemos descargar el
+     documento, que en iOS abre la hoja de compartir con "Guardar en Archivos" e
+     "Imprimir". */
+  const esWKWebView = () => !!(window.webkit && window.webkit.messageHandlers);
+  /* El botón se escribe DENTRO del documento que se abre en la ventana nueva, así
+     que su onclick corre allá: por eso el HTML se decide acá, del lado del que
+     sabe en qué contexto está. */
+  function botonImprimir(){
+    if (tieneImpresion()) return '<button class="pr" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>';
+    return '<button class="pr" onclick="(function(){var b=new Blob([document.documentElement.outerHTML],{type:\'text/html\'});var a=document.createElement(\'a\');a.href=URL.createObjectURL(b);a.download=(document.title||\'documento\')+\'.html\';document.body.appendChild(a);a.click();a.remove();})()">📥 Guardar / Compartir</button>';
+  }
+  const tieneImpresion = () => !esWKWebView() || !!(window.webkit.messageHandlers && window.webkit.messageHandlers.imprimir);
+
   function toast(msg){
     let t = document.getElementById('dash-toast');
     if (!t) {
@@ -6365,16 +6571,31 @@ const newsCases = [
   // loadAll: TTL de 60s (loadAll corre cada 120s y llama renderPipeline hasta 2 veces — la segunda
   // pasada y los re-renders por drag/filtros usan el cache; el flag busy evita fetches en paralelo).
   let dlTasksMap = {}, dlTasksAt = 0, dlTasksBusy = false;
+  /* Trae TODAS las tasks abiertas de esos leads, de a páginas. Antes tenía .limit(500):
+     pasadas 500 tareas abiertas, los contactos del final se quedaban sin próximo paso y
+     nada lo avisaba. Ordena también por id para que las páginas no se pisen cuando hay
+     varias tareas con la misma due_date (o todas sin fecha). */
+  async function dlTasksTodas(cols, ids){
+    const PAGE = 1000, TOPE = 20000, filas = [];
+    for (let desde = 0; desde < TOPE; desde += PAGE){
+      const { data, error } = await supabase.from('lead_tasks').select(cols)
+        .eq('done', false).in('lead_id', ids)
+        .order('due_date', { ascending: true, nullsFirst: false }).order('id', { ascending: true })
+        .range(desde, desde + PAGE - 1);
+      if (error) return { data: null, error };
+      filas.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+    }
+    return { data: filas, error: null };
+  }
   async function dlFetchNextTasks(ids){
     if (dlTasksBusy || !ids.length || Date.now() - dlTasksAt < 60000) return;
     dlTasksBusy = true;
     try {
       // due_time/assignee: los usa el Home ("Para hoy": tasks vencidas/de hoy mías) — el board solo lee title/due_date
-      let { data, error } = await supabase.from('lead_tasks').select('lead_id,title,due_date,due_time,assignee')
-        .eq('done', false).in('lead_id', ids).order('due_date', { ascending: true, nullsFirst: false }).limit(500);
+      let { data, error } = await dlTasksTodas('lead_id,title,due_date,due_time,assignee', ids);
       // resiliente: sin la migración de due_time (SQL 0012) cae al select viejo
-      if (error && /due_time|assignee/.test(error.message || '')) ({ data, error } = await supabase.from('lead_tasks').select('lead_id,title,due_date')
-        .eq('done', false).in('lead_id', ids).order('due_date', { ascending: true, nullsFirst: false }).limit(500));
+      if (error && /due_time|assignee/.test(error.message || '')) ({ data, error } = await dlTasksTodas('lead_id,title,due_date', ids));
       dlTasksAt = Date.now();
       if (!error){
         const m = {};
@@ -7985,11 +8206,17 @@ const newsCases = [
   window.loadSeo = loadSeo;
 
   /* ---------- Team, lead scoring, notas, tasks, edición ---------- */
-  const TEAM = [
+  /* El equipo sale de team_profiles (SQL 0064). Antes esta lista era la única
+     verdad: sumar a alguien era tocar el código y desplegar, así que una persona
+     nueva no aparecía en ningún selector de responsable hasta que alguien
+     compilara. Lo hardcodeado queda de RED: si la tabla no contesta —o todavía no
+     tiene filas— se sigue trabajando con estos tres, que es como estaba. */
+  const TEAM_FALLBACK = [
     { email: 'sofia@viven.ch', name: 'Sofia Treviño' },
     { email: 'sebastian@viven.ch', name: 'Sebastian Cepeda' },
     { email: 'info@viven.ch', name: 'Info (buzón)' },
   ];
+  let TEAM = TEAM_FALLBACK.slice();
   // 👤 Mi perfil (SQL 0064): nombre elegido por la persona pisa al hardcodeado.
   const teamName = (e) => (profileFor(e) || {}).name || (TEAM.find((t) => t.email === e) || {}).name || e || '';
   const teamEmailByName = (n) => (TEAM.find((t) => t.name === n) || {}).email || '';
@@ -11152,7 +11379,7 @@ const newsCases = [
       '</style></head><body>' +
       // barra de acciones (no sale en el PDF): volver + imprimir/guardar — clave en la app móvil
       '<div class="topbar"><button onclick="window.close();history.length>1&&history.back()">← Volver</button>' +
-      '<button class="pr" onclick="window.print()">🖨 Imprimir / Guardar PDF</button></div>' +
+      botonImprimir() + '</div>' +
       '<div class="band"><div class="brand">' + VIVEN_MARK + '<div class="fp">Film<br>Production</div></div>' +
         '<div class="doc"><div class="t">' + L.doc + (ofCur.number ? ' ' + esc(ofCur.number) : '') + '</div><div class="d">' + today + '</div></div></div>' +
       '<div class="wrap">' +
@@ -11256,7 +11483,7 @@ const newsCases = [
       '@media print{.wrap{padding:28px 40px}.topbar{display:none}}' +
       '</style></head><body>' +
       '<div class="topbar"><button onclick="window.close();history.length>1&&history.back()">← Volver</button>' +
-      '<button class="pr" onclick="window.print()">🖨 Imprimir / Guardar PDF</button></div>' +
+      botonImprimir() + '</div>' +
       '<div class="band"><div class="brand">' + VIVEN_MARK + '<div class="fp">Film<br>Production</div></div>' +
         '<div class="doc"><div class="t">Rechnung ' + esc(inv.number) + '</div><div class="d">' + issued + '</div></div></div>' +
       '<div class="wrap">' +
@@ -13172,6 +13399,40 @@ const newsCases = [
     return fresh;
   }
   let obAprCache = [], obUndoSched = () => new Date(Date.now() + 10 * 60e3).toISOString();
+  /* ---- Cuándo sale, dicho completo ----
+     "el 20 ago" o "en el próximo ciclo" no contestan la pregunta que se hace
+     Sebastián cuando aprueba: a qué hora sale esto. Todo en hora de ZÚRICH, que
+     es la que manda el envío, no la del teléfono de quien mira.
+     El horario de envío (Lu-Vi 09-12 y 13:30-17) lo aplica automations-run; acá
+     SOLO se avisa cuando la fecha cae afuera — no se calcula una hora nueva, para
+     no terminar con dos motores diciendo cosas distintas. Si allá cambia la
+     ventana, lo único que queda viejo acá es el aviso, nunca una fecha. */
+  const ZH = { timeZone: 'Europe/Zurich' };
+  function obEnHorarioSuizo(d){
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || '';
+    if (['Sat', 'Sun'].includes(g('weekday'))) return false;
+    const m = (+g('hour')) * 60 + (+g('minute'));
+    return (m >= 9 * 60 && m < 12 * 60) || (m >= 13 * 60 + 30 && m < 17 * 60);
+  }
+  function obFechaHora(d){
+    const hoy = new Date().toLocaleDateString('en-CA', ZH) === d.toLocaleDateString('en-CA', ZH);
+    const dia = d.toLocaleDateString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'short' }).replace('.', '');
+    const dm = d.toLocaleDateString('en-GB', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit' });
+    const hh = d.toLocaleTimeString('es-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' });
+    // el "el" va acá adentro: "sale el hoy a las 14:05" no lo dice nadie
+    return (hoy ? 'hoy' : 'el ' + dia + ' ' + dm) + ' a las ' + hh;
+  }
+  function obCuandoSaleTxt(iso){
+    // sin scheduled_at NO es "sin fecha": automations-run lo trata como "mandalo
+    // apenas esté aprobado" (.or(scheduled_at.is.null,...)). Decir "sin fecha"
+    // se leería como "no está programado" y es justo al revés.
+    if (!iso) return 'sale en la próxima corrida en horario de envío';
+    const d = new Date(iso);
+    if (d <= new Date()) return 'ya cumplió su fecha: sale en la próxima corrida en horario de envío';
+    return 'sale ' + obFechaHora(d) + ' (Zúrich)' +
+      (obEnHorarioSuizo(d) ? '' : ' — cae fuera del horario de envío (Lu-Vi 09–12 y 13:30–17), así que sale en la primera ventana siguiente');
+  }
   function obPorSalirHTML(rows){
     if (!rows.length) return '';
     return '<div style="border:1px solid color-mix(in srgb,var(--acid) 45%,transparent);border-radius:12px;padding:12px 16px;margin-bottom:14px">' +
@@ -13179,13 +13440,15 @@ const newsCases = [
       rows.map((o) => {
         const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
         const when = o.scheduled_at ? new Date(o.scheduled_at) : null;
-        const mins = when ? Math.max(0, Math.round((when - Date.now()) / 60000)) : 0;
-        const whenTxt = !when ? 'en el próximo ciclo'
-          : when - Date.now() > 24 * 3600e3 ? 'el ' + when.toLocaleDateString('es-CH', { day: 'numeric', month: 'short' })
-          : mins <= 0 ? 'saliendo…' : 'en ~' + mins + ' min';
+        const mins = when ? Math.round((when - Date.now()) / 60000) : 0;
+        // la hora exacta SIEMPRE, y el "en ~N min" solo como ayuda cuando falta poco:
+        // "en ~7 min" solo no dice a qué hora, y es lo que se pidió ver
+        const whenTxt = !when ? 'en la próxima corrida'
+          : mins <= 0 ? 'saliendo…'
+          : obFechaHora(when) + (mins < 60 ? ' (en ~' + mins + ' min)' : '');
         return '<div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:13px">' +
           '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(o.subject || '(sin asunto)') + ' → <b>' + esc(l.email || 'lead #' + o.lead_id) + '</b></span>' +
-          '<span class="muted-note" style="flex:none">sale ' + whenTxt + '</span>' +
+          '<span class="muted-note" style="flex:none">sale ' + esc(whenTxt) + '</span>' +
           '<button class="btn btn-ghost small" data-obundo="' + esc(String(o.id)) + '" type="button" style="flex:none">↩︎ Deshacer</button></div>';
       }).join('') + '</div>';
   }
@@ -13224,10 +13487,12 @@ const newsCases = [
       // content_followup: scheduled_at es la fecha real de envío (no un
       // snooze) — se muestra siempre para dejar claro que aprobar HOY no
       // manda antes de esa fecha, respeta el espaciado de la secuencia.
-      const schedNote = (o.kind === 'content_followup' && o.scheduled_at)
-        // fecha Y hora, en Zúrich: es el horario que manda el envío, no el del teléfono
-        ? '<div class="ob-sched-note">📅 ' + (o.scheduled_at <= nowIso ? 'Ya puede salir — próxima corrida en horario laboral' : 'Sale automáticamente el ' + new Date(o.scheduled_at).toLocaleDateString('es-CH', { timeZone: 'Europe/Zurich', day: 'numeric', month: 'long' }) + ' a las ' + new Date(o.scheduled_at).toLocaleTimeString('es-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' }) + ' (hora de Zúrich)') + '</div>'
-        : '';
+      // Va en TODOS los borradores, no solo en los de secuencia: aprobar sin saber
+      // cuándo sale era medio a ciegas. Sin scheduled_at se dice qué pasa igual —
+      // callarlo se leía como "no está programado", que es lo contrario de la verdad.
+      const schedNote = '<div class="ob-sched-note">📅 Si lo aprobás, ' + esc(obCuandoSaleTxt(o.scheduled_at)) +
+        // los 10 min de arrepentimiento solo aplican cuando no tiene fecha propia futura
+        (!o.scheduled_at || o.scheduled_at <= nowIso ? ' · tenés 10 minutos para deshacer' : '') + '</div>';
       return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
         '<div class="ob-hd"><div class="ob-who">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b>' + (l.company ? '<span class="muted-note">' + esc(l.company) + '</span>' : '') + '</div>' +
         '<span class="ob-kind">' + esc(srcTag) + '</span></div>' +
@@ -13458,6 +13723,265 @@ const newsCases = [
     toast('💾 Perfil guardado');
   });
 
+
+  /* ---------- 🔑 Usuarios (edge function admin-users) ----------
+     Sebastián quería poder crear a alguien del equipo, elegirle la contraseña,
+     cambiársela y darlo de baja sin entrar nunca al panel de Supabase. Todo pasa
+     por la función admin-users, que es la que tiene el service role; desde el
+     navegador NO se toca auth.users ni se guarda una contraseña en ningún lado
+     (ni en localStorage ni en el DOM más allá del input que él mismo llenó).
+
+     Mientras la función no esté desplegada, esto devuelve 404: la pantalla se
+     dibuja igual y muestra el error, no se bloquea. */
+  let usrBuilt = false, usrRows = [], usrColados = [];
+  const USR_MIN = 12;
+
+  function usuariosInit(){
+    if (!usrBuilt){
+      usrBuilt = true;
+      $('usr-new').addEventListener('click', () => {
+        const pan = $('usr-form-panel'); pan.hidden = !pan.hidden;
+        if (!pan.hidden){ $('usr-email').value = ''; $('usr-pass').value = ''; usrMedir(); $('usr-email').focus(); }
+      });
+      $('usr-cancel').addEventListener('click', () => { $('usr-form-panel').hidden = true; $('usr-pass').value = ''; });
+      $('usr-gen').addEventListener('click', () => { $('usr-pass').value = usrGenerar(); usrMedir(); });
+      $('usr-pass').addEventListener('input', usrMedir);
+      $('usr-create').addEventListener('click', usrCrear);
+    }
+    usrCargar();
+  }
+
+  /* Contraseña al azar con crypto.getRandomValues — Math.random() no sirve para
+     esto: es predecible y estas claves abren el CRM entero. */
+  function usrGenerar(){
+    const abc = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*?';
+    const n = 20, buf = new Uint32Array(n);
+    crypto.getRandomValues(buf);
+    return Array.from(buf, (x) => abc[x % abc.length]).join('');
+  }
+  /* Medidor de fuerza: largo + variedad. No pretende ser una ciencia — es para que
+     nadie ponga "viven2026" y se quede tranquilo. */
+  function usrFuerza(pw){
+    const largo = pw.length;
+    let clases = 0;
+    if (/[a-z]/.test(pw)) clases++;
+    if (/[A-Z]/.test(pw)) clases++;
+    if (/[0-9]/.test(pw)) clases++;
+    if (/[^a-zA-Z0-9]/.test(pw)) clases++;
+    if (largo < USR_MIN) return { pct: Math.min(largo / USR_MIN * 40, 40), txt: 'Corta — mínimo ' + USR_MIN + ' caracteres', color: '#ff6b6b' };
+    if (clases <= 2) return { pct: 55, txt: 'Débil — mezclá mayúsculas, números y símbolos', color: '#f0c060' };
+    if (largo < 16) return { pct: 78, txt: 'Buena', color: '#7fd6a0' };
+    return { pct: 100, txt: 'Muy buena', color: 'var(--acid)' };
+  }
+  function usrMedir(){
+    const pw = $('usr-pass').value, f = usrFuerza(pw), bar = $('usr-meter').firstElementChild;
+    bar.style.width = (pw ? f.pct : 0) + '%'; bar.style.background = f.color;
+    $('usr-meter-txt').textContent = pw ? f.txt : '—';
+  }
+
+  async function usrLlamar(body){
+    const { data, error } = await supabase.functions.invoke('admin-users', { body });
+    if (error) throw new Error((data && data.error) || error.message || 'sin respuesta');
+    if (data && data.error) throw new Error(data.error);
+    return data || {};
+  }
+
+  async function usrCargar(){
+    const box = $('usr-list'); box.innerHTML = '<p class="muted-note">Cargando…</p>';
+    try {
+      const d = await usrLlamar({ action: 'list' });
+      usrRows = Array.isArray(d.users) ? d.users : [];
+      // "colados": tienen cuenta de Auth pero no están en user_roles — quedaron del mes
+      // que el alta pública estuvo abierta. La función los marca a propósito; taparlos
+      // acá sería borrar justo la señal por la que se cerró el alta.
+      // ...menos los que ya dimos de baja: darlos de baja BORRA su fila de user_roles,
+      // así que vuelven en la lista de colados. Esos no son un descuido, son una decisión.
+      usrColados = (Array.isArray(d.colados) ? d.colados : [])
+        .filter((e) => { const u = usrRows.find((x) => x.email === e); return !u || !u.disabled; });
+      usrRender();
+    } catch (e) {
+      // 404 = la función todavía no está desplegada. Se dice y listo: la pantalla
+      // queda usable en cuanto exista, sin tocar nada acá.
+      box.innerHTML = '<p class="muted-note" style="color:#ff8b5e">No se pudo leer la lista de usuarios: ' + esc(e.message || e) +
+        '<br><span style="color:var(--muted-2)">Si dice 404, la función admin-users todavía no está desplegada.</span></p>';
+    }
+  }
+
+  function usrRender(){
+    const box = $('usr-list');
+    if (!usrRows.length){ box.innerHTML = '<p class="muted-note">Todavía no hay usuarios.</p>'; return; }
+    const f = (iso) => iso ? new Date(iso).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+    box.innerHTML = (usrColados.length
+      ? '<p class="muted-note" style="color:#ff8b5e;margin:0 0 12px"><b>' + usrColados.length +
+        (usrColados.length === 1 ? ' cuenta tiene' : ' cuentas tienen') + ' usuario y contraseña pero no están en la lista de acceso</b>' +
+        ' — se registraron solas cuando el alta estaba abierta. Hoy no entran a ningún lado: o les das acceso, o las das de baja.</p>'
+      : '') +
+      '<div class="lead-table-wrap"><table class="lead-table"><thead><tr>' +
+      '<th>Email</th><th>Rol</th><th>Último ingreso</th><th>Estado</th><th></th></tr></thead><tbody>' +
+      usrRows.map((u) => {
+        const baja = !!u.disabled;
+        // sin rol = tiene cuenta pero no está en user_roles: no entra (SQL 0127, is_member())
+        const sinAcceso = !u.role;
+        return '<tr' + (baja ? ' style="opacity:.55"' : '') + '>' +
+          '<td>' + esc(u.email || '') + (u.email === meEmail ? ' <span class="badge">vos</span>' : '') + '</td>' +
+          '<td>' + (u.role === 'superadmin'
+            ? '<span class="badge" style="color:#f0c060;border:1px solid #f0c060;background:rgba(240,192,96,.08)">superadmin</span>'
+            : sinAcceso
+              ? '<span class="badge" style="color:#ff8b5e;border:1px solid #ff8b5e;background:rgba(255,139,94,.08)">sin acceso</span>'
+              : 'miembro') + '</td>' +
+          '<td>' + f(u.last_sign_in_at) + '</td>' +
+          '<td>' + (baja ? '🚫 De baja' : '✅ Activo') + '</td>' +
+          '<td style="white-space:nowrap;text-align:right">' +
+            '<button class="btn btn-ghost small" data-usr-pass="' + esc(u.email) + '" type="button">🔑 Contraseña</button> ' +
+            '<button class="btn btn-ghost small" data-usr-role="' + esc(u.email) + '" type="button">' +
+              (u.role === 'superadmin' ? '↓ Hacer miembro' : sinAcceso ? '✓ Dar acceso' : '↑ Hacer superadmin') + '</button> ' +
+            (baja ? '' : '<button class="btn btn-ghost small danger" data-usr-off="' + esc(u.email) + '" type="button">✕ Dar de baja</button>') +
+          '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+
+    box.querySelectorAll('[data-usr-pass]').forEach((b) => b.addEventListener('click', () => usrCambiarPass(b.dataset.usrPass)));
+    box.querySelectorAll('[data-usr-role]').forEach((b) => b.addEventListener('click', () => usrCambiarRol(b.dataset.usrRole)));
+    box.querySelectorAll('[data-usr-off]').forEach((b) => b.addEventListener('click', () => usrDarDeBaja(b.dataset.usrOff)));
+  }
+
+  async function usrCrear(){
+    const email = $('usr-email').value.trim().toLowerCase(), pass = $('usr-pass').value, role = $('usr-role').value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('Email inválido'); return; }
+    if (pass.length < USR_MIN){ toast('La contraseña necesita al menos ' + USR_MIN + ' caracteres'); return; }
+    const btn = $('usr-create'); btn.disabled = true; btn.textContent = 'Creando…';
+    try {
+      await usrLlamar({ action: 'create', email, password: pass, role });
+      toast('✅ Usuario creado — pasale la contraseña por un canal seguro');
+      $('usr-form-panel').hidden = true; $('usr-pass').value = ''; $('usr-email').value = '';
+      usrMedir(); usrCargar();
+    } catch (e) { toast('No se pudo crear: ' + (e.message || e)); }
+    finally { btn.disabled = false; btn.textContent = 'Crear usuario'; }
+  }
+
+  async function usrCambiarPass(email){
+    const nueva = prompt('Nueva contraseña para ' + email + '\n\nMínimo ' + USR_MIN + ' caracteres. Dejalo vacío y cancelá si no querés cambiarla.\n(Tip: 🎲 Generar en el formulario de arriba arma una segura.)');
+    if (nueva === null) return;
+    if (nueva.length < USR_MIN){ toast('Muy corta: mínimo ' + USR_MIN + ' caracteres'); return; }
+    try {
+      await usrLlamar({ action: 'set_password', email, password: nueva });
+      toast('🔑 Contraseña cambiada — avisale por un canal seguro');
+    } catch (e) { toast('No se pudo cambiar: ' + (e.message || e)); }
+  }
+
+  async function usrCambiarRol(email){
+    const u = usrRows.find((x) => x.email === email); if (!u) return;
+    // sin rol todavía: el paso que corresponde es darle acceso de miembro, no coronarlo
+    const nuevo = !u.role ? 'member' : u.role === 'superadmin' ? 'member' : 'superadmin';
+    const aviso = !u.role
+      ? '¿Darle acceso a ' + email + ' como miembro?\n\nA partir de ahora entra al dashboard con la contraseña que ya tiene.'
+      : nuevo === 'superadmin'
+        ? '¿Hacer superadmin a ' + email + '?\n\nVa a ver Cash Flow y va a poder crear y dar de baja usuarios.'
+        : '¿Sacarle superadmin a ' + email + '?\n\nDeja de ver Cash Flow y de administrar usuarios.';
+    if (!confirm(aviso)) return;
+    try { await usrLlamar({ action: 'set_role', email, role: nuevo }); toast('✅ Rol actualizado'); usrCargar(); }
+    catch (e) { toast('No se pudo cambiar el rol: ' + (e.message || e)); }
+  }
+
+  async function usrDarDeBaja(email){
+    if (email === meEmail){ toast('No podés darte de baja a vos mismo'); return; }
+    if (!confirm('¿Dar de baja a ' + email + '?\n\nDeja de poder entrar al dashboard. Sus datos, notas y tareas quedan como están.')) return;
+    try { await usrLlamar({ action: 'disable', email }); toast('🚫 Usuario dado de baja'); usrCargar(); }
+    catch (e) { toast('No se pudo dar de baja: ' + (e.message || e)); }
+  }
+
+  /* ---------- 🩺 Salud de los crons (RPC cron_health) ----------
+     25 tareas programadas y ninguna forma de saber si una se apagó: el newsletter
+     que no sale o el blog que no se escribe se descubrían por ausencia, días
+     después. Verde = la última corrida terminó bien y dentro de lo que su horario
+     hacía esperar; rojo = falló, o hace más de dos ciclos que no corre. Rojo
+     primero, porque lo que anda no necesita mirarse. */
+  let cronsBuilt = false;
+  function cronsInit(){
+    if (!cronsBuilt){ cronsBuilt = true; $('crons-refresh').addEventListener('click', cronsCargar); }
+    cronsCargar();
+  }
+  /* Cada cuánto corre, en minutos, leído del schedule de pg_cron. Solo lo que
+     usamos de verdad: cada N minutos, horario, diario y semanal. Si no se entiende,
+     devolvemos null y ese cron no se marca rojo por antigüedad (no inventamos). */
+  function cronCadaMin(sched){
+    const s = String(sched || '').trim();
+    let m = s.match(/^\*\/(\d+) \* \* \* \*$/); if (m) return +m[1];
+    if (/^\d+ \* \* \* \*$/.test(s)) return 60;
+    if (/^[\d,\/*-]+ [\d,\/*-]+ \* \* \*$/.test(s)) return 60 * 24;
+    if (/^[\d,\/*-]+ [\d,\/*-]+ \* \* [\d,]+$/.test(s)) return 60 * 24 * 7;
+    return null;
+  }
+  /* La columna "cada" se lee, no se descifra: el schedule crudo ("0 7 * * *") no le
+     dice nada a nadie. Si no lo entendemos, mostramos el crudo antes que mentir. */
+  function cronCadaTexto(sched, minutos){
+    const m = minutos != null ? +minutos : cronCadaMin(sched);
+    if (m == null || !isFinite(m)) return String(sched || '—');
+    if (m < 60) return 'cada ' + m + ' min';
+    if (m === 60) return 'cada hora';
+    if (m === 60 * 24) return 'todos los días';
+    if (m === 60 * 24 * 7) return 'cada semana';
+    if (m === 60 * 24 * 30) return 'una vez por mes';
+    return 'cada ' + cronMins(m);
+  }
+  async function cronsCargar(){
+    const box = $('crons-list'); box.innerHTML = '<p class="muted-note">Cargando…</p>';
+    try {
+      const { data, error } = await supabase.rpc('cron_health');
+      if (error) throw error;
+      const filas = Array.isArray(data) ? data : [];
+      if (!filas.length){ box.innerHTML = '<p class="muted-note">Sin datos de crons todavía.</p>'; return; }
+      /* Quién decide si un cron está mal: la RPC (SQL 0128), que ya devuelve `estado`
+         y las filas ordenadas con lo urgente arriba. Acá NO se recalcula — dos motores
+         con reglas parecidas terminan contradiciéndose y no se sabe a cuál creerle.
+         El cálculo local queda solo de red: si la RPC es vieja y no manda `estado`. */
+      const ahora = Date.now();
+      const evaluadas = filas.map((c) => {
+        const min = c.minutos_desde != null ? Math.round(+c.minutos_desde)
+          : c.last_run ? Math.round((ahora - Date.parse(c.last_run)) / 60000) : null;
+        if (c.estado){
+          const mal = ['apagado', 'nunca_corrio', 'fallo', 'atrasado'].includes(c.estado);
+          const motivo = c.estado === 'apagado' ? 'está apagado'
+            : c.estado === 'nunca_corrio' ? 'nunca corrió'
+            : c.estado === 'fallo' ? 'la última corrida falló'
+            : c.estado === 'atrasado' ? 'hace ' + cronMins(min) + ' que no corre'
+            : c.estado === 'sin_referencia' ? 'corrió — no sé cada cuánto debería'
+            : '';
+          return { ...c, min, fallo: c.estado === 'fallo', mal, gris: c.estado === 'sin_referencia', motivo };
+        }
+        const cada = cronCadaMin(c.schedule);
+        const fallo = c.last_status && !/^succe/i.test(String(c.last_status));
+        const tarde = cada != null && min != null && min > cada * 2;
+        const nunca = !c.last_run;
+        return { ...c, cada, min, fallo: !!fallo, mal: !!(fallo || tarde || nunca), motivo: fallo ? 'la última corrida falló' : nunca ? 'nunca corrió' : tarde ? 'hace ' + cronMins(min) + ' que no corre' : '' };
+      });
+      if (!filas.some((c) => c.estado)) evaluadas.sort((a, b) => (b.mal ? 1 : 0) - (a.mal ? 1 : 0) || String(a.jobname).localeCompare(String(b.jobname)));
+      const mal = evaluadas.filter((c) => c.mal).length;
+      const grises = evaluadas.filter((c) => c.gris).length;
+      box.innerHTML =
+        '<p class="muted-note" style="margin:0 0 12px">' + (mal
+          ? '<b style="color:#ff8b5e">' + mal + (mal === 1 ? ' tarea necesita atención' : ' tareas necesitan atención') + '</b> de ' + evaluadas.length + '.'
+          : '✅ Las ' + evaluadas.length + ' tareas corrieron cuando tenían que correr.') +
+          // las "sin referencia" no son un problema, pero tampoco están verificadas: se dicen aparte
+          (grises ? ' <span style="opacity:.8">' + grises + (grises === 1 ? ' tiene un horario' : ' tienen horarios') + ' que no sé leer, así que de esa no puedo decir si se atrasó.</span>' : '') + '</p>' +
+        '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Tarea</th><th>Cada</th><th>Última corrida</th><th>Estado</th></tr></thead><tbody>' +
+        evaluadas.map((c) => '<tr>' +
+          '<td><span style="color:' + (c.mal ? '#ff8b5e' : c.gris ? 'var(--muted)' : '#7fd6a0') + '">●</span> ' + esc(c.jobname || '') + '</td>' +
+          '<td class="muted-note" title="' + esc(c.schedule || '') + '">' + esc(cronCadaTexto(c.schedule, c.esperado_cada_min)) + '</td>' +
+          '<td>' + (c.last_run ? esc(new Date(c.last_run).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })) : '—') + '</td>' +
+          '<td>' + (c.mal
+            /* el mensaje solo se muestra cuando la corrida falló: si el cron está
+               atrasado, el último mensaje es viejo y decir "· ok" al lado del rojo confunde */
+            ? '<span style="color:#ff8b5e">' + esc(c.motivo) + (c.fallo && c.last_message ? ' · ' + esc(String(c.last_message).slice(0, 60)) : '') + '</span>'
+            : c.gris ? '<span class="muted-note">' + esc(c.motivo) + '</span>'
+            : '<span style="color:#7fd6a0">ok</span>') + '</td>' +
+        '</tr>').join('') + '</tbody></table></div>';
+    } catch (e) {
+      box.innerHTML = '<p class="muted-note" style="color:#ff8b5e">No se pudo leer el estado de los crons: ' + esc(e.message || e) +
+        '<br><span style="color:var(--muted-2)">Si dice que no existe la función, falta correr la migración 0128 (cron_health).</span></p>';
+    }
+  }
+  const cronMins = (m) => m < 90 ? m + ' min' : m < 60 * 48 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' días';
+
   /* ---------- Roles (SQL 0077) — gate de superadmin para el tab Cash Flow ----------
      La seguridad REAL la da RLS (public.is_superadmin()); esto es solo UX: si no
      sos superadmin, el nav item y el contenido del tab se sacan del DOM del todo
@@ -13475,11 +13999,20 @@ const newsCases = [
     // side-group propio — se oculta/saca el botón del segmentado + su contenido, no un
     // group entero. Ver sistemaSetSub() más arriba (defensivo: nunca aterriza ahí sin ser superadmin).
     const btn = $('sistema-seg-cashflow-btn'), tabEl = $('sistema-sub-cashflow');
+    // Usuarios va por el mismo camino: crear gente y cambiar roles es solo superadmin.
+    // La seguridad REAL la da la edge function (verifica el rol del lado del server);
+    // esto es UX — que no quede un botón que va a devolver "no autorizado".
+    const btnU = $('sistema-seg-usuarios-btn'), tabU = $('sistema-sub-usuarios');
+    // Crons NO va acá: la RPC cron_health() (SQL 0128) pide is_member(), no superadmin
+    // — cualquiera de la casa puede ver si los motores están andando.
     if (isSuperadmin){
       if (btn) btn.hidden = false;
+      if (btnU) btnU.hidden = false;
     } else {
       if (btn) btn.remove();
       if (tabEl) tabEl.remove();
+      if (btnU) btnU.remove();
+      if (tabU) tabU.remove();
     }
   }
 
@@ -16755,14 +17288,38 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     });
   })();
 
+  /* Red de contención de la sesión. Sin esto, cuando el token se vencía en medio
+     del trabajo (pasa en el teléfono, con la app abierta de un día para el otro)
+     las consultas empezaban a fallar de a una y la pantalla quedaba viva pero
+     vacía, sin decir nada y sin mandar al login. */
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || (!session && ['TOKEN_REFRESHED', 'USER_UPDATED'].includes(event))){
+      meEmail = null; isSuperadmin = false;
+      const av = $('login-expired'); if (av) av.hidden = false;
+      show('login');
+    }
+  });
+
+  // "olvidé mi contraseña": manda el mail de recuperación de Supabase al mismo
+  // email escrito arriba. Nunca dice si existe o no — no filtramos quién tiene cuenta.
+  $('login-forgot') && $('login-forgot').addEventListener('click', async () => {
+    const f = $('login-form'), msg = $('login-forgot-msg');
+    const email = (f.email.value || '').trim();
+    if (!email){ f.email.focus(); msg.hidden = false; msg.textContent = 'Escribí tu email arriba y volvé a tocar acá.'; return; }
+    msg.hidden = false; msg.textContent = 'Mandando…';
+    try {
+      await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/dashboard/' });
+      msg.textContent = '📬 Si ese email tiene cuenta, le llega el link para cambiar la contraseña.';
+    } catch (e) {
+      msg.textContent = 'No se pudo mandar: ' + (e.message || e);
+    }
+  });
+
   supabase.auth.getSession().then(async ({ data }) => {
-    __perfMark('session_done');
     if (data.session) {
       meEmail = (data.session.user?.email || '').toLowerCase();
       await checkRole();
-      __perfMark('role_done');
       show('dash'); loadAll().then(async () => { await openTabFromQuery(); openFromQuery(); });
-      __perfMark('shell_shown');
     }
     else show('login');
   });
