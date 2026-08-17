@@ -237,22 +237,39 @@ Deno.serve(async (req) => {
       // se frena solo si ya lo trabajaste (mismo criterio que tenía nurture)
       if (CONTACT_STAGES.has(String(lead.status || "").toLowerCase()) || /spam|descartado/i.test(lead.status || "")) { out.skipped_contacted++; continue; }
 
-      const ageDays = (Date.now() - Date.parse(st.enrolled_at)) / D;
+      /* LOS TRES PASOS DE UNA, POR ADELANTADO.
+         Antes se creaba UN borrador por corrida y solo cuando ya había vencido
+         su plazo (día +2, +5, +9). Eso significaba que el borrador aparecía el
+         mismo día que tenía que salir: si Sebastián estaba en un rodaje —que es
+         la mitad del tiempo— nadie lo aprobaba y el email no salía nunca.
+         Pedido explícito el 17 ago 2026: "esperar es innecesario, cuando tienen
+         que salir yo no puedo estar available; así tenemos varios días para
+         confirmar".
+         Ahora se arman TODOS los pasos que falten en la primera corrida, cada
+         uno con su fecha real en scheduled_at. Revisar se adelanta; MANDAR no:
+         automations-run solo manda un aprobado cuando llegó su scheduled_at, y
+         además espera a horario laboral suizo.
+         Esto ya estaba resuelto así para los workflows en automations-run
+         ("quiere ver LOS 3 pasos para aprobar juntos") — este camino se había
+         quedado afuera del mismo arreglo. */
+      const enrolledAt = Date.parse(st.enrolled_at);
       for (let i = 0; i < steps.length; i++) {
         const step = i + 1;
-        if (ageDays < STEP_DAYS[i]) break;   // todavía no toca este paso ni los siguientes
         const key = `${st.lead_id}|${st.category}|${step}`;
         if (sentSet.has(key) || pendingSet.has(key)) continue;   // ya enviado o ya esperando OK
         const lang = ["en", "de", "es"].includes(lead.lang) ? lead.lang : "en";
         const s = steps[i];
         const subject = fillTok(s.subject[lang] || s.subject.en, lead);
         const body = fillTok(s.body[lang] || s.body.en, lead);
+        // fecha real de envío. Si el plazo ya venció (inscripción vieja), va
+        // ahora: no se inventa una demora nueva sobre algo que ya debía salir.
+        const cuando = new Date(Math.max(enrolledAt + STEP_DAYS[i] * D, Date.now()));
         const { data: ins, error } = await service.from("outbox").insert({
           lead_id: st.lead_id, kind: "content_followup", category: st.category, step,
           sender: "team", subject, body, status: "pending",
+          scheduled_at: cuando.toISOString(),
         }).select("id").maybeSingle();
         if (!error && ins) { out.drafted++; notifyBestEffort(ins.id); }
-        break;   // un solo paso por corrida por inscripción — el próximo toca en la corrida que siga
       }
     }
 
