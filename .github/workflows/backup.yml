@@ -40,13 +40,26 @@ jobs:
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
-          pg_dump --version
+          # Instalar el paquete NO alcanza: Ubuntu deja /usr/bin/pg_dump apuntando
+          # al 16 igual, y el 16 se niega a hablar con un servidor 17. La primera
+          # corrida falló justo acá y el error decía "version mismatch" sin
+          # aclarar que había dos pg_dump instalados. Hay que poner el 17 primero
+          # en el PATH y comprobar que la versión que responde sea la correcta.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version | grep -q " 17\." \
+            || { echo "::error::pg_dump 17 no quedó instalado"; exit 1; }
 
       - name: Bajar la base
         env:
           DBURL: ${{ secrets.SUPABASE_BACKUP_DBURL }}
         run: |
+          # pipefail: sin esto, si pg_dump falla el resultado de la tubería es el
+          # de gzip —que comprime la nada perfectamente— y el paso da VERDE con
+          # un archivo de 20 bytes. Pasó en la primera corrida: el respaldo salió
+          # vacío y solo lo detectó la comprobación de más abajo.
+          set -o pipefail
           FECHA=$(date -u +%Y-%m-%d)
+          pg_dump --version
           # --no-owner / --no-privileges: el rol de backup no es dueño de nada,
           # y sin esto el dump lleva instrucciones de permisos que fallan al
           # restaurar en otro proyecto.
