@@ -4833,11 +4833,15 @@ const newsCases = [
 
   async function loadCore(){
     const [leadsQ, offersQ, coQ, propsQ, dealsQ, bookQ, bookHistQ] = await Promise.all([
+      // Las cinco paginan. Un .select() sin paginar se corta en el Max Rows del
+      // proyecto SIN avisar: ofertas, deals y empresas todavía no llegan a ese tope,
+      // pero el día que lleguen el pipeline mostraría de menos y nada lo diría.
+      // Es el mismo tope que ya nos comió filas en leads.
       fetchAllRowsFull('leads', '*', 'created_at'),
-      supabase.from('offers').select('*').order('updated_at', { ascending: false }),
-      supabase.from('companies').select('*'),
+      fetchAllRowsFull('offers', '*', 'updated_at'),
+      fetchAllRowsFull('companies', '*', 'domain'),
       fetchAllRowsFull('proposals', '*', 'updated_at'),
-      supabase.from('deals').select('*').order('created_at', { ascending: false }),
+      fetchAllRowsFull('deals', '*', 'created_at'),
       supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8),
       // histórico 30d (pedido explícito: trackear video calls booked por persona) — created_at
       // = cuándo se hizo la reserva, no cuándo es la call, así cuenta "booked" de verdad
