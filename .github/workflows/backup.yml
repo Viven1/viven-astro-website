@@ -54,20 +54,25 @@ jobs:
         env:
           DBURL: ${{ secrets.SUPABASE_BACKUP_DBURL }}
         run: |
-          # Comillas de dólar ($q$…$q$) en vez de comillas simples: el SQL viaja
-          # por dos capas de shell (la del runner y la del contenedor) y las
-          # comillas simples no sobreviven — el primer intento llegó a psql con
-          # las barras invertidas literales y murió con "syntax error at or near".
-          # Si no falta ninguna tabla, string_agg devuelve NULL y psql -tA
-          # imprime vacío, que es lo que se comprueba abajo.
-          FALTAN=$(docker run --rm -e DBURL postgres:17-alpine sh -c 'psql "$DBURL" -tAc "
-            select string_agg(t.tablename, $q$, $q$)
-            from pg_tables t
-            where t.schemaname = $q$public$q$
-              and not exists (select 1 from pg_policies p
-                              where p.schemaname = $q$public$q$
-                                and p.tablename = t.tablename
-                                and p.policyname = $q$backup_ro_read$q$)"')
+          # El SQL va en un ARCHIVO, no en la línea de comandos. Pasarlo inline
+          # significa cruzar dos shells (la del runner y la del contenedor) y las
+          # dos se comen algo: el primer intento perdió las comillas simples y el
+          # segundo perdió las de dólar, porque la shell de adentro expandió $q
+          # como variable vacía. Con un archivo no hay nada que escapar.
+          # El heredoc va con 'SQL' entre comillas para que el runner tampoco
+          # toque el contenido.
+          cat > check.sql <<'SQL'
+          select string_agg(t.tablename, ', ')
+          from pg_tables t
+          where t.schemaname = 'public'
+            and not exists (select 1 from pg_policies p
+                            where p.schemaname = 'public'
+                              and p.tablename = t.tablename
+                              and p.policyname = 'backup_ro_read');
+          SQL
+          # Si no falta ninguna, string_agg devuelve NULL y psql -tA imprime vacío.
+          FALTAN=$(docker run --rm -e DBURL -v "$PWD:/w" postgres:17-alpine \
+                     sh -c 'psql "$DBURL" -tAf /w/check.sql')
           if [ -n "$FALTAN" ]; then
             echo "::error::Estas tablas quedarían VACÍAS en el respaldo: $FALTAN — falta darles la política backup_ro_read"
             exit 1
