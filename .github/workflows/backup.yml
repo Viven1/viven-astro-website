@@ -46,6 +46,28 @@ jobs:
       # paquete instala en otra ruta), y la segunda se colgó indefinidamente en
       # el paso de apt. Con Docker la versión es exacta y no depende de cómo
       # venga armado el runner esta semana.
+      # La única forma en que este respaldo puede salir incompleto EN SILENCIO es
+      # que aparezca una tabla nueva sin el permiso de lectura del usuario de
+      # backup: con las políticas activas (ver abajo) esa tabla se dumpearía con
+      # cero filas y nadie se enteraría. Se comprueba antes de bajar nada.
+      - name: Que ninguna tabla se quede afuera
+        env:
+          DBURL: ${{ secrets.SUPABASE_BACKUP_DBURL }}
+        run: |
+          FALTAN=$(docker run --rm -e DBURL postgres:17-alpine sh -c 'psql "$DBURL" -tAc "
+            select coalesce(string_agg(t.tablename, \x27, \x27), \x27\x27)
+            from pg_tables t
+            where t.schemaname = \x27public\x27
+              and not exists (select 1 from pg_policies p
+                              where p.schemaname = \x27public\x27
+                                and p.tablename = t.tablename
+                                and p.policyname = \x27backup_ro_read\x27)"')
+          if [ -n "$FALTAN" ]; then
+            echo "::error::Estas tablas quedarían VACÍAS en el respaldo: $FALTAN — falta darles la política backup_ro_read"
+            exit 1
+          fi
+          echo "todas las tablas tienen permiso de lectura ✓"
+
       - name: Bajar la base
         env:
           DBURL: ${{ secrets.SUPABASE_BACKUP_DBURL }}
@@ -59,8 +81,18 @@ jobs:
           # --no-owner / --no-privileges: el usuario de respaldo no es dueño de
           # nada, y sin esto el dump lleva instrucciones de permisos que fallan
           # al restaurar en otro proyecto.
+          #
+          # --enable-row-security: por defecto pg_dump apaga las políticas de
+          # seguridad para asegurarse de llevarse TODO, y si el usuario no tiene
+          # permiso para apagarlas se niega a seguir ("query would be affected by
+          # row-level security policy"). Es una protección, no un capricho: sin
+          # eso te daría un respaldo incompleto sin decírtelo. Como apagarlas
+          # requiere ser superusuario —y en Supabase nadie lo es— se hace al
+          # revés: se dumpea CON las políticas puestas, y al usuario de backup se
+          # le dio permiso de lectura total en cada tabla (política
+          # backup_ro_read). Ve todo, y el paso de arriba comprueba que siga así.
           docker run --rm -e DBURL postgres:17-alpine \
-            sh -c 'pg_dump "$DBURL" --schema=public --no-owner --no-privileges --format=plain' \
+            sh -c 'pg_dump "$DBURL" --schema=public --no-owner --no-privileges --format=plain --enable-row-security' \
             | gzip -9 > "viven-$FECHA.sql.gz"
 
       # Un backup que nadie mira no es un backup. Si el usuario perdiera sus
