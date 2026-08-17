@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Erklärvideos für komplexe Produkte: 5 bewährte Strategien | Viven"};
+const description = {"de":"Wie erstellen Sie Erklärvideos, die technische Produkte verständlich machen? Lesen Sie bewährte Strategien aus unseren Tech-Produktionen."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "erklaervideos-komplexe-produkte-strategien";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/erklaervideos-komplexe-produkte-strategien" active="blog" singleLang={true} langUrls={{"en":"/en/blog/explainer-videos-complex-products/","de":"/de/blog/erklaervideos-komplexe-produkte-strategien/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/erklaervideos-komplexe-produkte-strategien/\"},\"headline\":\"Erklärvideos für komplexe Produkte: 5 bewährte Strategien\",\"description\":\"Wie erstellen Sie Erklärvideos, die technische Produkte verständlich machen? Lesen Sie bewährte Strategien aus unseren Tech-Produktionen.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/erklaervideos-komplexe-produkte-strategien/\",\"datePublished\":\"2026-08-17T07:09:59.300Z\",\"image\":\"https://www.viven.ch/projects/kanebo-sensai-skincare-how-to-video-campaign/03-re_How_To_Videos_Viven_Video_Agency_54.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Erklärvideos für komplexe Produkte: 5 bewährte Strategien\",\"item\":\"https://www.viven.ch/de/blog/erklaervideos-komplexe-produkte-strategien/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie lang sollte ein Erklärvideo für ein komplexes Produkt sein?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das hängt vom Kanal ab. Für Social Media: 45–75 Sekunden. Für Website-Landing-Pages: 90–180 Sekunden. Für Sales-Material oder Schulung: 3–7 Minuten. Die Faustregel: Eine Kernbotschaft pro Minute, dann visuelle Entlastung.\"}},{\"@type\":\"Question\",\"name\":\"Sollten wir Animation oder Live-Action verwenden?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ideal ist eine Mischung. Live-Action zeigt Vertrauen und reale Anwendung. Animation erklärt abstrakte Prozesse und technische Details, die man nicht filmen kann. Die Kombination wirkt professionell und verständlich zugleich.\"}},{\"@type\":\"Question\",\"name\":\"Wie viel kostet ein professionelles Erklärvideo in der Schweiz?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Abhängig von Länge, Animation und Drehaufwand liegt ein gutes Erklärvideo zwischen CHF 8'000 und CHF 30'000. Budgetvideos unter CHF 5'000 funktionieren selten für B2B-Produkte – die Qualität wirkt sich direkt auf die Glaubwürdigkeit aus.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Erklärvideos für komplexe Produkte: 5 bewährte Strategien</span></nav>
+  <span class="eyebrow">Produktvideo</span>
+  <h1>Erklärvideos für komplexe Produkte: 5 bewährte Strategien</h1>
+  <p class="lead">Komplexe Produkte visuell zu erklären ist eine Kunst. Wer technische Features in 90 Sekunden vermitteln muss, braucht mehr als eine gute Idee: Es braucht Strategie. In diesem Artikel teilen wir fünf konkrete Lektionen, die wir bei der Produktion von Erklärvideos für Unternehmen wie Siemens und Philips gelernt haben – und wie Sie diese Erkenntnisse direkt in Ihre nächste Videoproduktion einbauen.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>17. August 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/kanebo-sensai-skincare-how-to-video-campaign/03-re_How_To_Videos_Viven_Video_Agency_54.jpg" alt="Erklärvideos für komplexe Produkte: 5 bewährte Strategien" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>1. Mit dem Kundenvorteil beginnen, nicht mit der Technologie</h2><p>Der häufigste Fehler: Techniker wollen alle Features erklären. Das führt zu überladenen, fragmentierten Videos, die niemand zu Ende schaut.</p><p>Stattdessen sollten Sie mit der Lösung starten. "Ihr Produktionsprozess kostet 40 % zu viel Zeit." Erst dann zeigen Sie, wie die Technologie das löst. Menschen verstehen komplexe Produkte, wenn sie einen emotionalen Anker haben – den Vorteil, den sie selbst spüren.</p><p>Unser Tipp: Schreiben Sie das Drehbuch mit dieser Struktur auf: Problem → Lösungsidee → technischer Beweis → Ergebnis. Die Technologie ist der dritte Akt, nicht der erste.</p><h2>2. Animation und Live-Action kombinieren</h2><p>Reine Slideshow-Videos wirken unpersönlich. Reines Live-Action ist zu langsam für komplexe Erklärungen. Die Antwort liegt in der Kombination.</p><ul><li><strong>Live-Action:</strong> Zeigt reale Anwendung und schafft Vertrauen. Ein Monteur oder Techniker bei der Arbeit mit dem Produkt macht es greifbar.</li><li><strong>Animation:</strong> Erklärt abstrakte Prozesse, interne Funktionen oder Datenflüsse, die Sie nicht filmen können. Eine 3D-Animation eines Algorithmus ist klar – ein Video davon ist verwirrend.</li><li><strong>Infografiken:</strong> Zahlen, ROI, Prozessschritte – diese leben von sauberer, bewegter Grafik.</li></ul><p>Bei Produktvideos für B2B-Unternehmen in der DACH-Region funktioniert diese Mischung am zuverlässigsten, weil sie sowohl emotionale Glaubwürdigkeit (Live-Action) als auch intellektuelle Klarheit (Animation) bietet.</p><h2>3. Das Skript braucht Rhythmus und Pausen</h2><p>Ein Erklärvideo ohne Atemraum wirkt hetzig. Guter Rhythmus bedeutet: kurze Sätze, Pausen nach Kernbotschaften, visueller Wechsel bei jedem neuen Gedanken.</p><p>Lesen Sie Ihr Skript laut vor. Wenn Sie zwischendurch atmen müssen, ist das kein Fehler – das ist Struktur. Ein Satz à 8–12 Wörter, dann Schnitt oder Szenenwechsel. Das hält Zuschauer konzentriert und macht komplexe Inhalte verdaulich.</p><p>Beispiel aus unserem ON-Projekt: Statt "Die Schuhsohle verwendet patentierte Elastomere mit reaktiver Faserabsorption" sagten wir "Die Sohle passt sich an Ihre Bewegung an" und zeigten danach 3 Sekunden nur das Produkt in Aktion. Verständlicher. Professioneller.</p><h2>4. Sprechtext und Visuelles müssen synchron arbeiten</h2><p>"Das Video erklärt sich selbst" – dieser Satz ist gelogen. Menschen brauchen Redundanz: Sie müssen das gleiche Konzept im Audio UND im Bild sehen, um es zu verstehen.</p><p>Das heisst konkret: Wenn der Sprecher "Mit KI-gestützter Analyse" sagt, muss auf dem Bildschirm das Wort "KI-Analyse" erscheinen oder ein visuelles Äquivalent (Netzwerk-Icon, Gehirn-Symbol). Das verstärkt die Botschaft um Faktoren.</p><p>Ausserdem: Auf Deutsch gesprochene Videos sollten Sie immer in Deutsch subtiteln. Viele schauen auf dem Handy oder im Büro ohne Ton. Gute Untertitel sind kein Zusatz – sie sind Standard für Erklärvideos.</p><h2>5. Zielgruppe und Länge kennen</h2><p>Es gibt kein universelles "perfektes" Erklärvideo. LinkedIn-Ads funktionieren mit 45–60 Sekunden. Website-Videos können 2–3 Minuten sein, wenn die Story zieht. Sales-Enablement-Videos sind oft 5–7 Minuten und viel detaillierter.</p><p>Fragen Sie sich vor der Produktion: Wer schaut das? Auf welchem Device? Mit Ton oder Untertitel? Was soll passieren, nachdem es endet?</p><p>Ein Erklärvideo auf der Website eines SaaS-Unternehmens in der Schweiz hat oft ein anderes Ziel als ein Social-Media-Teaser. Die Technik ist gleich – die Strategie muss unterschiedlich sein.</p><h2>Technischer Qualitätsstandard für diese Videos</h2><p>Komplexe Produkte brauchen klare Visuals. Das bedeutet: hochwertige Kameras, gedimmtes oder kontrolliertes Licht (besonders bei Produktdetails), stabiler Sound (Hintergrundlärm ist ein Killer), und farblich abgestimmte Grafiken. Ein "günstiges" Erklärvideo wirkt billig und schadet dem Produktimage.</p><p>Für B2B-Videos in Schweizer Unternehmen sollten Sie mit mind. 4K filmen und mit DCI-Standard-Farbraum arbeiten. Das macht Videos zukunftssicher und professionell.</p><h2>Wie wir helfen</h2><p>Bei <a href={p("services/product-video")}>Produktvideos</a> für technische Unternehmen kombinieren wir strategische Beratung, professionelle Dreharbeiten und Animation. Wir haben mit Herstellern in Maschinenbau, Pharma und Softwaretechnologie zusammengearbeitet, um Videos zu produzieren, die komplex, aber verständlich sind.</p><p>Wenn Sie Ihr Erklärvideo nicht selbst zur Veröffentlichungsreife bringen möchten, sind Sie bei uns richtig. Wir übernehmen die ganze Prozesskette – von der Strategie bis zur finalen Farbkorrektur.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1009807480?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="erklaervideos-komplexe-produkte-strategien" />
+  </div></section>
+</Base>
