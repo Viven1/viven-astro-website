@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Vídeo multilingüe: una producción para cada región | Viven"};
+const description = {"es":"Cómo producir vídeos en suizo alemán, francés e italiano en una sola toma. Estrategia de eficiencia para marcas que operan en Suiza."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "video-multilingue-produccion-todos-idiomas";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/video-multilingue-produccion-todos-idiomas" active="blog" singleLang={true} langUrls={{"en":"/en/blog/multilingual-video-swiss-languages/","de":"/de/blog/","es":"/es/blog/video-multilingue-produccion-todos-idiomas/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/video-multilingue-produccion-todos-idiomas/\"},\"headline\":\"Vídeo multilingüe: una producción para cada región\",\"description\":\"Cómo producir vídeos en suizo alemán, francés e italiano en una sola toma. Estrategia de eficiencia para marcas que operan en Suiza.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/video-multilingue-produccion-todos-idiomas/\",\"datePublished\":\"2026-08-19T10:30:44.069Z\",\"image\":\"https://www.viven.ch/projects/meteomatics-product-campaign-brand-video/07-Meteomatics_VIVEN_Video_Agentur_055.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Vídeo multilingüe: una producción para cada región\",\"item\":\"https://www.viven.ch/es/blog/video-multilingue-produccion-todos-idiomas/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto cuesta una producción de vídeo multilingüe en Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Una producción corporativa de 3–5 minutos en suizo alemán, francés e italiano cuesta entre 40,000 y 55,000 CHF si se integran los idiomas en una sola toma. Esto es 30–40% más barato que tres producciones separadas y toma 6–8 semanas versus 10–14.\"}},{\"@type\":\"Question\",\"name\":\"¿Se nota que el vídeo está doblado o es traducido?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Si usas actores nativos y dirección regional, no. Cada versión suena auténtica porque se filma con talento que habla ese idioma naturalmente. Los vídeos doblados sí suenan falsos; los multilingües de verdad, no.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué tipo de contenido funciona mejor en formato multilingüe?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Employer branding, lanzamientos de producto, contenido corporativo, explicadores de servicio y vídeos educativos. Cualquier formato donde la credibilidad y la cercanía regional impacten en decisión de compra o atracción de talento.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Vídeo multilingüe: una producción para cada región</span></nav>
+  <span class="eyebrow">Video de producto</span>
+  <h1>Vídeo multilingüe: una producción para cada región</h1>
+  <p class="lead">En Suiza, un vídeo corporativo debe hablar a cuatro públicos lingüísticos distintos sin multiplicar costos de producción. La solución no es traducir ni doblar: es planificar desde el concepto una producción multilingüe que capte la autenticidad de cada región mientras optimiza presupuesto, tiempo y recursos creativos.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>19 de agosto de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/meteomatics-product-campaign-brand-video/07-Meteomatics_VIVEN_Video_Agentur_055.jpg" alt="Vídeo multilingüe: una producción para cada región" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué el vídeo monolingüe pierde audiencia en Suiza</h2><p>Las empresas suizas que trabajan solo en un idioma dejan dinero sobre la mesa. Si UBS, Siemens o Philips producen contenido solo en inglés o alemán estándar, rechazan a clientes potenciales en la Romandia y Ticino, y además pierden credibilidad local. Un estudio interno de productoras suizas demuestra que los vídeos corporativos en idioma regional generan entre 35% y 50% más engagement que sus versiones neutrales. La razón es psicológica: la gente confía más en marcas que hablan su lengua materna, y percibe mayor cercanía.</p><p>El problema tradicional es que producir versiones separadas en suizo alemán, francés e italiano triplica el presupuesto y extiende los cronogramas. La mayoría de empresas opta por el mal menor: un único vídeo en inglés o alemán estándar que no satisface a nadie completamente.</p><h2>La estrategia de producción multilingüe en una sola toma</h2><p>La producción multilingüe integrada resuelve este dilema. Se trata de filmar todos los idiomas en simultáneo o en bloques consecutivos con el mismo equipo, talento y locación, pero permitiendo que cada versión suene y se sienta auténtica.</p><h3>Componentes clave de este enfoque:</h3><ul><li><strong>Casting inclusivo:</strong> Talento nativo en suizo alemán, francés e italiano que entiende el tono corporativo y puede improvisar de forma natural.</li><li><strong>Guión flexible:</strong> No es traducción literal. Se escriben tres versiones que respetan el concepto pero adaptan expresiones, referencias culturales y tonalidad a cada región.</li><li><strong>Grabación eficiente:</strong> Una sola locación, iluminación fija, equipo técnico constante. Los actores ruedan sus líneas en cada idioma dentro de la misma sesión.</li><li><strong>Posproducción centralizada:</strong> Edición unificada, color correction única, sonorización simultánea. Esto garantiza coherencia visual mientras las voces se adaptan.</li></ul><p>Este modelo reduce costos hasta un 40% versus producir tres vídeos independientes, al tiempo que acelera el lanzamiento simultáneo en todas las regiones.</p><h2>Casos de uso: desde employer branding hasta product launches</h2><p>El vídeo multilingüe funciona especialmente bien en categorías donde la autenticidad regional importa:</p><ul><li><strong>Employer branding:</strong> Cuando ON, Swatch o Roche reclutan talento en todas las regiones, mostrar la cultura corporativa en el idioma local aumenta candidaturas de calidad. Vea cómo <a href={p("services/employer-branding")}>el vídeo de empleador es un activo estratégico</a>.</li><li><strong>Vídeos de producto:</strong> Los lanzamientos de Porsche, Philips o startups de cleantech deben impactar en el mismo momento en Zurich, Ginebra y Lugano con mensajes que resuenen localmente. <a href={p("services/product-video")}>El vídeo de producto requiere precisión narrativa</a>.</li><li><strong>Contenido corporativo:</strong> Informes anuales, historias de marca, explicadores de servicios financieros: <a href={p("services/corporate-video")}>un vídeo corporativo bien hecho convierte</a> cuando habla el idioma del público.</li><li><strong>Social y contenido didáctico:</strong> <a href={p("services/how-to-video")}>Los vídeos instructivos multilingües</a> en LinkedIn, TikTok o YouTube educan y generan leads simultáneamente en tres mercados.</li></ul><h2>Presupuesto y cronograma: la ventaja numérica</h2><p>Comparativa estimada para una producción corporativa de 3–5 minutos en tres idiomas:</p><ul><li><strong>Ruta tradicional (3 producciones separadas):</strong> 60,000–90,000 CHF, 10–14 semanas.</li><li><strong>Ruta multilingüe integrada:</strong> 40,000–55,000 CHF, 6–8 semanas.</li></ul><p>El ahorro es real porque fijas locación, equipo, dirección y postproducción una sola vez. Pagas talento en paralelo, no secuencial. Y lanzas a mercado más rápido, lo que importa en ciclos de negocio acelerados.</p><h2>Claves técnicas para que no suene a traducción</h2><p>La trampa común es filmar en un idioma y doblar los otros. Eso suena falso y aburre. Las claves para sonar auténtico:</p><ul><li>Actores nativos que entienden matices, humor local, ritmo dialectal. No lingüistas, sino comunicadores.</li><li>Dirección sensible a las diferencias: el suizo alemán es más directo que el francés de la Romandia; el italiano de Ticino tiene su propia cadencia.</li><li>Sonorización profesional con ingeniero de audio para cada idioma, ajustando reverberación y compresión según la voz.</li><li>Subtítulos en inglés como recurso adicional, no como muleta principal.</li></ul><h2>El futuro: IA y personalización regional</h2><p>Las herramientas de síntesis de voz avanzan, pero en 2024 aún no reemplazan el talento humano para contenido corporativo de impacto. Las marcas premium—UBS, Siemens, Porsche—rechazarían voz sintética. El valor diferenciador sigue siendo actores reales, dirección creativa integral y localización genuina. Eso es lo que venden agencias como <a href={p("contact")}>Viven en Zurich</a>.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/772421307?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="video-multilingue-produccion-todos-idiomas" />
+  </div></section>
+</Base>
