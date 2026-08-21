@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Posicionar vídeos en Google y YouTube: guía SEO | Viven"};
+const description = {"es":"Cómo optimizar tus vídeos para Google y YouTube. Estrategias de SEO de vídeo para aumentar visibilidad y tráfico orgánico desde Viven AG."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "posicionar-videos-google-youtube-seo";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/posicionar-videos-google-youtube-seo" active="blog" singleLang={true} langUrls={{"en":"/en/blog/","de":"/de/blog/","es":"/es/blog/posicionar-videos-google-youtube-seo/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/posicionar-videos-google-youtube-seo/\"},\"headline\":\"Posicionar vídeos en Google y YouTube: guía SEO\",\"description\":\"Cómo optimizar tus vídeos para Google y YouTube. Estrategias de SEO de vídeo para aumentar visibilidad y tráfico orgánico desde Viven AG.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/posicionar-videos-google-youtube-seo/\",\"datePublished\":\"2026-08-21T09:43:59.982Z\",\"image\":\"https://www.viven.ch/projects/en/philips-oneblade-playoffs-social-media-campaign/01-de_Playoffs__VIVEN_Video_Agency-008.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Posicionar vídeos en Google y YouTube: guía SEO\",\"item\":\"https://www.viven.ch/es/blog/posicionar-videos-google-youtube-seo/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo tarda un vídeo en rankear en Google después de publicarlo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Entre 2 y 12 semanas, dependiendo de la competencia de la palabra clave y la autoridad de tu dominio. Vídeos optimizados en un sitio con buena autoridad ranquean más rápido. Los primeros días son críticos: el engagement inicial (clics, retención) acelera o ralentiza el proceso.\"}},{\"@type\":\"Question\",\"name\":\"¿Es mejor subir vídeos directamente a YouTube o incrustarlos en mi web?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ambos. Sube a YouTube para aprovechar su algoritmo, pero incrustra ese mismo vídeo en tu página web. Esto crea un efecto multiplicador: rankeas en búsquedas de YouTube y en búsquedas de Google. Asegúrate de que la página web tenga contenido de contexto (texto, enlaces internos) alrededor del vídeo.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué palabra clave debería optimizar si tengo múltiples idiomas?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Optimiza por el idioma y región específicos. Un vídeo en español optimizado para «vídeos corporativos» en España no rankeará bien en búsquedas de México. Crea versiones regionales con palabras clave locales, o usa hreflang en tu sitio para indicar a Google qué versión mostrar en cada región.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Posicionar vídeos en Google y YouTube: guía SEO</span></nav>
+  <span class="eyebrow">Video de marca</span>
+  <h1>Posicionar vídeos en Google y YouTube: guía SEO</h1>
+  <p class="lead">La mayoría de las marcas suben vídeos a YouTube y Google sin estrategia de posicionamiento, desperdiciando tráfico orgánico masivo. El SEO de vídeo no es complicado: requiere optimización técnica en la plataforma, metadatos bien estructurados y un contenido que responda preguntas reales de tu audiencia. En esta guía te mostramos exactamente cómo hacer que tus vídeos aparezcan en las primeras posiciones de Google, en los resultados destacados de YouTube y en los resúmenes IA que hoy dominan las búsquedas.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>21 de agosto de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/en/philips-oneblade-playoffs-social-media-campaign/01-de_Playoffs__VIVEN_Video_Agency-008.jpeg" alt="Posicionar vídeos en Google y YouTube: guía SEO" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>¿Por qué el SEO de vídeo es diferente a otros contenidos?</h2><p>Los buscadores valoran los vídeos de forma distinta a los textos. Google indexa principalmente títulos, descripciones, transcripciones y metadatos; YouTube, por su lado, prioriza el tiempo de reproducción, la tasa de clics y el compromiso de la audiencia. Esto significa que un vídeo perfectamente optimizado en metadatos pero aburrido no rankeará. Necesitas contenido que responda una pregunta específica en los primeros 10 segundos, que mantenga a la audiencia mirando, y que esté técnicamente optimizado para que los motores de búsqueda lo entiendan.</p><p>En Viven AG hemos producido vídeos para marcas como UBS, Siemens y Porsche. Lo que notamos constantemente es que las empresas suizas y de habla hispana invierten en producción de calidad pero no en distribución inteligente. Un vídeo de CHF 15.000 puede generar cero tráfico si no está optimizado para búsqueda.</p><h2>Estructura tu vídeo pensando en palabras clave</h2><p>Antes de grabar, debes identificar qué términos busca tu audiencia. En español, no es lo mismo «cómo hacer vídeos para redes sociales» que «vídeos cortos para TikTok e Instagram». Una empresa B2B en Madrid buscará «vídeos corporativos para presentaciones» mientras que una en Buenos Aires podría buscar «contenido de vídeo para empresas». Estas diferencias materia.</p><ul><li><strong>Investiga palabras clave locales:</strong> usa Google Trends, Ahrefs o SEMrush filtrando por país (España, México, Argentina, Colombia).</li><li><strong>Pregunta de apertura:</strong> el vídeo debe responder una pregunta específica en el título y en los primeros 20 segundos.</li><li><strong>Densidad de términos:</strong> menciona tu palabra clave principal 2–3 veces naturalmente en el contenido verbal del vídeo.</li><li><strong>Estructura clara:</strong> introduce el problema, presenta la solución, muestra resultados. Los algoritmos premian vídeos con arcos narrativos claros.</li></ul><h2>Optimización técnica: metadatos y transcripciones</h2><p>El 70 % de las marcas deja este paso vacío. Los metadatos son tu oportunidad de comunicarle al motor de búsqueda exactamente de qué trata tu vídeo.</p><ul><li><strong>Título:</strong> máximo 60 caracteres, palabra clave al inicio, evita clickbait. Ejemplo: «Cómo crear una estrategia de vídeo B2B para empresas» en lugar de «¡MIRA ESTO! Te cambió la vida».</li><li><strong>Descripción:</strong> primer párrafo con palabra clave, enlace a tu web, timestamp de secciones clave. Mínimo 150 palabras; en YouTube, los primeros 150 caracteres aparecen antes del botón «mostrar más».</li><li><strong>Transcripción automática + revisión:</strong> carga un archivo SRT o revisa la transcripción automática de YouTube. Los errores de transcripción perjudican el ranking. Si hablas de «Porsche» pero la IA entiende «Por-che», pierdes oportunidades de búsqueda.</li><li><strong>Tags y categoría:</strong> usa 5–10 tags relevantes; selecciona la categoría más específica (Negocios, Educación, Cómo hacerlo).</li></ul><h2>Estrategia de enlaces y contexto para vídeos</h2><p>Un vídeo no vive solo. Necesita vivir en una página web que lo respalde. Aquí es donde <a href={p("services/brand-video")}>los vídeos corporativos</a> juegan un rol fundamental en SEO técnico.</p><ul><li><strong>Incrustar en una página web:</strong> crea una página de blog que rodee tu vídeo con contexto. Un vídeo incrustado en una página web rankeará mejor que el mismo vídeo solo en YouTube.</li><li><strong>Estructura con esquema VideoObject:</strong> usa schema.json de Google para que el buscador entienda duración, fecha de publicación, descripción. Cualquier herramienta como Yoast o Rank Math lo hace automáticamente.</li><li><strong>Enlaces internos:</strong> desde esa página de blog, enlaza a tus <a href={p("services/product-video")}>servicios de vídeo de producto</a> o a tu <a href={p("services/corporate-video")}>página de vídeos corporativos</a>. Los enlaces internos distribuyen autoridad.</li><li><strong>Call-to-action estratégico:</strong> después del vídeo, incluye un botón de conversión. No es SEO puro, pero aumenta el compromiso, que Google sí mide.</li></ul><h2>Distribución en YouTube: más allá de subir y esperar</h2><p>YouTube es el segundo motor de búsqueda del mundo. Optimizar allí no es opcional.</p><ul><li><strong>Listas de reproducción temáticas:</strong> agrupa vídeos relacionados. Esto aumenta el tiempo de sesión y las oportunidades de ranking.</li><li><strong>Miniaturas y títulos A/B:</strong> test dos versiones de título durante 48 horas; mantén la que genere más clics. CTR es un factor de ranking en YouTube.</li><li><strong>Pedir comentarios y responder:</strong> comentarios generan señales de compromiso. Responde siempre a los primeros comentarios; esto aumenta futuras participaciones.</li><li><strong>Timestamps en descripción:</strong> divide tu vídeo en secciones. YouTube usa estos timestamps para ranking y experiencia de usuario.</li></ul><h2>Posicionamiento en Google vs. YouTube: ¿Son diferentes?</h2><p>Sí. Google prioriza autoridad y contexto textual; YouTube prioriza engagement y tiempo de reproducción. Un vídeo puede rankear en Google Vídeo porque tiene una página web bien optimizada, pero nunca aparecer en búsquedas de YouTube si el engagement es bajo. Por eso muchas marcas necesitan estrategias duales.</p><p>Para <a href={p("services/employer-branding")}>vídeos de employer branding</a> o <a href={p("services/social-media-video")}>contenido para redes sociales</a>, la distribución debe adaptarse. Un vídeo de reclutamiento en LinkedIn no necesita el mismo tipo de optimización que un tutorial educativo en YouTube.</p><h2>Medición: qué importa realmente</h2><p>No todos los números son iguales. Mira impresiones de búsqueda, clics desde búsqueda, y conversiones posteriores. En Google Search Console, ve a «Rendimiento» y filtra por vídeo. En YouTube Analytics, observa «% de retención de audiencia» (si cae en picada a los 30 segundos, tu vídeo no es tan relevante como crees).</p><p>En Viven, cada vídeo que producimos viene con seguimiento de resultados. No es suficiente hacer un vídeo bonito; debe trabajar por ti en búsqueda.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="posicionar-videos-google-youtube-seo" />
+  </div></section>
+</Base>
