@@ -1,0 +1,136 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Video SEO: Rank on Google & YouTube | Viven"};
+const description = {"en":"Learn how to optimize videos for Google and YouTube search. Technical SEO, metadata, transcripts & distribution strategies that drive traffic and leads."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "video-seo-ranking-google-youtube";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/video-seo-ranking-google-youtube" active="blog" singleLang={true} langUrls={{"en":"/en/blog/video-seo-ranking-google-youtube/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/video-seo-ranking-google-youtube/\"},\"headline\":\"Video SEO: Rank on Google & YouTube\",\"description\":\"Learn how to optimize videos for Google and YouTube search. Technical SEO, metadata, transcripts & distribution strategies that drive traffic and leads.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/video-seo-ranking-google-youtube/\",\"datePublished\":\"2026-08-21T09:43:08.280Z\",\"image\":\"https://www.viven.ch/projects/en/philips-oneblade-playoffs-social-media-campaign/01-de_Playoffs__VIVEN_Video_Agency-008.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Video SEO: Rank on Google & YouTube\",\"item\":\"https://www.viven.ch/en/blog/video-seo-ranking-google-youtube/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How long does it take for a video to rank on Google?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Most properly optimized videos begin ranking within 2-4 weeks. However, ranking position improves over 3-6 months as engagement (watch time, comments, shares) accumulates. YouTube videos with existing channel authority rank faster.\"}},{\"@type\":\"Question\",\"name\":\"Do I need to upload to YouTube to rank on Google?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"No. Self-hosted videos can rank, but YouTube videos have a significant advantage: YouTube is owned by Google, and YouTube videos receive preferential placement in Google search results. Most B2B companies use both—host on YouTube and embed on their website.\"}},{\"@type\":\"Question\",\"name\":\"What's more important: YouTube ranking or Google Search ranking?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Both matter. YouTube ranking drives views and channel growth. Google Search ranking drives traffic to your website and, ultimately, leads. Prioritize whichever aligns with your business goal—brand awareness favors YouTube; lead generation favors Google Search.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Video SEO: Rank on Google & YouTube</span></nav>
+  <span class="eyebrow">Brand video</span>
+  <h1>Video SEO: Rank on Google & YouTube</h1>
+  <p class="lead">Video SEO is no longer optional—it's critical. Google now indexes video content across Search, YouTube, and Discover, meaning a well-optimized video can rank alongside text articles and drive qualified traffic to your business. If you're producing video content without applying SEO fundamentals, you're leaving leads on the table. This guide covers the technical and strategic steps to get your videos ranking where your audience is searching.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>August 21, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/en/philips-oneblade-playoffs-social-media-campaign/01-de_Playoffs__VIVEN_Video_Agency-008.jpeg" alt="Video SEO: Rank on Google & YouTube" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Video SEO Matters</h2>
+<p>Search engines treat video as a distinct content format. YouTube is the second-largest search engine globally, and Google increasingly surfaces video results in its main search interface. For B2B companies—particularly in technology, finance, and manufacturing—video ranks higher in competitive keywords when properly optimized. A <a href={p("services/corporate-video")}>corporate video</a> without metadata, transcripts, or proper distribution is invisible to both algorithms and searchers.</p>
+<p>The stakes are high: companies that invest in video SEO see 27% higher click-through rates and longer average session duration. For agencies and enterprises, this translates directly to lead volume.</p>
+
+<h2>Technical SEO for Video</h2>
+<p>Start with the foundation:</p>
+<ul>
+<li><strong>Video Sitemap:</strong> Create an XML video sitemap listing all video URLs, titles, descriptions, and thumbnail URLs. Submit it to Google Search Console. This tells Google exactly where to find and crawl your video content.</li>
+<li><strong>Schema Markup:</strong> Use structured data (schema.org/VideoObject) to annotate videos with duration, upload date, description, and thumbnail. This helps Google understand context and may trigger rich snippets in search results.</li>
+<li><strong>Hosting Platform:</strong> Self-hosted video (on your own server) requires robust infrastructure; YouTube-hosted videos receive an algorithmic boost from YouTube integration and reduce your bandwidth costs. For corporate use, embed from YouTube while hosting playback on your site.</li>
+<li><strong>Page Speed:</strong> Video embeds slow pages. Use lazy loading, optimize thumbnail images, and test Core Web Vitals. A slow page kills ranking, regardless of video quality.</li>
+</ul>
+
+<h2>Metadata: Titles, Descriptions &amp; Tags</h2>
+<p>Metadata is where ranking happens. Treat each video like a landing page:</p>
+<ul>
+<li><strong>Title (60 characters max):</strong> Front-load your target keyword. "How to Reduce Manufacturing Downtime with AI" ranks better than "Our New Video." Include brand name only if space allows.</li>
+<li><strong>Description (160 characters visible):</strong> Write for both humans and algorithms. First 2-3 sentences must hook viewers and contain your primary keyword naturally. Add timestamps for longer videos—YouTube surfaces them in previews.</li>
+<li><strong>Tags:</strong> Add 5-10 relevant tags. YouTube uses tags to infer topic relevance. Include brand name, product names, and long-tail keywords.</li>
+<li><strong>Category &amp; Language:</strong> Select the correct category (e.g., "Science &amp; Technology"). Specify language in video properties so Google doesn't misclassify content.</li>
+</ul>
+
+<h2>Transcripts &amp; Closed Captions</h2>
+<p>Transcripts serve three critical functions: accessibility, ranking, and user engagement. Google crawls transcript text, which improves your keyword relevance without keyword stuffing in the title. Videos with captions receive 80% more views than those without, and caption text is indexed by search engines.</p>
+<p>Use auto-generated captions as a starting point, then edit for accuracy. If your video discusses technical terms, product names, or terminology unique to your industry, manual captions ensure correct indexing. Upload transcripts as a separate text file to your video host and link it in the description.</p>
+
+<h2>Distribution &amp; Link Building</h2>
+<p>Ranking requires signals beyond the video itself. Distribute strategically:</p>
+<ul>
+<li><strong>YouTube Optimization:</strong> Create a branded channel, use playlists to group related content, and link to your website in channel descriptions and video cards. YouTube engagement (likes, comments, watch time) signals relevance to Google's algorithm.</li>
+<li><strong>Website Embedding:</strong> Embed videos on dedicated landing pages with supporting text. This keeps viewers on your site and creates a rich content experience. Link to that page from relevant blog posts and resources.</li>
+<li><strong>Social Distribution:</strong> Share videos on LinkedIn, Twitter, and industry forums. While social signals don't directly rank videos, they drive traffic and backlinks, which do.</li>
+<li><strong>Backlinks:</strong> Pitch your video to industry publications, blogs, and news sites. A <a href={p("services/product-video")}>product video</a> embedded on a high-authority tech site carries weight in ranking algorithms.</li>
+</ul>
+
+<h2>Measure &amp; Iterate</h2>
+<p>Monitor performance in Google Search Console (video impressions, clicks, average position) and YouTube Analytics (watch time, click-through rate, audience retention). Identify which videos rank for your target keywords and which fall short. A/B test titles and thumbnails—small changes in click-through rate compound over time.</p>
+<p>For <a href={p("services/social-media-video")}>social media videos</a>, measure engagement rate and conversion. For <a href={p("services/employer-branding")}>employer branding</a> content, track application volume from video viewers.</p>
+
+<h2>Common Mistakes to Avoid</h2>
+<ul>
+<li>Uploading without metadata: A video is discoverable only if Google can read it.</li>
+<li>Ignoring transcripts: Text is still the primary ranking signal. Don't skip it.</li>
+<li>Keyword stuffing: "Machine learning, machine learning, machine learning" is spam. Write naturally.</li>
+<li>Poor thumbnail design: A professional thumbnail increases click-through rate by 30%. Invest here.</li>
+<li>No call-to-action: Include a clear CTA in the description and video cards to drive conversions.</li>
+</ul>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="video-seo-ranking-google-youtube" />
+  </div></section>
+</Base>
