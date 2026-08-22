@@ -78,6 +78,14 @@ empezó acá se ve como email y no como "directo".
 
 - `supabase/functions/newsletter-welcome/index.ts` — la function. El texto de
   los tres idiomas vive ahí; DE en Sie, sin ß, saludo "Guten Tag" (regla 0089/0111).
+  Sale de **info@viven.ch** y firma el equipo, no una persona (pedido de
+  Sebastián): es un acuse de recibo del sitio, y si lo firma alguien, la
+  respuesta cae en una casilla personal y el que contesta queda esperando.
+- **APAGADO POR DEFECTO** (`app_settings.newsletter.welcome_enabled`, SQL 0130).
+  "No mandes hasta que confirmemos 100%": deployar la function no puede ser lo
+  mismo que empezar a escribirle a gente real. Se prende con el check 👋 del tab
+  Newsletter del dashboard. El preview anda igual estando apagado — es lo que se
+  usa para confirmar el texto. Prenderlo NO es retroactivo.
 - `public/assets/site.js` — la llama DESPUÉS del insert del lead, best-effort:
   si la function está caída, la suscripción igual quedó hecha y el visitante no
   ve ningún error.
@@ -96,10 +104,11 @@ empezó acá se ve como email y no como "directo".
 
 **Falta hacer a mano (no lo puedo hacer yo):**
 1. Correr `supabase/migrations/0130_newsletter_welcome.sql` en el SQL Editor.
-   Mientras no esté corrida, la bienvenida **sale igual** y deja
-   `FALTA_CORRER_0130` en los logs — pero sin candado anti-duplicados.
 2. `supabase functions deploy newsletter-welcome --no-verify-jwt` y
    `supabase functions deploy resend-events --no-verify-jwt`.
+3. Leer los tres emails y, recién ahí, **prender el check 👋** en Newsletter.
+   Hasta que lo prendas no sale ni uno. (Si se deploya sin correr la SQL, el
+   interruptor no se puede leer y la function tampoco manda: apagado.)
 
 **Estado:** build limpio (504 páginas). Los tres emails se renderizaron y se
 revisaron uno por uno; los 7 links que llevan (3 por idioma + /book/) se

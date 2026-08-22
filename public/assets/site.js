@@ -648,8 +648,9 @@ document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){
            no llegaba nada hasta la edición mensual siguiente — hasta 30 días de
            silencio después de un "estás en la lista". Va DESPUÉS del insert y es
            best-effort a propósito: si la function está caída, la suscripción ya
-           quedó hecha y el visitante no ve ningún error. El candado contra
-           duplicados vive del lado del servidor (SQL 0130), no acá. */
+           quedó hecha y el visitante no ve ningún error. El interruptor (arranca
+           APAGADO) y el candado contra duplicados viven del lado del servidor
+           (SQL 0130), no acá: desde el sitio siempre se llama igual. */
         if(window.sbCallFunction){
           window.sbCallFunction('newsletter-welcome', {
             email: email,

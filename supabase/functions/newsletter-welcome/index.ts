@@ -8,6 +8,11 @@
 // le enseña al filtro de Gmail que viven.ch no es promoción. Ahora sale al
 // instante, en el idioma en el que la persona estaba navegando.
 //
+// APAGADO POR DEFECTO: no manda nada hasta que app_settings.key='newsletter'
+// tenga {"welcome_enabled": true} — el check 👋 del tab Newsletter del
+// dashboard. Deployarla no la enciende. El preview (test_to) sí funciona
+// apagada: es lo que se usa para revisar el texto antes de prenderla.
+//
 // LO MANDA EL SITIO: public/assets/site.js llama acá DESPUÉS de que el insert
 // del lead salió bien (best-effort — si esta function está caída, la
 // suscripción igual quedó hecha y el visitante no ve ningún error).
@@ -28,8 +33,10 @@
 //
 // Deploy:  supabase functions deploy newsletter-welcome --no-verify-jwt
 // SQL:     supabase/migrations/0130_newsletter_welcome.sql (correr una vez).
-//          Sin correrla la function manda igual y loguea FALTA_CORRER_0130 —
-//          pero sin candado, así que correla.
+//          Sin correrla no hay interruptor que leer, así que queda apagada y no
+//          manda nada. Si algún día existe el interruptor pero no la tabla del
+//          log, manda igual y grita FALTA_CORRER_0130 en los logs: preferimos
+//          la bienvenida sin candado antes que a alguien sin bienvenida.
 // Usa:     RESEND_API_KEY (ya seteado) + SERVICE_ROLE para leer leads.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -70,6 +77,7 @@ type Copy = {
   subject: string;
   preheader: string;
   intro: string[];             // párrafos
+  sign: string;                // con qué firma (va info@viven.ch, no una persona)
   linksTitle: string;
   links: { href: (l: string) => string; label: string; note: string }[];
   ps: string;
@@ -91,13 +99,14 @@ const COPY: Record<string, Copy> = {
       "Thanks for subscribing — you're on the list.",
       "Once a month you'll get one email from us. Not a digest, not a drip campaign: one email with what actually worked in the video projects we shoot here in Switzerland — the formats, the budgets, and the numbers behind them. If a month goes by and we have nothing useful to say, we don't send anything.",
     ],
+    sign: "— The VIVEN team",
     linksTitle: "Three things worth having before the first one arrives:",
     links: [
       { href: (l) => CALC[l] || CALC.en, label: "Video cost calculator", note: "what your project should cost, in about two minutes" },
       { href: (l) => BLOG(l), label: "The blog", note: "formats, cases, and what we learned shooting them" },
       { href: CALL, label: "Free 15-minute call", note: "bring a project, leave with a plan — no pitch" },
     ],
-    ps: "And if you ever want to reply to one of these emails, do. They land in a real inbox.",
+    ps: "And if you ever want to reply to one of these emails, do — info@viven.ch is a real inbox, and someone reads it.",
   },
   de: {
     subject: "Willkommen bei VIVEN — Sie sind auf der Liste",
@@ -106,13 +115,14 @@ const COPY: Record<string, Copy> = {
       "Danke für Ihre Anmeldung — Sie sind auf der Liste.",
       "Einmal im Monat erhalten Sie eine E-Mail von uns. Kein Newsletter-Bombardement: eine E-Mail mit dem, was in unseren Videoprojekten in der Schweiz wirklich funktioniert hat — Formate, Budgets und die Zahlen dahinter. Wenn wir in einem Monat nichts Nützliches zu sagen haben, schicken wir nichts.",
     ],
+    sign: "— Ihr VIVEN Team",
     linksTitle: "Drei Dinge, die schon vor der ersten Ausgabe nützlich sind:",
     links: [
       { href: (l) => CALC[l] || CALC.en, label: "Kostenrechner", note: "was Ihr Projekt kosten sollte — in rund zwei Minuten" },
       { href: (l) => BLOG(l), label: "Der Blog", note: "Formate, Cases und was wir dabei gelernt haben" },
       { href: CALL, label: "Gratis 15-Minuten-Call", note: "bringen Sie ein Projekt mit, gehen Sie mit einem Plan — ohne Verkaufsgespräch" },
     ],
-    ps: "Und wenn Sie auf eine dieser E-Mails antworten möchten: gerne. Sie landen in einem echten Postfach.",
+    ps: "Und wenn Sie auf eine dieser E-Mails antworten möchten: gerne. info@viven.ch ist ein echtes Postfach, das auch gelesen wird.",
   },
   es: {
     subject: "Ya estás en la lista — bienvenida a VIVEN",
@@ -121,13 +131,14 @@ const COPY: Record<string, Copy> = {
       "Gracias por suscribirte — ya estás en la lista.",
       "Una vez por mes te llega un solo email nuestro. No es un resumen automático ni una secuencia de ventas: es qué funcionó de verdad en los proyectos de video que filmamos acá en Suiza — los formatos, los presupuestos y los números detrás. Si un mes no tenemos nada útil para decir, no mandamos nada.",
     ],
+    sign: "— El equipo de VIVEN",
     linksTitle: "Tres cosas que ya te sirven, antes de que llegue la primera:",
     links: [
       { href: (l) => CALC[l] || CALC.en, label: "Calculadora de costos", note: "cuánto debería costar tu proyecto, en unos dos minutos" },
       { href: (l) => BLOG(l), label: "El blog", note: "formatos, casos y lo que aprendimos filmándolos" },
       { href: CALL, label: "Llamada gratis de 15 minutos", note: "traé un proyecto, llevate un plan — sin discurso de venta" },
     ],
-    ps: "Y si alguna vez querés responder uno de estos emails, respondé: llegan a una casilla de verdad.",
+    ps: "Y si alguna vez querés responder uno de estos emails, respondé: info@viven.ch es una casilla de verdad y alguien la lee.",
   },
 };
 
@@ -180,7 +191,7 @@ function buildHtml(lang: string, unsubUrl: string, firstName = ""): string {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">${items}</table>
     ${parrafo(c.ps)}
     <p style="margin:18px 0 0;font-size:12.5px;color:#8a919e">${esc(UNSUB_LINE[lang] || UNSUB_LINE.en)} — <a href="${unsubUrl}" style="color:#8a919e">${esc(UNSUB_LABEL[lang] || UNSUB_LABEL.en)}</a>.</p>
-    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p>
+    <p style="margin:22px 0 0;font-size:14px;color:#444">${esc(c.sign)}</p>
   </div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsubUrl}" style="color:#9aa">${esc(UNSUB_LABEL[lang] || UNSUB_LABEL.en)}</a></p>
 </div></body>`;
@@ -206,8 +217,12 @@ async function resendSend(payload: unknown, attempts = 3): Promise<Response> {
 function emailPayload(to: string, lang: string, unsubUrl: string, welcomeId: string | number | null, firstName = "") {
   const c = COPY[lang] || COPY.en;
   const payload: Record<string, unknown> = {
-    from: "Sofia — VIVEN <info@viven.ch>",
-    reply_to: "sofia@viven.ch",
+    // Sale de info@viven.ch y firma el equipo, NO una persona (decisión de
+    // Sebastián, 22 ago 2026). La bienvenida es un acuse de recibo del sitio:
+    // si la firma Sofia, la respuesta cae en una casilla personal y el que
+    // contesta "gracias" queda esperando a alguien que quizás no está.
+    from: "VIVEN <info@viven.ch>",
+    reply_to: "info@viven.ch",
     to: [to],
     subject: c.subject,
     html: buildHtml(lang, unsubUrl, firstName),
@@ -215,6 +230,29 @@ function emailPayload(to: string, lang: string, unsubUrl: string, welcomeId: str
   // resend-events estampa apertura/click sobre newsletter_welcomes con este tag
   if (welcomeId != null) payload.tags = [{ name: "welcome_id", value: String(welcomeId) }];
   return payload;
+}
+
+/* EL INTERRUPTOR — APAGADO POR DEFECTO.
+   Pedido de Sebastián, 22 ago 2026: "no mandes hasta que confirmemos 100%".
+   Que la function esté deployada NO puede significar que ya le esté escribiendo
+   a gente real: entre "el código está" y "el texto está aprobado" pasan días, y
+   la primera suscripción del sitio no espera a que nadie termine de leer.
+   Así que el envío real vive detrás de app_settings.key='newsletter' →
+   {"welcome_enabled": true}, y cualquier otra cosa (la clave sin poner, false,
+   la fila que no existe, la tabla caída) significa APAGADO. El preview del
+   dashboard NO pasa por acá: es justamente lo que se usa para confirmar.
+   Prenderlo: el check 👋 del tab Newsletter, o
+     update public.app_settings
+        set value = value || '{"welcome_enabled": true}'::jsonb
+      where key = 'newsletter'; */
+async function bienvenidaEncendida(): Promise<boolean> {
+  try {
+    const { data } = await service.from("app_settings").select("value").eq("key", "newsletter").maybeSingle();
+    return ((data?.value ?? {}) as { welcome_enabled?: boolean }).welcome_enabled === true;
+  } catch (e) {
+    console.error("WELCOME_SETTING_FAIL", String(e));
+    return false;   // sin poder leer el interruptor, no se manda: el silencio se arregla, un email de más no
+  }
 }
 
 // Un error del log NO es "ya se le mandó": lo único que significa eso es el
@@ -267,6 +305,13 @@ Deno.serve(async (req) => {
     // ---- ENVÍO REAL: alguien se acaba de suscribir --------------------------
     const email = String(b.email || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "email inválido" }, 400);
+
+    // ¿está prendido? Mientras no lo esté, la suscripción se registra igual (la
+    // hace el sitio, no esta function) pero no sale ningún email.
+    if (!await bienvenidaEncendida()) {
+      console.log("WELCOME_OFF", email);
+      return json({ ok: false, skipped: "apagado" });
+    }
 
     // Tiene que existir como lead: es la prueba de que alguien lo cargó por el
     // form. `ilike` no distingue mayúsculas (el form guarda el email tal como lo

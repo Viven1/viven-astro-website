@@ -2790,13 +2790,19 @@ const newsCases = [
                newsletter-welcome. Lo que sí se puede hacer —y es lo que hacía
                falta— es VERLO como lo ve el que se suscribe. -->
           <div class="nw-sec-h" style="margin-top:20px">👋 Email de bienvenida</div>
-          <p class="muted-note" style="margin:2px 0 8px;font-size:11.5px">Sale solo, al instante, cuando alguien se suscribe desde el footer del sitio — en el idioma en el que estaba navegando y <b>una sola vez por dirección</b>. Mandátelo para verlo como lo ve él:</p>
+          <p class="muted-note" style="margin:2px 0 8px;font-size:11.5px">Sale de <b>info@viven.ch</b>, al instante, cuando alguien se suscribe desde el footer del sitio — en el idioma en el que estaba navegando y <b>una sola vez por dirección</b>. Mandátelo para verlo como lo ve él (el preview anda aunque esté apagado):</p>
           <div class="nw-row" style="margin:0">
             <button class="btn btn-ghost small" id="nw-wel-en" type="button">🇬🇧 EN</button>
             <button class="btn btn-ghost small" id="nw-wel-de" type="button">🇩🇪 DE</button>
             <button class="btn btn-ghost small" id="nw-wel-es" type="button">🇪🇸 ES</button>
           </div>
           <p class="muted-note" id="nw-wel-note" style="margin-top:6px"></p>
+          <!-- El interruptor. Arranca apagado a propósito (SQL 0130): deployar
+               no puede ser lo mismo que empezar a escribirle a gente real. -->
+          <label class="nw-row" style="margin:8px 0 0;align-items:flex-start;gap:8px;cursor:pointer">
+            <input type="checkbox" id="nw-wel-on" style="margin-top:3px" />
+            <span class="muted-note" id="nw-wel-state" style="margin:0;font-size:11.5px">Leyendo el estado…</span>
+          </label>
         </div>
 
         <!-- ===== columna derecha: KPIs + campañas ===== -->
@@ -9879,6 +9885,39 @@ const newsCases = [
          la que estás logueado (la function no lo manda a terceros) y NO cuenta
          como bienvenida: no toca newsletter_welcomes ni gasta el candado de
          "una sola vez por dirección". */
+      /* El interruptor de la bienvenida (app_settings.newsletter.welcome_enabled,
+         SQL 0130). Arranca APAGADO: pedido de Sebastián, 22 ago 2026 — "no
+         mandes hasta que confirmemos 100%". Prenderlo NO es retroactivo: el que
+         se suscribió mientras estaba apagado no la recibe después. */
+      const welLeer = async () => {
+        const { data } = await supabase.from('app_settings').select('value').eq('key', 'newsletter').maybeSingle();
+        return (data && data.value) || {};
+      };
+      const welPintar = (on) => {
+        const el = $('nw-wel-state'); if (!el) return;
+        el.innerHTML = on
+          ? '<b>Encendido</b> — cada suscripción nueva del sitio recibe la bienvenida.'
+          : '<b>Apagado</b> — nadie la recibe todavía. Prendelo cuando el texto esté 100%; no es retroactivo (el que se suscriba mientras tanto no la recibe después).';
+      };
+      if ($('nw-wel-on')) {
+        welLeer().then((v) => { $('nw-wel-on').checked = v.welcome_enabled === true; welPintar(v.welcome_enabled === true); })
+          .catch(() => { $('nw-wel-state').textContent = '⚠️ No pude leer el estado (¿falta correr la SQL 0130?).'; });
+        $('nw-wel-on').addEventListener('change', async () => {
+          const on = $('nw-wel-on').checked;
+          try {
+            const v = await welLeer();                 // releer para no pisar always_to
+            v.welcome_enabled = on;
+            const { error } = await supabase.from('app_settings')
+              .upsert({ key: 'newsletter', value: v, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+            if (error) throw error;
+            welPintar(on);
+            toast(on ? '👋 Bienvenida ENCENDIDA' : '👋 Bienvenida apagada');
+          } catch (e) {
+            $('nw-wel-on').checked = !on;              // no mentir: si no se guardó, el check vuelve
+            toast('⚠️ ' + (e && e.message || e));
+          }
+        });
+      }
       ['en', 'de', 'es'].forEach((lg) => {
         const b = $('nw-wel-' + lg); if (!b) return;
         b.addEventListener('click', async () => {

@@ -51,7 +51,36 @@ drop policy if exists newsletter_welcomes_select_member on public.newsletter_wel
 create policy newsletter_welcomes_select_member on public.newsletter_welcomes
   for select to authenticated using (public.is_member());
 
+-- ---------------------------------------------------------------------------
+-- EL INTERRUPTOR — arranca APAGADO
+-- ---------------------------------------------------------------------------
+-- Pedido de Sebastián, 22 ago 2026: "no mandes hasta que confirmemos 100%".
+-- Deployar la function no puede ser lo mismo que empezar a escribirle a gente
+-- real: entre "el código está" y "el texto está aprobado" pasan días, y la
+-- primera suscripción del sitio no espera a que nadie termine de leer.
+-- Mientras esto sea false, newsletter-welcome registra la visita en los logs y
+-- no manda nada. El preview del dashboard sigue andando (es lo que se usa para
+-- confirmar el texto).
+--
+-- El `||` está al revés a propósito: lo YA guardado pisa al default, así que
+-- re-correr esta migración nunca apaga algo que vos prendiste, y no le borra
+-- el always_to que 0121 dejó en la misma fila.
+insert into public.app_settings (key, value)
+values ('newsletter', '{"welcome_enabled": false}'::jsonb)
+on conflict (key) do update
+  set value = excluded.value || app_settings.value,
+      updated_at = now();
+
+-- Prender (cuando el texto esté aprobado — o el check 👋 del tab Newsletter):
+--   update public.app_settings
+--      set value = value || '{"welcome_enabled": true}'::jsonb, updated_at = now()
+--    where key = 'newsletter';
+-- OJO: prenderlo NO es retroactivo. El que se suscribió mientras estaba
+-- apagado no recibe la bienvenida después: sale en el momento de suscribirse
+-- o no sale (mismo criterio de "sellado" que 0040).
+
 -- Verificación (no cambia nada):
 --   select lang, count(*), max(sent_at) from public.newsletter_welcomes group by 1;
 --   select email, lang, sent_at, opened_at from public.newsletter_welcomes
 --     order by sent_at desc nulls last limit 20;
+--   select value from public.app_settings where key = 'newsletter';   -- ¿prendido?
