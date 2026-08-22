@@ -66,7 +66,17 @@ async function unsubToken(id: string | number): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// EL TEXTO, en los tres idiomas. Reglas de la casa:
+// EL TEXTO, en los tres idiomas.
+//
+// LO QUE PROMETE ACÁ TIENE QUE SER LO QUE MANDA newsletter-builder. La primera
+// versión decía "no es un digest" y prometía formatos, presupuestos y números —
+// y la edición mensual ES un digest: 3-4 posts del último mes y medio rankeados
+// por pageviews + 1 proyecto destacado (ver newsletter-builder). O sea que el
+// primer email que recibía un suscriptor le prometía lo único que no le íbamos
+// a mandar. Lo cazó Sebastián el 22 ago 2026, antes de que saliera ni uno.
+// Si algún día cambia lo que arma el builder, este texto cambia con él.
+//
+// Reglas de la casa:
 //   · DE: Sie SIEMPRE, nunca du, nunca ß (siempre ss), saludo "Guten Tag" a
 //     secas — no tenemos apellido ni género confiables (misma regla que 0089 /
 //     0111 / newsletter-send).
@@ -94,10 +104,10 @@ const CALL = () => "https://www.viven.ch/book/";
 const COPY: Record<string, Copy> = {
   en: {
     subject: "You're on the list — welcome to VIVEN",
-    preheader: "One email a month: what actually worked in real video projects.",
+    preheader: "One email a month: the posts that got read, and one project we shot.",
     intro: [
       "Thanks for subscribing — you're on the list.",
-      "Once a month you'll get one email from us. Not a digest, not a drip campaign: one email with what actually worked in the video projects we shoot here in Switzerland — the formats, the budgets, and the numbers behind them. If a month goes by and we have nothing useful to say, we don't send anything.",
+      "Once a month, one email: the three or four things we published that people actually read, plus one project we shot and what went into it. Picked by what got read — not by what we feel like promoting. If a month goes by with nothing worth your time, we don't send anything.",
     ],
     sign: "— The VIVEN team",
     linksTitle: "Three things worth having before the first one arrives:",
@@ -110,10 +120,10 @@ const COPY: Record<string, Copy> = {
   },
   de: {
     subject: "Willkommen bei VIVEN — Sie sind auf der Liste",
-    preheader: "Eine E-Mail pro Monat: was in echten Videoprojekten funktioniert hat.",
+    preheader: "Eine E-Mail pro Monat: die meistgelesenen Beiträge und ein Projekt.",
     intro: [
       "Danke für Ihre Anmeldung — Sie sind auf der Liste.",
-      "Einmal im Monat erhalten Sie eine E-Mail von uns. Kein Newsletter-Bombardement: eine E-Mail mit dem, was in unseren Videoprojekten in der Schweiz wirklich funktioniert hat — Formate, Budgets und die Zahlen dahinter. Wenn wir in einem Monat nichts Nützliches zu sagen haben, schicken wir nichts.",
+      "Einmal im Monat, eine E-Mail: die drei, vier Beiträge des Monats, die tatsächlich gelesen wurden, dazu ein Projekt, das wir gedreht haben, samt dem, was dahintersteckt. Ausgewählt danach, was gelesen wurde — nicht danach, was wir gerade bewerben möchten. Wenn ein Monat nichts hergibt, das Ihre Zeit wert ist, schicken wir nichts.",
     ],
     sign: "— Ihr VIVEN Team",
     linksTitle: "Drei Dinge, die schon vor der ersten Ausgabe nützlich sind:",
@@ -126,10 +136,10 @@ const COPY: Record<string, Copy> = {
   },
   es: {
     subject: "Ya estás en la lista — bienvenida a VIVEN",
-    preheader: "Un email por mes: qué funcionó de verdad en proyectos de video reales.",
+    preheader: "Un email por mes: lo que más se leyó y un proyecto que filmamos.",
     intro: [
       "Gracias por suscribirte — ya estás en la lista.",
-      "Una vez por mes te llega un solo email nuestro. No es un resumen automático ni una secuencia de ventas: es qué funcionó de verdad en los proyectos de video que filmamos acá en Suiza — los formatos, los presupuestos y los números detrás. Si un mes no tenemos nada útil para decir, no mandamos nada.",
+      "Una vez por mes, un solo email: las tres o cuatro cosas que publicamos y que la gente realmente leyó, más un proyecto que filmamos y lo que hubo detrás. Elegidas por lo que se leyó, no por lo que tengamos ganas de promocionar. Si un mes no hay nada que valga tu tiempo, no mandamos nada.",
     ],
     sign: "— El equipo de VIVEN",
     linksTitle: "Tres cosas que ya te sirven, antes de que llegue la primera:",

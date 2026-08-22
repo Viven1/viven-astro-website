@@ -81,6 +81,14 @@ empezó acá se ve como email y no como "directo".
   Sale de **info@viven.ch** y firma el equipo, no una persona (pedido de
   Sebastián): es un acuse de recibo del sitio, y si lo firma alguien, la
   respuesta cae en una casilla personal y el que contesta queda esperando.
+- El texto **describe lo que newsletter-builder manda de verdad**. La primera
+  versión decía "no es un digest" y prometía formatos, presupuestos y números —
+  y la edición mensual ES un digest: 3-4 posts del último mes y medio rankeados
+  por pageviews + 1 proyecto destacado. O sea que el primer email prometía justo
+  lo que no le íbamos a mandar. Lo cazó Sebastián leyendo el borrador, antes de
+  que saliera ninguno. Ahora dice lo que es y se apoya en lo que sí lo hace
+  distinto: la selección es por lo que la gente leyó, no por lo que queramos
+  promocionar.
 - **APAGADO POR DEFECTO** (`app_settings.newsletter.welcome_enabled`, SQL 0130).
   "No mandes hasta que confirmemos 100%": deployar la function no puede ser lo
   mismo que empezar a escribirle a gente real. Se prende con el check 👋 del tab
