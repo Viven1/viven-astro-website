@@ -26,6 +26,11 @@
 //     mandan dos veces;
 //   • los dados de baja no reciben nada, ni siquiera esto.
 //
+// CATCH-UP: { catchup: true, dias: 1 } devuelve a quiénes les faltaría la
+// bienvenida (suscriptos del footer de los últimos N días, sin fila en
+// newsletter_welcomes); con { confirm: true } la manda. Lo aprieta una persona
+// en el dashboard, nunca un cron, y el candado sigue valiendo.
+//
 // PREVIEW SIN SUSCRIBIRSE: { test_to: "…", lang: "de" } — pide sesión del
 // dashboard (o service role) y solo acepta tu propia casilla o una @viven.ch;
 // no toca el log ni consume el candado. Son los botones 👋 EN/DE/ES del tab
@@ -285,6 +290,71 @@ async function bienvenidaEncendida(): Promise<boolean> {
 const esDuplicado = (err: { code?: string; message?: string }) =>
   err?.code === "23505" || /duplicate key|unique constraint/i.test(err?.message || "");
 
+/* UN envío, de punta a punta: reserva el candado, manda, estampa el resultado.
+   Está acá afuera porque hay DOS caminos que la usan —la suscripción del sitio
+   y el catch-up del dashboard— y son exactamente el mismo email. Cuando esto
+   estaba escrito adentro del handler, cualquier arreglo había que hacerlo dos
+   veces; así se arregla en un solo lugar (misma lección que elegirDestinatarios
+   en newsletter-send). */
+type LeadRow = { id: number; email: string; lang?: string | null; first_name?: string | null; name?: string | null };
+async function enviarBienvenida(lead: LeadRow, langPedido?: unknown): Promise<{ ok: boolean; skipped?: string; error?: string; lang?: string }> {
+  const email = String(lead.email || "").trim().toLowerCase();
+  const lang = okLang(langPedido || lead.lang);
+
+  // EL CANDADO: la fila se reserva ANTES de mandar. Dos submits simultáneos →
+  // el segundo choca contra el índice único y no manda nada.
+  let welcomeId: number | null = null;
+  const ins = await service.from("newsletter_welcomes")
+    .insert({ email, lead_id: lead.id, lang }).select("id").maybeSingle();
+  if (ins.error) {
+    // el candado haciendo su trabajo: a esta dirección ya se le mandó
+    if (esDuplicado(ins.error)) {
+      console.log("WELCOME_SKIP", email, "ya tenía bienvenida");
+      return { ok: true, skipped: "ya enviado" };
+    }
+    // cualquier otra cosa (típicamente: 0130 sin correr) → mando igual
+    console.error("FALTA_CORRER_0130", "no pude registrar la bienvenida — la mando igual, pero SIN candado anti-duplicados:", ins.error.message || ins.error);
+  } else {
+    welcomeId = (ins.data as { id: number } | null)?.id ?? null;
+  }
+
+  const unsubUrl = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
+  const res = await resendSend(emailPayload(email, lang, unsubUrl, welcomeId, await nombreDePila(email, lead)));
+  if (!res.ok) {
+    const detalle = (await res.text()).slice(0, 200);
+    console.error("RESEND_WELCOME_FAIL", res.status, detalle, email);
+    // liberar la reserva: si no, el candado deja a esa persona sin bienvenida
+    // para siempre por un 500 pasajero de Resend.
+    if (welcomeId != null) await service.from("newsletter_welcomes").delete().eq("id", welcomeId);
+    return { ok: false, error: "no se pudo enviar" };
+  }
+  let resendId: string | null = null;
+  try { resendId = (await res.json())?.id ?? null; } catch { /* ignore */ }
+  if (welcomeId != null) {
+    await service.from("newsletter_welcomes")
+      .update({ sent_at: new Date().toISOString(), resend_id: resendId }).eq("id", welcomeId);
+  }
+  return { ok: true, lang };
+}
+
+/* El form del footer pide SOLO el email (a propósito: un campo más en un form
+   de baja intención cuesta suscriptores). Así que la fila que acaba de entrar
+   no tiene nombre. Pero la misma dirección puede estar cargada de antes por el
+   form de contacto o el brief, esa SÍ con nombre — y saludar "Hi Marta," a
+   alguien que ya nos escribió es gratis. Por eso el nombre se busca por email
+   en toda la base, no solo en la fila nueva. En DE no se usa igual (regla de
+   la casa: "Guten Tag" a secas). */
+async function nombreDePila(email: string, lead: LeadRow): Promise<string> {
+  const propio = String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim();
+  if (propio) return propio;
+  try {
+    const { data } = await service.from("leads")
+      .select("first_name,name").ilike("email", email)
+      .not("first_name", "is", null).order("id", { ascending: false }).limit(1).maybeSingle();
+    return String(data?.first_name || String(data?.name || "").split(" ")[0] || "").trim();
+  } catch { return ""; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -325,6 +395,75 @@ Deno.serve(async (req) => {
       return json({ ok: true, test: true, lang, to });
     }
 
+    /* ---- CATCH-UP: los que se suscribieron mientras estaba apagada ----------
+       Sebastián tenía razón: el lead ya está guardado desde el momento en que
+       se suscribe, así que "no es retroactivo" era una decisión mía, no un
+       límite de la base. Esto la da vuelta, con tres frenos:
+         · lo dispara una persona desde el dashboard (JWT), nunca un cron;
+         · sin { confirm: true } NO manda: devuelve a quiénes les llegaría y
+           cuántos son, para que el botón muestre el número ANTES de apretar;
+         · el candado de siempre manda igual (nadie recibe dos), y el techo de
+           días acota a los recientes — a alguien que se suscribió en junio, un
+           "gracias por suscribirte" le llega raro, y eso no se arregla con un
+           botón sino no mandándoselo. */
+    if (b.catchup) {
+      let allowed = isInternal;
+      if (!allowed) {
+        const asUser = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
+        const { data: { user } } = await asUser.auth.getUser();
+        allowed = !!user;
+      }
+      if (!allowed) return json({ error: "unauthorized" }, 401);
+
+      const dias = Math.min(Math.max(Number(b.dias) || 1, 1), 30);
+      const desde = new Date(Date.now() - dias * 86400000).toISOString();
+      // 'Newsletter signup' es exactamente lo que escribe el form del footer en
+      // leads.message (ver site.js). El magnet y el form de contacto escriben
+      // otra cosa: esos NO son suscriptores del newsletter y no entran acá.
+      const { data: rows, error } = await service.from("leads")
+        .select("id,email,first_name,name,lang,unsubscribed,created_at")
+        .eq("message", "Newsletter signup").gte("created_at", desde)
+        .order("created_at", { ascending: true }).limit(500);
+      if (error) return json({ error: error.message }, 500);
+
+      const vistos = new Set<string>();
+      const cand: (LeadRow & { created_at?: string })[] = [];
+      for (const r of (rows ?? []) as Record<string, unknown>[]) {
+        const em = String(r.email || "").trim().toLowerCase();
+        if (!em || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em) || vistos.has(em)) continue;
+        if (r.unsubscribed) continue;
+        vistos.add(em);
+        cand.push({ id: Number(r.id), email: em, lang: String(r.lang || ""), first_name: String(r.first_name || ""), name: String(r.name || ""), created_at: String(r.created_at || "") });
+      }
+      // los que ya la tienen quedan afuera del número que se muestra, no solo
+      // del envío: un botón que dice 12 y manda 3 no se vuelve a creer
+      let faltan = cand;
+      if (cand.length) {
+        const { data: ya } = await service.from("newsletter_welcomes")
+          .select("email").in("email", cand.map((c) => c.email));
+        const tienen = new Set(((ya ?? []) as { email: string }[]).map((x) => String(x.email).toLowerCase()));
+        faltan = cand.filter((c) => !tienen.has(c.email));
+      }
+
+      if (!b.confirm) {
+        return json({
+          ok: true, preview: true, dias, total: faltan.length,
+          quienes: faltan.map((c) => ({ email: c.email, lang: okLang(c.lang), desde: c.created_at })),
+        });
+      }
+      if (!await bienvenidaEncendida()) return json({ error: "la bienvenida está apagada — prendela primero" }, 400);
+      if (faltan.length > 200) return json({ error: `son ${faltan.length} — demasiados para un click. Achicá los días.` }, 400);
+
+      let enviados = 0, fallados = 0, saltados = 0;
+      for (const l of faltan) {
+        const r = await enviarBienvenida(l);
+        if (r.skipped) saltados++; else if (r.ok) enviados++; else fallados++;
+        await new Promise((ok) => setTimeout(ok, 600));   // ≤2 req/s, igual que newsletter-send
+      }
+      console.log("WELCOME_CATCHUP", JSON.stringify({ dias, total: faltan.length, enviados, fallados, saltados }));
+      return json({ ok: true, dias, total: faltan.length, enviados, fallados, saltados });
+    }
+
     // ---- ENVÍO REAL: alguien se acaba de suscribir --------------------------
     const email = String(b.email || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "email inválido" }, 400);
@@ -348,43 +487,9 @@ Deno.serve(async (req) => {
     }
     if (lead.unsubscribed) return json({ ok: false, skipped: "dado de baja" });
 
-    const lang = okLang(b.lang || lead.lang);
-
-    // EL CANDADO: la fila se reserva ANTES de mandar. Dos submits simultáneos →
-    // el segundo choca contra el índice único y no manda nada.
-    let welcomeId: number | null = null;
-    const ins = await service.from("newsletter_welcomes")
-      .insert({ email, lead_id: lead.id, lang }).select("id").maybeSingle();
-    if (ins.error) {
-      // el candado haciendo su trabajo: a esta dirección ya se le mandó
-      if (esDuplicado(ins.error)) {
-        console.log("WELCOME_SKIP", email, "ya tenía bienvenida");
-        return json({ ok: true, skipped: "ya enviado" });
-      }
-      // cualquier otra cosa (típicamente: 0130 sin correr) → mando igual
-      console.error("FALTA_CORRER_0130", "no pude registrar la bienvenida — la mando igual, pero SIN candado anti-duplicados:", ins.error.message || ins.error);
-    } else {
-      welcomeId = (ins.data as { id: number } | null)?.id ?? null;
-    }
-
-    const unsubUrl = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
-    const firstName = String(lead.first_name || String(lead.name || "").split(" ")[0] || "").trim();
-    const res = await resendSend(emailPayload(email, lang, unsubUrl, welcomeId, firstName));
-    if (!res.ok) {
-      const detalle = (await res.text()).slice(0, 200);
-      console.error("RESEND_WELCOME_FAIL", res.status, detalle, email);
-      // liberar la reserva: si no, el candado deja a esa persona sin bienvenida
-      // para siempre por un 500 pasajero de Resend.
-      if (welcomeId != null) await service.from("newsletter_welcomes").delete().eq("id", welcomeId);
-      return json({ error: "no se pudo enviar" }, 502);
-    }
-    let resendId: string | null = null;
-    try { resendId = (await res.json())?.id ?? null; } catch { /* ignore */ }
-    if (welcomeId != null) {
-      await service.from("newsletter_welcomes")
-        .update({ sent_at: new Date().toISOString(), resend_id: resendId }).eq("id", welcomeId);
-    }
-    return json({ ok: true, lang });
+    const r = await enviarBienvenida(lead as LeadRow, b.lang);
+    if (!r.ok) return json({ error: r.error || "no se pudo enviar" }, 502);
+    return json({ ok: true, lang: r.lang, skipped: r.skipped });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

@@ -120,6 +120,17 @@ empezó acá se ve como email y no como "directo".
   sirve para algo.
 - Dashboard → Newsletter: botones 👋 EN/DE/ES que se lo mandan a tu casilla
   para verlo como lo ve el suscriptor (no toca el log ni gasta el candado).
+- **Retroactivo, en un botón.** Sebastián lo pidió y tenía razón: el lead ya
+  está guardado desde que se suscribe, así que "no es retroactivo" era una
+  decisión, no un límite. `{ catchup: true, dias }` lista a quiénes les falta
+  la bienvenida (suscriptos del footer, sin fila en `newsletter_welcomes`) y
+  solo manda con `{ confirm: true }`. En el dashboard son dos clicks: el
+  primero dice cuántos son y quiénes, el segundo manda. Un botón que manda
+  emails de verdad sin decir antes a cuántos es una trampa.
+- El saludo busca el nombre **en toda la base, no solo en la fila nueva**: el
+  form del footer pide solo el email (a propósito), pero si esa dirección ya
+  estaba cargada por el form de contacto o el brief, el nombre está ahí y
+  saludar "Hola Marta," es gratis. En DE sigue sin usarse (Guten Tag a secas).
 
 **Falta hacer a mano (no lo puedo hacer yo):**
 1. Correr `supabase/migrations/0130_newsletter_welcome.sql` en el SQL Editor.

@@ -2803,6 +2803,18 @@ const newsCases = [
             <input type="checkbox" id="nw-wel-on" style="margin-top:3px" />
             <span class="muted-note" id="nw-wel-state" style="margin:0;font-size:11.5px">Leyendo el estado…</span>
           </label>
+          <!-- Retroactivo: el lead ya está guardado desde que se suscribió, así
+               que a los que entraron mientras esto estaba apagado se les puede
+               mandar después. Muestra el número ANTES de mandar. -->
+          <div class="nw-row" style="margin:8px 0 0;align-items:center">
+            <select id="nw-wel-dias" class="nw-sel" style="max-width:150px">
+              <option value="1">de hoy</option>
+              <option value="7">últimos 7 días</option>
+              <option value="30">últimos 30 días</option>
+            </select>
+            <button class="btn btn-ghost small" id="nw-wel-catch" type="button">👋 Mandársela a los que faltan</button>
+          </div>
+          <p class="muted-note" id="nw-wel-catch-note" style="margin-top:6px"></p>
         </div>
 
         <!-- ===== columna derecha: KPIs + campañas ===== -->
@@ -9918,6 +9930,31 @@ const newsCases = [
           }
         });
       }
+      /* Retroactivo. Dos pasos a propósito: el primer click NO manda, trae a
+         quiénes les llegaría y cuántos son; el segundo confirma. Un botón que
+         manda emails de verdad sin decir antes a cuántos es una trampa. */
+      let welCatchPend = null;
+      $('nw-wel-catch') && $('nw-wel-catch').addEventListener('click', async () => {
+        const dias = +$('nw-wel-dias').value || 1;
+        const nota = $('nw-wel-catch-note');
+        if (welCatchPend === dias) {                       // segundo click: mandar
+          welCatchPend = null;
+          $('nw-wel-catch').textContent = '👋 Mandársela a los que faltan';
+          nota.textContent = 'Enviando…';
+          const { data, error } = await supabase.functions.invoke('newsletter-welcome', { body: { catchup: true, dias, confirm: true } });
+          nota.textContent = error ? '⚠️ ' + error.message : (data && data.error) ? '⚠️ ' + data.error
+            : '✅ ' + (data.enviados || 0) + ' enviadas' + (data.saltados ? ' · ' + data.saltados + ' ya la tenían' : '') + (data.fallados ? ' · ⚠️ ' + data.fallados + ' fallaron' : '') + '.';
+          return;
+        }
+        nota.textContent = 'Buscando…';
+        const { data, error } = await supabase.functions.invoke('newsletter-welcome', { body: { catchup: true, dias } });
+        if (error || (data && data.error)) { nota.textContent = '⚠️ ' + (error ? error.message : data.error); return; }
+        if (!data.total) { nota.textContent = 'No falta ninguna en ese período.'; return; }
+        welCatchPend = dias;
+        $('nw-wel-catch').textContent = '⚠️ Confirmar: mandar ' + data.total;
+        nota.textContent = data.total + ' sin bienvenida: ' + data.quienes.map((q) => q.email + ' (' + q.lang.toUpperCase() + ')').join(', ')
+          + '. Tocá otra vez para mandarlas.';
+      });
       ['en', 'de', 'es'].forEach((lg) => {
         const b = $('nw-wel-' + lg); if (!b) return;
         b.addEventListener('click', async () => {
