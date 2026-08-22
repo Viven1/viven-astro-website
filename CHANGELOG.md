@@ -81,6 +81,13 @@ empezó acá se ve como email y no como "directo".
   Sale de **info@viven.ch** y firma el equipo, no una persona (pedido de
   Sebastián): es un acuse de recibo del sitio, y si lo firma alguien, la
   respuesta cae en una casilla personal y el que contesta queda esperando.
+- **Sin frecuencia fija.** "Una vez por mes" se sacó el mismo día: Sebastián
+  quiere poder escribir más seguido (emails cortos de una sola idea, además del
+  digest). En vez de una frecuencia hay un techo — *nunca más de un email por
+  semana* — que se cumple escribamos poco o mucho, y que además es lo que el
+  que se suscribe quiere saber: no cada cuánto, sino cuánto es lo peor que le
+  puede pasar. El texto quedó simple: qué está funcionando en video,
+  recomendaciones que puede usar, y una mirada detrás de los proyectos.
 - El texto **describe lo que newsletter-builder manda de verdad**. La primera
   versión decía "no es un digest" y prometía formatos, presupuestos y números —
   y la edición mensual ES un digest: 3-4 posts del último mes y medio rankeados

@@ -68,13 +68,20 @@ async function unsubToken(id: string | number): Promise<string> {
 // ---------------------------------------------------------------------------
 // EL TEXTO, en los tres idiomas.
 //
-// LO QUE PROMETE ACÁ TIENE QUE SER LO QUE MANDA newsletter-builder. La primera
-// versión decía "no es un digest" y prometía formatos, presupuestos y números —
-// y la edición mensual ES un digest: 3-4 posts del último mes y medio rankeados
-// por pageviews + 1 proyecto destacado (ver newsletter-builder). O sea que el
-// primer email que recibía un suscriptor le prometía lo único que no le íbamos
-// a mandar. Lo cazó Sebastián el 22 ago 2026, antes de que saliera ni uno.
-// Si algún día cambia lo que arma el builder, este texto cambia con él.
+// LO QUE PROMETE ACÁ TIENE QUE SER LO QUE MANDAMOS DE VERDAD, y esto ya se
+// rompió una vez: la primera versión decía "no es un digest" y prometía
+// formatos, presupuestos y números — y la edición mensual ES un digest (3-4
+// posts rankeados por pageviews + 1 proyecto, ver newsletter-builder). El
+// primer email prometía lo único que no le íbamos a mandar. Lo cazó Sebastián
+// el 22 ago 2026, antes de que saliera ninguno.
+//
+// POR ESO NO HAY FRECUENCIA FIJA. "Una vez por mes" se sacó el mismo día
+// (Sebastián quiere poder escribir más seguido, con emails cortos de una sola
+// idea además del digest). Lo que queda es un TECHO —nunca más de uno por
+// semana— que es una promesa que podemos cumplir escribamos poco o mucho, y
+// que además es lo que el que se suscribe quiere saber: no cada cuánto, sino
+// cuánto es lo peor que le puede pasar. Si algún día se manda más que eso, el
+// texto miente: cambialo antes, no después.
 //
 // Reglas de la casa:
 //   · DE: Sie SIEMPRE, nunca du, nunca ß (siempre ss), saludo "Guten Tag" a
@@ -104,10 +111,10 @@ const CALL = () => "https://www.viven.ch/book/";
 const COPY: Record<string, Copy> = {
   en: {
     subject: "You're on the list — welcome to VIVEN",
-    preheader: "One email a month: the posts that got read, and one project we shot.",
+    preheader: "What is working in video, and recommendations you can use.",
     intro: [
       "Thanks for subscribing — you're on the list.",
-      "Once a month, one email: the three or four things we published that people actually read, plus one project we shot and what went into it. Picked by what got read — not by what we feel like promoting. If a month goes by with nothing worth your time, we don't send anything.",
+      "You will get what is working in video right now, recommendations you can actually use, and a look behind the projects we shoot. Never more than one email a week — and if there is nothing worth reading, nothing goes out.",
     ],
     sign: "— The VIVEN team",
     linksTitle: "Three things worth having before the first one arrives:",
@@ -120,10 +127,10 @@ const COPY: Record<string, Copy> = {
   },
   de: {
     subject: "Willkommen bei VIVEN — Sie sind auf der Liste",
-    preheader: "Eine E-Mail pro Monat: die meistgelesenen Beiträge und ein Projekt.",
+    preheader: "Was bei Video gerade funktioniert, und konkrete Empfehlungen.",
     intro: [
       "Danke für Ihre Anmeldung — Sie sind auf der Liste.",
-      "Einmal im Monat, eine E-Mail: die drei, vier Beiträge des Monats, die tatsächlich gelesen wurden, dazu ein Projekt, das wir gedreht haben, samt dem, was dahintersteckt. Ausgewählt danach, was gelesen wurde — nicht danach, was wir gerade bewerben möchten. Wenn ein Monat nichts hergibt, das Ihre Zeit wert ist, schicken wir nichts.",
+      "Sie bekommen, was bei Video gerade funktioniert, konkrete Empfehlungen und einen Blick hinter die Projekte, die wir drehen. Nie mehr als eine E-Mail pro Woche — und wenn es nichts zu sagen gibt, kommt nichts.",
     ],
     sign: "— Ihr VIVEN Team",
     linksTitle: "Drei Dinge, die schon vor der ersten Ausgabe nützlich sind:",
@@ -136,10 +143,10 @@ const COPY: Record<string, Copy> = {
   },
   es: {
     subject: "Ya estás en la lista — bienvenida a VIVEN",
-    preheader: "Un email por mes: lo que más se leyó y un proyecto que filmamos.",
+    preheader: "Qué está funcionando en video, y recomendaciones concretas.",
     intro: [
       "Gracias por suscribirte — ya estás en la lista.",
-      "Una vez por mes, un solo email: las tres o cuatro cosas que publicamos y que la gente realmente leyó, más un proyecto que filmamos y lo que hubo detrás. Elegidas por lo que se leyó, no por lo que tengamos ganas de promocionar. Si un mes no hay nada que valga tu tiempo, no mandamos nada.",
+      "Vas a recibir qué está funcionando en video, recomendaciones que podés usar, y una mirada detrás de los proyectos que filmamos. Nunca más de un email por semana — y si no hay nada que valga la pena, no mandamos nada.",
     ],
     sign: "— El equipo de VIVEN",
     linksTitle: "Tres cosas que ya te sirven, antes de que llegue la primera:",
