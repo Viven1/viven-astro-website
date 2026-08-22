@@ -81,13 +81,13 @@ async function unsubToken(id: string | number): Promise<string> {
 // se invente el mes que viene cumplen todos lo prometido, sin volver a tocar
 // esto. Cuanto más detalle tenga esta promesa, más rápido se desactualiza.
 //
-// POR ESO NO HAY FRECUENCIA FIJA. "Una vez por mes" se sacó el mismo día
-// (Sebastián quiere poder escribir más seguido, con emails cortos de una sola
-// idea además del digest). Lo que queda es un TECHO —nunca más de uno por
-// semana— que es una promesa que podemos cumplir escribamos poco o mucho, y
-// que además es lo que el que se suscribe quiere saber: no cada cuánto, sino
-// cuánto es lo peor que le puede pasar. Si algún día se manda más que eso, el
-// texto miente: cambialo antes, no después.
+// POR ESO NO HAY NINGÚN COMPROMISO DE TIEMPO. Primero se fue "una vez por mes"
+// (Sebastián quiere poder escribir más seguido); después el techo de "nunca más
+// de uno por semana", por lo mismo — decisión suya, 22 ago 2026: nada de
+// tiempo. Lo único que sigue acotando el volumen es una promesa de criterio, no
+// de calendario: si no hay nada que valga la pena, no sale nada. Y la baja de
+// un click está dos líneas más abajo, que es lo que de verdad protege al que se
+// suscribe si algún mes escribimos de más.
 //
 // Reglas de la casa:
 //   · DE: Sie SIEMPRE, nunca du, nunca ß (siempre ss), saludo "Guten Tag" a
@@ -120,7 +120,7 @@ const COPY: Record<string, Copy> = {
     preheader: "What is working in video, and recommendations you can use.",
     intro: [
       "Thanks for subscribing — you're on the list.",
-      "You will get what is working in video right now, and recommendations you can actually use. Never more than one email a week — and if there is nothing worth reading, nothing goes out.",
+      "You will get what is working in video right now, and recommendations you can actually use. If there is nothing worth reading, nothing goes out.",
     ],
     sign: "— The VIVEN team",
     linksTitle: "Three things worth having before the first one arrives:",
@@ -136,7 +136,7 @@ const COPY: Record<string, Copy> = {
     preheader: "Was bei Video gerade funktioniert, und konkrete Empfehlungen.",
     intro: [
       "Danke für Ihre Anmeldung — Sie sind auf der Liste.",
-      "Sie bekommen, was bei Video gerade funktioniert, und konkrete Empfehlungen, die Sie nutzen können. Nie mehr als eine E-Mail pro Woche — und wenn es nichts zu sagen gibt, kommt nichts.",
+      "Sie bekommen, was bei Video gerade funktioniert, und konkrete Empfehlungen, die Sie nutzen können. Wenn es nichts zu sagen gibt, kommt nichts.",
     ],
     sign: "— Ihr VIVEN Team",
     linksTitle: "Drei Dinge, die schon vor der ersten Ausgabe nützlich sind:",
@@ -152,7 +152,7 @@ const COPY: Record<string, Copy> = {
     preheader: "Qué está funcionando en video, y recomendaciones concretas.",
     intro: [
       "Gracias por suscribirte — ya estás en la lista.",
-      "Vas a recibir qué está funcionando en video y recomendaciones que podés usar. Nunca más de un email por semana — y si no hay nada que valga la pena, no mandamos nada.",
+      "Vas a recibir qué está funcionando en video y recomendaciones que podés usar. Si no hay nada que valga la pena, no mandamos nada.",
     ],
     sign: "— El equipo de VIVEN",
     linksTitle: "Tres cosas que ya te sirven, antes de que llegue la primera:",

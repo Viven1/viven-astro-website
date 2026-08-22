@@ -81,12 +81,13 @@ empezó acá se ve como email y no como "directo".
   Sale de **info@viven.ch** y firma el equipo, no una persona (pedido de
   Sebastián): es un acuse de recibo del sitio, y si lo firma alguien, la
   respuesta cae en una casilla personal y el que contesta queda esperando.
-- **Sin frecuencia fija.** "Una vez por mes" se sacó el mismo día: Sebastián
-  quiere poder escribir más seguido (emails cortos de una sola idea, además del
-  digest). En vez de una frecuencia hay un techo — *nunca más de un email por
-  semana* — que se cumple escribamos poco o mucho, y que además es lo que el
-  que se suscribe quiere saber: no cada cuánto, sino cuánto es lo peor que le
-  puede pasar. El texto quedó simple y a propósito abierto — qué está
+- **Sin ningún compromiso de tiempo.** Primero se fue "una vez por mes"
+  (Sebastián quiere poder escribir más seguido, con emails cortos de una sola
+  idea además del digest); después el techo de "nunca más de uno por semana",
+  por lo mismo. Lo que acota el volumen es una promesa de criterio y no de
+  calendario — *si no hay nada que valga la pena, no sale nada* — más la baja
+  de un click, que es lo que de verdad protege al que se suscribe si algún mes
+  escribimos de más. El texto quedó simple y a propósito abierto — qué está
   funcionando en video y recomendaciones que puede usar, sin describir el
   formato ni la estructura del envío: así el digest mensual, un email corto de
   una sola idea o lo que se invente el mes que viene cumplen todos lo
