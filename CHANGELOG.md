@@ -59,4 +59,52 @@ URL que ya daba 200 cambió de destino.
 
 ---
 
+## 2026-08-22 — el newsletter contesta cuando alguien se suscribe (EN/DE/ES)
+
+**Qué pasaba:** el form del footer decía "✓ Listo — estás en la lista" y ahí
+terminaba todo. El siguiente email que esa persona recibía era la edición
+mensual — hasta 30 días después. En el medio no tenía forma de saber si la
+suscripción funcionó, cada cuánto le íbamos a escribir ni desde qué dirección,
+que es justo lo que decide si el mes que viene el mail cae en Inbox o en
+Promociones.
+
+**Qué se agregó:** una bienvenida que sale al instante, en el idioma en el que
+la persona estaba navegando (EN/DE/ES, fallback EN), con el mismo wrapper, el
+mismo remitente (Sofia) y el mismo link de baja de un click que el resto del
+newsletter. Dice lo único que hace falta decir ahí: uno por mes, qué trae, y
+tres links que ya sirven hoy (calculadora de costos, blog, call de 15 min) —
+todos con `utm_source=newsletter&utm_campaign=welcome`, así una venta que
+empezó acá se ve como email y no como "directo".
+
+- `supabase/functions/newsletter-welcome/index.ts` — la function. El texto de
+  los tres idiomas vive ahí; DE en Sie, sin ß, saludo "Guten Tag" (regla 0089/0111).
+- `public/assets/site.js` — la llama DESPUÉS del insert del lead, best-effort:
+  si la function está caída, la suscripción igual quedó hecha y el visitante no
+  ve ningún error.
+- `supabase/migrations/0130_newsletter_welcome.sql` — `newsletter_welcomes`:
+  el log y, sobre todo, **el candado**. Índice único por email: una bienvenida
+  por dirección, para siempre. El form es público y no tiene captcha, así que
+  sin eso repetir el submit sería una forma barata de mandarle N emails a un
+  tercero. La fila se reserva antes de mandar (dos clicks simultáneos no mandan
+  dos veces) y se libera si Resend falla, para que un 500 pasajero no deje a
+  alguien sin bienvenida para siempre.
+- `supabase/functions/resend-events/index.ts` — tag `welcome_id`: apertura y
+  click de la bienvenida quedan estampados. Es el único número que dice si
+  sirve para algo.
+- Dashboard → Newsletter: botones 👋 EN/DE/ES que se lo mandan a tu casilla
+  para verlo como lo ve el suscriptor (no toca el log ni gasta el candado).
+
+**Falta hacer a mano (no lo puedo hacer yo):**
+1. Correr `supabase/migrations/0130_newsletter_welcome.sql` en el SQL Editor.
+   Mientras no esté corrida, la bienvenida **sale igual** y deja
+   `FALTA_CORRER_0130` en los logs — pero sin candado anti-duplicados.
+2. `supabase functions deploy newsletter-welcome --no-verify-jwt` y
+   `supabase functions deploy resend-events --no-verify-jwt`.
+
+**Estado:** build limpio (504 páginas). Los tres emails se renderizaron y se
+revisaron uno por uno; los 7 links que llevan (3 por idioma + /book/) se
+verificaron contra el build: ninguno da 404.
+
+---
+
 <!-- Próxima entrada: agregar arriba de esta línea, mismo formato -->

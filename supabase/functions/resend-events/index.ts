@@ -1,11 +1,15 @@
 // Supabase Edge Function: resend-events
-// Webhook para los eventos de Resend (email.opened / email.clicked). Maneja DOS
-// fuentes según el tag del email:
+// Webhook para los eventos de Resend (email.opened / email.clicked). Maneja
+// varias fuentes según el tag del email:
 //   • offer_id  → "la vio" de las OFERTAS (van por email, sin link público):
 //                 cada apertura estampa offers.last_open_at.
 //   • nl_id     → tracking del NEWSLETTER por destinatario: apertura → estampa
 //                 newsletter_sends.opened_at; click → clicked_at (solo si null).
 //                 Con eso el dashboard muestra % abrió / % click por campaña.
+//   • issue_id  → lo mismo para la edición mensual automática (SQL 0114).
+//   • welcome_id → el email de bienvenida del newsletter (SQL 0130): estampa
+//                 newsletter_welcomes.opened_at / clicked_at. Es el único
+//                 número que dice si esa bienvenida sirve para algo.
 //
 // Deploy:  supabase functions deploy resend-events --no-verify-jwt
 // Config en Resend (dashboard, lo hace Sebastián):
@@ -53,7 +57,8 @@ Deno.serve(async (req) => {
     const offerId = tagVal("offer_id");
     const nlId = tagVal("nl_id");
     const issueId = tagVal("issue_id");   // edición mensual automática (SQL 0114)
-    if (!offerId && !nlId && !issueId) return new Response("no known tag");
+    const welcomeId = tagVal("welcome_id");   // email de bienvenida del newsletter (SQL 0130)
+    if (!offerId && !nlId && !issueId && !welcomeId) return new Response("no known tag");
 
     const admin = createClient(SB_URL, SERVICE);
     const at = evt?.created_at || new Date().toISOString();
@@ -76,6 +81,17 @@ Deno.serve(async (req) => {
         const { error } = await q;
         if (error) console.error("NL_UPDATE_ERROR", error.message);
       }
+    }
+
+    // bienvenida del newsletter: el id de la fila viaja en el tag, así que no
+    // hace falta buscar por email. Solo la primera apertura/click (is null),
+    // igual que arriba — el número que importa es cuánta gente lo abre, no
+    // cuántas veces lo abre la misma persona.
+    if (welcomeId) {
+      const col = evt.type === "email.clicked" ? "clicked_at" : "opened_at";
+      const { error } = await admin.from("newsletter_welcomes")
+        .update({ [col]: at }).eq("id", welcomeId).is(col, null);
+      if (error) console.error("WELCOME_UPDATE_ERROR", error.message);
     }
     return new Response("ok");
   } catch (e) {

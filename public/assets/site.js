@@ -644,6 +644,19 @@ document.querySelectorAll('[data-nl] .nl-form').forEach(function(form){
       var box = form.closest('[data-nl]');
       if(res && res.ok){
         form.hidden = true; var d = box.querySelector('.nl-done'); if(d) d.hidden = false;
+        /* 👋 email de bienvenida en SU idioma (EN/DE/ES), al instante. Antes acá
+           no llegaba nada hasta la edición mensual siguiente — hasta 30 días de
+           silencio después de un "estás en la lista". Va DESPUÉS del insert y es
+           best-effort a propósito: si la function está caída, la suscripción ya
+           quedó hecha y el visitante no ve ningún error. El candado contra
+           duplicados vive del lado del servidor (SQL 0130), no acá. */
+        if(window.sbCallFunction){
+          window.sbCallFunction('newsletter-welcome', {
+            email: email,
+            lang: ((row.lang || document.documentElement.lang || 'en') + '').slice(0, 2),
+            form_path: location.pathname
+          });
+        }
         /* lead real (fila en leads + HubSpot) que tampoco pasa por /thank-you/ —
            sin esto la suscripción al newsletter es invisible en GA4 y en Ads */
         track('generate_lead', {method: 'newsletter', page: location.pathname});
