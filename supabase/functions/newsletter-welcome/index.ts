@@ -75,6 +75,12 @@ async function unsubToken(id: string | number): Promise<string> {
 // primer email prometía lo único que no le íbamos a mandar. Lo cazó Sebastián
 // el 22 ago 2026, antes de que saliera ninguno.
 //
+// POR ESO EL TEXTO ES DELIBERADAMENTE ABIERTO: dice el VALOR (qué funciona en
+// video, recomendaciones que se pueden usar), no el formato ni la estructura
+// del envío. Así el digest mensual, un email corto de una sola idea o lo que
+// se invente el mes que viene cumplen todos lo prometido, sin volver a tocar
+// esto. Cuanto más detalle tenga esta promesa, más rápido se desactualiza.
+//
 // POR ESO NO HAY FRECUENCIA FIJA. "Una vez por mes" se sacó el mismo día
 // (Sebastián quiere poder escribir más seguido, con emails cortos de una sola
 // idea además del digest). Lo que queda es un TECHO —nunca más de uno por
@@ -114,7 +120,7 @@ const COPY: Record<string, Copy> = {
     preheader: "What is working in video, and recommendations you can use.",
     intro: [
       "Thanks for subscribing — you're on the list.",
-      "You will get what is working in video right now, recommendations you can actually use, and a look behind the projects we shoot. Never more than one email a week — and if there is nothing worth reading, nothing goes out.",
+      "You will get what is working in video right now, and recommendations you can actually use. Never more than one email a week — and if there is nothing worth reading, nothing goes out.",
     ],
     sign: "— The VIVEN team",
     linksTitle: "Three things worth having before the first one arrives:",
@@ -130,7 +136,7 @@ const COPY: Record<string, Copy> = {
     preheader: "Was bei Video gerade funktioniert, und konkrete Empfehlungen.",
     intro: [
       "Danke für Ihre Anmeldung — Sie sind auf der Liste.",
-      "Sie bekommen, was bei Video gerade funktioniert, konkrete Empfehlungen und einen Blick hinter die Projekte, die wir drehen. Nie mehr als eine E-Mail pro Woche — und wenn es nichts zu sagen gibt, kommt nichts.",
+      "Sie bekommen, was bei Video gerade funktioniert, und konkrete Empfehlungen, die Sie nutzen können. Nie mehr als eine E-Mail pro Woche — und wenn es nichts zu sagen gibt, kommt nichts.",
     ],
     sign: "— Ihr VIVEN Team",
     linksTitle: "Drei Dinge, die schon vor der ersten Ausgabe nützlich sind:",
@@ -146,7 +152,7 @@ const COPY: Record<string, Copy> = {
     preheader: "Qué está funcionando en video, y recomendaciones concretas.",
     intro: [
       "Gracias por suscribirte — ya estás en la lista.",
-      "Vas a recibir qué está funcionando en video, recomendaciones que podés usar, y una mirada detrás de los proyectos que filmamos. Nunca más de un email por semana — y si no hay nada que valga la pena, no mandamos nada.",
+      "Vas a recibir qué está funcionando en video y recomendaciones que podés usar. Nunca más de un email por semana — y si no hay nada que valga la pena, no mandamos nada.",
     ],
     sign: "— El equipo de VIVEN",
     linksTitle: "Tres cosas que ya te sirven, antes de que llegue la primera:",

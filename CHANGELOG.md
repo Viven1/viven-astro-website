@@ -86,8 +86,11 @@ empezó acá se ve como email y no como "directo".
   digest). En vez de una frecuencia hay un techo — *nunca más de un email por
   semana* — que se cumple escribamos poco o mucho, y que además es lo que el
   que se suscribe quiere saber: no cada cuánto, sino cuánto es lo peor que le
-  puede pasar. El texto quedó simple: qué está funcionando en video,
-  recomendaciones que puede usar, y una mirada detrás de los proyectos.
+  puede pasar. El texto quedó simple y a propósito abierto — qué está
+  funcionando en video y recomendaciones que puede usar, sin describir el
+  formato ni la estructura del envío: así el digest mensual, un email corto de
+  una sola idea o lo que se invente el mes que viene cumplen todos lo
+  prometido, sin volver a tocar el texto.
 - El texto **describe lo que newsletter-builder manda de verdad**. La primera
   versión decía "no es un digest" y prometía formatos, presupuestos y números —
   y la edición mensual ES un digest: 3-4 posts del último mes y medio rankeados
