@@ -24,8 +24,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "supabase/functions/newsletter-welcome/**"
-      - "supabase/functions/resend-events/**"
+      # TODAS las functions, no dos. Antes vigilaba solo newsletter-welcome y
+      # resend-events: tocar cualquiera de las otras 60 dejaba el código en el
+      # repo y Supabase corriendo la versión vieja, sin avisar.
+      - "supabase/functions/**"
+      - "supabase/config.toml"
       - ".github/workflows/deploy-functions.yml"
   # para re-deployar sin tener que commitear (pestaña Actions → Run workflow)
   workflow_dispatch:
@@ -60,15 +63,30 @@ jobs:
         with:
           version: latest
 
-      # --no-verify-jwt: las dos las llaman terceros sin sesión de Supabase —
-      # newsletter-welcome desde el sitio público (clave publishable) y
-      # resend-events desde el webhook de Resend (firma Svix). Es el mismo flag
-      # con el que están deployadas hoy; sacarlo las rompe.
-      - name: newsletter-welcome
-        run: supabase functions deploy newsletter-welcome --project-ref "$PROJECT_REF" --no-verify-jwt
+      # Se publican TODAS, y el permiso de cada una sale de supabase/config.toml,
+      # no de un flag en la línea de comandos.
+      #
+      # ESTO ES DELIBERADO Y NO SE SIMPLIFICA: 61 de las 62 functions van con
+      # verify_jwt=false porque las llaman terceros sin sesión (webhooks de
+      # Resend, el cron con su secreto, el sitio público). La excepción es
+      # admin-users, que da de alta y baja usuarios del dashboard y SÍ exige
+      # sesión. Si acá volviera un --no-verify-jwt global, ese deploy dejaría
+      # admin-users abierta a cualquiera con la clave publishable, que está a la
+      # vista en el JS del sitio.
+      - name: Publicar todas las functions
+        run: supabase functions deploy --project-ref "$PROJECT_REF"
 
-      - name: resend-events
-        run: supabase functions deploy resend-events --project-ref "$PROJECT_REF" --no-verify-jwt
+      # Regresión que importa más que el deploy en sí: comprobar que admin-users
+      # sigue exigiendo sesión después de publicar. Si algún día alguien mete un
+      # flag global, esto se pone rojo antes de que alguien lo descubra por las
+      # malas.
+      - name: admin-users sigue cerrada
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 25 -X POST \
+            -H 'Content-Type: application/json' -d '{"action":"list"}' \
+            "https://$PROJECT_REF.supabase.co/functions/v1/admin-users")
+          echo "admin-users sin sesión responde: $code"
+          [ "$code" = "401" ] || { echo "::error::admin-users quedó ABIERTA (esperaba 401, dio $code)"; exit 1; }
 
       # Verificar, no suponer: que la function conteste de verdad. Sin body,
       # newsletter-welcome responde 400 "email inválido" — con eso alcanza para
