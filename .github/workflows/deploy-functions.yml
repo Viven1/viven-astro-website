@@ -1,0 +1,84 @@
+# Publicar las edge functions desde GitHub, no desde la Mac de Sebastián.
+#
+# POR QUÉ (2026-08-23): el sitio ya se publica solo desde `main` (deploy.yml),
+# pero las functions de Supabase no. Cada cambio en una function dependía de que
+# alguien abriera una terminal con el CLI logueado y corriera el deploy a mano.
+# Consecuencia real de esta misma tanda: el email de bienvenida quedó escrito,
+# revisado y mergeado, y no salía — porque el código estaba en el repo y no en
+# Supabase. Lo mismo que pasaba con el blog antes de deploy.yml: "publicado" y
+# roto al mismo tiempo.
+#
+# QUÉ DEPLOYA: SOLO las functions listadas abajo, y solo cuando cambia su
+# carpeta. NO deploya las ~60 functions del repo de una: la copia del repo y la
+# que está corriendo en Supabase pueden haberse separado con el tiempo, y un
+# deploy masivo cambiaría comportamiento de cosas que nadie tocó. Agregar una
+# function acá es una decisión explícita, no un efecto secundario.
+#
+# Necesita UN secret en el repo (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN — token personal de https://supabase.com/dashboard/account/tokens
+# El project-ref no es secreto (identifica, no autoriza) y ya está en el repo.
+
+name: Publicar edge functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/newsletter-welcome/**"
+      - "supabase/functions/resend-events/**"
+      - ".github/workflows/deploy-functions.yml"
+  # para re-deployar sin tener que commitear (pestaña Actions → Run workflow)
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false   # a diferencia del sitio, acá cancelar a la mitad deja una function vieja
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: lumoevaotokgqnpybkyf
+    steps:
+      - uses: actions/checkout@v4
+
+      # Falla fuerte y explica, en vez de "no encontró el token" tres pasos
+      # después. Si esto se pone rojo, la causa está en el mensaje.
+      - name: Comprobar que el token está
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Falta el secret SUPABASE_ACCESS_TOKEN."
+            echo "Crealo en https://supabase.com/dashboard/account/tokens y pegalo en"
+            echo "Settings → Secrets and variables → Actions → New repository secret."
+            echo "Sin eso las functions NO se publican: el código queda en el repo y"
+            echo "Supabase sigue corriendo la versión vieja."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # --no-verify-jwt: las dos las llaman terceros sin sesión de Supabase —
+      # newsletter-welcome desde el sitio público (clave publishable) y
+      # resend-events desde el webhook de Resend (firma Svix). Es el mismo flag
+      # con el que están deployadas hoy; sacarlo las rompe.
+      - name: newsletter-welcome
+        run: supabase functions deploy newsletter-welcome --project-ref "$PROJECT_REF" --no-verify-jwt
+
+      - name: resend-events
+        run: supabase functions deploy resend-events --project-ref "$PROJECT_REF" --no-verify-jwt
+
+      # Verificar, no suponer: que la function conteste de verdad. Sin body,
+      # newsletter-welcome responde 400 "email inválido" — con eso alcanza para
+      # saber que está viva y ejecutando ESTE código. Un 404 significa que el
+      # deploy no llegó, aunque el paso anterior diga OK.
+      - name: Comprobar que responde
+        run: |
+          sleep 5
+          code=$(curl -s -o /tmp/r.txt -w '%{http_code}' -m 25 -X POST \
+            -H 'Content-Type: application/json' -d '{}' \
+            "https://$PROJECT_REF.supabase.co/functions/v1/newsletter-welcome")
+          echo "$code  $(head -c 200 /tmp/r.txt)"
+          [ "$code" = "400" ] || { echo "::error::newsletter-welcome no respondió como se esperaba (400 sin body)"; exit 1; }

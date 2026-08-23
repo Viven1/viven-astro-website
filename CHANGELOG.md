@@ -132,13 +132,24 @@ empezó acá se ve como email y no como "directo".
   estaba cargada por el form de contacto o el brief, el nombre está ahí y
   saludar "Hola Marta," es gratis. En DE sigue sin usarse (Guten Tag a secas).
 
-**Falta hacer a mano (no lo puedo hacer yo):**
-1. Correr `supabase/migrations/0130_newsletter_welcome.sql` en el SQL Editor.
-2. `supabase functions deploy newsletter-welcome --no-verify-jwt` y
-   `supabase functions deploy resend-events --no-verify-jwt`.
-3. Leer los tres emails y, recién ahí, **prender el check 👋** en Newsletter.
-   Hasta que lo prendas no sale ni uno. (Si se deploya sin correr la SQL, el
-   interruptor no se puede leer y la function tampoco manda: apagado.)
+**Las functions ahora se publican solas** (`.github/workflows/deploy-functions.yml`).
+El sitio ya salía solo desde `main` desde el 14 ago, pero las edge functions
+seguían dependiendo de una terminal con el CLI logueado — y esta misma tanda lo
+demostró: el email quedó escrito, revisado y mergeado, y no salía porque el
+código estaba en el repo y no en Supabase. Mismo problema que tenía el blog
+antes de deploy.yml. El workflow publica **solo** newsletter-welcome y
+resend-events, y solo cuando cambia su carpeta: un deploy masivo de las ~60
+functions cambiaría comportamiento de cosas que nadie tocó. Verifica que la
+function conteste después de publicar, no supone.
+
+**Falta hacer a mano (no lo puedo hacer yo, una vez cada uno):**
+1. Secret `SUPABASE_ACCESS_TOKEN` en Settings → Secrets → Actions (de
+   supabase.com/dashboard/account/tokens). Sin eso el workflow se pone rojo y
+   lo dice con todas las letras.
+2. Correr `supabase/migrations/0130_newsletter_welcome.sql` en el SQL Editor.
+3. Leer los tres emails con los botones 👋 y **prender el check**. Hasta que lo
+   prendas no sale ni uno. (Sin la SQL corrida el interruptor no se puede leer,
+   así que también queda apagado: no hay forma de que se escape un envío.)
 
 **Estado:** build limpio (504 páginas). Los tres emails se renderizaron y se
 revisaron uno por uno; los 7 links que llevan (3 por idioma + /book/) se
