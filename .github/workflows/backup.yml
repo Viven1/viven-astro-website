@@ -15,9 +15,13 @@
 #                           llave maestra. Si se filtrara, no puede escribir nada.
 #   CLOUDFLARE_API_TOKEN  — el mismo que ya usa el deploy (necesita R2: Edit)
 #
-# ALCANCE: se respalda el esquema `public`, que es donde vive todo lo del
-# negocio. Las cuentas de acceso (`auth`) no entran: son dos, están en
-# user_roles, y se recrean desde la pantalla de Usuarios.
+# ALCANCE: el esquema `public` (todo lo del negocio) MÁS los archivos de
+# Storage (PDFs de lead magnets, avatares). Las cuentas de acceso (`auth`) no
+# entran a propósito: auth.users tiene RLS y darle permiso al usuario de
+# respaldo obliga a tocar un esquema que administra Supabase y que se puede
+# pisar en una actualización. Son dos cuentas, quién tiene acceso ya está en
+# public.user_roles (que sí se respalda), y se recrean desde la pantalla de
+# Usuarios en un minuto.
 
 name: Respaldo de la base
 
@@ -122,6 +126,27 @@ jobs:
           FILAS=$(zcat "viven-$FECHA.sql.gz" | awk '/^COPY public\.leads /{f=1;next} /^\\\.$/{f=0} f' | wc -l)
           echo "filas en leads: $FILAS"
           [ "$FILAS" -gt 0 ] || { echo "::error::leads vino VACÍA — el usuario perdió permiso de lectura"; exit 1; }
+
+      # Los ARCHIVOS, no solo las tablas. Los 6 PDFs de lead magnets viven solo
+      # dentro de Supabase: si se pierden, los botones de descarga del sitio
+      # quedan rotos y no hay de dónde reponerlos. El script saca la lista del
+      # índice real (storage.objects) y comprueba el tamaño de cada archivo
+      # bajado — un archivo cortado no puede pasar por respaldo bueno.
+      - name: Bajar los archivos de Storage
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -o pipefail
+          python3 scripts/backup-storage.py "archivos-$FECHA"
+          tar -czf "viven-archivos-$FECHA.tar.gz" "archivos-$FECHA"
+          echo "peso: $(stat -c%s "viven-archivos-$FECHA.tar.gz") bytes"
+
+      - name: Guardar los archivos en R2
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.123.0"
+          command: r2 object put viven-backups/archivos/viven-archivos-${{ env.FECHA }}.tar.gz --file=viven-archivos-${{ env.FECHA }}.tar.gz --remote
 
       - name: Guardar en R2
         uses: cloudflare/wrangler-action@v3
