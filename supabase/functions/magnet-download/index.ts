@@ -46,7 +46,7 @@ const okLang = (l: unknown) => (["en", "de", "es"].includes(String(l)) ? String(
 
 const MAGNETS: Record<string, { file: (lang: string) => string; label: string; asunto: Record<string, string>; nombre: Record<string, string>; trae: Record<string, string> }> = {
   "social-formats": {
-    file: (lang) => `viven-social-video-cheatsheet-2026-${okLang(lang)}.pdf`,
+    file: (lang) => `viven-social-media-video-cheat-sheet-2026-${okLang(lang)}.pdf`,
     label: "Lead magnet: social media formats",
     asunto: {
       en: "Your Social Media Video Cheat Sheet 2026",
