@@ -204,6 +204,29 @@ Deno.serve(async (req) => {
     if (!magnet) return json({ error: "magnet desconocido" }, 400);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "email inválido" }, 400);
 
+    /* ---- ENSAYO: comprueba todo y no le escribe a nadie -------------------
+       Firma el link igual (así se ve si el archivo del bucket existe y con qué
+       nombre), pero no inserta el lead, no registra el envío y no llama a
+       Resend. Es lo que hay que usar para verificar después de un cambio. */
+    if (b.dry_run === true) {
+      const prueba = await service.storage.from("magnets").createSignedUrl(magnet.file(lang), 60);
+      const url = prueba.data?.signedUrl;
+      let bytes = 0, http = 0;
+      if (url) {
+        const r = await fetch(url);
+        http = r.status;
+        bytes = Number(r.headers.get("content-length") || 0);
+      }
+      return json({
+        ok: !!url && http === 200,
+        dry_run: true,
+        archivo: magnet.file(lang),
+        http, bytes,
+        mando_mail: false, cree_lead: false,
+        error: prueba.error?.message,
+      });
+    }
+
     const quiereNewsletter = b.newsletter === true;
     /* La prueba del consentimiento. El sitio manda el texto EXACTO que la
        persona tenía al lado de la casilla (nl_text): si mañana cambiamos esa
