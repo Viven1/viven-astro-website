@@ -13302,6 +13302,12 @@ const newsCases = [
   // Parte B: generador de ideas nuevas (ai-lead-magnet-ideas) — PDF real vía
   // jsPDF client-side (mismo motor que las ofertas) o solo el diseño propuesto
   // si es una tool nueva (nunca se scaffoldea como página pública real).
+  /* Nombres de los PDF para el panel. Si aparece uno que no está acá, se muestra
+     igual con su clave: mejor un nombre feo que un magnet invisible. */
+  const LM_MAGNETS = {
+    'explainer-guide': { t: 'Guía de video explicativo', e: '🎬' },
+    'social-formats':  { t: 'Formatos para redes',       e: '📱' },
+  };
   const LM_CALC_PATHS = ['/en/video-cost-calculator/', '/de/videoproduktion-kosten-rechner/', '/es/calculadora-costos-video/'];
   const lmNormPath = (p) => { let s = String(p || '').split('?')[0].split('#')[0]; if (!s.startsWith('/')) s = '/' + s; if (!s.endsWith('/')) s += '/'; return s; };
   let lmBound = false;
@@ -13349,8 +13355,35 @@ const newsCases = [
           '<div class="lm-kv"><span>Conversión → ganado</span><b>' + won + '</b></div>' +
           '<div class="lm-bigpct">' + pct.toFixed(1) + '%</div><div class="lm-bigpct-l">sesión → lead</div></div>';
       };
+      /* Los PDF no estaban en este panel: las tarjetas eran DOS, escritas a mano
+         (calculadora y brief). Sebastián: "los lead magnets nuevos pdfs no aparecen
+         en el contado de leads". Ahora salen de magnet_sends, que es donde queda
+         registrado cada pedido de PDF. Una tarjeta por magnet, sin lista fija:
+         si mañana hay un magnet nuevo, aparece solo. */
+      const { data: envios, error: mgErr } = await supabase.from('magnet_sends')
+        .select('magnet,email,lead_id,created_at').gte('created_at', since()).lte('created_at', until());
+      const porMagnet = {};
+      if (!mgErr) (envios || []).forEach((m) => {
+        const k = m.magnet || '(sin nombre)';
+        (porMagnet[k] = porMagnet[k] || []).push(m);
+      });
+      const magnetCard = (clave, filas) => {
+        const meta = LM_MAGNETS[clave] || { t: clave, e: '📄' };
+        // personas distintas, no pedidos: el mismo email puede pedirlo dos veces
+        const personas = new Set(filas.map((m) => (m.email || '').toLowerCase()).filter(Boolean));
+        const ids = new Set(filas.filter((m) => m.lead_id).map((m) => String(m.lead_id)));
+        const ganados = [...ids].filter((id) => wonSet.has(id)).length;
+        return '<div class="of-card lm-card"><h3>' + meta.e + ' ' + esc(meta.t) + '<small>PDF</small></h3>' +
+          '<div class="lm-kv"><span>Pedidos</span><b>' + filas.length + '</b></div>' +
+          '<div class="lm-kv"><span>Personas distintas</span><b>' + personas.size + '</b></div>' +
+          '<div class="lm-kv"><span>Conversión → ganado</span><b>' + ganados + '</b></div>' +
+          '<div class="lm-bigpct">' + personas.size + '</div><div class="lm-bigpct-l">leads que dejó</div></div>';
+      };
+      const tarjetasPdf = Object.keys(porMagnet).sort().map((k) => magnetCard(k, porMagnet[k])).join('');
       cardsEl.innerHTML = card('🧮 Calculadora de costos', '3 idiomas', calcSessions, calcLeads.length, calcWon) +
-        card('📋 Brief profundo', '', briefSessions, briefLeads.length, briefWon);
+        card('📋 Brief profundo', '', briefSessions, briefLeads.length, briefWon) + tarjetasPdf +
+        (mgErr ? '<p class="muted-note" style="grid-column:1/-1;color:#ff8b5e">⚠️ No se pudieron leer los pedidos de PDF: ' + esc(mgErr.message) + '</p>'
+               : !tarjetasPdf ? '<p class="muted-note" style="grid-column:1/-1">Ningún PDF pedido en este período.</p>' : '');
     } catch (e) { cardsEl.innerHTML = '<p class="muted-note">⚠️ ' + esc(e.message || String(e)) + '</p>'; }
   }
   // ---- Parte B: ideas nuevas con IA ----
