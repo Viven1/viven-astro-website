@@ -1,4 +1,4 @@
--- 0131 — El lead magnet pasa a llegar TAMBIÉN por email, y la casilla del
+-- 0132 — El lead magnet pasa a llegar TAMBIÉN por email, y la casilla del
 -- newsletter deja rastro.
 --
 -- POR QUÉ: hasta hoy el magnet devolvía un link firmado de 5 minutos y el PDF
@@ -74,6 +74,11 @@ create policy backup_ro_read on public.magnet_sends
   for select to viven_backup_ro
   using (true);
 
+-- Nota: 0131_backup_ro_automatico (misma jornada, otra sesión) puso un event
+-- trigger que le pone `backup_ro_read` sola a cada tabla nueva de public. Las
+-- dos políticas de acá quedan igual: son idempotentes y dejan el archivo
+-- entendible por sí solo.
+--
 -- Y de paso: newsletter_welcomes (0130) se creó DESPUÉS del respaldo diario y
 -- quedó sin la política de backup. pg_dump corre con --enable-row-security y
 -- sin esto la tabla se dumpea con CERO filas, en silencio. Medido hoy: era la

@@ -7,7 +7,7 @@
 //                 newsletter_sends.opened_at; click → clicked_at (solo si null).
 //                 Con eso el dashboard muestra % abrió / % click por campaña.
 //   • issue_id  → lo mismo para la edición mensual automática (SQL 0114).
-//   • magnet_id → el mail con el PDF del lead magnet (SQL 0131): estampa
+//   • magnet_id → el mail con el PDF del lead magnet (SQL 0132): estampa
 //                 magnet_sends.opened_at / clicked_at.
 //   • welcome_id → el email de bienvenida del newsletter (SQL 0130): estampa
 //                 newsletter_welcomes.opened_at / clicked_at. Es el único
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     const nlId = tagVal("nl_id");
     const issueId = tagVal("issue_id");   // edición mensual automática (SQL 0114)
     const welcomeId = tagVal("welcome_id");   // email de bienvenida del newsletter (SQL 0130)
-    const magnetId = tagVal("magnet_id");     // el mail que lleva el PDF del lead magnet (SQL 0131)
+    const magnetId = tagVal("magnet_id");     // el mail que lleva el PDF del lead magnet (SQL 0132)
     if (!offerId && !nlId && !issueId && !welcomeId && !magnetId) return new Response("no known tag");
 
     const admin = createClient(SB_URL, SERVICE);

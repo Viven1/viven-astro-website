@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
       if (b.utm_source) row.utm_source = b.utm_source;
       if (b.landing_path) row.landing_path = b.landing_path;
       // la casilla tildada es consentimiento explícito y se guarda con fecha:
-      // el día que haya que demostrar quién lo pidió, el dato existe (SQL 0131)
+      // el día que haya que demostrar quién lo pidió, el dato existe (SQL 0132)
       if (quiereNewsletter) {
         row.newsletter_opt_in = new Date().toISOString();
         row.newsletter_opt_in_src = consentimiento;
@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
 
       const log = await service.from("magnet_sends")
         .insert({ email, magnet: String(b.magnet || ""), lang, lead_id: leadId }).select("id").maybeSingle();
-      if (log.error) console.error("FALTA_CORRER_0131", log.error.message);
+      if (log.error) console.error("FALTA_CORRER_0132", log.error.message);
       const sendId = (log.data as { id: number } | null)?.id ?? null;
 
       const unsubUrl = leadId != null
