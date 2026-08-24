@@ -22,7 +22,7 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 // Sebastián 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
 // Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
 async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string;
-  hutk?: string | null; pageUri?: string | null; pageName?: string | null }) {
+  hutk?: string | null; pageUri?: string | null; pageName?: string | null; gclid?: string | null }) {
   try {
     await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
       method: "POST",
@@ -34,6 +34,10 @@ async function hubspotSubmit(opts: { firstname?: string; lastname?: string; emai
           { name: "email", value: opts.email },
           { name: "company", value: opts.company || "-" },
           { name: "message", value: opts.message || "" },
+          // El gclid como campo propio: no cambia el Original Source (eso sale de
+          // la cookie de HubSpot y no se puede pasar por API) pero da una segunda
+          // vía para cruzar leads con campañas que NO depende del consentimiento.
+          ...(opts.gclid ? [{ name: "gclid", value: opts.gclid }] : []),
         ],
         // `hutk` es LA pieza de la atribución: sin ese token HubSpot no puede
         // asociar el envío con la sesión de navegación donde quedó registrado el
@@ -246,7 +250,7 @@ Deno.serve(async (req) => {
         if (leadId == null) console.error("LEAD_SIN_ID", email);
       }
     } catch (e) { console.error("LEAD_INSERT_WARN", String(e)); }
-    await hubspotSubmit({ email, message: magnet.label, hutk: b.hutk ?? null, pageUri: b.page_uri ?? null, pageName: b.page_name ?? null });
+    await hubspotSubmit({ email, message: magnet.label, hutk: b.hutk ?? null, pageUri: b.page_uri ?? null, pageName: b.page_name ?? null, gclid: b.gclid ?? null });
 
     // el link que baja YA: corto a propósito, es de un solo uso en la práctica
     const { data, error } = await service.storage.from("magnets").createSignedUrl(magnet.file(lang), 300);

@@ -34,7 +34,7 @@ const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, 
 // Sebastián 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
 // Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
 async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string;
-  hutk?: string | null; pageUri?: string | null; pageName?: string | null }) {
+  hutk?: string | null; pageUri?: string | null; pageName?: string | null; gclid?: string | null }) {
   try {
     await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
       method: "POST",
@@ -46,6 +46,10 @@ async function hubspotSubmit(opts: { firstname?: string; lastname?: string; emai
           { name: "email", value: opts.email },
           { name: "company", value: opts.company || "-" },
           { name: "message", value: opts.message || "" },
+          // El gclid como campo propio: no cambia el Original Source (eso sale de
+          // la cookie de HubSpot y no se puede pasar por API) pero da una segunda
+          // vía para cruzar leads con campañas que NO depende del consentimiento.
+          ...(opts.gclid ? [{ name: "gclid", value: opts.gclid }] : []),
         ],
         // `hutk` es LA pieza de la atribución: sin ese token HubSpot no puede
         // asociar el envío con la sesión de navegación donde quedó registrado el
@@ -135,7 +139,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (await rateLimited("calc-email", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
-    const { to, name, lang: rawLang, lines, lo, hi, config, hutk, page_uri, page_name } = await req.json();
+    const { to, name, lang: rawLang, lines, lo, hi, config, hutk, page_uri, page_name, gclid } = await req.json();
     if (!to || !lo || !hi) return json({ error: "faltan datos (to/lo/hi)" }, 400);
     const lang = ["en", "de", "es"].includes(rawLang) ? rawLang : "en";
     const t = T[lang];
@@ -225,7 +229,7 @@ Deno.serve(async (req) => {
       if (logErr) console.error("EMAIL_LOG_FAIL", logErr.message);
     } catch (e) { console.error("EMAIL_LOG_FAIL", String(e)); }
 
-    await hubspotSubmit({ firstname: first, lastname: last, email: to, message: `Calculadora de costos: ${range}${cfgLine ? " · " + cfgLine : ""}` , hutk: hutk ?? null, pageUri: page_uri ?? null, pageName: page_name ?? null });
+    await hubspotSubmit({ firstname: first, lastname: last, email: to, message: `Calculadora de costos: ${range}${cfgLine ? " · " + cfgLine : ""}` , hutk: hutk ?? null, pageUri: page_uri ?? null, pageName: page_name ?? null, gclid: gclid ?? null });
     return json({ ok: true });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));

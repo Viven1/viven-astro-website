@@ -510,6 +510,8 @@ function hubspotSubmit(first, last, email, message, company){
       context: { pageUri: location.href, pageName: document.title }
     };
     if(hutk) body.context.hutk = hutk;
+    var gc = window.vvGclid && window.vvGclid();
+    if(gc) body.fields.push({ name: 'gclid', value: gc });
     fetch('https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body), keepalive: true
@@ -1022,6 +1024,18 @@ window.sbInsertLead = sbInsertLead;   /* expuesto para la calculadora de presupu
    navegación donde quedó registrado el origen (Google Ads, orgánico, etc.). Sin
    él, HubSpot clasifica el contacto como "Offline Sources". Devuelve null si la
    persona no aceptó cookies — ahí no hay nada que pasar y está bien así. */
+/* El gclid que trajo la persona de Google Ads. Va a HubSpot como campo propio:
+   NO cambia el Original Source —eso HubSpot lo fija desde su cookie y no se puede
+   pasar por API— pero da una segunda vía para cruzar leads con campañas que NO
+   depende del consentimiento, porque el gclid viene en la URL que puso el propio
+   Google, no de una cookie nuestra. Probado el 25/08: HubSpot acepta el campo sin
+   rechazar el envío. */
+window.vvGclid = function(){
+  try{
+    var a = window.vivenAttribution ? window.vivenAttribution() : null;
+    return (a && a.attrib && a.attrib.gclid) || null;
+  }catch(e){ return null; }
+};
 window.vvHutk = function(){
   try{ return (document.cookie.match(/hubspotutk=([^;]+)/) || [])[1] || null; }catch(e){ return null; }
 };
@@ -1035,6 +1049,7 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     if(!body.hutk){ var k = window.vvHutk(); if(k) body.hutk = k; }
     if(!body.page_uri) body.page_uri = location.href;
     if(!body.page_name) body.page_name = document.title;
+    if(!body.gclid){ var g = window.vvGclid(); if(g) body.gclid = g; }
   }catch(e){}
   return fetch(SB_URL + '/functions/v1/' + name, {
     method: 'POST',
