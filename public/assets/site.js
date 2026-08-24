@@ -600,21 +600,34 @@ document.querySelectorAll('.lm-gate').forEach(function(box){
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ inp.focus(); return; }
     var btn = form.querySelector('button'); if(btn.disabled) return; btn.disabled = true;
     var extra = window.vivenAttribution ? window.vivenAttribution() : null;
-    var body = { email: email, magnet: box.dataset.magnet || '', lang: (document.documentElement.lang || 'en').slice(0,2), form_path: location.pathname };
+    /* la casilla del newsletter es la ÚNICA señal de consentimiento explícito
+       que tenemos de esta persona: viaja al servidor y queda registrada ahí.
+       Sin tildar no pasa nada — el PDF se manda igual. */
+    var nlBox = box.querySelector('.lm-gate-nl input[type="checkbox"]');
+    /* el texto que la persona vio al lado de la casilla viaja con el pedido:
+       es lo que convierte una fecha en una prueba de consentimiento */
+    var nlTxt = box.querySelector('.lm-gate-nl span');
+    var body = { email: email, magnet: box.dataset.magnet || '', lang: (document.documentElement.lang || 'en').slice(0,2), form_path: location.pathname, newsletter: !!(nlBox && nlBox.checked) };
+    if (body.newsletter && nlTxt) body.nl_text = (nlTxt.textContent || '').trim();
     if(extra){
       body.session_id = extra.session_id;
       if(extra.attrib){ body.channel = extra.attrib.channel; body.utm_source = extra.attrib.utm_source; body.landing_path = extra.attrib.landing_path; }
     }
     window.sbCallFunction('magnet-download', body).then(function(res){
-      if(res && res.ok && res.url){
+      if(res && res.ok){
         if(window.vvFunnel) window.vvFunnel('magnet', 1, 'email_submitted');
         /* lead del magnet: tampoco pasa por /thank-you/ — contarlo en GA4/Ads */
         track('generate_lead', {method: 'lead_magnet', page: location.pathname});
         form.hidden = true;
         var d = box.querySelector('.lm-gate-done'); if(d) d.hidden = false;
-        var a = document.createElement('a');
-        a.href = res.url; a.download = '';
-        document.body.appendChild(a); a.click(); a.remove();
+        /* descarga inmediata Y mail con el link: el que puso una dirección
+           falsa igual se lleva el PDF, y el que la puso bien lo tiene también
+           en la casilla, que es lo que hace que abra los próximos. */
+        if(res.url){
+          var a = document.createElement('a');
+          a.href = res.url; a.download = '';
+          document.body.appendChild(a); a.click(); a.remove();
+        }
       } else {
         btn.disabled = false;
       }

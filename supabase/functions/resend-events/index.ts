@@ -7,6 +7,8 @@
 //                 newsletter_sends.opened_at; click → clicked_at (solo si null).
 //                 Con eso el dashboard muestra % abrió / % click por campaña.
 //   • issue_id  → lo mismo para la edición mensual automática (SQL 0114).
+//   • magnet_id → el mail con el PDF del lead magnet (SQL 0132): estampa
+//                 magnet_sends.opened_at / clicked_at.
 //   • welcome_id → el email de bienvenida del newsletter (SQL 0130): estampa
 //                 newsletter_welcomes.opened_at / clicked_at. Es el único
 //                 número que dice si esa bienvenida sirve para algo.
@@ -58,7 +60,8 @@ Deno.serve(async (req) => {
     const nlId = tagVal("nl_id");
     const issueId = tagVal("issue_id");   // edición mensual automática (SQL 0114)
     const welcomeId = tagVal("welcome_id");   // email de bienvenida del newsletter (SQL 0130)
-    if (!offerId && !nlId && !issueId && !welcomeId) return new Response("no known tag");
+    const magnetId = tagVal("magnet_id");     // el mail que lleva el PDF del lead magnet (SQL 0132)
+    if (!offerId && !nlId && !issueId && !welcomeId && !magnetId) return new Response("no known tag");
 
     const admin = createClient(SB_URL, SERVICE);
     const at = evt?.created_at || new Date().toISOString();
@@ -92,6 +95,15 @@ Deno.serve(async (req) => {
       const { error } = await admin.from("newsletter_welcomes")
         .update({ [col]: at }).eq("id", welcomeId).is(col, null);
       if (error) console.error("WELCOME_UPDATE_ERROR", error.message);
+    }
+    // lead magnet: mismo patrón que la bienvenida — el id viaja en el tag y solo
+    // se estampa la primera vez. Sin esto no hay forma de saber si el mail del
+    // PDF se abre o si la gente se queda con la descarga y nada más.
+    if (magnetId) {
+      const col = evt.type === "email.clicked" ? "clicked_at" : "opened_at";
+      const { error } = await admin.from("magnet_sends")
+        .update({ [col]: at }).eq("id", magnetId).is(col, null);
+      if (error) console.error("MAGNET_UPDATE_ERROR", error.message);
     }
     return new Response("ok");
   } catch (e) {
