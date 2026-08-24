@@ -8797,7 +8797,7 @@ const newsCases = [
   async function lm2LoadTimeline(r){
     const box = $('lm2-tl'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
     const q = (t) => t.then((x) => (x && !x.error && x.data) || []).catch(() => []);
-    const [emails, notes, tasks, briefs1, briefs2, pv, vp] = await Promise.all([
+    const [emails, notes, tasks, briefs1, briefs2, pv, vp, lev] = await Promise.all([
       q(supabase.from('email_log').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
       q(supabase.from('lead_notes').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
       q(supabase.from('lead_tasks').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
@@ -8805,6 +8805,10 @@ const newsCases = [
       r.email ? q(supabase.from('briefs').select('*').ilike('email', r.email).order('created_at', { ascending: false }).limit(10)) : Promise.resolve([]),
       r.session_id ? q(supabase.from('pageviews').select('path,created_at,duration').eq('session_id', r.session_id).order('created_at').limit(200)) : Promise.resolve([]),
       r.session_id ? q(supabase.from('video_plays').select('video_id,label,created_at').eq('session_id', r.session_id).order('created_at').limit(100)) : Promise.resolve([]),
+      // qué BAJÓ y por qué formulario entró (SQL 0132). Antes cada descarga creaba
+      // un contacto NUEVO y por eso no se veía acá: la persona aparecía dos veces
+      // y cada ficha mostraba la mitad de la historia.
+      q(supabase.from('lead_events').select('*').eq('lead_id', r.id).order('created_at', { ascending: false }).limit(100)),
     ]);
     if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;   // cambió de contacto mientras cargaba
     const briefSeen = new Set(); const briefs = [...briefs1, ...briefs2].filter((b) => !briefSeen.has(b.id) && briefSeen.add(b.id));
@@ -8841,6 +8845,26 @@ const newsCases = [
     Object.keys(byDay).forEach((d) => { const ps = byDay[d]; const top = ps.slice(0, 3).map((p) => esc(p.path || '/')).join(', ');
       ev.push({ t: ps[ps.length - 1].created_at, ty: 'web', chip: ['web', '🌐 Web'], title: 'Visitó ' + ps.length + ' página' + (ps.length === 1 ? '' : 's'), meta: top + (ps.length > 3 ? '…' : '') }); });
     vp.forEach((v) => ev.push({ t: v.created_at, ty: 'web', chip: ['web', '🎬 Video'], title: 'Vio: ' + esc(v.label || v.video_id) }));
+    /* Lo que pidió o bajó, cada vez. Se saltea el hecho cuyo texto es el MISMO
+       mensaje original que ya se muestra arriba — si no, la primera consulta
+       aparecería dos veces en la misma timeline. */
+    const CHIP_EV = {
+      magnet:      ['web', '📥 Descargó'],
+      calculadora: ['web', '🧮 Calculadora'],
+      newsletter:  ['web', '📰 Newsletter'],
+      merge:       ['sys', '⚙️ Sistema'],
+      form:        ['web', '📝 Formulario'],
+    };
+    lev.forEach((e3) => {
+      const txt = String(e3.label || '').trim();
+      if (txt && String(r.message || '').trim() === txt) return;   // ya está arriba
+      const chip = CHIP_EV[e3.kind] || CHIP_EV.form;
+      const titulo = e3.kind === 'magnet' ? 'Bajó: ' + esc(txt || 'un material')
+                   : e3.kind === 'merge'  ? esc(txt)
+                   : esc(txt || 'Entró por un formulario');
+      ev.push({ t: e3.created_at, ty: chip[0], chip, title: titulo,
+                meta: [e3.form_path, e3.lang].filter(Boolean).map(esc).join(' · ') });
+    });
     ev.sort((a, b) => new Date(b.t) - new Date(a.t));
     lm2Events = ev;
     lm2RenderChips();
