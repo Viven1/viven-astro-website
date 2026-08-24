@@ -69,3 +69,14 @@ jobs:
             echo "$code  $u"
             [ "$code" = "200" ] || exit 1
           done
+
+      # Avisarle a Bing en CADA deploy, no cuando alguien se acuerda. Google se
+      # entera solo (cron diario que reenvía el sitemap); Bing no tiene forma de
+      # saberlo salvo que se lo digan. Y Bing pesa más de lo que su tamaño
+      # sugiere: mismo período, 6× menos impresiones que Google pero casi los
+      # mismos clicks — CTR 3,8% contra 0,7%.
+      # Va DESPUÉS de comprobar que producción responde: avisar de páginas que
+      # todavía no están arriba es peor que no avisar.
+      - name: Avisarle a Bing y Yandex (IndexNow)
+        continue-on-error: true   # si esto falla, el deploy ya salió bien igual
+        run: node scripts/indexnow.mjs
