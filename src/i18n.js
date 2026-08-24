@@ -38,6 +38,7 @@ export const T = {
   howto:       { en: 'How-To & Tutorials', de: 'How-To & Tutorials', es: 'Tutoriales y How-To' },
   social:      { en: 'Social Media Videos', de: 'Social-Media-Videos', es: 'Videos para redes sociales' },
   corporate:   { en: 'Corporate & Events', de: 'Corporate & Events', es: 'Corporativo y eventos' },
+  podcast:     { en: 'Video Podcasts', de: 'Video-Podcasts', es: 'Video podcasts' },
   allServices: { en: 'All services →', de: 'Alle Leistungen →', es: 'Todos los servicios →' },
   projects:    { en: 'Projects', de: 'Projekte', es: 'Proyectos' },
   blog:        { en: 'Blog', de: 'Blog', es: 'Blog' },
