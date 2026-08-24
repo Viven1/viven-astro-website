@@ -21,7 +21,8 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 // contact form del sitio y el embed de las landings de Ads) — pedido de
 // Sebastián 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
 // Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
-async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string }) {
+async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string;
+  hutk?: string | null; pageUri?: string | null; pageName?: string | null }) {
   try {
     await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
       method: "POST",
@@ -34,7 +35,18 @@ async function hubspotSubmit(opts: { firstname?: string; lastname?: string; emai
           { name: "company", value: opts.company || "-" },
           { name: "message", value: opts.message || "" },
         ],
-        context: { pageUri: "https://www.viven.ch/" },
+        // `hutk` es LA pieza de la atribución: sin ese token HubSpot no puede
+        // asociar el envío con la sesión de navegación donde quedó registrado el
+        // origen, y marca el contacto como "Offline Sources" aunque venga de
+        // Google Ads (reporte de la agencia, 25/08/2026). Llega desde el
+        // navegador, que es el único que puede leer la cookie.
+        // pageUri estaba FIJO a la home: HubSpot creía que todas las
+        // conversiones pasaban ahí. Ahora viaja la página real.
+        context: {
+          ...(opts.hutk ? { hutk: opts.hutk } : {}),
+          pageUri: opts.pageUri || "https://www.viven.ch/",
+          ...(opts.pageName ? { pageName: opts.pageName } : {}),
+        },
       }),
     });
   } catch (_e) { /* best-effort */ }
@@ -234,7 +246,7 @@ Deno.serve(async (req) => {
         if (leadId == null) console.error("LEAD_SIN_ID", email);
       }
     } catch (e) { console.error("LEAD_INSERT_WARN", String(e)); }
-    await hubspotSubmit({ email, message: magnet.label });
+    await hubspotSubmit({ email, message: magnet.label, hutk: b.hutk ?? null, pageUri: b.page_uri ?? null, pageName: b.page_name ?? null });
 
     // el link que baja YA: corto a propósito, es de un solo uso en la práctica
     const { data, error } = await service.storage.from("magnets").createSignedUrl(magnet.file(lang), 300);

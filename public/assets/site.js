@@ -802,6 +802,24 @@ function loadClarity(){
     y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
   })(window, document, "clarity", "script", "ifp27judw5");
 }
+/* HubSpot: SIN este script la cookie `hubspotutk` nunca se crea, y sin esa cookie
+   HubSpot no puede atribuir de dónde vino el lead — lo marca como "Offline
+   Sources" aunque haya llegado de Google Ads. Es la causa que reportó la agencia
+   el 25/08/2026: 6 leads de Google, ninguno como Paid Search.
+   El código de los formularios YA buscaba la cookie y la mandaba si existía; lo
+   que faltaba era el script que la crea.
+   Va acá y no en el <head> a propósito: es una cookie de seguimiento de terceros,
+   así que carga solo con consentimiento, igual que GA4 y Clarity. Consecuencia
+   honesta: quien rechace las cookies va a seguir apareciendo como Offline, y eso
+   no se puede arreglar por código. */
+function loadHubSpot(){
+  if(document.getElementById('hs-script-loader')) return;
+  var t = document.createElement('script');
+  t.id = 'hs-script-loader'; t.async = true; t.defer = true;
+  t.src = 'https://js.hs-scripts.com/4084680.js';
+  document.head.appendChild(t);
+}
+
 /* gtag/dataLayer ya vienen inicializados por el bloque de Consent Mode default en
    Base.astro <head> — esto solo actualiza la señal para que GTM/Ads la respeten. */
 function grantConsent(){
@@ -815,7 +833,7 @@ function grantConsent(){
 }
 var consent = null;
 try{ consent = localStorage.getItem('viven-cookie'); }catch(e){}
-if(consent === 'accepted'){ grantConsent(); loadGA(); loadClarity(); }
+if(consent === 'accepted'){ grantConsent(); loadGA(); loadClarity(); loadHubSpot(); }
 if(consent === null){
   var bar = document.createElement('div');
   bar.id = 'cookie-bar';
@@ -836,6 +854,7 @@ if(consent === null){
     grantConsent();
     loadGA();
     loadClarity();
+    loadHubSpot();
   };
   document.getElementById('cookie-decline').onclick = function(){
     try{ localStorage.setItem('viven-cookie','declined'); }catch(e){}
@@ -999,7 +1018,24 @@ function sbInsertLead(row){
   return attempt(row, 0);
 }
 window.sbInsertLead = sbInsertLead;   /* expuesto para la calculadora de presupuesto (todo site.js vive en un IIFE) */
+/* Token de seguimiento de HubSpot. Es lo que conecta este envío con la sesión de
+   navegación donde quedó registrado el origen (Google Ads, orgánico, etc.). Sin
+   él, HubSpot clasifica el contacto como "Offline Sources". Devuelve null si la
+   persona no aceptó cookies — ahí no hay nada que pasar y está bien así. */
+window.vvHutk = function(){
+  try{ return (document.cookie.match(/hubspotutk=([^;]+)/) || [])[1] || null; }catch(e){ return null; }
+};
 window.sbCallFunction = function(name, body){   /* llama funciones públicas (calc-email, etc.) sin cargar el SDK de supabase-js */
+  /* El token y la página REAL viajan con toda llamada, para que las functions que
+     reenvían a HubSpot (calc-email, magnet-download) no tengan que acordarse.
+     Antes mandaban pageUri fijo a la home: HubSpot creía que TODAS las
+     conversiones pasaban ahí. */
+  try{
+    body = body || {};
+    if(!body.hutk){ var k = window.vvHutk(); if(k) body.hutk = k; }
+    if(!body.page_uri) body.page_uri = location.href;
+    if(!body.page_name) body.page_name = document.title;
+  }catch(e){}
   return fetch(SB_URL + '/functions/v1/' + name, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },

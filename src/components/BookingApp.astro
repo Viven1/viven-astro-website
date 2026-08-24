@@ -425,7 +425,7 @@ const { preHost = null } = Astro.props;
     try {
       const r = await fetch(FN + '/booking-create', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone: $('bk-phone').value.trim(), message: $('bk-msg').value.trim(), start: chosen, dur, lang, host: HOST || undefined }),
+        body: JSON.stringify({ name, email, phone: $('bk-phone').value.trim(), message: $('bk-msg').value.trim(), start: chosen, hutk: (window.vvHutk ? window.vvHutk() : null), page_uri: location.href, page_name: document.title, dur, lang, host: HOST || undefined }),
       });
       const d = await r.json();
       if (r.status === 409) { err.hidden = false; err.textContent = t('taken'); $('bk-step2').hidden = true; $('bk-step1').hidden = false; load(); return; }

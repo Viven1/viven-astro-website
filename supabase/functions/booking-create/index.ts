@@ -52,7 +52,8 @@ const slugify = (name: string) => String(name || "").trim().split(/\s+/)[0].norm
 // contact form del sitio y el embed de las landings de Ads) \u2014 pedido de
 // Sebasti\u00e1n 2026-07-28: TODO lead de viven.ch sincronizado en ambos sistemas.
 // Best-effort: nunca bloquea ni rompe la respuesta real si HubSpot falla.
-async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string }) {
+async function hubspotSubmit(opts: { firstname?: string; lastname?: string; email: string; company?: string; message?: string;
+  hutk?: string | null; pageUri?: string | null; pageName?: string | null }) {
   try {
     await fetch("https://api.hsforms.com/submissions/v3/integration/submit/4084680/994b80e1-84c2-42de-a5a1-ea2145608d76", {
       method: "POST",
@@ -65,7 +66,18 @@ async function hubspotSubmit(opts: { firstname?: string; lastname?: string; emai
           { name: "company", value: opts.company || "-" },
           { name: "message", value: opts.message || "" },
         ],
-        context: { pageUri: "https://www.viven.ch/book/" },
+        // `hutk` es LA pieza de la atribución: sin ese token HubSpot no puede
+        // asociar el envío con la sesión de navegación donde quedó registrado el
+        // origen, y marca el contacto como "Offline Sources" aunque venga de
+        // Google Ads (reporte de la agencia, 25/08/2026). Llega desde el
+        // navegador, que es el único que puede leer la cookie.
+        // pageUri estaba FIJO a la home: HubSpot creía que todas las
+        // conversiones pasaban ahí. Ahora viaja la página real.
+        context: {
+          ...(opts.hutk ? { hutk: opts.hutk } : {}),
+          pageUri: opts.pageUri || "https://www.viven.ch/book/",
+          ...(opts.pageName ? { pageName: opts.pageName } : {}),
+        },
       }),
     });
   } catch (_e) { /* best-effort */ }
@@ -106,7 +118,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (await rateLimited("booking-create", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
-    const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en", host: hostSpec = "" } = await req.json();
+    const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en", host: hostSpec = "", hutk, page_uri, page_name } = await req.json();
     if (!name.trim() || !/.+@.+\..+/.test(email) || !start) return json({ error: "missing_fields" }, 400);
     // settings del dashboard (booking_settings, SQL 0024) — con defaults si no existe
     let cfg: Record<string, unknown> = { active: true, notice_hours: 4, horizon_days: 28, buffer_min: 0, durations: [15, 30], msg_en: null, msg_de: null, msg_es: null };
@@ -321,7 +333,7 @@ Deno.serve(async (req) => {
 
     const bkFirst = name.trim().split(/\s+/)[0] || "";
     const bkLast = name.trim().split(/\s+/).slice(1).join(" ");
-    await hubspotSubmit({ firstname: bkFirst, lastname: bkLast, email, message: `Call agendada — ${new Date(startMs).toISOString()} (${duration} min)${message ? " — " + message : ""}` });
+    await hubspotSubmit({ firstname: bkFirst, lastname: bkLast, email, message: `Call agendada — ${new Date(startMs).toISOString()} (${duration} min)${message ? " — " + message : ""}` , hutk: hutk ?? null, pageUri: page_uri ?? null, pageName: page_name ?? null });
 
     const customMsg = ({ en: cfg.msg_en, de: cfg.msg_de, es: cfg.msg_es } as Record<string, unknown>)[lang] || null;
     return json({ ok: true, meet_url: meet, start: new Date(startMs).toISOString(), duration, brief_url: briefUrl, msg: customMsg });

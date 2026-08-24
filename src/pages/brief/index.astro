@@ -550,7 +550,14 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     fetch(SB_URL + '/functions/v1/brief-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
-      body: JSON.stringify(lastBrief)
+      /* hutk + página real: sin el token de HubSpot el contacto entra como
+         "Offline Sources" aunque venga de Google Ads (reporte de la agencia,
+         25/08/2026). Es null si la persona no aceptó cookies. */
+      body: JSON.stringify(Object.assign({}, lastBrief, {
+        hutk: (window.vvHutk ? window.vvHutk() : null),
+        page_uri: location.href,
+        page_name: document.title
+      }))
     }).then(function(r){ return r.ok; }).catch(function(){ return false; }).then(function(ok){
       msg.textContent = ok ? (L_SENT[lang] || L_SENT.en) : (L_FAIL[lang] || L_FAIL.en);
       btn.disabled = false;
