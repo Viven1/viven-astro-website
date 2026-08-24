@@ -5422,7 +5422,7 @@ const newsCases = [
     const now = Date.now(), D = 864e5;
     const all = (dealsList || []).filter((d) => !d.archived);
     const open = all.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
-    const weighted = open.reduce((a, d) => a + dealValue(d) * ((STAGES.find((s) => s.key === stageOf(d.stage)) || {}).prob || 0), 0);
+    const weighted = dealsWeighted(open);
     const wonAge = (d) => { const t = Date.parse(d.won_at || d.last_stage_at || ''); return t ? now - t : Infinity; };
     const wonAll = all.filter((d) => stageOf(d.stage) === 'ganado');
     const won30 = wonAll.filter((d) => wonAge(d) <= 30 * D);
@@ -5988,10 +5988,10 @@ const newsCases = [
   $('sq-write') && $('sq-write').addEventListener('click', () => sqWriteNext());
 
   /* ---------- 🎯 Ritmo del mes: metas vs realidad (SQL 0108 business_goals) ----------
-     Pesos del pipeline ponderado = STAGES.prob (nuevo .2 · contactado .4 · videocall .6 ·
-     propuesta .8): los MISMOS que ya usa todo el dashboard (KPI "Ponderado", board) —
-     inventar otros acá haría que el panel contradiga al resto de la pantalla.
-     La edge function daily-digest usa este mismo mapa (copiado con comentario). */
+     Pesos del pipeline ponderado = dealProb() — la MISMA función que usan el KPI
+     "Ponderado" y el board. "Propuesta enviada" ya no es fija: baja con los días sin
+     respuesta. Inventar otros acá haría que el panel contradiga al resto de la pantalla.
+     La edge function daily-digest replica esa curva (probDeal, con comentario). */
   let rmGoal = null, rmGoalFetched = false, rmGoalBusy = false;
   async function rmFetchGoal(){
     if (rmGoalBusy || rmGoalFetched) return;
@@ -6015,7 +6015,7 @@ const newsCases = [
     const closed = dealsValue(wonMonth);
     // ponderado: mismos pesos/valores que hmDealKpis (números idénticos en todo el dashboard)
     const open = all.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
-    const weighted = open.reduce((a, d) => a + dealValue(d) * ((STAGES.find((s) => s.key === stageOf(d.stage)) || {}).prob || 0), 0);
+    const weighted = dealsWeighted(open);
     const proj = closed + weighted;
     const goal = +rmGoal || 0;
     $('rm-closed').textContent = closed ? fmtChf(closed) : 'CHF 0';
@@ -6368,6 +6368,26 @@ const newsCases = [
     const t = Date.parse(d.last_stage_at || d.created_at || '');
     return t ? Math.max(0, Math.floor((Date.now() - t) / 864e5)) : 0;
   }
+  /* Probabilidad de cierre de UN deal. Antes era fija por etapa: una propuesta
+     enviada valía 80% para siempre. Dos cosas estaban mal y las marcó Sebastián
+     (24 ago 2026): (a) una propuesta es un sí o un no, no se gana 4 de cada 5, y
+     (b) trataba igual a una enviada ayer que a una muda hace veinte días —
+     cuatro de las suyas llevaban entre 10 y 20 días sin respuesta y se contaban
+     enteras. Ahora arranca en 50% y baja con los días sin respuesta.
+     OJO: 50/35/20 son números PRUDENTES, no medidos. No se pueden medir todavía
+     porque nadie marca deals como perdidos (173 ganados, 0 perdidos), así que no
+     hay denominador. Cuando haya historial de perdidos, esto se reemplaza por el
+     porcentaje real y se borra este comentario. */
+  const PROB_PROPUESTA = [{ dias: 7, p: 0.5 }, { dias: 14, p: 0.35 }, { dias: Infinity, p: 0.2 }];
+  function dealProb(d){
+    const et = stageOf(d.stage);
+    const base = (STAGES.find((s) => s.key === et) || {}).prob || 0;
+    if (et !== 'propuesta') return base;
+    const dias = dealStageDays(d);
+    return (PROB_PROPUESTA.find((x) => dias <= x.dias) || { p: 0.2 }).p;
+  }
+  // ponderado de un conjunto de deals, con la probabilidad de cada uno
+  const dealsWeighted = (arr) => (arr || []).reduce((a, d) => a + dealValue(d) * dealProb(d), 0);
   // semáforo: verde <7d, ámbar 7-14d, rojo >14d
   const dealStageSem = (days) => days > 14 ? 'bad' : days >= 7 ? 'mid' : 'ok';
   const dealDaysChip = (days) => '<span class="pp2-sem ' + dealStageSem(days) + '">' + days + 'd en etapa</span>';
@@ -6735,16 +6755,17 @@ const newsCases = [
     // por separado, sin tener que sumar columna por columna a ojo
     if (stageSum) {
       const openVal = dealsValue(open);
-      const openWt = Math.round(STAGES.filter((s) => DL_OPEN.includes(s.key))
-        .reduce((a, s) => a + dealsValue(byStage[s.key]) * s.prob, 0));
+      const openWt = Math.round(dealsWeighted(open));
       stageSum.innerHTML =
         '<div class="pss-card pss-total"><div class="pss-l">Total abierto<b class="pss-n">' + open.length + '</b></div>' +
           '<div class="pss-v">' + fmtChf(openVal) + '</div><div class="pss-w">pond. ' + fmtChf(openWt) + '</div></div>' +
         STAGES.filter((s) => DL_OPEN.includes(s.key)).map((s) => {
-          const n = byStage[s.key].length, val = dealsValue(byStage[s.key]), wt = Math.round(val * s.prob);
+          const n = byStage[s.key].length, val = dealsValue(byStage[s.key]), wt = Math.round(dealsWeighted(byStage[s.key]));
+          // el % ya no es fijo por etapa: se muestra el efectivo, que en Propuesta baja con los días
+          const pct = val ? Math.round(wt / val * 100) : Math.round(s.prob * 100);
           return '<div class="pss-card" style="--stage:' + s.color + '"><span class="pss-bar"></span>' +
             '<div class="pss-body"><div class="pss-l">' + s.label + '<b class="pss-n">' + n + '</b></div>' +
-            '<div class="pss-v">' + fmtChf(val) + '</div><div class="pss-w">pond. ' + fmtChf(wt) + ' (' + Math.round(s.prob * 100) + '%)</div></div></div>';
+            '<div class="pss-v">' + fmtChf(val) + '</div><div class="pss-w">pond. ' + fmtChf(wt) + ' (' + pct + '%)</div></div></div>';
         }).join('');
     }
     pipe.className = 'pipeline';
@@ -6752,7 +6773,8 @@ const newsCases = [
       const n = byStage[s.key].length;
       const cards = byStage[s.key].map((d) => cardHTML(d, s)).join('') || '<div class="pipe-empty">Sin deals</div>';
       const val = dealsValue(byStage[s.key]);
-      const wt = Math.round(val * s.prob);
+      const wt = Math.round(dealsWeighted(byStage[s.key]));
+      const pct = val ? Math.round(wt / val * 100) : Math.round(s.prob * 100);
       return '<div class="pipe-col" data-stage="' + s.key + '">' +
         '<div class="pipe-col-head"><span class="bar" style="background:' + s.color + '"></span><span class="st">' + s.label + '</span><span class="cnt">' + n + '</span></div>' +
         '<div class="pipe-col-sums"><span class="tot" style="color:' + s.color + '">' + fmtChf(val) + '</span><span class="wt">pond. ' + fmtChf(wt) + ' (' + Math.round(s.prob * 100) + '%)</span></div>' +

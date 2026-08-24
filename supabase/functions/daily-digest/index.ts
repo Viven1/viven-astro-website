@@ -37,13 +37,26 @@ const hoursAgo = (iso: string | null | undefined) => iso ? Math.floor((Date.now(
 const fmtDate = (iso: string) => new Date(iso + (iso.length === 10 ? "T00:00:00Z" : "")).toLocaleDateString("es-CH", { day: "2-digit", month: "2-digit", timeZone: "Europe/Zurich" });
 
 // ---- etapas: MISMO modelo que el dashboard (STAGES en index.astro) ----------
-// Pesos del pipeline ponderado = STAGES.prob del dashboard (nuevo .2 · contactado .4 ·
-// videocall .6 · propuesta .8) — el digest tiene que dar los MISMOS números que el
+// Pesos del pipeline ponderado = los MISMOS que el dashboard (dealProb). Nuevo .2 ·
+// contactado .4 · videocall .6 · y "propuesta enviada" YA NO es fija: arranca en .5 y
+// baja con los días sin respuesta (.5 la primera semana, .35 la segunda, .2 después).
+// Decisión de Sebastián, 24 ago 2026: una propuesta es un sí o un no, y una muda hace
+// veinte días no vale lo mismo que una de ayer. Si tocás esto, tocá dealProb() en
+// src/pages/dashboard/index.astro — el digest tiene que dar los MISMOS números que el
 // panel "🎯 Ritmo del mes". Única diferencia (comentada): acá el valor del deal es
 // deals.deal_value crudo — la cascada "ofertas ganadas > abiertas > deal_value" del
 // frontend (dealValue) necesitaría traer todas las ofertas; para el digest la
 // aproximación con el estimado manual alcanza.
-const STAGE_PROB: Record<string, number> = { nuevo: 0.2, contactado: 0.4, videocall: 0.6, propuesta: 0.8 };
+const STAGE_PROB: Record<string, number> = { nuevo: 0.2, contactado: 0.4, videocall: 0.6, propuesta: 0.5 };
+/* Misma curva que dealProb() en el dashboard: la propuesta pierde probabilidad con los
+   días parada en la etapa. El resto de las etapas no decae. */
+function probDeal(d: Deal): number {
+  const et = stageOf(d.stage);
+  const base = STAGE_PROB[et] || 0;
+  if (et !== "propuesta") return base;
+  const dias = daysAgo(d.last_stage_at || d.created_at) ?? 0;
+  return dias <= 7 ? 0.5 : dias <= 14 ? 0.35 : 0.2;
+}
 const STAGE_LABEL: Record<string, string> = { nuevo: "Nuevo", contactado: "Contactado", videocall: "Video Call", propuesta: "Propuesta enviada", ganado: "Ganado", perdido: "Perdido" };
 const STAGE_MATCH: [string, string[]][] = [
   ["nuevo", ["new", "nuevo", "", "pending"]],
@@ -231,7 +244,7 @@ Deno.serve(async (req) => {
       .reduce((a, d) => a + (Number(d.deal_value) || 0), 0);
     const weighted = deals
       .filter((d) => OPEN_STAGES.includes(stageOf(d.stage)))
-      .reduce((a, d) => a + (Number(d.deal_value) || 0) * (STAGE_PROB[stageOf(d.stage)] || 0), 0);
+      .reduce((a, d) => a + (Number(d.deal_value) || 0) * probDeal(d), 0);
     const proj = closed + weighted;
     const gap = proj - goal;
     const pctToday = Math.round(zhNow.getDate() / daysInMonth * 100);
