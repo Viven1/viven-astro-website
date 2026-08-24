@@ -2347,7 +2347,8 @@ const newsCases = [
     <!-- ============ SUB: WEB ============ -->
     <div id="ana-sub-web">
       <div class="kpis">
-        <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l">Sesiones (visitantes)</div></div>
+        <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l">Sesiones (visitas)</div></div>
+        <div class="kpi"><div class="n" id="ka-people">–</div><div class="kdelta" id="ka-people-d"></div><div class="l" id="ka-people-l">Personas</div></div>
         <div class="kpi"><div class="n" id="ka-views">–</div><div class="kdelta" id="ka-views-d"></div><div class="l">Páginas vistas</div></div>
         <div class="kpi"><div class="n" id="ka-time">–</div><div class="kdelta" id="ka-time-d"></div><div class="l">Tiempo medio en página</div></div>
         <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l">Leads (conversiones)</div></div>
@@ -4844,6 +4845,11 @@ const newsCases = [
   // en módulo para los re-render intermedios (realtime, cambio de sub-tab).
   let prevViews = [];
   let prevWin = { start: 0, end: 0 };
+  /* Sesiones con actividad humana (SQL 0136). Empieza a acumular el 24/08/2026:
+     para períodos anteriores NO hay dato, y mostrar 0 sería mentir al revés —
+     parecería que no entró nadie. */
+  let humanAct = [];
+  const HUMAN_DESDE = Date.parse('2026-08-24T00:00:00Z');
   // último timestamp por clave — lo usan la carga core (propuestas) y la de analítica
   const maxTo = (map, key, iso) => { const t = Date.parse(iso); if (t && (!map[key] || t > map[key])) map[key] = t; };
 
@@ -4965,12 +4971,17 @@ const newsCases = [
     try {
       const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
       prevWin = { start: winStart - winLen, end: winStart - 1 };
-      const [viewsQ, prevQ, videosQ, notesQ, tasksQ] = await Promise.all([
+      const [viewsQ, prevQ, videosQ, notesQ, tasksQ, actQ] = await Promise.all([
         fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
         fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString()),
         fetchAllRows('video_plays', '*', since(), until()),
         fetchAllRowsFull('lead_notes', 'lead_id,created_at', 'created_at'),
         fetchAllRowsFull('lead_tasks', 'lead_id,created_at,done_at', 'created_at'),
+        // sesiones donde hubo ALGUIEN: un scroll, un movimiento, un toque (SQL 0136).
+        // Medido el 24/08: de 6.943 "sesiones" en 30 días, 5.725 eran tráfico
+        // automático (una sola página, 78,5% de cero segundos). Sin esto, la
+        // tarjeta de "visitantes" contaba bots.
+        fetchAllRows('session_activity', 'session_id,created_at', new Date(winStart - winLen).toISOString(), until()),
       ]);
       if (viewsQ.error){
         avisoCarga('tab-analytics', '⚠️ No se pudo cargar la analítica web: ' + viewsQ.error.message + '. El resto del dashboard funciona igual.');
@@ -4978,6 +4989,7 @@ const newsCases = [
         avisoCarga('tab-analytics', '');
         lastViews = viewsQ.data || [];
         prevViews = (prevQ && !prevQ.error) ? (prevQ.data || []) : [];
+        humanAct = (actQ && !actQ.error) ? (actQ.data || []) : [];
         actWeb = {}; (lastViews || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
         renderAnalytics(lastViews, allLeads);
       }
@@ -9219,6 +9231,16 @@ const newsCases = [
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     $('ka-views').textContent = real.length;
     $('ka-sessions').textContent = sessions.size;
+    const actEn = (a, b) => new Set(humanAct
+      .filter((x) => { const t = Date.parse(x.created_at); return t >= a && t <= b; })
+      .map((x) => x.session_id));
+    const people = actEn(rangeStart(), rangeEnd());
+    const pPeople = actEn(prevWin.start, prevWin.end);
+    const hayDato = rangeStart() >= HUMAN_DESDE || people.size > 0;
+    $('ka-people').textContent = hayDato ? people.size : '—';
+    $('ka-people-l').textContent = hayDato ? 'Personas (sin bots)' : 'Personas — se mide desde el 24/08';
+    if (hayDato && prevWin.start >= HUMAN_DESDE) setDelta('ka-people-d', people.size, pPeople.size);
+    else $('ka-people-d').textContent = '';
     const durs = real.filter((r) => r.duration > 0);
     const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
     $('ka-time').textContent = fmtTime(avg);

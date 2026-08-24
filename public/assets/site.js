@@ -1105,6 +1105,55 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     is_entry: isEntry
   });
 
+  /* ---- ¿Hay ALGUIEN del otro lado? ----------------------------------------
+     Medido el 24/08/2026: de 6.943 "sesiones" en 30 días, 5.725 eran channel
+     'direct' con UNA sola página y 78,5% de visitas de cero segundos. Ese piso
+     de ~190 por día no varía y tapaba la señal real (~1.200), por eso los
+     números del dashboard casi no se movían al cambiar el período. Es tráfico
+     automático contado como visitantes.
+
+     Un bot renderiza la página y se va: no scrollea, no mueve el mouse, no toca
+     la pantalla. Una persona sí. Se registra ese hecho UNA vez por sesión.
+
+     POR QUÉ ASÍ Y NO CON UNA COOKIE DE VISITANTE: un identificador persistente
+     convertiría esto en dato personal, obligaría a pedir consentimiento, y como
+     mucha gente lo rechaza el número pasaría a medir a los que aceptan cookies
+     en vez de a los visitantes. Esto muere con la pestaña y no identifica a
+     nadie — no hace falta consentimiento para contar que hubo alguien. */
+  (function marcarActividadHumana(){
+    var marcado = false;
+    try{ if(sessionStorage.getItem('viven-activo') === '1') marcado = true; }catch(e){}
+    if(marcado) return;
+
+    var desde = Date.now();
+    function marcar(kind){
+      if(marcado) return;
+      /* Los primeros 300ms se ignoran: al volver "atrás" el navegador restaura
+         el scroll solo y eso dispararía un scroll que no hizo nadie. */
+      if(Date.now() - desde < 300) return;
+      marcado = true;
+      try{ sessionStorage.setItem('viven-activo', '1'); }catch(e){}
+      quitar();
+      /* Si la sesión ya estaba registrada, la clave primaria lo rebota y no
+         pasa nada: no hace falta comprobar antes. */
+      sbInsert('session_activity', { session_id: sid, kind: kind });
+    }
+    function onScroll(){ marcar('scroll'); }
+    function onPointer(e){ if(e && e.isTrusted !== false) marcar('pointer'); }
+    function onTouch(){ marcar('touch'); }
+    function onKey(){ marcar('key'); }
+    function quitar(){
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('touchstart', onTouch);
+      window.removeEventListener('keydown', onKey);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true, once: false });
+    window.addEventListener('pointermove', onPointer, { passive: true });
+    window.addEventListener('touchstart', onTouch, { passive: true });
+    window.addEventListener('keydown', onKey);
+  })();
+
   /* ---- Tiempo en página: se reporta al ocultar/cerrar la pestaña ---- */
   var t0 = Date.now();
   var lastSent = 0;
