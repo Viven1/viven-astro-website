@@ -527,7 +527,15 @@ footer{border-top:1px solid var(--line);padding:56px 0 40px;background:var(--nav
 .nl-form input{flex:1;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:999px;padding:12px 18px;color:var(--text);font-size:14.5px;font-family:inherit;min-width:0}
 .nl-form input:focus{outline:none;border-color:var(--acid)}
 .nl-done{color:var(--acid);font-weight:600;font-size:14.5px}
-@media(max-width:680px){.nl-signup{flex-direction:column;align-items:stretch;text-align:center}.nl-form{max-width:none}}
+/* El bloque del newsletter desbordaba 29px en teléfono y hacía que TODA la
+   página se moviera en horizontal — en los tres idiomas, porque el pie es
+   global. El culpable: un item de flex no achica por debajo de su contenido
+   (min-width:auto) y el titular alemán "Video-Marketing-Tipps, monatlich."
+   no parte por el guion. min-width:0 lo deja achicarse y overflow-wrap parte
+   las palabras compuestas largas, que en alemán son la regla. */
+.nl-signup .nl-copy{min-width:0}
+.nl-signup .nl-copy h3,.nl-signup .nl-copy p{overflow-wrap:anywhere}
+@media(max-width:680px){.nl-signup{flex-direction:column;align-items:stretch;text-align:center;max-width:100%}.nl-form{max-width:none;min-width:0;flex-wrap:wrap}.nl-form input{min-width:140px}.nl-form .btn{flex:0 0 auto}}
 .foot-bottom{margin-top:48px;padding-top:26px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted-2);font-size:13.5px}
 .foot-bottom a{transition:.25s}
 .foot-bottom a:hover{color:var(--acid)}
