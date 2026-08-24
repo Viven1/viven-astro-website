@@ -72,12 +72,17 @@ function computeDiff(original: string, updated: string) {
   };
 }
 
+/* GitHub devuelve el contenido en base64 CON saltos de línea cada 60 caracteres.
+   decodeBase64 se atraganta con ellos y tira "Cannot decode input as base64:
+   Invalid character (\n)" — un 500 que el dashboard mostraba como "non-2xx" sin
+   más detalle. Por eso el botón 🤖 Mejorar no funcionó NUNCA: fallaba acá, antes
+   siquiera de llamar a la IA. Se limpian los espacios antes de decodificar. */
 async function ghGet(path: string, ghHeaders: Record<string, string>) {
   const api = `https://api.github.com/repos/${REPO}/contents/${path}`;
   const res = await fetch(api + "?ref=" + BRANCH, { headers: ghHeaders });
   if (!res.ok) return null;
   const j = await res.json();
-  return { content: new TextDecoder().decode(decodeBase64(j.content)), sha: j.sha as string };
+  return { content: new TextDecoder().decode(decodeBase64(String(j.content).replace(/\s/g, ""))), sha: j.sha as string };
 }
 
 Deno.serve(async (req) => {
