@@ -140,7 +140,7 @@ Write a JSON object with:
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 1200,
+        max_tokens: 16000,
         system: sys,
         // claude-sonnet-5: sin prefill — el array TERMINA en user
         messages: [{ role: "user", content: prompt }],
