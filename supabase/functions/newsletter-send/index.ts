@@ -151,13 +151,22 @@ function greeting(lang: string, firstName: string): string {
 
 // wrapper compartido (header navy + logo, tarjeta blanca, footer con baja de
 // un click) — el mismo look para campañas manuales y la edición mensual
+/* Firma del equipo, NO de una persona. Misma decisión que ya estaba aplicada en
+   newsletter-welcome desde el 22 ago 2026 y que faltaba acá: si firma Sofia, la
+   respuesta cae en una casilla personal y quien contesta queda esperando a alguien
+   que quizás no está. Las tres redacciones son las mismas que usa la bienvenida. */
+const FIRMA: Record<string, string> = {
+  en: "— The VIVEN team",
+  de: "— Ihr VIVEN Team",
+  es: "— El equipo de VIVEN",
+};
 function wrapEmail(inner: string, unsub: string, lang: string): string {
   return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
   <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">
     ${inner}
-    <p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p>
+    <p style="margin:22px 0 0;font-size:14px;color:#444">${FIRMA[lang] || FIRMA.en}</p>
   </div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${UNSUB_LABEL[lang] || UNSUB_LABEL.en}</a></p>
 </div></body>`;
@@ -447,7 +456,7 @@ Deno.serve(async (req) => {
         const tok = r.id != null ? await unsubToken(r.id) : "";
         const unsub = r.id != null ? `${SB_URL}/functions/v1/newsletter-unsub?l=${r.id}&t=${tok}` : "https://www.viven.ch";
         return {
-          from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email],
+          from: "VIVEN <info@viven.ch>", reply_to: "info@viven.ch", to: [r.email],
           subject: ct.subject || content.en.subject || "VIVEN",
           html: wrapEmail(greeting(lang, r.name || "") + (ct.html || ""), unsub, lang),
           tags: [{ name: "issue_id", value: String(issue_id) }],   // → resend-events estampa apertura/click
@@ -554,7 +563,7 @@ Deno.serve(async (req) => {
       const r = recips[0];
       const full = await buildFull(r);
       const res = await resendPost("/emails", {
-        from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email],
+        from: "VIVEN <info@viven.ch>", reply_to: "info@viven.ch", to: [r.email],
         subject: nl.subject, html: full, tags: [{ name: "nl_id", value: String(id) }],
       });
       if (res.ok) {
@@ -577,7 +586,7 @@ Deno.serve(async (req) => {
       for (let i = 0; i < recips.length; i += BATCH) {
         const chunk = recips.slice(i, i + BATCH);
         const payload = await Promise.all(chunk.map(async (r) => ({
-          from: "Sofia — VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [r.email],
+          from: "VIVEN <info@viven.ch>", reply_to: "info@viven.ch", to: [r.email],
           subject: nl.subject, html: await buildFull(r), tags: [{ name: "nl_id", value: String(id) }],
         })));
         const res = await resendPost("/emails/batch", payload);

@@ -7306,6 +7306,10 @@ const newsCases = [
   /* nombre sin HTML para el draft (texto plano) */
   const esc0 = (s) => String(s ?? '').replace(/[<>]/g, '');
 
+  /* La vista previa tiene que firmar IGUAL que el email que sale de verdad
+   (newsletter-send → FIRMA). Si acá dice Sofia y allá el equipo, mirás una cosa
+   y llega otra. Decisión de Sebastián: firma el equipo, no una persona. */
+  const NW_FIRMA = { en: '— The VIVEN team', de: '— Ihr VIVEN Team', es: '— El equipo de VIVEN' };
   const SUBJECTS = {
     en: 'Your video project — Viven',
     de: 'Ihr Videoprojekt — Viven',
@@ -15239,7 +15243,7 @@ const newsCases = [
     const inner = useBlocks ? nwBlocksHtml(nwBlocks, lang, id) : nwTextHtml(nwDerivedBody(), id);
     return '<div style="max-width:600px;margin:0 auto">' +
       '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><span style="font-family:\'Space Grotesk\',sans-serif;font-weight:800;color:#ddf98f;font-size:16px">viven</span> <span style="font-size:8px;color:#8290ab;text-transform:uppercase;letter-spacing:.05em">Film Production</span></div>' +
-      '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px">' + nwGreetPreview(lang) + inner + '<p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p></div>' +
+      '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px">' + nwGreetPreview(lang) + inner + '<p style="margin:22px 0 0;font-size:14px;color:#444">' + (NW_FIRMA[lang] || NW_FIRMA.en) + '</p></div>' +
       '<p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · viven.ch · <u>' + (NW_UNSUB[lang] || NW_UNSUB.en) + '</u></p></div>';
   }
   /* Qué cambia de verdad entre un alemán, un inglés y un español. Lo digo en la
@@ -15519,7 +15523,7 @@ const newsCases = [
     const html = '<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif"><div style="max-width:600px;margin:0 auto;padding:28px 16px">' +
       '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px" /></div>' +
       '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px">' + greet + (ct.html || '<p>(sin contenido)</p>') +
-      '<p style="margin:22px 0 0;font-size:14px;color:#444">— Sofia, VIVEN AG</p></div>' +
+      '<p style="margin:22px 0 0;font-size:14px;color:#444">' + (NW_FIRMA[lang] || NW_FIRMA.en) + '</p></div>' +
       '<p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · viven.ch · (link de baja por suscriptor)</p></div></body>';
     $('nwi-preview').setAttribute('srcdoc', html);
   }
