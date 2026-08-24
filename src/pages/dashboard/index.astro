@@ -96,6 +96,15 @@ const newsCases = [
   :root[data-theme="light"] .toolbar .fpill.active,
   :root[data-theme="light"] .vt-btn.active{background:#dff28b;border-color:#dff28b;color:#1c2508}
   .dash-wrap{max-width:1220px;margin:0 auto;padding:32px 24px 80px}
+  /* Los KPIs de analítica cargan en una segunda fase (loadAnalytics). Al cambiar
+     el período, los números viejos se quedaban en pantalla unos segundos como si
+     fueran los nuevos — Sebastián lo leyó como "no cambia". Ahora se ven en
+     tránsito: atenuados, sin poder clickearse, y con un cartel que lo dice. */
+  .kpis.vv-cargando{opacity:.42;pointer-events:none;transition:opacity .2s}
+  .vv-cargando-aviso{display:none;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin:-4px 0 12px}
+  .kpis.vv-cargando + .vv-cargando-aviso{display:flex}
+  .vv-cargando-aviso .pt{width:8px;height:8px;border-radius:50%;background:var(--acid);animation:vvLatido 1s ease-in-out infinite}
+  @keyframes vvLatido{0%,100%{opacity:.25}50%{opacity:1}}
   .bell-wrap{position:relative}
   .bell-btn{position:relative;background:var(--navy-800);border:1px solid var(--line-strong);color:var(--text);width:38px;height:38px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
   .bell-btn:hover{border-color:var(--acid)}
@@ -2354,6 +2363,7 @@ const newsCases = [
         <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l">Leads (conversiones)</div></div>
         <div class="kpi"><div class="n" id="ka-rate">–</div><div class="kdelta" id="ka-rate-d"></div><div class="l">Tasa de conversión</div></div>
       </div>
+      <div class="vv-cargando-aviso"><span class="pt"></span> Actualizando la analítica del período elegido…</div>
 
       <!-- Conversión real por período (pedido de Sebastián, 12 ago 2026: "el % es
            mensual, podemos dejar uno anual, quartal 1,2,3,4 para ver como nos
@@ -4965,9 +4975,13 @@ const newsCases = [
 
   /* Segunda fase: lo caro. pageviews de dos ventanas, videos y la actividad por
      contacto (notas/tasks). No bloquea nada — cuando llega, redibuja. */
+  function anaMarcarCarga(activo){
+    document.querySelectorAll('#ana-sub-web .kpis').forEach((k) => k.classList.toggle('vv-cargando', !!activo));
+  }
   async function loadAnalytics(force){
     if (anaCargando || (anaCargada && !force)) return;
     anaCargando = true;
+    anaMarcarCarga(true);
     try {
       const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
       prevWin = { start: winStart - winLen, end: winStart - 1 };
@@ -5005,7 +5019,7 @@ const newsCases = [
       renderLeads(); renderHome();
     } catch (e) {
       avisoCarga('tab-analytics', '⚠️ No se pudo cargar la analítica: ' + (e.message || e));
-    } finally { anaCargando = false; }
+    } finally { anaCargando = false; anaMarcarCarga(false); }
   }
 
   /* Compatibilidad: todo el archivo llama loadAll() (refresh, cambio de rango,
