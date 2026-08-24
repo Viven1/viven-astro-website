@@ -150,7 +150,18 @@ function loadHeroVideo(){
     v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
     v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('autoplay', '');
     v.preload = 'auto';
-    v.src = heroMp4;
+    /* En un telefono el hero mide ~375px de ancho y le estabamos mandando un mp4 de
+       1280px y ~2 MB: en 4G lento eso satura la conexion y retrasa TODO lo visual
+       (Speed Index 9.2s medido el 24 ago). Hay una version -m.mp4 a 640px, un tercio
+       del peso, indistinguible a ese tamano. Si por lo que sea no existe, el onerror
+       vuelve al archivo completo, asi una pagina sin variante movil nunca se queda
+       sin video. */
+    var esChico = Math.min(window.innerWidth, window.innerHeight) <= 768;
+    var mp4Movil = esChico ? heroMp4.replace(/\.mp4$/, '-m.mp4') : heroMp4;
+    v.addEventListener('error', function(){
+      if(v.src.indexOf('-m.mp4') !== -1){ v.src = heroMp4; v.load(); }
+    });
+    v.src = mp4Movil;
     /* fade-in: el video aparece suave sobre el póster. 'timeupdate' es respaldo de
        'playing' (algunos WebKit no disparan 'playing' de forma confiable). */
     v.addEventListener('playing', function(){ v.classList.add('on'); }, { once: true });
