@@ -70,3 +70,34 @@ export const T = {
    L() escribe el idioma correcto en el HTML desde el build. Los atributos se
    quedan igual, porque el selector de idioma del cliente los sigue usando. */
 export const L = (lang, en, de, es) => (lang === 'de' ? (de || en) : lang === 'es' ? (es || en) : en);
+/* Los datos estructurados de las páginas de servicio se escribieron a mano en
+   inglés y se sirven igual en /de/ y /es/: la página alemana le declaraba a
+   Google "How much does a brand video cost?" mientras en pantalla pregunta
+   "Was kostet ein Imagefilm?". Y la miga de pan apuntaba a
+   viven.ch/services/... sin idioma, que redirige a la versión inglesa.
+   Esto arregla las dos cosas sin reescribir el JSON a mano en siete páginas. */
+export function ldLocal(ld, lang, faq) {
+  let d;
+  try { d = JSON.parse(ld); } catch { return ld; }   // si no parsea, mejor dejarlo como está
+  const conIdioma = (u) => typeof u === 'string' && u.startsWith('https://www.viven.ch/')
+    ? u.replace('https://www.viven.ch/', `https://www.viven.ch/${lang}/`).replace(`/${lang}/${lang}/`, `/${lang}/`)
+    : u;
+  for (const n of (d['@graph'] || [d])) {
+    if (n.url) n.url = conIdioma(n.url);
+    if (n['@id'] && n['@id'].includes('viven.ch/')) n['@id'] = conIdioma(n['@id']);
+    if (n['@type'] === 'BreadcrumbList') {
+      for (const it of n.itemListElement || []) it.item = conIdioma(it.item);
+    }
+    if (n['@type'] === 'ItemList') {
+      for (const it of n.itemListElement || []) it.url = conIdioma(it.url);
+    }
+    if (n['@type'] === 'FAQPage' && faq && faq.length) {
+      n.mainEntity = faq.map((f) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      }));
+    }
+  }
+  return JSON.stringify(d);
+}
