@@ -53,6 +53,23 @@ function _vivenLoadTracking(){
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-M3TD9G4H');
 }
-if(document.readyState === 'complete') setTimeout(_vivenLoadTracking, 100);
-else window.addEventListener('load', function(){ setTimeout(_vivenLoadTracking, 100); });
+/* Diferirlo al 'load' no alcanzaba: en un teléfono con 4G lento el load ocurre ANTES
+   del LCP, así que los ~300 KB de GTM + Ads seguían compitiendo justo mientras el hero
+   tiene que pintar. Medido el 24 ago con Lighthouse 13 contra produccion: bloqueando
+   GTM/Ads la home pasa de 71 a 85 y el LCP de 6,8 s a 3,6 s.
+   Ahora esperamos a que el main thread esté libre (requestIdleCallback), con un tope de
+   3 s por si nunca queda libre. No se pierde nada: el container carga igual, solo
+   despues de que el visitante ya vio la pagina.
+   EXCEPCION: las paginas de conversion (thank-you/danke/gracias/book) cargan como antes,
+   sin esperar. Ahi el tag de conversion de Google Ads tiene que disparar si o si, y
+   alguien puede cerrar la pestaña a los dos segundos — una conversion no reportada
+   cuesta mucho mas que unos puntos de PageSpeed. */
+var _vivenEsConversion = /\/(thank-you|danke|gracias|book)\//.test(location.pathname);
+function _vivenAgendarTracking(){
+  if(_vivenEsConversion) return setTimeout(_vivenLoadTracking, 100);
+  if('requestIdleCallback' in window) requestIdleCallback(_vivenLoadTracking, { timeout: 3000 });
+  else setTimeout(_vivenLoadTracking, 2500);
+}
+if(document.readyState === 'complete') _vivenAgendarTracking();
+else window.addEventListener('load', _vivenAgendarTracking);
 </script>
