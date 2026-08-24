@@ -1,6 +1,7 @@
 ---
 import { localePath } from '../i18n.js';
 import CalcBanner from './CalcBanner.astro';
+import LeadMagnet from './LeadMagnet.astro';
 const { project, lang = 'en' } = Astro.props;
 const p = (s) => localePath(lang, s);
 const t = (o) => o[lang] || o.en;
@@ -25,6 +26,15 @@ const galleryStills = project.stills.slice(1);
 const conn = { en: 'for', de: 'für', es: 'para' }[lang] || 'for';
 const serviceH2 = project.service && project.client ? project.service + ' ' + conn + ' ' + project.client : '';
 const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+/* La guía del explicativo va en los casos que SON explicativos o how-to, y eso
+   lo dice el propio proyecto (projects.json → service), no una lista de slugs
+   que hay que acordarse de actualizar: TomFit figura como "Explainer video" y
+   se estaba quedando afuera justamente por eso. Un caso how-to que se sume
+   mañana lo hereda solo. Los nueve idiomas de la etiqueta están acá porque el
+   dato viene ya traducido. */
+const ES_HOWTO = /explainer|erkl(ä|ae)rvideo|explicativo|how-?to|tutorial/i;
+const llevaGuia = ES_HOWTO.test(String(project.service || ''));
 ---
 <article>
   <section class="page-hero cs-hero">
@@ -74,6 +84,7 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
     </section>
   )}
 
+  {llevaGuia && <LeadMagnet lang={lang} magnet="explainer-guide" />}
   <CalcBanner lang={lang} />
 
   <section class="cta" style="padding-top:0">
