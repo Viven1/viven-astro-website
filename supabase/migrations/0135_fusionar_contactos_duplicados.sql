@@ -1,6 +1,6 @@
--- 0133: fusionar los contactos duplicados que quedaron de antes.
+-- 0135: fusionar los contactos duplicados que quedaron de antes.
 --
--- La 0132 impide que se creen nuevos. Esta arregla los que ya estaban: 5 emails
+-- La 0134 impide que se creen nuevos. Esta arregla los que ya estaban: 5 emails
 -- repartidos en 12 filas. Dos son prospectos REALES con trabajo encima:
 --   pool@agepa.ch                → #49 (2 tareas, 1 deal, 6 emails) y #62 (1 deal, 4 emails)
 --   m.hamon@terminal9studios.com → #69 y #88, con un deal CADA UNO

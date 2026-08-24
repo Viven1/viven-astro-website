@@ -1,4 +1,4 @@
--- 0132: una persona = un contacto, con TODO lo que hizo a la vista.
+-- 0134: una persona = un contacto, con TODO lo que hizo a la vista.
 --
 -- QUÉ PASABA (2026-08-23): cada formulario insertaba un contacto nuevo sin
 -- fijarse si esa persona ya existía. Quien bajaba dos guías, o usaba la

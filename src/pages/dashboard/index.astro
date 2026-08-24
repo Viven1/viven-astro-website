@@ -8797,7 +8797,7 @@ const newsCases = [
   async function lm2LoadTimeline(r){
     const box = $('lm2-tl'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
     const q = (t) => t.then((x) => (x && !x.error && x.data) || []).catch(() => []);
-    const [emails, notes, tasks, briefs1, briefs2, pv, vp, lev] = await Promise.all([
+    const [emails, notes, tasks, briefs1, briefs2, pv, vp, lev, mag] = await Promise.all([
       q(supabase.from('email_log').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
       q(supabase.from('lead_notes').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
       q(supabase.from('lead_tasks').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
@@ -8805,10 +8805,14 @@ const newsCases = [
       r.email ? q(supabase.from('briefs').select('*').ilike('email', r.email).order('created_at', { ascending: false }).limit(10)) : Promise.resolve([]),
       r.session_id ? q(supabase.from('pageviews').select('path,created_at,duration').eq('session_id', r.session_id).order('created_at').limit(200)) : Promise.resolve([]),
       r.session_id ? q(supabase.from('video_plays').select('video_id,label,created_at').eq('session_id', r.session_id).order('created_at').limit(100)) : Promise.resolve([]),
-      // qué BAJÓ y por qué formulario entró (SQL 0132). Antes cada descarga creaba
+      // qué BAJÓ y por qué formulario entró (SQL 0134). Antes cada descarga creaba
       // un contacto NUEVO y por eso no se veía acá: la persona aparecía dos veces
       // y cada ficha mostraba la mitad de la historia.
       q(supabase.from('lead_events').select('*').eq('lead_id', r.id).order('created_at', { ascending: false }).limit(100)),
+      // las descargas salen de magnet_sends, no de lead_events: esa tabla además
+      // sabe si ABRIÓ el email y si CLICKEÓ el link (lo estampa resend-events),
+      // que es la señal que dice si el material le interesó de verdad.
+      q(supabase.from('magnet_sends').select('*').eq('lead_id', r.id).order('created_at', { ascending: false }).limit(50)),
     ]);
     if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;   // cambió de contacto mientras cargaba
     const briefSeen = new Set(); const briefs = [...briefs1, ...briefs2].filter((b) => !briefSeen.has(b.id) && briefSeen.add(b.id));
@@ -8855,9 +8859,18 @@ const newsCases = [
       merge:       ['sys', '⚙️ Sistema'],
       form:        ['web', '📝 Formulario'],
     };
+    /* Lo que BAJÓ, con la señal de si le interesó: abrió el email / clickeó. */
+    mag.forEach((m) => {
+      const señales = [m.opened_at ? '📨 abrió el email' : '', m.clicked_at ? '🔗 clickeó el link' : ''].filter(Boolean).join(' · ');
+      ev.push({ t: m.created_at, ty: 'web', chip: ['web', '📥 Descargó'],
+                title: 'Bajó: <b>' + esc(m.magnet || 'material') + '</b>',
+                meta: [señales, m.lang].filter(Boolean).join(' · ') });
+    });
     lev.forEach((e3) => {
       const txt = String(e3.label || '').trim();
       if (txt && String(r.message || '').trim() === txt) return;   // ya está arriba
+      // las descargas ya se dibujaron arriba desde magnet_sends, con más detalle
+      if (e3.kind === 'magnet') return;
       const chip = CHIP_EV[e3.kind] || CHIP_EV.form;
       const titulo = e3.kind === 'magnet' ? 'Bajó: ' + esc(txt || 'un material')
                    : e3.kind === 'merge'  ? esc(txt)
