@@ -1,0 +1,259 @@
+---
+/* Planificador de video de evento. NO es un PDF descargable: son las decisiones
+   que hay que tomar ANTES del evento, y al responderlas el cliente nos deja el
+   brief entero más el email. Mismo mecanismo y mismos estilos que la calculadora
+   de costos — .calc-wrap / .calc-q / .calc-chips ya están diseñados y andan con
+   el dedo, así que no se inventa UI nueva.
+
+   noindex hasta que Sebastián lo apruebe: la página existe y se puede probar,
+   pero no entra al sitemap ni al menú todavía. */
+import Base from '../../../layouts/Base.astro';
+import { localePath } from '../../../i18n.js';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Event Video Planner — plan your event film | Viven"};
+const description = {"en":"Eight questions that decide whether your event film works: how many pieces, video booth, live stream, audio and light. Get your brief by email."};
+---
+<Base lang={lang} slug="event-video-planner" active="" singleLang={true} noindex={true} langUrls={{"en": "/en/event-video-planner/"}} title={title} description={description}>
+
+<section class="page-hero"><div class="wrap"><div class="post-wrap">
+  <span class="eyebrow">Free tool</span>
+  <h1>Planning the video for your event?</h1>
+  <p class="lead">The film is decided before the day, not on it. Eight questions — you get the answers as a brief you can send us or keep. Two minutes.</p>
+</div></div></section>
+
+<section class="sec" style="padding-top:24px"><div class="wrap"><div class="calc-wrap reveal">
+
+  <div class="calc-q"><h2>1. How many pieces do you need?</h2>
+    <div class="calc-chips" data-group="pieces">
+      <button type="button" data-v="one">🎬 One recap film</button>
+      <button type="button" data-v="cuts">✂️ Recap + short cuts</button>
+      <button type="button" data-v="series">📚 A series</button>
+      <button type="button" data-v="unsure">🤔 Not sure yet</button>
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>2. How long do you want to keep posting from this event?</h2>
+    <div class="calc-chips" data-group="window">
+      <button type="button" data-v="days">A few days</button>
+      <button type="button" data-v="weeks">A few weeks</button>
+      <button type="button" data-v="months">Months — I want a content bank</button>
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>3. The talks — whole or split?</h2>
+    <div class="calc-chips" data-group="talks">
+      <button type="button" data-v="full">One full recording</button>
+      <button type="button" data-v="speaker">Split by speaker</button>
+      <button type="button" data-v="both">Both</button>
+      <button type="button" data-v="none">No talks to record</button>
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>4. Should the audience take part?</h2>
+    <div class="calc-chips" data-group="audience">
+      <button type="button" data-v="qa">🙋 Q&amp;A from the floor</button>
+      <button type="button" data-v="poll">📊 Live polls on screen</button>
+      <button type="button" data-v="watch">Audience just watches</button>
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>5. A video booth?</h2>
+    <div class="calc-chips" data-group="booth">
+      <button type="button" data-v="yes">🎤 Yes — collect testimonials</button>
+      <button type="button" data-v="maybe">Tell me more</button>
+      <button type="button" data-v="no">Not this time</button>
+    </div>
+    <div class="calc-tip" id="tip-booth" hidden>
+      <b>The people who were there give the best testimonials</b> — and they give them on the day, while it is still fresh. A booth captures in one afternoon what takes weeks to chase afterwards.
+      <br><br>
+      It only works if it is planned: it needs its own corner, its own light, its own microphone and the questions written in advance. Thirty to sixty seconds per answer, three or four prompts to choose from, and the clip sent to each person the same day so they post it themselves.
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>6. Live stream for those who can't come?</h2>
+    <div class="calc-chips" data-group="stream">
+      <button type="button" data-v="yes">📡 Yes</button>
+      <button type="button" data-v="record">No — recording is enough</button>
+      <button type="button" data-v="unsure">Not decided</button>
+    </div>
+    <div class="calc-tip" id="tip-stream" hidden>
+      A live stream changes the crew, the connectivity and the budget. It is not a decision you can add the week before — the venue's internet has to be tested in advance.
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>7. Audio — the one that decides everything</h2>
+    <div class="calc-chips" data-group="audio">
+      <button type="button" data-v="desk">Take the venue's sound desk</button>
+      <button type="button" data-v="own">Bring your own microphones</button>
+      <button type="button" data-v="unsure">I don't know what the venue has</button>
+    </div>
+    <div class="calc-tip" id="tip-audio" hidden>
+      A weak shot can be saved in the edit. Bad audio cannot. If nobody has confirmed what the venue's desk actually outputs, we plan for our own microphones and treat the desk feed as a backup.
+    </div>
+  </div>
+
+  <div class="calc-q"><h2>8. Light</h2>
+    <div class="calc-chips" data-group="light">
+      <button type="button" data-v="venue">The venue lights the stage</button>
+      <button type="button" data-v="own">We need to bring light</button>
+      <button type="button" data-v="unsure">Not sure</button>
+    </div>
+  </div>
+
+  <div class="calc-tip calc-tip-always">
+    <b>One thing we will say before you ask for a price: use two cameras.</b> One person cannot cover the stage and the room's reaction at the same time, and what gets missed is gone — the event does not happen twice. The second camera costs little next to what it saves.
+  </div>
+
+  <div class="calc-form" id="ev-form-box">
+    <h2>Get your brief</h2>
+    <form id="ev-form" autocomplete="on">
+      <input type="text" id="ev-name" placeholder="Name" required />
+      <input type="email" id="ev-email" placeholder="Work email" required />
+      <input type="text" id="ev-co" placeholder="Company (optional)" />
+      <input type="text" id="ev-when" placeholder="Event date, if you have one" />
+      <input type="text" id="ev-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
+      <button class="btn btn-primary" type="submit">Show my brief →</button>
+    </form>
+    <p class="form-note">We reply within one business day. No spam, ever.</p>
+  </div>
+
+  <div class="calc-result" id="ev-result" hidden>
+    <h2>Your event brief</h2>
+    <ul id="ev-lines"></ul>
+    <div class="ev-cta">
+      <a class="btn btn-primary" href={p('contact')} id="ev-offer">Do you need an offer for this? →</a>
+      <a class="btn btn-ghost" href="/book/" target="_blank" rel="noopener">📅 Book a 15-min call</a>
+    </div>
+    <p class="form-note" id="ev-sent"></p>
+  </div>
+
+</div></div></section>
+
+<style>
+  /* Las clases .calc-* no viven en site.css: cada calculadora las define en su
+     propia página. Esta las define para sí misma y no depende de las otras. */
+  .calc-wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:38px}
+  .calc-q h2{font-size:19px;line-height:1.35;margin:0 0 14px;font-weight:600}
+  .calc-chips{display:flex;flex-wrap:wrap;gap:10px}
+  .calc-chips button{appearance:none;font:inherit;font-size:15px;line-height:1.3;cursor:pointer;
+    padding:11px 16px;border-radius:999px;border:1px solid var(--line-strong);
+    background:var(--navy-800);color:var(--text);transition:border-color .15s,background .15s;
+    min-height:44px}
+  .calc-chips button:hover{border-color:var(--muted)}
+  .calc-chips button.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 16%,transparent);color:var(--acid)}
+  .calc-chips button:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
+  .calc-form{border-top:1px solid var(--line);padding-top:30px}
+  .calc-form h2{font-size:20px;margin:0 0 16px;font-weight:600}
+  .calc-form form{display:flex;flex-direction:column;gap:11px;max-width:440px}
+  .calc-form input{width:100%;padding:13px 15px;border-radius:11px;border:1px solid var(--line-strong);
+    background:var(--navy-900);color:var(--text);font:inherit;font-size:16px}
+  .calc-form input:focus{outline:none;border-color:var(--acid)}
+  .calc-form button{margin-top:6px;align-self:flex-start}
+  .calc-result{border-top:1px solid var(--line);padding-top:30px}
+  .calc-result h2{font-size:20px;margin:0 0 18px;font-weight:600}
+  @media(max-width:560px){
+    .calc-wrap{gap:30px}
+    .calc-q h2{font-size:17.5px}
+    .calc-chips button{font-size:14.5px;padding:10px 14px}
+  }
+  .calc-tip{border-left:2px solid var(--acid);background:rgba(221,249,143,.07);padding:14px 16px;margin-top:12px;font-size:14.5px;line-height:1.6;color:var(--muted)}
+  .calc-tip b{color:var(--text)}
+  .calc-tip-always{margin:26px 0 0}
+  .calc-result ul{list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column;gap:9px}
+  .calc-result li{display:flex;gap:10px;font-size:15px;color:var(--text);border-bottom:1px solid var(--line);padding-bottom:9px}
+  .calc-result li span{color:var(--muted);flex:0 0 46%}
+  .ev-cta{display:flex;gap:10px;flex-wrap:wrap}
+</style>
+
+<script is:inline>
+(function(){
+  var box = document.querySelector('.calc-wrap');
+  if(!box) return;
+  var pick = {};
+
+  /* Los chips ya existen y andan con el dedo: solo hay que cablear la selección. */
+  box.querySelectorAll('.calc-chips').forEach(function(g){
+    g.addEventListener('click', function(e){
+      var b = e.target.closest('button'); if(!b) return;
+      g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      pick[g.dataset.group] = { v: b.dataset.v, label: b.textContent.trim() };
+      tips();
+    });
+  });
+
+  /* Los consejos aparecen cuando son relevantes, no todos de entrada:
+     un muro de advertencias no se lee. */
+  function tips(){
+    var m = {
+      'tip-booth':  pick.booth  && (pick.booth.v === 'maybe' || pick.booth.v === 'yes'),
+      'tip-stream': pick.stream && pick.stream.v === 'yes',
+      'tip-audio':  pick.audio  && (pick.audio.v === 'unsure' || pick.audio.v === 'desk')
+    };
+    Object.keys(m).forEach(function(id){
+      var el = document.getElementById(id); if(el) el.hidden = !m[id];
+    });
+  }
+
+  var LABEL = {
+    pieces:'Pieces needed', window:'Publishing window', talks:'Talks',
+    audience:'Audience', booth:'Video booth', stream:'Live stream',
+    audio:'Audio', light:'Light'
+  };
+
+  document.getElementById('ev-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var hp = document.getElementById('ev-hp');
+    if(hp && hp.value) return;                    /* bot */
+    var name  = document.getElementById('ev-name').value.trim();
+    var email = document.getElementById('ev-email').value.trim();
+    var co    = document.getElementById('ev-co').value.trim();
+    var when  = document.getElementById('ev-when').value.trim();
+    if(!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return;
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+
+    var lines = Object.keys(LABEL).filter(function(k){ return pick[k]; })
+      .map(function(k){ return { k: LABEL[k], v: pick[k].label }; });
+    if(when) lines.unshift({ k:'Event date', v: when });
+
+    /* El resumen se muestra siempre, aunque el guardado falle: el que contestó
+       ocho preguntas no se puede quedar sin nada. */
+    var ul = document.getElementById('ev-lines');
+    ul.innerHTML = lines.map(function(l){
+      return '<li><span>' + l.k + '</span><b>' + l.v + '</b></li>';
+    }).join('') || '<li>No answers selected.</li>';
+    document.getElementById('ev-form-box').hidden = true;
+    document.getElementById('ev-result').hidden = false;
+    document.getElementById('ev-result').scrollIntoView({ behavior:'smooth', block:'start' });
+
+    var resumen = lines.map(function(l){ return l.k + ': ' + l.v; }).join('\n');
+    var extra = window.vivenAttribution ? window.vivenAttribution() : null;
+    var row = {
+      name: name, first_name: name, email: email,
+      company: co || '',
+      message: 'EVENT VIDEO PLANNER\n\n' + resumen,
+      form_path: location.pathname
+    };
+    if(extra){
+      row.session_id = extra.session_id; row.lang = extra.lang;
+      if(extra.attrib){ row.channel = extra.attrib.channel; row.utm_source = extra.attrib.utm_source; row.landing_path = extra.attrib.landing_path; }
+    }
+    if(window.hubspotSubmit) window.hubspotSubmit(name, '', email, resumen, co || '-');
+    var nota = document.getElementById('ev-sent');
+    if(window.sbInsertLead){
+      window.sbInsertLead(row).then(function(r){
+        nota.textContent = (r && r.ok)
+          ? 'Saved — we have your brief. We will come back within one business day.'
+          : 'Your brief is above. If you want us to quote it, use the button.';
+      });
+    }
+    /* generate_lead: este formulario tampoco pasa por /thank-you/ */
+    if(typeof window.gtag === 'function') window.gtag('event','generate_lead',{ method:'event_planner', page: location.pathname });
+    try{ window.dataLayer = window.dataLayer || []; window.dataLayer.push({ event:'generate_lead', method:'event_planner', page: location.pathname }); }catch(_){}
+  });
+})();
+</script>
+
+</Base>

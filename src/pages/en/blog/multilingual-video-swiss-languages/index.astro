@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Multilingual Video Production for Swiss Markets | Viven"};
+const description = {"en":"One production, four languages: how to create effective multilingual videos for Swiss German, French, Italian and Romansh audiences. Strategic approach for brands."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "multilingual-video-swiss-languages";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/multilingual-video-swiss-languages" active="blog" singleLang={true} langUrls={{"en":"/en/blog/multilingual-video-swiss-languages/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/multilingual-video-swiss-languages/\"},\"headline\":\"Multilingual Video Production for Swiss Markets\",\"description\":\"One production, four languages: how to create effective multilingual videos for Swiss German, French, Italian and Romansh audiences. Strategic approach for brands.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/multilingual-video-swiss-languages/\",\"datePublished\":\"2026-08-19T10:29:57.580Z\",\"image\":\"https://www.viven.ch/projects/meteomatics-product-campaign-brand-video/07-Meteomatics_VIVEN_Video_Agentur_055.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Multilingual Video Production for Swiss Markets\",\"item\":\"https://www.viven.ch/en/blog/multilingual-video-swiss-languages/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Is it really cheaper to produce one multilingual video instead of four separate ones?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Yes. You shoot and crew once, rent equipment once, and secure location once. Post-production (voiceover, subtitles, sound design) scales more efficiently when built from a single master production. Expect 30–40% cost savings versus four sequential regional shoots, depending on voiceover vs. subtitle approach.\"}},{\"@type\":\"Question\",\"name\":\"Should we use subtitles or voiceover for multilingual video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Both work; choice depends on context. Subtitles are faster and cheaper for social media and corporate intranets. Voiceover suits broadcast, longer-form content, and audiences with lower literacy or accessibility needs. Many brands use hybrid: Swiss German or English voiceover with French/Italian subtitles for efficiency.\"}},{\"@type\":\"Question\",\"name\":\"What's the best way to hire voiceover talent for Swiss German, French, and Italian?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Work with a Swiss post-production agency or casting director familiar with regional dialects and corporate tone. Avoid hiring non-Swiss French or German speakers—regional authenticity matters. Record all voiceover tracks in a single studio session to maintain acoustic consistency across languages.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Multilingual Video Production for Swiss Markets</span></nav>
+  <span class="eyebrow">Product video</span>
+  <h1>Multilingual Video Production for Swiss Markets</h1>
+  <p class="lead">Switzerland's linguistic diversity—German, French, Italian, and Romansh—presents both a challenge and an opportunity for video marketing. Rather than producing separate campaigns for each region, forward-thinking brands are investing in single-production multilingual videos that maintain narrative consistency while respecting local language nuances. This approach cuts production costs, ensures brand coherence, and reaches all four Swiss language communities from a single shoot. We'll show you how to execute it effectively.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>August 19, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/meteomatics-product-campaign-brand-video/07-Meteomatics_VIVEN_Video_Agentur_055.jpg" alt="Multilingual Video Production for Swiss Markets" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Multilingual Video Matters in Switzerland</h2><p>Switzerland is unique: three official languages (plus Romansh in Graubuenden) coexist across distinct regional markets. Attempting to reach French-speaking Suisse Romande, German-speaking Deutschschweiz, and Italian Ticino with identical English or single-language content misses the point of localization entirely. Research shows viewers engage 80% longer with content in their native language. For corporations with clients like UBS, Siemens, and Porsche—all operating across all regions—multilingual video is non-negotiable.</p><p>The smart move isn't to commission four separate productions. It's to design one shoot that feeds multilingual output, whether through on-camera talent voiceover, subtitles, or parallel scripts that share visual identity.</p><h2>The Production Strategy: Shoot Once, Deliver Four Ways</h2><p>Effective multilingual video production hinges on forward planning:</p><ul><li><strong>Visual-first storytelling.</strong> Design shots, graphics, and pacing that transcend language. A sequence showing product benefits or employee culture speaks visually before any voiceover lands.</li><li><strong>Neutral on-camera talent or multiple cast.</strong> You can either hire talent fluent in multiple languages (more cost-effective for short segments) or cast region-specific speakers during a single shoot day with back-to-back recording blocks.</li><li><strong>Subtitle vs. voiceover strategy.</strong> Decide upfront: are you dubbing (costly, requires voice talent and sound design for each language) or subtitling (faster, ideal for social media and corporate videos)? Hybrid approaches work too—Swiss German voiceover with French/Italian subtitles, for example.</li><li><strong>Script localization, not translation.</strong> Raw translation fails. A French copywriter and German copywriter should adapt messaging for regional tone and cultural reference, not mechanically translate English source text.</li></ul><h2>Language-Specific Considerations for Swiss Audiences</h2><p>Each Swiss market has distinct expectations:</p><ul><li><strong>Swiss German (Deutschschweiz).</strong> Represents ~63% of Switzerland. Audiences prefer authentic Swiss German (Schwiizertüütsch), not formal High German. If using voiceover, hire Swiss German speakers. Subtitles in written Standard German work, but on-camera dialogue in local dialect builds trust.</li><li><strong>French (Suisse Romande).</strong> ~23% of population. French Swiss expect Romand French, not Parisian French. Tone tends toward formality; corporate messaging should reflect professional precision.</li><li><strong>Italian (Ticino &amp; Grigioni).</strong> ~8% of population. Often overlooked by brands—producing Italian-language content signals inclusivity and unlocks engagement in a loyal, underserved market. Italian Swiss audiences notice when effort is made.</li><li><strong>Romansh (Grigioni).</strong> ~0.5% of population. Rarely produced. For inclusive employer branding or government-linked work, Romansh voiceover or subtitles carry symbolic weight and legal compliance value.</li></ul><h2>Cost Efficiency and Timeline Benefits</h2><p>Producing four separate videos for a corporate or <a href={p("services/brand-video")}>brand video project</a> typically costs 2.5–3x more than a single multilingual shoot. Why? You're hiring crew, renting equipment, and securing location once. Post-production expenses scale differently: additional voiceover or subtitle tracks cost far less than reshooting. Timeline compression matters too—a single shoot schedule, followed by parallel post-production for each language variant, delivers four final products in 8–10 weeks instead of 16–20 weeks for sequential regional shoots.</p><h2>Real-World Application: Corporate and Product Video</h2><p>Imagine a <a href={p("services/product-video")}>product video</a> for a global tech client with Swiss headquarters. You shoot product features, customer testimonials, and office culture over three days. During post, you layer four subtitle versions and commission voiceover in Swiss German, French, Italian, and English. The result: one cohesive narrative that speaks directly to German-speaking staff in Zurich, French speakers in Geneva, Italian audiences in Lugano, and English-speaking international markets. Brand consistency remains intact; regional relevance soars.</p><p>For <a href={p("services/employer-branding")}>employer branding</a>, multilingual video becomes recruitment tool: prospective employees see the company culture *in their language*, dramatically improving application quality from non-German regions where recruitment typically lags.</p><h2>Partner With a Production Team That Understands Switzerland</h2><p>Executing multilingual video requires expertise in Swiss media conventions, local language nuance, and production logistics across three language zones. It's not simply hiring four translators and calling it done. You need a partner who understands cultural codes, dialect authenticity, and the commercial realities of reaching all four Swiss markets efficiently.</p><p>If you're ready to create video that resonates across Switzerland's linguistic landscape—cutting costs while amplifying reach—<a href={p("contact")}>let's talk</a>. We've produced multilingual campaigns for major Swiss employers, financial institutions, and global brands. We know how to shoot smart, localize rigorously, and deliver four languages from one production vision.</p><p>Start your multilingual strategy today. <a href={p("contact")}>Contact Viven</a> to explore how a single shoot can unlock four distinct markets.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/772421307?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="multilingual-video-swiss-languages" />
+  </div></section>
+</Base>

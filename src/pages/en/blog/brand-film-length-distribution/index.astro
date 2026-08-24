@@ -1,0 +1,91 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Brand Film Length & Distribution Strategy | Viven"};
+const description = {"en":"The ideal brand film length depends on platform and audience. Learn where to run 15s, 60s, and 3min cuts—and why one-size-fits-all fails."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "brand-film-length-distribution";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/brand-film-length-distribution" active="blog" singleLang={true} langUrls={{"en":"/en/blog/brand-film-length-distribution/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/brand-film-length-distribution/\"},\"headline\":\"Brand Film Length & Distribution Strategy\",\"description\":\"The ideal brand film length depends on platform and audience. Learn where to run 15s, 60s, and 3min cuts—and why one-size-fits-all fails.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/brand-film-length-distribution/\",\"datePublished\":\"2026-07-31T05:35:00.943Z\",\"image\":\"https://www.viven.ch/projects/nccr-robotics-brand-video/02-Brand_Video_Viven_Video_Production_20.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Brand Film Length & Distribution Strategy\",\"item\":\"https://www.viven.ch/en/blog/brand-film-length-distribution/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"What is the ideal length for a brand film?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"There is no one ideal length. It depends on platform and audience: 15–30s for social ads, 60s for YouTube and conversion, 2–5 minutes for websites and email, 5–15+ minutes only for highly engaged audiences. Successful brands create modular content in multiple lengths rather than one master cut.\"}},{\"@type\":\"Question\",\"name\":\"Should I trim one long brand film or create different versions?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Create different versions. Trimming a 5-minute film to 60 seconds feels repurposed and performs worse. Instead, plan modular architecture from pre-production: one core narrative, then optimize 3–4 distinct cuts (15s, 60s, 2–3 min) natively for each platform.\"}},{\"@type\":\"Question\",\"name\":\"Where should a brand film run?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Match length to platform: 15–30s on TikTok, Instagram, LinkedIn ads; 60s on YouTube pre-roll and Facebook; 90–120s as YouTube organic; 2–5 minutes on your website, email, and landing pages. Always include a clear call-to-action directing viewers to the next step.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Brand Film Length & Distribution Strategy</span></nav>
+  <span class="eyebrow">Brand video</span>
+  <h1>Brand Film Length & Distribution Strategy</h1>
+  <p class="lead">There is no single correct length for a brand film. A 15-second cut works on LinkedIn; a 60-second version converts on YouTube; a three-minute piece holds attention on your website. The real answer: successful brands create modular content, distributing the right length to the right channel at the right moment in the customer journey. Viven AG has produced brand films for UBS, Siemens, Porsche, and ON—each with entirely different structural requirements. Here's what the data and our experience actually show.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>July 31, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/nccr-robotics-brand-video/02-Brand_Video_Viven_Video_Production_20.jpg" alt="Brand Film Length & Distribution Strategy" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>The Platform Rule: Match Length to Where It Runs</h2><p>Social media platforms have trained audiences to expect different durations. A TikTok or Instagram Reel thrives at 15–30 seconds; YouTube pre-rolls demand 6 seconds of absolute grip or viewers skip. Facebook and LinkedIn users typically engage with 45–90 second content while scrolling. YouTube organic (search and subscriptions) performs best at 60–180 seconds, and your website homepage or dedicated landing page can hold a viewer for 2–5 minutes if it's genuinely interesting.</p><p>The mistake most brands make: producing one master cut and trimming it for each channel. That's backward. The strategic approach is to plan modular architecture from day one—identify your core message, then build 3–4 versions that work natively on their intended platforms rather than feeling like forced adaptations.</p><h2>15–30 Seconds: The Awareness Layer</h2><p>These short cuts live on paid social, LinkedIn feeds, and YouTube bumper ads. They must hook in the first two seconds, state your unique value in the next eight, and close with a clear call-to-action. Viven frequently creates these as part of <a href={p("services/social-media-video")}>social media video campaigns</a> that feed your full-funnel strategy.</p><ul><li><strong>Purpose:</strong> build awareness, trigger curiosity, drive clicks to longer content</li><li><strong>Message:</strong> one core idea, maximum two supporting details</li><li><strong>Ending:</strong> always direct to next step (visit website, see more, apply now)</li></ul><h2>60–90 Seconds: The Conversion Sweet Spot</h2><p>This is the most versatile length. It's long enough to tell a story—establish context, introduce a problem, show your solution, demonstrate value—but short enough to hold attention in a feed or as a pre-roll on YouTube. Most conversion-focused brand films land here.</p><p>Sixty seconds allows you to include customer testimonial or case study framing, show your product or service in action, and build emotional resonance without asking viewers for an unreasonable time commitment. If you're running <a href={p("services/employer-branding")}>employer branding campaigns</a>, this length performs exceptionally well for candidate attraction on LinkedIn and YouTube.</p><h2>2–5 Minutes: The Consideration Engine</h2><p>Your website, email campaigns, webinar intros, and dedicated landing pages can hold attention spans of 2–5 minutes. This is where you build trust, explain your differentiation, and move prospects closer to decision.</p><p>At this length, you can weave in multiple customer stories, show behind-the-scenes process, address objections, and create genuine emotional connection. A well-produced 3-minute <a href={p("services/brand-video")}>brand video</a> on your homepage significantly increases dwell time and conversion rate. Porsche and Siemens—clients of Viven—use this format strategically to communicate complex value propositions to qualified prospects.</p><h2>Beyond Five Minutes: Engagement Only</h2><p>Longer-form content (5–15 minutes) works only when audiences have already decided to invest their time. Think: detailed product walkthroughs for existing customers, thought leadership content for professionals, or documentary-style company origin films.</p><p>Unless your audience is highly engaged or actively searching for depth, avoid this length for acquisition. Exception: internal corporate content, onboarding videos, and <a href={p("services/corporate-video")}>corporate videos</a> for employee training or investor relations.</p><h2>Distribution Architecture: The Real Strategy</h2><p>Plan your brand film as a modular asset library from pre-production. Define:</p><ul><li><strong>Master narrative:</strong> your core story (often 3–5 minutes)</li><li><strong>Social cuts:</strong> 15s, 30s, 60s extracts optimized for feeds</li><li><strong>Platform variants:</strong> vertical for Stories/Reels, horizontal for YouTube, square for LinkedIn</li><li><strong>Audience segments:</strong> which message for prospects vs. customers vs. employees</li></ul><p>This modular thinking makes your production investment work across 5–10 distinct channels instead of forcing one cut everywhere. It's also how Viven advises clients on <a href={p("services/how-to-video")}>how-to video production</a>—each platform demands native optimization, not repurposing.</p><h2>One Final Data Point</h2><p>Video completion rates drop predictably. At 15 seconds, expect 70–85% completion. At 60 seconds, 45–60%. At 3 minutes, 25–40%. At 10 minutes, 8–15%. This means: shorter doesn't always mean better, but *matched length* always wins. Run the right duration to the right audience on the right platform, and you'll outperform the generic 60-second one-cut-fits-all approach every time.</p><p>Questions about your own brand film strategy? The team at Viven has shaped video for global brands and would like to help you move beyond guesswork. <a href='<a href={p("contact")}>Get in touch</a>'>Contact us</a> for a free strategy conversation.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/502153490?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="brand-film-length-distribution" />
+  </div></section>
+</Base>

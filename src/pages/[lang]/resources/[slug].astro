@@ -1,0 +1,245 @@
+---
+// Página pillar de una pregunta del hub Resources.
+// Cada entrada vive en UN idioma (los slugs vienen del sitio viejo, no son 1:1
+// entre idiomas) → singleLang; el selector de idioma lleva al índice del hub.
+import Base from '../../../layouts/Base.astro';
+import { localePath } from '../../../i18n.js';
+import resources from '../../../data/resources.json';
+import rmap from '../../../data/resources-map.json';
+import LeadMagnet from '../../../components/LeadMagnet.astro';
+/* Cada magnet va SOLO donde el tema coincide. El cheat sheet es de redes
+   sociales: 5 páginas de 115. La guía del explicativo va en la categoría
+   'howto' (14 páginas). Las otras ~96 no llevan ninguno — un magnet en todas
+   partes es spam y le quita fuerza al que sí corresponde. Nunca los dos en la
+   misma página: si es de redes gana el cheat sheet. */
+const SOCIAL = new Set([
+  'was-ist-die-produktion-von-social-media-videos',
+  'wie-lang-sollte-ein-social-media-video-sein',
+  'how-long-should-a-social-media-video-be',
+  'what-is-social-media-video-production',
+  'por-que-son-importantes-los-videos-para-las-redes-sociales',
+]);
+/* Las páginas de recursos son intención de investigación pura ("cuánto cuesta",
+   "cuánto tarda") y eran las ÚNICAS 118 del sitio sin acceso a la calculadora:
+   solo ofrecían contacto o llamada, que es mucho más compromiso. */
+const CALC_URL = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' };
+
+export function getStaticPaths(){
+  return resources.map((r) => ({ params: { lang: r.lang, slug: r.slug }, props: { entry: r } }));
+}
+const { lang } = Astro.params;
+const { entry } = Astro.props;
+const p = (s) => localePath(lang, s);
+const SITE = 'https://www.viven.ch';
+
+const related = resources.filter((r) => r.lang === lang && r.category === entry.category && r.slug !== entry.slug).slice(0, 5);
+
+// equivalencias entre idiomas: si esta pregunta existe en otro idioma, el selector
+// de idioma va a LA MISMA pregunta (y emitimos hreflang alternates)
+const group = rmap.find((g) => g[lang] === entry.slug) || null;
+const langUrls = group
+  ? Object.fromEntries(['en', 'de', 'es'].filter((l) => group[l]).map((l) => [l, '/' + l + '/resources/' + group[l] + '/']))
+  : null;
+
+// un trabajo real por categoría, para "verlo en acción"
+const CAT_VIDEO = {
+  brand: { id: 502153490, t: 'Siemens — The Circle' },
+  corporate: { id: 861150876, t: 'SV Group — Innovation Film' },
+  product: { id: 1068759296, t: 'V-ZUG — Combair V600' },
+  social: { id: 828322230, t: 'Siemens — Working Students' },
+  employer: { id: 412290258, t: 'UBS — Apprenticeship' },
+  howto: { id: 1026464530, t: 'V-ZUG — How-to' },
+  animation: { id: 1068759356, t: 'ON — Product Launch' },
+  event: { id: 757649241, t: 'FIFA — Living Football' },
+  process: { id: 1057568537, t: 'Viven — Showreel' },
+  general: { id: 1057568537, t: 'Viven — Showreel' },
+};
+const vid = CAT_VIDEO[entry.category] || CAT_VIDEO.general;
+
+// interlinking: cada categoría linkea a la página de servicio real que más se
+// le parece (las mismas /services/{slug}/ del menú, ya localizadas 1:1 en las
+// 3 lenguas) — pedido explícito: el contenido de Recursos no tenía NINGÚN link
+// interno en el cuerpo, todo el interlinking vivía en la lista genérica del
+// pie ("Related questions"). "event" y "animation" no tienen service propio →
+// caen en el más cercano (corporate-video ya incluye eventos; product-video
+// es lo más parecido a motion graphics/animación).
+const CAT_SVC = {
+  brand: 'brand-video', corporate: 'corporate-video', event: 'corporate-video',
+  employer: 'employer-branding', howto: 'how-to-video', social: 'social-media-video',
+  animation: 'product-video',
+};
+const SVC_NAME = {
+  'brand-video':         { en: 'Brand Videos', de: 'Markenfilme', es: 'Videos de marca' },
+  'corporate-video':     { en: 'Corporate & Events', de: 'Corporate & Events', es: 'Corporativo y eventos' },
+  'employer-branding':   { en: 'Employer Branding', de: 'Employer Branding', es: 'Employer Branding' },
+  'how-to-video':        { en: 'How-To & Tutorials', de: 'How-To & Tutorials', es: 'Tutoriales y How-To' },
+  'social-media-video':  { en: 'Social Media Videos', de: 'Social-Media-Videos', es: 'Videos para redes sociales' },
+  'product-video':       { en: 'Product Videos', de: 'Produktvideos', es: 'Videos de producto' },
+};
+const svcSlug = CAT_SVC[entry.category];
+const svcName = svcSlug && SVC_NAME[svcSlug][lang];
+// pedido explícito: "todos los FAQs que digan algo sobre costo cuanto cuesta, no
+// importa el servicio pone link al cost calculator" — el tema costo/precio pisa
+// el link de servicio por categoría, sea cual sea esa categoría.
+const isCostTopic = /\b(cost|costs|pricing|budget|kosten|preis|precio|costo|presupuesto)\b/i.test(entry.question + ' ' + entry.slug);
+const linkOut = isCostTopic
+  ? { html: {
+        en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
+        de: 'Fragen Sie sich, was das kosten würde? Unser <a href="/de/videoproduktion-kosten-rechner/">Kostenrechner für Videos</a>.',
+        es: '¿Te preguntás cuánto costaría? Probá nuestra <a href="/es/calculadora-costos-video/">calculadora de costos de video</a>.',
+      }[lang] }
+  : svcSlug
+  ? { html: {
+        en: `Ready to plan your own? See our <a href="/${lang}/services/${svcSlug}/">${svcName}</a> service.`,
+        de: `Bereit, Ihr eigenes zu planen? Unser Service <a href="/${lang}/services/${svcSlug}/">${svcName}</a>.`,
+        es: `¿Listo para planear el tuyo? Mirá nuestro servicio de <a href="/${lang}/services/${svcSlug}/">${svcName}</a>.`,
+      }[lang] }
+  : entry.category === 'process'
+  ? { html: {
+        en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
+        de: 'Fragen Sie sich, was das kosten würde? Unser <a href="/de/videoproduktion-kosten-rechner/">Kostenrechner für Videos</a>.',
+        es: '¿Te preguntás cuánto costaría? Probá nuestra <a href="/es/calculadora-costos-video/">calculadora de costos de video</a>.',
+      }[lang] }
+  : { html: {
+        en: `Ready to plan your own video? See our <a href="/${lang}/services/">video production services</a>.`,
+        de: `Bereit, Ihr eigenes Video zu planen? Unsere <a href="/${lang}/services/">Videoproduktions-Services</a>.`,
+        es: `¿Listo para planear tu propio video? Mirá nuestros <a href="/${lang}/services/">servicios de producción de video</a>.`,
+      }[lang] };
+
+const L = {
+  resources: { en: 'Resources', de: 'Wissen', es: 'Recursos' }[lang],
+  home: { en: 'Home', de: 'Home', es: 'Inicio' }[lang],
+  action: { en: 'See it in action', de: 'So sieht das aus', es: 'Así se ve en acción' }[lang],
+  related: { en: 'Related questions', de: 'Verwandte Fragen', es: 'Preguntas relacionadas' }[lang],
+  ctaT: { en: 'Planning a video?', de: 'Ein Video geplant?', es: '¿Planeando un video?' }[lang],
+  ctaS: {
+    en: 'Tell us what you’re working on — you’ll get a clear quote, usually within one business day.',
+    de: 'Erzählen Sie uns von Ihrem Projekt — Sie erhalten eine klare Offerte, meist innert eines Arbeitstages.',
+    es: 'Contanos en qué estás trabajando y recibís una cotización clara, normalmente en un día hábil.',
+  }[lang],
+  ctaBtn: { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un proyecto' }[lang],
+  ctaCall: { en: '📅 Book a 15-min call', de: '📅 15-Min-Call buchen', es: '📅 Agendar 15 min' }[lang],
+  ctaCalc: { en: '🧮 What will it cost?', de: '🧮 Was kostet das?', es: '🧮 ¿Cuánto cuesta?' }[lang],
+};
+
+const pageUrl = SITE + '/' + lang + '/resources/' + entry.slug + '/';
+const ld = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'FAQPage', '@id': pageUrl + '#faq', url: pageUrl, name: entry.question, inLanguage: lang,
+      publisher: { '@id': SITE + '/#organization' },
+      mainEntity: [{ '@type': 'Question', name: entry.question, acceptedAnswer: { '@type': 'Answer', text: entry.intro } }],
+    },
+    {
+      '@type': 'BreadcrumbList', '@id': pageUrl + '#breadcrumbs',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: L.home, item: SITE + '/' + lang + '/' },
+        { '@type': 'ListItem', position: 2, name: L.resources, item: SITE + '/' + lang + '/resources/' },
+        { '@type': 'ListItem', position: 3, name: entry.question, item: pageUrl },
+      ],
+    },
+  ],
+});
+
+const title = { [lang]: entry.title };
+const description = { [lang]: entry.description };
+---
+<Base lang={lang} slug={'resources/' + entry.slug} active="resources" title={title} description={description} singleLang={true} switchSlug="resources" langUrls={langUrls}>
+  <script type="application/ld+json" slot="jsonld" set:html={ld}></script>
+
+  <section class="page-hero">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p('')}>{L.home}</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <a href={p('resources')}>{L.resources}</a>
+      </nav>
+      <span class="eyebrow">{L.resources}</span>
+      <h1 class="rsrc-h1">{entry.question}</h1>
+      <p class="lead">{entry.intro}</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap rsrc-body">
+      {entry.sections.map((sec) => (
+        <div class="rsrc-sec">
+          <h2>{sec.h2}</h2>
+          <div set:html={sec.html}></div>
+        </div>
+      ))}
+
+      <div class="rsrc-video">
+        <h2>{L.action}</h2>
+        <div class="rsrc-vframe">
+          <iframe src={'https://player.vimeo.com/video/' + vid.id + '?dnt=1'} loading="lazy" title={vid.t}
+            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+        <p class="rsrc-vcap">{vid.t}</p>
+      </div>
+
+      <p class="rsrc-linkout" set:html={linkOut.html}></p>
+
+      {related.length > 0 && (
+        <div class="rsrc-related">
+          <h2>{L.related}</h2>
+          <div class="rsrc-grid">
+            {related.map((r) => (
+              <a class="rsrc-card" href={p('resources/' + r.slug)}>
+                <span class="rsrc-q">{r.question}</span>
+                <span class="rsrc-arrow">→</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {SOCIAL.has(entry.slug)
+        ? <LeadMagnet lang={lang} magnet="social-formats" />
+        : entry.category === 'howto' && <LeadMagnet lang={lang} magnet="explainer-guide" />}
+
+  <div class="rsrc-ctabox">
+        <div>
+          <div class="rsrc-ctat">{L.ctaT}</div>
+          <p class="rsrc-ctas">{L.ctaS}</p>
+        </div>
+        <div class="rsrc-ctabtns">
+          <a class="btn btn-primary" href={CALC_URL[lang] || CALC_URL.en}>{L.ctaCalc}</a>
+          <a class="btn btn-ghost" href={p('contact')}>{L.ctaBtn}</a>
+          <a class="btn btn-ghost" href="/book/" target="_blank" rel="noopener">{L.ctaCall}</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <style is:global>
+    .rsrc-h1{font-size:clamp(28px,4.4vw,44px)!important}
+    .rsrc-body{max-width:820px}
+    .rsrc-sec{margin-bottom:30px}
+    .rsrc-sec h2{font-size:clamp(19px,2.6vw,24px);margin-bottom:12px}
+    .rsrc-sec p{color:var(--muted);font-size:15.5px;line-height:1.75;margin-bottom:12px}
+    .rsrc-sec ul{margin:0 0 12px 20px;color:var(--muted);font-size:15.5px;line-height:1.75}
+    .rsrc-sec li{margin-bottom:6px}
+    .rsrc-sec strong{color:var(--text)}
+    .rsrc-video{margin:38px 0}
+    .rsrc-video h2{font-size:clamp(19px,2.6vw,24px);margin-bottom:14px}
+    .rsrc-vframe{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+    .rsrc-vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+    .rsrc-vcap{color:var(--muted-2);font-size:12.5px;margin-top:8px}
+    .rsrc-linkout{margin:18px 0 0;padding:14px 18px;border:1px solid var(--line);border-radius:13px;background:var(--navy-800);color:var(--muted);font-size:14.5px;line-height:1.6}
+    .rsrc-linkout a{color:var(--acid);font-weight:600;text-decoration:none}
+    .rsrc-linkout a:hover{text-decoration:underline}
+    .rsrc-related{margin:38px 0}
+    .rsrc-related h2{font-size:clamp(19px,2.6vw,24px);margin-bottom:14px}
+    .rsrc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    @media(max-width:720px){.rsrc-grid{grid-template-columns:1fr}}
+    .rsrc-card{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:13px;background:var(--navy-800);padding:15px 18px;color:var(--text);text-decoration:none;font-size:15px;font-weight:500;transition:border-color .2s,transform .15s}
+    .rsrc-card:hover{border-color:var(--acid);transform:translateY(-1px)}
+    .rsrc-card .rsrc-arrow{color:var(--acid);flex:none}
+    .rsrc-ctabox{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;border:1px solid var(--line-strong);background:var(--navy-800);border-radius:18px;padding:26px 28px;margin:40px 0 8px}
+    .rsrc-ctat{font-family:'Space Grotesk';font-weight:700;font-size:20px;margin-bottom:6px}
+    .rsrc-ctas{color:var(--muted);font-size:14px;max-width:460px;margin:0}
+    .rsrc-ctabtns{display:flex;gap:10px;flex-wrap:wrap}
+  </style>
+</Base>

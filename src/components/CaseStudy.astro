@@ -1,0 +1,148 @@
+---
+import { localePath } from '../i18n.js';
+import CalcBanner from './CalcBanner.astro';
+import LeadMagnet from './LeadMagnet.astro';
+const { project, lang = 'en' } = Astro.props;
+const p = (s) => localePath(lang, s);
+const t = (o) => o[lang] || o.en;
+
+const L = {
+  home: { en: 'Home', de: 'Home', es: 'Inicio' },
+  eyebrow: { en: 'Project', de: 'Projekt', es: 'Proyecto' },
+  watch: { en: 'Watch the film', de: 'Film ansehen', es: 'Ver el film' },
+  back: { en: 'All projects', de: 'Alle Projekte', es: 'Todos los proyectos' },
+  gallery: { en: 'From the production', de: 'Aus der Produktion', es: 'De la producción' },
+  ctaH: { en: 'Start your success story.', de: 'Starten Sie Ihre Erfolgsgeschichte.', es: 'Empezá tu historia de éxito.' },
+  ctaP: { en: 'Tell us what you’re working on — we’ll come back with ideas, timing and a clear quote.', de: 'Erzählen Sie uns von Ihrem Projekt — wir melden uns mit Ideen, Timing und einem klaren Angebot.', es: 'Contá tu proyecto — volvemos con ideas, tiempos y un presupuesto claro.' },
+  formNote: { en: "We'll reply within one business day. No spam, ever.", de: 'Wir antworten innerhalb eines Werktags. Kein Spam.', es: 'Respondemos en un día hábil. Nunca spam.' },
+  bookQ: { en: 'Prefer to talk it through?', de: 'Lieber direkt sprechen?', es: '¿Preferís hablarlo directamente?' },
+  bookCta: { en: 'Book a free 15-min call →', de: 'Gratis 15-Min-Call buchen →', es: 'Reservá una llamada gratis de 15 min →' },
+};
+
+const lead = project.body[0] || '';
+const rest = project.body.slice(1);
+const poster = project.stills[0];
+const galleryStills = project.stills.slice(1);
+const conn = { en: 'for', de: 'für', es: 'para' }[lang] || 'for';
+const serviceH2 = project.service && project.client ? project.service + ' ' + conn + ' ' + project.client : '';
+const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+/* La guía del explicativo va en los casos que SON explicativos o how-to, y eso
+   lo dice el propio proyecto (projects.json → service), no una lista de slugs
+   que hay que acordarse de actualizar: TomFit figura como "Explainer video" y
+   se estaba quedando afuera justamente por eso. Un caso how-to que se sume
+   mañana lo hereda solo. Los nueve idiomas de la etiqueta están acá porque el
+   dato viene ya traducido. */
+const ES_HOWTO = /explainer|erkl(ä|ae)rvideo|explicativo|how-?to|tutorial/i;
+const llevaGuia = ES_HOWTO.test(String(project.service || ''));
+---
+<article>
+  <section class="page-hero cs-hero">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p('')}>{t(L.home)}</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <a href={p('projects')}>{t(L.back)}</a>
+      </nav>
+      <span class="eyebrow">{t(L.eyebrow)}{project.client ? ' · ' + project.client : ''}</span>
+      <h1>{project.headline}</h1>
+      {lead && <p class="lead">{lead}</p>}
+    </div>
+  </section>
+
+  {project.vimeo && (
+    <section class="sec" style="padding-top:0">
+      <div class="wrap">
+        <button class="work-tile cs-player reveal" type="button" data-vimeo={project.vimeo} data-label={project.client + ' — ' + project.headline}>
+          <span class="wt-thumb">{poster && <img src={poster} width="1280" height="720" loading="lazy" decoding="async" alt={project.headline} />}</span>
+          <span class="wt-play" set:html={play} />
+          <span class="wt-meta"><span class="wt-title">{t(L.watch)}</span></span>
+        </button>
+      </div>
+    </section>
+  )}
+
+  {rest.length > 0 && (
+    <section class="sec" style="padding-top:0">
+      <div class="wrap prose cs-body">
+        {serviceH2 && <h2 class="cs-body-h">{serviceH2}</h2>}
+        {rest.map((para) => <p>{para}</p>)}
+      </div>
+    </section>
+  )}
+
+  {galleryStills.length > 0 && (
+    <section class="sec" style="padding-top:0">
+      <div class="wrap">
+        <h2 class="cs-gallery-h">{t(L.gallery)}</h2>
+        <div class="cs-gallery">
+          {galleryStills.map((src) => (
+            <div class="cs-still reveal"><img src={src} loading="lazy" decoding="async" width="800" height="450" alt={project.client + ' production still'} /></div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {llevaGuia && <LeadMagnet lang={lang} magnet="explainer-guide" />}
+  <CalcBanner lang={lang} />
+
+  <section class="cta" style="padding-top:0">
+    <div class="wrap">
+      <div class="cta-card reveal">
+        <div>
+          <span class="eyebrow">{t(L.eyebrow)}</span>
+          <h2>{t(L.ctaH)}</h2>
+          <p class="lead">{t(L.ctaP)}</p>
+          <div class="hero-cta" style="margin-top:28px">
+            <a href={p('projects')} class="btn btn-ghost">← {t(L.back)}</a>
+          </div>
+        </div>
+        <div>
+          <div class="lead-form-mount"></div>
+          <p class="form-note">{t(L.formNote)}</p>
+          <p class="book-call-note"><span>{t(L.bookQ)}</span> <a class="book-call" href="/book/" target="_blank" rel="noopener">{t(L.bookCta)}</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* Barra fija en el teléfono. El caso de éxito ya terminaba con formulario,
+      pero está al final de una página larga: el que mira el portfolio y se va
+      nunca llega. Aparece pasado el 35% del scroll y desaparece cuando el
+      formulario de abajo entra en pantalla, para no competir con él.
+      (Idea de CRO aprobada: CTA en el portfolio.) */}
+  <div class="cs-sticky" id="cs-sticky" hidden>
+    <span>{t(L.ctaH)}</span>
+    <a class="btn btn-primary small" href="/book/" target="_blank" rel="noopener">{t(L.bookCta)}</a>
+  </div>
+</article>
+
+<style is:global>
+  .cs-sticky{position:fixed;left:12px;right:12px;bottom:12px;z-index:40;display:none;align-items:center;gap:12px;
+    background:rgba(15,24,38,.94);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);
+    border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .cs-sticky span{flex:1;min-width:0;font-size:13px;font-weight:600;line-height:1.25;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .cs-sticky .btn{flex:none;white-space:nowrap}
+  @media(max-width:860px){ .cs-sticky:not([hidden]){display:flex} }
+</style>
+<script is:inline>
+  (function(){
+    var barra = document.getElementById('cs-sticky');
+    var final = document.querySelector('.cta-card');
+    if (!barra || !final) return;
+    var finalVisible = false;
+    if ('IntersectionObserver' in window){
+      new IntersectionObserver(function(es){ finalVisible = es[0].isIntersecting; pintar(); }, { rootMargin: '0px 0px -20% 0px' }).observe(final);
+    }
+    function pintar(){
+      var y = window.scrollY || document.documentElement.scrollTop;
+      var alto = document.documentElement.scrollHeight - window.innerHeight;
+      var pasado = alto > 0 && (y / alto) > 0.35;
+      barra.hidden = !(pasado && !finalVisible);
+    }
+    window.addEventListener('scroll', pintar, { passive: true });
+    pintar();
+  })();
+</script>

@@ -1,0 +1,157 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Testimonios: la herramienta de marketing más confiable | Viven"};
+const description = {"es":"Los testimonios generan confianza, aumentan la conversión y humanizan tu marca. Aprendé a usarlos en video para lograr el máximo impacto."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "testimonios-la-herramienta-de-marketing-mas-confiable-en-2025";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025" active="blog" singleLang={true} langUrls={{"es":"/es/blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025/","en":"/en/blog/testimonials-the-most-trusted-marketing-tool-in-2025/","de":"/de/blog/testimonials-das-vertrauenswuerdigste-marketing-tool-im-jahr-2025/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025/\"},\"headline\":\"Testimonios: la herramienta de marketing más confiable en 2025\",\"description\":\"Los testimonios generan confianza, aumentan la conversión y humanizan tu marca. Aprendé a usarlos en video para lograr el máximo impacto.\",\"image\":\"/projects/stadtspital-zurich-mis-spital-mis-laebe/05-pital_Mis_L_be_VIVEN_Video_Agency_007.jpeg\",\"datePublished\":\"2026-07-27T09:00:00.000Z\",\"dateModified\":\"2026-07-27T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Testimonios: la herramienta de marketing más confiable en 2025\",\"item\":\"https://www.viven.ch/es/blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué los videos de testimonios son tan efectivos en 2025?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Generan confianza instantánea porque la gente confía más en personas que en empresas, simplifican productos complejos al explicar el valor en términos cercanos y funcionan como prueba social — 9 de cada 10 personas dicen que el contenido generado por usuarios influye en sus decisiones de compra.\"}},{\"@type\":\"Question\",\"name\":\"¿Dónde deberían usar las marcas los videos de testimonios?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ubicaciones efectivas: la página de inicio, presentaciones de venta, páginas de producto, eventos en vivo y webinars, campañas de reclutamiento, creatividades de anuncios pagos y LinkedIn.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto debería durar un video de testimonio?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"El punto justo está entre 30 y 90 segundos — suficiente para contar una mini historia de éxito, y lo bastante corto para sostener la atención.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Testimonios: la herramienta de marketing más confiable en 2025</span>
+        </nav>
+        <span class="eyebrow">Redes sociales</span>
+        <h1>Testimonios: la herramienta de marketing más confiable en 2025</h1>
+        <p class="lead">Los testimonios generan confianza, aumentan la conversión y humanizan tu marca. Aprendé a usarlos en video para lograr el máximo impacto.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>27 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="/projects/stadtspital-zurich-mis-spital-mis-laebe/05-pital_Mis_L_be_VIVEN_Video_Agency_007.jpeg" alt="Testimonios: la herramienta de marketing más confiable en 2025" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Los testimonios en video siguen siendo la herramienta de marketing más confiable en 2025 porque reemplazan la publicidad pulida con voces reales y experiencias reales — y la gente simplemente confía más en las personas que en las empresas. En un mundo lleno de anuncios pagos y branding perfecto, la autenticidad es lo que más busca la audiencia, y un testimonio bien producido la entrega de una forma difícil de fingir.</p>
+<h2>Por qué los testimonios siguen funcionando, mejor que nunca</h2>
+<p>En un mercado saturado de anuncios pagos y branding pulido, las audiencias se volvieron escépticas de todo lo que suena a pitch. Los testimonios atraviesan ese escepticismo porque vienen de clientes reales y no de un departamento de marketing, y esa distinción pesa más con cada año de fatiga publicitaria.</p>
+<h2>¿Qué hace tan efectivos a los videos de testimonios?</h2>
+<h3>1. Generan confianza instantánea</h3>
+<p>Un buen testimonio muestra a usuarios o clientes reales hablando con naturalidad de su experiencia. Eso crea una credibilidad que no se puede fingir.</p>
+<h3>2. Simplifican soluciones complejas</h3>
+<p>Tu producto o servicio puede ser técnico, pero cuando un cliente explica el valor en términos simples, se vuelve cercano y más fácil de comprar.</p>
+<h3>3. Influyen en las decisiones de compra</h3>
+<p>Según estudios de la industria, 9 de cada 10 personas dicen que el contenido generado por usuarios influye en sus decisiones de compra. Los testimonios son prueba social a escala.</p>
+<h2>Cuándo y dónde usar testimonios</h2>
+<p>Los testimonios son lo bastante flexibles para funcionar en casi cualquier punto de contacto: en tu página de inicio, en presentaciones de venta, en páginas de producto, durante eventos en vivo o webinars, en campañas de reclutamiento, como creatividades de anuncios pagos y en LinkedIn. Son potentes, y nunca se sienten como una venta forzada.</p>
+<h2>Cómo lograr grandes testimonios en cámara</h2>
+<ol>
+<li><strong>Elegí a los clientes correctos</strong> — personas con resultados claros y ganas de compartirlos.</li>
+<li><strong>Guiá la conversación</strong> — sin guion, pero con estructura.</li>
+<li><strong>Filmá con cuidado</strong> — buen sonido, luz natural, emoción auténtica.</li>
+<li><strong>Mantenelo corto</strong> — 30 a 90 segundos es el punto justo.</li>
+<li><strong>Editá con narrativa</strong> — cada testimonio debería contar una mini historia de éxito.</li>
+</ol>
+<h2>¿Por qué Viven?</h2>
+<p>Ayudamos a marcas como Siemens, Kyan Health y Sonova a capturar testimonios creíbles y de alta calidad que hacen más que elogiar: rinden. En Viven dirigimos los testimonios con cuidado: preparamos a tus clientes, guiamos su relato y creamos un arco narrativo que construye confianza y convierte, con el mismo enfoque de <a href={p("services/corporate-video")}>producción de video corporativo</a> en cada proyecto.</p>
+<h2>¿Listo para que tus clientes hablen por vos?</h2>
+<p>Ya tenés clientes felices — convirtamos sus historias en uno de tus activos de marketing más fuertes.</p>
+<p><strong><a href={p("contact")}>Contactanos acá</a></strong> o conocé más sobre nuestros <strong><a href={p("services/corporate-video")}>servicios de video corporativo</a></strong>.</p>
+      </div>
+    <p class="post-service-note"><a href={p("services/social-media-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción para redes sociales.</a></p>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué los videos de testimonios son tan efectivos en 2025?</summary>
+        <p>Generan confianza instantánea porque la gente confía más en personas que en empresas, simplifican productos complejos al explicar el valor en términos cercanos y funcionan como prueba social — 9 de cada 10 personas dicen que el contenido generado por usuarios influye en sus decisiones de compra.</p>
+      </details>
+      <details>
+        <summary>¿Dónde deberían usar las marcas los videos de testimonios?</summary>
+        <p>Ubicaciones efectivas: la página de inicio, presentaciones de venta, páginas de producto, eventos en vivo y webinars, campañas de reclutamiento, creatividades de anuncios pagos y LinkedIn.</p>
+      </details>
+      <details>
+        <summary>¿Cuánto debería durar un video de testimonio?</summary>
+        <p>El punto justo está entre 30 y 90 segundos — suficiente para contar una mini historia de éxito, y lo bastante corto para sostener la atención.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="testimonios-la-herramienta-de-marketing-mas-confiable-en-2025" />
+  </div></section>
+</Base>

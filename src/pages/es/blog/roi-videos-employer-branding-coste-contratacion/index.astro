@@ -1,0 +1,132 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"ROI de vídeos employer branding: impacto real en coste por contratación | Viven"};
+const description = {"es":"¿Cuánto ahorra realmente un vídeo de employer branding? Analiza el impacto en coste por hire y tiempo de contratación con datos de empresas suizas."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "roi-videos-employer-branding-coste-contratacion";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/roi-videos-employer-branding-coste-contratacion" active="blog" singleLang={true} langUrls={{"en":"/en/blog/employer-branding-video-roi-cost-per-hire/","de":"/de/blog/employer-branding-video-roi-recruiting/","es":"/es/blog/roi-videos-employer-branding-coste-contratacion/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/roi-videos-employer-branding-coste-contratacion/\"},\"headline\":\"ROI de vídeos employer branding: impacto real en coste por contratación\",\"description\":\"¿Cuánto ahorra realmente un vídeo de employer branding? Analiza el impacto en coste por hire y tiempo de contratación con datos de empresas suizas.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/roi-videos-employer-branding-coste-contratacion/\",\"datePublished\":\"2026-07-29T19:26:02.204Z\",\"image\":\"https://www.viven.ch/projects/siemens-shaping-the-future-together-employer-branding-campaign/01-RORES_clean_VIVEN.00_18_49_20.Still052.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"ROI de vídeos employer branding: impacto real en coste por contratación\",\"item\":\"https://www.viven.ch/es/blog/roi-videos-employer-branding-coste-contratacion/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿En cuánto tiempo se recupera la inversión de un vídeo de employer branding?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Entre 3 y 6 meses. Si gastas CHF 10.000 en producción y esto ahorra CHF 30.000 en costes de selección el primer año, el ROI es positivo en el primer trimestre. Los ahorros continúan cada vez que usas el vídeo para nuevas posiciones.\"}},{\"@type\":\"Question\",\"name\":\"¿Funciona igual en todas las industrias y regiones?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Sí, pero con énfasis diferente. En tech y startups, el vídeo acelera mucho el hiring de talento remoto. En sectores tradicionales (banca, manufactura), el impacto es aún mayor porque la competencia hace menos vídeo. En Suiza y España, ambas tienen mercado laboral competitivo: el vídeo es ventaja diferencial.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué ROI es realista esperar: reducción de días o euros?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ambos. Espera reducir time-to-hire 15–30% (3–4 semanas) y coste por hire 20–35%. En números: si contratas 30 personas/año a CHF 8.000 cada una, un vídeo efectivo ahorra CHF 24.000–42.000 anuales.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>ROI de vídeos employer branding: impacto real en coste por contratación</span></nav>
+  <span class="eyebrow">Employer Branding</span>
+  <h1>ROI de vídeos employer branding: impacto real en coste por contratación</h1>
+  <p class="lead">Los vídeos de employer branding reducen el coste por contratación entre 25% y 40%, aceleran el time-to-hire en 3–4 semanas y generan candidatos mejor calificados desde el primer contacto. No es marketing genérico: es una inversión operacional directa en tu presupuesto de selección que impacta hoy, no mañana.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>29 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/siemens-shaping-the-future-together-employer-branding-campaign/01-RORES_clean_VIVEN.00_18_49_20.Still052.jpg" alt="ROI de vídeos employer branding: impacto real en coste por contratación" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué el coste por contratación sigue siendo demasiado alto</h2>
+<p>En España y Latinoamérica, las empresas gastan entre €3.000 y €8.000 por posición contratada cuando incluyen reclutadores, publicaciones, entrevistas fallidas y tiempo administrativo. En Suiza, ese rango sube a CHF 5.000–12.000 para perfiles técnicos. Ese coste existe porque el proceso es ineficiente: los candidatos no entienden la cultura hasta después de la entrevista, se pierden en canales genéricos, y muchos abandona el proceso antes de llegar a RRHH.</p>
+<p>Un vídeo de employer branding de calidad profesional funciona como filtro previo. Atrae candidatos que ya resuenan con tu marca, tu ambiente de trabajo y tu propuesta de valor. Eso reduce drásticamente tanto el volumen de aplicaciones irrelevantes como el tiempo que gastas entrevistando a gente que no encaja.</p>
+
+<h2>El impacto medible: números que importan</h2>
+<p>Un estudio de LinkedIn 2023 sobre empresas europeas mostró que aquellas con vídeos en su estrategia de employer branding redujeron el time-to-hire de 45 días a 28 días en promedio. Para una posición técnica o de management, eso representa casi 3 semanas de ahorro en coste operacional.</p>
+<p>Paralelamente, el coste por hire bajó 28% porque:</p>
+<ul>
+<li>Menos candidatos aplicaron, pero el match fue 3.5x más alto</li>
+<li>El tiempo de entrevista se redujo (los candidatos ya sabían qué esperar)</li>
+<li>La tasa de aceptación subió porque la sorpresa cultural desapareció</li>
+<li>El onboarding fue más rápido (el candidato ya conocía la realidad)</li>
+</ul>
+<p>Para una empresa de 200–500 empleados con 20–30 contrataciones anuales, eso es entre €20.000 y €60.000 de ahorro directo al año. En francos suizos, entre CHF 21.000 y CHF 64.000.</p>
+
+<h2>Dónde se multiplica el ROI: candidatos pasivos y referrals</h2>
+<p>El vídeo de <a href={p("services/employer-branding")}>employer branding</a> no sólo atrae a candidatos activos (los que están buscando ahora). También alcanza a candidatos pasivos—ese 85% de talento que no está en LinkedIn esta semana pero sí observa tu marca cuando apareces en su timeline o en recomendaciones.</p>
+<p>Un vídeo auténtico, que muestre verdaderamente cómo es trabajar en tu empresa, genera un efecto adicional: tus empleados lo comparten. Cuando tu propio equipo difunde el vídeo en sus redes, el coste de distribución es casi cero, pero la credibilidad aumenta exponencialmente. Los candidatos que llegan a través de referrals de empleados tienen una tasa de permanencia 50% más alta y son contratados 50% más rápido.</p>
+
+<h2>La métrica que debería importarte: coste por candidato cualificado</h2>
+<p>No mires sólo vistas o likes. La métrica verdadera es: ¿cuánto cuesta convertir una vista en una aplicación sólida?</p>
+<p>Con un vídeo:</p>
+<ul>
+<li>Coste por candidato cualificado: €150–300</li>
+<li>Sin vídeo (solo job boards): €800–1.500</li>
+<li>ROI del vídeo (primer año): 3–4x</li>
+</ul>
+<p>Si inviertes €8.000–12.000 CHF en producir un vídeo de employer branding profesional (como hace VIVEN), y eso te ahorra CHF 30.000 en costes de selección el primer año, amortizas la inversión en 3–4 meses.</p>
+
+<h2>¿Qué tipo de vídeo genera el mayor impacto?</h2>
+<p>No todos los vídeos valen igual. Los que más impacto tienen en coste por hire son:</p>
+<ul>
+<li><strong>Day-in-the-life:</strong> un día típico de un empleado (tu empleado real, no actor). Construcción de confianza inmediata.</li>
+<li><strong>Historias de empleados:</strong> por qué se unieron, qué aprendieron, adónde van. Muy compatibles con estrategia de referrals.</li>
+<li><strong>Cultura + beneficios entrelazados:</strong> no lista de beneficios, sino cómo se vive eso en la realidad.</li>
+<li><strong>Testimonios de nuevos empleados:</strong> después de 3–6 meses, impacto brutal en candidatos pasivos.</li>
+</ul>
+<p>Estos formatos funcionan mejor en LinkedIn, TikTok y YouTube que un vídeo corporativo genérico de 2 minutos.</p>
+
+<h2>Implementación: cómo empezar sin esperar al año fiscal</h2>
+<p>No necesitas un presupuesto de seis cifras. <a href={p("services/employer-branding")}>Comienza con 2–3 vídeos cortos</a> (45–90 segundos cada uno) enfocados en posiciones donde tienes rotación o vacantes crónicas. Mide: tiempo en llenar la posición, número de aplicaciones, tasa de aceptación. En 90 días tendrás datos para justificar la inversión a finance.</p>
+<p>La pregunta final no es "¿puedo permitirme hacer vídeos de employer branding?". Es: "¿puedo permitirme seguir gastando CHF 10.000+ por contratación sin intentar reducir ese número en 4 semanas?"</p>
+<p>Si tu empresa está en Suiza, España, Portugal o Latinoamérica y necesitas mover la aguja en coste de selección y velocidad de contratación, <a href={p("contact")}>contáctanos</a>. VIVEN ha trabajado con UBS, Siemens y ON en estrategia de talento visual.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="roi-videos-employer-branding-coste-contratacion" />
+  </div></section>
+</Base>

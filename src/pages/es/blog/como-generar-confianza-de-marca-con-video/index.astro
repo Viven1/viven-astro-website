@@ -1,0 +1,150 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Cómo generar confianza de marca con video | Viven"};
+const description = {"es":"Generá confianza y credibilidad de marca con video auténtico. Descubrí cómo Viven ayuda a tu marca a conectar y crecer."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "como-generar-confianza-de-marca-con-video";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/como-generar-confianza-de-marca-con-video" active="blog" singleLang={true} langUrls={{"es":"/es/blog/como-generar-confianza-de-marca-con-video/","en":"/en/blog/how-brands-build-trust-and-credibility-through-video/","de":"/de/blog/wie-marken-durch-videos-vertrauen-und-glaubwuerdigkeit-aufbauen/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/como-generar-confianza-de-marca-con-video/\"},\"headline\":\"Cómo generar confianza y credibilidad de marca con video\",\"description\":\"Generá confianza y credibilidad de marca con video auténtico. Descubrí cómo Viven ayuda a tu marca a conectar y crecer.\",\"image\":\"https://www.viven.ch/projects/sevensense-brand-video/01-Sevensense_Brand_Video_13.jpg\",\"datePublished\":\"2026-07-29T09:00:00.000Z\",\"dateModified\":\"2026-07-29T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/como-generar-confianza-de-marca-con-video/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Cómo generar confianza y credibilidad de marca con video\",\"item\":\"https://www.viven.ch/es/blog/como-generar-confianza-de-marca-con-video/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué es importante la confianza para las marcas que buscan crecer?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"En un estudio de Edelman, el 81% de los consumidores dijo que necesita confiar en una marca antes de comprarle, lo que convierte a la confianza en un requisito previo para las ventas.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué tipos de video ayudan a construir confianza de marca?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Los videos de testimonios de clientes, los videos de producción detrás de escena, los videos de cultura empresarial y los videos de mensaje del CEO ayudan a demostrar autenticidad.\"}},{\"@type\":\"Question\",\"name\":\"¿Cómo usó SV Group el video para generar confianza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"SV Group se asoció con Viven en un video de employer branding que mostraba su cultura y la sinergia entre IT y operaciones, lo que llevó a un aumento significativo en postulaciones de reclutamiento de alta calidad.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Cómo generar confianza y credibilidad de marca con video</span>
+        </nav>
+        <span class="eyebrow">Video de marca</span>
+        <h1>Cómo generar confianza y credibilidad de marca con video</h1>
+        <p class="lead">Generá confianza y credibilidad de marca con video auténtico. Descubrí cómo Viven ayuda a tu marca a conectar y crecer.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>29 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="https://www.viven.ch/projects/sevensense-brand-video/01-Sevensense_Brand_Video_13.jpg" alt="Cómo generar confianza y credibilidad de marca con video" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Las marcas generan confianza y credibilidad a través del video mostrando clientes reales, empleados reales y momentos reales en lugar de discursos guionados — la autenticidad es lo que convence a los compradores de actuar. Según un estudio de Edelman, el 81% de los consumidores dijo que necesita confiar en una marca antes de comprarle, y el video es una de las formas más efectivas de ganar esa confianza a escala. En Viven trabajamos junto a las empresas para producir contenido de video que genera confianza y construye relaciones duraderas con los clientes.</p>
+<h2>Por qué importa la confianza</h2>
+<p>Los videos auténticos que muestran el uso del producto, testimonios de clientes y detrás de escena generan la confianza que los clientes necesitan para tomar decisiones de compra. Sin esa confianza, incluso el mejor producto tiene dificultades para convertir interés en ventas, sin importar cuán fuerte sea la oferta. Hoy los compradores pueden investigar una empresa desde todos los ángulos, así que las marcas que se muestran de forma honesta en video suelen ganarse el beneficio de la duda más temprano en ese proceso.</p>
+<h2>Viven entrega contenido auténtico</h2>
+<p>En Viven nos especializamos en producir <a href={p("services/brand-video")}>contenido de video</a> auténtico que conecta con las audiencias. Desde historias reales de clientes hasta testimonios sin guion, ayudamos a las marcas a crear videos que reflejan honestidad y transparencia — ingredientes esenciales para construir confianza. Eso significa resistir la tentación de sobre-guionar y, en cambio, dejar que empleados y clientes reales hablen con sus propias palabras.</p>
+<h3>Videos que generan confianza, ofrecidos por Viven</h3>
+<ul>
+<li>Videos de testimonios de clientes</li>
+<li>Videos de producción detrás de escena</li>
+<li>Videos de cultura empresarial</li>
+<li>Videos de mensaje del CEO</li>
+</ul>
+<h2>Caso de éxito: confianza y credibilidad con SV Group</h2>
+<p>SV Group, una destacada empresa de hospitalidad y gastronomía, se asoció con Viven para producir un video que mostrara el ambiente de trabajo dinámico de la empresa y la sinergia entre sus equipos de IT y operaciones. El video fue parte de una campaña de <a href={p("services/employer-branding")}>employer branding</a> y reclutamiento, enfocada en resaltar la autenticidad de su cultura.</p>
+<p>El resultado: el video ayudó a SV Group a generar confianza con potenciales candidatos, lo que llevó a un aumento significativo en postulaciones de alta calidad. Mostró la cultura de la empresa mientras reforzaba su credibilidad como empleador transparente y profesional — prueba de que un solo video bien producido puede mover una métrica de negocio genuinamente difícil, como la calidad de los postulantes.</p>
+<h2>Generá confianza con video</h2>
+<p>La confianza no viene de las declaraciones — viene de la prueba, contada por las personas que la viven todos los días. Si querés profundizar en por qué los testimonios en particular son tan persuasivos, mirá por qué los <a href={p("blog/videos-de-testimonios-de-clientes-un-game-changer")}>videos de testimonios de clientes son un game changer para las marcas</a>, y por qué se están convirtiendo en <a href={p("blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025")}>la herramienta de marketing más confiable en 2025</a>.</p>
+<p><a href={p("contact")}>Trabajá con Viven</a> para crear contenido de video que genere confianza para tu marca.</p>
+      </div>
+    <p class="post-service-note"><a href={p("services/brand-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción de video de marca.</a></p>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué es importante la confianza para las marcas que buscan crecer?</summary>
+        <p>En un estudio de Edelman, el 81% de los consumidores dijo que necesita confiar en una marca antes de comprarle, lo que convierte a la confianza en un requisito previo para las ventas.</p>
+      </details>
+      <details>
+        <summary>¿Qué tipos de video ayudan a construir confianza de marca?</summary>
+        <p>Los videos de testimonios de clientes, los videos de producción detrás de escena, los videos de cultura empresarial y los videos de mensaje del CEO ayudan a demostrar autenticidad.</p>
+      </details>
+      <details>
+        <summary>¿Cómo usó SV Group el video para generar confianza?</summary>
+        <p>SV Group se asoció con Viven en un video de employer branding que mostraba su cultura y la sinergia entre IT y operaciones, lo que llevó a un aumento significativo en postulaciones de reclutamiento de alta calidad.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="como-generar-confianza-de-marca-con-video" />
+  </div></section>
+</Base>

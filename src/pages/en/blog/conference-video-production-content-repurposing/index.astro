@@ -1,0 +1,172 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Conference Video Production: One Event, One Month Content | Viven"};
+const description = {"en":"Turn a single conference into weeks of content. Learn how smart video production maximizes ROI and audience reach across all channels."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "conference-video-production-content-repurposing";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/conference-video-production-content-repurposing" active="blog" singleLang={true} langUrls={{"en":"/en/blog/conference-video-production-content-repurposing/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/conference-video-production-content-repurposing/\"},\"headline\":\"Conference Video Production: One Event, One Month Content\",\"description\":\"Turn a single conference into weeks of content. Learn how smart video production maximizes ROI and audience reach across all channels.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/conference-video-production-content-repurposing/\",\"datePublished\":\"2026-08-08T13:41:03.991Z\",\"image\":\"https://www.viven.ch/projects/pmi-why-science-matters-brand-video/01-PMI_on_background.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Conference Video Production: One Event, One Month Content\",\"item\":\"https://www.viven.ch/en/blog/conference-video-production-content-repurposing/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How many assets can you create from one conference?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"From a well-planned shoot, typically 15–25 assets: short clips (TikTok, Reels, Shorts), full keynotes (YouTube, website), speaker interviews, social teasers, email content, internal training modules, and blog posts. The exact number depends on event length, number of speakers, and your content strategy.\"}},{\"@type\":\"Question\",\"name\":\"What's the typical timeline for conference video production and editing?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Planning and pre-production: 4–6 weeks. Filming: 1–3 days depending on event scale. Editing and repurposing: 2–4 weeks. Most clients launch their first assets (short social clips) within 3–5 days of filming, with longer-form content rolling out over the following 3–4 weeks.\"}},{\"@type\":\"Question\",\"name\":\"Is conference video production worth the investment?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Yes, if executed strategically. One conference production can generate 20+ assets that serve content needs for 4–8 weeks, significantly reducing per-piece production costs. For B2B companies, this content becomes part of nurture sequences, thought leadership, and employee advocacy—multiplying the original event's ROI.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Conference Video Production: One Event, One Month Content</span></nav>
+  <span class="eyebrow">Product video</span>
+  <h1>Conference Video Production: One Event, One Month Content</h1>
+  <p class="lead">A well-executed conference generates dozens of hours of footage, but most companies extract only a highlight reel. The real opportunity lies in strategic repurposing: one day of shooting becomes keynote clips, social snippets, employee testimonials, educational modules, and thought leadership assets that drive engagement for weeks. This is how leading brands like UBS and Siemens amplify event value and fill their content calendar without additional production costs.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>August 8, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/pmi-why-science-matters-brand-video/01-PMI_on_background.jpg" alt="Conference Video Production: One Event, One Month Content" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Conference Video Matters More Than the Event Itself</h2>
+<p>Conferences are expensive. Travel, venue, speaker fees—the costs add up fast. Yet most organisers measure success by attendance alone. Smart companies recognise that the real value multiplies after the event ends. A single conference keynote can become 15–20 assets: social clips, email teasers, LinkedIn posts, internal training modules, and podcast segments. Each format reaches different audience segments, extends your message across platforms, and keeps the conversation alive long after delegates leave the room.</p>
+<p>Video amplifies this effect. Live attendance might capture 500 people. Strategic video distribution reaches thousands more—including prospects who never heard about your event. This is especially powerful for B2B companies where decision-makers consume content asynchronously, on their own schedule.</p>
+
+<h2>The Repurposing Strategy: Four Content Buckets</h2>
+<p>Effective conference video production starts with a repurposing plan, not just a camera crew. Before you shoot, map out how each piece of footage will live across your ecosystem.</p>
+<h3>1. Short-Form Social Content</h3>
+<ul>
+<li>30–90 second clips from keynotes, panels, and Q&amp;A segments</li>
+<li>Memorable quotes or insights with on-screen text</li>
+<li>Behind-the-scenes footage: speaker prep, corridor chats, audience reactions</li>
+<li>Distribution: LinkedIn, Instagram Reels, TikTok, YouTube Shorts</li>
+</ul>
+
+<h3>2. Long-Form Thought Leadership</h3>
+<ul>
+<li>Full keynote recordings with professional edit and branding</li>
+<li>Speaker interviews (conducted during or after the event)</li>
+<li>Multi-speaker panel compilations on a single topic</li>
+<li>Distribution: YouTube, your website, email nurture sequences</li>
+</ul>
+
+<h3>3. Internal &amp; Employee Content</h3>
+<ul>
+<li>Employee spotlights: team members speaking, networking, learning</li>
+<li>Company culture moments and team reactions</li>
+<li>Training content derived from workshop sessions</li>
+<li>Distribution: Intranet, onboarding programs, internal channels</li>
+</ul>
+
+<h3>4. Evergreen Educational Assets</h3>
+<ul>
+<li>How-to guides and tutorials extracted from workshop content</li>
+<li>Industry insights presented as educational series</li>
+<li>Expert interviews reformatted as podcast episodes</li>
+<li>Distribution: Blog, resource hub, webinar platforms</li>
+</ul>
+
+<h2>Production Planning: Shoot for Repurposing</h2>
+<p>The difference between a standard event recap and a month-long content engine comes down to planning. Before the conference, brief your production team on the repurposing strategy. This shapes how they shoot: which angles matter, which moments need isolation (no overlapping audio), which sequences work best in short form versus long form.</p>
+<p>Key production decisions:</p>
+<ul>
+<li><strong>Multi-camera setup:</strong> Ensures clean cuts and flexibility in post-production</li>
+<li><strong>Lapel microphones on speakers:</strong> Clean audio for clipping and repurposing</li>
+<li><strong>B-roll coverage:</strong> Attendees, venues, reactions—essential filler for short-form edits</li>
+<li><strong>Interview segments:</strong> Capture speaker Q&amp;As and attendee testimonials on a dedicated setup</li>
+</ul>
+<p>This approach requires more cameras and crew than a simple "film the main stage" brief. But the ROI is immediate: dozens of assets instead of one video, and content that serves multiple business goals. Many of Viven's clients use this model for annual conferences, product launches, and industry events—see how we applied it in our <a href={p("projects")}>portfolio</a>.</p>
+
+<h2>Editing for Multiple Platforms: One Source, Many Cuts</h2>
+<p>Raw conference footage is only useful if you edit it strategically. Professional post-production creates variations for different platforms and audiences:</p>
+<ul>
+<li><strong>YouTube format:</strong> 8–12 minute keynote with intro, chapters, and graphics</li>
+<li><strong>LinkedIn format:</strong> 2–3 minute version with business-focused intro and CTA</li>
+<li><strong>Instagram/TikTok format:</strong> 45–90 second hook-driven clips with captions and trending audio</li>
+<li><strong>Email format:</strong> 60-second teaser with strong opening and click-through button</li>
+<li><strong>Internal/training format:</strong> Longer versions with added graphics, quizzes, or chapter markers</li>
+</ul>
+<p>This isn't labour-intensive if you plan the production correctly. A professional editing workflow uses templates, consistent branding, and modular approaches. One <a href={p("services/corporate-video")}>corporate video</a> production, properly structured, yields dozens of platform-specific assets.</p>
+
+<h2>Distribution and Timeline: Extend Your Message</h2>
+<p>Content doesn't drive engagement if no one sees it. A structured release calendar keeps your audience engaged for weeks:</p>
+<ul>
+<li><strong>Day 1–2 (during event):</strong> Live social clips, Instagram Stories, quick highlights</li>
+<li><strong>Week 1:</strong> Full keynote videos, main speaker interviews, LinkedIn thought leadership</li>
+<li><strong>Week 2–3:</strong> Thematic content (deep dives on key topics, expert panels)</li>
+<li><strong>Week 4+:</strong> Employee spotlights, educational modules, evergreen training content</li>
+</ul>
+<p>This staggered approach maximises reach, prevents audience fatigue, and gives your content calendar structure without requiring fresh shoots each week. It's particularly effective for <a href={p("services/social-media-video")}>social media strategy</a>, where consistency and frequency drive algorithm performance.</p>
+
+<h2>Measuring Impact and ROI</h2>
+<p>Strong conference video production should be measurable. Track views, engagement, and lead attribution across platforms. Look beyond vanity metrics:</p>
+<ul>
+<li>Video completion rates (especially on LinkedIn and YouTube)</li>
+<li>Click-through rates on CTAs embedded in descriptions</li>
+<li>Email open and conversion rates for video-featuring campaigns</li>
+<li>Website traffic driven by video content</li>
+<li>Lead source attribution for videos that appear in nurture sequences</li>
+</ul>
+<p>Over time, this data informs your next conference production strategy. You'll learn which speakers, topics, and formats resonate most, allowing you to refine your approach continuously.</p>
+
+<h2>Partner with Experts</h2>
+<p>Conference video production at this scale requires coordination: location scouting, crew scheduling, equipment logistics, and editing timelines. Many companies underestimate the production effort and end up with footage that's hard to repurpose. Working with an experienced <a href={p("services/brand-video")}>video production partner</a> ensures your shoot is planned, executed, and edited for maximum content yield. Viven has produced conference content for industry leaders across finance, technology, and manufacturing—each requiring different strategies and formats. If you're planning a conference or major event and want to maximise its content value, let's talk about how to structure your shoot for weeks of engagement.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="conference-video-production-content-repurposing" />
+  </div></section>
+</Base>

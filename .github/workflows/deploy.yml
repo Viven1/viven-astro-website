@@ -1,0 +1,82 @@
+# Publicar viven.ch desde GitHub, no desde la Mac de Sebastián.
+#
+# POR QUÉ (2026-08-14): hasta hoy el sitio se publicaba a mano con
+# `npx wrangler deploy` desde una carpeta local. Eso tenía dos consecuencias que
+# se veían recién cuando dolían:
+#   1. El motor de blog (edge function publish-blog) commitea los posts nuevos
+#      directo a GitHub y los marca publicados — pero hasta que alguien no
+#      compilaba y desplegaba a mano, la página daba 404. Tres posts estuvieron
+#      así, "publicados" y rotos, hasta que se midió contra producción.
+#   2. Un mes de trabajo vivió solo en un disco, sin copia en ningún lado.
+#
+# Ahora: lo que está en `main` es lo que está publicado. Se merge y sale solo.
+#
+# Necesita UN secret en el repo (Settings → Secrets → Actions):
+#   CLOUDFLARE_API_TOKEN — token con permiso "Edit Cloudflare Workers"
+# (el account_id no es secreto y vive en wrangler.jsonc)
+
+name: Publicar viven.ch
+
+on:
+  push:
+    branches: [main]
+  # permite publicar a mano desde la pestaña Actions sin tener que commitear
+  workflow_dispatch:
+
+# si entran dos pushes seguidos, que gane el último y no se pisen dos deploys
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `npm run build` corre antes el guardia check-strays: si aparece una copia
+      # " 2" o un nombre en forma NFD, el build FALLA acá y no se publica. Es a
+      # propósito: esas dos cosas no rompen la compilación pero sí el sitio vivo.
+      - run: npm run build
+
+      # El account_id vive en wrangler.jsonc (identifica, no autoriza), así que
+      # el único secret que hace falta es el token.
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Sin fijar versión, la action trae wrangler 3.90, que NO sabe leer
+          # wrangler.jsonc (soporte de JSONC recién desde la 4) y falla con
+          # "Missing entry-point" — un error que apunta al main y no a la causa.
+          # Fijada a la misma versión que se usa en local, para que publicar
+          # desde GitHub y desde una máquina den exactamente lo mismo.
+          wranglerVersion: "4.123.0"
+
+      # Verificar, no suponer. Un deploy "exitoso" que devuelve 404 en la home
+      # ya pasó; el paso falla y queda registrado en Actions en vez de descubrirse
+      # tres días después en Search Console.
+      - name: Comprobar que producción responde
+        run: |
+          sleep 20
+          for u in https://www.viven.ch/en/ https://www.viven.ch/de/ https://www.viven.ch/es/ https://www.viven.ch/dashboard/; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 25 "$u")
+            echo "$code  $u"
+            [ "$code" = "200" ] || exit 1
+          done
+
+      # Avisarle a Bing en CADA deploy, no cuando alguien se acuerda. Google se
+      # entera solo (cron diario que reenvía el sitemap); Bing no tiene forma de
+      # saberlo salvo que se lo digan. Y Bing pesa más de lo que su tamaño
+      # sugiere: mismo período, 6× menos impresiones que Google pero casi los
+      # mismos clicks — CTR 3,8% contra 0,7%.
+      # Va DESPUÉS de comprobar que producción responde: avisar de páginas que
+      # todavía no están arriba es peor que no avisar.
+      - name: Avisarle a Bing y Yandex (IndexNow)
+        continue-on-error: true   # si esto falla, el deploy ya salió bien igual
+        run: node scripts/indexnow.mjs

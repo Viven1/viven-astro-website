@@ -1,0 +1,153 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Por qué Viven es la agencia de video para marcas B2B | Viven"};
+const description = {"es":"Viven ayuda a marcas B2B a simplificar su comunicación y acelerar sus ventas con video a medida. Mirá cómo nuestros videos impulsan tu negocio."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "por-que-viven-es-la-agencia-de-video-para-marcas-b2b";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/por-que-viven-es-la-agencia-de-video-para-marcas-b2b" active="blog" singleLang={true} langUrls={{"es":"/es/blog/por-que-viven-es-la-agencia-de-video-para-marcas-b2b/","en":"/en/blog/why-viven-is-the-video-agency-of-choice-for-b2b-brands/","de":"/de/blog/warum-viven-die-bevorzugte-videoagentur-fuer-b2b-marken-ist/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/por-que-viven-es-la-agencia-de-video-para-marcas-b2b/\"},\"headline\":\"Por qué Viven es la agencia de video elegida por las marcas B2B\",\"description\":\"Viven ayuda a marcas B2B a simplificar su comunicación y acelerar sus ventas con video a medida. Mirá cómo nuestros videos impulsan tu negocio.\",\"image\":\"/projects/meteomatics-product-campaign-brand-video/05-Meteomatics_VIVEN_Video_Agentur_035.jpg\",\"datePublished\":\"2026-07-27T09:00:00.000Z\",\"dateModified\":\"2026-07-27T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/por-que-viven-es-la-agencia-de-video-para-marcas-b2b/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Por qué Viven es la agencia de video elegida por las marcas B2B\",\"item\":\"https://www.viven.ch/es/blog/por-que-viven-es-la-agencia-de-video-para-marcas-b2b/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué las marcas B2B eligen a Viven como su agencia de video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Viven entrega mensajes claros para industrias complejas, imágenes de alta calidad que refuerzan el branding profesional y estrategias de video orientadas a resultados, a medida de los ciclos de venta B2B.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto mejora el video la generación de leads B2B?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"El video aumenta la generación de leads un 66% para las marcas B2B, además de explicar productos rápido, fortalecer el liderazgo de opinión y construir la confianza necesaria para relaciones de largo plazo.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué produjo Viven para el horno Combair V600 de V-Zug?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Viven produjo 11 videos how-to de 15 a 30 segundos sobre las operaciones clave del horno, adaptados a cinco idiomas y tres formatos, filmados con cámaras RED en un estudio controlado.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Por qué Viven es la agencia de video elegida por las marcas B2B</span>
+        </nav>
+        <span class="eyebrow">Video de marca</span>
+        <h1>Por qué Viven es la agencia de video elegida por las marcas B2B</h1>
+        <p class="lead">Viven ayuda a las marcas B2B a simplificar su comunicación y acelerar sus ventas con contenido en video a medida. Mirá cómo nuestros videos pueden impulsar tu negocio.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>27 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="/projects/meteomatics-product-campaign-brand-video/05-Meteomatics_VIVEN_Video_Agentur_035.jpg" alt="Por qué Viven es la agencia de video elegida por las marcas B2B" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Viven es la agencia de video elegida por las marcas B2B porque simplifica ciclos de venta complejos con mensajes a medida que involucran a los decisores y aceleran el proceso de compra. Las marcas B2B enfrentan ciclos de venta más largos y complejos que las marcas de consumo, y el contenido en video que clarifica la oferta y construye credibilidad es esencial para ganarse esa confianza.</p>
+<h2>Por qué las marcas B2B necesitan un socio de video especializado</h2>
+<p>Las marcas B2B enfrentan ciclos de venta complejos y necesitan mensajes a medida para involucrar a los decisores, a diferencia de las marcas de consumo que pueden apoyarse en un único gancho emocional. Una agencia de video genérica suele perderse ese matiz; por eso Viven construye cada proyecto alrededor de la forma específica en que los compradores B2B evalúan y compran.</p>
+<h2>El rol del video en el marketing B2B</h2>
+<p>El video aumenta la generación de leads un 66% para las marcas B2B y ayuda a explicar productos o servicios de forma rápida y clara. El contenido en video también fortalece el liderazgo de opinión y construye confianza, algo esencial para establecer relaciones de largo plazo con los clientes.</p>
+<h2>Viven entrega soluciones de video enfocadas en B2B</h2>
+<p>En Viven trabajamos con empresas B2B para entregar videos que clarifican la oferta, construyen credibilidad y apoyan las ventas. Nuestra experiencia asegura que los videos que creamos ayudan a involucrar a los decisores e impulsan conversiones en formatos como:</p>
+<ul>
+<li><a href={p("services/how-to-video")}>Videos explicativos</a></li>
+<li><a href={p("services/product-video")}>Demos de producto</a></li>
+<li>Videos de perfil corporativo</li>
+<li>Videos de casos de éxito de clientes</li>
+<li>Contenido de eventos y webinars</li>
+</ul>
+<h2>Caso: la serie de videos del Combair V600 de V-Zug</h2>
+<p>V-Zug, un fabricante suizo líder de electrodomésticos, se asoció con Viven para crear una serie de <a href={p("services/how-to-video")}>videos how-to</a> para su electrodoméstico premium, el horno Combair V600. El objetivo era ayudar a los clientes a entender las funciones clave del horno, haciéndolo más fácil de usar y de aprovechar al máximo.</p>
+<p>Produjimos 11 videos, de entre 15 y 30 segundos cada uno, cubriendo operaciones esenciales como programar el temporizador, ajustar los modos de cocción y retirar la puerta de forma segura para limpiarla. Para asegurar la accesibilidad en todas las regiones, adaptamos los videos a cinco idiomas y creamos tres formatos distintos, compatibles con diversas plataformas.</p>
+<p>Filmamos en un entorno de estudio controlado con cámaras RED para capturar cada detalle de las funciones avanzadas del horno, asegurando que los videos finales estuvieran perfectamente alineados con la estética premium de V-Zug. El resultado fue una serie de guías atractiva y fácil de usar que mostró el diseño y la funcionalidad del producto con claridad y eficacia.</p>
+<h2>Por qué las marcas B2B eligen a Viven</h2>
+<p>Las marcas eligen a Viven por sus mensajes claros en industrias complejas, sus imágenes de alta calidad que refuerzan el branding profesional y sus estrategias orientadas a resultados, a medida de los mercados B2B. Para ver cómo este enfoque se extiende a la generación de pipeline, leé <a href={p("blog/como-las-marcas-b2b-generan-leads-calificados-con-video")}>cómo las marcas B2B generan leads calificados con video</a>.</p>
+<p><strong><a href={p("contact")}>Descubrí cómo Viven puede apoyar a tu marca B2B.</a></strong></p>
+      </div>
+    <p class="post-service-note"><a href={p("services/brand-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción de videos de marca.</a></p>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué las marcas B2B eligen a Viven como su agencia de video?</summary>
+        <p>Viven entrega mensajes claros para industrias complejas, imágenes de alta calidad que refuerzan el branding profesional y estrategias de video orientadas a resultados, a medida de los ciclos de venta B2B.</p>
+      </details>
+      <details>
+        <summary>¿Cuánto mejora el video la generación de leads B2B?</summary>
+        <p>El video aumenta la generación de leads un 66% para las marcas B2B, además de explicar productos rápido, fortalecer el liderazgo de opinión y construir la confianza necesaria para relaciones de largo plazo.</p>
+      </details>
+      <details>
+        <summary>¿Qué produjo Viven para el horno Combair V600 de V-Zug?</summary>
+        <p>Viven produjo 11 videos how-to de 15 a 30 segundos sobre las operaciones clave del horno, adaptados a cinco idiomas y tres formatos, filmados con cámaras RED en un estudio controlado.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="por-que-viven-es-la-agencia-de-video-para-marcas-b2b" />
+  </div></section>
+</Base>

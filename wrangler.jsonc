@@ -1,0 +1,25 @@
+// Config del Worker (Cloudflare Workers Builds la respeta al correr
+// `npx wrangler deploy`). Antes no existía y Cloudflare usaba defaults —
+// cuyo not_found_handling es "none": cualquier URL rota devolvía un 404
+// con CUERPO VACÍO (pantalla en blanco) en vez de nuestra 404.
+// name/compatibility copiados EXACTOS del dashboard (Settings → Runtime) —
+// si el name no coincide, wrangler crearía un Worker nuevo sin el dominio.
+// run_worker_first:true (antes solo ["/"]) — 2026-07-28: el worker ahora
+// también hace el 301 apex→www para CUALQUIER path (ver worker.js), así que
+// tiene que correr en todas las requests, no solo en la raíz.
+{
+  "name": "viven-astro-website",
+  // El ID de cuenta identifica, no autoriza: sin el token de API no sirve para
+  // nada, así que no es un secreto. Teniéndolo acá, GitHub Actions publica con
+  // un solo secret en vez de dos — un paso manual menos que se puede olvidar.
+  "account_id": "90f6e3351cb122c64ab307709e4b9d81",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-24",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  }
+}

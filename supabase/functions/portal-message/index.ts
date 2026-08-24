@@ -1,0 +1,67 @@
+// Supabase Edge Function: portal-message (PÚBLICA)
+// El cliente deja un comentario/feedback desde el portal. Valida el token,
+// lo guarda como nota del contacto (aparece en el dashboard como cualquier
+// otra nota) y avisa al equipo por push — nunca se pierde en un email suelto.
+//
+// Deploy: supabase functions deploy portal-message --no-verify-jwt
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+// comparación en tiempo constante — el token es el único control de acceso acá
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/* Delegar en push-send, que manda Web Push Y APNs. Estaba reimplementado acá
+ * y solo salía por Web Push: al iPhone, donde los avisos van por APNs, no
+ * llegaba NUNCA. (14 ago 2026 — Sebastián: "quiero notificaciones de blogs a
+ * publicar, emails que tenemos que aprobar, nuevas leads". Los avisos existían;
+ * el teléfono no era destinatario de ninguno.) */
+async function pushAll(title: string, body: string, url: string) {
+  await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+    body: JSON.stringify({ title, body, url }),
+  }).catch((e) => console.error("PUSH_ERROR", String(e)));
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  try {
+    const { id, t, message } = await req.json();
+    if (!id || !t || !String(message || "").trim()) return json({ error: "missing_params" }, 400);
+    const { data: deal, error } = await service.from("deals").select("id,title,portal_token,lead_id").eq("id", id).maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    if (!deal || !deal.portal_token || !timingSafeEqual(String(deal.portal_token), String(t))) return json({ error: "not_found" }, 404);
+
+    // rate-limit simple sin infra extra: un mensaje cada 20s por proyecto —
+    // este endpoint es público y sin captcha, un token filtrado no debería
+    // poder bombardear al equipo de pushes ni llenar las notas de spam
+    const { data: recent } = await service.from("lead_notes").select("created_at").eq("lead_id", deal.lead_id ? String(deal.lead_id) : "").ilike("author", "%(portal)").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (recent && Date.now() - new Date(recent.created_at).getTime() < 20_000) return json({ error: "too_many_requests" }, 429);
+
+    let clientName = "Cliente";
+    if (deal.lead_id) { const { data } = await service.from("leads").select("name,email").eq("id", deal.lead_id).maybeSingle(); if (data) clientName = data.name || data.email || clientName; }
+
+    await service.from("lead_notes").insert({
+      lead_id: deal.lead_id ? String(deal.lead_id) : null,
+      author: clientName + " (portal)",
+      body: String(message).trim().slice(0, 2000),
+    });
+    await pushAll("💬 Mensaje del cliente en el portal", clientName + " — " + (deal.title || "proyecto"), deal.lead_id ? `/dashboard/?lead=${deal.lead_id}` : "/dashboard/");
+    return json({ ok: true });
+  } catch (e) {
+    console.error("FUNCTION_ERROR", String(e));
+    return json({ error: String(e) }, 500);
+  }
+});

@@ -1,0 +1,75 @@
+---
+/* Consent Mode v2 + carga del container de GTM.
+   Fuente única: lo usa Base.astro (todo el sitio) y además cada página que arma
+   su propio <head> sin Base — /thank-you/, /danke/, /gracias/. Esas tres son las
+   páginas de conversión: si les falta el container, el tag de conversión de
+   Google Ads no dispara nunca, por más bien configurado que esté del lado de la
+   agencia. Ya pasó una vez; por eso vive acá y no copiado en cada layout.
+
+   GTM-M3TD9G4H es el container propio. El de la agencia (GTM-MVFQ7T7) quedó del
+   sitio anterior y hoy no carga en ninguna página; la decisión (3 ago 2026) es que
+   migren sus tags acá en vez de restaurar el viejo. */
+---
+<!-- Google Consent Mode v2 — default state, debe correr antes de GTM/gtag para que los
+     tags que respetan Consent Mode no disparen (o queden bloqueados) sin ninguna señal. -->
+<script is:inline>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('consent', 'default', {
+  'ad_storage': 'denied',
+  'analytics_storage': 'denied',
+  'ad_user_data': 'denied',
+  'ad_personalization': 'denied',
+  'wait_for_update': 500
+});
+/* Restaurar el consentimiento ya dado. Vive acá y no en site.js porque /book/ no
+   carga site.js: sin esto, quien ya aceptó cookies en el sitio era tratado como
+   "denied" al reservar — y una reserva confirmada es la conversión más valiosa,
+   así que se sub-reportaba justo donde más duele. En las páginas que sí cargan
+   site.js este update es redundante (site.js lo repite con los mismos valores,
+   que es inocuo) pero sale antes, que es mejor para los tags. */
+try{
+  if(localStorage.getItem('viven-cookie') === 'accepted'){
+    gtag('consent', 'update', {
+      'ad_storage': 'granted',
+      'analytics_storage': 'granted',
+      'ad_user_data': 'granted',
+      'ad_personalization': 'granted'
+    });
+  }
+}catch(e){}
+</script>
+
+<!-- Google Tag Manager — diferido a después del load, para que no compita con el
+     render inicial por tiempo de main thread (PageSpeed: TBT/JS sin usar). El container
+     en sí puede cargar siempre (Consent Mode decide qué tag dispara adentro) — Clarity
+     NO tiene noción de Consent Mode propia, así que esa carga vive en site.js, gateada
+     por el mismo cookie-bar que ya gatea GA4 (pedido explícito de Sebastián). -->
+<script is:inline>
+function _vivenLoadTracking(){
+  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-M3TD9G4H');
+}
+/* Diferirlo al 'load' no alcanzaba: en un teléfono con 4G lento el load ocurre ANTES
+   del LCP, así que los ~300 KB de GTM + Ads seguían compitiendo justo mientras el hero
+   tiene que pintar. Medido el 24 ago con Lighthouse 13 contra produccion: bloqueando
+   GTM/Ads la home pasa de 71 a 85 y el LCP de 6,8 s a 3,6 s.
+   Ahora esperamos a que el main thread esté libre (requestIdleCallback), con un tope de
+   3 s por si nunca queda libre. No se pierde nada: el container carga igual, solo
+   despues de que el visitante ya vio la pagina.
+   EXCEPCION: las paginas de conversion (thank-you/danke/gracias/book) cargan como antes,
+   sin esperar. Ahi el tag de conversion de Google Ads tiene que disparar si o si, y
+   alguien puede cerrar la pestaña a los dos segundos — una conversion no reportada
+   cuesta mucho mas que unos puntos de PageSpeed. */
+var _vivenEsConversion = /\/(thank-you|danke|gracias|book)\//.test(location.pathname);
+function _vivenAgendarTracking(){
+  if(_vivenEsConversion) return setTimeout(_vivenLoadTracking, 100);
+  if('requestIdleCallback' in window) requestIdleCallback(_vivenLoadTracking, { timeout: 3000 });
+  else setTimeout(_vivenLoadTracking, 2500);
+}
+if(document.readyState === 'complete') _vivenAgendarTracking();
+else window.addEventListener('load', _vivenAgendarTracking);
+</script>

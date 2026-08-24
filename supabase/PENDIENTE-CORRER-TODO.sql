@@ -1,0 +1,290 @@
+-- ============================================================================
+--  Viven — en qué página convirtió el lead (form de la página del servicio,
+--  no solo /contact). Clave para saber qué servicio/página genera leads.
+--  Correr una vez en el SQL Editor de Supabase. Idempotente.
+-- ============================================================================
+
+alter table public.leads add column if not exists form_path text;
+-- ============================================================================
+--  Viven — valor estimado del deal en el contacto (cuando todavía no hay oferta).
+--  El board de Deals y el forecast usan este valor hasta que exista una oferta.
+--  Correr una vez en el SQL Editor de Supabase. Idempotente.
+-- ============================================================================
+
+alter table public.leads add column if not exists deal_value numeric;
+-- ============================================================================
+--  Viven — términos especiales en ofertas + templates reutilizables
+--  (los terms de propuestas van dentro de content JSON, no necesitan columna)
+--  Correr una vez en el SQL Editor de Supabase. Idempotente.
+-- ============================================================================
+
+alter table public.offers    add column if not exists terms       text;
+alter table public.offers    add column if not exists is_template boolean not null default false;
+alter table public.proposals add column if not exists is_template boolean not null default false;
+-- ============================================================================
+--  Viven — follow-ups automáticos al CLIENTE (secuencia aprobable/editable)
+--  + archivar propuestas. Correr una vez en el SQL Editor. Idempotente.
+-- ============================================================================
+
+-- cada fila = un email de follow-up programado para un lead
+create table if not exists public.lead_followups (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  lead_id    text not null,
+  position   int  not null default 1,        -- nº en la secuencia (1, 2, 3…)
+  subject    text not null,
+  body       text not null,
+  send_at    timestamptz not null,           -- cuándo se manda (editable)
+  status     text not null default 'draft',  -- draft | approved | sent | canceled
+  sent_at    timestamptz,
+  sender_key text default 'sofia'            -- de quién sale (reply-to)
+);
+alter table public.lead_followups enable row level security;
+drop policy if exists lead_followups_all_auth on public.lead_followups;
+create policy lead_followups_all_auth on public.lead_followups for all to authenticated using (true) with check (true);
+create index if not exists lead_followups_lead_idx on public.lead_followups (lead_id);
+create index if not exists lead_followups_due_idx on public.lead_followups (send_at) where status = 'approved';
+
+-- archivar propuestas (las ofertas ya tienen archived)
+alter table public.proposals add column if not exists archived boolean not null default false;
+-- ============================================================================
+--  Viven — schedules de los crons (task-remind cada 5 min, followup-send cada 30)
+--  Correr una vez en el SQL Editor. Usa pg_cron + pg_net (mismo patrón que 0001).
+--  Para cambiar un horario: select cron.unschedule('viven-task-remind'); y re-crear.
+-- ============================================================================
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- limpiar si ya existían (idempotente)
+do $$ begin
+  perform cron.unschedule('viven-task-remind');
+exception when others then null; end $$;
+do $$ begin
+  perform cron.unschedule('viven-followup-send');
+exception when others then null; end $$;
+
+-- ⏰ recordatorios de tasks vencidas (push + email) — cada 5 minutos
+select cron.schedule('viven-task-remind', '*/5 * * * *', $$
+  select net.http_post(
+    url := 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1/task-remind',
+    headers := jsonb_build_object('Content-Type', 'application/json'),
+    body := '{}'::jsonb
+  );
+$$);
+
+-- 📬 follow-ups aprobados al cliente — cada 30 minutos
+select cron.schedule('viven-followup-send', '*/30 * * * *', $$
+  select net.http_post(
+    url := 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1/followup-send',
+    headers := jsonb_build_object('Content-Type', 'application/json'),
+    body := '{}'::jsonb
+  );
+$$);
+-- 0021: dirección legal del cliente en ofertas + enrich de contactos con IA + booking propio
+-- Correr en Supabase → SQL Editor.
+
+-- 1) Oferta PDF legal: dirección completa del cliente
+alter table public.offers add column if not exists client_company  text;
+alter table public.offers add column if not exists client_contact  text;
+alter table public.offers add column if not exists client_address  text;
+alter table public.offers add column if not exists client_zip_city text;
+alter table public.offers add column if not exists client_phone    text;
+alter table public.offers add column if not exists client_email    text;
+
+-- 2) Enrich contacts con IA (resultado cacheado en el lead)
+alter table public.leads add column if not exists enrichment  jsonb;
+alter table public.leads add column if not exists enriched_at timestamptz;
+
+-- 3) Booking propio (reemplazo del meeting link de HubSpot)
+create table if not exists public.bookings (
+  id          uuid primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  name        text not null,
+  email       text not null,
+  phone       text,
+  message     text,
+  start_at    timestamptz not null,
+  end_at      timestamptz not null,
+  duration_m  int not null default 15,
+  lang        text default 'en',
+  lead_id     uuid,
+  gcal_event  text,          -- id del evento creado en Google Calendar
+  meet_url    text,          -- link de Google Meet
+  status      text not null default 'confirmed'   -- confirmed | canceled
+);
+alter table public.bookings enable row level security;
+-- solo el service role escribe/lee (las edge functions); nada para anon
+drop policy if exists bookings_no_anon on public.bookings;
+-- ============================================================================
+-- 0022 (v2): DEALS como entidad propia (modelo HubSpot)
+-- La PERSONA (leads) ya no "es" el deal: un contacto puede tener VARIOS deals
+-- (proyectos), cada uno con su etapa en el pipeline. leads.status queda como
+-- ESPEJO del deal más reciente. Backfill: 1 deal por persona existente.
+-- v2: leads.id es BIGINT (no uuid) — la v1 fallaba con "operator does not exist:
+--     uuid = bigint". Esta versión es autocurativa: si la tabla quedó creada
+--     VACÍA por la corrida fallida, la recrea con los tipos correctos.
+-- ============================================================================
+
+-- autocuración: si deals existe pero está VACÍA (corrida v1 fallida), recrearla.
+-- OJO: la referencia a public.deals va en EXECUTE (SQL dinámico) — si la tabla no
+-- existe, una referencia directa falla al PLANIFICAR aunque el IF dé falso.
+do $$
+declare has_rows boolean;
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'deals') then
+    execute 'select exists(select 1 from public.deals limit 1)' into has_rows;
+    if not has_rows then
+      execute 'drop table public.deals cascade';
+    end if;
+  end if;
+end $$;
+
+create table if not exists public.deals (
+  id            uuid primary key default gen_random_uuid(),
+  created_at    timestamptz not null default now(),
+  lead_id       bigint not null,               -- leads.id es bigint
+  title         text,                          -- nombre del proyecto (ej. "Employer branding 2026")
+  stage         text not null default 'nuevo', -- nuevo|contactado|videocall|propuesta|ganado|perdido
+  deal_value    numeric,                       -- estimado manual (fallback si no hay ofertas)
+  lost_reason   text,
+  archived      boolean not null default false,
+  last_stage_at timestamptz,
+  contacted_at  timestamptz,
+  videocall_at  timestamptz,
+  proposal_at   timestamptz,
+  won_at        timestamptz,
+  lost_at       timestamptz
+);
+create index if not exists deals_lead_idx on public.deals (lead_id);
+alter table public.deals enable row level security;
+drop policy if exists deals_auth_all on public.deals;
+create policy deals_auth_all on public.deals for all to authenticated using (true) with check (true);
+
+-- ofertas / propuestas / follow-ups pertenecen a UN deal (además de la persona)
+alter table public.offers         add column if not exists deal_id uuid;
+alter table public.proposals      add column if not exists deal_id uuid;
+alter table public.lead_followups add column if not exists deal_id uuid;
+
+-- fix de 0021: bookings.lead_id era uuid pero leads.id es bigint (los inserts
+-- fallaban en silencio) + el dashboard necesita LEER bookings (Necesita atención)
+alter table public.bookings drop column if exists lead_id;
+alter table public.bookings add column if not exists lead_id bigint;
+drop policy if exists bookings_auth_read on public.bookings;
+create policy bookings_auth_read on public.bookings for select to authenticated using (true);
+
+-- ---------------------------------------------------------------------------
+-- BACKFILL (idempotente): 1 deal por lead que aún no tenga ninguno
+-- ---------------------------------------------------------------------------
+insert into public.deals (lead_id, title, stage, deal_value, lost_reason, created_at,
+                          last_stage_at, contacted_at, videocall_at, proposal_at, won_at, lost_at)
+select l.id,
+       coalesce(nullif(l.name, ''), l.email),
+       case
+         when lower(coalesce(l.status,'')) in ('won','ganado','cerrado')          then 'ganado'
+         when lower(coalesce(l.status,'')) in ('lost','perdido')                  then 'perdido'
+         when lower(coalesce(l.status,'')) in ('proposal','propuesta','qualified') then 'propuesta'
+         when lower(coalesce(l.status,'')) in ('videocall','video call booked','call','agendada','booked') then 'videocall'
+         when lower(coalesce(l.status,'')) in ('contacted','contactado')          then 'contactado'
+         else 'nuevo'
+       end,
+       l.deal_value, l.lost_reason, l.created_at,
+       l.last_stage_at, l.contacted_at, l.videocall_at, l.proposal_at, l.won_at, l.lost_at
+from public.leads l
+where not exists (select 1 from public.deals d where d.lead_id = l.id);
+
+-- ligar lo existente a ese deal inicial (comparación por texto: tipos mixtos)
+update public.offers o set deal_id = d.id
+  from public.deals d
+ where o.deal_id is null and o.lead_id is not null and d.lead_id::text = o.lead_id::text;
+
+update public.proposals p set deal_id = d.id
+  from public.deals d
+ where p.deal_id is null and p.lead_id is not null and d.lead_id::text = p.lead_id::text;
+
+update public.lead_followups f set deal_id = d.id
+  from public.deals d
+ where f.deal_id is null and f.lead_id is not null and d.lead_id::text = f.lead_id::text;
+-- 0023: dirección legal en la ficha de EMPRESA (fuente para ofertas y propuestas)
+alter table public.companies add column if not exists address  text;
+alter table public.companies add column if not exists zip_city text;
+-- 0024: settings del booking (/book/) editables desde el dashboard — como HubSpot Meetings.
+-- Una sola fila (id=1). Las edge functions booking-slots/booking-create la leen con service role.
+create table if not exists public.booking_settings (
+  id           int primary key default 1 check (id = 1),
+  updated_at   timestamptz not null default now(),
+  active       boolean not null default true,          -- OFF → /book/ muestra el link de respaldo
+  work_start   int not null default 540,               -- minutos desde 00:00 Zúrich (540 = 09:00)
+  work_end     int not null default 1050,              -- 1050 = 17:30
+  days         int[] not null default '{1,2,3,4,5}',   -- ISO: 1=Lu … 7=Do
+  notice_hours int not null default 4,                 -- aviso mínimo
+  horizon_days int not null default 28,                -- hasta cuántos días adelante
+  buffer_min   int not null default 0,                 -- colchón antes/después de cada call
+  durations    int[] not null default '{15,30}',       -- opciones de duración
+  host_name    text not null default 'Sebastian Cepeda',
+  host_role    text not null default 'Founder — Viven AG, Zürich',
+  msg_en       text,                                    -- mensaje extra post-booking (opcional)
+  msg_de       text,
+  msg_es       text
+);
+insert into public.booking_settings (id) values (1) on conflict (id) do nothing;
+alter table public.booking_settings enable row level security;
+drop policy if exists bkset_auth_all on public.booking_settings;
+create policy bkset_auth_all on public.booking_settings for all to authenticated using (true) with check (true);
+
+-- limpieza: borrar el lead de diagnóstico del test del formulario
+delete from public.leads where email = 'diagtest@example.invalid';
+-- ============================================================================
+--  Viven — ENCENDER EL DESPACHADOR DEL NEWSLETTER + el equipo recibe siempre
+--  (12 ago 2026).
+--
+--  >>> YA CORRIDO el 12 ago 2026, 21:06 UTC, desde el SQL Editor. <<<
+--  Queda acá como registro. Es idempotente: correrlo de nuevo no rompe nada.
+--  El `create table app_settings` se omitió a propósito al correrlo: la tabla ya
+--  existía (migración 0040, con RLS y política) y el linter de Supabase avisaba
+--  por eso — no hacía falta tocar permisos.
+--
+--  Sin esto, "Programar fecha y hora" sigue guardando la fecha y no mandando
+--  nunca (que es el bug que estamos arreglando). Todo lo demás — el panel de
+--  destinatarios, la vista por idioma, el equipo en la lista — YA está andando
+--  sin tocar la base.
+--
+--  Detalle y por qué de cada decisión: migrations/0120_newsletter_dispatch_cron.sql
+--  y migrations/0121_newsletter_equipo_siempre.sql
+-- ============================================================================
+
+-- ---- 0120: el cron del despachador ---------------------------------------
+-- Cada 15 min. El horario laboral suizo (Lun-Vie 09:00-12:00 y 13:30-17:00 hora
+-- de Zúrich, con el corte del mediodía a propósito) lo decide la edge function,
+-- no este cron: pg_cron solo entiende UTC y Zúrich cambia de hora dos veces al
+-- año. La ventana UTC de acá es a propósito más amplia.
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+do $$ begin perform cron.unschedule('viven-newsletter-dispatch'); exception when others then null; end $$;
+do $$ begin perform cron.unschedule('newsletter-dispatch');       exception when others then null; end $$;
+
+select cron.schedule('viven-newsletter-dispatch', '*/15 5-16 * * 1-5', $$
+  select net.http_post(
+    url := 'https://lumoevaotokgqnpybkyf.supabase.co/functions/v1/newsletter-dispatch',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization',
+      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')),
+    body := '{}'::jsonb
+  );
+$$);
+
+-- ---- 0121: las casillas del equipo (el interruptor, editable) -------------
+-- Sin esta fila el código ya usa el mismo default, así que es opcional: sirve
+-- para poder cambiar las direcciones sin tocar código. Array vacío = apagado.
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+insert into public.app_settings (key, value)
+values ('newsletter', '{"always_to": ["info@viven.ch", "sofia@viven.ch"]}')
+on conflict (key) do nothing;
+
+-- ---- verificación (no cambia nada) ---------------------------------------
+-- select jobname, schedule, active from cron.job where jobname = 'viven-newsletter-dispatch';
+-- select value from public.app_settings where key = 'newsletter';

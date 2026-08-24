@@ -1,0 +1,150 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Video de producto: más conversiones en ecommerce | Viven"};
+const description = {"es":"Aumentá tus ventas de ecommerce con videos de producto de alta calidad. Descubrí cómo la agencia de video de Viven impulsa conversiones y ROI."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videos-de-producto-para-aumentar-conversiones-en-ecommerce";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/videos-de-producto-para-aumentar-conversiones-en-ecommerce" active="blog" singleLang={true} langUrls={{"es":"/es/blog/videos-de-producto-para-aumentar-conversiones-en-ecommerce/","en":"/en/blog/how-brands-increase-e-commerce-conversions-with-product-videos/","de":"/de/blog/so-steigern-marken-ihre-e-commerce-konversionen-mit-produktvideos/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/videos-de-producto-para-aumentar-conversiones-en-ecommerce/\"},\"headline\":\"Cómo las marcas aumentan las conversiones de ecommerce con videos de producto\",\"description\":\"Aumentá tus ventas de ecommerce con videos de producto de alta calidad. Descubrí cómo la agencia de video de Viven impulsa conversiones y ROI.\",\"image\":\"https://www.viven.ch/projects/anybotics-anymal-c-product-launch/03-tion2019-08-22-12h09m05s955-1024x512.jpg\",\"datePublished\":\"2026-07-29T09:00:00.000Z\",\"dateModified\":\"2026-07-29T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/videos-de-producto-para-aumentar-conversiones-en-ecommerce/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Cómo las marcas aumentan las conversiones de ecommerce con videos de producto\",\"item\":\"https://www.viven.ch/es/blog/videos-de-producto-para-aumentar-conversiones-en-ecommerce/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto mejoran los videos de producto las conversiones de ecommerce?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Los compradores tienen un 85% más de probabilidades de comprar un producto después de ver un video de producto, ya que el video genera una comprensión y una confianza que las imágenes estáticas solas no pueden dar.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué tipos de video de producto funcionan mejor para ecommerce?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Las demos cortas de producto, los reels de características, los videos de producto en estilo lifestyle y los clips de testimonios de clientes abordan distintas partes de la decisión de compra.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué produjo Viven para la línea Sensai de Kanebo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Viven produjo una serie de videos how-to de alta gama a lo largo de 2,5 días de filmación con cámaras RED Cinema, mostrando las técnicas correctas de aplicación y distribuyendo el contenido en la web, YouTube, Instagram y otras redes sociales.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Cómo las marcas aumentan las conversiones de ecommerce con videos de producto</span>
+        </nav>
+        <span class="eyebrow">Video de producto</span>
+        <h1>Cómo las marcas aumentan las conversiones de ecommerce con videos de producto</h1>
+        <p class="lead">Aumentá tus ventas de ecommerce con videos de producto de alta calidad. Descubrí cómo la agencia de video de Viven impulsa conversiones y ROI.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>29 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="https://www.viven.ch/projects/anybotics-anymal-c-product-launch/03-tion2019-08-22-12h09m05s955-1024x512.jpg" alt="Cómo las marcas aumentan las conversiones de ecommerce con videos de producto" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Las marcas aumentan las conversiones de ecommerce con videos de producto porque los compradores tienen un 85&nbsp;% más de probabilidades de comprar después de ver uno — el video genera en el cliente una comprensión y una confianza que las imágenes estáticas no pueden igualar. En un mercado más competitivo que nunca, el contenido de video efectivo impulsa las conversiones y reduce el rebote a lo largo de todo el recorrido del cliente.</p>
+<h2>Por qué las marcas de ecommerce necesitan contenido de video</h2>
+<p>El ecommerce es más competitivo que nunca, y las fotos estáticas de producto por sí solas rara vez responden todas las preguntas que tiene un comprador antes de pagar. Las marcas necesitan contenido de video efectivo que impulse las conversiones y reduzca el rebote a lo largo de todo el recorrido del cliente, desde la primera visita a la página de producto hasta la decisión final de compra.</p>
+<h2>Por qué los videos de producto aumentan las conversiones</h2>
+<p>El video responde las preguntas que los compradores tienen antes de comprar: cómo se ve el producto en movimiento, cómo encaja en la vida diaria y por qué vale el precio. Esa combinación de comprensión y confianza es lo que convierte a los curiosos en compradores. Viven se especializa en crear <a href={p("services/product-video")}>videos de producto</a> diseñados para mejorar el recorrido del cliente y aumentar las ventas online, entre ellos:</p>
+<ul>
+<li>Demos cortas de producto</li>
+<li>Reels destacando características</li>
+<li>Videos de producto en estilo lifestyle</li>
+<li>Clips de testimonios de clientes</li>
+</ul>
+<h2>Caso de éxito: impulsando ventas de ecommerce con Kanebo</h2>
+<p>Kanebo Cosmetics, una marca líder en belleza y cuidado de la piel, colaboró con Viven para crear una serie de videos how-to de alta gama que mostraban las técnicas correctas de aplicación de su línea de skincare Sensai. El objetivo era mostrarle a los clientes cómo usar los productos correctamente y aprovechar todos sus beneficios.</p>
+<p>El equipo de Viven coordinó cada aspecto de la producción, desde el casting de modelos hasta la curaduría de un set que reflejara la imagen premium de la marca Sensai. El proyecto abarcó 2,5 días de filmación, incluyendo medio día de armado, con cámaras RED Cinema capturando cada detalle del producto con una claridad excepcional.</p>
+<p>Estos videos how-to fueron pensados para educar mientras destacaban la elegancia y la estética premium de los productos Sensai, haciéndolos visualmente atractivos e informativos. Los videos se distribuyeron en la web, YouTube, Instagram y otras redes sociales, conectando con un amplio rango de edades y reforzando la imagen sofisticada de la marca. La colaboración mostró el poder de combinar contenido educativo con una narrativa visual sólida, fortaleciendo la conexión de Sensai con su audiencia y, en definitiva, aumentando las conversiones.</p>
+<h2>Por qué las marcas confían en Viven</h2>
+<p>Las marcas eligen Viven por su expertise en estrategia de video para ecommerce, su integración fluida con plataformas de ecommerce y su foco claro en entregar ROI medible. Si tu producto necesita más explicación antes de que los clientes conviertan, te recomendamos leer más en nuestro <a href={p("blog")}>blog</a> sobre cómo los videos explicativos aumentan las ventas y el compromiso de los clientes.</p>
+<p><strong><a href={p("contact")}>Descubrí cómo Viven puede ayudarte a impulsar tus ventas de ecommerce.</a></strong></p>
+      </div>
+    <p class="post-service-note"><a href={p("services/product-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción de video de producto.</a></p>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Cuánto mejoran los videos de producto las conversiones de ecommerce?</summary>
+        <p>Los compradores tienen un 85% más de probabilidades de comprar un producto después de ver un video de producto, ya que el video genera una comprensión y una confianza que las imágenes estáticas solas no pueden dar.</p>
+      </details>
+      <details>
+        <summary>¿Qué tipos de video de producto funcionan mejor para ecommerce?</summary>
+        <p>Las demos cortas de producto, los reels de características, los videos de producto en estilo lifestyle y los clips de testimonios de clientes abordan distintas partes de la decisión de compra.</p>
+      </details>
+      <details>
+        <summary>¿Qué produjo Viven para la línea Sensai de Kanebo?</summary>
+        <p>Viven produjo una serie de videos how-to de alta gama a lo largo de 2,5 días de filmación con cámaras RED Cinema, mostrando las técnicas correctas de aplicación y distribuyendo el contenido en la web, YouTube, Instagram y otras redes sociales.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="videos-de-producto-para-aumentar-conversiones-en-ecommerce" />
+  </div></section>
+</Base>

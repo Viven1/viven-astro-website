@@ -1,0 +1,92 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import LeadMagnet from '../../../../components/LeadMagnet.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Vídeos explicativos para productos complejos: guía práctica | Viven"};
+const description = {"es":"Cómo producir vídeos explicativos efectivos para productos técnicos. Estrategias, estructura y lecciones de producciones reales en tech."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videos-explicativos-productos-complejos";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/videos-explicativos-productos-complejos" active="blog" singleLang={true} langUrls={{"en":"/en/blog/explainer-videos-complex-products/","de":"/de/blog/erklaervideos-komplexe-produkte-strategien/","es":"/es/blog/videos-explicativos-productos-complejos/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/videos-explicativos-productos-complejos/\"},\"headline\":\"Vídeos explicativos para productos complejos: guía práctica\",\"description\":\"Cómo producir vídeos explicativos efectivos para productos técnicos. Estrategias, estructura y lecciones de producciones reales en tech.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/videos-explicativos-productos-complejos/\",\"datePublished\":\"2026-08-17T07:10:26.696Z\",\"image\":\"https://www.viven.ch/projects/kanebo-sensai-skincare-how-to-video-campaign/03-re_How_To_Videos_Viven_Video_Agency_54.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Vídeos explicativos para productos complejos: guía práctica\",\"item\":\"https://www.viven.ch/es/blog/videos-explicativos-productos-complejos/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo debe durar un vídeo explicativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Entre 60 y 90 segundos para redes sociales y correos. De 2 a 4 minutos si es para página web o YouTube, siempre que mantengas ritmo y estructura clara. Mide engagement: si tu audiencia abandona antes de los 30 segundos, el problema está en el hook, no en la duración.\"}},{\"@type\":\"Question\",\"name\":\"¿Animación o filmación real?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Depende del producto. Hardware y manufactura se benefician de filmación real. Software, servicios abstractos y procesos internos se explican mejor con animación o hybrid (mezcla de ambas). Lo que importa: claridad y coherencia visual con tu marca.\"}},{\"@type\":\"Question\",\"name\":\"¿Cómo mido si el vídeo explicativo realmente genera leads?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Agrega parámetros UTM al enlace del vídeo, trackea tiempo visualización, tasa de click a CTA, y compara velocidad del pipeline entre leads que vieron el vídeo vs. los que no. En Google Analytics 4, mide eventos personalizados de interacción con vídeo.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Vídeos explicativos para productos complejos: guía práctica</span></nav>
+  <span class="eyebrow">Video de producto</span>
+  <h1>Vídeos explicativos para productos complejos: guía práctica</h1>
+  <p class="lead">Los productos complejos requieren una estrategia de comunicación visual diferente. Un vídeo explicativo bien ejecutado no solo simplifica conceptos técnicos para tu audiencia, sino que reduce objeciones de compra y acelera el ciclo de ventas. En esta guía compartimos las lecciones aprendidas en producciones para empresas de tecnología, fintech y manufactura avanzada.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>17 de agosto de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/kanebo-sensai-skincare-how-to-video-campaign/03-re_How_To_Videos_Viven_Video_Agency_54.jpg" alt="Vídeos explicativos para productos complejos: guía práctica" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué los vídeos explicativos funcionan para productos técnicos</h2><p>Cuando un cliente potencial no entiende rápidamente qué hace tu producto o cómo lo hace, simplemente se va a la competencia. Los vídeos explicativos (también llamados explainer videos) resuelven este problema en 60 a 90 segundos. Permiten visualizar procesos abstractos, mostrar resultados tangibles y generar confianza antes de cualquier conversación comercial.</p><p>Las métricas lo confirman: empresas que incluyen vídeos explicativos en sus páginas de producto aumentan conversiones entre 40% y 80%. Para productos B2B especialmente, un vídeo de demostración clara reduce significativamente las preguntas repetitivas en equipo de ventas y soporte.</p><h2>Estructura narrativa que funciona: de la complejidad a la claridad</h2><p>El error más común es intentar explicarlo todo. En lugar de eso, trabaja con una estructura de tres actos:</p><ul><li><strong>Acto 1 (problema):</strong> Muestra el dolor que tu audiencia experimenta. No hables de tu producto aún. Un ingeniero de manufactura reconoce inmediatamente si su línea de producción pierde eficiencia; una empresa fintech sabe si sus procesos de compliance generan fricción operativa.</li><li><strong>Acto 2 (solución):</strong> Introduce tu producto de forma visual. Usa animación o demostraciones reales para mostrar cómo funciona internamente. Los stakeholders técnicos valoran la precisión; los decisores financieros valoran el resultado.</li><li><strong>Acto 3 (resultados):</strong> Cierra con números: tiempo ahorrado, costos reducidos, capacidad ampliada. Termina con una invitación clara a seguir pasos (demo, consulta, trial).</li></ul><h2>Lenguaje visual para conceptos abstractos</h2><p>La animación motion graphics es tu aliada cuando explicas procesos que no pueden ser fotografiados: flujos de datos, algoritmos, transacciones, o interacciones internas de un sistema. Sin embargo, también funciona combinar footage real (setup, interface, equipo en uso) con animación conceptual.</p><p>Para productos de hardware o manufactura, filmaciones en locación dan credibilidad. Los espectadores hispanoparlantes en mercados como México, Colombia y Argentina valoran ver el producto funcionando en contexto real, especialmente en industria 4.0. Para software y servicios financieros, la animación permite claridad sin quedar superficial.</p><h2>Detalles técnicos de producción que marcan diferencia</h2><p>Una producción de vídeo explicativo profesional no es un screencast casero. Requiere:</p><ul><li><strong>Guión ajustado a tiempo:</strong> Cada segundo debe contar. El guión no es literario; es funcional. Frases cortas, voz clara, ritmo que acompaña visualmente.</li><li><strong>Producción de audio:</strong> Una voz en off profesional y música de fondo coherente establecen autoridad. En mercados hispanoparlantes, considera si necesitas locución neutra o con acento regional específico según tu target.</li><li><strong>Color y tipografía:</strong> Consistentes con tu marca. Los tonos técnicos (azules, grises, verdes) funcionan bien en B2B. Tipografía legible en pantallas pequeñas; muchos espectadores verán esto en móvil.</li><li><strong>Subtítulos:</strong> No solo para accesibilidad. En redes sociales, 80% del vídeo se consume sin sonido. Los subtítulos duplican engagement.</li></ul><h2>Distribución estratégica y medición</h2><p>Un vídeo explicativo bien hecho puede vivir en múltiples canales. Colócalo en tu página de producto (mejora SEO y retiene visitantes), en correos de nurturing a leads fríos, y en campañas de LinkedIn o YouTube para B2B. Para campañas pagadas en Google o Meta, versiones cortas (15-30 segundos) funcionan como hooks.</p><p>Mide: tiempo promedio de visualización, tasa de conversión post-vídeo, y si los leads que ven el vídeo avanzan más rápido en el pipeline. Estos datos te dirán si necesitas refilmar o si el mensaje está pegando.</p><h2>Casos reales: lecciones de shoots en tech y fintech</h2><p>En <a href={p("services/product-video")}>producciones de vídeos de producto</a> para clientes que venden software complejo o soluciones industriales, aprendimos que el nivel de detalle técnico debe calibrarse por audiencia. Un CFO necesita entender ROI; un CTO necesita entender arquitectura. Un vídeo explicativo efectivo combina ambas perspectivas sin cansar a ninguna.</p><p>También descubrimos que la duración óptima depende del canal. Para LinkedIn, 90 segundos es ideal. Para YouTube, si tu contenido es realmente valioso, 3-4 minutos funciona si estructura bien las secciones con capítulos.</p><p>Si necesitas producción profesional de vídeos explicativos, nuestro equipo ha trabajado con empresas multinacionales y startups en Zürich y toda Europa. <a href={p("contact")}>Contáctanos</a> para discutir tu proyecto sin compromiso.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1009807480?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<LeadMagnet lang={lang} magnet="explainer-guide" />
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="videos-explicativos-productos-complejos" />
+  </div></section>
+</Base>

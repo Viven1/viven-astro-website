@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Mehrsprachige Videos: Eine Produktion für alle Sprachregionen | Viven"};
+const description = {"de":"Erfahren Sie, wie Sie mit einer Video-Produktion alle Schweizer Sprachregionen effizient erreichen – Deutsch, Französisch, Italienisch und mehr."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "mehrsprachige-videos-schweiz";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/mehrsprachige-videos-schweiz" active="blog" singleLang={true} langUrls={{"en":"/en/blog/multilingual-video-swiss-languages/","de":"/de/blog/mehrsprachige-videos-schweiz/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/mehrsprachige-videos-schweiz/\"},\"headline\":\"Mehrsprachige Videos: Eine Produktion für alle Sprachregionen\",\"description\":\"Erfahren Sie, wie Sie mit einer Video-Produktion alle Schweizer Sprachregionen effizient erreichen – Deutsch, Französisch, Italienisch und mehr.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/mehrsprachige-videos-schweiz/\",\"datePublished\":\"2026-08-19T10:30:24.206Z\",\"image\":\"https://www.viven.ch/projects/meteomatics-product-campaign-brand-video/07-Meteomatics_VIVEN_Video_Agentur_055.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Mehrsprachige Videos: Eine Produktion für alle Sprachregionen\",\"item\":\"https://www.viven.ch/de/blog/mehrsprachige-videos-schweiz/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Kostet eine mehrsprachige Videoproduktion wirklich nicht dreimal so viel?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Nein. Mit intelligenter Planung liegen die Mehrkosten bei 40–60 % über einer einsprachigen Produktion. Sie zahlen für eine Drehcrew und einen Drehtag, aber mehrfache Synchronisation, Sprecher und Soundmix. Zeitersparnis macht den Unterschied.\"}},{\"@type\":\"Question\",\"name\":\"Sollten wir wirklich mehrere Schauspieler buchen oder reicht Synchronisation?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das hängt vom Projekttyp ab. Für [[services/brand-video|Brand Videos]] mit Testimonials ist Doppelbesetzung authentischer. Für Produktvideos oder [[services/how-to-video|How-to Videos]] ist Synchronisation nach Split-Shooting kosteneffizienter und flexibler.\"}},{\"@type\":\"Question\",\"name\":\"Welche Sprachen sollte eine Schweizer Unternehmensproduktion haben?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Mindestens Deutsch und Französisch. Italienisch ist nur sinnvoll, wenn Ihre Zielgruppe das Tessin miteinschliesst. Prüfen Sie, wo Ihre Kunden sind – und konzentrieren Sie sich auf diese Regionen.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Mehrsprachige Videos: Eine Produktion für alle Sprachregionen</span></nav>
+  <span class="eyebrow">Produktvideo</span>
+  <h1>Mehrsprachige Videos: Eine Produktion für alle Sprachregionen</h1>
+  <p class="lead">Eine Video-Produktion, vier Sprachregionen – das ist die Realität für Unternehmen in der Schweiz. Ob UBS, Siemens oder Porsche: Viele Brands müssen ihre Botschaften zeitgleich auf Deutsch, Französisch und Italienisch ausrollen. Die zentrale Frage lautet nicht «Sollen wir mehrsprachig produzieren?», sondern «Wie machen wir es effizient?» Dieser Guide zeigt, wie Sie mit durchdachter Planung eine einzige Produktion optimal für alle Regionen nutzen und dabei Budget und Zeit sparen.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>19. August 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/meteomatics-product-campaign-brand-video/07-Meteomatics_VIVEN_Video_Agentur_055.jpg" alt="Mehrsprachige Videos: Eine Produktion für alle Sprachregionen" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Warum Schweizer Unternehmen nicht um Mehrsprachigkeit herumkommen</h2><p>Die Schweiz hat vier Landessprachen – drei davon sind für Videoproduktionen relevant. Unternehmen, die in der Deutsch- und Westschweiz tätig sind, können nicht einfach eine deutsche Version drehen und hoffen, dass sie überall funktioniert. Nicht nur aus rechtlichen Gründen (Werberichtlinien unterscheiden sich teilweise), sondern auch aus Gründen der Authentizität und Reichweite: Eine französische Zielgruppe nimmt Inhalte besser auf, wenn sie in ihrer Sprache produziert sind.</p><p>Die gute Nachricht: Mit kluger Planung entsteht dabei nicht dreimal so viel Aufwand. Eine intelligente Produktionsstrategie bedeutet: ein Drehplan, eine Crew, mehrsprachige Outputs.</p><h2>Die vier Schlüsselphasen einer mehrsprachigen Produktion</h2><h3>1. Skriptentwicklung und Lokalisierung von Anfang an</h3><p>Alles beginnt mit dem Skript. Viele Unternehmen machen den Fehler, erst das deutsche Skript zu schreiben und dann übersetzen zu lassen. Das funktioniert nicht optimal – Übersetzungen klingen oft unnatürlich und entsprechen nicht dem kulturellen Kontext des Zielmarkts.</p><p>Besser: Arbeiten Sie mit Autoren, die beide Sprachen fliessend sprechen. Das Skript sollte von Anfang an für mehrsprachige Aufnahmen konzipiert sein. Das bedeutet:</p><ul><li>Sätze, die sprachlich flexibel sind und in allen Sprachen gleich lang klingen</li><li>Kulturell neutrale Beispiele oder lokal angepasste Referenzen</li><li>Klare Struktur, damit Schnitte und Pausen in allen Versionen funktionieren</li></ul><h3>2. Die Wahl zwischen Doppelbesetzung und Split-Shooting</h3><p>Bei der Drehplanung gibt es zwei Strategien:</p><ul><li><strong>Doppelbesetzung:</strong> Sie buchen Schauspieler oder Sprecher für beide Sprachen und drehen beide Versionen parallel. Das spart Drehtage, erfordert aber mehr Koordination. Ideal für <a href={p("services/brand-video")}>Brand Videos</a> mit Testimonials oder Moderatoren.</li><li><strong>Split-Shooting:</strong> Sie drehen alle Szenen stumm oder mit Originalton, ersetzen aber die Stimmen später durch professionelle Sprecher in der jeweiligen Sprache. Das ist flexibler und oft günstiger, besonders wenn Produktionsdetails im Fokus stehen.</li></ul><p>Für den Schweizer Markt gilt: Split-Shooting ist oft die wirtschaftlichere Lösung, da Sie eine Production Crew haben und mehrere Sprachversionen nachverarbeiten.</p><h3>3. Professionelle Synchronisation und Lokalisation</h3><p>Die Audiopost-Produktion ist entscheidend. Eine gute Synchronisation bedeutet nicht einfach «sprechen», sondern:</p><ul><li>Lip-Sync-Anpassung (besonders wichtig bei Close-ups)</li><li>Akustische Anpassung an den Originalton und die Umgebung</li><li>Lokale Sprecher, die nicht nur die Sprache beherrschen, sondern auch den regionalen Ton treffen</li><li>Soundmix für alle Versionen (damit Musik und Effekte gleichermassen funktionieren)</li></ul><p>Für Produktvideos und <a href={p("services/corporate-video")}>Corporate Videos</a> ist dies essentiell. Ein schecht synchronisierter Film mindert den Eindruck erheblich.</p><h2>Budget und Zeitplanung: So sparen Sie wirklich</h2><p>Viele Firmen rechnen mit 3x Kosten für 3 Sprachen. Das ist nicht korrekt. Mit durchdachter Planung liegen die Mehrkosten bei etwa 40–60 % der Originalproduktion:</p><ul><li><strong>Drehkosten:</strong> Nur eine Produktion, eine Crew – keine Zusatzkosten</li><li><strong>Sprecher und Synchronisation:</strong> Drei Sprachversionen, ca. 30–40 % Aufschlag zum Original-Budget</li><li><strong>Soundmix und Finishing:</strong> Minimal höher (Master für alle Sprachen ist kosteneffizient)</li><li><strong>Zeitersparnis:</strong> 1–2 Wochen länger als eine einsprachige Produktion, nicht 3x so lang</li></ul><p>Ein typisches Budget für ein <a href={p("services/product-video")}>Product Video</a> mit professioneller Mehrsprachigkeit liegt zwischen CHF 25'000–50'000 je nach Komplexität und Dauer.</p><h2>Praktische Tipps für die Umsetzung</h2><p>Ob Sie ein <a href={p("services/employer-branding")}>Employer Branding Video</a> oder eine Kampagne für mehrere Regionen produzieren – diese Punkte helfen:</p><ul><li><strong>Lokale Sprachexperten früh einbinden:</strong> Nicht erst beim Schneiden, sondern schon beim Konzept.</li><li><strong>Testaufnahmen machen:</strong> Drehen Sie kurze Test-Takes in allen Sprachen, um zu prüfen, ob der Ton und der Rhythmus funktionieren.</li><li><strong>Die gleiche Licht- und Tonqualität sichern:</strong> Synchronisation funktioniert nur, wenn alle Aufnahmen technisch identisch sind.</li><li><strong>Subtitels als Mehrwert:</strong> Auch mehrsprachige Videos sollten mit Untertiteln in Deutsch und Französisch versehen sein – für Social Media, für Gehörlose und für Accessibility.</li></ul><h2>Besondere Anforderungen für die Schweiz</h2><p>Der Schweizer Markt hat Besonderheiten: Es gibt keine «Standard-Schweizer Französisch» – die Westschweiz hat eigene kulturelle Codes. Gleiches gilt für italienischsprachige Regionen (Tessin). Die beste Praxis:</p><ul><li>Arbeiten Sie mit lokalen Produktionspartnern, die den regionalen Markt verstehen</li><li>Nutzen Sie regionale Sprecher und Talent (authentischer, bessere Resonanz)</li><li>Testen Sie die Versionen mit echten Zielgruppen in jeder Region</li></ul><p>Unternehmen wie Philips und ON haben erkannt: Eine generische «Schweiz-Produktion» funktioniert nicht. Lokale Relevanz ist ein Ranking-Faktor – auch für SEO und für die Glaubwürdigkeit Ihrer Marke.</p><h2>Nächste Schritte: Eine mehrsprachige Produktion starten</h2><p>Wenn Sie bereit sind, Ihre Video-Inhalte für alle Sprachregionen zu optimieren, ist der erste Schritt ein strategisches Briefing. Hier klären Sie: Welche Regionen sind relevant? Welche Botschaften sind regional unterschiedlich? Welches Budget und welcher Zeitrahmen stehen zur Verfügung?</p><p>Mit <a href={p("contact")}>einem kostenlosen Beratungsgespräch</a> können Sie prüfen, ob eine mehrsprachige Produktion für Ihre Ziele sinnvoll ist. Wir helfen Ihnen, die richtige Strategie zu finden – und zeigen Ihnen, wie Sie mit einer Produktion vier Regionen effizient erreichen. <a href={p("faq")}>Häufig gestellte Fragen</a> zu Produktionsabläufen beantworten wir gerne auch schriftlich.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/772421307?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="mehrsprachige-videos-schweiz" />
+  </div></section>
+</Base>

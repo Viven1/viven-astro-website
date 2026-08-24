@@ -1,0 +1,40 @@
+---
+const { lang = 'en', type = '' } = Astro.props;
+const hrefBase = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' }[lang] || '/en/video-cost-calculator/';
+const href = type ? hrefBase + '?type=' + type : hrefBase;   // entra con la pregunta 1 respondida
+const T = {
+  eyebrow: { en: 'Free tool', de: 'Kostenloses Tool', es: 'Herramienta gratis' },
+  h2: { en: 'Not sure what your video will cost?', de: 'Nicht sicher, was Ihr Video kostet?', es: '¿No sabés cuánto puede costar tu video?' },
+  lead: {
+    en: 'Answer five quick questions and get an instant, honest CHF range — based on real budgets from 1137+ Swiss productions.',
+    de: 'Beantworten Sie fünf kurze Fragen und erhalten Sie sofort eine ehrliche CHF-Preisspanne — basierend auf echten Budgets von über 1137 Schweizer Produktionen.',
+    es: 'Respondé cinco preguntas rápidas y conseguí un rango de precio honesto en CHF al instante — basado en presupuestos reales de más de 1137 producciones suizas.',
+  },
+  cta: { en: 'Try the free calculator', de: 'Kostenlosen Rechner ausprobieren', es: 'Probar la calculadora gratis' },
+};
+const t = (o) => o[lang] || o.en;
+---
+<section class="sec">
+  <div class="wrap">
+    <div class="calc-hero reveal">
+      <div class="calc-hero-copy">
+        <span class="eyebrow">{t(T.eyebrow)}</span>
+        <h2>{t(T.h2)}</h2>
+        <p class="lead">{t(T.lead)}</p>
+        <a href={href} class="btn btn-primary">{t(T.cta)} →</a>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+  .calc-hero{border:1px solid var(--line-strong);border-radius:26px;background:
+      radial-gradient(100% 120% at 100% 0%,rgba(221,249,143,.12),transparent 55%),
+      radial-gradient(100% 120% at 0% 100%,rgba(52,110,255,.14),transparent 55%),
+      var(--navy-800);
+    padding:clamp(32px,5vw,56px);text-align:center}
+  .calc-hero-copy{max-width:620px;margin:0 auto}
+  .calc-hero-copy .eyebrow{margin-bottom:14px;display:block}
+  .calc-hero-copy h2{font-size:clamp(24px,3vw,36px);font-weight:700;line-height:1.15}
+  .calc-hero-copy .lead{color:var(--muted);font-size:16.5px;margin-top:16px}
+  .calc-hero-copy .btn{margin-top:28px}
+</style>

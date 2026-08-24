@@ -1,0 +1,128 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Presupuesto de vídeo corporativo: precios reales para empresas | Viven"};
+const description = {"es":"¿Cuánto cuesta un vídeo corporativo? Guía honesta de precios, proceso de producción y ROI para empresas suizas y españolas. Casos reales de UBS, Siemens y Porsche."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "presupuesto-video-corporativo-empresas-suiza";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/presupuesto-video-corporativo-empresas-suiza" active="blog" singleLang={true} langUrls={{"en":"/en/blog/business-video-production-costs-switzerland/","de":"/de/blog/kosten-produktionsbudget-unternehmensvideos-schweiz/","es":"/es/blog/presupuesto-video-corporativo-empresas-suiza/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/presupuesto-video-corporativo-empresas-suiza/\"},\"headline\":\"Presupuesto de vídeo corporativo: precios reales para empresas\",\"description\":\"¿Cuánto cuesta un vídeo corporativo? Guía honesta de precios, proceso de producción y ROI para empresas suizas y españolas. Casos reales de UBS, Siemens y Porsche.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/presupuesto-video-corporativo-empresas-suiza/\",\"datePublished\":\"2026-07-24T13:21:14.273Z\",\"image\":\"https://www.viven.ch/projects/anybotics-anymal-c-product-launch/01-on2019-08-22-12h10m12s489-1-1024x512.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Presupuesto de vídeo corporativo: precios reales para empresas\",\"item\":\"https://www.viven.ch/es/blog/presupuesto-video-corporativo-empresas-suiza/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuál es el presupuesto mínimo para un vídeo corporativo en Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"El presupuesto mínimo es aproximadamente 8.000–10.000 CHF para un vídeo muy corto (15–30 segundos) sin localizaciones externas ni animación. Para un vídeo corporativo completo y profesional, se recomienda un mínimo de 25.000 CHF.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo tarda producir un vídeo corporativo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"De 6 a 10 semanas típicamente: 1 semana de pre-producción, 2–5 días de rodaje, y 3–6 semanas de post-producción. Proyectos más simples pueden completarse en 4 semanas; los muy complejos pueden tardar 12 semanas.\"}},{\"@type\":\"Question\",\"name\":\"¿Un vídeo corporativo genera ROI real?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Sí, si está alineado con objetivos claros. Los vídeos de producto aumentan conversión un 80% más que contenido estático. Los de employer branding reducen costes de reclutamiento 30–40%. El ROI depende más de la estrategia que del presupuesto.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Presupuesto de vídeo corporativo: precios reales para empresas</span></nav>
+  <span class="eyebrow">Video de producto</span>
+  <h1>Presupuesto de vídeo corporativo: precios reales para empresas</h1>
+  <p class="lead">Un vídeo corporativo profesional cuesta entre 8.000 y 80.000 euros en Suiza, dependiendo de duración, complejidad y alcance. Pero el precio no es lo único que importa: lo que realmente cuenta es el retorno que genera. En esta guía te explicamos qué incluye cada presupuesto, cómo funciona el proceso de producción real, y por qué empresas como UBS, Siemens y Porsche invierten en vídeo como canal clave de comunicación.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>24 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/anybotics-anymal-c-product-launch/01-on2019-08-22-12h10m12s489-1-1024x512.jpg" alt="Presupuesto de vídeo corporativo: precios reales para empresas" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>¿Cuál es el coste real de un vídeo corporativo en Suiza?</h2>
+<p>El presupuesto de un vídeo corporativo depende de cuatro variables principales: duración, número de localizaciones, complejidad técnica y alcance de distribución. Un vídeo corporativo corto (30–60 segundos) para redes sociales ronda los 8.000–15.000 CHF. Un vídeo de marca (2–3 minutos) con producción estándar oscila entre 25.000–45.000 CHF. Y un proyecto ambicioso con múltiples localizaciones, talento profesional o animación llega fácilmente a 60.000–80.000 CHF o más.</p>
+<p>En España y América Latina los costes son generalmente 20–30% menores que en Suiza, pero la calidad depende más del equipo que del mercado. Lo que sí cambia es el tipo de vídeo que cada mercado demanda: mientras las empresas suizas priman claridad y ROI medible, en España e Hispanoamérica se valora más el storytelling emocional y la capacidad viral.</p>
+
+<h2>Desglose típico de costes en producción de vídeo</h2>
+<ul>
+<li><strong>Pre-producción (10–15% del presupuesto):</strong> guión, storyboard, location scouting, casting.</li>
+<li><strong>Producción (40–50%):</strong> equipo técnico, camarógrafos, iluminación, sonido, alquiler de equipos.</li>
+<li><strong>Post-producción (25–35%):</strong> edición, color grading, animación, sound design, subtítulos multiidioma.</li>
+<li><strong>Distribución y optimización (5–10%):</strong> adaptación para YouTube, LinkedIn, Instagram, TikTok; optimización SEO para vídeo.</li>
+</ul>
+<p>Un error común es pensar que el presupuesto es flexible. No lo es. Los costes de equipo, talento y tiempo de edición son prácticamente fijos. Lo que sí puedes ajustar es el alcance: menos localizaciones, menos días de rodaje, animación más simple.</p>
+
+<h2>Cómo funciona el proceso real de producción</h2>
+<p>El proceso no es "escribir guión, grabar, editar". Es más sistemático. Comienza con una estrategia clara: qué objetivo tiene el vídeo (ventas, employer branding, educación), a quién va dirigido y dónde se distribuirá. Esa claridad reduce costes porque evita regrabar.</p>
+<p>Luego viene la pre-producción profunda. Un equipo de directores y guionistas trabaja contigo para definir el tono, el mensaje y la estética visual. Se crean storyboards detallados. Se asignan roles claros. Todo está acordado antes de que la cámara se encienda.</p>
+<p>El rodaje es la parte más cara y breve: típicamente 2–5 días de producción para un vídeo corporativo estándar. Pero detrás hay una logística compleja: equipos de iluminación, sonidistas, asistentes, coordinadores de localizaciones.</p>
+<p>La post-producción dura 3–6 semanas. Aquí se edita, se colorea, se añaden animaciones y gráficos. <a href={p("services/brand-video")}>Si es un vídeo de marca</a> con animación, el tiempo se duplica.</p>
+
+<h2>¿Cuándo un vídeo corporativo devuelve la inversión?</h2>
+<p>Las empresas miden ROI de vídeo de formas diferentes. En ventas B2B, un vídeo de producto bien posicionado en YouTube y Google genera leads a un coste inferior a Google Ads. En employer branding, el vídeo reduce costes de reclutamiento porque atrae candidatos mejor alineados con la cultura de la empresa.</p>
+<p>Para vídeos corporativos, el ROI se mide así:</p>
+<ul>
+<li>Vídeos educativos o tutoriales: tiempo de respuesta reducido en servicio al cliente, aumento de confianza.</li>
+<li><a href={p("services/product-video")}>Vídeos de producto</a>: aumento de conversión 80% superior al contenido estático.</li>
+<li><a href={p("services/employer-branding")}>Vídeos de employer branding</a>: reducción de 30–40% en costes de reclutamiento.</li>
+<li>Vídeos para redes sociales: alcance orgánico 10x superior al contenido de imagen fija.</li>
+</ul>
+<p>En empresas grandes como UBS, Siemens o Porsche, el vídeo corporativo no es un gasto: es infraestructura de comunicación. Produce decenas de vídeos al año porque cada uno llega a un segmento distinto de su audiencia.</p>
+
+<h2>¿Qué incluye un presupuesto profesional?</h2>
+<p>Una propuesta clara debe detallar: número de días de rodaje, equipo técnico, personal involucrado, tiempo de post-producción, número de revisiones incluidas, y versiones finales (logos distintos, idiomas, formatos para diferentes plataformas). No debe haber sorpresas. Si aparecen cambios importantes después de la producción, tienen un coste adicional claro.</p>
+<p>Las agencias profesionales como Viven AG incluyen una <a href={p("services/corporate-video")}>estrategia de distribución</a>: no solo hacen un vídeo bonito, sino que lo optimizan para YouTube, lo adaptan para LinkedIn en español, lo posicionan en Google con SEO técnico.</p>
+
+<h2>¿Vale la pena invertir en vídeo corporativo?</h2>
+<p>Sí, si tiene un propósito claro y está integrado en tu estrategia de comunicación. Un vídeo genérico que "se ve bien" no genera retorno. Uno que responde una pregunta real de tu audiencia ("¿cómo funciona esto?", "¿quiénes somos?" o "¿por qué contratarnos?") genera engagement, leads y ventas medibles.</p>
+<p>La pregunta no es "¿cuánto cuesta?" sino "¿cuál es el coste de no hacerlo?". Tus competidores ya están produciendo vídeo. Los clientes lo esperan. El algoritmo de YouTube lo prefiere. La única variable es si lo haces con estrategia o sin ella.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+<AuthorBox lang={lang} />
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="presupuesto-video-corporativo-empresas-suiza" />
+  </div></section>
+</Base>

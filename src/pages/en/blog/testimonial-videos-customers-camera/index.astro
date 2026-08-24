@@ -1,0 +1,145 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Testimonial Videos: Get Customers to Say Yes | Viven"};
+const description = {"en":"Learn proven tactics to motivate customers to appear in testimonial videos. From scripting to logistics, here's what actually works."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "testimonial-videos-customers-camera";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/testimonial-videos-customers-camera" active="blog" singleLang={true} langUrls={{"en":"/en/blog/testimonial-videos-customers-camera/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/testimonial-videos-customers-camera/\"},\"headline\":\"Testimonial Videos: Get Customers to Say Yes\",\"description\":\"Learn proven tactics to motivate customers to appear in testimonial videos. From scripting to logistics, here's what actually works.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/testimonial-videos-customers-camera/\",\"datePublished\":\"2026-08-12T13:14:44.438Z\",\"image\":\"https://www.viven.ch/projects/devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Testimonial Videos: Get Customers to Say Yes\",\"item\":\"https://www.viven.ch/en/blog/testimonial-videos-customers-camera/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How long does a typical testimonial video take to produce?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"From initial conversation to final deliverable, most testimonial video projects take 6–8 weeks. The customer shoot itself is 30–60 minutes, but planning, scripting, and post-production take the bulk of the time. We always prioritise getting the right footage and giving clients final approval before publishing.\"}},{\"@type\":\"Question\",\"name\":\"What if a customer gets nervous on camera?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Nerves are normal and usually disappear within the first five minutes. Our crew is trained to create a relaxed environment—we chat before rolling, do multiple takes without pressure, and focus on natural conversation rather than a scripted read. Most clients find the experience easier than they expected and often enjoy it.\"}},{\"@type\":\"Question\",\"name\":\"Can we script what the customer says, or should it be authentic?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Authentic always performs better. We provide talking points and questions to guide the conversation, but the customer's own words—their phrasing, examples, and emotion—are what make testimonials credible and memorable. Scripted testimonials feel forced and audiences can tell the difference immediately.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Testimonial Videos: Get Customers to Say Yes</span></nav>
+  <span class="eyebrow">Industry insight</span>
+  <h1>Testimonial Videos: Get Customers to Say Yes</h1>
+  <p class="lead">Getting customers to commit to a testimonial video is harder than it looks. Most companies ask, most decline—but there's a repeatable system that works. The key isn't persuasion; it's removing friction. This guide shares the exact tactics that work, from identifying the right candidates and timing your ask, to handling logistics and making the shoot effortless. Done right, testimonial videos become your most powerful marketing asset because they're authentic, credible, and built on trust.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>August 12, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg" alt="Testimonial Videos: Get Customers to Say Yes" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Why Customers Say No (and How to Fix It)</h2>
+<p>When a company asks a customer to appear on camera, the default answer is no. Why? Fear, uncertainty, time pressure, and a vague sense that it's a hassle. Most rejection happens before the conversation even deepens.</p>
+<p>The solution is to address objections before they arise. This means:</p>
+<ul>
+<li>Clarity on commitment (how long, how many takes, post-production involvement)</li>
+<li>Reassurance on brand safety (they see the script, approve the final cut)</li>
+<li>Removal of logistical burden (you handle travel, timing, location)</li>
+<li>A genuine incentive (recognition, reciprocal value, or simply making them feel heard)</li>
+</ul>
+<p>Start with a short, low-pressure conversation—not a sales pitch. Ask if they'd be open to sharing their story. Leave space for a genuine yes or no.</p>
+
+<h2>Identify Your Best Candidates Early</h2>
+<p>Not every customer is right for a testimonial video. The best candidates are those who have experienced measurable results, feel genuine gratitude, and are articulate enough to communicate that authentically on camera.</p>
+<p>Look for:</p>
+<ul>
+<li><strong>High-value clients</strong> who've been with you long enough to see impact</li>
+<li><strong>Diverse use cases</strong> (by company size, industry, outcome) to appeal to your target audience</li>
+<li><strong>Natural communicators</strong> who explain their work clearly in conversation (not necessarily extroverts)</li>
+<li><strong>Visual fit</strong> (company branding, office/workspace that photographs well)</li>
+<li><strong>Decision-makers</strong> with authority to commit time without a dozen approvals</li>
+</ul>
+<p>Avoid customers who are currently in active sales negotiations with you or facing problems. Timing matters—approach them when they're satisfied, not in crisis mode.</p>
+
+<h2>The Ask: Framing and Timing</h2>
+<p>How you ask determines the answer. The best approach is a warm introduction, ideally from someone the customer already trusts (your account manager, a mutual contact, or their peer).</p>
+<p>The pitch should be short, honest, and specific:</p>
+<blockquote><em>"We'd like to create a short video where you share how [specific solution] helped your team with [specific challenge]. It's a 30-minute shoot on your site, and you'll get final approval before we publish. Would that be something you'd consider?"</em></blockquote>
+<p>Notice what this does: it names the result, respects their time, and gives control. It's not vague, and it's not a demand.</p>
+<p>Timing also matters. Reach out when they've just achieved a win, renewed a contract, or celebrated a milestone. Avoid Mondays, Fridays, and summer months—people are distracted or absent.</p>
+
+<h2>Remove Friction from Production</h2>
+<p>Once they've said yes, your job is to make everything else effortless. This is where most companies drop the ball.</p>
+<p>Send them a detailed brief that includes:</p>
+<ul>
+<li>Production date, time, and location (or confirmation that you'll come to them)</li>
+<li>Length ("we'll capture 20–30 minutes of conversation, edit it down to 2–3 minutes")</li>
+<li>The interview questions (not a script, but guidance on what you'll discuss)</li>
+<li>What to wear (professional but natural; avoid logos or busy patterns)</li>
+<li>A point of contact and mobile number for the day-of logistics</li>
+<li>Clear note that they approve the final video before publication</li>
+</ul>
+<p>On shoot day, arrive early, have good equipment (a poor-quality video undermines your message), and keep the atmosphere relaxed. A professional crew makes clients feel valued, not nervous. The better the production quality, the more willing future customers will be to participate—they want their endorsement to look credible too.</p>
+
+<h2>Build Trust with Transparency</h2>
+<p>Many customers worry about how their words will be edited or used. Clear this up immediately and keep following through.</p>
+<p>Share the rough cut with them for feedback before publishing. This isn't about letting them rewrite their story—it's about giving them confidence that their message comes across fairly. Most customers will approve it as-is; some will ask for small adjustments, which you should accommodate.</p>
+<p>Also communicate how and where the video will be used: your website, LinkedIn, sales emails, or client pitches. Transparency here builds goodwill and often leads to customers sharing the video themselves, which amplifies reach.</p>
+
+<h2>Follow Up and Create Momentum</h2>
+<p>After the video launches, send the final version to the customer and thank them genuinely. Many companies stop here—a missed opportunity.</p>
+<p>Instead, show impact: "Your testimonial has been viewed 5,000 times and helped three new clients choose us." This feedback loop makes them feel their effort mattered and makes them likely to help again in future projects (or refer you to peers).</p>
+<p>Testimonial videos work best as part of a broader <a href={p("services/corporate-video")}>corporate video strategy</a>, where they sit alongside product demos, brand narratives, and case studies. Each format serves a different stage of the buyer's journey.</p>
+
+<h2>Summary: The Repeatable System</h2>
+<p>Getting customers to say yes on camera comes down to four things: choose the right people, ask at the right time in the right way, remove all logistical friction, and honour their trust with transparency and follow-up. Companies that master this system build testimonial libraries that become their strongest sales asset—because real customers telling real stories will always outperform anything a marketer could write.</p>
+<p>If you're ready to launch a testimonial video program but unsure where to start, <a href={p("contact")}>reach out to our team</a>. We've helped clients like UBS, Siemens, and Porsche create authentic customer stories that drive conversions. Let's talk about your next project.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036679041?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="testimonial-videos-customers-camera" />
+  </div></section>
+</Base>

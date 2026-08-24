@@ -1,0 +1,671 @@
+---
+// Página de intake / brief — multiple choice. El lead llega desde el email
+// (?lead=<id>&lang=<en|de|es>&topic=<employer|product|social|event|howto|brand|general>).
+// Se adapta al idioma del lead y pre-selecciona el objetivo según el tema del email.
+// Guarda en Supabase (tabla briefs) con la publishable key, igual que el form del sitio.
+const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
+const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your project brief — Viven</title>
+<meta name="description" content="Tell us about your video project in a couple of minutes — goal, format and timing — and we'll come back with next steps. Free, no obligation." />
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<link rel="canonical" href="https://www.viven.ch/brief/" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="theme-color" content="#0f1826" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style is:global>
+  /* mismo --maxw que TODO el resto del sitio — consistencia real, pedido explícito
+     de Sebastián ("porq es tan angosto comparado con todas las otras paginas? siempre
+     consistency please, this is key"). El formulario en sí se mantiene legible con
+     .brief-card angosta y centrada DENTRO de este wrap ancho — el "respirar" del
+     documento post-envío ahora es la card la que crece, no el wrap. */
+  .brief-wrap{max-width:var(--maxw);margin:0 auto;padding:44px 24px 90px}
+  .brief-card{max-width:680px;margin:0 auto;transition:max-width .3s ease}
+  .brief-card.wide{max-width:960px}
+  .brief-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
+  .brief-logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--text);letter-spacing:-.02em;display:block;text-decoration:none}
+  .brief-langs{display:flex;gap:4px}
+  .brief-langs button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 9px;cursor:pointer;transition:.15s}
+  .brief-langs button:hover{color:var(--text)}
+  .brief-langs button.on{border-color:var(--acid);color:var(--acid)}
+  .brief-logo span{color:var(--acid)}
+  .brief-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:32px}
+  .brief-card h1{font-size:clamp(23px,4vw,30px);line-height:1.15;margin-bottom:8px}
+  .brief-card .lead{color:var(--muted);font-size:15.5px;margin-bottom:8px}
+  /* barra de progreso */
+  .bprog{height:5px;border-radius:6px;background:var(--navy-900);overflow:hidden;margin:18px 0 26px}
+  .bprog i{display:block;height:100%;background:var(--acid);width:0;transition:width .35s ease}
+  /* preguntas */
+  .q{margin-bottom:26px}
+  /* preguntas todavía no destapadas (ver destaparSiguiente) */
+  .q-oculta{display:none}
+  .brief-todas{background:none;border:0;color:var(--muted);font:600 12.5px Inter,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;margin:-10px 0 24px}
+  .brief-todas:hover{color:var(--acid)}
+  .q > .qh{font-size:15.5px;font-weight:600;color:var(--text);margin-bottom:4px}
+  .q > .qs{font-size:12.5px;color:var(--muted-2);margin-bottom:12px}
+  .opts{display:grid;gap:9px}
+  .opts.two{grid-template-columns:1fr 1fr}
+  .opt{display:flex;align-items:center;gap:11px;text-align:left;width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:13px;color:var(--text);font-family:inherit;font-size:14.5px;padding:13px 15px;cursor:pointer;transition:border-color .15s,background .15s,transform .05s}
+  .opt:hover{border-color:var(--muted)}
+  .opt:active{transform:scale(.99)}
+  .opt .em{font-size:19px;line-height:1;flex:none}
+  .opt.sel{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 12%,var(--navy-900))}
+  .opt .tick{margin-left:auto;color:var(--acid);font-weight:700;opacity:0;transition:opacity .15s;flex:none}
+  .opt.sel .tick{opacity:1}
+  @media(max-width:520px){.opts.two{grid-template-columns:1fr}}
+  /* inputs finales */
+  .bf{margin-bottom:16px}
+  .bf-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:480px){.bf-row2{grid-template-columns:1fr}}
+  .bf label{display:block;font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:7px}
+  .bf input,.bf textarea{width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:12px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px}
+  .bf textarea{min-height:80px;resize:vertical}
+  .brief-card button.submit{width:100%;margin-top:6px;font-size:16px;padding:15px}
+  .brief-ok{text-align:center;padding:26px 0}
+  .brief-ok .big{font-size:44px}
+  .brief-alt{text-align:center;color:var(--muted);font-size:14px;margin-top:22px}
+  .brief-alt a{color:var(--acid)}
+  .berr{color:#ff8b8b;font-size:13.5px;margin-top:10px;text-align:center;display:none}
+  .brief-actions{display:flex;gap:10px;justify-content:center;margin:22px 0 4px;flex-wrap:wrap}
+  .brief-actions button,.brief-actions a{font-family:inherit;font-size:14px;font-weight:700;border-radius:100px;padding:11px 20px;cursor:pointer;border:1.5px solid var(--line-strong);background:var(--navy-900);color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+  .brief-actions button:hover,.brief-actions a:hover{border-color:var(--muted)}
+  .brief-actions button:disabled{opacity:.6;cursor:default}
+  .brief-actions.primary button,.brief-actions.primary a:first-child{border-color:var(--acid);background:var(--acid);color:#142033}
+  .brief-email-msg{text-align:center;font-size:13px;color:var(--acid);margin-top:10px;min-height:1em}
+
+  /* ---- documento/PDF: mismo lockup navy+acid que ofertas y propuestas, para que
+     el brief se vea y se sienta como un documento real de VIVEN cuando se imprime
+     o se reenvía — es un lead magnet, tiene que dar ganas de compartirlo. ---- */
+  .brief-summary{margin-top:26px}
+  .bs-doc{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 24px 70px -24px rgba(0,0,0,.55);color:#1a2230}
+  .bs-band{background:#0f1826;color:#f4f6fb;padding:22px 26px;display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .bs-brand{display:flex;align-items:center;gap:10px}
+  .bs-brand svg{height:24px;width:auto;display:block}
+  .bs-fp{font-size:9.5px;line-height:1.15;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aab4c7}
+  .bs-doctitle{text-align:right}
+  .bs-dt-label{font-family:'Space Grotesk';font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .bs-dt-date{font-size:11px;color:#9aa6bd;margin-top:2px}
+  .bs-client{padding:18px 26px;border-bottom:1px solid #eceef2;display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .bs-client-name{font-family:'Space Grotesk';font-weight:700;font-size:16.5px;color:#0f1826}
+  .bs-client-email{font-size:12.5px;color:#6b7385}
+  .bs-table{width:100%;border-collapse:collapse}
+  .bs-table td{padding:11px 26px;border-bottom:1px solid #eceef2;font-size:13px;vertical-align:top}
+  .bs-table tr:nth-child(even) td{background:#f8f9fb}
+  .bs-table .bs-k{color:#8a94a8;width:40%;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .bs-table .bs-v{color:#1a2230;font-weight:600;font-size:13.5px}
+  .bs-foot{padding:18px 26px 24px;font-size:11.5px;color:#8a94a8;line-height:1.7;text-align:center;border-top:1px solid #eceef2}
+  .bs-foot b{color:#1a2230}
+  @media print{
+    /* sin esto, el navegador BORRA los fondos de color al imprimir — la banda navy
+       y las filas alternadas salían blancas y el PDF perdía todo el diseño */
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+    body{background:#fff}
+    .brief-top,.brief-langs,.brief-alt,.no-print{display:none !important}
+    .brief-wrap{max-width:none;padding:0}
+    .brief-card{max-width:none;border:none;background:#fff;padding:0;box-shadow:none}
+    /* en el PDF no hace falta el "gracias" ni los botones — solo el documento en sí */
+    .brief-ok .big,.brief-ok h1,.brief-ok>.lead{display:none}
+    .brief-summary{margin-top:0}
+    .bs-doc{box-shadow:none;border-radius:0}
+  }
+</style>
+</head>
+<body>
+<div class="brief-wrap">
+  <div class="brief-top">
+    <a class="brief-logo" id="brief-home-link" href="/" aria-label="VIVEN — Home"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN Film Production" style="height:22px;width:auto;display:block" /></a>
+    <div class="brief-langs" id="brief-langs">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="de">DE</button>
+      <button type="button" data-lang="es">ES</button>
+    </div>
+  </div>
+
+  <div class="brief-card" id="brief-form-card">
+    <h1 id="bh-title" data-en="Tell us about your project" data-de="Erzählen Sie uns von Ihrem Projekt" data-es="Contanos sobre tu proyecto">Tell us about your project</h1>
+    <p class="lead" data-en="A few taps — no typing needed. This way we can prepare ourselves for the call." data-de="Ein paar Klicks — kein Tippen nötig. So können wir uns optimal auf den Call vorbereiten." data-es="Unos clics — casi sin escribir. Así nos preparamos mejor para la llamada.">A few taps — no typing needed.</p>
+    <p class="lead" style="margin-top:-4px" data-en="We'll start with the easy stuff and get more specific towards the end." data-de="Wir beginnen einfach und werden gegen Ende spezifischer." data-es="Arrancamos por lo fácil y nos ponemos más específicos hacia el final.">We'll start with the easy stuff and get more specific towards the end.</p>
+    <div class="bprog"><i id="bprog-bar"></i></div>
+
+    <form id="brief-form">
+      <!-- Q1: objetivo (single) -->
+      <div class="q" data-key="goal" data-multi="0">
+        <div class="qh" data-en="What should the video achieve?" data-de="Was soll das Video bewirken?" data-es="¿Qué debe lograr el video?">What should the video achieve?</div>
+        <div class="qs" data-en="Pick the main goal" data-de="Wählen Sie das Hauptziel" data-es="Elegí el objetivo principal">Pick the main goal</div>
+        <div class="opts">
+          <button type="button" class="opt" data-val="product" data-topic="product"><span class="em">🚀</span><span data-en="Launch a product / service" data-de="Produkt / Dienstleistung lancieren" data-es="Lanzar un producto / servicio">Launch a product / service</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="leads"><span class="em">📈</span><span data-en="Generate leads / sales" data-de="Leads / Verkäufe generieren" data-es="Generar leads / ventas">Generate leads / sales</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="employer" data-topic="employer"><span class="em">👥</span><span data-en="Attract talent (employer branding)" data-de="Talente gewinnen (Employer Branding)" data-es="Atraer talento (employer branding)">Attract talent</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="brand" data-topic="brand"><span class="em">🎬</span><span data-en="Build the brand / image" data-de="Marke / Image stärken" data-es="Construir marca / imagen">Build the brand</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="explain" data-topic="howto"><span class="em">💡</span><span data-en="Explain a product / how-to" data-de="Produkt erklären / How-to" data-es="Explicar un producto / how-to">Explain a product</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="social" data-topic="social"><span class="em">📱</span><span data-en="Content for social media" data-de="Content für Social Media" data-es="Contenido para redes">Content for social</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q1b: audiencia (single) -->
+      <div class="q" data-key="audience" data-multi="1">
+        <div class="qh" data-en="Who is it for?" data-de="Für wen ist es?" data-es="¿Para quién es?">Who is it for?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varios">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="B2B decision makers"><span class="em">💼</span><span data-en="B2B decision makers" data-de="B2B-Entscheider" data-es="Decisores B2B">B2B decision makers</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Consumers"><span class="em">🛍️</span><span data-en="Consumers" data-de="Konsument:innen" data-es="Consumidores">Consumers</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Talent / candidates"><span class="em">🧑‍💻</span><span data-en="Talent / candidates" data-de="Talente / Bewerbende" data-es="Talento / candidatos">Talent / candidates</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Internal / employees"><span class="em">🏢</span><span data-en="Internal / employees" data-de="Intern / Mitarbeitende" data-es="Interno / empleados">Internal / employees</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2: distribución (multi) -->
+      <div class="q" data-key="distribution" data-multi="1">
+        <div class="qh" data-en="Where will it run?" data-de="Wo wird es laufen?" data-es="¿Dónde va a correr?">Where will it run?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varias">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Website"><span class="em">🌐</span><span data-en="Website" data-de="Website" data-es="Web">Website</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Social"><span class="em">📱</span><span data-en="Social media" data-de="Social Media" data-es="Redes sociales">Social media</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Paid ads"><span class="em">🎯</span><span data-en="Paid ads" data-de="Paid Ads" data-es="Ads pagas">Paid ads</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Event"><span class="em">🎪</span><span data-en="Event / trade show" data-de="Event / Messe" data-es="Evento / feria">Event</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Sales / email"><span class="em">✉️</span><span data-en="Sales / email" data-de="Vertrieb / E-Mail" data-es="Ventas / email">Sales / email</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="TV / cinema"><span class="em">📺</span><span data-en="TV / cinema" data-de="TV / Kino" data-es="TV / cine">TV / cinema</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2b: cantidad (single) -->
+      <div class="q" data-key="quantity" data-multi="0">
+        <div class="qh" data-en="How many videos?" data-de="Wie viele Videos?" data-es="¿Cuántos videos?">How many videos?</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="1 video"><span class="em">🎬</span><span data-en="One video" data-de="Ein Video" data-es="Un video">One video</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="2–3 videos"><span class="em">🎞️</span><span>2–3</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="4–10 videos"><span class="em">📚</span><span>4–10</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Ongoing series"><span class="em">🔁</span><span data-en="Ongoing series" data-de="Laufende Serie" data-es="Serie continua">Ongoing series</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2c: formatos (multi) -->
+      <div class="q" data-key="formats" data-multi="1">
+        <div class="qh" data-en="Which formats do you need?" data-de="Welche Formate brauchen Sie?" data-es="¿Qué formatos necesitás?">Which formats do you need?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varios">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="16:9 horizontal"><span class="em">🖥️</span><span data-en="16:9 (web / YouTube)" data-de="16:9 (Web / YouTube)" data-es="16:9 (web / YouTube)">16:9</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="9:16 vertical"><span class="em">📱</span><span data-en="9:16 (Reels / TikTok)" data-de="9:16 (Reels / TikTok)" data-es="9:16 (Reels / TikTok)">9:16</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="1:1 square"><span class="em">⬛</span><span data-en="1:1 (feed)" data-de="1:1 (Feed)" data-es="1:1 (feed)">1:1</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Photos / stills"><span class="em">📸</span><span data-en="Photos / stills" data-de="Fotos / Stills" data-es="Fotos / stills">Photos / stills</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2d: idiomas (multi) -->
+      <div class="q" data-key="languages" data-multi="1">
+        <div class="qh" data-en="Languages & subtitles?" data-de="Sprachen & Untertitel?" data-es="¿Idiomas y subtítulos?">Languages &amp; subtitles?</div>
+        <div class="qs" data-en="The languages your audience speaks" data-de="Die Sprachen Ihres Publikums" data-es="Los idiomas de tu audiencia">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="German"><span class="em">🇩🇪</span><span data-en="German" data-de="Deutsch" data-es="Alemán">German</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="English"><span class="em">🇬🇧</span><span data-en="English" data-de="Englisch" data-es="Inglés">English</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="French"><span class="em">🇫🇷</span><span data-en="French" data-de="Französisch" data-es="Francés">French</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Italian"><span class="em">🇮🇹</span><span data-en="Italian" data-de="Italienisch" data-es="Italiano">Italian</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Subtitles needed"><span class="em">💬</span><span data-en="With subtitles" data-de="Mit Untertiteln" data-es="Con subtítulos">With subtitles</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2e: en cámara (multi) -->
+      <div class="q" data-key="oncamera" data-multi="1">
+        <div class="qh" data-en="Who / what is on camera?" data-de="Wer / was ist vor der Kamera?" data-es="¿Quién / qué sale en cámara?">Who / what is on camera?</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Employees"><span class="em">👥</span><span data-en="Our employees" data-de="Unsere Mitarbeitenden" data-es="Nuestro equipo">Employees</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Founders / execs"><span class="em">🎤</span><span data-en="Founders / executives" data-de="Gründer / Führung" data-es="Fundadores / directivos">Founders</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Customers"><span class="em">⭐</span><span data-en="Customers (testimonials)" data-de="Kund:innen (Testimonials)" data-es="Clientes (testimonios)">Customers</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Actors"><span class="em">🎭</span><span data-en="Professional actors" data-de="Profi-Schauspieler" data-es="Actores profesionales">Actors</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Product only"><span class="em">📦</span><span data-en="Product only" data-de="Nur das Produkt" data-es="Solo el producto">Product only</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Animation (no shoot)"><span class="em">✨</span><span data-en="Animation (no shoot)" data-de="Animation (kein Dreh)" data-es="Animación (sin rodaje)">Animation</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q2f: locación (single) -->
+      <div class="q" data-key="locations" data-multi="1">
+        <div class="qh" data-en="Where would we shoot?" data-de="Wo würden wir drehen?" data-es="¿Dónde rodaríamos?">Where would we shoot?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varios">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Our offices / site"><span class="em">🏢</span><span data-en="Our offices / site" data-de="Bei uns vor Ort" data-es="Nuestras oficinas">Our offices</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Multiple locations"><span class="em">🗺️</span><span data-en="Multiple locations" data-de="Mehrere Locations" data-es="Varias locaciones">Multiple locations</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Studio"><span class="em">🎥</span><span data-en="Studio" data-de="Studio" data-es="Estudio">Studio</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="No shoot needed"><span class="em">💻</span><span data-en="No shoot (animation / footage)" data-de="Kein Dreh (Animation / Footage)" data-es="Sin rodaje (animación / material)">No shoot</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Not sure yet"><span class="em">🤔</span><span data-en="Not sure yet" data-de="Noch unklar" data-es="No sé aún">Not sure yet</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q3: timing (single) -->
+      <div class="q" data-key="timeline" data-multi="0">
+        <div class="qh" data-en="When do you need it?" data-de="Bis wann brauchen Sie es?" data-es="¿Para cuándo lo necesitás?">When do you need it?</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="ASAP"><span class="em">⚡</span><span data-en="As soon as possible" data-de="So bald wie möglich" data-es="Lo antes posible">As soon as possible</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="~1 month"><span class="em">📅</span><span data-en="In about a month" data-de="In etwa einem Monat" data-es="En ~1 mes">In about a month</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="2–3 months"><span class="em">🗓️</span><span data-en="In 2–3 months" data-de="In 2–3 Monaten" data-es="En 2–3 meses">In 2–3 months</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Exploring"><span class="em">🔭</span><span data-en="Just exploring" data-de="Erst am Sondieren" data-es="Explorando / sin fecha">Just exploring</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q4: presupuesto (single) -->
+      <div class="q" data-key="budget" data-multi="0">
+        <div class="qh" data-en="Rough budget?" data-de="Ungefähres Budget?" data-es="¿Presupuesto aproximado?">Rough budget?</div>
+        <div class="qs" data-en="Helps us scope it right — no commitment" data-de="Hilft beim Zuschnitt — unverbindlich" data-es="Nos ayuda a dimensionar — sin compromiso">Helps us scope it right — no commitment</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="< CHF 5k"><span data-en="Under CHF 5k" data-de="Unter CHF 5k" data-es="Menos de CHF 5k">Under CHF 5k</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="CHF 5–15k"><span>CHF 5–15k</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="CHF 15–40k"><span>CHF 15–40k</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="CHF 40k+"><span>CHF 40k+</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Not sure yet"><span data-en="Not sure yet" data-de="Noch unklar" data-es="No sé aún">Not sure yet</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q5: acción deseada (single) -->
+      <div class="q" data-key="action" data-multi="0">
+        <div class="qh" data-en="What should people DO after watching?" data-de="Was sollen die Zuschauer NACH dem Video tun?" data-es="¿Qué querés que HAGAN después de verlo?">What should people DO after watching?</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Contact us / book a call"><span class="em">📞</span><span data-en="Contact us / book a call" data-de="Uns kontaktieren / Call buchen" data-es="Contactarnos / agendar una llamada">Contact us / book a call</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Buy / subscribe"><span class="em">🛒</span><span data-en="Buy / subscribe" data-de="Kaufen / abonnieren" data-es="Comprar / suscribirse">Buy / subscribe</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Apply for a job"><span class="em">🧑‍💼</span><span data-en="Apply for a job" data-de="Sich bewerben" data-es="Postularse a un empleo">Apply for a job</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Follow us on social"><span class="em">📲</span><span data-en="Follow us on social" data-de="Uns auf Social folgen" data-es="Seguirnos en redes">Follow us on social</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Learn more / read on"><span class="em">🔎</span><span data-en="Learn more / read on" data-de="Mehr erfahren" data-es="Saber más / seguir leyendo">Learn more / read on</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Attend an event"><span class="em">🎟️</span><span data-en="Attend an event" data-de="An einem Event teilnehmen" data-es="Asistir a un evento">Attend an event</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q6: emoción deseada (multi) -->
+      <div class="q" data-key="feeling" data-multi="1">
+        <div class="qh" data-en="How should they feel?" data-de="Wie sollen sie sich fühlen?" data-es="¿Qué querés que sientan?">How should they feel?</div>
+        <div class="qs" data-en="Choose all that apply" data-de="Mehrfachauswahl möglich" data-es="Podés elegir varios">Choose all that apply</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Inspired"><span class="em">✨</span><span data-en="Inspired" data-de="Inspiriert" data-es="Inspirados">Inspired</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Confident / trusting"><span class="em">🤝</span><span data-en="Confident / trusting" data-de="Vertrauensvoll" data-es="Con confianza">Confident / trusting</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Excited"><span class="em">🔥</span><span data-en="Excited" data-de="Begeistert" data-es="Entusiasmados">Excited</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Reassured / safe"><span class="em">🛡️</span><span data-en="Reassured / safe" data-de="Beruhigt / sicher" data-es="Tranquilos / seguros">Reassured / safe</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Curious"><span class="em">🧐</span><span data-en="Curious" data-de="Neugierig" data-es="Con curiosidad">Curious</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Proud (internal)"><span class="em">🏅</span><span data-en="Proud (internal audience)" data-de="Stolz (internes Publikum)" data-es="Orgullosos (audiencia interna)">Proud (internal)</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- Q7: destino final (single) -->
+      <div class="q" data-key="destination" data-multi="0">
+        <div class="qh" data-en="Where should they end up?" data-de="Wo sollen sie landen?" data-es="¿Adónde deberían ir a parar?">Where should they end up?</div>
+        <div class="opts two">
+          <button type="button" class="opt" data-val="Our website"><span class="em">🌐</span><span data-en="Our website" data-de="Unsere Website" data-es="Nuestra web">Our website</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="A specific landing page"><span class="em">🎯</span><span data-en="A specific landing page" data-de="Eine bestimmte Landingpage" data-es="Una landing page específica">A specific landing page</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Booking / contact page"><span class="em">📅</span><span data-en="Booking / contact page" data-de="Buchungs- / Kontaktseite" data-es="Página de agenda / contacto">Booking / contact page</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Our shop / product page"><span class="em">🛍️</span><span data-en="Our shop / product page" data-de="Unser Shop / Produktseite" data-es="Nuestra tienda / página de producto">Our shop / product page</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="Social media profile"><span class="em">📱</span><span data-en="Social media profile" data-de="Social-Media-Profil" data-es="Perfil de redes sociales">Social media profile</span><span class="tick">✓</span></button>
+          <button type="button" class="opt" data-val="App store / download"><span class="em">📥</span><span data-en="App store / download" data-de="App Store / Download" data-es="App store / descarga">App store / download</span><span class="tick">✓</span></button>
+        </div>
+      </div>
+
+      <!-- datos -->
+      <div class="q">
+        <div class="qh" data-en="Your details — so we can match the brief to your call" data-de="Ihre Angaben — damit wir das Briefing Ihrem Call zuordnen können" data-es="Tus datos — para conectar el brief con tu llamada">Your details — so we can match the brief to your call</div>
+        <div class="bf-row2" style="margin-top:12px">
+          <div class="bf"><label data-en="First name" data-de="Vorname" data-es="Nombre">First name</label><input type="text" name="first_name" autocomplete="given-name" required /></div>
+          <div class="bf"><label data-en="Last name" data-de="Nachname" data-es="Apellido">Last name</label><input type="text" name="last_name" autocomplete="family-name" required /></div>
+        </div>
+        <div class="bf"><label data-en="Email" data-de="E-Mail" data-es="Email">Email</label><input type="email" name="email" autocomplete="email" required /></div>
+        <div class="bf"><label data-en="Videos you like as reference? (links, optional)" data-de="Referenz-Videos, die Ihnen gefallen? (Links, optional)" data-es="¿Videos de referencia que te gusten? (links, opcional)">References (optional)</label><input name="references" placeholder="youtube.com/…, vimeo.com/…" /></div>
+        <div class="bf"><label data-en="Anything else? (optional)" data-de="Sonst noch etwas? (optional)" data-es="¿Algo más? (opcional)">Anything else? (optional)</label><textarea name="extra"></textarea></div>
+      </div>
+
+      <input type="text" name="company_url" style="position:absolute;left:-9999px" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <button class="btn btn-primary submit" type="submit" data-en="Send brief →" data-de="Briefing senden →" data-es="Enviar brief →">Send brief →</button>
+      <div class="berr" id="brief-err" data-en="Something went wrong — try again or email info@viven.ch" data-de="Etwas ist schiefgelaufen — bitte erneut versuchen oder info@viven.ch" data-es="Algo salió mal — probá de nuevo o escribí a info@viven.ch">Something went wrong.</div>
+    </form>
+
+    <p class="brief-alt" data-en="Prefer to talk? " data-de="Lieber sprechen? " data-es="¿Preferís hablar? ">Prefer to talk? <a href="/book/" target="_blank" rel="noopener" data-en="Book a 15-min call →" data-de="15-Min-Call buchen →" data-es="Agendá 15 min →">Book a 15-min call →</a></p>
+  </div>
+
+  <div class="brief-card brief-ok" id="brief-ok" hidden>
+    <div class="big">✅</div>
+    <h1 data-en="Got it — thank you!" data-de="Erhalten — danke!" data-es="¡Recibido — gracias!">Got it — thank you!</h1>
+    <p class="lead" id="brief-ok-lead-call" data-en="Perfect — now we can come well prepared. See you on the call!" data-de="Perfekt — so kommen wir bestens vorbereitet. Bis zum Call!" data-es="Perfecto — así llegamos bien preparados. ¡Nos vemos en la llamada!" hidden>Perfect — now we can come well prepared. See you on the call!</p>
+    <p class="lead" id="brief-ok-lead-tool" data-en="It's yours now — brief your team with it, get quotes elsewhere, whatever's useful. Want us to take a shot at pricing it too?" data-de="Es gehört jetzt Ihnen — briefen Sie Ihr Team damit, holen Sie andere Angebote ein, ganz wie es passt. Sollen wir Ihnen auch einen Preis dazu schicken?" data-es="Ya es tuyo — usalo para brief a tu equipo, pedí otras cotizaciones, lo que te sirva. ¿Querés que también te pasemos un precio?" hidden>It's yours now — brief your team with it, get quotes elsewhere, whatever's useful. Want us to take a shot at pricing it too?</p>
+    <div class="brief-actions primary no-print" id="brief-cta-tool" hidden>
+      <button type="button" id="brief-quote-btn">📩 <span data-en="Yes, send me a quote" data-de="Ja, schickt mir ein Angebot" data-es="Sí, mandame una cotización">Yes, send me a quote</span></button>
+      <a href="/book/" target="_blank" rel="noopener">📅 <span data-en="Book a 15-min call" data-de="15-Min-Call buchen" data-es="Agendar 15 min">Book a 15-min call</span></a>
+    </div>
+    <div class="brief-email-msg no-print" id="brief-quote-msg"></div>
+    <div class="brief-actions no-print">
+      <button type="button" id="brief-print">🖨️ <span data-en="Print / Save as PDF" data-de="Drucken / Als PDF speichern" data-es="Imprimir / Guardar como PDF">Print / Save as PDF</span></button>
+      <button type="button" id="brief-email-btn">✉️ <span data-en="Email me a copy" data-de="Kopie per E-Mail senden" data-es="Enviarme una copia por email">Email me a copy</span></button>
+    </div>
+    <div class="brief-email-msg no-print" id="brief-email-msg"></div>
+    <div class="brief-summary" id="brief-summary"></div>
+    <p class="brief-alt no-print">
+      <a href="/" id="brief-back-link" data-en="← Back to viven.ch" data-de="← Zurück zu viven.ch" data-es="← Volver a viven.ch">← Back to viven.ch</a>
+      &nbsp;·&nbsp;
+      <a href="/" id="brief-work-link" data-en="See our work →" data-de="Unsere Arbeiten ansehen →" data-es="Ver nuestro trabajo →">See our work →</a>
+    </p>
+  </div>
+</div>
+
+<script is:inline define:vars={{ SB_URL, SB_KEY }}>
+  var qs = new URLSearchParams(location.search);
+  var lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang') : 'en';
+  var leadId = qs.get('lead') || null;
+  var topic = qs.get('topic') || '';
+  document.documentElement.lang = lang;
+
+  // dos versiones del mensaje final: "nos vemos en la llamada" solo si ya reservó un call
+  // (llega acá con ?lead=<id> desde booking-create) — si es alguien que encontró /brief/ como tool suelto,
+  // sin call agendado, el brief es SUYO para usar como quiera; no le prometemos que le vamos a escribir
+  // solos — le ofrecemos pedir cotización o agendar, a que decida él
+  document.getElementById(leadId ? 'brief-ok-lead-call' : 'brief-ok-lead-tool').hidden = false;
+  if (!leadId) document.getElementById('brief-cta-tool').hidden = false;
+
+  // aplicar idioma a todo lo que tenga data-<lang> (re-invocable desde el switcher)
+  function applyLang(){
+    document.querySelectorAll('[data-en],[data-de],[data-es]').forEach(function(el){
+      var t = el.getAttribute('data-' + lang);
+      if (t) el.textContent = t;
+    });
+    document.documentElement.lang = lang;
+    document.querySelectorAll('#brief-langs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang') === lang); });
+    // el logo y los links de "volver"/"ver más" no son un callejón sin salida — llevan al home/portfolio del idioma actual
+    var home = '/' + lang + '/';
+    var work = '/' + lang + '/projects/';
+    ['brief-home-link', 'brief-back-link'].forEach(function(id){ var a = document.getElementById(id); if (a) a.href = home; });
+    var w = document.getElementById('brief-work-link'); if (w) w.href = work;
+  }
+  applyLang();
+  document.querySelectorAll('#brief-langs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      lang = b.getAttribute('data-lang');
+      applyLang();
+      var u = new URL(location.href); u.searchParams.set('lang', lang); history.replaceState(null, '', u);
+    });
+  });
+
+  // pre-seleccionar el objetivo según el tema del email (data-topic en las opciones de goal)
+  if (topic) {
+    var pre = document.querySelector('.q[data-key="goal"] .opt[data-topic="' + topic + '"]');
+    if (pre) pre.classList.add('sel');
+  }
+
+  var form = document.getElementById('brief-form');
+  var bar = document.getElementById('bprog-bar');
+  var errBox = document.getElementById('brief-err');
+
+  // ---- funnel first-party (tabla funnel_events) — /brief/ NO carga site.js, así que
+  // el tracker vive acá, con el mismo contrato que window.vvFunnel: dedupe por sesión
+  // y step (sessionStorage), opt-out viven-notrack y session_id compartido con
+  // pageviews ('viven-session'; si llegó directo desde el email, se crea acá).
+  // step 0 = abrió · 1..N = primera respuesta de cada pregunta · N+1 = envió.
+  var vvSid = null;
+  try {
+    vvSid = sessionStorage.getItem('viven-session');
+    if (!vvSid && window.crypto && crypto.randomUUID) { vvSid = crypto.randomUUID(); sessionStorage.setItem('viven-session', vvSid); }
+  } catch (e) {}
+  function vvFunnel(step, label){
+    try {
+      if (!vvSid) return;
+      if (/^(localhost|127\.|192\.168\.)/.test(location.hostname)) return;
+      try { if (localStorage.getItem('vv_notrack') === '1') return; } catch (e) {}
+      var k = 'vvf_brief_' + step;
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, '1');
+      fetch(SB_URL + '/rest/v1/funnel_events', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ session_id: vvSid, funnel: 'brief', step: step, label: label || null, path: location.pathname }),
+        keepalive: true
+      }).catch(function(){});
+    } catch (e) {}
+  }
+  var vvQKeys = [];
+  form.querySelectorAll('.q[data-key]').forEach(function(q){ vvQKeys.push(q.getAttribute('data-key')); });
+  vvFunnel(0, 'view');
+
+  function updateProgress(){
+    var qBlocks = form.querySelectorAll('.q[data-key]');
+    var done = 0;
+    qBlocks.forEach(function(q){ if (q.querySelector('.opt.sel')) done++; });
+    // +1 por nombre+apellido, +1 por email válido
+    var total = qBlocks.length + 2;
+    if (form.first_name.value.trim() && form.last_name.value.trim()) done++;
+    if (form.email.value.trim() && /\S+@\S+\.\S+/.test(form.email.value)) done++;
+    bar.style.width = Math.round(done / total * 100) + '%';
+  }
+
+  // manejar clicks en las opciones (single o multi)
+  form.querySelectorAll('.q[data-key]').forEach(function(q){
+    var multi = q.getAttribute('data-multi') === '1';
+    q.querySelectorAll('.opt').forEach(function(opt){
+      opt.addEventListener('click', function(){
+        if (multi) {
+          opt.classList.toggle('sel');
+        } else {
+          q.querySelectorAll('.opt').forEach(function(o){ o.classList.remove('sel'); });
+          opt.classList.add('sel');
+        }
+        updateProgress();
+        destaparSiguiente();
+        var vvKey = q.getAttribute('data-key');
+        vvFunnel(vvQKeys.indexOf(vvKey) + 1, vvKey);
+      });
+    });
+  });
+
+  /* Una pregunta por vez. La página tenía las 14 preguntas abiertas y casi
+     6000px de alto: el 90% se iba sin contestar ni la primera (funnel medido;
+     idea de CRO aprobada). Cada respuesta destapa la siguiente y lo contestado
+     queda a la vista para poder volver. El que prefiere el formulario largo lo
+     abre entero de un botón. */
+  var vvQAll = [].slice.call(form.querySelectorAll('.q[data-key]'));
+  var vvTodas = false;
+  function destaparSiguiente(){
+    if (vvTodas) return;
+    var corte = vvQAll.length - 1;
+    for (var i = 0; i < vvQAll.length; i++){
+      if (!vvQAll[i].querySelector('.opt.sel')) { corte = i; break; }
+    }
+    vvQAll.forEach(function(q, i){ q.classList.toggle('q-oculta', i > corte); });
+    var btn = document.getElementById('brief-todas');
+    if (btn) btn.hidden = corte >= vvQAll.length - 1;
+  }
+  (function(){
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.id = 'brief-todas'; btn.className = 'brief-todas';
+    btn.setAttribute('data-en', 'Show all questions');
+    btn.setAttribute('data-de', 'Alle Fragen anzeigen');
+    btn.setAttribute('data-es', 'Ver todas las preguntas');
+    btn.textContent = 'Show all questions';
+    btn.addEventListener('click', function(){
+      vvTodas = true;
+      vvQAll.forEach(function(q){ q.classList.remove('q-oculta'); });
+      btn.hidden = true;
+    });
+    var ultima = vvQAll[vvQAll.length - 1];
+    if (ultima && ultima.parentNode) ultima.parentNode.insertBefore(btn, ultima.nextSibling);
+    destaparSiguiente();
+  })();
+
+  form.email.addEventListener('input', updateProgress);
+  form.first_name.addEventListener('input', updateProgress);
+  form.last_name.addEventListener('input', updateProgress);
+  updateProgress();
+
+  function collect(q){
+    var vals = [];
+    q.querySelectorAll('.opt.sel').forEach(function(o){ vals.push(o.getAttribute('data-val')); });
+    return vals;
+  }
+
+  // resumen legible (idioma del usuario) para el print/PDF y el email — misma fuente que ve el usuario en pantalla
+  function buildSummaryPairs(){
+    var pairs = [];
+    form.querySelectorAll('.q[data-key]').forEach(function(q){
+      var qh = q.querySelector('.qh');
+      if (!qh) return;
+      var vals = [];
+      q.querySelectorAll('.opt.sel').forEach(function(o){
+        var txt = [];
+        o.querySelectorAll('span').forEach(function(s){
+          if (s.classList.contains('em') || s.classList.contains('tick')) return;
+          if (s.textContent.trim()) txt.push(s.textContent.trim());
+        });
+        if (txt.length) vals.push(txt.join(' '));
+      });
+      pairs.push([qh.textContent.trim(), vals.length ? vals.join(', ') : '—']);
+    });
+    return pairs;
+  }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  var L_REF = { en: 'References', de: 'Referenzen', es: 'Referencias' };
+  var L_NOTES = { en: 'Anything else', de: 'Sonstiges', es: 'Otros comentarios' };
+  var L_SENT = { en: '✓ Sent — check your inbox', de: '✓ Gesendet — E-Mails prüfen', es: '✓ Enviado — revisá tu bandeja' };
+  var L_FAIL = { en: 'Could not send — try again later', de: 'Konnte nicht gesendet werden — später erneut versuchen', es: 'No se pudo enviar — probá más tarde' };
+  var L_DOCTITLE = { en: 'Project Brief', de: 'Projekt-Briefing', es: 'Brief de proyecto' };
+  var L_QUOTE_OK = { en: '✓ Got it — we’ll send you a quote shortly.', de: '✓ Alles klar — wir schicken Ihnen in Kürze ein Angebot.', es: '✓ Listo — te mandamos una cotización pronto.' };
+  var L_QUOTE_FAIL = { en: 'Could not send — try again or book a call instead', de: 'Konnte nicht gesendet werden — bitte erneut versuchen oder Call buchen', es: 'No se pudo enviar — probá de nuevo o agendá una llamada' };
+  var LOCALE = { en: 'en-GB', de: 'de-CH', es: 'es-AR' };
+  // mismo wordmark navy+acid que usan las ofertas y propuestas del dashboard — para que el
+  // brief se vea y se sienta como un documento real de VIVEN, no una captura de la web
+  var VIVEN_MARK = '<svg viewBox="125 126 1020 288" fill="#ddf98f" xmlns="http://www.w3.org/2000/svg"><path d="M756.66,346.9l114.7-80.57c-37.87-83.92-102.57-60.93-102.57-60.93l-71.71,57.88v65.56c0,38.77,25.21,75.91,62.34,80.84h68.27l35.95-40.9-107,.1C756.66,371,756.7,346.56,756.66,346.9Zm.06-108.77s55.51-13.37,55.51,34.2l-55.51,39C757,310.8,756.72,238.13,756.72,238.13Z"/><path d="M270.4,255.39l-32.57,61.44L179,197.28l-54.41,44.41,22.58,22.58,74.76,149.91,106.6-198H237.09ZM431.78,125.83H372.19v49.22h59.59Zm1,71.45-82.54,67.36,22.95,22.95v78.47l-32.57,38.86H465.37l-32.58-38.86Zm704.72,207.64-32.58-38.86V286.85c0-43.67-29.24-84-71.06-89.57l-50.34,41.08L962.06,195.8l-57.37,47,22.58,22.95V366.06L894.7,404.92h124.73l-32.57-38.86V248.73h11.85a46.75,46.75,0,0,1,46.63,47V404.92ZM621.28,255.39l-32.57,61.44L529.86,197.28l-54.41,44.41L498,264.27,572.8,414.18l106.6-198H588Z"/></svg>';
+  function renderSummary(data){
+    var rows = data.pairs.map(function(p){ return '<tr><td class="bs-k">' + escapeHtml(p[0]) + '</td><td class="bs-v">' + escapeHtml(p[1]) + '</td></tr>'; }).join('');
+    if (data.references) rows += '<tr><td class="bs-k">' + (L_REF[lang] || L_REF.en) + '</td><td class="bs-v">' + escapeHtml(data.references) + '</td></tr>';
+    if (data.extra) rows += '<tr><td class="bs-k">' + (L_NOTES[lang] || L_NOTES.en) + '</td><td class="bs-v">' + escapeHtml(data.extra) + '</td></tr>';
+    var date = new Date().toLocaleDateString(LOCALE[lang] || 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    document.getElementById('brief-summary').innerHTML =
+      '<div class="bs-doc"><div class="bs-band"><div class="bs-brand">' + VIVEN_MARK + '<div class="bs-fp">Film<br>Production</div></div>' +
+      '<div class="bs-doctitle"><div class="bs-dt-label">' + (L_DOCTITLE[lang] || L_DOCTITLE.en) + '</div><div class="bs-dt-date">' + date + '</div></div></div>' +
+      '<div class="bs-client"><div class="bs-client-name">' + escapeHtml(data.name) + '</div><div class="bs-client-email">' + escapeHtml(data.to) + '</div></div>' +
+      '<table class="bs-table">' + rows + '</table>' +
+      '<div class="bs-foot"><b>VIVEN AG</b> — Video Production · Zürich, Switzerland<br>viven.ch · info@viven.ch</div></div>';
+  }
+  var lastBrief = null;
+  document.getElementById('brief-print').addEventListener('click', function(){ window.print(); });
+  document.getElementById('brief-email-btn').addEventListener('click', function(){
+    if (!lastBrief) return;
+    var btn = document.getElementById('brief-email-btn');
+    var msg = document.getElementById('brief-email-msg');
+    btn.disabled = true; msg.textContent = '';
+    fetch(SB_URL + '/functions/v1/brief-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
+      /* hutk + página real: sin el token de HubSpot el contacto entra como
+         "Offline Sources" aunque venga de Google Ads (reporte de la agencia,
+         25/08/2026). Es null si la persona no aceptó cookies. */
+      body: JSON.stringify(Object.assign({}, lastBrief, {
+        hutk: (window.vvHutk ? window.vvHutk() : null),
+        gclid: (window.vvGclid ? window.vvGclid() : null),
+        page_uri: location.href,
+        page_name: document.title
+      }))
+    }).then(function(r){ return r.ok; }).catch(function(){ return false; }).then(function(ok){
+      msg.textContent = ok ? (L_SENT[lang] || L_SENT.en) : (L_FAIL[lang] || L_FAIL.en);
+      btn.disabled = false;
+    });
+  });
+  // "Sí, mandame una cotización" (solo tool suelto, sin call) — el trigger briefs_autolead
+  // YA crea/liga el lead por email en el submit original de más arriba; si acá insertáramos
+  // directo en leads, duplicaría el contacto. En vez de eso mandamos OTRO brief (mismo insert
+  // seguro que ya usa el form), el trigger lo liga al MISMO lead por email (sin duplicar), y el
+  // "extra" deja bien claro que esta vez sí pidió cotización — para que Sebastián/Sofia lo vean
+  document.getElementById('brief-quote-btn').addEventListener('click', function(){
+    if (!lastBrief) return;
+    var btn = document.getElementById('brief-quote-btn');
+    var msg = document.getElementById('brief-quote-msg');
+    btn.disabled = true; msg.textContent = '';
+    var full = (lastBrief.name || '').trim();
+    var first = full.split(' ')[0] || null;
+    var last = full.split(' ').slice(1).join(' ') || null;
+    var row = {
+      lang: lang, name: full || null, first_name: first, last_name: last, email: lastBrief.to,
+      extra: '🔔 QUIERE COTIZACIÓN (pidió precio desde el brief-tool) — ' + lastBrief.pairs.map(function(p){ return p[0] + ': ' + p[1]; }).join(' · ')
+    };
+    fetch(SB_URL + '/rest/v1/briefs', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(row)
+    }).then(function(r){ return r.ok; }).catch(function(){ return false; }).then(function(ok){
+      msg.textContent = ok ? (L_QUOTE_OK[lang] || L_QUOTE_OK.en) : (L_QUOTE_FAIL[lang] || L_QUOTE_FAIL.en);
+      if (!ok) btn.disabled = false;
+    });
+  });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (form.company_url.value) return; // honeypot
+    errBox.style.display = 'none';
+
+    var goal = collect(form.querySelector('.q[data-key="goal"]'))[0] || '';
+    var distribution = collect(form.querySelector('.q[data-key="distribution"]')).join(', ');
+    var timeline = collect(form.querySelector('.q[data-key="timeline"]'))[0] || '';
+    var budget = collect(form.querySelector('.q[data-key="budget"]'))[0] || '';
+
+    // respuestas profundas → answers (jsonb); si la columna no existe todavía, van al extra
+    var answers = {
+      audience: collect(form.querySelector('.q[data-key="audience"]')),
+      quantity: collect(form.querySelector('.q[data-key="quantity"]'))[0] || null,
+      formats: collect(form.querySelector('.q[data-key="formats"]')),
+      languages: collect(form.querySelector('.q[data-key="languages"]')),
+      oncamera: collect(form.querySelector('.q[data-key="oncamera"]')),
+      locations: collect(form.querySelector('.q[data-key="locations"]')),
+      action: collect(form.querySelector('.q[data-key="action"]'))[0] || null,
+      feeling: collect(form.querySelector('.q[data-key="feeling"]')),
+      destination: collect(form.querySelector('.q[data-key="destination"]'))[0] || null,
+      references: form.references.value.trim() || null
+    };
+    var first = form.first_name.value.trim();
+    var last = form.last_name.value.trim();
+    var references = form.references.value.trim();
+    var extra = form.extra.value.trim();
+    // sesión web del visitante (la crea site.js al navegar el sitio; mismo sessionStorage,
+    // mismo origen) — conecta el brief con su historial: páginas vistas, landing, videos
+    var sessionId = null;
+    try { sessionId = sessionStorage.getItem('viven-session'); } catch (e) {}
+    var row = {
+      lead_id: leadId, lang: lang, session_id: sessionId,
+      name: (first + ' ' + last).trim() || null, first_name: first || null, last_name: last || null,
+      email: form.email.value.trim(),
+      goal: goal, distribution: distribution || null,
+      timeline: timeline || null, budget: budget || null,
+      extra: extra || null,
+      answers: answers
+    };
+    lastBrief = { to: row.email, name: row.name, lang: lang, pairs: buildSummaryPairs(), references: references || null, extra: extra || null };
+
+    function showSuccess(){
+      vvFunnel(vvQKeys.length + 1, 'submitted');
+      document.getElementById('brief-form-card').hidden = true;
+      document.getElementById('brief-ok').hidden = false;
+      // el documento respira: la card pasa de 680px (ancho de formulario) a 960px
+      // — el wrap exterior ya es --maxw fijo, igual que el resto del sitio.
+      // OJO: hay DOS .brief-card (form + ok) — apuntar al que se está mostrando
+      var w = document.getElementById('brief-ok'); if (w) w.classList.add('wide');
+      renderSummary(lastBrief);
+      window.scrollTo(0, 0);
+    }
+
+    var btn = form.querySelector('button.submit'); btn.disabled = true;
+    fetch(SB_URL + '/rest/v1/briefs', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(row)
+    }).then(function(r){
+      if (r.ok) { showSuccess(); return; }
+      // columna answers/first_name/last_name/session_id ausente (SQL 0027/0047/0056 sin correr) → plegar al extra y reintentar
+      var flat = Object.keys(answers).map(function(k){ var v = answers[k]; if (Array.isArray(v)) v = v.join(', '); return v ? k + ': ' + v : ''; }).filter(Boolean).join(' · ');
+      delete row.answers; delete row.first_name; delete row.last_name; delete row.session_id;
+      row.extra = ((row.extra || '') + (flat ? '\n[brief] ' + flat : '')).trim() || null;
+      return fetch(SB_URL + '/rest/v1/briefs', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(row)
+      }).then(function(r2){
+        if (r2.ok) { showSuccess(); }
+        else { btn.disabled = false; errBox.style.display = 'block'; }
+      });
+    }).catch(function(){ btn.disabled = false; errBox.style.display = 'block'; });
+  });
+</script>
+</body>
+</html>

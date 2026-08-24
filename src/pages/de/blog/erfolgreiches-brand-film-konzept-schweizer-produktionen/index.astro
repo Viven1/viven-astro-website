@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Erfolgreiches Brand-Film Konzept: Was Schweizer Produktionen auszeichnet | Viven"};
+const description = {"de":"Erfahren Sie, was erfolgreiche Schweizer Brand-Filme wie bei UBS und Porsche ausmacht. Praktische Lektionen für Ihre Markenvideos."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "erfolgreiches-brand-film-konzept-schweizer-produktionen";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/erfolgreiches-brand-film-konzept-schweizer-produktionen" active="blog" singleLang={true} langUrls={{"en":"/en/blog/great-brand-film-swiss-productions/","de":"/de/blog/erfolgreiches-brand-film-konzept-schweizer-produktionen/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/erfolgreiches-brand-film-konzept-schweizer-produktionen/\"},\"headline\":\"Erfolgreiches Brand-Film Konzept: Was Schweizer Produktionen auszeichnet\",\"description\":\"Erfahren Sie, was erfolgreiche Schweizer Brand-Filme wie bei UBS und Porsche ausmacht. Praktische Lektionen für Ihre Markenvideos.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/erfolgreiches-brand-film-konzept-schweizer-produktionen/\",\"datePublished\":\"2026-07-31T05:35:26.882Z\",\"image\":\"https://www.viven.ch/projects/devenir-a-merkle-interactive-experience/04-Devenir_Merkle_VIVEN_Video_Agency_017.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Erfolgreiches Brand-Film Konzept: Was Schweizer Produktionen auszeichnet\",\"item\":\"https://www.viven.ch/de/blog/erfolgreiches-brand-film-konzept-schweizer-produktionen/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie lange sollte ein Brand-Film sein?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das hängt vom Kontext ab. Für Social Media: 15–60 Sekunden. Für Website-Hero: 30–90 Sekunden. Für Event oder Messe: 2–3 Minuten. Die Faustregel: Halten Sie das Publikum vom ersten Frame an, nicht länger als nötig.\"}},{\"@type\":\"Question\",\"name\":\"Was kostet ein professioneller Brand-Film in der Schweiz?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ein guter Brand-Film kostet zwischen CHF 15'000 und CHF 80'000, je nach Komplexität, Locations und Produktionstagen. Die Investition rechnet sich durch Lead-Generierung und Employer-Branding; kalkulieren Sie ROI, nicht nur Produktionskosten.\"}},{\"@type\":\"Question\",\"name\":\"Sollte ein Brand-Film kommerziell sein oder dokumentarisch?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Beides. Die erfolgreichsten Filme verbinden den Auftrag (kommerzielle Ziel) mit echter Erzählung (dokumentarischer Stil). Zeigen Sie echte Menschen und echte Prozesse – mit Sinn für Komposition und Schnitt.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Erfolgreiches Brand-Film Konzept: Was Schweizer Produktionen auszeichnet</span></nav>
+  <span class="eyebrow">Produktvideo</span>
+  <h1>Erfolgreiches Brand-Film Konzept: Was Schweizer Produktionen auszeichnet</h1>
+  <p class="lead">Ein Brand-Film ist nicht einfach nur ein Marketing-Video – es ist die emotionale Verkörperung Ihrer Marke. Wer heute auf Google nach «guter Brand-Film» oder «wie mache ich ein Brand-Video» sucht, möchte verstehen, was den Unterschied zwischen generischer Werbung und einer Produktion macht, die tatsächlich in Köpfen und Herzen bleibt. Wir bei Viven AG haben mit führenden Schweizer Unternehmen wie UBS, Siemens und Porsche zusammengearbeitet – und wissen genau, welche Elemente aus einem guten Film eine unvergessliche Markengeschichte machen.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>31. Juli 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/devenir-a-merkle-interactive-experience/04-Devenir_Merkle_VIVEN_Video_Agency_017.jpg" alt="Erfolgreiches Brand-Film Konzept: Was Schweizer Produktionen auszeichnet" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Authentizität statt Halbwahrheiten</h2><p>Der häufigste Fehler bei Brand-Filmen ist die Versuchung zur Überzeichnung. Schweizer Unternehmen und ihre Zielgruppen haben ein feines Gespür für ehrliche Kommunikation. Ein erfolgreicher Brand-Film funktioniert nicht, weil er die beste Geschichte erzählt, sondern weil er Ihre tatsächliche Geschichte erzählt – nur besser.</p><p>Bei unserer Arbeit mit grossen Konzernen haben wir beobachtet: Je näher das Video an der echten Unternehmensrealität bleibt, desto stärker wirkt es. Das heisst nicht: keine Ästhetik, keine Inszenierung. Es heisst: die Inszenierung sollte die Wahrheit verstärken, nicht verbergen.</p><h2>Strategie vor Production-Design</h2><p>Eine häufige Falle: Man beginnt mit der Frage «Wie soll das Video aussehen?» statt «Was sollen wir damit erreichen?»</p><ul><li><strong>Klare Zielgruppe definieren:</strong> Wer soll dieses Video sehen und worauf reagieren?</li><li><strong>Botschaften-Pyramide:</strong> Eine Hauptbotschaft, 2–3 Unterpunkte. Alles andere ist Ablenkung.</li><li><strong>Distribution planen:</strong> Ein Brand-Film für LinkedIn sieht anders aus als einer für die Unternehmenswebseite oder eine Messe.</li></ul><p>Die erfolgreichsten <a href={p("services/brand-video")}>Brand-Videos von Schweizer Unternehmen</a> waren alle strategisch vorab durchdacht – bevor die erste Kamera lief. Das kostet Zeit, spart aber 10x so viel in der Production.</p><h2>Geschwindigkeit und Struktur</h2><p>Im DACH-Raum funktionieren Brand-Filme, die schnell einen Mehrwert kommunizieren. Das bedeutet nicht oberflächlich, sondern präzise. Schweizer Zuschauer sind ungeduldig mit Zeitverschwendung, aber dankbar für prägnante Erzählung.</p><p>Eine bewährte Struktur von erfolgreichen Produktionen:</p><ul><li><strong>Erste 3 Sekunden:</strong> Aufmerksamkeit greifen. Ein Bild, eine Frage, ein Moment.</li><li><strong>Mittelteil (10–45 Sekunden bei Social, bis 3 Minuten für Website):</strong> Problem und Lösung zeigen, nicht erklären.</li><li><strong>Finale (2–5 Sekunden):</strong> Call-to-Action oder Markenlogo – kein Chaos.</li></ul><p>Das ist nicht zwanghaft. Das ist Handwerk. <a href={p("services/corporate-video")}>Gute Corporate Videos</a> zeigen es.</p><h2>Production Values, die sichtbar sind – aber nicht aufdringlich</h2><p>Ein häufiger Mythos: Brand-Filme müssen teuer aussehen. Das stimmt nicht. Sie müssen authentisch aussehen. Das ist ein Unterschied.</p><p>Die besten Schweizer Brand-Filme, die wir erlebt haben, arbeiten mit:</p><ul><li>Echter Location, nicht grüner Bildhintergrund</li><li>Real-Menschen, nicht Models (oder Models, die Real-Menschen spielen)</li><li>Natürliches oder einfaches Licht, kein überinszeniert wirkendes Kino-Setup</li><li>Starker Sound: Musik und Audio-Design sind 50 % des Effekts</li></ul><p>Handwerk und Geschmack schlagen Budget. Ein CHF 20'000-Budget für einen Brand-Film kann besser aussehen als CHF 100'000, wenn die Strategie stimmt.</p><h2>Wo Brand-Filme funktionieren – und wo sie scheitern</h2><p>Ein Brand-Film ist eine Investition mit langer Lebenszyklen. Er funktioniert:</p><ul><li><strong>Als Employer-Branding-Tool:</strong> Zeigen Sie, wer Sie als Arbeitgeber sind. <a href={p("services/employer-branding")}>Das wird unterschätzt.</a></li><li><strong>In der Website-Hero-Section:</strong> Ein starker Film in den ersten 2 Sekunden der Startseite ist wertvoller als 1000 Worte.</li><li><strong>In Lead-Generation-Kampagnen:</strong> LinkedIn, Google Ads, YouTube – gekoppelt mit klarem CTA.</li><li><strong>Auf Messen und Events:</strong> Das Medium für Aufmerksamkeit ohne Sound funktioniert noch immer.</li></ul><p>Er scheitert, wenn:</p><ul><li>Zu viele Stakeholder ihre «Vision» ins Script schreiben</li><li>Kein klares «Warum» dahintersteckt</li><li>Die Distribution nicht geplant ist (Video existiert, aber niemand sieht es)</li></ul><h2>Die Nachbereitung ist nicht optional</h2><p>Ein fertig produziertes Video ist nicht das Ende – es ist der Anfang. Erfolgreiche Unternehmen erstellen mehrere Schnitte: die lange Version, die 60-Sekunden-Version, die 15-Sekunden-Version für Social. Jede hat ihren Platz. Die richtigen Untertitel, CTA-Overlays und <a href={p("services/social-media-video")}>Social-Media-Optimierungen</a> machen oft den Unterschied zwischen 100 und 10'000 Views aus.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="erfolgreiches-brand-film-konzept-schweizer-produktionen" />
+  </div></section>
+</Base>

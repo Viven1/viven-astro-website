@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Video-SEO: Videos auf Google und YouTube ranken lassen | Viven"};
+const description = {"de":"Video-SEO: Wie Ihre Videos in Google und YouTube oben ranken. Praktische Strategien für mehr Sichtbarkeit und Leads – für Schweizer Unternehmen."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "video-seo-ranking-google-youtube";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/video-seo-ranking-google-youtube" active="blog" singleLang={true} langUrls={{"en":"/en/blog/","de":"/de/blog/video-seo-ranking-google-youtube/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/video-seo-ranking-google-youtube/\"},\"headline\":\"Video-SEO: Videos auf Google und YouTube ranken lassen\",\"description\":\"Video-SEO: Wie Ihre Videos in Google und YouTube oben ranken. Praktische Strategien für mehr Sichtbarkeit und Leads – für Schweizer Unternehmen.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/video-seo-ranking-google-youtube/\",\"datePublished\":\"2026-08-21T09:43:29.421Z\",\"image\":\"https://www.viven.ch/projects/en/philips-oneblade-playoffs-social-media-campaign/01-de_Playoffs__VIVEN_Video_Agency-008.jpeg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Video-SEO: Videos auf Google und YouTube ranken lassen\",\"item\":\"https://www.viven.ch/de/blog/video-seo-ranking-google-youtube/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Sollte ich meine Videos auf YouTube oder auf meiner Website hosten?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"YouTube ist für Ranking-Zwecke meist besser, da Google sein eigenes System bevorzugt. Allerdings können Sie das Video auch embedded auf Ihrer Website zeigen – nutzen Sie einfach den YouTube-Embed-Code. So erhalten Sie Rankings auf beiden Plattformen.\"}},{\"@type\":\"Question\",\"name\":\"Wie lange dauert es, bis ein Video bei Google rankt?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Neu hochgeladene, optimierte Videos erscheinen oft innerhalb von 2–4 Wochen in Google-Suchergebnissen. Top-Rankings (erste Seite) können 3–6 Monate dauern, abhängig von Konkurrenz und Linkprofil.\"}},{\"@type\":\"Question\",\"name\":\"Sind Untertitel wirklich wichtig für Video-SEO?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ja. Untertitel (Captions) erlauben Google, den vollständigen Videotext zu indexieren. Das verbessert sowohl Rankings als auch Accessibility. Auto-Generated Captions (YouTube) sind ein Anfang, handgefertigte Untertitel sind zuverlässiger.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Video-SEO: Videos auf Google und YouTube ranken lassen</span></nav>
+  <span class="eyebrow">Markenfilm</span>
+  <h1>Video-SEO: Videos auf Google und YouTube ranken lassen</h1>
+  <p class="lead">Videos sind das stärkste Rankingfaktor im Web – aber nur wenn Google und YouTube sie richtig finden. Video-SEO ist nicht optional: Unternehmen, die ihre Videos strukturiert optimieren, erhalten bis zu 5-mal mehr organische Views und klare Vorteile bei Google-Suchergebnissen. In diesem Guide zeigen wir, wie Sie Ihre Videos technisch, inhaltlich und strategisch so aufbauen, dass sie tatsächlich gefunden werden.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>21. August 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/en/philips-oneblade-playoffs-social-media-campaign/01-de_Playoffs__VIVEN_Video_Agency-008.jpeg" alt="Video-SEO: Videos auf Google und YouTube ranken lassen" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Warum Video-SEO für Schweizer Unternehmen kritisch ist</h2><p>Google bevorzugt Videos: Sie erhöhen die Verweildauer auf einer Seite um durchschnittlich 80 % und signalisieren Relevanz. YouTube ist die zweitgrösste Suchmaschine weltweit – nach Google selbst. Wer seine Videos nicht optimiert, verliert sowohl organische Sichtbarkeit als auch direkte Lead-Generierung.</p><p>Bei VIVEN AG sehen wir regelmässig, dass Unternehmen wie UBS und Porsche ihre <a href={p("services/corporate-video")}>Unternehmensvideos</a> technisch perfekt produzieren, dann aber bei der SEO-Struktur schwache Punkte haben. Das ist vertane Reichweite.</p><h2>Technische Video-SEO: Das Fundament</h2><p>Bevor Inhalte ranken können, muss die technische Basis stimmen:</p><ul><li><strong>Videoformat und Codecs:</strong> Verwenden Sie MP4 mit H.264-Codec. Dateigrössenoptimierung ist entscheidend – 300 MB für ein 10-Minuten-Video ist Standard.</li><li><strong>Sitemap und Strukturdaten:</strong> Eine Video-XML-Sitemap teilt Google mit, wo Ihre Videos liegen. Nutzen Sie schema.org-Markup (VideoObject) mit Titel, Beschreibung, Thumbnail-URL und Dauer.</li><li><strong>Hosting und CDN:</strong> YouTube ist oft die beste Wahl für organisches Ranking, weil Google sein eigenes Videosystem bevorzugt. Wer Videos selbst hosted, braucht ein stabiles CDN (Content Delivery Network).</li><li><strong>Mobile First:</strong> 70 % der Video-Views erfolgen mobil. Responsive Player und schnelle Ladezeiten sind nicht optional.</li></ul><h2>YouTube-Optimierung: Mehr als nur ein Upload</h2><p>YouTube ist gleichzeitig Plattform und Suchmaschine. Die Optimierung hier hat direkten Einfluss auf Google-Rankings:</p><ul><li><strong>Titel und Beschreibung:</strong> Hauptkeyword in die ersten 50 Zeichen des Titels. Die Beschreibung sollte in den ersten 2–3 Sätzen die Such-Intent beantworten. Link zur relevanten Landing-Page.</li><li><strong>Tags und Playlists:</strong> 5–8 relevante Tags helfen YouTube, Ihr Video zu kategorisieren. Thematische Playlists verbessern Session-Duration.</li><li><strong>Thumbnails und CTR:</strong> Ein custom Thumbnail mit hohem Kontrast erhöht die Click-Through-Rate um bis zu 30 %. Das wiederum ist ein YouTube-Ranking-Signal.</li><li><strong>Captions und Transkripte:</strong> Untertitel helfen nicht nur Zuschauern – sie geben Google den vollständigen Text zum Indexieren.</li></ul><h2>Inhaltliche Optimierung: Was Google wirklich wertet</h2><p>Die besten technischen Signale nützen nichts, wenn der Inhalt nicht überzeugt:</p><ul><li><strong>Video-Länge:</strong> Kurz ist nicht immer besser. Für Ranking-Videos (B2B, Tutorials) sind 6–15 Minuten optimal. Längere Videos halten mehr Zuschauer, was Google registriert.</li><li><strong>Context-Text:</strong> Der Text um das Video herum ist entscheidend. Eine 300-Wort-Beschreibung mit interner Verlinkung zu <a href={p("services/product-video")}>Produktvideos</a> oder <a href={p("services/employer-branding")}>Employer-Branding-Content</a> hilft Google, Relevanz zu verstehen.</li><li><strong>Engagement-Signale:</strong> Likes, Shares und Kommentare sind kein direktes Ranking-Signal, aber hohe Engagement-Rate führt zu höherer Session-Duration, und die zählt.</li></ul><h2>Technische SEO auf der Landing Page</h2><p>Videos funktionieren nicht isoliert. Die Seite, auf der sie eingebunden sind, muss auch SEO-optimiert sein:</p><ul><li>Page-Title und Meta-Description sollten das Keyword enthalten.</li><li>Das Video sollte «above the fold» (sichtbar ohne Scrollen) platziert sein.</li><li>Verwenden Sie Open Graph Tags (og:video, og:title) für bessere Social-Sharing-Vorschau.</li><li>Interne Links zu thematisch verwandtem Content (z. B. <a href={p("services/how-to-video")}>How-to-Videos</a> oder <a href={p("services/social-media-video")}>Social-Media-Content</a>) verstärken die Topical Authority.</li></ul><h2>Lokale Video-SEO für die DACH-Region</h2><p>Als Schweizer Unternehmen sollten Sie lokale Signale nutzen:</p><ul><li>Videotitel und Beschreibung können lokal angepasst sein: «[Produkt] Anleitung auf Deutsch», nicht nur «Tutorial».</li><li>Zielgruppe auf YouTube auf die Schweiz, Deutschland und Österreich begrenzen.</li><li>Backlinks von lokalen Schweizer Branchenverzeichnissen und News-Seiten stärken lokale Relevanz.</li></ul><h2>Messung und Iteration</h2><p>Ohne Daten ist Optimierung Rätselraten:</p><ul><li>Google Search Console zeigt, über welche Keywords Ihr Video organisch gefunden wird.</li><li>YouTube Analytics zeigt Watch-Time, Klick-Through-Rate und Audience-Retention – alle Ranking-Faktoren.</li><li>A/B-Tests mit verschiedenen Thumbnails, Titeln und CTAs sind datengetrieben und skalierbar.</li></ul><p>Video-SEO ist kein einmaliges Projekt – es ist kontinuierliche Optimierung. Die Unternehmen, die regelmässig testen, messen und anpassen, sehen nach 4–6 Wochen deutliche Sichtbarkeitssteigerungen.</p><p>Sie benötigen Unterstützung bei der Video-Produktion UND der SEO-Strategie? VIVEN AG begleitet Sie von Konzept über Produktion bis zur Optimierung für Google und YouTube. <a href={p("contact")}>Lassen Sie uns über Ihr Projekt sprechen</a>.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/412290258?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="video-seo-ranking-google-youtube" />
+  </div></section>
+</Base>

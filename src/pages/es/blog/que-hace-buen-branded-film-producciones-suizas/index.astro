@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Qué hace un buen branded film: lecciones de producciones suizas | Viven"};
+const description = {"es":"Descubre los elementos clave de un branded film exitoso. Análisis de estrategias de video corporativo que funcionan en marcas suizas líderes."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "que-hace-buen-branded-film-producciones-suizas";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/que-hace-buen-branded-film-producciones-suizas" active="blog" singleLang={true} langUrls={{"en":"/en/blog/great-brand-film-swiss-productions/","de":"/de/blog/erfolgreiches-brand-film-konzept-schweizer-produktionen/","es":"/es/blog/que-hace-buen-branded-film-producciones-suizas/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/que-hace-buen-branded-film-producciones-suizas/\"},\"headline\":\"Qué hace un buen branded film: lecciones de producciones suizas\",\"description\":\"Descubre los elementos clave de un branded film exitoso. Análisis de estrategias de video corporativo que funcionan en marcas suizas líderes.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/que-hace-buen-branded-film-producciones-suizas/\",\"datePublished\":\"2026-07-31T05:35:30.535Z\",\"image\":\"https://www.viven.ch/projects/meteomatics-product-campaign-brand-video/04-Meteomatics_VIVEN_Video_Agentur_030.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Qué hace un buen branded film: lecciones de producciones suizas\",\"item\":\"https://www.viven.ch/es/blog/que-hace-buen-branded-film-producciones-suizas/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuál es la diferencia entre un video corporativo y un branded film?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Un video corporativo comunica información: servicios, misión, procesos. Un branded film cuenta una historia donde la marca es el contexto, no el foco directo. El objetivo es conexión emocional, no informar. Generan diferentes resultados: corporativo = educar, branded film = influir percepción.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo debe durar un branded film?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Depende del contexto. Para redes sociales: 15–30 segundos. Landing page: 60–90 segundos. Eventos o campañas premium: 2–3 minutos. Cada segundo debe agregar valor narrativo; no hay duración 'correcta' absoluta, sino duración estratégica según objetivo.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto cuesta producir un branded film en Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Un branded film profesional oscila entre CHF 15,000 (corto simple) y CHF 80,000+ (producción ambiciosa con múltiples locaciones). El presupuesto debe cubrir concepto, dirección, crew, postproducción y color grading. Invertir en dirección creativa supera gastar en equipamiento puro.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Qué hace un buen branded film: lecciones de producciones suizas</span></nav>
+  <span class="eyebrow">Video de producto</span>
+  <h1>Qué hace un buen branded film: lecciones de producciones suizas</h1>
+  <p class="lead">Un branded film no es publicidad tradicional: es storytelling que conecta emocionalmente con tu audiencia. En Viven, hemos trabajado con marcas como Siemens, Porsche y FIFA para crear películas corporativas que no solo generan engagement, sino que posicionan la marca en la mente del consumidor. Este artículo analiza qué hace que un video corporativo sea realmente efectivo, más allá de presupuesto o equipamiento.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>31 de julio de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/meteomatics-product-campaign-brand-video/04-Meteomatics_VIVEN_Video_Agentur_030.jpg" alt="Qué hace un buen branded film: lecciones de producciones suizas" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>La diferencia entre un video corporativo y un branded film</h2><p>Mucha gente confunde estos términos. Un video corporativo comunica información: misión, productos, servicios. Un branded film, en cambio, cuenta una historia donde la marca es el contexto, no el protagonista. El espectador debe terminar identificándose con los valores de la empresa sin sentir que está siendo vendido.</p><p>En Suiza, marcas como ON (la empresa de zapatillas deportivas) entienden esto perfectamente: sus films muestran atletas, movimiento, propósito ambiental. La marca aparece sutilmente, pero el mensaje es claro.</p><h2>Elementos clave de un branded film que funciona</h2><h3>1. Una narrativa clara y humana</h3><ul><li>El conflicto y la resolución generan interés. Sin drama (incluso pequeño), el espectador se desconecta.</li><li>Los personajes deben ser reales o creíbles: empleados reales, clientes auténticos, situaciones cotidianas.</li><li>Evita jerga corporativa. El lenguaje debe ser directo y accesible.</li></ul><h3>2. Producción de calidad visual</h3><p>No se trata de presupuesto infinito, sino de decisiones de dirección coherentes. Cinematografía clara, iluminación deliberada, color grading que refuerce el tono: todo cuenta. Un branded film rodado en Zürich con equipamiento profesional se ve diferente a uno amateur, aunque ambos tengan la misma duración.</p><h3>3. Duración estratégica</h3><p>Para redes sociales: 15–30 segundos. Para landing pages: 60–90 segundos. Para eventos internacionales: 2–3 minutos máximo. Cada segundo debe justificarse.</p><h2>El papel de la música y el sonido</h2><p>Una banda sonora original (o cuidadosamente seleccionada) es lo que transforma un video competente en un branded film memorable. El sonido genera emoción antes que la imagen. En trabajos con clientes internacionales, hemos visto que una música mal elegida puede arruinar un excelente trabajo visual.</p><p>Considerar: ¿qué siente tu audiencia en cada escena? La música debe anticipar y reforzar esa emoción, no competir con ella.</p><h2>Distribución y contexto importan tanto como la creación</h2><p>Un branded film brillante que nadie ve es fracaso. La estrategia de distribución es parte integral de la producción:</p><ul><li><strong>YouTube:</strong> ideal para versiones largas (2–3 min) con call-to-action en tarjetas.</li><li><strong>LinkedIn:</strong> funcionan videos más corporativos, enfocados en liderazgo de pensamiento o employer branding.</li><li><strong>Instagram/TikTok:</strong> cortes verticales, 15–30 segundos, enganche inmediato.</li><li><strong>Eventos:</strong> pantallas grandes, sin audio (subtítulos), mensaje visual potente.</li></ul><p>Para marcas que buscan posicionarse como empleadores, <a href={p("services/employer-branding")}>un video de employer branding</a> refuerza cultura interna. Para lanzamientos de producto, <a href={p("services/product-video")}>la estrategia de video de producto</a> es diferente: foco en beneficios tangibles.</p><h2>Lecciones de casos reales suizos</h2><p>Trabajar con Siemens, UBS y FIFA enseña algo fundamental: las marcas globales con éxito invierten en profundidad narrativa. No repiten mensajes corporativos genéricos. Cada film cuenta algo específico: un desafío resuelto, una visión compartida, un impacto real.</p><p>Lo que funcionó en estos proyectos:</p><ul><li>Incluir perspectivas internas (empleados hablando de verdad sobre la marca).</li><li>Mostrar proceso, no solo resultado final.</li><li>Conectar con causas o valores que importan a la audiencia objetivo.</li></ul><p>Si buscas inspiración sobre cómo otros han ejecutado esto, <a href={p("projects")}>nuestros proyectos</a>​ muestran el resultado final, aunque el verdadero aprendizaje está en la estrategia detrás.</p><h2>Presupuesto realista para un branded film en Suiza</h2><p>En 2024, un branded film de calidad profesional en Suiza requiere inversión. Desde CHF 15,000 para un corto corporativo (30–60 seg) hasta CHF 80,000+ para un film ambicioso (2–3 min) con rodaje multi-locación. El presupuesto debe cubrir: concepto estratégico, preproducción, dirección, crew técnico, postproducción y color grading.</p><p>El error común: gastar dinero en equipamiento sin invertir en dirección creativa. Un branded film mediocre pero bien dirigido siempre supera a uno técnicamente perfecto pero narrativamente vacío.</p><p>Tienes preguntas sobre cómo estructurar tu proyecto, presupuesto o estrategia de distribución. <a href={p("contact")}>Contáctanos</a> —trabajamos con startups, PyMEs y marcas internacionales, y ajustamos nuestro enfoque a tu realidad.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1068759296?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="que-hace-buen-branded-film-producciones-suizas" />
+  </div></section>
+</Base>

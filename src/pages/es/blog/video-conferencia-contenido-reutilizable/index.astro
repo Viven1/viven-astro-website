@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Producción de vídeos para conferencias: rentabilizar un evento | Viven"};
+const description = {"es":"Cómo convertir una conferencia en un mes de contenido de vídeo. Estrategia de producción y distribución para máxima visibilidad."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "video-conferencia-contenido-reutilizable";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/video-conferencia-contenido-reutilizable" active="blog" singleLang={true} langUrls={{"en":"/en/blog/conference-video-production-content-repurposing/","de":"/de/blog/konferenz-video-mehrfach-content/","es":"/es/blog/video-conferencia-contenido-reutilizable/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/video-conferencia-contenido-reutilizable/\"},\"headline\":\"Producción de vídeos para conferencias: rentabilizar un evento\",\"description\":\"Cómo convertir una conferencia en un mes de contenido de vídeo. Estrategia de producción y distribución para máxima visibilidad.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/video-conferencia-contenido-reutilizable/\",\"datePublished\":\"2026-08-08T13:42:12.997Z\",\"image\":\"https://www.viven.ch/projects/pmi-why-science-matters-brand-video/01-PMI_on_background.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Producción de vídeos para conferencias: rentabilizar un evento\",\"item\":\"https://www.viven.ch/es/blog/video-conferencia-contenido-reutilizable/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuántos días antes de la conferencia debo comenzar la planificación de vídeo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Idealmente, 6–8 semanas. Esto permite coordinar logística de equipo, diseñar formatos de contenido, entrenar al equipo en evento y preparar el calendario de distribución. Menos tiempo es posible, pero compromete calidad.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuál es el presupuesto típico para producción de vídeo en una conferencia de 500 personas?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Depende de alcance, pero generalmente oscila entre 8.000–20.000 EUR. Incluye captura multicámara, audio profesional, edición de clips, motion graphics y publicación en múltiples plataformas. Negocia con tu productor en función de cantidad de horas de grabación y complejidad técnica.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué formato de vídeo funciona mejor para redes sociales después de una conferencia?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Clips cortos (30–60 segundos) con subtítulos, imágenes llamativas y frases clave destacadas. LinkedIn y YouTube rinden bien con duración de 3–5 minutos. TikTok e Instagram Reels piden contenido de 15–30 segundos. Adapta a cada plataforma.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Producción de vídeos para conferencias: rentabilizar un evento</span></nav>
+  <span class="eyebrow">Video de producto</span>
+  <h1>Producción de vídeos para conferencias: rentabilizar un evento</h1>
+  <p class="lead">Una conferencia es una oportunidad de oro que la mayoría de empresas desaprovecha. En lugar de captar una audiencia en vivo durante dos días, una estrategia de vídeo bien ejecutada permite extraer meses de contenido utilizable: clips cortos para redes sociales, entrevistas, resúmenes temáticos y documentales corporativos. Te mostramos cómo hacerlo.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>8 de agosto de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/pmi-why-science-matters-brand-video/01-PMI_on_background.jpg" alt="Producción de vídeos para conferencias: rentabilizar un evento" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué las conferencias generan tan poco contenido digital</h2><p>Los responsables de marketing saben que una conferencia consume presupuesto y recursos, pero muchos se centran únicamente en la asistencia presencial. El vídeo rara vez se planifica como parte estratégica del evento, sino como «por si acaso». Resultado: grabaciones largas, sin editar, que nadie ve.</p><p>En realidad, una conferencia de dos días con ponentes de alto nivel, debates en directo y networking es un contenido valioso que merece una segunda vida. El problema no es la materia prima, sino la falta de planificación previa.</p><h2>Planificación: define tu estrategia de vídeo antes de la conferencia</h2><p>El éxito comienza semanas antes. Necesitas decidir qué formatos quieres crear y cómo distribuirlos. Esto no es improviso.</p><ul><li><strong>Clips cortos para LinkedIn, Instagram y TikTok:</strong> frases clave de 15–60 segundos que destaquen insights principales</li><li><strong>Entrevistas 1–1:</strong> conversaciones de 5–10 minutos con ponentes sobre temas específicos</li><li><strong>Resúmenes por tema o track:</strong> compilaciones de 3–5 minutos que agrupan intervenciones sobre un área concreta</li><li><strong>Episodios de pódcast o vídeo largo:</strong> monólogos editados de 15–30 minutos para YouTube y plataformas propias</li><li><strong>Testimonios de participantes:</strong> opiniones en breve sobre el valor recibido</li></ul><p>Comunica estos objetivos a tu equipo de producción con anticipación. Así pueden posicionar cámaras, disponer de micrófonos lavalier de calidad y planificar cambios de iluminación.</p><h2>Producción en directo: captura con múltiples ángulos y audio limpio</h2><p>Durante la conferencia, la calidad técnica es no negociable. Una conferencia de UBS o Siemens genera expectativas altas; un vídeo borroso o con audio deficiente perjudica tu marca.</p><ul><li>Usa al menos <strong>dos cámaras</strong> para captar presentación y reacciones del público</li><li>Instala <strong>micrófonos inalámbricos</strong> en ponentes para audio limpio, independiente del micrófono de sala</li><li>Considera un <strong>feed de pantalla</strong> o captura de presentaciones PowerPoint directamente</li><li>Designa un <strong>productor en plató</strong> que coordine cambios de toma y supervise niveles</li></ul><p>Si la conferencia es internacional, estos detalles técnicos marcan la diferencia entre contenido que parece «casero» y contenido que transmite profesionalismo corporativo. <a href={p("services/corporate-video")}>Nuestro equipo de producción</a> en Zürich ha capturado eventos de marcas globales; sabemos exactamente qué hacer.</p><h2>Postproducción: convierte grabaciones en activos reutilizables</h2><p>Una vez terminada la conferencia, empieza el verdadero trabajo. La postproducción es donde nace el contenido distribuible.</p><p><strong>Fase 1: Edición de clips</strong><br>Tu editor debe revisar toda la grabación y extraer 20–40 clips de 30–90 segundos. Prioriza:</p><ul><li>Citas memorables o sorprendentes</li><li>Datos o estadísticas interesantes</li><li>Momentos de humor o conexión emocional</li><li>Llamadas a la acción explícitas</li></ul><p><strong>Fase 2: Diseño y motion graphics</strong><br>Añade lower thirds con nombres de ponentes, logos corporativos, subtítulos (imprescindibles para vídeos sin sonido en redes sociales) y color grade consistente. Esto eleva percepción de calidad sin aumentar costos de forma significativa.</p><p><strong>Fase 3: Compilaciones temáticas</strong><br>Agrupa clips por tema: «Tendencias en IA», «Liderazgo femenino en tech», «Transformación digital». Estos resúmenes funcionan bien en YouTube y en correos internos.</p><h2>Distribución: un calendario de contenido de 4 semanas</h2><p>La distribución estratégica es lo que diferencia una campaña exitosa de un archivo olvidado. Planifica publicar contenido durante 4 semanas posteriores a la conferencia:</p><p><strong>Semana 1:</strong> Clips premium en LinkedIn y Twitter (2–3 por día). Etiqueta a ponentes y empresas mencionadas para amplificar alcance.</p><p><strong>Semana 2:</strong> Episodios temáticos en YouTube. Optimiza títulos y descripciones con palabras clave (p. ej., «transformación digital en banca»).</p><p><strong>Semana 3:</strong> Contenido para tu newsletter o blog corporativo. Incrusta vídeos en artículos que amplíen temas tratados en la conferencia.</p><p><strong>Semana 4:</strong> Compilación completa en tu web o plataforma interna. Repite algunos clips en redes con ángulos diferentes («Los 5 puntos clave sobre…»).</p><p>Este ritmo mantiene tu conferencia «viva» en la mente de audiencias internas y externas durante un mes completo, extendiendo el ROI de inversión inicial.</p><h2>Métricas: qué medir para justificar presupuesto</h2><p>Establece KPIs claros desde el inicio:</p><ul><li><strong>Alcance y impresiones:</strong> cuántas personas vieron al menos 3 segundos del vídeo</li><li><strong>Engagement rate:</strong> comentarios, comparticiones, reacciones en redes</li><li><strong>Click-through a web corporativa:</strong> si incluyes CTA en descripción</li><li><strong>Tiempo promedio de visualización:</strong> indicador de relevancia de contenido</li><li><strong>Generación de leads:</strong> registros o descargas vinculadas a vídeos</li></ul><p>Con estas métricas documentadas, justificas presupuesto de producción profesional ante directivos y planificas mejoras para la próxima conferencia.</p><p>En VIVEN AG, <a href={p("projects")}>hemos producido miles de horas de contenido de eventos</a> para clientes como Philips y ON. Sabemos cómo maximizar cada minuto grabado. <a href={p("contact")}>Contacta con nosotros</a> para discutir cómo convertir tu próxima conferencia en un activo de contenido de largo plazo.</p>
+
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="video-conferencia-contenido-reutilizable" />
+  </div></section>
+</Base>

@@ -1,0 +1,80 @@
+---
+import data from '../data/reviews.json';
+import { pick, SITE } from '../i18n.js';
+const { lang = 'en', cat = '', client = '' } = Astro.props;
+/* client (case study): la reseña de ESE cliente va primera. Si no, por categoría (servicios).
+   Además, ROTACIÓN por página: hay 40 reseñas pero solo se muestran 12 — antes eran las
+   mismas 12 calcadas en todo el sitio (contenido duplicado interno y 28 reseñas nunca
+   vistas). El offset sale del path de la página (determinístico: cada URL muestra siempre
+   SU tanda, pero páginas distintas muestran tandas distintas). La prioridad se mantiene:
+   el cliente del case primero, la categoría del servicio primero — la rotación es dentro
+   de cada grupo. */
+const seed = [...Astro.url.pathname].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const rot = (arr) => { if (arr.length < 2) return arr; const k = seed % arr.length; return [...arr.slice(k), ...arr.slice(0, k)]; };
+let pool = data.reviews || [];
+if (client) {
+  const m = (r) => (((r.company || '') + ' ' + r.text).toLowerCase().includes(client.toLowerCase()));
+  pool = [...pool.filter(m), ...rot(pool.filter((r) => !m(r)))];
+} else if (cat) {
+  pool = [...rot(pool.filter((r) => r.cat === cat)), ...rot(pool.filter((r) => r.cat !== cat))];
+} else {
+  pool = rot(pool);
+}
+const reviews = pool.slice(0, 12);
+const rating = data.rating || 5;
+const count = data.count || 0;
+
+const T = {
+  eyebrow: { en: 'Reviews', de: 'Bewertungen', es: 'Reseñas' },
+  h2: { en: 'Only 5-star reviews.', de: 'Nur 5-Sterne-Bewertungen.', es: 'Solo reseñas de 5 estrellas.' },
+  lead: {
+    en: `${rating.toFixed(1)} on Google across ${count}+ reviews.`,
+    de: `${rating.toFixed(1)} auf Google aus ${count}+ Bewertungen.`,
+    es: `${rating.toFixed(1)} en Google en ${count}+ reseñas.`,
+  },
+  readAll: { en: 'Read all on Google', de: 'Alle auf Google lesen', es: 'Ver todas en Google' },
+};
+const stars = (n) => '★'.repeat(Math.round(n || 5));
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': SITE + '/#organization',
+  aggregateRating: { '@type': 'AggregateRating', ratingValue: rating, reviewCount: count, bestRating: 5, worstRating: 1 },
+  review: reviews.map((r) => ({
+    '@type': 'Review',
+    author: { '@type': 'Person', name: r.name },
+    reviewRating: { '@type': 'Rating', ratingValue: r.rating || 5, bestRating: 5 },
+    reviewBody: r.text,
+  })),
+};
+---
+{reviews.length > 0 && (
+  <section class="sec" id="reviews" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head center">
+        <span class="eyebrow">{pick(T.eyebrow, lang)}</span>
+        <h2>{pick(T.h2, lang)}</h2>
+        <p><span style="color:var(--acid);letter-spacing:2px">★★★★★</span> {pick(T.lead, lang)}</p>
+      </div>
+      <div class="review-slider" data-autoplay="4800">
+        <div class="review-track">
+          {reviews.map((r) => (
+            <div class="testi review-slide">
+              <div class="starz">{stars(r.rating)}</div>
+              <p>{r.text}</p>
+              <div class="who"><strong>{r.name}</strong><span class="who-co">{r.company ? r.company + ' · via Google' : 'via Google'}</span></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="review-dots" aria-hidden="true"></div>
+      {data.googleUrl && (
+        <div style="text-align:center;margin-top:40px">
+          <a href={data.googleUrl} class="btn btn-ghost" target="_blank" rel="noopener">{pick(T.readAll, lang)}</a>
+        </div>
+      )}
+    </div>
+    <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  </section>
+)}

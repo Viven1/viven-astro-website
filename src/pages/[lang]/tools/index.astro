@@ -1,0 +1,159 @@
+---
+import Base from '../../../layouts/Base.astro';
+import ToolCard from '../../../components/ToolCard.astro';
+import { langPaths, localePath } from '../../../i18n.js';
+export const getStaticPaths = langPaths;
+const { lang } = Astro.params;
+const p = (s) => localePath(lang, s);
+
+const title = {
+  en: 'Free Video Tools & Guides — Calculator, Brief, PDFs | Viven',
+  de: 'Kostenlose Tools & Leitfäden für Videoproduktion | Viven',
+  es: 'Herramientas y guías gratis de producción de video | Viven',
+};
+const description = {
+  en: 'Free tools and PDF guides to plan your video project: an instant cost calculator, a guided brief, an explainer video guide and the social media spec cheat sheet.',
+  de: 'Kostenlose Tools und PDF-Leitfäden für Ihr Videoprojekt: Kostenrechner, geführtes Briefing, der Erklärvideo-Leitfaden und das Social-Media-Cheat-Sheet.',
+  es: 'Herramientas y guías gratis para planear tu proyecto de video: calculadora de costos, brief guiado, la guía de video explicativo y el cheat sheet de redes.',
+};
+
+const crumbsLbl = { en: 'Tools & guides', de: 'Tools & Leitfäden', es: 'Herramientas y guías' };
+const heroH1 = {
+  en: 'Free tools and guides, <span class="hl">real answers.</span>',
+  de: 'Kostenlose Tools und Leitfäden, <span class="hl">echte Antworten.</span>',
+  es: 'Herramientas y guías gratis, <span class="hl">respuestas reales.</span>',
+};
+const heroLead = {
+  en: 'No form, no sales call required — plan your project on your own time. Built from real budgets and real briefs from 187 brands.',
+  de: 'Kein Formular, kein Verkaufsgespräch nötig — planen Sie Ihr Projekt in Ihrem eigenen Tempo. Basierend auf echten Budgets und Briefings von 187 Marken.',
+  es: 'Sin formularios ni llamadas de venta — planeá tu proyecto a tu ritmo. Basado en presupuestos y briefs reales de 187 marcas.',
+};
+
+const calcHref = { en: '/en/video-cost-calculator/', de: '/de/videoproduktion-kosten-rechner/', es: '/es/calculadora-costos-video/' };
+const calcTitle = { en: 'Video cost calculator', de: 'Kostenrechner für Videoproduktion', es: 'Calculadora de costos de video' };
+const calcDesc = {
+  en: 'Answer a few questions, get an instant price range for your project. No form, no waiting.',
+  de: 'Ein paar Fragen beantworten, sofort eine Preisspanne für Ihr Projekt erhalten. Kein Formular, kein Warten.',
+  es: 'Respondé unas preguntas y conseguí un rango de precio al instante. Sin formulario, sin esperas.',
+};
+const calcCta = { en: 'Try the calculator', de: 'Rechner ausprobieren', es: 'Probar la calculadora' };
+const calcIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2m3 0h2m-7 4h2m3 0h2"/></svg>';
+
+const briefTitle = { en: 'Project brief', de: 'Projekt-Briefing', es: 'Brief de proyecto' };
+const briefDesc = {
+  en: 'Answer a few quick questions about your project and we will get back to you with next steps.',
+  de: 'Beantworten Sie ein paar kurze Fragen zu Ihrem Projekt — wir melden uns mit den nächsten Schritten.',
+  es: 'Respondé unas preguntas rápidas sobre tu proyecto y te contactamos con los próximos pasos.',
+};
+const briefCta = { en: 'Start your brief', de: 'Briefing starten', es: 'Empezar el brief' };
+const briefIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>';
+
+/* ---- Guías y descargas -----------------------------------------------
+   Los lead magnets dejan de ser un formulario suelto al final de la página y
+   pasan a ser una sección propia con su nombre: cada uno tiene su landing (que
+   es la que trabaja para Google) y acá se los lista juntos. Agregar el tercero
+   es una línea en GUIDES, no rediseñar la página. */
+const guidesEyebrow = { en: 'Guides & downloads', de: 'Leitfäden & Downloads', es: 'Guías y descargas' };
+const guidesH2 = {
+  en: 'Everything we know, on paper.',
+  de: 'Was wir wissen, auf Papier.',
+  es: 'Lo que sabemos, en papel.',
+};
+const guidesLead = {
+  en: 'Free PDFs written for the people who have to brief, approve or produce the video. Leave your work email and it downloads right away — a copy also lands in your inbox.',
+  de: 'Kostenlose PDFs für alle, die ein Video briefen, freigeben oder produzieren müssen. Arbeits-E-Mail eintragen und der Download startet sofort — eine Kopie kommt zusätzlich per Mail.',
+  es: 'PDFs gratis escritos para el que tiene que briefear, aprobar o producir el video. Dejás tu email de trabajo y baja al instante — y también te llega una copia por correo.',
+};
+
+const guideIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>';
+const sheetIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg>';
+
+const GUIDES = [
+  {
+    href: { en: '/en/explainer-video-guide/', de: '/de/erklaervideo-leitfaden/', es: '/es/guia-video-explicativo/' },
+    icon: guideIcon,
+    title: {
+      en: 'How to make an explainer video that converts',
+      de: 'Wie Sie ein Erklärvideo machen, das konvertiert',
+      es: 'Cómo hacer un video explicativo que convierte',
+    },
+    desc: {
+      en: 'Six pages: the five decisions before the script, a 90-second script template, specs by placement and a 30-point pre-production checklist.',
+      de: 'Sechs Seiten: die fünf Entscheidungen vor dem Drehbuch, ein 90-Sekunden-Template, Specs nach Placement und eine 30-Punkte-Checkliste.',
+      es: 'Seis páginas: las cinco decisiones antes del guion, una plantilla de 90 segundos, specs según dónde va y un checklist de 30 puntos.',
+    },
+    cta: { en: 'Get the guide', de: 'Leitfaden holen', es: 'Bajar la guía' },
+  },
+  {
+    href: { en: '/en/social-media-video-cheat-sheet/', de: '/de/social-media-video-cheat-sheet/', es: '/es/cheat-sheet-video-redes-sociales/' },
+    icon: sheetIcon,
+    title: {
+      en: 'Social Media Video Cheat Sheet 2026',
+      de: 'Social-Media-Video Cheat-Sheet 2026',
+      es: 'Cheat sheet de video para redes 2026',
+    },
+    desc: {
+      en: 'One page: every platform-native format, frame rate, length and spec for YouTube, Reels, TikTok and LinkedIn.',
+      de: 'Eine Seite: alle plattform-nativen Formate, Frameraten, Längen und Specs für YouTube, Reels, TikTok und LinkedIn.',
+      es: 'Una página: todos los formatos nativos, frame rates, duraciones y specs para YouTube, Reels, TikTok y LinkedIn.',
+    },
+    cta: { en: 'Get the cheat sheet', de: 'Cheat-Sheet holen', es: 'Bajar el cheat sheet' },
+  },
+];
+
+const moreLbl = {
+  en: 'More free tools are on the way — check back soon.',
+  de: 'Weitere kostenlose Tools sind unterwegs — schauen Sie bald wieder vorbei.',
+  es: 'Más herramientas gratis están en camino — volvé pronto.',
+};
+const ctaLbl = { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un proyecto' };
+---
+<Base lang={lang} slug="tools" active="tools" title={title} description={description}>
+  <section class="page-hero">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={p('')}>{lang === 'es' ? 'Inicio' : 'Home'}</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        <span>{crumbsLbl[lang]}</span>
+      </nav>
+      {/* sin eyebrow: decía exactamente lo mismo que la miga de pan que tiene
+          tres píxeles más arriba ("Tools · Tools"). El H1 ya nombra la página. */}
+      <h1 set:html={heroH1[lang]}></h1>
+      <p class="lead">{heroLead[lang]}</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:10px">
+    <div class="wrap">
+      <div class="tools-grid">
+        <ToolCard href={calcHref[lang]} icon={calcIcon} title={calcTitle[lang]} desc={calcDesc[lang]} cta={calcCta[lang]} />
+        <ToolCard href={'/brief/?lang=' + lang} icon={briefIcon} title={briefTitle[lang]} desc={briefDesc[lang]} cta={briefCta[lang]} />
+      </div>
+      <p class="tools-more">{moreLbl[lang]}</p>
+    </div>
+  </section>
+
+  <section class="sec" id="guides" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">{guidesEyebrow[lang]}</span>
+        <h2>{guidesH2[lang]}</h2>
+        <p>{guidesLead[lang]}</p>
+      </div>
+      <div class="tools-grid">
+        {GUIDES.map((g) => (
+          <ToolCard href={g.href[lang]} icon={g.icon} title={g.title[lang]} desc={g.desc[lang]} cta={g.cta[lang]} />
+        ))}
+      </div>
+      <div class="rsrc-cta">
+        <a class="btn btn-primary" href={p('contact')}>{ctaLbl[lang]}</a>
+      </div>
+    </div>
+  </section>
+
+  <style is:global>
+    .tools-grid{display:grid;gap:16px}
+    .tools-more{color:var(--muted-2);font-size:13.5px;margin-top:22px;text-align:center}
+    .rsrc-cta{text-align:center;margin-top:22px}
+  </style>
+</Base>

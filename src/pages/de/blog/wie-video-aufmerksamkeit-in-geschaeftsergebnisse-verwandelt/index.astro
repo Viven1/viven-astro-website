@@ -1,0 +1,121 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'de';
+const title = {"de":"Wie Video Aufmerksamkeit in Geschäftsergebnisse verwandelt | Viven"};
+const description = {"de":"Video ist keine kreative Ausgabe, sondern ein Geschäftsinstrument. Wie ein guter Film in Sekunden Vertrauen schafft und Aufmerksamkeit in Verkäufe und Einstellungen verwandelt."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt" active="blog" singleLang={true} langUrls={{"en":"/en/blog/how-video-turns-attention-into-business-results/","de":"/de/blog/wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt/","es":"/es/blog/como-el-video-convierte-la-atencion-en-resultados-de-negocio/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"@id\":\"https://www.viven.ch/de/blog/wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt/#article\",\"headline\":\"Wie Video Aufmerksamkeit in Geschäftsergebnisse verwandelt\",\"description\":\"Video ist keine kreative Ausgabe, sondern ein Geschäftsinstrument. Wie ein guter Film in Sekunden Vertrauen schafft und Aufmerksamkeit in Verkäufe und Einstellungen verwandelt.\",\"image\":\"/projects/carvolution-tvc-social-media-campaign/05-sec_EN_B_v20210824_COMPOSED.Still0012.jpeg\",\"datePublished\":\"2026-07-21\",\"dateModified\":\"2026-07-21\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Organization\",\"name\":\"Viven AG\",\"url\":\"https://www.viven.ch/\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"mainEntityOfPage\":{\"@id\":\"https://www.viven.ch/de/blog/wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt/\"}},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/de/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Wie Video Aufmerksamkeit in Geschäftsergebnisse verwandelt\",\"item\":\"https://www.viven.ch/de/blog/wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt/\"}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href="/de/">Home</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href="/de/blog/">Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Wie Video Aufmerksamkeit in Geschäftsergebnisse verwandelt</span>
+        </nav>
+        <span class="eyebrow">Branchen-Insight</span>
+        <h1>Wie Video Aufmerksamkeit in Geschäftsergebnisse verwandelt</h1>
+        <p class="lead">Viele Unternehmen behandeln Video noch als kreatives «Extra». Die, die wachsen, behandeln es als das, was es wirklich ist: eines der effizientesten Geschäftsinstrumente überhaupt.</p>
+        <p class="post-meta"><span>Viven Team</span> <span>·</span> <span>21. Juli 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="/projects/carvolution-tvc-social-media-campaign/05-sec_EN_B_v20210824_COMPOSED.Still0012.jpeg" alt="Wie Video Aufmerksamkeit in Geschäftsergebnisse verwandelt" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+
+      <h2>Video schafft in Sekunden Vertrauen</h2>
+      <p>Eine kalte Besucherin oder ein kalter Besucher entscheidet in Sekunden, ob sie oder er Ihrer Marke vertraut. Bevor auch nur eine Zeile gelesen wird, hat ein guter Film bereits Professionalität, Glaubwürdigkeit und Grösse vermittelt. Kein anderes Format baut so schnell Vertrauen auf — und Vertrauen geht jedem Kauf und jeder Einstellung voraus.</p>
+
+      <h2>Ein Film macht die Arbeit von hundert Folien</h2>
+      <p>Ein komplexes Produkt schriftlich zu erklären, braucht Seiten. Im Video wird dieselbe Idee in 60 Sekunden verstanden. Video verdichtet Information, Emotion und Handlungsaufforderung in ein Format, das Menschen tatsächlich konsumieren. Deshalb funktioniert es genauso gut, um ein Produkt zu verkaufen, wie um Talente anzuziehen.</p>
+
+      <h2>Gemessen an Ergebnissen, nicht an «Gefällt mir»</h2>
+      <p>Die richtige Frage lautet nicht «sieht es schön aus?», sondern «hat es die Zahlen bewegt?». Das sind reale Ergebnisse von Filmen, die wir produziert haben:</p>
+      <ul>
+      <li><strong>Siemens</strong> erzielte mit einem Markenfilm 3× mehr Besuche auf der Website.</li>
+      <li><strong>SV Group</strong> verbesserte mit demselben Video gleichzeitig Recruiting und Vertrieb.</li>
+      <li><strong>Meteomatics</strong> erschloss neue Märkte, indem ein komplexes Produkt einfach erklärt wurde.</li>
+      </ul>
+
+      <h2>Von der Aufmerksamkeit zum Ergebnis</h2>
+      <p>Aufmerksamkeit ist teuer und knapp. Video ist der effizienteste Weg, diese Aufmerksamkeit in etwas Messbares zu verwandeln: eine Anfrage, einen Kauf, eine Bewerbung. Ob <a href="/de/services/brand-video/">Markenfilm</a>, <a href="/de/services/product-video/">Produktvideo</a> oder ein Stück <a href="/de/services/employer-branding/">Employer Branding</a> — der Massstab ist immer derselbe: Es muss für Ihr Geschäft arbeiten.</p>
+
+      <p><a href="/de/contact/">Erzählen Sie uns Ihr Ziel</a> und wir zeigen Ihnen, wie wir es angehen würden.</p>
+      </div>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+  <!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={'/de/blog/' + r.slug + '/'} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="wie-video-aufmerksamkeit-in-geschaeftsergebnisse-verwandelt" />
+  </div></section>
+</Base>

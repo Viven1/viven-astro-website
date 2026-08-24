@@ -1,0 +1,144 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Servicios de producción de cine en Suiza | Viven"};
+const description = {"es":"Descubrí por qué Suiza es un destino líder en servicios de producción de cine, del scouting de locaciones a la postproducción, con Viven."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "servicios-de-produccion-de-cine-en-suiza";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/servicios-de-produccion-de-cine-en-suiza" active="blog" singleLang={true} langUrls={{"es":"/es/blog/servicios-de-produccion-de-cine-en-suiza/","en":"/en/blog/exploring-film-production-services-in-switzerland/","de":"/de/blog/filmproduktionsservices-in-der-schweiz-entdecken/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/servicios-de-produccion-de-cine-en-suiza/\"},\"headline\":\"Servicios de producción de cine en Suiza\",\"description\":\"Descubrí por qué Suiza es un destino líder en servicios de producción de cine, del scouting de locaciones a la postproducción, con Viven.\",\"image\":\"https://www.viven.ch/projects/sevensense-brand-video/05-Sevensense_Brand_Video_18.jpg\",\"datePublished\":\"2026-07-27T09:00:00.000Z\",\"dateModified\":\"2026-07-27T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/servicios-de-produccion-de-cine-en-suiza/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Servicios de producción de cine en Suiza\",\"item\":\"https://www.viven.ch/es/blog/servicios-de-produccion-de-cine-en-suiza/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué las producciones internacionales eligen Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Suiza ofrece locaciones diversas, equipos multilingües y proveedores full-service que gestionan permisos, logística y postproducción en un solo lugar.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuántas producciones internacionales usan proveedores suizos?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Según Swiss Films, más del 60% de las producciones internacionales de los últimos años usaron proveedores de servicios locales suizos.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué capacidades de postproducción ofrece Suiza?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Los estudios suizos ofrecen edición, efectos visuales y postproducción de audio con equipamiento de primer nivel y estándares cinematográficos.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Servicios de producción de cine en Suiza</span>
+        </nav>
+        <span class="eyebrow">Industria</span>
+        <h1>Servicios de producción de cine en Suiza</h1>
+        <p class="lead">Descubrí por qué Suiza es un destino líder en servicios de producción de cine, del scouting de locaciones a la postproducción, con Viven.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>27 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="https://www.viven.ch/projects/sevensense-brand-video/05-Sevensense_Brand_Video_18.jpg" alt="Servicios de producción de cine en Suiza" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué Suiza es un destino líder en servicios de producción de cine</h2>
+<p>Suiza se convirtió en un destino líder para la producción de cine porque combina locaciones diversas, equipos multilingües y proveedores full-service que gestionan todo, del desarrollo del concepto a la postproducción final. Los proveedores locales se ocupan de la logística, los permisos y la coordinación del equipo, haciendo del país una opción confiable para cualquier proyecto audiovisual.</p>
+<h2>Por qué Suiza es perfecta para filmar</h2>
+<p>Una de las mayores ventajas de filmar en Suiza es su diversidad de locaciones. Ya sea que necesites paisajes urbanos vibrantes, pueblos con encanto o regiones alpinas imponentes, Suiza lo tiene todo. Los location scouts profesionales te ayudan a encontrar el escenario correcto, asegurar permisos y coordinar con las autoridades locales para que todo fluya sin sobresaltos.</p>
+<p>Los <a href={p("services/brand-video")}>proveedores de servicios de producción de Suiza</a> son conocidos por su atención al detalle, y se encargan de todo, del casting al alquiler de equipos y el catering. Muchos equipos son multilingües, lo que mantiene la comunicación fluida en crews diversos. Según Swiss Films, más del 60% de las producciones internacionales de los últimos años se apoyó en proveedores locales suizos, una muestra de la confianza que los cineastas depositan en la calidad de los servicios de producción del país.</p>
+<h2>Postproducción de primer nivel</h2>
+<p>Cuando termina el rodaje, los servicios de postproducción de Suiza están a la misma altura. Los estudios suizos ofrecen edición, efectos visuales y postproducción de audio con equipamiento de alta gama y el software más reciente, para que tu film cumpla con los estándares más altos de la industria de principio a fin.</p>
+<h2>Qué esperar de un socio de producción suizo</h2>
+<p>Trabajar con un proveedor de servicios de producción suizo suele significar un único punto de contacto para todo el proyecto: un solo equipo coordinando locaciones, crew, equipamiento y permisos en lugar de hacer malabares con múltiples proveedores. Eso reduce el riesgo de demoras y malentendidos, sobre todo para producciones internacionales que llegan con un plan de rodaje ajustado. También significa que el conocimiento local está integrado a la planificación desde el día uno, del clima en los Alpes a los plazos de permisos municipales en las ciudades.</p>
+<h2>¿Por qué elegir Suiza para tu producción de cine?</h2>
+<p>Proveedores eficientes, locaciones hermosas y capacidades de producción robustas hacen de Suiza el lugar perfecto para cualquier proyecto, sea un largometraje, una serie de TV, un comercial o contenido corporativo. En Viven ofrecemos una gama completa de servicios de <a href={p("services/corporate-video")}>producción de cine y video</a> para que tu proyecto fluya de la preproducción a la entrega.</p>
+<p>¿Querés ver cómo otras producciones usan Suiza como locación? Leé más en <a href={p("blog/zurich-el-corazon-de-la-produccion-de-cine-suiza")}>Zúrich: el corazón de la producción de cine suiza</a> o explorá más historias de producción en nuestro <a href={p("blog")}>blog</a>.</p>
+<p>👉 <a href={p("contact")}>Hablá con Viven sobre tu próximo proyecto de cine</a></p>
+      </div>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué las producciones internacionales eligen Suiza?</summary>
+        <p>Suiza ofrece locaciones diversas, equipos multilingües y proveedores full-service que gestionan permisos, logística y postproducción en un solo lugar.</p>
+      </details>
+      <details>
+        <summary>¿Cuántas producciones internacionales usan proveedores suizos?</summary>
+        <p>Según Swiss Films, más del 60% de las producciones internacionales de los últimos años usaron proveedores de servicios locales suizos.</p>
+      </details>
+      <details>
+        <summary>¿Qué capacidades de postproducción ofrece Suiza?</summary>
+        <p>Los estudios suizos ofrecen edición, efectos visuales y postproducción de audio con equipamiento de primer nivel y estándares cinematográficos.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="servicios-de-produccion-de-cine-en-suiza" />
+  </div></section>
+</Base>

@@ -1,0 +1,146 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+import AuthorBox from '../../../../components/AuthorBox.astro';
+const lang = 'es';
+const p = (s) => localePath(lang, s);
+const title = {"es":"Videos de testimonios de clientes: un game changer | Viven"};
+const description = {"es":"Descubrí cómo los videos de testimonios de clientes generan confianza, aumentan el engagement y conectan a las marcas con la audiencia correcta."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videos-de-testimonios-de-clientes-un-game-changer";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/videos-de-testimonios-de-clientes-un-game-changer" active="blog" singleLang={true} langUrls={{"es":"/es/blog/videos-de-testimonios-de-clientes-un-game-changer/","en":"/en/blog/why-customer-testimonial-videos-are-a-game-changer-for-big-brands/","de":"/de/blog/warum-kunden-testimonial-videos-fuer-marken-ein-echter-gamechanger-sind/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/videos-de-testimonios-de-clientes-un-game-changer/\"},\"headline\":\"Videos de testimonios de clientes: un game changer para las marcas\",\"description\":\"Descubrí cómo los videos de testimonios de clientes generan confianza, aumentan el engagement y conectan a las marcas con la audiencia correcta.\",\"image\":\"/projects/stadtspital-zurich-mis-spital-mis-laebe/06-Spital_Mis_L_be_VIVEN_Video_Agency_017.jpg\",\"datePublished\":\"2026-07-27T09:00:00.000Z\",\"dateModified\":\"2026-07-27T09:00:00.000Z\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/videos-de-testimonios-de-clientes-un-game-changer/\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Inicio\",\"item\":\"https://www.viven.ch/es/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Videos de testimonios de clientes: un game changer para las marcas\",\"item\":\"https://www.viven.ch/es/blog/videos-de-testimonios-de-clientes-un-game-changer/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Por qué son tan efectivos los videos de testimonios de clientes?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Porque dejan que clientes reales defiendan a la marca en lugar de que la marca hable de sí misma, algo mucho más creíble que la publicidad tradicional.\"}},{\"@type\":\"Question\",\"name\":\"¿Qué resultados vio Siemens Suiza con los videos de testimonios?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Siemens triplicó su engagement después de usar testimonios auténticos que mostraban su cultura y su gente, conectando con empleados actuales y futuros.\"}},{\"@type\":\"Question\",\"name\":\"¿Cómo usó Meteomatics los videos de testimonios?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Meteomatics, una empresa de datos meteorológicos, usó clientes reales en videos de testimonios para hacer más accesibles sus datos técnicos complejos, fortaleciendo su marca y ampliando su alcance.\"}}]}]}"}></script>
+  <section class="page-hero post-hero">
+    <div class="wrap">
+      <div class="post-wrap">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href={p("")}>Inicio</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <a href={p("blog")}>Blog</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          <span>Videos de testimonios de clientes: un game changer para las marcas</span>
+        </nav>
+        <span class="eyebrow">Video de marca</span>
+        <h1>Videos de testimonios de clientes: un game changer para las marcas</h1>
+        <p class="lead">Descubrí cómo los videos de testimonios de clientes generan confianza, aumentan el engagement y ayudan a las marcas a conectar con la audiencia correcta.</p>
+        <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>27 de julio de 2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:40px">
+    <div class="wrap">
+      <div class="post-wrap post-body reveal">
+      <img src="/projects/stadtspital-zurich-mis-spital-mis-laebe/06-Spital_Mis_L_be_VIVEN_Video_Agency_017.jpg" alt="Videos de testimonios de clientes: un game changer para las marcas" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<p>Los videos de testimonios de clientes son un game changer porque dejan que clientes reales defiendan a la marca, algo que resulta más creíble que cualquier anuncio. Siemens Suiza triplicó su engagement después de mostrar testimonios auténticos de empleados y clientes, y empresas como Meteomatics y SV Group usaron el mismo enfoque para fortalecer la confianza y ampliar su alcance.</p>
+<h2>El poder de la autenticidad</h2>
+<p>En un mundo donde las audiencias están bombardeadas de publicidad, las historias reales de clientes reales son mucho más difíciles de ignorar. Los <a href={p("services/brand-video")}>videos de testimonios de clientes</a> muestran el lado humano de una marca en lugar de simplemente decirle a la gente que es genial.</p>
+<p>Siemens Suiza trabajó con Viven para crear videos que muestran su cultura, su gente y por qué es un gran lugar para trabajar. Con estos testimonios auténticos, Siemens triplicó su engagement, conectando tanto con empleados actuales como futuros — uno de los casos destacados de nuestro <a href={p("projects")}>portfolio</a>.</p>
+<h2>Por qué los testimonios atraviesan el ruido</h2>
+<p>La gente se volvió experta en ignorar anuncios, pero una historia real de un cliente real es mucho más difícil de pasar por alto. Esa es la razón central por la que los videos de testimonios superan consistentemente a los mensajes escritos por la marca: la audiencia escucha a alguien que ya tomó la decisión que está evaluando.</p>
+<h2>Cómo los testimonios generan resultados reales</h2>
+<p>Meteomatics, una empresa de soluciones de datos meteorológicos, necesitaba hacer sus datos técnicos complejos más accesibles y cercanos. Al mostrar clientes reales en videos de testimonios, Viven ayudó a contar cómo el producto les facilita la vida — fortaleciendo la marca, ampliando su alcance y atrayendo más clientes.</p>
+<h2>Por qué funcionan los testimonios de Viven</h2>
+<p>Viven se especializa en ayudar a las marcas a contar historias auténticas: el marketing más convincente viene de personas reales, y saber darles vida a esas historias es lo que las hace resonar. Sea construir confianza, mostrar la cultura de la empresa o destacar el impacto real de un producto, marcas como SV Group usaron este enfoque para dejar una huella duradera — una tendencia que exploramos en <a href={p("blog/testimonios-la-herramienta-de-marketing-mas-confiable-en-2025")}>testimonios: la herramienta de marketing más confiable en 2025</a>.</p>
+<h2>Dónde encajan los testimonios en tu mix de marketing</h2>
+<p>Los videos de testimonios funcionan mejor junto a otros formatos que aislados — combinarlos con videos de producto o de marca les da a los prospectos tanto la prueba emocional como el detalle práctico que necesitan para decidir.</p>
+<h2>¿Listo para contar la historia de tu marca?</h2>
+<p>Si querés construir conexiones reales con tu audiencia, no hay mejor camino que los videos de testimonios de clientes. <a href={p("contact")}>Hablemos de cómo podemos ayudarte a contar la historia auténtica de tu marca.</a></p>
+      </div>
+    <p class="post-service-note"><a href={p("services/brand-video")}>¿Querés ver cómo funciona esto en la práctica? Conocé nuestra producción de videos de marca.</a></p>
+    </div>
+  </section>
+<AuthorBox lang={lang} />
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="post-wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Preguntas frecuentes.</h2>
+      </div>
+      <div class="faq reveal">
+      <details>
+        <summary>¿Por qué son tan efectivos los videos de testimonios de clientes?</summary>
+        <p>Porque dejan que clientes reales defiendan a la marca en lugar de que la marca hable de sí misma, algo mucho más creíble que la publicidad tradicional.</p>
+      </details>
+      <details>
+        <summary>¿Qué resultados vio Siemens Suiza con los videos de testimonios?</summary>
+        <p>Siemens triplicó su engagement después de usar testimonios auténticos que mostraban su cultura y su gente, conectando con empleados actuales y futuros.</p>
+      </details>
+      <details>
+        <summary>¿Cómo usó Meteomatics los videos de testimonios?</summary>
+        <p>Meteomatics, una empresa de datos meteorológicos, usó clientes reales en videos de testimonios para hacer más accesibles sus datos técnicos complejos, fortaleciendo su marca y ampliando su alcance.</p>
+      </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="videos-de-testimonios-de-clientes-un-game-changer" />
+  </div></section>
+</Base>

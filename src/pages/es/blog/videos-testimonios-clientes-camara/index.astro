@@ -1,0 +1,153 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Videos de testimonios: cómo conseguir que tus clientes hablen ante cámara | Viven"};
+const description = {"es":"Estrategias prácticas para grabar testimonios auténticos de clientes. Guía completa para empresas que quieren generar confianza y leads con videos reales."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "videos-testimonios-clientes-camara";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/videos-testimonios-clientes-camara" active="blog" singleLang={true} langUrls={{"en":"/en/blog/testimonial-videos-customers-camera/","de":"/de/blog/kundenstimmen-video-kamera/","es":"/es/blog/videos-testimonios-clientes-camara/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/videos-testimonios-clientes-camara/\"},\"headline\":\"Videos de testimonios: cómo conseguir que tus clientes hablen ante cámara\",\"description\":\"Estrategias prácticas para grabar testimonios auténticos de clientes. Guía completa para empresas que quieren generar confianza y leads con videos reales.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/videos-testimonios-clientes-camara/\",\"datePublished\":\"2026-08-12T13:17:02.919Z\",\"image\":\"https://www.viven.ch/projects/devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Videos de testimonios: cómo conseguir que tus clientes hablen ante cámara\",\"item\":\"https://www.viven.ch/es/blog/videos-testimonios-clientes-camara/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuánto tiempo debe durar un video de testimonio?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Lo ideal es 60-90 segundos para video completo. Si lo usas en redes sociales, 30-45 segundos. Los testimonios más cortos y enfocados generan más engagement que los largos.\"}},{\"@type\":\"Question\",\"name\":\"¿Necesito contratar a un productor de video profesional?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Para testimonios corporativos o de alto impacto, sí. Un productor profesional mejora la calidad, dirección y credibilidad del video. Para testimonios internos o de prueba, puedes empezar con smartphone.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuál es el mejor lugar para grabar un testimonio?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Un lugar familiar al cliente (su oficina, tienda o espacio relevante) genera más autenticidad que un estudio genérico. Asegúrate de buena luz natural o iluminación profesional.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Videos de testimonios: cómo conseguir que tus clientes hablen ante cámara</span></nav>
+  <span class="eyebrow">Guía práctica</span>
+  <h1>Videos de testimonios: cómo conseguir que tus clientes hablen ante cámara</h1>
+  <p class="lead">Los videos de testimonios de clientes son una de las herramientas más efectivas para generar confianza y convertir prospectos en clientes. Pero conseguir que alguien se siente frente a una cámara y hable con naturalidad sobre tu empresa no es tarea simple. Requiere preparación, empatía y una estrategia clara. En este artículo te mostramos cómo acercarte a tus clientes satisfechos, vencer sus miedos ante la cámara y capturar historias auténticas que resuenen con tu audiencia.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>12 de agosto de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/devenir-a-merkle-interactive-experience/05-Devenir_Merkle_VIVEN_Video_Agency_020.jpg" alt="Videos de testimonios: cómo conseguir que tus clientes hablen ante cámara" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Por qué los testimonios en video generan más confianza que el texto</h2>
+<p>Un cliente que habla directamente a cámara es infinitamente más creíble que un párrafo de reseña escrita. El video permite ver expresiones faciales, escuchar el tono de voz genuino y percibir la emoción real. Las personas confían en lo que ven y oyen, no solo en lo que leen.</p>
+<p>Para empresas B2B en Suiza y la región DACH, los testimonios en video son especialmente poderosos. Clientes como UBS, Siemens y Porsche entienden que un video de testimonios bien producido actúa como prueba social más fuerte que cualquier claims de marketing. Estos videos funcionan especialmente bien en campañas de <a href={p("services/brand-video")}>brand video</a> donde el objetivo es consolidar reputación.</p>
+
+<h2>Identifica y selecciona a los clientes correctos</h2>
+<p>No todos tus clientes son candidatos ideales para un video de testimonio. Busca clientes que cumplan con estos criterios:</p>
+<ul>
+<li>Lleven al menos 6-12 meses usando tu producto o servicio (experiencia real)</li>
+<li>Hayan visto resultados medibles y palpables</li>
+<li>Muestren entusiasmo genuino al hablar de tu empresa</li>
+<li>Tengan disposición a invertir tiempo en una grabación profesional</li>
+<li>Representen a tu audiencia objetivo (sector, tamaño de empresa, región)</li>
+</ul>
+<p>En nuestro trabajo con empresas suizas, hemos notado que los mejores testimonios vienen de clientes que han resuelto un problema específico, no de satisfacción genérica. Un CFO que optimizó procesos, un gerente de producción que redujo tiempos, un emprendedor que creció su marca: esos son los relatos que venden.</p>
+
+<h2>Prepara la conversación antes de rodar</h2>
+<p>El éxito de un video de testimonio está 80% en la preparación y 20% en la producción. Nunca llegues a rodar sin antes hablar en profundidad con tu cliente.</p>
+<p><strong>Pasos de preparación:</strong></p>
+<ul>
+<li><strong>Llamada de calentamiento:</strong> Habla por teléfono o videollamada. Explica qué esperas, cuánto tiempo durará y cómo se sentirá estar ante cámara</li>
+<li><strong>Define la narrativa:</strong> ¿Cuál era el desafío inicial? ¿Cómo lo resolvió tu producto/servicio? ¿Cuál fue el impacto? Este arco narrativo es el esqueleto del video</li>
+<li><strong>Guión flexible, no rígido:</strong> No pidas que memoricen párrafos. Crea bullets con preguntas naturales. "¿Cuál era tu mayor obstáculo antes?" genera respuestas más auténticas que "Di tu nombre y cuéntame tu historia"</li>
+<li><strong>Ejemplos concretos:</strong> Pide números, porcentajes, fechas. "Aumentamos la eficiencia un 40%" es más poderoso que "mejoró mucho"</li>
+</ul>
+
+<h2>El día de grabación: ambiente, técnica y dirección</h2>
+<p>Muchos videos de testimonios fracasan porque se ven improvisados o incómodos. Tu cliente necesita sentirse relajado y apoyado.</p>
+<p><strong>Técnica y ambiente:</strong></p>
+<ul>
+<li>Graba en un lugar familiar o neutro, bien iluminado. Una oficina corporativa es mejor que un fondo blanco genérico</li>
+<li>Usa micrófono lavalier para sonido limpio</li>
+<li>Ajusta la altura de cámara a la altura de los ojos de tu cliente (evita ángulos que lo miren hacia arriba o abajo)</li>
+<li>Ten agua, café, pausas. Una grabación de 3 minutos de video final requiere 20-30 minutos de grabación</li>
+</ul>
+<p><strong>Dirección:</strong></p>
+<ul>
+<li>Hazle preguntas tú (off-camera). No pidas que lea al teleprompter</li>
+<li>Anima respuestas naturales: "Cuéntamelo como si me lo dijeras a un amigo"</li>
+<li>Graba varias takes de cada pregunta. La segunda o tercera suele ser mejor</li>
+<li>Mantén la cámara rodando incluso entre takes (a veces los mejores momentos suceden fuera del "acción")</li>
+</ul>
+<p>Si trabajas con una agencia de <a href={p("services/corporate-video")}>video corporativo</a> profesional, ellos sabrán cómo hacer que tu cliente se sienta cómodo y seguro.</p>
+
+<h2>Estructura del guión: la fórmula que funciona</h2>
+<p>Para que el testimonio sea efectivo, sigue este orden:</p>
+<ol>
+<li><strong>Presentación (10 seg):</strong> Nombre, cargo, empresa. "Soy Maria, gerente de Marketing en TechCorp Zürich"</li>
+<li><strong>El desafío (20 seg):</strong> ¿Cuál era el problema antes? Sé específico. "Nuestro equipo invertía 15 horas semanales en tareas repetitivas"</li>
+<li><strong>La solución (15 seg):</strong> ¿Cómo ayudó tu producto/servicio? "Implementamos su software y automizamos esos procesos en dos semanas"</li>
+<li><strong>El impacto (20 seg):</strong> Resultados concretos. "Ahora invertimos esas 15 horas en estrategia. Nuestro ROI creció 35%"</li>
+<li><strong>La recomendación (10 seg):</strong> Una frase de cierre sincera. "Los recomendaría sin dudarlo"</li>
+</ol>
+<p>Esta estructura cabe en un video de 1-2 minutos, que es la duración ideal para <a href={p("services/social-media-video")}>videos en redes</a> y para mantener atención en landing pages.</p>
+
+<h2>Después de grabar: edición y distribución</h2>
+<p>Un video de testimonio mal editado pierde credibilidad. Invierte en edición profesional que subraye la autenticidad, no la oculte.</p>
+<p>Luego distribuye estratégicamente: en tu sitio web, en landing pages de productos específicos, en LinkedIn, en presentaciones de ventas. Cada plataforma requiere una versión adaptada, pero el core del testimonio permanece igual.</p>
+
+<h2>Preguntas frecuentes</h2>
+<p><strong>¿Cuántos testimonios necesito?</strong> Para empresas B2B, 3-5 testimonios de calidad es suficiente. Más no añade valor; menos, es insuficiente. Diversifica por sector, tamaño de cliente y tipo de resultado.</p>
+<p><strong>¿Debo pagar a clientes para que grabes su testimonio?</strong> Generalmente no. La mayoría de clientes satisfechos están dispuestos si reconoces su tiempo y los haces sentir cómodos. Si es especialmente exigente, ofrece un regalo o descuento, nunca dinero.</p>
+<p><strong>¿Qué pasa si el cliente se arrepiente después de grabar?</strong> Siempre obtén consentimiento escrito. Pero honestamente, con buena preparación, esto rara vez sucede.</p>
+
+<p>Los videos de testimonios auténticos son uno de los activos de marketing más valiosos que una empresa puede crear. Si quieres llevar tus testimonios al siguiente nivel con producción profesional, en Viven AG sabemos exactamente cómo hacerlo. <a href={p("contact")}>Contáctanos</a> para una consulta sin compromiso.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036679041?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="videos-testimonios-clientes-camara" />
+  </div></section>
+</Base>
