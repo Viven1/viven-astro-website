@@ -41,7 +41,7 @@ export const T = {
   allServices: { en: 'All services →', de: 'Alle Leistungen →', es: 'Todos los servicios →' },
   projects:    { en: 'Projects', de: 'Projekte', es: 'Proyectos' },
   blog:        { en: 'Blog', de: 'Blog', es: 'Blog' },
-  tools:       { en: 'Free tools', de: 'Kostenlose Tools', es: 'Herramientas gratis' },
+  tools:       { en: 'Tools & guides', de: 'Tools & Leitfäden', es: 'Herramientas y guías' },
   why:         { en: 'Why Viven', de: 'Warum Viven', es: 'Por qué Viven' },
   faq:         { en: 'FAQ', de: 'FAQ', es: 'FAQ' },
   contact:     { en: 'Contact', de: 'Kontakt', es: 'Contacto' },

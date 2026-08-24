@@ -1,0 +1,225 @@
+---
+// Landing del lead magnet: la guía del video explicativo (PDF, 3 idiomas).
+//
+// PARA QUÉ EXISTE: el how-to / explainer es el grupo de búsquedas donde
+// aparecemos y no nos llevamos el click (medido en Search Console: aparecemos
+// en posición 14-20 para "b2b erklärvideo" y compañía, con 0 leads). Esta
+// página es la que puede capturarlo, y de paso el destino al que apuntan el
+// resto de las páginas del tema.
+//
+// LA REGLA DE ESTA PÁGINA: cada tarjeta dice QUÉ contesta el PDF, nunca la
+// respuesta. Si la tarjeta ya resuelve, nadie deja el email — y si no dice
+// nada concreto, tampoco. El punto medio es nombrar la pregunta.
+//
+// El gate (email → PDF) es el componente LeadMagnet con magnet="explainer-guide";
+// el archivo vive en el bucket privado 'magnets', lo firma magnet-download y
+// además lo manda por mail (SQL 0131).
+import Base from '../../../layouts/Base.astro';
+import LeadMagnet from '../../../components/LeadMagnet.astro';
+import CalcBanner from '../../../components/CalcBanner.astro';
+import { localePath, SITE } from '../../../i18n.js';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Erklärvideo, das konvertiert — kostenloser Leitfaden | Viven"};
+const description = {"de":"Kostenloses PDF, 6 Seiten: die fünf Entscheidungen vor dem Drehbuch, ein 90-Sekunden-Template mit Timings, Specs nach Placement und die 30-Punkte-Checkliste vor jedem Dreh."};
+const URL = SITE + "/de/erklaervideo-leitfaden/";
+const ld = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "@id": URL + "#breadcrumbs",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE + "/de/" },
+        { "@type": "ListItem", "position": 2, "name": "Kostenlose Tools", "item": SITE + "/de/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Erklärvideo-Leitfaden", "item": URL }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": URL + "#faq",
+      "mainEntity": [
+        {"@type": "Question", "name": "Ist er wirklich kostenlos?", "acceptedAnswer": {"@type": "Answer", "text": "Ja. Arbeits-E-Mail eintragen und das PDF lädt sofort — eine Kopie kommt zusätzlich per Mail, damit es nicht im Download-Ordner verschwindet. Keine Kosten, kein Anruf, keine Verpflichtung."}},
+        {"@type": "Question", "name": "Was steht konkret drin?", "acceptedAnswer": {"@type": "Answer", "text": "Sechs Seiten: die fünf Entscheidungen vor dem Drehbuch, ein 90-Sekunden-Template mit Timings und Wortzahlen, ein durchgespieltes Beispiel, Specs für sechs Placements, ein realistischer Zeitplan, eine 30-Punkte-Checkliste und sieben häufige Fehler."}},
+        {"@type": "Question", "name": "Nützt das nur mit grossem Budget?", "acceptedAnswer": {"@type": "Answer", "text": "Nein. Das meiste sind Entscheidungen, kein Geld. Und die Punkte, die Geld kosten, sind genau die, die der Leitfaden vor den Dreh legt — deshalb kosten sie am Ende weniger."}},
+        {"@type": "Question", "name": "Wer hat ihn geschrieben?", "acceptedAnswer": {"@type": "Answer", "text": "Viven, eine Videoproduktion in Zürich. Es ist das, was wir intern vor einem How-to-Dreh durchgehen: dieselbe Methode wie bei den Erklärvideos und How-to-Videos für den Combair V600 von V-ZUG und für Kanebo Sensai."}},
+        {"@type": "Question", "name": "Schreiben Sie mir jetzt dauernd?", "acceptedAnswer": {"@type": "Answer", "text": "Nur wenn Sie das Kästchen im Formular ankreuzen. Das PDF kommt ohne Gegenleistung, und jede E-Mail von uns hat eine Abmeldung mit einem Klick."}}
+      ]
+    }
+  ]
+});
+---
+<Base lang={lang} slug="erklaervideo-leitfaden" active="tools" singleLang={true} langUrls={{"en": "/en/explainer-video-guide/", "de": "/de/erklaervideo-leitfaden/", "es": "/es/guia-video-explicativo/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={ld}></script>
+
+<!-- ============ HERO ============ -->
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs">
+      <a href={p("")}>Home</a>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href={p("tools")}>Kostenlose Tools</a>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span>Erklärvideo-Leitfaden</span>
+    </div>
+    <span class="eyebrow">Gratis-Download</span>
+    <h1>Wie Sie ein Erklärvideo machen, das <span class="hl">konvertiert</span></h1>
+    <p class="lead">Sechs Seiten Arbeitsmethode hinter unseren Erklärvideos und How-to-Videos für V-ZUG und Kanebo Sensai: was entschieden sein muss, bevor jemand ein Drehbuch schreibt, ein auf die Sekunde getaktetes Template, die Specs für jedes Placement und die Checkliste, die wir durchgehen, bevor die Crew gebucht ist.</p>
+    <div class="hero-cta">
+      <a href="#download" class="btn btn-primary">Gratis-PDF holen</a>
+      <a href="#inside" class="btn btn-ghost">Was drin ist</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUÉ HAY ADENTRO ============ -->
+<section class="sec" id="inside" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Was drin ist</span>
+      <h2>Was ein Erklärvideo braucht, bevor jemand die Kamera einschaltet.</h2>
+      <p>Es ist die interne Methode, aufgeschrieben — dieselbe, über die unsere Producer vor einem How-to-Dreh streiten.</p>
+    </div>
+    <div class="value-grid">
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div>
+        <h3>Die fünf Entscheidungen</h3>
+        <p>Was feststehen muss, bevor jemand ein Drehbuch schreibt — und das kleine Wort, das aus Ihrem Video unbemerkt zwei macht.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
+        <h3>Das 90-Sekunden-Drehbuch</h3>
+        <p>Sechs Blöcke, mit den Sekunden und Wortzahlen, gegen die wir schreiben. In jedem steckt eine Falle; das PDF benennt alle sechs.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="m10 10 5 2-5 2z"/></svg></div>
+        <h3>Ein durchgespieltes Beispiel</h3>
+        <p>Dieselbe Struktur, ausgefüllt für einen echten Support-Film — Hook, Mechanik und Handlung, Zeile für Zeile.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg></div>
+        <h3>Specs nach Placement</h3>
+        <p>Sechs Orte, an denen ein Video landet, jeder mit Länge, Format und dem einen Punkt, der nicht verhandelbar ist.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>Wie lange es wirklich dauert</h3>
+        <p>Vom Briefing bis zur Auslieferung, Phase für Phase — und was jede Phase aufhält, wenn sie kippt.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg></div>
+        <h3>Die 30-Punkte-Checkliste</h3>
+        <p>Sechs Spalten: Inhalt, Drehort, Versionen, Freigaben, Distribution, Budget. Ausdrucken und zum Kickoff mitnehmen.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+        <h3>Sieben Arten, das Publikum zu verlieren</h3>
+        <p>Die Fehler, die wir immer noch in Erklärvideos mit ernsthaftem Budget sehen — und was jeder davon kostet.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 14h5"/></svg></div>
+        <h3>Das Ein-Satz-Briefing</h3>
+        <p>Ein Satz zum Ausfüllen. Wer ihn nicht zu Ende bringt, rettet das Video mit keinem Drehbuch — das PDF erklärt, warum.</p>
+      </div>
+    </div>
+    <p class="reveal" style="text-align:center;margin-top:32px;font-size:15px;opacity:.8">Geschrieben für Menschen, die ein Erklärvideo briefen, freigeben oder produzieren müssen — nicht für einen Marketing-Blog.</p>
+  </div>
+</section>
+
+<!-- ============ GATE ============ -->
+<div id="download">
+  <LeadMagnet lang={lang} magnet="explainer-guide" aviso={false} />
+</div>
+
+<!-- ============ PARA QUIÉN ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Für wen</span>
+      <h2>Für die, die es tatsächlich fertig kriegen müssen.</h2>
+    </div>
+    <div class="value-grid">
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+        <h3>Marketing-Verantwortliche</h3>
+        <p>Briefen Sie Agentur oder internes Team mit bereits getroffenen Entscheidungen — und sparen Sie sich die Korrekturrunde, die auf ein vages Briefing folgt.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="M12 12v10M3 7l9 5 9-5"/></svg></div>
+        <h3>Produktverantwortliche</h3>
+        <p>Ein komplexes Produkt in neunzig Sekunden erklären, ohne das plattzumachen, was es gut macht.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
+        <h3>Support & Service</h3>
+        <p>Aus den Fragen, die Ihr Team zwanzigmal pro Woche beantwortet, werden Filme, die sie einmal richtig beantworten.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Gründerinnen und Gründer</h3>
+        <p>Vorerst selbst gemacht? Überspringen Sie die teuren Lektionen — allein die Checkliste spart den Drehtag, den sie kostet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2>Der Leitfaden, kurz erklärt.</h2>
+    </div>
+    <div class="faq reveal">
+      <details>
+        <summary>Ist er wirklich kostenlos?</summary>
+        <p>Ja. Arbeits-E-Mail eintragen und das PDF lädt sofort — eine Kopie kommt zusätzlich per Mail, damit es nicht im Download-Ordner verschwindet. Keine Kosten, kein Anruf, keine Verpflichtung.</p>
+      </details>
+      <details>
+        <summary>Was steht konkret drin?</summary>
+        <p>Sechs Seiten: die fünf Entscheidungen vor dem Drehbuch, ein 90-Sekunden-Template mit Timings und Wortzahlen, ein durchgespieltes Beispiel, Specs für sechs Placements, ein realistischer Zeitplan, eine 30-Punkte-Checkliste und sieben häufige Fehler.</p>
+      </details>
+      <details>
+        <summary>Nützt das nur mit grossem Budget?</summary>
+        <p>Nein. Das meiste sind Entscheidungen, kein Geld. Und die Punkte, die Geld kosten, sind genau die, die der Leitfaden vor den Dreh legt — deshalb kosten sie am Ende weniger.</p>
+      </details>
+      <details>
+        <summary>Wer hat ihn geschrieben?</summary>
+        <p>Viven, eine Videoproduktion in Zürich. Es ist das, was wir intern vor einem How-to-Dreh durchgehen: dieselbe Methode wie bei den Erklärvideos und How-to-Videos für den Combair V600 von V-ZUG und für Kanebo Sensai.</p>
+      </details>
+      <details>
+        <summary>Schreiben Sie mir jetzt dauernd?</summary>
+        <p>Nur wenn Sie das Kästchen im Formular ankreuzen. Das PDF kommt ohne Gegenleistung, und jede E-Mail von uns hat eine Abmeldung mit einem Klick.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELACIONADOS ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Weiterlesen</h2>
+      <div class="related-grid">
+        <a href="/de/blog/b2b-erklaervideo-komplexe-produkte/" class="related-card reveal">
+          <h3>B2B-Erklärvideos für komplexe Produkte</h3>
+          <p>Das Argument ausgeschrieben: warum weniger, aber besser erklären mehr verkauft.</p>
+          <span class="more">Artikel lesen →</span>
+        </a>
+        <a href={p("services/how-to-video")} class="related-card reveal">
+          <h3>How-To- & Erklärvideo-Produktion</h3>
+          <p>Erklärvideo- und How-to-Produktion aus Zürich — ein Video pro Aufgabe, in jeder Sprache, in der Sie verkaufen.</p>
+          <span class="more">Zur Leistung →</span>
+        </a>
+        <a href="/de/v-zug-combair-600-how-to-video-kampagne/" class="related-card reveal">
+          <h3>V-ZUG Combair V600 — die How-to-Reihe</h3>
+          <p>Die How-to-Video-Kampagne, aus der die Methode stammt: eine Aufgabe pro Video, mehrere Sprachen, ein Dreh.</p>
+          <span class="more">Zum Case →</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+</Base>

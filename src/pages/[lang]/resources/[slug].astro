@@ -7,8 +7,11 @@ import { localePath } from '../../../i18n.js';
 import resources from '../../../data/resources.json';
 import rmap from '../../../data/resources-map.json';
 import LeadMagnet from '../../../components/LeadMagnet.astro';
-/* El cheat sheet es de REDES SOCIALES: va solo en los recursos de ese tema.
-   Son 5 de 115 — ponerlo en todas sería spam y le quitaría fuerza. */
+/* Cada magnet va SOLO donde el tema coincide. El cheat sheet es de redes
+   sociales: 5 páginas de 115. La guía del explicativo va en la categoría
+   'howto' (14 páginas). Las otras ~96 no llevan ninguno — un magnet en todas
+   partes es spam y le quita fuerza al que sí corresponde. Nunca los dos en la
+   misma página: si es de redes gana el cheat sheet. */
 const SOCIAL = new Set([
   'was-ist-die-produktion-von-social-media-videos',
   'wie-lang-sollte-ein-social-media-video-sein',
@@ -192,7 +195,9 @@ const description = { [lang]: entry.description };
         </div>
       )}
 
-      {SOCIAL.has(entry.slug) && <LeadMagnet lang={lang} magnet="social-formats" />}
+      {SOCIAL.has(entry.slug)
+        ? <LeadMagnet lang={lang} magnet="social-formats" />
+        : entry.category === 'howto' && <LeadMagnet lang={lang} magnet="explainer-guide" />}
 
   <div class="rsrc-ctabox">
         <div>

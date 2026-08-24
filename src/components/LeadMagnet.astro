@@ -1,49 +1,92 @@
 ---
 // Lead magnet con gate REAL: el PDF está en el bucket privado 'magnets' —
 // el handler de site.js (.lm-gate) llama a la función magnet-download, que
-// crea el lead server-side y devuelve una URL firmada de 5 min. `magnet` es
-// la CLAVE del magnet en la función (no un path).
-const { lang = 'en', magnet = 'social-formats' } = Astro.props;
+// crea el lead server-side, manda el PDF por mail y devuelve una URL firmada.
+// `magnet` es la CLAVE del magnet en la función (no un path).
+//
+// EL TEXTO VIVE ACÁ, POR MAGNET. Antes estaba hardcodeado el cheat sheet y el
+// componente solo servía para ese; con el segundo magnet (la guía de
+// explainer) el título tenía que salir de la clave, no del componente.
+// aviso: el banner "📄 …Get the free PDF →" que se inyecta arriba del texto.
+// Existe para las páginas de ARTÍCULO (recursos, servicios), donde el gate
+// queda a mitad de página y arriba no hay nada que diga que el PDF existe.
+// En una landing del magnet sobra: el hero ya tiene el botón, y el banner lo
+// repite dos centímetros más abajo. Ahí va aviso={false}.
+const { lang = 'en', magnet = 'social-formats', aviso = true } = Astro.props;
+
+const MAGNETS = {
+  'social-formats': {
+    title: { en: 'Social Media Video Cheat Sheet 2026', de: 'Social-Media-Video Cheat-Sheet 2026', es: 'Cheat sheet de video para redes 2026' },
+    desc: {
+      en: 'Every platform-native format, length and spec on one page — YouTube, Reels, TikTok and LinkedIn. The same reference our producers use.',
+      de: 'Alle plattform-nativen Formate, Längen und Specs auf einer Seite — YouTube, Reels, TikTok und LinkedIn. Dieselbe Referenz, die unsere Producer nutzen.',
+      es: 'Todos los formatos nativos, duraciones y specs en una página — YouTube, Reels, TikTok y LinkedIn. La misma referencia que usan nuestros productores.',
+    },
+  },
+  'explainer-guide': {
+    title: {
+      en: 'How to make an explainer video that converts',
+      de: 'Wie Sie ein Erklärvideo machen, das konvertiert',
+      es: 'Cómo hacer un video explicativo que convierte',
+    },
+    desc: {
+      en: 'Six pages: the five decisions before the script, a 90-second script template with timings, specs by placement and the 30-point checklist we run before every shoot.',
+      de: 'Sechs Seiten: die fünf Entscheidungen vor dem Drehbuch, ein 90-Sekunden-Template mit Timings, Specs nach Placement und die 30-Punkte-Checkliste vor jedem Dreh.',
+      es: 'Seis páginas: las cinco decisiones antes del guion, una plantilla de 90 segundos cronometrada, specs según dónde va y el checklist de 30 puntos de cada rodaje.',
+    },
+  },
+};
+
 const T = {
   eyebrow: { en: 'Free download', de: 'Gratis-Download', es: 'Descarga gratis' },
-  title: { en: 'Social Media Video Cheat Sheet 2026', de: 'Social-Media-Video Cheat-Sheet 2026', es: 'Cheat sheet de video para redes 2026' },
-  desc: {
-    en: 'Every platform-native format, length and spec on one page — YouTube, Reels, TikTok and LinkedIn. The same reference our producers use.',
-    de: 'Alle plattform-nativen Formate, Längen und Specs auf einer Seite — YouTube, Reels, TikTok und LinkedIn. Dieselbe Referenz, die unsere Producer nutzen.',
-    es: 'Todos los formatos nativos, duraciones y specs en una página — YouTube, Reels, TikTok y LinkedIn. La misma referencia que usan nuestros productores.',
-  },
   ph: { en: 'Your work email', de: 'Ihre Arbeits-E-Mail', es: 'Tu email de trabajo' },
-  btn: { en: 'Download the PDF', de: 'PDF herunterladen', es: 'Descargar el PDF' },
-  done: { en: '✓ Downloading — check your folder.', de: '✓ Download läuft — im Ordner nachsehen.', es: '✓ Descargando — revisá tu carpeta.' },
+  btn: { en: 'Send me the PDF', de: 'PDF zuschicken', es: 'Mandame el PDF' },
+  done: {
+    en: '✓ On its way — it also lands in your inbox in a minute.',
+    de: '✓ Unterwegs — es kommt gleich auch per E-Mail an.',
+    es: '✓ Ahí va — en un minuto también te llega por mail.',
+  },
   note: { en: 'No spam — unsubscribe any time.', de: 'Kein Spam — jederzeit abmeldbar.', es: 'Sin spam — baja cuando quieras.' },
+  // casilla del newsletter: SIN tildar a propósito. Es la única señal de
+  // consentimiento explícito que vamos a tener de esta persona.
+  nl: {
+    en: 'Also send me the monthly — what works in video, nothing else.',
+    de: 'Schicken Sie mir auch den monatlichen Newsletter — was in Video funktioniert, sonst nichts.',
+    es: 'Mandame también el mensual — qué funciona en video, nada más.',
+  },
 };
 const T2 = {
   jump: { en: 'Get the free PDF →', de: 'Gratis-PDF holen →', es: 'Bajate el PDF gratis →' },
 };
+const M = MAGNETS[magnet] || MAGNETS['social-formats'];
 const t = (k) => T[k][lang] || T[k].en;
 const t2 = (k) => T2[k][lang] || T2[k].en;
+const m = (k) => M[k][lang] || M[k].en;
 ---
 {/* El gate quedaba a la mitad del artículo (medido: 2771px de 5637, 49%) y
     arriba no había nada que dijera que existe un PDF gratis. Este aviso se
     inserta después de la entradilla y lleva al gate. Idea de CRO aprobada:
     "si falta el CTA visible, agregarlo above the fold". */}
+{aviso && (
 <a class="lm-top" href="#lm-gate" data-lm-top>
   <span class="lm-top-ic">📄</span>
-  <span class="lm-top-tx"><b>{t('title')}</b><small>{t('eyebrow')} · {t2('jump')}</small></span>
+  <span class="lm-top-tx"><b>{m('title')}</b><small>{t('eyebrow')} · {t2('jump')}</small></span>
 </a>
+)}
 <section class="sec" style="padding-top:0">
   <div class="wrap">
     <div class="lm-gate reveal" id="lm-gate" data-magnet={magnet}>
       <div class="lm-gate-copy">
         <span class="eyebrow">{t('eyebrow')}</span>
-        <h2>{t('title')}</h2>
-        <p>{t('desc')}</p>
+        <h2>{m('title')}</h2>
+        <p>{m('desc')}</p>
       </div>
       <div class="lm-gate-side">
         <form class="lm-gate-form" novalidate>
           <input type="email" name="email" required placeholder={t('ph')} autocomplete="email" />
           <button type="submit" class="btn btn-primary">📄 {t('btn')}</button>
         </form>
+        <label class="lm-gate-nl"><input type="checkbox" name="newsletter" /> <span>{t('nl')}</span></label>
         <p class="lm-gate-done" hidden>{t('done')}</p>
         <p class="lm-gate-note">{t('note')}</p>
       </div>
@@ -61,6 +104,10 @@ const t2 = (k) => T2[k][lang] || T2[k].en;
   .lm-top-tx{min-width:0}
   .lm-top-tx b{display:block;font-size:14.5px;line-height:1.25}
   .lm-top-tx small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .lm-gate-nl{display:flex;align-items:flex-start;gap:9px;margin:12px 0 0;font-size:13px;
+    line-height:1.4;color:var(--muted);cursor:pointer}
+  .lm-gate-nl input{flex:none;width:16px;height:16px;margin:1px 0 0;accent-color:var(--acid,#ddf98f);cursor:pointer}
+  .lm-gate-nl:hover span{color:var(--text)}
 </style>
 <script is:inline>
   (function(){

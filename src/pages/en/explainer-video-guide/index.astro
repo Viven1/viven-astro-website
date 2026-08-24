@@ -1,0 +1,225 @@
+---
+// Landing del lead magnet: la guía del video explicativo (PDF, 3 idiomas).
+//
+// PARA QUÉ EXISTE: el how-to / explainer es el grupo de búsquedas donde
+// aparecemos y no nos llevamos el click (medido en Search Console: aparecemos
+// en posición 14-20 para "b2b erklärvideo" y compañía, con 0 leads). Esta
+// página es la que puede capturarlo, y de paso el destino al que apuntan el
+// resto de las páginas del tema.
+//
+// LA REGLA DE ESTA PÁGINA: cada tarjeta dice QUÉ contesta el PDF, nunca la
+// respuesta. Si la tarjeta ya resuelve, nadie deja el email — y si no dice
+// nada concreto, tampoco. El punto medio es nombrar la pregunta.
+//
+// El gate (email → PDF) es el componente LeadMagnet con magnet="explainer-guide";
+// el archivo vive en el bucket privado 'magnets', lo firma magnet-download y
+// además lo manda por mail (SQL 0131).
+import Base from '../../../layouts/Base.astro';
+import LeadMagnet from '../../../components/LeadMagnet.astro';
+import CalcBanner from '../../../components/CalcBanner.astro';
+import { localePath, SITE } from '../../../i18n.js';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"How to Make an Explainer Video That Converts — Free Guide | Viven"};
+const description = {"en":"Free 6-page PDF: the five decisions before the script, a 90-second script template with timings, specs by placement and the 30-point checklist we run before every shoot."};
+const URL = SITE + "/en/explainer-video-guide/";
+const ld = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "@id": URL + "#breadcrumbs",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE + "/en/" },
+        { "@type": "ListItem", "position": 2, "name": "Free tools", "item": SITE + "/en/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Explainer Video Guide", "item": URL }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": URL + "#faq",
+      "mainEntity": [
+        {"@type": "Question", "name": "Is it really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Leave your work email and the PDF downloads immediately — a copy also arrives in your inbox so it does not get lost in a downloads folder. No cost, no call, no obligation."}},
+        {"@type": "Question", "name": "What is actually in it?", "acceptedAnswer": {"@type": "Answer", "text": "Six pages: the five decisions to settle before the script, a 90-second script template with timings and word counts, a worked example, specs for six placements, a realistic timeline, a 30-point pre-production checklist and seven common mistakes."}},
+        {"@type": "Question", "name": "Is this only useful with a big budget?", "acceptedAnswer": {"@type": "Answer", "text": "No. Most of it is decisions, not money. The parts that do cost money are exactly the ones the guide tells you to settle before the shoot — which is how they end up costing less."}},
+        {"@type": "Question", "name": "Who wrote it?", "acceptedAnswer": {"@type": "Answer", "text": "Viven, a video production company in Zurich. It is what we run through internally before a how-to shoot: the same method behind the explainer and how-to videos for V-ZUG's Combair V600 and for Kanebo Sensai."}},
+        {"@type": "Question", "name": "Will you email me from now on?", "acceptedAnswer": {"@type": "Answer", "text": "Only if you tick the box on the form. The PDF comes with no strings attached, and every email we send has one-click unsubscribe."}}
+      ]
+    }
+  ]
+});
+---
+<Base lang={lang} slug="explainer-video-guide" active="tools" singleLang={true} langUrls={{"en": "/en/explainer-video-guide/", "de": "/de/erklaervideo-leitfaden/", "es": "/es/guia-video-explicativo/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={ld}></script>
+
+<!-- ============ HERO ============ -->
+<section class="page-hero">
+  <div class="wrap">
+    <div class="crumbs">
+      <a href={p("")}>Home</a>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <a href={p("tools")}>Free tools</a>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span>Explainer Video Guide</span>
+    </div>
+    <span class="eyebrow">Free download</span>
+    <h1>How to make an explainer video that <span class="hl">converts</span></h1>
+    <p class="lead">Six pages of the working method behind our explainer and how-to videos for V-ZUG and Kanebo Sensai: what to decide before anyone writes a script, a script template timed to the second, the specs for every place a video ends up, and the checklist we run before the crew is booked.</p>
+    <div class="hero-cta">
+      <a href="#download" class="btn btn-primary">Get the free PDF</a>
+      <a href="#inside" class="btn btn-ghost">See what's inside</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUÉ HAY ADENTRO ============ -->
+<section class="sec" id="inside" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">What's inside</span>
+      <h2>What an explainer video needs before anyone turns a camera on.</h2>
+      <p>It is the internal method, written down — the same one our producers argue about before a how-to shoot.</p>
+    </div>
+    <div class="value-grid">
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div>
+        <h3>The five decisions</h3>
+        <p>What has to be true before anyone writes a script — and the one small word that quietly turns your video into two.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
+        <h3>The 90-second script</h3>
+        <p>Six blocks, with the seconds and the word count we write to. Each one hides a trap; the PDF names all six.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="m10 10 5 2-5 2z"/></svg></div>
+        <h3>A worked example</h3>
+        <p>The same structure filled in for a real support film — hook, mechanism and action, line by line.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg></div>
+        <h3>Specs by placement</h3>
+        <p>Six places a video ends up, each with its length, its ratio and the one thing in it that is not negotiable.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>How long it really takes</h3>
+        <p>Brief to delivery, stage by stage — and what actually holds each stage up when it slips.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg></div>
+        <h3>The 30-point checklist</h3>
+        <p>Six columns — content, location, versions, approvals, distribution, budget. Print it, take it to the kickoff.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+        <h3>Seven ways to lose the room</h3>
+        <p>The mistakes we still see in explainers with serious budgets behind them, and what each one costs.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 14h5"/></svg></div>
+        <h3>The one-line brief</h3>
+        <p>One sentence to fill in. If you cannot finish it, no script will save the video — and the PDF explains why.</p>
+      </div>
+    </div>
+    <p class="reveal" style="text-align:center;margin-top:32px;font-size:15px;opacity:.8">Written for people who have to brief, approve or produce an explainer — not for a marketing blog.</p>
+  </div>
+</section>
+
+<!-- ============ GATE ============ -->
+<div id="download">
+  <LeadMagnet lang={lang} magnet="explainer-guide" aviso={false} />
+</div>
+
+<!-- ============ PARA QUIÉN ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Who it's for</span>
+      <h2>Made for the people who have to get it made.</h2>
+    </div>
+    <div class="value-grid">
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+        <h3>Marketing managers</h3>
+        <p>Brief an agency or an internal team with the decisions already made, and stop paying for the round of edits that follows a vague brief.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="M12 12v10M3 7l9 5 9-5"/></svg></div>
+        <h3>Product managers</h3>
+        <p>Get a complex product explained in ninety seconds without flattening what makes it good.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
+        <h3>Support & service leads</h3>
+        <p>Turn the questions your team answers twenty times a week into films that answer them once, properly.</p>
+      </div>
+      <div class="value reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Founders</h3>
+        <p>Doing it yourself for now? Skip the expensive lessons; the checklist alone is worth the shoot day it saves.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2>The guide, answered.</h2>
+    </div>
+    <div class="faq reveal">
+      <details>
+        <summary>Is it really free?</summary>
+        <p>Yes. Leave your work email and the PDF downloads immediately — a copy also arrives in your inbox so it does not get lost in a downloads folder. No cost, no call, no obligation.</p>
+      </details>
+      <details>
+        <summary>What is actually in it?</summary>
+        <p>Six pages: the five decisions to settle before the script, a 90-second script template with timings and word counts, a worked example, specs for six placements, a realistic timeline, a 30-point pre-production checklist and seven common mistakes.</p>
+      </details>
+      <details>
+        <summary>Is this only useful with a big budget?</summary>
+        <p>No. Most of it is decisions, not money. The parts that do cost money are exactly the ones the guide tells you to settle before the shoot — which is how they end up costing less.</p>
+      </details>
+      <details>
+        <summary>Who wrote it?</summary>
+        <p>Viven, a video production company in Zurich. It is what we run through internally before a how-to shoot: the same method behind the explainer and how-to videos for V-ZUG's Combair V600 and for Kanebo Sensai.</p>
+      </details>
+      <details>
+        <summary>Will you email me from now on?</summary>
+        <p>Only if you tick the box on the form. The PDF comes with no strings attached, and every email we send has one-click unsubscribe.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELACIONADOS ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Go deeper</h2>
+      <div class="related-grid">
+        <a href="/en/blog/b2b-explainer-video-complex-products/" class="related-card reveal">
+          <h3>B2B explainer videos for complex products</h3>
+          <p>The written version of the argument: why explaining less, better, sells more.</p>
+          <span class="more">Read the article →</span>
+        </a>
+        <a href={p("services/how-to-video")} class="related-card reveal">
+          <h3>How-To & Explainer Video Production</h3>
+          <p>Explainer and how-to video production in Zurich — one video per task, in every language you sell in.</p>
+          <span class="more">See the service →</span>
+        </a>
+        <a href="/en/v-zug-combair-600-how-to-video-campaign/" class="related-card reveal">
+          <h3>V-ZUG Combair V600 — the how-to series</h3>
+          <p>The how-to video campaign the method comes from: one task per video, multiple languages, one shoot.</p>
+          <span class="more">See the case →</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+</Base>
