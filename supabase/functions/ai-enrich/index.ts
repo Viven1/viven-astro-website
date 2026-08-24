@@ -73,7 +73,7 @@ inventado sobre un cliente es peor que no tener dato.`;
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 3500,
+        max_tokens: 8000,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
         messages: [{ role: "user", content: prompt }],
       }),

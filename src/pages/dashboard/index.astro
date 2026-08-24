@@ -2858,6 +2858,23 @@ const newsCases = [
         <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
       </div>
 
+      <!-- Bing al lado de Google: hasta agosto 2026 solo mirábamos Google y Bing
+           era otra herramienta a la que nadie entra. Manda pocas impresiones
+           pero convierte mucho mejor, así que verlos juntos cambia decisiones. -->
+      <div class="panel" id="bing-panel" style="margin-top:14px" hidden>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <h2 style="margin:0">Bing <span class="count" id="bing-count"></span></h2>
+          <p class="muted-note" id="bing-verdict" style="margin:0;font-size:13.5px"></p>
+        </div>
+        <div class="kpis four" style="margin-top:10px">
+          <div class="kpi"><div class="n" id="bing-k-clicks">–</div><div class="l">Clicks</div></div>
+          <div class="kpi"><div class="n" id="bing-k-impr">–</div><div class="l">Impresiones</div></div>
+          <div class="kpi"><div class="n" id="bing-k-ctr">–</div><div class="l">CTR</div></div>
+          <div class="kpi"><div class="n" id="bing-k-pos">–</div><div class="l">Posición media</div></div>
+        </div>
+        <div class="lead-table-wrap" id="bing-top" style="margin-top:12px"></div>
+      </div>
+
       <div class="panel">
         <p class="muted-note" id="seo-verdict" style="font-size:14px;line-height:1.55;margin:0 0 12px"></p>
         <div class="kpis four">
@@ -5395,13 +5412,70 @@ const newsCases = [
     }));
   }
   $('ps-stage').addEventListener('change', (e) => { psStage = e.target.value; renderPeopleList(); });
-  $('seo-reload') && $('seo-reload').addEventListener('click', loadSeo);
+  /* ---------- Bing, en la misma pantalla que Google ----------
+     Los datos los trae el cron bing-stats a public.bing_daily (SQL 0133), por
+     (fecha, consulta) igual que gsc_daily — así los dos buscadores se comparan
+     sobre el MISMO período. Si la tabla está vacía el panel no se muestra, en
+     vez de mostrar ceros que parecen una caída. */
+  async function loadBing(){
+    const box = $('bing-panel'); if (!box) return;
+    try {
+      const desde = new Date(Date.now() - seoDays * 864e5).toISOString().slice(0, 10);
+      const { data, error } = await supabase.from('bing_daily')
+        .select('date,query,clicks,impressions,position').gte('date', desde);
+      if (error) throw error;
+      if (!data || !data.length) { box.hidden = true; return; }
+      box.hidden = false;
+
+      const clicks = data.reduce((t, r) => t + (r.clicks || 0), 0);
+      const impr = data.reduce((t, r) => t + (r.impressions || 0), 0);
+      const conPos = data.filter((r) => r.position);
+      const pos = conPos.length ? conPos.reduce((t, r) => t + Number(r.position), 0) / conPos.length : 0;
+      const fmtN = (n) => (n || 0).toLocaleString('de-CH');
+      $('bing-k-clicks').textContent = fmtN(clicks);
+      $('bing-k-impr').textContent = fmtN(impr);
+      $('bing-k-ctr').textContent = impr ? (clicks / impr * 100).toFixed(1) + '%' : '–';
+      $('bing-k-pos').textContent = pos ? pos.toFixed(1) : '–';
+
+      const consultas = new Map();
+      for (const r of data) {
+        const a = consultas.get(r.query) || { clicks: 0, impressions: 0, pos: [] };
+        a.clicks += r.clicks || 0; a.impressions += r.impressions || 0;
+        if (r.position) a.pos.push(Number(r.position));
+        consultas.set(r.query, a);
+      }
+      $('bing-count').textContent = consultas.size + ' búsquedas';
+
+      // el dato que importa: Bing manda menos gente pero la que manda hace click
+      const g = (seoData && seoData.totals) || null;
+      const v = $('bing-verdict');
+      if (v && g && g.impressions) {
+        const ctrB = impr ? clicks / impr : 0, ctrG = g.ctr || 0;
+        v.innerHTML = ctrB > ctrG * 1.5
+          ? '⚡ Manda ' + (impr ? Math.round(g.impressions / impr) : 0) + '× menos impresiones que Google, pero su CTR es ' +
+            (ctrG ? (ctrB / ctrG).toFixed(1) : '–') + '× mejor'
+          : 'Comparado con Google en el mismo período';
+      }
+
+      const top = [...consultas.entries()].sort((a, b) => b[1].clicks - a[1].clicks || b[1].impressions - a[1].impressions).slice(0, 10);
+      $('bing-top').innerHTML =
+        '<table class="lead-table"><thead><tr><th>Búsqueda</th><th>Clicks</th><th>Impresiones</th><th>Posición</th></tr></thead><tbody>' +
+        top.map(([q, a]) => '<tr><td>' + esc(q) + '</td><td>' + a.clicks + '</td><td>' + a.impressions + '</td><td>' +
+          (a.pos.length ? (a.pos.reduce((t, x) => t + x, 0) / a.pos.length).toFixed(1) : '–') + '</td></tr>').join('') +
+        '</tbody></table>';
+    } catch (e) {
+      box.hidden = false;
+      $('bing-top').innerHTML = '<p class="muted-note">No pude leer los datos de Bing: ' + esc(e.message || String(e)) + '</p>';
+    }
+  }
+
+  $('seo-reload') && $('seo-reload').addEventListener('click', () => { loadSeo(); loadBing(); });
   // período propio del sub-tab SEO (mismo patrón que rc-period): recarga TODOS
   // los paneles — KPIs, top búsquedas/páginas, oportunidades CTR y canibalización
   document.querySelectorAll('#seo-period button').forEach((b) => b.addEventListener('click', () => {
     seoDays = parseInt(b.dataset.days, 10) || 28;
     document.querySelectorAll('#seo-period button').forEach((x) => x.classList.toggle('on', x === b));
-    loadSeo();
+    loadSeo(); loadBing();
   }));
   $('ps-act').addEventListener('change', (e) => { psAct = e.target.value; renderPeopleList(); });
 

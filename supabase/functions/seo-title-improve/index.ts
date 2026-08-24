@@ -17,7 +17,10 @@ import { decodeBase64 } from "jsr:@std/encoding/base64";
 
 const GH_TOKEN = Deno.env.get("GITHUB_TOKEN")!;
 const REPO = Deno.env.get("GITHUB_REPO") || "Viven1/viven-astro-website";
-const BRANCH = Deno.env.get("GITHUB_BRANCH") || "dev";
+// Lee de la rama que está PUBLICADA. Antes leía de "dev", que el 24 ago 2026
+// estaba 8 commits atrás de main: una página creada hoy no existía ahí y el
+// botón fallaba con un 404 que el dashboard mostraba como "non-2xx".
+const BRANCH = Deno.env.get("GITHUB_BRANCH") || "main";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -60,12 +63,17 @@ function computeDiff(original: string, updated: string) {
     ctxAfter: a.slice(endA, Math.min(a.length, endA + 2)),
   };
 }
+/* GitHub devuelve el contenido en base64 CON saltos de línea cada 60 caracteres.
+   decodeBase64 se atraganta con ellos y tira "Cannot decode input as base64:
+   Invalid character (\n)" — un 500 que el dashboard mostraba como "non-2xx" sin
+   más detalle. Por eso el botón 🤖 Mejorar no funcionó NUNCA: fallaba acá, antes
+   siquiera de llamar a la IA. Se limpian los espacios antes de decodificar. */
 async function ghGet(path: string, ghHeaders: Record<string, string>) {
   const api = `https://api.github.com/repos/${REPO}/contents/${path}`;
   const res = await fetch(api + "?ref=" + BRANCH, { headers: ghHeaders });
   if (!res.ok) return null;
   const j = await res.json();
-  return { content: new TextDecoder().decode(decodeBase64(j.content)), sha: j.sha as string };
+  return { content: new TextDecoder().decode(decodeBase64(String(j.content).replace(/\s/g, ""))), sha: j.sha as string };
 }
 
 // ---- extracción de title/description del frontmatter ----
@@ -151,19 +159,18 @@ Reglas del title: máximo 60 caracteres por idioma, la keyword principal (o su t
 Reglas de la meta description: máximo 155 caracteres por idioma, con un beneficio concreto y un llamado a la acción.
 Idiomas: cada valor va EN EL IDIOMA que le corresponde. Si el frontmatter define los 3 idiomas (en/de/es), proponé los 3; si define uno solo, proponé solo ese.
 
-FORMATO EXACTO de tu respuesta (sin markdown fences, sin explicación extra, nada más):
-Línea 1: un JSON en UNA sola línea: {"rationale":"por qué esto sube el CTR (1-2 frases, en español)","title":{"en":"…"},"description":{"en":"…"}} — title y description con SOLO los idiomas que la página realmente tiene como claves.
-Línea 2: exactamente -----FILE-----
-Después: el archivo ENTERO, de la primera línea a la última, con SOLO los valores de title y description cambiados en el frontmatter (mismo formato de objeto/comillas que ya usa el archivo). NO toques NADA más: ni el body, ni imports, ni el JSON-LD, ni data-attributes, ni el formato del resto del frontmatter.
+FORMATO EXACTO de tu respuesta: UN JSON en una sola línea, sin markdown, sin nada más:
+{"rationale":"por qué esto sube el CTR (1-2 frases, en español)","title":{"en":"…"},"description":{"en":"…"}}
 
+Frontmatter actual (solo para que veas el formato y los idiomas):
 Archivo fuente completo:
-${original}`;
+${curTitleRaw}\n${curDescRaw}`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       // SIN prefill: messages termina en user; la respuesta se parsea filtrando type==="text"
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 16000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -175,30 +182,39 @@ ${original}`;
       .filter((c) => c.type === "text").map((c) => c.text ?? "").join("").trim();
     raw = raw.replace(/^```[a-z]*\n?/i, "").replace(/```$/, "").trim();
 
-    const sep = raw.indexOf("-----FILE-----");
-    if (sep < 0) return json({ error: "La IA no respetó el formato (falta el separador de archivo) — no se generó ningún cambio." }, 500);
+    /* La IA ya NO devuelve el archivo. Antes se le pedía que reescribiera las 35 KB
+       enteras para cambiar dos líneas: si la respuesta se pasaba del techo se cortaba,
+       y la función la rechazaba por seguridad — ese era el fallo que veía Sebastián.
+       Ahora propone solo los textos y el reemplazo lo hace este código, que no puede
+       tocar nada fuera del frontmatter porque solo sustituye esas dos asignaciones. */
     let header: { rationale?: string; title?: Record<string, string>; description?: Record<string, string> } = {};
-    try { header = JSON.parse(raw.slice(0, sep).trim()); } catch {
-      return json({ error: "La IA no respetó el formato (cabecera JSON inválida) — no se generó ningún cambio." }, 500);
-    }
-    const updated = raw.slice(sep + "-----FILE-----".length).replace(/^\r?\n/, "").trim();
-
-    // ---- salvavidas (mismas reglas estrictas que apply-link-suggest) ----
-    if (updated.length < original.length * 0.85) {
-      return json({ error: "La IA devolvió un archivo sospechosamente más corto que el original — no se generó ningún cambio, por seguridad." }, 500);
+    const soloJson = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
+    try { header = JSON.parse(soloJson); } catch {
+      return json({ error: `La IA no devolvió el JSON esperado · stop_reason=${aiData.stop_reason} · empieza con: ${raw.slice(0, 120)}` });
     }
     const propTitle = header.title && typeof header.title === "object" ? header.title : null;
     const propDesc = header.description && typeof header.description === "object" ? header.description : null;
     if (!propTitle || !Object.keys(propTitle).length) {
-      return json({ error: "La IA no propuso ningún title — no se generó ningún cambio." }, 500);
+      return json({ error: "La IA no propuso ningún title — no se generó ningún cambio." });
     }
-    for (const v of Object.values(propTitle)) {
-      if (!v || !updated.includes(v)) return json({ error: "El title nuevo no quedó incluido en el archivo que devolvió la IA — no se generó ningún cambio." }, 500);
+
+    // reemplazo determinista: mismas claves de idioma que ya tenía el archivo
+    const comoEstaba = (crudo: string, nuevos: Record<string, string>) => {
+      const actual = parseMeta(crudo);
+      const salida: Record<string, string> = {};
+      for (const k of Object.keys(actual)) salida[k] = nuevos[k] ?? actual[k];
+      return JSON.stringify(salida);
+    };
+    let updated = original;
+    if (curTitleRaw) updated = updated.replace(curTitleRaw, comoEstaba(curTitleRaw, propTitle));
+    if (curDescRaw && propDesc) updated = updated.replace(curDescRaw, comoEstaba(curDescRaw, propDesc));
+    if (updated === original) {
+      return json({ error: "El reemplazo no cambió nada — el frontmatter no tiene el formato esperado." });
     }
-    // el body tiene que quedar EXACTAMENTE igual: este flujo solo toca el frontmatter
     if (bodyOf(updated) !== bodyOf(original)) {
-      return json({ error: "La IA tocó contenido fuera del frontmatter — no se generó ningún cambio, por seguridad." }, 500);
+      return json({ error: "El reemplazo tocó algo fuera del frontmatter — no se generó ningún cambio, por seguridad." });
     }
+
     // límites duros por idioma: avisar, no bloquear (el dashboard muestra el contador)
     const over = [
       ...Object.entries(propTitle).filter(([, v]) => (v || "").length > 65).map(([k]) => `title ${k}`),
