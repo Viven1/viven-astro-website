@@ -218,6 +218,21 @@ Deno.serve(async (req) => {
       const ins = await service.from("leads").insert(row).select("id").maybeSingle();
       leadId = (ins.data as { id: number } | null)?.id ?? null;
       if (ins.error) console.error("LEAD_INSERT_WARN", ins.error.message);
+
+      /* La SQL 0134 dejó de permitir contactos duplicados: si esta persona YA
+         existía, el trigger completa su ficha y NO crea fila, así que el insert
+         no devuelve nada. Hay que ir a buscarla.
+         Sin esto pasan dos cosas, y la segunda es grave:
+           1. magnet_sends queda sin lead_id → la descarga no se ve en la ficha
+              de esa persona, que es justamente para lo que existe.
+           2. el email sale SIN LINK DE BAJA, porque el link se arma con el id.
+         Pasó de verdad: dos envíos del 24/08 quedaron con lead_id nulo. */
+      if (leadId == null) {
+        const ya = await service.from("leads").select("id")
+          .ilike("email", email).order("created_at", { ascending: true }).limit(1).maybeSingle();
+        leadId = (ya.data as { id: number } | null)?.id ?? null;
+        if (leadId == null) console.error("LEAD_SIN_ID", email);
+      }
     } catch (e) { console.error("LEAD_INSERT_WARN", String(e)); }
     await hubspotSubmit({ email, message: magnet.label });
 
