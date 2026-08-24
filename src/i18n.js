@@ -61,3 +61,12 @@ export const T = {
   terms:       { en: 'Terms', de: 'AGB', es: 'Términos' },
   socialMediaShort: { en: 'Social Media Videos', de: 'Social-Media-Videos', es: 'Videos para redes' }
 };
+
+/* El texto de cada idioma vivía SOLO en atributos data-de/data-es y lo cambiaba
+   el navegador con JS. Para una persona funciona; para Google no: la página que
+   indexa es la que llega del servidor, y esa estaba en inglés incluso en /de/ y
+   /es/. Medido en agosto 2026: las 12 páginas de servicio alemanas y españolas
+   servían inglés, y el 93% de nuestras impresiones eran de búsquedas en inglés.
+   L() escribe el idioma correcto en el HTML desde el build. Los atributos se
+   quedan igual, porque el selector de idioma del cliente los sigue usando. */
+export const L = (lang, en, de, es) => (lang === 'de' ? (de || en) : lang === 'es' ? (es || en) : en);
