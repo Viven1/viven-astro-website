@@ -220,7 +220,7 @@ Respondé SOLO con JSON válido minificado, sin markdown:
     headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-5",
-      max_tokens: 3500,
+      max_tokens: 16000,
       system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary.",
       messages: [{ role: "user", content: prompt }],
     }),
@@ -239,8 +239,15 @@ Respondé SOLO con JSON válido minificado, sin markdown:
   let parsed: { ideas?: unknown[] } | null = null;
   try { parsed = JSON.parse(text); } catch { parsed = null; }
   if (!parsed || !Array.isArray(parsed.ideas) || !parsed.ideas.length) {
+    // El error decía solo "la IA no devolvió ideas válidas" y el detalle iba a
+    // los logs, que en este plan no se guardan. Sin el detalle no hay forma de
+    // saber si la IA se cortó por max_tokens, devolvió otra cosa o falló la API
+    // — y eso hizo que esta pantalla estuviera rota sin que nadie supiera por qué.
+    const motivo = data.stop_reason === "max_tokens"
+      ? "la respuesta se cortó por max_tokens (subir el límite)"
+      : "la IA devolvió algo que no es el JSON esperado";
     console.error("CRO_PARSE_FAIL raw:", text.slice(0, 400), "stop:", data.stop_reason);
-    throw new Error("la IA no devolvió ideas válidas");
+    throw new Error(`${motivo} · stop_reason=${data.stop_reason} · tokens=${data?.usage?.output_tokens} · empieza con: ${text.slice(0, 120)}`);
   }
   const ideas = (parsed.ideas as Record<string, unknown>[]).map((i) => ({
     title: String(i.title ?? "").slice(0, 200),
