@@ -2473,18 +2473,18 @@ const newsCases = [
 
       <div class="grid-2">
         <div class="panel">
-          <h2>¿Qué canales traen leads? <span class="count">(sesiones → leads)</span></h2>
+          <h2>¿Qué canales traen leads? <span class="count" id="perf-ch-c">(sesiones → leads)</span></h2>
           <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Canal</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-channel"></tbody></table></div>
         </div>
         <div class="panel">
-          <h2>¿De dónde llegan? <span class="count">(referrers externos)</span></h2>
+          <h2>¿De dónde llegan? <span class="count" id="perf-ref-c">(referrers externos)</span></h2>
           <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Sitio de origen</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-ref"></tbody></table></div>
         </div>
       </div>
 
       <div class="grid-2">
         <div class="panel">
-          <h2>¿Qué páginas convierten? <span class="count">(entrada → leads)</span></h2>
+          <h2>¿Qué páginas convierten? <span class="count" id="perf-lp-c">(entrada → leads)</span></h2>
           <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-landing"></tbody></table></div>
         </div>
         <!-- Insights con IA: se generan solos 1 vez por día (cache por navegador) -->
@@ -2500,7 +2500,7 @@ const newsCases = [
       </div>
 
       <div class="panel">
-        <h2>📝 Blog: qué posts rinden más <span class="count">(todas las vistas → leads)</span></h2>
+        <h2>📝 Blog: qué posts rinden más <span class="count" id="perf-bl-c">(todas las vistas → leads)</span></h2>
         <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Post</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-blog"></tbody></table></div>
       </div>
 
@@ -9823,6 +9823,8 @@ const newsCases = [
         (parcial ? ' · antes del 24/08 no se puede separar, así que ese tramo no aparece' : '')
       : 'Estás viendo TODO, bots incluidos (' + totalCrudo.toLocaleString('de-CH') + ' visitas)';
   }
+  /* recorta una lista de leads al tramo medido — mismo criterio que las sesiones */
+  const periodLeadsTramo = (arr, desde) => (arr || []).filter((l) => Date.parse(l.created_at) >= desde);
   function renderAnalytics(rows, leads){
     /* ================= UN SOLO FILTRO PARA TODO EL TAB =================
        Analytics tiene 22 paneles y casi todos cuentan sesiones o páginas vistas.
@@ -9852,6 +9854,24 @@ const newsCases = [
     const periodLeads = (leads || []).filter((l) =>
       inRange(l.created_at) && !/^claude-/.test(l.session_id || '') && !esCartera(l));
 
+    /* ===== Las cuatro tablas de rendimiento comparan sesiones contra leads =====
+       Las sesiones vienen del tramo MEDIDO (desde el 24/08); los leads, del período
+       entero. Con esa mezcla salían filas como "referral: 1 sesión → 2 leads = 200%".
+       No es que el canal convierta 200%: es que el numerador tiene 30 días y el
+       denominador uno. Acá se recortan los leads al mismo tramo, y el título de cada
+       tabla dice de qué ventana está hablando. */
+    const tablaLeads = (soloPersonas && parcial)
+      ? periodLeadsTramo(periodLeads, Math.max(rangeStart(), HUMAN_DESDE))
+      : periodLeads;
+    const tramoTxt = (soloPersonas && parcial)
+      ? ' · últimos ' + Math.max(1, Math.round((rangeEnd() - Math.max(rangeStart(), HUMAN_DESDE)) / 864e5)) + ' d'
+      : '';
+    const setCount = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
+    setCount('perf-ch-c', '(' + (soloPersonas ? 'personas' : 'sesiones') + ' → leads' + tramoTxt + ')');
+    setCount('perf-ref-c', '(referrers externos' + tramoTxt + ')');
+    setCount('perf-lp-c', '(entrada → leads' + tramoTxt + ')');
+    setCount('perf-bl-c', '(todas las vistas → leads' + tramoTxt + ')');
+
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
     /* Los dos KPIs de arriba solo cambian de ETIQUETA: los números ya vienen
        filtrados de `real` según el interruptor. El texto tiene que decir qué se está
@@ -9880,17 +9900,31 @@ const newsCases = [
        Dos números parecidos con nombres parecidos no informan, hacen dudar de los
        dos. Queda uno solo. (Sebastián, 25 ago: "visitas de personas y personas...
        ¿no es lo mismo? ¿por qué diferentes números?") */
+    /* ===== MEDIANA, no promedio =====
+       Medido el 25 ago sobre las 124 vistas de personas con tiempo: mediana 20 s,
+       promedio 5m13s, y cuatro vistas de más de media hora — tres clavadas en 7.200 s
+       (dos horas), que es el tope. O sea: el promedio lo escribían un puñado de
+       pestañas olvidadas abiertas, no la gente que lee. La mediana es el tiempo de
+       la visita del medio y no se mueve por esos casos.
+       (Sebastián, 25 ago: "¿seré yo que la dejo abierta?" — en parte sí, y con la
+       mediana da igual quién sea.) */
     const durs = real.filter((r) => r.duration > 0);
-    const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
+    const ordenados = durs.map((r) => r.duration).sort((a, b) => a - b);
+    const mediana = ordenados.length
+      ? (ordenados.length % 2 ? ordenados[(ordenados.length - 1) / 2]
+                              : (ordenados[ordenados.length / 2 - 1] + ordenados[ordenados.length / 2]) / 2)
+      : 0;
+    const promedio = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
+    const avg = mediana;
     /* Hasta el 25/08 esto medía la pestaña abierta, no la pestaña mirada: una
        dejada de fondo toda la tarde entraba como una lectura de horas. Se arregló en
        site.js, pero los datos viejos ya están guardados así — decirlo, en vez de
        presentar un promedio contaminado como si fuera limpio. */
     $('ka-time').textContent = fmtTime(avg);
     const tl = $('ka-time-l');
-    if (tl) tl.innerHTML = rangeStart() < Date.parse('2026-08-25T00:00:00Z')
-      ? 'Tiempo medio en página <small style="opacity:.6">· antes del 25/08 contaba pestañas de fondo</small>'
-      : 'Tiempo medio en página';
+    if (tl) tl.innerHTML = 'Tiempo en página <small style="opacity:.6">· mediana' +
+      (promedio > mediana * 1.5 ? ' — el promedio da ' + fmtTime(promedio) + ', lo estiran pestañas olvidadas' : '') +
+      (rangeStart() < Date.parse('2026-08-25T00:00:00Z') ? ' · antes del 25/08 contaba pestañas de fondo' : '') + '</small>';
     $('ka-conv').textContent = periodLeads.length;
     /* La tasa se calculaba leads ÷ sesiones, con las sesiones llenas de bots: daba
        0,3% y hacía parecer que la web no convierte. Ahora se calcula contra personas
@@ -9929,8 +9963,10 @@ const newsCases = [
       const t = new Date(l.created_at).getTime();
       return t >= prevWin.start && t <= prevWin.end;
     });
-    const pDurs = pReal.filter((r) => r.duration > 0);
-    const pAvg = pDurs.length ? pDurs.reduce((a, r) => a + r.duration, 0) / pDurs.length : 0;
+    const pDurs = pReal.filter((r) => r.duration > 0).map((r) => r.duration).sort((a, b) => a - b);
+    const pAvg = pDurs.length
+      ? (pDurs.length % 2 ? pDurs[(pDurs.length - 1) / 2] : (pDurs[pDurs.length / 2 - 1] + pDurs[pDurs.length / 2]) / 2)
+      : 0;   // mediana también acá, si no la flecha compararía peras con manzanas
     /* los leads no dependen de bots: esa comparación vale siempre */
     setDelta('ka-conv-d', periodLeads.length, pLeads.length);
     if (compararOk){
@@ -9994,7 +10030,7 @@ const newsCases = [
     const chSessions = new Map();
     entries.forEach((e) => { const k = e.channel || 'direct'; chSessions.set(k, (chSessions.get(k) || 0) + 1); });
     const chLeads = new Map();
-    periodLeads.forEach((l) => { const k = l.channel || 'direct'; chLeads.set(k, (chLeads.get(k) || 0) + 1); });
+    tablaLeads.forEach((l) => { const k = l.channel || 'direct'; chLeads.set(k, (chLeads.get(k) || 0) + 1); });
     const chKeys = new Set([...chSessions.keys(), ...chLeads.keys()]);
     const channelPerf = [...chKeys].map((k) => ({ key: k, label: k, badge: true, sessions: chSessions.get(k) || 0, leads: chLeads.get(k) || 0 }));
     perfTable($('perf-channel'), channelPerf, { clickable: 'channel' });
@@ -10003,7 +10039,7 @@ const newsCases = [
     const lpSessions = new Map();
     entries.forEach((e) => { const k = e.path || '/'; lpSessions.set(k, (lpSessions.get(k) || 0) + 1); });
     const lpLeads = new Map();
-    periodLeads.forEach((l) => { const k = l.landing_path || '(sin dato)'; lpLeads.set(k, (lpLeads.get(k) || 0) + 1); });
+    tablaLeads.forEach((l) => { const k = l.landing_path || '(sin dato)'; lpLeads.set(k, (lpLeads.get(k) || 0) + 1); });
     const lpKeys = new Set([...lpSessions.keys(), ...lpLeads.keys()]);
     const landingPerf = [...lpKeys].map((k) => ({ key: k, label: k, sessions: lpSessions.get(k) || 0, leads: lpLeads.get(k) || 0 }));
     perfTable($('perf-landing'), landingPerf, { clickable: 'landing' });
@@ -10016,7 +10052,7 @@ const newsCases = [
     const blogSess = new Map();
     real.forEach((r) => { const p = r.path || ''; if (!BLOG_RE.test(p)) return; if (!blogSess.has(p)) blogSess.set(p, new Set()); blogSess.get(p).add(r.session_id); });
     const blogLeadsN = new Map();
-    periodLeads.forEach((l) => { const p = l.landing_path || ''; if (BLOG_RE.test(p)) blogLeadsN.set(p, (blogLeadsN.get(p) || 0) + 1); });
+    tablaLeads.forEach((l) => { const p = l.landing_path || ''; if (BLOG_RE.test(p)) blogLeadsN.set(p, (blogLeadsN.get(p) || 0) + 1); });
     const blogKeys = new Set([...blogSess.keys(), ...blogLeadsN.keys()]);
     const blogTitle = (p) => {
       const m = p.match(/^\/(en|de|es)\/blog\/([^/]+)\//);
@@ -10039,7 +10075,7 @@ const newsCases = [
     const refSessN = new Map();
     refBySess.forEach((h) => refSessN.set(h, (refSessN.get(h) || 0) + 1));
     const refLeadsN = new Map();
-    periodLeads.forEach((l) => { const h = l.session_id && refBySess.get(l.session_id); if (h) refLeadsN.set(h, (refLeadsN.get(h) || 0) + 1); });
+    tablaLeads.forEach((l) => { const h = l.session_id && refBySess.get(l.session_id); if (h) refLeadsN.set(h, (refLeadsN.get(h) || 0) + 1); });
     const refPerf = [...refSessN.keys()]
       .map((h) => ({ key: h, label: h, sessions: refSessN.get(h) || 0, leads: refLeadsN.get(h) || 0 }))
       .sort((a, b) => (b.leads - a.leads) || (b.sessions - a.sessions)).slice(0, 10);
@@ -10071,15 +10107,22 @@ const newsCases = [
     bars($('bars-lang'), countBy(entries, 'lang'), 8);
 
     /* top páginas por engagement (visitas + tiempo) */
+    /* mismo criterio que el KPI de arriba: mediana. Una sola pestaña olvidada en
+       una página con pocas visitas la mandaba al tope de la lista con "1h 12m". */
     const byPath = new Map();
     real.forEach((r) => {
-      const p = byPath.get(r.path) || { views: 0, dur: 0, durN: 0 };
+      const p = byPath.get(r.path) || { views: 0, durs: [] };
       p.views++;
-      if (r.duration > 0) { p.dur += r.duration; p.durN++; }
+      if (r.duration > 0) p.durs.push(r.duration);
       byPath.set(r.path, p);
     });
+    const medianaDe = (arr) => {
+      if (!arr.length) return 0;
+      const o = arr.slice().sort((a, b) => a - b);
+      return o.length % 2 ? o[(o.length - 1) / 2] : (o[o.length / 2 - 1] + o[o.length / 2]) / 2;
+    };
     const pages = [...byPath.entries()]
-      .map(([k, p]) => [k, p.views, p.durN ? p.dur / p.durN : 0])
+      .map(([k, p]) => [k, p.views, medianaDe(p.durs)])
       .sort((a, b) => b[1] - a[1]);
     bars($('bars-pages'), pages, 15, (v, t) => v + ' <small>· ' + fmtTime(t) + '</small>');
   }
