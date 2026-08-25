@@ -2154,7 +2154,7 @@ const newsCases = [
       <div class="hk"><div class="hk-l">Ponderado</div><div class="hk-n" id="hm-weight">–</div><div class="hk-t muted">valor × probabilidad</div></div>
       <div class="hk"><div class="hk-l">Ganado (30 días)</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div></div>
       <div class="hk"><div class="hk-l">Win rate (90 días)</div><div class="hk-n" id="hm-wr">–</div><div class="hk-t muted" id="hm-wr-t">ganado / decidido</div></div>
-      <div class="hk"><div class="hk-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div></div>
+      <div class="hk"><div class="hk-l" id="hm-vis-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div><div class="hk-t muted" id="hm-vis-t"></div></div>
       <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
     </div>
     <div class="hm-masonry">
@@ -6624,9 +6624,32 @@ const newsCases = [
       visCur = hmViews60.filter((v) => now - Date.parse(v.created_at) <= 30 * D).length;
       visPrev = hmViews60.filter((v) => { const a = now - Date.parse(v.created_at); return a > 30 * D && a <= 60 * D; }).length;
     }
-    $('hm-vis').textContent = visCur == null ? '–' : visCur.toLocaleString('de-CH');
-    if (visCur == null){ const d = $('hm-vis-d'); if (d){ d.textContent = ''; d.className = 'kdelta'; } }
-    else setDelta('hm-vis-d', visCur, visPrev);
+    /* De 6.983 sesiones en 30 días, 5.237 (75%) son una sola página, cero segundos y
+       sin referrer — tráfico automático. Mostrar eso como "visitas" a secas invita a
+       leerlo como gente. Desde el 24/08 hay medición real de personas
+       (session_activity: scroll, puntero, toque), así que:
+         · si el período entero está medido → se muestran PERSONAS
+         · si no → se muestran visitas, pero diciendo que incluyen tráfico automático
+       Nunca un número sin etiqueta. */
+    const persEn = (a, b) => new Set((humanAct || [])
+      .filter((x) => { const t = Date.parse(x.created_at); return t >= a && t <= b; })
+      .map((x) => x.session_id)).size;
+    const medido = rangeStart() >= HUMAN_DESDE;
+    if (medido){
+      const pers = persEn(rangeStart(), rangeEnd());
+      $('hm-vis-l').textContent = 'Personas (' + rangeLabel().toLowerCase() + ')';
+      $('hm-vis').textContent = pers.toLocaleString('de-CH');
+      $('hm-vis-t').textContent = visCur != null
+        ? 'de ' + visCur.toLocaleString('de-CH') + ' visitas · el resto es automático'
+        : 'medido por scroll, puntero o toque';
+      const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; }
+    } else {
+      $('hm-vis-l').textContent = 'Visitas (' + rangeLabel().toLowerCase() + ')';
+      $('hm-vis-t').textContent = 'incluye tráfico automático · personas se mide desde el 24/08';
+      $('hm-vis').textContent = visCur == null ? '–' : visCur.toLocaleString('de-CH');
+      if (visCur == null){ const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; } }
+      else setDelta('hm-vis-d', visCur, visPrev);
+    }
     // ROAS Ads: verde ≥1×, rojo <1×, '–' sin datos de gasto
     const ads = hmAdsStats();
     const spend = hmAds ? (+hmAds.spend || 0) : 0;
