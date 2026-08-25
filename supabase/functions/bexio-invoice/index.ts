@@ -128,7 +128,185 @@ Deno.serve(async (req) => {
       });
     }
 
-    return json({ error: "falta offer_id" }, 400);
+    // ================= CREAR LA FACTURA =================
+    /* Parámetros de cabecera y de posición: NO se eligen de un catálogo, se copian
+       de una factura que Viven emitió de verdad (RE-01121). El catálogo de impuestos
+       de bexio tiene tasas viejas y nuevas activas al mismo tiempo —7,7% y 2,5%
+       conviviendo— así que elegir de ahí era arriesgarse a facturar con la tasa
+       equivocada. Copiando lo que ya usan no hay nada que adivinar.
+       Si algún día cambian de banco, de cuenta o de tasa, se cambia acá. */
+    const BX = { user_id: 1, mwst_type: 0, mwst_is_net: true, currency_id: 1,
+                 language_id: 1, bank_account_id: 13, payment_type_id: 4,
+                 tax_id: 66, account_id: 326, unit_id: 1 };
+
+    const tipo = body.tipo === "propuesta" ? "propuesta" : "oferta";
+    const docId = body.id;
+    const pct = Math.max(1, Math.min(100, Number(body.pct) || 100));
+    const dry = !!body.dry_run;
+    if (!docId) return json({ error: "falta el id del documento" }, 400);
+
+    // ---------- 1. el documento y su gente ----------
+    const tabla = tipo === "propuesta" ? "proposals" : "offers";
+    const { data: doc } = await service.from(tabla).select("*").eq("id", docId).maybeSingle();
+    if (!doc) return json({ error: "no encontré " + (tipo === "propuesta" ? "la propuesta" : "la oferta") }, 404);
+    const { data: lead } = doc.lead_id
+      ? await service.from("leads").select("*").eq("id", doc.lead_id).maybeSingle()
+      : { data: null };
+
+    // ---------- 2. posiciones ----------
+    /* La oferta guarda items sueltos; la propuesta guarda paquetes y hay que tomar
+       el que el cliente ACEPTÓ, no el recomendado — son cosas distintas y confundirlas
+       facturaría un paquete que nadie compró. */
+    type It = { name?: string; qty?: number; price?: number; unit?: string; phase?: string };
+    let items: It[] = [];
+    if (tipo === "oferta") items = (doc.items ?? []) as It[];
+    else {
+      const tiers = ((doc.content ?? {}).tiers ?? []) as { name?: string; items?: It[] }[];
+      const elegido = tiers.find((t) => t.name && doc.accepted_tier && t.name === doc.accepted_tier)
+        || tiers.find((t) => (t as { recommended?: boolean }).recommended) || tiers[0];
+      items = (elegido?.items ?? []) as It[];
+    }
+    const bruto = items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    const descuento = Number(doc.discount_pct) || 0;
+    const totalDoc = tipo === "propuesta" && Number(doc.accepted_total)
+      ? Number(doc.accepted_total)
+      : bruto * (1 - descuento / 100);
+    if (!totalDoc) return json({ error: "el documento no tiene importe" }, 400);
+
+    const titulo = String(doc.title || (tipo === "propuesta" ? "Propuesta" : "Oferta")) .slice(0, 180);
+    const detalle = items.map((it) => `• ${it.name ?? ""} — ${Number(it.qty) || 0} ${it.unit ?? ""} × CHF ${Number(it.price) || 0}`).join("<br />");
+
+    let posiciones: { text: string; amount: number; unit_price: number }[];
+    let header: string;
+    if (pct >= 100) {
+      // factura completa: cada línea como está en el documento
+      posiciones = items.filter((it) => (Number(it.qty) || 0) * (Number(it.price) || 0) > 0)
+        .map((it) => ({ text: `<strong>${(it.name ?? "").slice(0, 200)}</strong>${it.phase ? "<br />" + it.phase : ""}`,
+                        amount: Number(it.qty) || 0, unit_price: Number(it.price) || 0 }));
+      header = titulo;
+    } else {
+      /* Pago parcial: UNA línea con el importe y el porcentaje dicho, y el detalle
+         completo arriba en el encabezado. Prorratear cada posición daría números con
+         decimales raros y una factura que no se parece a la oferta que firmó. */
+      posiciones = [{ text: `<strong>Akontozahlung ${pct}% — ${titulo}</strong><br />Gemäss Offerte über CHF ${totalDoc.toFixed(2)}`,
+                      amount: 1, unit_price: Math.round(totalDoc * pct) / 100 }];
+      header = `${titulo}<br /><br />${detalle}`;
+    }
+    if (!posiciones.length) return json({ error: "no hay posiciones con importe" }, 400);
+
+    // ---------- 3. el contacto en bexio ----------
+    const email = String(doc.client_email || lead?.email || "").toLowerCase().trim();
+    const empresa = String(doc.client_company || lead?.company || "").trim();
+    const persona = String(doc.client_contact || lead?.name || "").trim();
+    let contactId: number | null = Number(body.contact_id) || null, contactoCreado = false;
+    /* Candidatos por NOMBRE, no solo por email. El email de la propuesta suele ser el
+       de la persona (kaan.bulut@phonak.com) mientras que en bexio la empresa ya existe
+       como "Sonova AG" con otro contacto. Buscar solo por email hubiera creado un
+       segundo Sonova en su contabilidad, y eso no se deshace con un botón.
+       Si aparecen candidatos, la decisión es de Sebastián: la pantalla se los muestra
+       y él elige entre usar uno o crear uno nuevo. */
+    const candidatos: { id: number; nombre: string; mail: string }[] = [];
+    if (!contactId && email) {
+      const busca = await bx("contact/search", { method: "POST",
+        body: JSON.stringify([{ field: "mail", value: email, criteria: "=" }]) });
+      const hits = Array.isArray(busca.body) ? busca.body as { id: number }[] : [];
+      if (hits.length) contactId = hits[0].id;
+    }
+    if (!contactId && empresa) {
+      const base = empresa.replace(/\b(ag|gmbh|sa|sarl|ltd|inc|llc)\b\.?/gi, "").trim();
+      if (base.length >= 3) {
+        const porNombre = await bx("contact/search", { method: "POST",
+          body: JSON.stringify([{ field: "name_1", value: base, criteria: "like" }]) });
+        if (Array.isArray(porNombre.body)) {
+          (porNombre.body as { id: number; name_1?: string; name_2?: string; mail?: string }[])
+            .slice(0, 6).forEach((c) => candidatos.push({
+              id: c.id, nombre: [c.name_1, c.name_2].filter(Boolean).join(" · "), mail: c.mail || "" }));
+        }
+      }
+    }
+    /* Con candidatos y sin elección explícita no se crea nada: se devuelve la lista
+       para preguntar. Vale para el ensayo y para la corrida de verdad. */
+    if (!contactId && candidatos.length && !body.crear_contacto) {
+      return json({ ok: false, necesita_decision: true, motivo: "hay contactos parecidos en bexio",
+        cliente: { empresa, persona, email }, candidatos,
+        total_documento: Math.round(totalDoc * 100) / 100, pct,
+        importe_a_facturar: posiciones.reduce((a, p) => a + p.amount * p.unit_price, 0) });
+    }
+    if (!contactId) {
+      /* Se crea con lo que tenemos, que es lo que él pidió: "que cree la persona/
+         empresa con la data real". Si hay empresa es contacto tipo 1 (empresa) y la
+         persona va en el nombre de contacto; si no, tipo 2 (persona). */
+      const nuevoContacto = {
+        contact_type_id: empresa ? 1 : 2,
+        name_1: (empresa || persona || email || "Sin nombre").slice(0, 255),
+        name_2: empresa ? persona.slice(0, 255) : "",
+        mail: email || undefined,
+        phone_fixed: String(doc.client_phone || lead?.phone || "").slice(0, 50) || undefined,
+        address: String(doc.client_address || "").slice(0, 255) || undefined,
+        postcode: (String(doc.client_zip_city || "").match(/\b\d{4,5}\b/) || [])[0] || undefined,
+        city: String(doc.client_zip_city || "").replace(/\b\d{4,5}\b/, "").trim().slice(0, 255) || undefined,
+        country_id: 1,   // Suiza; bexio lo deja cambiar después
+        user_id: BX.user_id, owner_id: BX.user_id,
+      };
+      if (dry) contactId = -1;
+      else {
+        const cr = await bx("contact", { method: "POST", body: JSON.stringify(nuevoContacto) });
+        if (!cr.ok) return json({ error: "no se pudo crear el contacto en bexio", status: cr.status, detalle: cr.body }, 502);
+        contactId = (cr.body as { id: number }).id;
+        contactoCreado = true;
+      }
+    }
+
+    // ---------- 4. la factura ----------
+    const hoy = new Date();
+    const vence = new Date(hoy.getTime() + 30 * 864e5);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const payload = {
+      title: titulo, contact_id: contactId, user_id: BX.user_id,
+      language_id: BX.language_id, bank_account_id: BX.bank_account_id,
+      currency_id: BX.currency_id, payment_type_id: BX.payment_type_id,
+      header, footer: "",
+      mwst_type: BX.mwst_type, mwst_is_net: BX.mwst_is_net, show_position_taxes: false,
+      is_valid_from: iso(hoy), is_valid_to: iso(vence),
+      api_reference: `viven-${tipo}-${docId}-${pct}`,
+      positions: posiciones.map((p) => ({
+        type: "KbPositionCustom", text: p.text, amount: String(p.amount),
+        unit_price: String(p.unit_price), unit_id: BX.unit_id,
+        tax_id: BX.tax_id, account_id: BX.account_id, discount_in_percent: "0",
+      })),
+    };
+
+    if (dry) {
+      return json({ ok: true, dry_run: true, contacto_existente: contactId !== -1,
+        contacto_id: contactId === -1 ? null : contactId,
+        se_crearia_contacto: contactId === -1,
+        candidatos,
+        cliente: { empresa, persona, email },
+        total_documento: Math.round(totalDoc * 100) / 100,
+        pct, importe_a_facturar: posiciones.reduce((a, p) => a + p.amount * p.unit_price, 0),
+        posiciones: posiciones.map((p) => ({ texto: p.text.replace(/<[^>]+>/g, " ").trim().slice(0, 70), cantidad: p.amount, precio: p.unit_price })),
+      });
+    }
+
+    const cr = await bx("kb_invoice", { method: "POST", body: JSON.stringify(payload) });
+    if (!cr.ok) return json({ error: "bexio rechazó la factura", status: cr.status, detalle: cr.body }, 502);
+    const inv = cr.body as { id: number; document_nr: string; total: string; total_net: string };
+
+    /* Queda registrada de nuestro lado para saber qué ya se facturó y no mandarlo dos
+       veces. El número es el de BEXIO: acá no se numera nada. */
+    await service.from("invoices").insert({
+      offer_id: tipo === "oferta" ? docId : null,
+      lead_id: doc.lead_id ?? null,
+      number: inv.document_nr,
+      client_company: empresa, client_contact: persona, client_email: email,
+      title: titulo + (pct < 100 ? ` (${pct}%)` : ""),
+      items: posiciones, net: Number(inv.total_net) || null, gross: Number(inv.total) || null,
+      status: "draft", issued_at: new Date().toISOString(), due_date: iso(vence),
+    }).then(() => {}, () => {});   // si falla el registro local, la factura ya existe: no se rompe
+
+    return json({ ok: true, bexio_id: inv.id, numero: inv.document_nr,
+      total: inv.total, contacto_id: contactId, contacto_creado: contactoCreado, pct });
+
   } catch (e) {
     return json({ error: String(e) }, 500);
   }

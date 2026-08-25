@@ -718,6 +718,15 @@ const newsCases = [
   .pp2-eye{font-size:12px;color:var(--muted);white-space:nowrap}
   .pp2-eye.hot{color:var(--acid);font-weight:700}
   .pp2-eye.warn{color:#f0c060}
+  .bx-pcts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+  .bx-pcts button{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);
+    font:600 14px/1 inherit;padding:11px 16px;cursor:pointer;font-variant-numeric:tabular-nums}
+  .bx-pcts button.on{background:var(--acid);border-color:var(--acid);color:#16210a}
+  .bx-cand{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:11px;
+    padding:9px 12px;margin-top:7px;cursor:pointer;background:var(--navy-900)}
+  .bx-cand.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 10%,transparent)}
+  .bx-cand b{font-size:13.5px}
+  .bx-cand small{color:var(--muted-2);font-size:12px;display:block}
   .pp2-dots{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:15px;line-height:1;padding:4px 9px;cursor:pointer}
   .pp2-dots:hover{color:var(--text);border-color:var(--acid)}
   #pp-list table{min-width:920px} /* móvil = scroll horizontal dentro del wrap, sin colapsar columnas */
@@ -3658,6 +3667,28 @@ const newsCases = [
       <!-- popovers ⋯ compartidos por todas las filas de cada tipo (fixed para que el overflow de la tabla no los recorte) -->
       <div class="lm2-menu" id="of-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
       <div class="lm2-menu" id="pp-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
+
+      <!-- ===== 🧾 Crear factura en bexio =====
+           El dashboard NO factura: manda los datos y bexio hace la factura, con su
+           número, su IVA y su contabilidad. Siempre en BORRADOR — la manda Sebastián
+           desde bexio, no sale nada solo. Y antes de crear un contacto nuevo muestra
+           los parecidos que ya existen: buscando solo por email hubiera creado un
+           quinto "Sonova" en su contabilidad, porque ya hay cuatro. -->
+      <div class="fu-back" id="bx-modal" hidden>
+        <div class="fu-card">
+          <div class="fu-head">
+            <div><b id="bx-quien">—</b><small id="bx-donde"></small></div>
+            <button class="fu-x" id="bx-x" type="button" aria-label="Cerrar">✕</button>
+          </div>
+          <div class="fu-ctx" id="bx-ctx"></div>
+          <div class="bx-pcts" id="bx-pcts"></div>
+          <div id="bx-cands"></div>
+          <div class="fu-actions">
+            <button class="btn btn-primary" id="bx-go" type="button">🧾 Crear borrador en bexio</button>
+            <span class="muted-note" id="bx-note">Se crea como borrador. La factura la mandás vos desde bexio.</span>
+          </div>
+        </div>
+      </div>
       <!-- Insights con IA — abajo de la lista: primero las ofertas, después el análisis -->
       <div class="panel ai-panel" style="margin:16px 0 0">
         <div class="ai-head">
@@ -12393,6 +12424,7 @@ const newsCases = [
       (lead ? '<button data-act="prop" type="button">🌐 → Propuesta</button>' : '') +
       '<button data-act="send" type="button">📨 Enviar</button>' +
       '<button data-act="arch" type="button">' + (o.archived ? '↩ Desarchivar' : '🗄 Archivar') + '</button>' +
+      '<button data-act="bexio" type="button">🧾 Crear factura en bexio</button>' +
       '<hr /><button data-act="del" class="danger" type="button">🗑 Borrar</button>';
     menu.hidden = false;
     const r = btn.getBoundingClientRect();
@@ -12406,6 +12438,7 @@ const newsCases = [
       else if (act === 'prop') offerToProp(o.id, lead);
       else if (act === 'send') { openOffer(o.id); sendOfferEmail(); }   // el compositor lee los campos del editor → abrirlo primero
       else if (act === 'arch') archiveOffer(o.id, !o.archived);
+      else if (act === 'bexio') bxAbrir('oferta', o.id);
       else if (act === 'del') deleteOfferById(o.id);
     }));
   }
@@ -13711,6 +13744,110 @@ const newsCases = [
       renderComboList();
     };
   }
+  /* ================= 🧾 FACTURA EN BEXIO =================
+     Regla de fondo: acá no se factura. El dashboard manda cliente y posiciones, y
+     bexio hace la factura con su número, su IVA y su contabilidad. Hubo un módulo de
+     facturas propio (FEATURE_INVOICING) que Sebastián pausó en julio — dos sistemas
+     numerando facturas es un problema contable disfrazado de comodidad.
+     Siempre BORRADOR: se crea en bexio y la manda él desde ahí. */
+  let bxDoc = null, bxPct = 100, bxCand = null, bxTrasGanar = null;
+  const bxCerrar = () => { const m = $('bx-modal'); if (m) m.hidden = true; };
+  function bxAbrir(tipo, id){
+    const doc = tipo === 'propuesta'
+      ? (ppList || []).find((x) => String(x.id) === String(id))
+      : (offersList || []).find((x) => String(x.id) === String(id));
+    if (!doc){ toast('No encontré ese documento'); return; }
+    bxDoc = { tipo, id, doc }; bxPct = 100; bxCand = null;
+    const lead = doc.lead_id ? (allLeads || []).find((l) => String(l.id) === String(doc.lead_id)) : null;
+    $('bx-quien').textContent = doc.title || '(sin título)';
+    $('bx-donde').textContent = [doc.client_company || (lead && lead.company), doc.client_email || (lead && lead.email)].filter(Boolean).join(' · ');
+    $('bx-ctx').innerHTML = '<div><i>⏳</i><span>Preparando la factura…</span></div>';
+    $('bx-cands').innerHTML = ''; $('bx-pcts').innerHTML = '';
+    $('bx-modal').hidden = false;
+    bxEnsayo();
+  }
+  function bxPintarPcts(total){
+    /* Los porcentajes se eligen caso por caso — pedido explícito: "que pregunte qué
+       porcentaje, así elijo yo según el caso concreto". */
+    $('bx-pcts').innerHTML = [100, 50, 33, 25].map((v) =>
+      '<button type="button" data-pct="' + v + '"' + (v === bxPct ? ' class="on"' : '') + '>' + v + '%' +
+      '<br /><small style="font-weight:400;opacity:.75">' + fmtChf(Math.round(total * v) / 100) + '</small></button>').join('') +
+      '<button type="button" data-pct="otro">otro…</button>';
+    $('bx-pcts').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.pct === 'otro'){
+        const v = prompt('¿Qué porcentaje facturar?', String(bxPct));
+        const n = Math.round(Number(v));
+        if (!n || n < 1 || n > 100) return;
+        bxPct = n;
+      } else bxPct = +b.dataset.pct;
+      bxEnsayo();
+    }));
+  }
+  async function bxEnsayo(){
+    if (!bxDoc) return;
+    const go = $('bx-go'); go.disabled = true;
+    try {
+      const { data, error } = await supabase.functions.invoke('bexio-invoice', {
+        body: { tipo: bxDoc.tipo, id: bxDoc.id, pct: bxPct, dry_run: true, contact_id: bxCand || undefined,
+                crear_contacto: bxCand === 'nuevo' } });
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+      const total = Number(data.total_documento) || 0;
+      bxPintarPcts(total);
+      /* Candidatos: se pregunta ANTES de crear. Con Sonova aparecían cuatro contactos
+         parecidos en bexio; crear uno nuevo a ciegas dejaba cinco y eso no se
+         deshace con un botón. */
+      if (data.necesita_decision){
+        $('bx-ctx').innerHTML =
+          '<div><i>💰</i><span><b>' + fmtChf(total) + '</b> el documento · a facturar <b>' + fmtChf(Number(data.importe_a_facturar) || 0) + '</b> (' + bxPct + '%)</span></div>' +
+          '<div><i>👤</i><span>En bexio hay contactos parecidos. Elegí cuál usar:</span></div>';
+        $('bx-cands').innerHTML = (data.candidatos || []).map((c) =>
+          '<div class="bx-cand' + (String(bxCand) === String(c.id) ? ' on' : '') + '" data-cid="' + c.id + '"><span>👤</span><div><b>' + esc(c.nombre) + '</b><small>' + esc(c.mail || 'sin email') + '</small></div></div>').join('') +
+          '<div class="bx-cand' + (bxCand === 'nuevo' ? ' on' : '') + '" data-cid="nuevo"><span>➕</span><div><b>Crear uno nuevo</b><small>' + esc([data.cliente.empresa, data.cliente.persona, data.cliente.email].filter(Boolean).join(' · ')) + '</small></div></div>';
+        $('bx-cands').querySelectorAll('.bx-cand').forEach((el) => el.addEventListener('click', () => {
+          bxCand = el.dataset.cid === 'nuevo' ? 'nuevo' : +el.dataset.cid;
+          bxEnsayo();
+        }));
+        $('bx-note').textContent = bxCand ? 'Se crea como borrador. La factura la mandás vos desde bexio.' : 'Elegí un contacto para seguir.';
+        go.disabled = !bxCand;
+        return;
+      }
+      $('bx-cands').innerHTML = '';
+      $('bx-ctx').innerHTML =
+        '<div><i>💰</i><span><b>' + fmtChf(total) + '</b> el documento · a facturar <b>' + fmtChf(Number(data.importe_a_facturar) || 0) + '</b> (' + bxPct + '%)</span></div>' +
+        '<div><i>👤</i><span>' + (data.se_crearia_contacto
+          ? 'Se crea el contacto en bexio: <b>' + esc([data.cliente.empresa, data.cliente.persona].filter(Boolean).join(' · ')) + '</b>'
+          : 'Contacto de bexio #' + data.contacto_id) + '</span></div>' +
+        (data.posiciones || []).map((p) => '<div><i>·</i><span>' + esc(p.texto) + ' — ' + p.cantidad + ' × ' + fmtChf(p.precio) + '</span></div>').join('');
+      $('bx-note').textContent = 'Se crea como borrador. La factura la mandás vos desde bexio.';
+      go.disabled = false;
+    } catch (e) {
+      $('bx-ctx').innerHTML = '<div><i>⚠️</i><span>' + esc(e.message || String(e)) + '</span></div>';
+      go.disabled = true;
+    }
+  }
+  async function bxCrear(){
+    if (!bxDoc) return;
+    const go = $('bx-go'); go.disabled = true; const prev = go.textContent; go.textContent = '🧾 Creando…';
+    try {
+      const { data, error } = await supabase.functions.invoke('bexio-invoice', {
+        body: { tipo: bxDoc.tipo, id: bxDoc.id, pct: bxPct,
+                contact_id: (bxCand && bxCand !== 'nuevo') ? bxCand : undefined,
+                crear_contacto: bxCand === 'nuevo' } });
+      if (error) throw error;
+      if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
+      bxCerrar();
+      toast('🧾 ' + data.numero + ' creada en bexio como borrador' + (data.contacto_creado ? ' · contacto nuevo' : ''));
+      alert('Factura ' + data.numero + ' creada en BORRADOR en bexio por ' + data.total + ' CHF.\n\nRevisala y mandala desde bexio cuando quieras.');
+    } catch (e) {
+      alert('No se pudo crear la factura: ' + (e.message || e));
+    } finally { go.disabled = false; go.textContent = prev; }
+  }
+  $('bx-x') && $('bx-x').addEventListener('click', bxCerrar);
+  $('bx-go') && $('bx-go').addEventListener('click', bxCrear);
+  $('bx-modal') && $('bx-modal').addEventListener('click', (e) => { if (e.target === $('bx-modal')) bxCerrar(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('bx-modal').hidden) bxCerrar(); });
+
   // popover ⋯ por fila (mismo patrón que lm2Menu; fixed porque dentro del wrap con overflow lo recortaría)
   function ppOpenMenu(btn){
     const menu = $('pp-menu');
@@ -13723,6 +13860,7 @@ const newsCases = [
       '<button data-act="prev" type="button">👁 Vista previa</button>' +
       '<button data-act="dup" type="button">⧉ Duplicar</button>' +
       (p.status === 'accepted' || p.status === 'lost' ? '' : '<button data-act="won" type="button">✓ Marcar ganada</button><button data-act="lost" type="button">✖ Marcar perdida</button>') +
+      '<button data-act="bexio" type="button">🧾 Crear factura en bexio</button>' +
       '<button data-act="arch" type="button">' + (p.archived ? '↩ Desarchivar' : '🗄 Archivar') + '</button>' +
       '<hr /><button data-act="del" class="danger" type="button">🗑 Borrar</button>';
     menu.hidden = false;
@@ -13740,6 +13878,7 @@ const newsCases = [
       else if (act === 'won') markPropWon(p);
       else if (act === 'lost') markPropLost(p);
       else if (act === 'arch') archProp(p);
+      else if (act === 'bexio') bxAbrir('propuesta', p.id);
       else if (act === 'del') delPropById(p.id);
     }));
   }
@@ -13750,6 +13889,10 @@ const newsCases = [
   // de duplicar esa lógica acá.
   async function markPropWon(p){
     if (!confirm('¿Marcar esta propuesta como GANADA? Esto gana el deal ligado, archiva las ofertas/propuestas hermanas y marca a la persona como ganada — igual que cuando el cliente acepta desde la página pública.')) return;
+    /* Marcarla ganada y facturarla son dos pasos que en la práctica pasan juntos, así
+       que al terminar la cascada se ofrece el segundo. Ofrecer, no hacer: la factura
+       se crea recién cuando él elige el porcentaje y toca el botón. */
+    bxTrasGanar = p.id;
     try {
       if (p.slug){
         const tiers = ((p.content || {}).tiers || []);
@@ -13773,8 +13916,13 @@ const newsCases = [
         if (p.deal_id) await supabase.from('deals').update({ stage: 'ganado', won_at: nowIso, last_stage_at: nowIso }).eq('id', p.deal_id);
         if (p.lead_id) await setLeadStage(p.lead_id, 'ganado');
       }
-      toast('🏆 Propuesta marcada como ganada'); ppLoad();
-    } catch (e) { toast('⚠️ ' + (e && e.message || e)); }
+      toast('🏆 Propuesta marcada como ganada');
+      await ppLoad();
+      if (bxTrasGanar === p.id){
+        bxTrasGanar = null;
+        if (confirm('¿Crear ahora la factura en bexio para esta propuesta?\n\nSe crea como BORRADOR: la revisás y la mandás vos desde bexio.')) bxAbrir('propuesta', p.id);
+      }
+    } catch (e) { bxTrasGanar = null; toast('⚠️ ' + (e && e.message || e)); }
   }
   // vista previa desde la LISTA: mismo mecanismo que previewProp (localStorage + ?preview=1) pero con el
   // contenido ya guardado en la fila — no pasa por el editor, así no arrastra campos de otra propuesta abierta
