@@ -2643,6 +2643,7 @@ const newsCases = [
         <div>
           <h2 style="margin:0">🧭 Recorridos <span class="count">(funnels first-party — calculadora · brief · lead magnet)</span></h2>
           <p class="muted-note" style="margin:2px 0 0">En qué paso exacto abandona la gente — tracking propio, sin scripts externos.</p>
+          <p class="muted-note" id="rc-nota" style="margin:4px 0 0;font-weight:600"></p>
         </div>
         <div class="co-seg" id="rc-period">
           <button data-days="7" type="button">7 días</button>
@@ -2657,8 +2658,7 @@ const newsCases = [
       <p class="muted-note" style="margin:2px 0 10px">Entran acá → pasan a esto → salen acá. Click en una página de entrada para ver solo sus flujos; las cintas grises son sesiones que terminan ahí.</p>
       <div class="rc-flow-wrap"><div class="rc-flow-inner" id="rc-flow"><p class="muted-note">Cargando…</p></div></div>
 
-      <p class="muted-note" id="rc-nota" style="margin:14px 0 0"></p>
-      <h2 style="margin-top:10px">📊 Funnels con drop-off <span class="count">(calculadora · brief · lead magnet)</span></h2>
+      <h2 style="margin-top:24px">📊 Funnels con drop-off <span class="count">(calculadora · brief · lead magnet)</span></h2>
       <div class="rc-funnels" id="rc-funnels"><p class="muted-note">Cargando…</p></div>
 
       <h2 style="margin-top:24px">🚪 Páginas de entrada <span class="count">(landing · rebote · profundidad)</span></h2>
@@ -4381,7 +4381,7 @@ const newsCases = [
     }
     rcFlowLoad(); // 🗺️ flujo de visitas — mismo período, en paralelo con los funnels
     // 1) funnels con drop-off (calc / brief / magnet) en paralelo
-    const rs = await Promise.all(RC_FUNNELS.map((f) => Promise.resolve(supabase.rpc('rpc_funnel_steps', { p_funnel: f.id, p_days: rcDays })).catch((e) => ({ error: e }))));
+    const rs = await Promise.all(RC_FUNNELS.map((f) => Promise.resolve(supabase.rpc('rpc_funnel_steps', { p_funnel: f.id, p_days: rcDays, p_solo_personas: anaSoloPersonas })).catch((e) => ({ error: e }))));
     box.innerHTML = RC_FUNNELS.map((f, i) => rcRenderFunnel(f, rs[i])).join('');
     // 2) páginas de entrada (landing → rebote → profundidad)
     const eb = $('rc-entry');
@@ -13882,8 +13882,30 @@ const newsCases = [
     cardsEl.innerHTML = '<p class="muted-note">Cargando…</p>';
     if ($('lm-range-note')) $('lm-range-note').textContent = rangeLabel();
     try {
-      const { data: views, error } = await fetchAllRows('pageviews', 'path,session_id', since(), until());
+      const { data: views, error } = await fetchAllRows('pageviews', 'path,session_id,created_at', since(), until());
       if (error) throw error;
+      /* ===== El denominador de este panel eran SESIONES, con bots adentro =====
+         El 75% del tráfico es automático, así que "3,5% sesión → lead" no decía que
+         el magnet convierta mal: decía que hay muchos bots. Y ese porcentaje es
+         justamente el número que Sebastián pidió ver acá.
+         Desde el 24/08 sabemos qué sesiones son de una persona. Cuando el período
+         tiene tramo medido, TODO se calcula sobre ese tramo — sesiones y leads —
+         para que numerador y denominador hablen de los mismos días. Si no hay tramo
+         medido, se muestra lo de antes pero diciendo que incluye bots. */
+      const lmDesde = Math.max(Date.parse(since()), HUMAN_DESDE);
+      const lmMedido = Date.parse(until()) > HUMAN_DESDE;
+      const lmHum = new Set((humanAct || [])
+        .filter((x) => { const t = Date.parse(x.created_at); return t >= lmDesde && t <= Date.parse(until()); })
+        .map((x) => x.session_id));
+      const lmDias = Math.max(1, Math.round((Date.parse(until()) - lmDesde) / 864e5));
+      const lmParcial = Date.parse(since()) < HUMAN_DESDE;
+      const lmNota = lmMedido
+        ? (lmParcial ? 'personas · últimos ' + lmDias + (lmDias === 1 ? ' día' : ' días') : 'personas · ' + rangeLabel().toLowerCase())
+        : 'sesiones · incluye bots';
+      /* filtra una lista de pageviews al tramo medido y solo a personas */
+      const lmViews = (arr) => lmMedido ? (arr || []).filter((v) => lmHum.has(v.session_id) && Date.parse(v.created_at) >= lmDesde) : (arr || []);
+      /* y lo mismo para cualquier fila con created_at (leads, envíos de PDF, briefs) */
+      const lmEnVentana = (arr) => lmMedido ? (arr || []).filter((r) => Date.parse(r.created_at) >= lmDesde) : (arr || []);
       // brief profundo: NO se puede contar por leads.channel==='brief' — el trigger de
       // auto-lead (0028/0056) solo taggea ese channel cuando el lead es NUEVO. El caso
       // normal es alguien que YA es lead (se le manda el link de brief por email) y
@@ -13896,22 +13918,24 @@ const newsCases = [
       // propio tracker a funnel_events (funnel:'brief', step 0 = abrió el brief).
       const { data: briefViews, error: bfErr } = await supabase.from('funnel_events').select('session_id').eq('funnel', 'brief').eq('step', 0).gte('created_at', since()).lte('created_at', until());
       if (bfErr) throw bfErr;
-      const calcLeads = (allLeads || []).filter((l) => /^🧮\s*CALCULADORA/.test(l.message || '') && inRange(l.created_at));
+      const calcLeads = lmEnVentana((allLeads || []).filter((l) => /^🧮\s*CALCULADORA/.test(l.message || '') && inRange(l.created_at)));
       const briefLeadIds = new Set((briefRows || []).filter((b) => b.lead_id).map((b) => String(b.lead_id)));
       const briefEmails = new Set((briefRows || []).filter((b) => !b.lead_id && b.email).map((b) => b.email.toLowerCase()));
-      const briefLeads = (allLeads || []).filter((l) => briefLeadIds.has(String(l.id)) || (l.email && briefEmails.has(l.email.toLowerCase())));
+      const briefLeads = lmEnVentana((allLeads || []).filter((l) => briefLeadIds.has(String(l.id)) || (l.email && briefEmails.has(l.email.toLowerCase()))));
       const wonSet = new Set((dealsList || []).filter((d) => stageOf(d.stage) === 'ganado').map((d) => String(d.lead_id)));
-      const calcSessions = new Set((views || []).filter((v) => LM_CALC_PATHS.includes(lmNormPath(v.path))).map((v) => v.session_id)).size;
-      const briefSessions = new Set((briefViews || []).map((v) => v.session_id)).size;
+      const calcSessions = new Set(lmViews(views).filter((v) => LM_CALC_PATHS.includes(lmNormPath(v.path))).map((v) => v.session_id)).size;
+      /* el brief no escribe en pageviews (tiene tracker propio a funnel_events), así
+         que su "sesión" se filtra igual pero contra esa tabla */
+      const briefSessions = new Set((lmMedido ? (briefViews || []).filter((v) => lmHum.has(v.session_id)) : (briefViews || [])).map((v) => v.session_id)).size;
       const calcWon = calcLeads.filter((l) => wonSet.has(String(l.id))).length;
       const briefWon = briefLeads.filter((l) => wonSet.has(String(l.id))).length;
       const card = (label, sub, sessions, leads, won) => {
         const pct = sessions ? (leads / sessions * 100) : 0;
         return '<div class="of-card lm-card"><h3>' + label + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</h3>' +
-          '<div class="lm-kv"><span>Sesiones</span><b>' + sessions.toLocaleString('de-CH') + '</b></div>' +
+          '<div class="lm-kv"><span>' + (lmMedido ? 'Personas' : 'Sesiones') + '</span><b>' + sessions.toLocaleString('de-CH') + '</b></div>' +
           '<div class="lm-kv"><span>Leads generados</span><b>' + leads + '</b></div>' +
           '<div class="lm-kv"><span>Conversión → ganado</span><b>' + won + '</b></div>' +
-          '<div class="lm-bigpct">' + pct.toFixed(1) + '%</div><div class="lm-bigpct-l">sesión → lead</div></div>';
+          '<div class="lm-bigpct">' + pct.toFixed(1) + '%</div><div class="lm-bigpct-l">' + esc(lmNota) + ' → lead</div></div>';
       };
       /* Los PDF no estaban en este panel: las tarjetas eran DOS, escritas a mano
          (calculadora y brief). Sebastián: "los lead magnets nuevos pdfs no aparecen
@@ -13928,8 +13952,11 @@ const newsCases = [
       const magnetCard = (clave, filas) => {
         const meta = LM_MAGNETS[clave] || { t: clave, e: '📄' };
         // personas distintas, no pedidos: el mismo email puede pedirlo dos veces
-        const personas = new Set(filas.map((m) => (m.email || '').toLowerCase()).filter(Boolean));
-        const ids = new Set(filas.filter((m) => m.lead_id).map((m) => String(m.lead_id)));
+        /* el numerador se recorta al MISMO tramo que el denominador: contar 30 días
+           de leads contra 1 día de personas daría un porcentaje enorme y falso */
+        const filasV = lmEnVentana(filas);
+        const personas = new Set(filasV.map((m) => (m.email || '').toLowerCase()).filter(Boolean));
+        const ids = new Set(filasV.filter((m) => m.lead_id).map((m) => String(m.lead_id)));
         const ganados = [...ids].filter((id) => wonSet.has(id)).length;
         /* Sesiones = las que vieron alguna página donde está embebido ESTE formulario.
            El PDF no tiene landing propia, así que el denominador sale del mapa que arma
@@ -13939,17 +13966,17 @@ const newsCases = [
         const exactas = rutas.exactas || [], prefijos = rutas.prefijos || [];
         const cuantas = exactas.length + prefijos.length;
         const ses = cuantas
-          ? new Set((views || []).filter((v) => { const q = lmNormPath(v.path);
+          ? new Set(lmViews(views).filter((v) => { const q = lmNormPath(v.path);
               return exactas.includes(q) || prefijos.some((pre) => q.startsWith(pre)); }).map((v) => v.session_id)).size
           : null;
         const pct = ses ? (personas.size / ses * 100) : null;
         return '<div class="of-card lm-card"><h3>' + meta.e + ' ' + esc(meta.t) +
             '<small>' + (cuantas ? 'PDF · en ' + exactas.length + (prefijos.length ? '+ páginas' : (exactas.length === 1 ? ' página' : ' páginas')) : 'PDF') + '</small></h3>' +
-          '<div class="lm-kv"><span>Sesiones</span><b>' + (ses == null ? '—' : ses.toLocaleString('de-CH')) + '</b></div>' +
+          '<div class="lm-kv"><span>' + (lmMedido ? 'Personas' : 'Sesiones') + '</span><b>' + (ses == null ? '—' : ses.toLocaleString('de-CH')) + '</b></div>' +
           '<div class="lm-kv"><span>Leads generados</span><b>' + personas.size + '</b></div>' +
           '<div class="lm-kv"><span>Conversión → ganado</span><b>' + ganados + '</b></div>' +
           '<div class="lm-bigpct">' + (pct == null ? '—' : pct.toFixed(1) + '%') + '</div>' +
-          '<div class="lm-bigpct-l">' + (pct == null ? 'sin páginas conocidas' : 'sesión → lead') + '</div></div>';
+          '<div class="lm-bigpct-l">' + (pct == null ? 'sin páginas conocidas' : esc(lmNota) + ' → lead') + '</div></div>';
       };
       const tarjetasPdf = Object.keys(porMagnet).sort().map((k) => magnetCard(k, porMagnet[k])).join('');
       cardsEl.innerHTML = card('🧮 Calculadora de costos', '3 idiomas', calcSessions, calcLeads.length, calcWon) +

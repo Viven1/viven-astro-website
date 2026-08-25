@@ -55,7 +55,7 @@ async function pushAll(title: string, body: string, url: string) {
 type FunnelStep = { step: number; label: string; sessions: number; drop_pct: number | null };
 
 async function funnelSnapshot(funnel: string, days: number): Promise<FunnelStep[]> {
-  const { data, error } = await service.rpc("rpc_funnel_steps", { p_funnel: funnel, p_days: days });
+  const { data, error } = await service.rpc("rpc_funnel_steps", { p_funnel: funnel, p_days: days, p_solo_personas: true });
   if (error || !Array.isArray(data)) return [];
   let prev: number | null = null;
   return (data as { step: number; label: string; sessions: number }[]).map((r) => {
