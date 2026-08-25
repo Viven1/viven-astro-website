@@ -1490,6 +1490,21 @@ const newsCases = [
   .sistema-seg-2 .seg-lbl{align-self:center;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
     color:var(--muted-2);font-weight:700;padding:0 8px 0 2px}
   @media(max-width:620px){.sistema-seg-2 .seg-lbl{display:none}}
+  /* Cash Flow: el renglón que dice con qué está hecha la proyección, y los tres
+     paneles que solo estorban mientras están vacíos. */
+  #sistema-sub-cashflow .cf-base{border:1px solid var(--line);border-left:3px solid var(--acid);
+    border-radius:12px;background:var(--navy-800);padding:12px 15px;margin-bottom:14px;font-size:13.5px;line-height:1.6;color:var(--muted)}
+  #sistema-sub-cashflow .cf-base b{color:var(--text);font-weight:600}
+  #sistema-sub-cashflow .cf-base .cf-falta{color:#f0c060}
+  #sistema-sub-cashflow .cf-det{padding:0}
+  #sistema-sub-cashflow .cf-det > summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;
+    gap:10px;flex-wrap:wrap;padding:14px 18px;font-size:15px;font-weight:600;color:var(--text)}
+  #sistema-sub-cashflow .cf-det > summary::-webkit-details-marker{display:none}
+  #sistema-sub-cashflow .cf-det > summary::after{content:'▸';margin-left:auto;color:var(--muted-2);font-size:13px;transition:transform .15s}
+  #sistema-sub-cashflow .cf-det[open] > summary::after{transform:rotate(90deg)}
+  #sistema-sub-cashflow .cf-det > summary:hover .cf-det-t{color:var(--acid-dim)}
+  #sistema-sub-cashflow .cf-det > summary em{font-style:normal;font-weight:400;font-size:12.5px;color:var(--muted-2)}
+  #sistema-sub-cashflow .cf-det-body{padding:0 18px 18px}
   .ana-grupo-det{border-bottom:1px solid var(--line)}
   .ana-grupo-det > summary{cursor:pointer;list-style:none}
   .ana-grupo-det > summary::-webkit-details-marker{display:none}
@@ -3138,12 +3153,6 @@ const newsCases = [
 
   </div>
     <div id="contenido-sub-seo" hidden>
-      <!-- 🌐 Oportunidades de la web: vivía en Hoy, pero no es algo que se haga hoy —
-           es qué escribir la semana que viene. Sale de las búsquedas de Search
-           Console, así que su lugar natural es acá, al lado de los datos que la
-           generan. (Sebastián, 25 ago: "Hoy sigue lleno de info que no es muy
-           relevante ahí".) -->
-      <div class="panel hm-card" style="margin-bottom:16px"><h2 style="justify-content:space-between">🌐 Oportunidades de la web <button class="btn btn-ghost small" id="hm-op-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-op"><p class="muted-note">Mirando qué busca la gente…</p></div></div>
       <div class="of-bar" style="margin-bottom:14px">
         <div>
           <h2 style="margin:0">Search Console</h2>
@@ -3158,12 +3167,18 @@ const newsCases = [
         <button class="btn btn-ghost small" id="seo-reload" type="button">↻ Actualizar</button>
       </div>
 
+      <!-- Los diez paneles de Search Console entraban uno abajo del otro: 2.400 px de
+           scroll antes de ver el último. Mismo arreglo que ya funcionó en Analytics —
+           tres grupos plegables, el primero abierto, y el estado se recuerda. Los
+           grupos contestan tres preguntas distintas: cómo estamos, qué se puede ganar,
+           y qué hicimos. (Sebastián, 25 ago: "mejoremos todo lo posible".) -->
+
+      <details class="ana-grupo-det" data-g="seo0" open>
+        <summary class="ana-grupo">Cómo nos encuentran<span>Google, Bing y si nos están indexando</span><em class="ana-grupo-n">3 paneles</em></summary>
+
       <!-- Bing al lado de Google: hasta agosto 2026 solo mirábamos Google y Bing
            era otra herramienta a la que nadie entra. Manda pocas impresiones
            pero convierte mucho mejor, así que verlos juntos cambia decisiones. -->
-      <!-- Google y Bing, lado a lado y con el nombre a la vista. Antes Google no
-           decía "Google" en ningún lado y Bing estaba en otro panel más abajo, después
-           de una tabla de 100 filas — imposible comparar. (Pedido de Sebastián.) -->
       <div class="gads-two" style="margin-top:0">
         <div class="panel buscador" style="margin:0">
           <div class="of-bar" style="margin-bottom:10px">
@@ -3177,40 +3192,22 @@ const newsCases = [
             <div class="kpi"><div class="n" id="seo-k-pos">–</div><div class="kdelta" id="seo-k-pos-d"></div><div class="l">Posición media</div></div>
           </div>
         </div>
-      <div class="panel buscador" id="bing-panel" style="margin:0" hidden>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <h2 style="margin:0"><span class="bsc-logo bsc-bing">b</span> Bing <span class="count" id="bing-count"></span></h2>
-          <p class="muted-note" id="bing-verdict" style="margin:0;font-size:13.5px"></p>
+        <div class="panel buscador" id="bing-panel" style="margin:0" hidden>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <h2 style="margin:0"><span class="bsc-logo bsc-bing">b</span> Bing <span class="count" id="bing-count"></span></h2>
+            <p class="muted-note" id="bing-verdict" style="margin:0;font-size:13.5px"></p>
+          </div>
+          <div class="kpis four bsc-kpis" style="margin-top:10px">
+            <div class="kpi"><div class="n" id="bing-k-clicks">–</div><div class="l">Clicks</div></div>
+            <div class="kpi"><div class="n" id="bing-k-impr">–</div><div class="l">Impresiones</div></div>
+            <div class="kpi"><div class="n" id="bing-k-ctr">–</div><div class="l">CTR</div></div>
+            <div class="kpi"><div class="n" id="bing-k-pos">–</div><div class="l">Posición media</div></div>
+          </div>
+          <div class="lead-table-wrap" id="bing-top" style="margin-top:12px"></div>
         </div>
-        <div class="kpis four bsc-kpis" style="margin-top:10px">
-          <div class="kpi"><div class="n" id="bing-k-clicks">–</div><div class="l">Clicks</div></div>
-          <div class="kpi"><div class="n" id="bing-k-impr">–</div><div class="l">Impresiones</div></div>
-          <div class="kpi"><div class="n" id="bing-k-ctr">–</div><div class="l">CTR</div></div>
-          <div class="kpi"><div class="n" id="bing-k-pos">–</div><div class="l">Posición media</div></div>
-        </div>
-        <div class="lead-table-wrap" id="bing-top" style="margin-top:12px"></div>
-      </div>
       </div>
 
       <div id="seo-body"><p class="muted-note">Cargando…</p></div>
-
-      <div class="panel" style="margin-top:14px">
-        <h2>💸 Oportunidades de CTR <span class="count">calculado de los datos reales — sin IA</span></h2>
-        <p class="muted-note" style="margin:6px 0 10px">Queries con impresiones de sobra pero CTR bien por debajo de lo esperable para su posición (curva estándar de la industria: #1≈28%, #2≈15%, #3≈11%, #4-5≈8%, #6-10≈4%, #11+≈2%) — reescribir title/description ahí es el click gratis más rápido de conseguir. Ordenado por clicks perdidos estimados al mes.</p>
-        <div class="lead-table-wrap" id="seo-opp-wrap"><p class="muted-note">Cargando…</p></div>
-      </div>
-
-      <div class="gads-two">
-        <div class="panel" style="margin:0">
-          <h2>📈 Keywords que se mueven <span class="count" id="seo-trend-note">28d vs anteriores</span></h2>
-          <div class="lead-table-wrap" id="seo-trend-wrap"><p class="muted-note">Cargando…</p></div>
-        </div>
-        <div class="panel" style="margin:0">
-          <h2>⚔️ Canibalización <span class="count">2+ páginas, misma query</span></h2>
-          <p class="muted-note" style="margin:4px 0 10px">Detectado con la dimensión query×página (antes nunca se consultaba). Acción sugerida: linkear la página más débil a la fuerte con anchor exacto, o canonical.</p>
-          <div class="lead-table-wrap" id="seo-cannib-wrap"><p class="muted-note">Cargando…</p></div>
-        </div>
-      </div>
 
       <div class="panel" style="margin-top:14px">
         <h2>🗂 Estado de indexación</h2>
@@ -3226,19 +3223,31 @@ const newsCases = [
           </div>
         </div>
       </div>
+      </details>
+
+      <details class="ana-grupo-det" data-g="seo1">
+        <summary class="ana-grupo">Qué se puede ganar<span>clicks al alcance de la mano y qué escribir</span><em class="ana-grupo-n">4 paneles</em></summary>
+
+      <!-- 🌐 Oportunidades de la web: vivía en Hoy, pero no es algo que se haga hoy —
+           es qué escribir la semana que viene. Sale de las búsquedas de Search
+           Console, así que su lugar natural es acá, al lado de los datos que la
+           generan. (Sebastián, 25 ago: "Hoy sigue lleno de info que no es muy
+           relevante ahí".) -->
+      <div class="panel hm-card" style="margin-top:0"><h2 style="justify-content:space-between">🌐 Oportunidades de la web <button class="btn btn-ghost small" id="hm-op-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-op"><p class="muted-note">Mirando qué busca la gente…</p></div></div>
 
       <div class="panel" style="margin-top:14px">
-        <div class="of-bar" style="margin-bottom:0">
-          <div>
-            <h2 style="margin:0">🩺 Salud del sitio</h2>
-            <p class="muted-note" style="margin:2px 0 0">Nuestro propio sitemap nunca debería apuntar a una URL rota — la causa raíz de la mayoría de los 404 reales que encontramos en Search Console. Corre sola cada lunes (cron semanal) y avisa por push solo si aparece algo NUEVO — el botón fuerza una revisión ahora.</p>
-          </div>
-          <button class="btn btn-ghost small" id="sh-run" type="button">🔄 Revisar ahora</button>
-        </div>
-        <div id="sh-body" style="margin-top:10px"><p class="muted-note">Cargando…</p></div>
+        <h2>💸 Oportunidades de CTR <span class="count">calculado de los datos reales — sin IA</span></h2>
+        <p class="muted-note" style="margin:6px 0 10px">Queries con impresiones de sobra pero CTR bien por debajo de lo esperable para su posición (curva estándar de la industria: #1≈28%, #2≈15%, #3≈11%, #4-5≈8%, #6-10≈4%, #11+≈2%) — reescribir title/description ahí es el click gratis más rápido de conseguir. Ordenado por clicks perdidos estimados al mes.</p>
+        <div class="lead-table-wrap" id="seo-opp-wrap"><p class="muted-note">Cargando…</p></div>
       </div>
 
-      <div class="panel" style="margin-top:16px">
+      <div class="panel" style="margin-top:14px">
+        <h2>⚔️ Canibalización <span class="count">2+ páginas, misma query</span></h2>
+        <p class="muted-note" style="margin:4px 0 10px">Detectado con la dimensión query×página (antes nunca se consultaba). Acción sugerida: linkear la página más débil a la fuerte con anchor exacto, o canonical.</p>
+        <div class="lead-table-wrap" id="seo-cannib-wrap"><p class="muted-note">Cargando…</p></div>
+      </div>
+
+      <div class="panel" style="margin-top:14px">
         <div class="draft-head">
           <h2 style="margin:0">🎯 Oportunidades de keywords <span class="count">GSC × competencia × IA</span></h2>
           <button class="btn btn-primary small" id="kw-run" type="button">✨ Buscar oportunidades</button>
@@ -3251,12 +3260,33 @@ const newsCases = [
           <p class="kw-nextrun">Se corre sola los lunes a la madrugada (~07:00 Zúrich) · próxima corrida: <span id="kw-nextrun-txt">–</span></p>
         </div>
       </div>
+      </details>
+
+      <details class="ana-grupo-det" data-g="seo2">
+        <summary class="ana-grupo">Qué hicimos y cómo está el sitio<span>movimiento de keywords, cambios aplicados y links rotos</span><em class="ana-grupo-n">3 paneles</em></summary>
+
+      <div class="panel" style="margin-top:0">
+        <h2>📈 Keywords que se mueven <span class="count" id="seo-trend-note">28d vs anteriores</span></h2>
+        <div class="lead-table-wrap" id="seo-trend-wrap"><p class="muted-note">Cargando…</p></div>
+      </div>
 
       <div class="panel" style="margin-top:14px">
         <h2>🗂 Mejoras aplicadas <span class="count" id="seo-hist-count"></span></h2>
         <p class="muted-note" style="margin:6px 0 10px">Cada title/description que la IA propuso y vos aprobaste desde acá, con su antes → después — para controlar que no haya errores. Sale de <code>seo_actions</code> (tipo <code>improve</code>, status <code>done</code>).</p>
         <div id="seo-hist-wrap"><p class="muted-note">Cargando…</p></div>
       </div>
+
+      <div class="panel" style="margin-top:14px">
+        <div class="of-bar" style="margin-bottom:0">
+          <div>
+            <h2 style="margin:0">🩺 Salud del sitio</h2>
+            <p class="muted-note" style="margin:2px 0 0">Nuestro propio sitemap nunca debería apuntar a una URL rota — la causa raíz de la mayoría de los 404 reales que encontramos en Search Console. Corre sola cada lunes (cron semanal) y avisa por push solo si aparece algo NUEVO — el botón fuerza una revisión ahora.</p>
+          </div>
+          <button class="btn btn-ghost small" id="sh-run" type="button">🔄 Revisar ahora</button>
+        </div>
+        <div id="sh-body" style="margin-top:10px"><p class="muted-note">Cargando…</p></div>
+      </div>
+      </details>
     </div>
     <div id="contenido-sub-magnets" hidden>
     <div class="of-bar" style="margin-bottom:14px">
@@ -3543,10 +3573,16 @@ const newsCases = [
     <div class="of-bar" style="margin-bottom:14px">
       <div>
         <h2 style="margin:0">💰 Cash Flow <span class="badge" style="color:#f0c060;border:1px solid #f0c060;background:rgba(240,192,96,.08);margin-left:6px">🔒 Solo superadmin</span></h2>
-        <p class="muted-note" style="margin:2px 0 0">Proyección de liquidez de Viven AG (CHF). Carga manual hoy — Bexio queda listo para conectar como fuente automática más adelante.</p>
+        <p class="muted-note" style="margin:2px 0 0">Proyección de liquidez de Viven AG (CHF). Las facturas entran solas desde bexio; todo lo demás —costos fijos, préstamos, salidas que no facturamos— se carga acá.</p>
       </div>
       <button class="btn btn-primary small" id="cf-entry-add" type="button">➕ Agregar partida</button>
     </div>
+
+    <!-- De qué está hecha la proyección. La pantalla tiene seis paneles y dieciocho
+         campos, pero el 25 ago 2026 la base tenía CUATRO partidas, las cuatro
+         espejadas de bexio: la proyección se dibujaba igual de linda con casi nada
+         adentro. Este renglón dice con qué está hecha y qué le falta para servir. -->
+    <div class="cf-base" id="cf-base" hidden></div>
 
     <div class="kpis four" id="cf-kpis" style="margin-bottom:14px">
       <div class="kpi"><div class="n" id="cf-k-balance">–</div><div class="l">Saldo actual</div></div>
@@ -3580,8 +3616,10 @@ const newsCases = [
       <div id="cf-table"><p class="muted-note">Cargando…</p></div>
     </div>
 
-    <div class="panel">
-      <h2 style="justify-content:space-between">🔁 Recurrentes <button class="btn btn-ghost small" id="cf-rec-add" type="button">➕ Agregar</button></h2>
+    <details class="panel cf-det" id="cf-det-rec">
+      <summary><span class="cf-det-t">🔁 Recurrentes</span> <em id="cf-det-rec-n">–</em></summary>
+      <div class="cf-det-body">
+      <p class="muted-note" style="margin:0 0 10px">Los costos que se repiten solos: sueldos, alquiler, seguros, software. Sin esto cargado la proyección solo ve las facturas de bexio y siempre da de más. <button class="btn btn-ghost small" id="cf-rec-add" type="button">➕ Agregar</button></p>
       <div class="pp-grid" id="cf-rec-form" hidden style="--cols:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="bf"><label>Descripción</label><input id="cf-rec-desc" placeholder="p. ej. Alquiler oficina" /></div>
         <div class="bf"><label>Monto (CHF)/período</label><input id="cf-rec-amount" type="number" min="0" step="10" /></div>
@@ -3591,10 +3629,13 @@ const newsCases = [
         <div class="bf" style="align-self:end"><button class="btn btn-primary small" id="cf-rec-save" type="button">💾 Guardar</button> <button class="btn btn-ghost small" id="cf-rec-cancel" type="button">Cancelar</button></div>
       </div>
       <div id="cf-rec-list"><p class="muted-note">Cargando…</p></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="panel">
-      <h2 style="justify-content:space-between">🏦 Préstamos y leasing <button class="btn btn-ghost small" id="cf-loan-add" type="button">➕ Agregar</button></h2>
+    <details class="panel cf-det" id="cf-det-loan">
+      <summary><span class="cf-det-t">🏦 Préstamos y leasing</span> <em id="cf-det-loan-n">–</em></summary>
+      <div class="cf-det-body">
+      <p class="muted-note" style="margin:0 0 10px">Cuotas fijas con fecha de fin: leasing de cámara, crédito del banco. <button class="btn btn-ghost small" id="cf-loan-add" type="button">➕ Agregar</button></p>
       <div class="pp-grid" id="cf-loan-form" hidden style="--cols:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="bf"><label>Nombre</label><input id="cf-loan-name" placeholder="p. ej. Leasing cámara" /></div>
         <div class="bf"><label>Principal (CHF)</label><input id="cf-loan-principal" type="number" min="0" step="100" /></div>
@@ -3608,10 +3649,12 @@ const newsCases = [
         <button class="btn btn-ghost small" id="cf-loan-cancel" type="button">Cancelar</button>
       </div>
       <div id="cf-loan-list"><p class="muted-note">Cargando…</p></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="panel">
-      <h2>⚙️ Configuración</h2>
+    <details class="panel cf-det" id="cf-det-cfg">
+      <summary><span class="cf-det-t">⚙️ Configuración</span> <em>saldo del banco, umbral de alerta y kontokorrent</em></summary>
+      <div class="cf-det-body">
       <div class="pp-grid" style="--cols:1fr 1fr;gap:24px">
         <div>
           <div class="bf"><label>Nuevo saldo bancario (CHF — puede ser negativo)</label><input id="cf-cfg-balance" type="number" step="10" /></div>
@@ -3627,7 +3670,8 @@ const newsCases = [
           <p class="muted-note" style="margin-top:8px">Se avisa por email a sebastian@viven.ch cuando el saldo proyectado cae bajo este valor (cron diario).</p>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
   </div>
     <!-- ============ SALUD DE CRONS ============
          Hay 25 tareas programadas (newsletter, blog, avisos, syncs). Si una se
@@ -16279,6 +16323,7 @@ const newsCases = [
     if (cfSettings && $('cf-cfg-credit') && $('cf-cfg-credit').value === '') $('cf-cfg-credit').value = Number(cfSettings.credit_limit_chf || 0) || '';
     $('cf-cfg-balance-cap').textContent = cfBalance ? ('Último registrado: ' + cfCHF(cfBalance.balance_chf) + ' (al ' + cfBalance.as_of_date + ')') : 'Todavía no cargaste un saldo — cargalo abajo en Configuración.';
     $('cf-cfg-threshold').value = cfSettings.min_balance_threshold_chf ?? 15000;
+    cfBaseRender();
     cfProject();
     cfRenderKpis();
     cfRenderSeg();
@@ -16377,6 +16422,48 @@ const newsCases = [
     cfEvents = cfExpandEvents();
     cfMonths = cfMonthlySeries(cfEvents);
     cfWeeks = cfWeeklySeries(cfEvents);
+  }
+
+  /* Con qué está hecha la proyección y qué le falta. Sin esto la pantalla dibuja una
+     curva de liquidez igual de convincente con cuatro facturas que con la contabilidad
+     entera — y nada en pantalla avisa cuál de las dos estás mirando. */
+  function cfBaseRender(){
+    const box = $('cf-base'); if (!box) return;
+    const ents = cfEntries || [], recs = cfTemplates || [], loans = cfLoans || [];
+    const deBexio = ents.filter((e) => (e.source || '') === 'bexio').length;
+    const aMano = ents.length - deBexio;
+    const recAct = recs.filter((r) => r.active !== false).length;
+    const loanAct = loans.length;
+
+    const partes = [];
+    partes.push('<b>' + ents.length + '</b> ' + (ents.length === 1 ? 'partida' : 'partidas')
+      + (ents.length ? ' (' + deBexio + ' de bexio, ' + aMano + ' a mano)' : ''));
+    partes.push('<b>' + recAct + '</b> ' + (recAct === 1 ? 'recurrente' : 'recurrentes'));
+    partes.push('<b>' + loanAct + '</b> ' + (loanAct === 1 ? 'préstamo' : 'préstamos'));
+
+    const falta = [];
+    if (!recAct) falta.push('los costos fijos (sueldos, alquiler, seguros, software)');
+    if (!cfBalance) falta.push('el saldo real del banco');
+    if (!aMano && deBexio) falta.push('las salidas que no pasan por bexio');
+
+    let txt = 'La proyección está hecha con ' + partes.join(' · ') + '.';
+    if (falta.length){
+      txt += ' <span class="cf-falta">Para que dé la verdad todavía ' + (falta.length === 1 ? 'falta ' : 'faltan ')
+        + falta.join(', ') + '</span> — hasta entonces la curva es un techo, no un pronóstico.';
+    }
+    box.innerHTML = txt;
+    box.hidden = false;
+
+    /* Un panel vacío pide atención sin tener nada que dar: se abren solos solo si
+       tienen algo adentro (y respetamos si vos lo abriste a mano). */
+    const marcar = (id, n, vacio) => {
+      const d = $(id); if (!d) return;
+      const em = $(id + '-n'); if (em) em.textContent = n ? (n + (n === 1 ? ' cargado' : ' cargados')) : vacio;
+      if (n && !d.dataset.tocado) d.open = true;
+      if (!d.dataset.lig){ d.dataset.lig = '1'; d.addEventListener('toggle', () => { d.dataset.tocado = '1'; }); }
+    };
+    marcar('cf-det-rec', recAct, 'ninguno todavía — es lo que más le falta a la proyección');
+    marcar('cf-det-loan', loanAct, 'ninguno cargado');
   }
 
   function cfRenderKpis(){
