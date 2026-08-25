@@ -6634,14 +6634,22 @@ const newsCases = [
     const persEn = (a, b) => new Set((humanAct || [])
       .filter((x) => { const t = Date.parse(x.created_at); return t >= a && t <= b; })
       .map((x) => x.session_id)).size;
-    const medido = rangeStart() >= HUMAN_DESDE;
+    /* No hace falta esperar a que TODO el período esté medido: se muestra la parte
+       que sí lo está y se dice desde cuándo. Esconder el número hasta tener 30 días
+       completos sería tirar un dato bueno por no ser perfecto. */
+    const desdeMed = Math.max(rangeStart(), HUMAN_DESDE);
+    const medido = rangeEnd() > HUMAN_DESDE;
     if (medido){
-      const pers = persEn(rangeStart(), rangeEnd());
-      $('hm-vis-l').textContent = 'Personas (' + rangeLabel().toLowerCase() + ')';
+      const pers = persEn(desdeMed, rangeEnd());
+      const parcial = rangeStart() < HUMAN_DESDE;
+      const dias = Math.max(1, Math.round((rangeEnd() - desdeMed) / 864e5));
+      $('hm-vis-l').textContent = parcial ? 'Personas (últimos ' + dias + (dias === 1 ? ' día' : ' días') + ')'
+                                          : 'Personas (' + rangeLabel().toLowerCase() + ')';
       $('hm-vis').textContent = pers.toLocaleString('de-CH');
-      $('hm-vis-t').textContent = visCur != null
-        ? 'de ' + visCur.toLocaleString('de-CH') + ' visitas · el resto es automático'
-        : 'medido por scroll, puntero o toque';
+      $('hm-vis-t').textContent = parcial
+        ? 'se mide desde el 24/08 · en el período entero hubo ' + (visCur != null ? visCur.toLocaleString('de-CH') + ' visitas' : 'más visitas')
+        : (visCur != null ? 'de ' + visCur.toLocaleString('de-CH') + ' visitas · el resto es automático'
+                          : 'medido por scroll, puntero o toque');
       const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; }
     } else {
       $('hm-vis-l').textContent = 'Visitas (' + rangeLabel().toLowerCase() + ')';
