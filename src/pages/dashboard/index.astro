@@ -2136,6 +2136,7 @@ const newsCases = [
         <option value="stage">🔁 Cambio de etapa</option>
       </select>
       <button class="btn btn-ghost small" id="export-csv" type="button">⬇ CSV</button>
+      <button class="btn btn-ghost small" id="ps-merge" type="button" hidden>🔗 Fusionar</button>
       <button class="btn btn-ghost small" id="ps-mark-spam" type="button" hidden>🚫 Marcar como spam</button>
       <button class="btn btn-danger small" id="ps-del-sel" type="button" hidden>🗑 Borrar seleccionados</button>
     </div>
@@ -2189,7 +2190,7 @@ const newsCases = [
       <!-- Esta fila tenía 7 tarjetas y tres decían lo mismo que el bloque de arriba
            (Pipeline abierto, Enviados esperando y Ponderado). Se fueron: el titular y
            sus tres números ya lo cuentan. Acá quedan los que NO están dichos arriba. -->
-      <div class="hk"><div class="hk-l">Ganado (30 días)</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div></div>
+      <div class="hk"><div class="hk-l" id="hm-won30-l">Ganado</div><div class="hk-n" id="hm-won30" style="color:#7ed957">–</div><div class="kdelta" id="hm-won30-d"></div><div class="hk-t muted" id="hm-won30-t"></div></div>
       <div class="hk"><div class="hk-l">Win rate (90 días)</div><div class="hk-n" id="hm-wr">–</div><div class="hk-t muted" id="hm-wr-t">ganado / decidido</div></div>
       <div class="hk"><div class="hk-l" id="hm-vis-l">Visitas (30 días)</div><div class="hk-n" id="hm-vis">–</div><div class="kdelta" id="hm-vis-d"></div><div class="hk-t muted" id="hm-vis-t"></div></div>
       <div class="hk"><div class="hk-l">ROAS Google Ads</div><div class="hk-n" id="hm-roas">–</div><div class="hk-t muted" id="hm-roas-t"></div></div>
@@ -5795,10 +5796,21 @@ const newsCases = [
     const wonAll = all.filter((d) => stageOf(d.stage) === 'ganado');
     const won30 = wonAll.filter((d) => wonAge(d) <= 30 * D);
     const won3060 = wonAll.filter((d) => { const a = wonAge(d); return a > 30 * D && a <= 60 * D; });
+    /* Cerrado por MES CALENDARIO, que es como se paga (del 1 al último). El panel de
+       Ritmo ya usaba este criterio; la tarjeta de abajo seguía con "últimos 30 días"
+       y las dos se contradecían en pantalla. */
+    const mes0 = new Date(); mes0.setDate(1); mes0.setHours(0, 0, 0, 0);
+    const mesPrev0 = new Date(mes0); mesPrev0.setMonth(mesPrev0.getMonth() - 1);
+    const wonEn = (desde, hasta) => wonAll.filter((d) => {
+      const t = Date.parse(d.won_at || d.last_stage_at || '');
+      return t && t >= desde && (hasta == null || t < hasta);
+    });
     const won90 = wonAll.filter((d) => wonAge(d) <= 90 * D).length;
     const lost90 = all.filter((d) => { if (stageOf(d.stage) !== 'perdido') return false; const t = Date.parse(d.lost_at || d.last_stage_at || ''); return t && now - t <= 90 * D; }).length;
     const dec90 = won90 + lost90;
     return { openVal: dealsValue(open), openN: open.length, weighted, won30Val: dealsValue(won30), prev30Val: dealsValue(won3060),
+      wonMesVal: dealsValue(wonEn(mes0.getTime(), null)),
+      wonMesPrevVal: dealsValue(wonEn(mesPrev0.getTime(), mes0.getTime())),
       /* Un win rate necesita perdidos. Si nadie marca deals como perdidos —el caso
          de esta base: 0 perdidos— la cuenta da 100% siempre y no dice nada. Y con
          dos o tres casos tampoco: un 100% sobre 1 caso parece un logro y es ruido.
@@ -6077,7 +6089,15 @@ const newsCases = [
         if (!(due < tEnd)) return;   // hoy o vencida
         const overdue = due < (t.due_time ? now : t0.getTime());
         const l = leadById(lid) || {};
-        items.push({ rank: 4, sev: 'ambar', icon: '✅', at: due, chf: 0, urgente: overdue, t: t.title,
+        /* La tarea hereda la plata del contacto. Sin esto, "llamar a Theo" (que tiene
+           una propuesta de CHF 17'700 esperando) pesaba lo mismo que una tarea suelta
+           sin nada atrás, y las dos se ordenaban por fecha.
+           Y OJO: vencida NO es urgente. Lo urgente es lo que se enfría hoy —un lead
+           de hace horas, alguien que acaba de abrir el email—. Una tarea vencida hace
+           cinco semanas aguanta una más; marcarla urgente hacía que se comiera los
+           cuatro lugares visibles y empujara abajo las propuestas grandes. Pasó de
+           verdad: la captura de Sebastián del 25/08 abría con dos tareas de CHF 0. */
+        items.push({ rank: 4, sev: 'ambar', icon: '✅', at: due, chf: leadValue(l) || 0, t: t.title,
           ctx: [l.name || l.email || '', (overdue ? 'vencida' : 'para hoy') + (t.due_time ? ' · ' + t.due_time : '')].filter(Boolean).join(' · '),
           hint: 'Hacer →', go: () => openLead(lid) });
       });
@@ -6085,15 +6105,18 @@ const newsCases = [
     /* ===== ORDEN POR PLATA, no por tipo =====
        El mockup que Sebastián eligió dice "ordenada por lo que más plata mueve". Con
        cuatro lugares visibles, el criterio de orden ES la pantalla: lo que quede
-       quinto no existe. Antes ordenaba por tipo de ítem (rank), que es una decisión
-       nuestra sobre qué categoría importa, no sobre qué cambia el mes.
-       Dos niveles: primero lo perecedero —alguien que acaba de abrir el email, un
-       lead de hace horas— porque eso se enfría hoy y una propuesta de tres semanas
-       aguanta un día más; dentro de cada grupo, por plata. */
-    return items.sort((a, b) =>
-      (Number(!!b.urgente) - Number(!!a.urgente)) ||
-      ((b.chf || 0) - (a.chf || 0)) ||
-      (a.rank - b.rank) || (a.at - b.at));
+       quinto no existe.
+       "Urgente" es una excepción angosta a propósito: SOLO lo que se enfría hoy —un
+       lead que entró hace horas, alguien que acaba de abrir el email—. La primera
+       versión también marcaba urgentes las tareas vencidas, y como hay muchas y todas
+       valen CHF 0, se comieron los cuatro lugares: la pantalla abría con dos tareas
+       de "sin contacto hace 5 semanas" y la propuesta de CHF 17'700 quedaba fuera de
+       vista. Una tarea vencida hace cinco semanas aguanta una más. */
+    const URGENTES_MAX = 1;   // ni siquiera lo perecedero puede quedarse con la lista
+    const urg = items.filter((x) => x.urgente).sort((a, b) => (b.chf || 0) - (a.chf || 0) || (a.at - b.at));
+    const resto = items.filter((x) => !x.urgente).concat(urg.slice(URGENTES_MAX));
+    resto.sort((a, b) => ((b.chf || 0) - (a.chf || 0)) || (a.rank - b.rank) || (a.at - b.at));
+    return urg.slice(0, URGENTES_MAX).concat(resto);
   }
 
   // "🔥 Señales calientes": aperturas de propuesta/oferta <48h + leads conocidos que volvieron a la web <24h
@@ -6915,8 +6938,23 @@ const newsCases = [
       $('hm-sent-t').textContent = sentCount ? sentCount + (sentCount === 1 ? ' enviado' : ' enviados') : 'nada pendiente';
     }
     if ($('hm-weight')) $('hm-weight').textContent = fmtChf(Math.round(k.weighted));
-    $('hm-won30').textContent = fmtChf(k.won30Val);
-    setDelta('hm-won30-d', k.won30Val, k.prev30Val);
+    /* Esta tarjeta decía "Ganado (30 días): CHF 22'358" justo al lado del panel que
+       dice "Cerrado este mes: CHF 0". Las dos eran ciertas —los 30 días agarran julio—
+       pero puestas una al lado de la otra se contradicen a la vista, y encima la
+       flecha decía "▲ nuevo" por un cierre de julio. Sebastián ya lo había pedido
+       para el Ritmo del mes: lo que importa es el MES, porque es lo que hay que
+       pagar del 1 al último. Ahora las dos hablan del mismo período.
+       (Captura del 25/08.) */
+    $('hm-won30').textContent = fmtChf(k.wonMesVal != null ? k.wonMesVal : k.won30Val);
+    $('hm-won30-l').textContent = 'Ganado (' + new Date().toLocaleDateString('es-CH', { month: 'long' }) + ')';
+    if (k.wonMesVal != null){
+      setDelta('hm-won30-d', k.wonMesVal, k.wonMesPrevVal || 0);
+      $('hm-won30-t').textContent = k.wonMesPrevVal
+        ? 'el mes pasado: ' + fmtChf(k.wonMesPrevVal)
+        : 'sin cierres el mes pasado';
+    } else {
+      setDelta('hm-won30-d', k.won30Val, k.prev30Val);
+    }
     $('hm-wr').textContent = k.winRate === null ? '–' : k.winRate + '%';
     $('hm-wr-t').textContent = k.winRate !== null ? 'ganado / decidido: ' + k.won90 + '/' + k.dec90
       : !k.dec90 ? 'sin decididos en 90 d'
@@ -6957,8 +6995,11 @@ const newsCases = [
     if (medido){
       const pers = persEn(desdeMed, rangeEnd());
       const parcial = rangeStart() < HUMAN_DESDE;
-      const dias = Math.max(1, Math.round((rangeEnd() - desdeMed) / 864e5));
-      $('hm-vis-l').textContent = parcial ? 'Personas (últimos ' + dias + (dias === 1 ? ' día' : ' días') + ')'
+      /* Mismo cálculo que Analytics (ceil, no round): con los mismos datos, la
+         pantalla decía "últimos 1 día" acá y "últimos 2 días" allá. Y "últimos 1
+         día" además está mal escrito. */
+      const dias = Math.max(1, Math.ceil((rangeEnd() - desdeMed) / 864e5));
+      $('hm-vis-l').textContent = parcial ? 'Personas (' + (dias === 1 ? 'último día' : 'últimos ' + dias + ' días') + ')'
                                           : 'Personas (' + rangeLabel().toLowerCase() + ')';
       $('hm-vis').textContent = pers.toLocaleString('de-CH');
       $('hm-vis-t').textContent = parcial
@@ -6977,7 +7018,15 @@ const newsCases = [
     const ads = hmAdsStats();
     const spend = hmAds ? (+hmAds.spend || 0) : 0;
     const roasEl = $('hm-roas');
-    if (spend){
+    if (spend && !ads.wonVal){
+      /* CERO CIERRES NO ES ROAS 0,0×. Un ×0.0 en rojo se lee como "tiraste la plata",
+         y no es lo que dice el dato: dice que todavía no se cerró nada que venga de
+         Ads. Con ciclos de venta de meses, eso es lo normal las primeras semanas.
+         El número aparece cuando haya con qué calcularlo. (Captura de Sebastián del
+         25/08: ×0.0 en rojo con CHF 2'241 invertidos y el pipeline lleno.) */
+      roasEl.textContent = '–'; roasEl.style.color = '';
+      $('hm-roas-t').textContent = fmtChf(spend) + ' invertidos (30 d) · sin cierres atribuidos todavía';
+    } else if (spend){
       const x = ads.wonVal / spend;
       roasEl.textContent = '×' + x.toFixed(1);
       roasEl.style.color = x >= 1 ? '#7ed957' : '#ff8b8b';
@@ -7704,9 +7753,16 @@ const newsCases = [
     const btn = $('ps-del-sel'); if (!btn) return;
     btn.hidden = psSelected.size === 0;
     btn.textContent = '🗑 Borrar seleccionados (' + psSelected.size + ')';
-    const spamBtn = $('ps-mark-spam'); if (!spamBtn) return;
-    spamBtn.hidden = psSelected.size === 0;
-    spamBtn.textContent = '🚫 Marcar como spam (' + psSelected.size + ')';
+    const spamBtn = $('ps-mark-spam');
+    if (spamBtn){
+      spamBtn.hidden = psSelected.size === 0;
+      spamBtn.textContent = '🚫 Marcar como spam (' + psSelected.size + ')';
+    }
+    /* Fusionar aparece SOLO con dos marcados. Con uno no hay con qué fusionar y con
+       tres la pregunta "¿cuál queda?" deja de tener una respuesta obvia — y esto
+       borra una fila, así que el momento de equivocarse conviene que sea angosto. */
+    const mgBtn = $('ps-merge');
+    if (mgBtn) mgBtn.hidden = psSelected.size !== 2;
   }
   function bindPsSelection(){
     document.querySelectorAll('.ps-row-chk').forEach((cb) => cb.addEventListener('change', () => {
@@ -7720,6 +7776,56 @@ const newsCases = [
       updatePsDelBtn();
     });
   }
+  /* ---------- 🔗 Fusionar dos contactos a mano (RPC fusionar_contactos, SQL 0143) ----------
+     El de-duplicador automático solo agarra los que comparten email. La misma persona
+     cargada dos veces con dos direcciones distintas —"MARTIN BABU" y "Martin Babu DJ",
+     que el 25 ago aparecían en Hoy como dos tareas idénticas— no la agarra nadie,
+     porque no hay forma automática de saberlo sin equivocarse. Esto lo decide él.
+     Se muda TODO lo que cuelga (deals, ofertas, propuestas, notas, tareas, emails) al
+     que queda; los campos vacíos del que queda se completan con los del otro, y nunca
+     se pisa un dato bueno. La fila vacía se borra recién al final. */
+  $('ps-merge') && $('ps-merge').addEventListener('click', async () => {
+    const ids = [...psSelected]; if (ids.length !== 2) return;
+    const a = leadById(ids[0]) || {}, b = leadById(ids[1]) || {};
+    const quien = (l) => (l.name || l.email || ('#' + l.id)) + (l.email && l.name ? ' · ' + l.email : '');
+    /* Por defecto queda el MÁS VIEJO: es al que apuntan los links que ya se mandaron
+       y el que tiene la fecha de alta verdadera. El botón deja invertirlo. */
+    let queda = a, absorbido = b;
+    if (Date.parse(b.created_at || 0) < Date.parse(a.created_at || 0)){ queda = b; absorbido = a; }
+    const contar = (l) => {
+      const d = dealsForLead(l.id).length;
+      const o = (offersList || []).filter((x) => String(x.lead_id || '') === String(l.id) && !x.archived).length;
+      const p = (propsAll || []).filter((x) => String(x.lead_id || '') === String(l.id) && !x.archived).length;
+      const partes = [];
+      if (d) partes.push(d + (d === 1 ? ' deal' : ' deals'));
+      if (o) partes.push(o + (o === 1 ? ' oferta' : ' ofertas'));
+      if (p) partes.push(p + (p === 1 ? ' propuesta' : ' propuestas'));
+      return partes.length ? partes.join(', ') : 'sin nada colgando';
+    };
+    const invertir = confirm(
+      'FUSIONAR DOS CONTACTOS\n\n' +
+      'Queda:      ' + quien(queda) + '\n            (' + contar(queda) + ', alta ' + new Date(queda.created_at).toLocaleDateString('es-CH') + ')\n\n' +
+      'Se absorbe: ' + quien(absorbido) + '\n            (' + contar(absorbido) + ', alta ' + new Date(absorbido.created_at).toLocaleDateString('es-CH') + ')\n\n' +
+      'Todo lo que cuelga del segundo pasa al primero. No se pierde nada: los campos vacíos se completan y los mensajes se pegan uno abajo del otro.\n\n' +
+      'Aceptar = fusionar así.\nCancelar = elegir al revés (o salir).');
+    if (!invertir){
+      const alReves = confirm('¿Fusionar AL REVÉS?\n\nQueda: ' + quien(absorbido) + '\nSe absorbe: ' + quien(queda) + '\n\nCancelar para no hacer nada.');
+      if (!alReves) return;
+      const t = queda; queda = absorbido; absorbido = t;
+    }
+    const btn = $('ps-merge'); btn.disabled = true;
+    try {
+      const { data, error } = await supabase.rpc('fusionar_contactos', { p_queda: +queda.id, p_absorbido: +absorbido.id });
+      if (error) throw error;
+      if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
+      toast('🔗 Fusionados — ' + (data.movidas || 0) + ' cosas mudadas a ' + (queda.name || queda.email));
+      psSelected.clear(); updatePsDelBtn();
+      await loadAll();
+      openLead(queda.id);   // que se vea el resultado, no que haya que ir a buscarlo
+    } catch (e) {
+      alert('No se pudo fusionar: ' + (e.message || e));
+    } finally { btn.disabled = false; }
+  });
   $('ps-mark-spam') && $('ps-mark-spam').addEventListener('click', async () => {
     const ids = [...psSelected]; if (!ids.length) return;
     if (!confirm('¿Marcar ' + ids.length + ' persona' + (ids.length === 1 ? '' : 's') + ' como spam? Se sacan de todas las vistas (se pueden ver de nuevo filtrando por etapa 🚫 Spam) — no se borran.')) return;
