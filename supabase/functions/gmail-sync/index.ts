@@ -152,6 +152,13 @@ Deno.serve(async (req) => {
           const fromH = headers.find((h) => h.name === "From")?.value || "";
           const subjH = headers.find((h) => h.name === "Subject")?.value || "";
           const { name, email } = parseFrom(fromH);
+          /* Nunca guardar como "escribió el cliente" un email escrito por nosotros.
+             Sin esto, un mensaje interno de Sebastián a Sofia entraba al historial de
+             un lead como si lo hubiera mandado el cliente — y el popup de follow-up
+             se lo mostraba con el cartel "LO ÚLTIMO QUE ESCRIBIÓ", firma incluida.
+             (Captura de Sebastián, 25 ago.) Las de prueba, igual: son suyas. */
+          const CORREOS_PRUEBA = ["cepeda.sebastian@gmail.com"];
+          if (email.endsWith("@viven.ch") || CORREOS_PRUEBA.includes(email)) continue;
           const leadId = leadByEmail.get(email);
           if (!leadId) {
             /* Antes acá había un `continue` y el email se perdía. Ahora se encola

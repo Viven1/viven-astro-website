@@ -4966,6 +4966,20 @@ const newsCases = [
      Regla: los números de PERFORMANCE usan solo leads de origen real; la cartera se
      muestra aparte y con nombre, nunca se esconde. (Aprobado por Sebastián.) */
   const esCartera = (l) => /bexio/i.test((l && l.channel) || '');
+  /* ===== Direcciones nuestras y de prueba =====
+     Sebastián, 25 ago: "sebastian@viven.ch o sofia@viven.ch son como tests, no para
+     responderles. Lo mismo con cepeda.sebastian@gmail.com, los uso para testear".
+     Aparecían en Hoy como si fueran clientes esperando respuesta —su propio email
+     encabezando la lista de lo que hay que contestar— y sus mensajes internos se
+     guardaban como "escribió el cliente" en la ficha de otra gente.
+     Un solo lugar define qué es interno; si mañana hay otra dirección de prueba, se
+     agrega acá y desaparece de todas las pantallas a la vez. */
+  const CORREOS_PRUEBA = ['cepeda.sebastian@gmail.com'];
+  const esInterno = (email) => {
+    const e = String(email || '').toLowerCase().trim();
+    if (!e) return false;
+    return e.endsWith('@viven.ch') || CORREOS_PRUEBA.includes(e);
+  };
   const esGanado = (l) => /ganado|won|cerrado/i.test((l && l.status) || '');
   const leadsPerf = () => (allLeads || []).filter((l) => !esCartera(l));
   const leadsCartera = () => (allLeads || []).filter(esCartera);
@@ -5975,7 +5989,7 @@ const newsCases = [
     else if (ofer) ctx.push('<div><i>🧾</i><span>Oferta <b>' + esc(ofer.title || ofer.number || '') + '</b> enviada</span></div>');
     const nIn = (hist || []).filter((h) => h.direction === 'in').length;
     ctx.push('<div><i>✉️</i><span><b>' + (hist || []).length + ' emails</b> en la conversación' +
-      (nIn ? ' — ' + nIn + ' de ' + (r.name || 'ellos').split(' ')[0] : ' — todavía no contestaron') + '</span></div>');
+      (nIn ? ' — ' + nIn + ' de ' + (r.name ? r.name.split(' ')[0] : 'ellos') : ' — todavía no contestaron') + '</span></div>');
     /* ===== LO QUE ESCRIBIÓ, con sus palabras =====
        El bloque decía "3 emails en la conversación" y nada más: para saber QUÉ
        pidieron había que abrir la ficha, o sea salir de acá — justo lo que el popup
@@ -6116,7 +6130,8 @@ const newsCases = [
       });
     }
     // (d) leads nuevos sin contactar <72h (los manuales los cargamos nosotros — no urgen)
-    (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && isNew(l.status) && l.channel !== 'manual' && (now - Date.parse(l.created_at)) < 72 * 36e5).forEach((l) => {
+    (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && !esInterno(l.email)
+      && isNew(l.status) && l.channel !== 'manual' && (now - Date.parse(l.created_at)) < 72 * 36e5).forEach((l) => {
       items.push({ rank: 3, sev: 'ambar', icon: '📥', at: Date.parse(l.created_at), leadId: l.id, chf: 0,
         dias: Math.floor((now - Date.parse(l.created_at)) / D),
         /* la pelota es nuestra: preguntó y está esperando */
@@ -7814,26 +7829,39 @@ const newsCases = [
      proveedores y outreach frío. Un CRM que se llena solo de eso deja de servir.
      Se agrupa por REMITENTE, no por email: la misma persona que escribió tres veces
      es una decisión, no tres. */
-  let epRows = [], epAt = 0;
+  let epRows = [], epAt = 0, epPidiendo = false;
   async function epLoad(forzar){
-    const panel = $('ep-panel'); if (!panel) return;
-    /* renderLeads() se llama desde el realtime, desde los filtros y desde cada
-       edición: sin este freno, cada tecla en el buscador pedía la cola de nuevo. */
-    if (!forzar && Date.now() - epAt < 30000){ epRender(); return; }
-    epAt = Date.now();
+    /* ⚠️ NUNCA llamar a renderHome() desde acá.
+       La primera versión hacía epLoad → epRender → renderHome → epLoad → … y eso es
+       recursión infinita: Hoy se colgaba entero y no se veía nada. Se ve raro que
+       algo tan chico rompa la pantalla completa, pero el ciclo no tiene freno y el
+       navegador se queda sin pila. (25 ago: "no veo aún los emails de info@ en hoy...
+       ¿falta algo?" — faltaba que la pantalla no se colgara.)
+       Cuando llegan datos nuevos se redibuja SOLO la lista, que es lo único que
+       cambia. */
+    if (epPidiendo) return;
+    if (!forzar && Date.now() - epAt < 30000) return;
+    epAt = Date.now(); epPidiendo = true;
     try {
       const { data, error } = await supabase.from('email_pendientes')
         .select('id,from_email,from_name,subject,body,received_at,mailbox')
         .eq('status', 'pendiente').order('received_at', { ascending: false }).limit(200);
       if (error) throw error;
+      const antes = JSON.stringify((epRows || []).map((r) => r.id));
       epRows = data || [];
+      // solo se redibuja si de verdad cambió algo: si no, es trabajo por nada
+      if (JSON.stringify(epRows.map((r) => r.id)) !== antes && !$('tab-hoy').hidden){
+        hmTodayCur = hmTodayItems();
+        $('hm-today-n').textContent = hmTodayCur.length ? '(' + hmTodayCur.length + ')' : '';
+        hmRenderToday(hmTodayCur);
+      }
     } catch (e) { epRows = []; }
-    epRender();
+    finally { epPidiendo = false; }
   }
   /* Agrupado por REMITENTE: quien escribió tres veces es UNA decisión, no tres. */
   function epGente(){
     const porRemitente = new Map();
-    (epRows || []).forEach((r) => {
+    (epRows || []).filter((r) => !esInterno(r.from_email)).forEach((r) => {
       const k = (r.from_email || '').toLowerCase();
       const g = porRemitente.get(k) || { ...r, n: 0, ids: [] };
       g.n++; g.ids.push(r.id);
@@ -7867,8 +7895,6 @@ const newsCases = [
     toast('Descartado — no vuelvo a preguntar por ' + g.from_email);
     epLoad(true);
   }
-  /* La cola alimenta la lista de Hoy, así que al llegar hay que redibujarla. */
-  function epRender(){ if (!$('tab-hoy').hidden) renderHome(); }
 
   let psSelected = new Set();
   function updatePsDelBtn(){
