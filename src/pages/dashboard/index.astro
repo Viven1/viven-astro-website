@@ -2399,6 +2399,9 @@ const newsCases = [
         <select id="range-sel" class="status" title="Período">
           <option value="1">Hoy</option>
           <option value="7">7 días</option>
+          <!-- "Este mes" = del 1 al día de hoy. Los 30 días móviles se comen leads del
+               mes anterior y eso no se parece a cómo Sebastián cobra ni cierra el mes. -->
+          <option value="mes">Este mes</option>
           <option value="30" selected>30 días</option>
           <option value="90">90 días</option>
           <option value="365">1 año</option>
@@ -4706,13 +4709,17 @@ const newsCases = [
   });
   /* filtro global de período */
   $('range-sel').addEventListener('change', (e) => {
-    rangeDays = parseInt(e.target.value, 10) || 30;
+    rangeMes = e.target.value === 'mes';
+    // con "este mes" rangeDays igual se usa para el período ANTERIOR comparable:
+    // los días transcurridos del mes, para no comparar 17 días contra 30
+    rangeDays = rangeMes ? Math.max(1, Math.ceil((Date.now() - inicioDeMes()) / 864e5)) : (parseInt(e.target.value, 10) || 30);
     rangeDay = null; $('range-day').value = '';
     seoLoaded = false; // el período cambió: Search Console debe refetchear con los días nuevos
     loadAll();
   });
   $('range-day').addEventListener('change', (e) => {
     rangeDay = e.target.value || null;
+    if (rangeDay) rangeMes = false;
     seoLoaded = false;
     loadAll();
   });
@@ -4830,7 +4837,14 @@ const newsCases = [
   /* ---------- Ventana de tiempo (filtro global) ---------- */
   let rangeDays = 30;      // preset: 1 / 7 / 30 / 90 / 365
   let rangeDay = null;     // 'YYYY-MM-DD' → un día puntual (pisa el preset)
-  const rangeStart = () => rangeDay ? new Date(rangeDay + 'T00:00:00').getTime() : Date.now() - rangeDays * 864e5;
+  /* Mes calendario en curso (del 1 al día de hoy). Pedido de Sebastián: con "30 días"
+     un 17 del mes estás mirando desde el 18 del mes pasado, así que los leads y los
+     cierres del mes anterior se cuelan en el número del mes. */
+  let rangeMes = false;
+  const inicioDeMes = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };
+  const rangeStart = () => rangeDay ? new Date(rangeDay + 'T00:00:00').getTime()
+    : rangeMes ? inicioDeMes()
+    : Date.now() - rangeDays * 864e5;
   const rangeEnd = () => rangeDay ? new Date(rangeDay + 'T23:59:59.999').getTime() : Date.now();
   /* ===== CARTERA vs PERFORMANCE — una sola definición para todo el dashboard =====
      El import de bexio (channel='bexio-import') creó 168 leads y los marcó TODOS
@@ -4909,9 +4923,10 @@ const newsCases = [
   const inRange = (d) => { const t = new Date(d).getTime(); return t >= rangeStart() && t <= rangeEnd(); };
   const rangeLabel = () => rangeDay
     ? new Date(rangeDay + 'T00:00:00').toLocaleDateString('es-CH', { day: '2-digit', month: 'long', year: 'numeric' })
+    : rangeMes ? new Date().toLocaleDateString('es-CH', { month: 'long' }) + ' (del 1 al ' + new Date().getDate() + ')'
     : (rangeDays === 1 ? 'Hoy' : 'Últimos ' + rangeDays + ' días');
   // nº de días que muestra el gráfico diario (acotado para que el SVG no explote)
-  const rangeSpanDays = () => rangeDay ? 1 : rangeDays;
+  const rangeSpanDays = () => rangeDay ? 1 : rangeMes ? Math.max(1, Math.ceil((Date.now() - inicioDeMes()) / 864e5)) : rangeDays;
   const since = () => new Date(rangeStart()).toISOString();
   const until = () => new Date(rangeEnd()).toISOString();
 

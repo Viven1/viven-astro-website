@@ -104,11 +104,7 @@ WHAT YOU ARE FOR, in order: (a) answer the question honestly, (b) move to a 15-m
 
 JOB APPLICANTS AND SUPPLIERS: point to info@viven.ch. Do not collect a portfolio or promise a review.
 
-OUTPUT: return ONLY a JSON object, no prose around it, no code fences:
-{"reply": "...", "lang": "en|de|es", "action": "book|calc|brief|none", "lead": {"name": "", "email": "", "company": "", "type": "", "timing": "", "summary": ""}, "handoff": false}
-- "action" is the ONE exit your reply points to (or "none"). The interface renders it as a button — so never paste a URL into "reply" text.
-- "lead" carries only what the visitor actually said. Leave a field empty if they did not say it. "summary" is one internal line for the producer, always in Spanish, describing what this person wants — this is the only field that is not shown to the visitor.
-- "handoff": true when a human should take over (an existing project, a complaint, a price they insist on, anything you refused to answer).
+OUTPUT: write ONLY the message the visitor should read. No JSON, no labels, no quotes around it, no signature, no links pasted as text — the interface adds the button for the next step.
 `.trim();
 
 Deno.serve(async (req) => {
@@ -134,51 +130,66 @@ Deno.serve(async (req) => {
     const LANGUAGE_NAME = NAMES[l];
     const sys = `${RULES.replaceAll("{LANGUAGE_NAME}", LANGUAGE_NAME)}\n\nKNOWLEDGE BASE (the only facts you may state):\n${kb}\n\nLINKS (used by "action", never pasted into the reply): ${JSON.stringify(LINKS[l])}\n\nWHERE THE VISITOR IS: ${page || "the site"}.`;
 
-    /* Una charla se rompe de una sola manera: el envoltorio JSON sale mal o se
-       corta. Pasó en vivo con "We need it in German and French too" y el
-       visitante vio el mensaje de disculpa. Ahora se intenta dos veces —el
-       segundo intento con la regla del formato repetida— y recién ahí se cae al
-       camino humano. Se registra stop_reason para saber si fue truncado. */
-    async function ask(extra: string) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1200, system: sys + extra, messages: turns }),
-      });
-      if (!res.ok) {
-        console.error("ANTHROPIC_ERROR", res.status, (await res.text()).slice(0, 300));
-        return null;
-      }
-      const data = await res.json();
-      let t = ((data.content ?? []) as { type: string; text?: string }[])
-        .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim().replace(/```json|```/g, "");
-      const m = t.match(/\{[\s\S]*\}/); if (m) t = m[0];
-      try {
-        const obj = JSON.parse(t) as Record<string, unknown>;
-        if (obj.reply) return { obj, data };
-      } catch { /* cae al reintento */ }
-      console.error("BAD_SHAPE", data.stop_reason, t.slice(0, 200));
-      return null;
+    /* Dos trabajos separados a propósito. Antes iban en una sola llamada que
+       tenía que devolver JSON, y se rompía apenas había conversación previa: las
+       respuestas anteriores del asistente están en texto plano y el modelo seguía
+       ese patrón — en vivo, dos de cada tres mensajes caían al texto de disculpa.
+       Ahora la respuesta al visitante es texto y no puede fallar por formato; la
+       ficha del contacto la arma una segunda llamada barata que, si falla, deja la
+       ficha vacía y nadie se entera. */
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 500, system: sys, messages: turns }),
+    });
+    if (!res.ok) {
+      console.error("ANTHROPIC_ERROR", res.status, (await res.text()).slice(0, 300));
+      return new Response(JSON.stringify({ error: `Anthropic ${res.status}` }), { status: 502, headers: { ...cors, "Content-Type": "application/json" } });
     }
+    const data = await res.json();
+    const reply = ((data.content ?? []) as { type: string; text?: string }[])
+      .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim();
 
-    const got = await ask("") ??
-      await ask("\n\nREMINDER: your entire answer must be one JSON object and nothing else — no greeting before it, no explanation after it. Keep \"reply\" under 60 words.");
-    const parsed: Record<string, unknown> = got?.obj ?? {};
-    const data = got?.data ?? {};
-    if (!parsed.reply) {
-      // Dos intentos fallidos: nunca dejamos al visitante mirando un error,
-      // cae al camino humano.
+    if (!reply) {
       const fallback: Record<string, string> = {
         en: "Sorry — I lost that one. Tell me in a line what you're planning and Sofia or one of our producers will come back to you within one business day.",
-        de: "Entschuldigung, da ist mir etwas dazwischengekommen. Beschreiben Sie Ihr Vorhaben kurz — eine Produzentin meldet sich innerhalb eines Werktags.",
+        de: "Entschuldigung, da ist mir etwas dazwischengekommen. Beschreiben Sie Ihr Vorhaben kurz — Sofia oder eine unserer Produzentinnen meldet sich innerhalb eines Werktags.",
         es: "Perdón, se me cortó. Contame en una línea qué estás planeando y te responde Sofia o uno de nuestros productores dentro de un día hábil.",
       };
       return new Response(JSON.stringify({ reply: fallback[l], lang: l, action: "none", lead: {}, handoff: true, degraded: true }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
+
+    /* Lectura de la charla para el equipo. Haiku alcanza y cuesta una fracción;
+       nunca toca lo que ve el visitante. */
+    const transcript = turns.map((t) => (t.role === "user" ? "VISITOR: " : "VIVEN: ") + t.content).join("\n") + "\nVIVEN: " + reply;
+    let lead: Record<string, unknown> = {}; let action = "none"; let handoff = false;
+    try {
+      const r2 = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001", max_tokens: 400,
+          system: `You read a chat between a visitor and Viven's website assistant and fill in the contact card for the producer. Answer with ONE JSON object and nothing else:
+{"name":"","email":"","company":"","type":"","timing":"","summary":"","action":"book|calc|brief|none","handoff":false}
+Only what the VISITOR actually said — empty string when they did not say it, never a guess. "type" is the kind of video, "timing" is when they need it. "summary" is one line in Spanish for the producer. "action" is the next step the assistant pointed to: book (a call), calc (the cost calculator), brief (the written form), none. "handoff" is true when a human should take over: an existing project, a complaint, a price they keep insisting on, or anything the assistant refused to answer.`,
+          messages: [{ role: "user", content: transcript.slice(-6000) }],
+        }),
+      });
+      if (r2.ok) {
+        const d2 = await r2.json();
+        let t2 = ((d2.content ?? []) as { type: string; text?: string }[])
+          .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim().replace(/```json|```/g, "");
+        const mm = t2.match(/\{[\s\S]*\}/); if (mm) t2 = mm[0];
+        const o = JSON.parse(t2) as Record<string, unknown>;
+        action = ["book", "calc", "brief", "none"].includes(String(o.action)) ? String(o.action) : "none";
+        handoff = o.handoff === true;
+        lead = { name: o.name ?? "", email: o.email ?? "", company: o.company ?? "", type: o.type ?? "", timing: o.timing ?? "", summary: o.summary ?? "" };
+      }
+    } catch (e) { console.error("LEAD_READ_FAILED", String(e)); }
+
     return new Response(JSON.stringify({
-      reply: parsed.reply, lang: parsed.lang ?? l, action: parsed.action ?? "none",
-      lead: parsed.lead ?? {}, handoff: parsed.handoff ?? false,
-      usage: data.usage ?? null,
+      reply, lang: l, action, lead, handoff,
+      usage: data.usage ?? null,   // solo la llamada que le habla al visitante; la lectura de la ficha es Haiku y cuesta centésimas
     }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
