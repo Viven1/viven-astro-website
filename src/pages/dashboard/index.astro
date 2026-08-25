@@ -6659,8 +6659,17 @@ const newsCases = [
       act.textContent = rmGoalFetched ? 'Definí el objetivo mensual (✎ arriba) para ver el gap y el ritmo del mes.' : 'Cargando objetivo…';
       return;
     }
-    // GAP = proyección − objetivo (verde si la proyección ya cubre el objetivo)
-    const gap = proj - goal;
+    /* ===== LO QUE FALTA ES OBJETIVO − CERRADO, y nada más =====
+       Acá se calculaba objetivo − (cerrado + ponderado). Con CHF 0 cerrados y un
+       ponderado de CHF 23'594, el titular decía "faltan CHF 26'406" — como si dos
+       tercios del mes ya estuvieran resueltos. No lo están: el ponderado es una
+       probabilidad, no plata. Sebastián, 25 ago: "faltan los 50K ya que nada está
+       ganado, ponderado no es lo mismo". Tiene razón, y la confusión es peligrosa
+       justo acá: es el número que decide si hay que salir a buscar trabajo.
+       Ahora FALTA = objetivo − cerrado. La proyección sigue existiendo, pero dicha
+       aparte y con su nombre. */
+    const falta = Math.max(0, goal - closed);
+    const gap = -falta;   // negativo mientras falte algo (el resto del bloque lo usa así)
     const gapAbs = Math.abs(Math.round(gap));
     gapEl.textContent = (gap >= 0 ? '+' : '−') + (gapAbs ? fmtChf(gapAbs) : 'CHF 0');
     gapEl.style.color = gap >= 0 ? '#7ed957' : '#ff8b8b';
@@ -6678,11 +6687,12 @@ const newsCases = [
     cap.textContent = 'Cerrado ' + (closed ? fmtChf(closed) : 'CHF 0') + ' de ' + fmtChf(goal) + ' (' + Math.round(pctClosed) + '%) · día ' + dayOfMonth + ' de ' + daysInMonth + ' (' + Math.round(pctToday) + '% del mes)';
     // línea de acción: "faltan ~N leads" con conversión histórica REAL (leads→ganados 90 días)
     act.hidden = false;
-    if (gap >= 0){
-      act.className = 'rm-action ok';
+    if (falta === 0){
+      /* Cerrado de verdad, no proyectado: acá el verde está ganado. */
       act.className = 'rm-titular ok';
-      act.innerHTML = 'A este ritmo el mes cierra en <span class="bien">' + fmtChf(Math.round(proj)) + '</span>, ' +
-        fmtChf(Math.round(gap)) + ' arriba del objetivo.<small>Lo que entre de acá en más es de más.</small>';
+      act.innerHTML = 'Objetivo cumplido: cerraste <span class="bien">' + fmtChf(Math.round(closed)) + '</span> de ' + fmtChf(goal) + '.' +
+        '<small>' + (closed > goal ? fmtChf(Math.round(closed - goal)) + ' arriba. ' : '') +
+        'Lo que entre de acá en más es de más.</small>';
       return;
     }
     const t90 = Date.now() - 90 * D;
@@ -6707,32 +6717,33 @@ const newsCases = [
        en vez de eso es empujar al lado equivocado. */
     const enviadas = (ppList || []).filter((p) => p.status === 'sent' && !p.archived && !p.is_template);
     const valEnviadas = enviadas.reduce((a, p) => a + propVal(p), 0);
-    if (enviadas.length && valEnviadas >= Math.abs(gap)){
+    if (enviadas.length && valEnviadas >= falta){
       const ord = enviadas.map(propVal).sort((a, b) => b - a);
       let acum = 0, cuantas = 0;
-      for (const v of ord){ acum += v; cuantas++; if (acum >= Math.abs(gap)) break; }
+      for (const v of ord){ acum += v; cuantas++; if (acum >= falta) break; }
       /* Titular: el número que duele en naranja, lo que puede salvarlo en verde, y
          el "qué hago" abajo en chico. Antes era todo un renglón de texto plano al
          final del bloque — cierto pero invisible. */
       act.className = 'rm-titular bad';
       const quedanD = daysInMonth - dayOfMonth;
-      act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.abs(Math.round(gap))) + '</span> para el objetivo del mes, ' +
+      act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.round(falta)) + '</span> para el objetivo del mes, ' +
         'y tenés <span class="bien">' + fmtChf(Math.round(valEnviadas)) + '</span> afuera en ' + enviadas.length +
         (enviadas.length === 1 ? ' propuesta.' : ' propuestas.') +
         '<small>Con que ' + (cuantas === 1 ? 'entre la más grande' : 'entren las ' + cuantas + ' más grandes') +
-        ', el mes está hecho' + (quedanD > 0 ? ' — quedan ' + quedanD + (quedanD === 1 ? ' día' : ' días') : '') + '.</small>';
+        ', el mes está hecho' + (quedanD > 0 ? ' — quedan ' + quedanD + (quedanD === 1 ? ' día' : ' días') : '') + '. ' +
+        'Según la etapa de cada una, lo probable es que entren ' + fmtChf(Math.round(weighted)) + ' — eso es una estimación, no plata cerrada.</small>';
       return;
     }
     // historia suficiente = al menos 10 leads y 2 cierres en 90 días; si no, no inventamos una tasa
     if (leads90.length >= 10 && won90.length >= 2 && wonFromLeads90 >= 1 && avgWon > 0){
       const conv = wonFromLeads90 / leads90.length;
-      const needLeads = Math.ceil(Math.abs(gap) / (avgWon * conv));
+      const needLeads = Math.ceil(falta / (avgWon * conv));
       act.className = 'rm-action bad';
       act.className = 'rm-titular bad';
-      act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.abs(Math.round(gap))) + '</span> para el objetivo del mes.<small>≈ ' + needLeads + (needLeads === 1 ? ' lead más' : ' leads más') + ' este mes (conversión 90 d: ' + wonFromLeads90 + '/' + leads90.length + ' leads ganados · ticket medio ' + fmtChf(Math.round(avgWon)) + ').';
+      act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.round(falta)) + '</span> para el objetivo del mes.<small>≈ ' + needLeads + (needLeads === 1 ? ' lead más' : ' leads más') + ' este mes (conversión 90 d: ' + wonFromLeads90 + '/' + leads90.length + ' leads ganados · ticket medio ' + fmtChf(Math.round(avgWon)) + ').';
     } else {
       act.className = 'rm-titular bad';
-      act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.abs(Math.round(gap))) + '</span> para el objetivo del mes.<small>Poca historia de conversión (90 d) para estimar cuántos leads equivalen — el número saldrá solo cuando haya más cierres.</small>';
+      act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.round(falta)) + '</span> para el objetivo del mes.<small>Poca historia de conversión (90 d) para estimar cuántos leads equivalen — el número saldrá solo cuando haya más cierres.</small>';
     }
   }
   // objetivo editable inline: ✎ → input CHF → upsert business_goals id=1
