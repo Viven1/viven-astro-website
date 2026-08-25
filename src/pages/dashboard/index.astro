@@ -1492,10 +1492,12 @@ const newsCases = [
   @media(max-width:620px){.sistema-seg-2 .seg-lbl{display:none}}
   /* Cash Flow: el renglón que dice con qué está hecha la proyección, y los tres
      paneles que solo estorban mientras están vacíos. */
-  #sistema-sub-cashflow .cf-base{border:1px solid var(--line);border-left:3px solid var(--acid);
+  /* El renglón "de qué está hecho esto y qué le falta" — nació en Cash Flow y lo usan
+     también Booking y cualquier pantalla que necesite decir con qué está trabajando. */
+  .cf-base{border:1px solid var(--line);border-left:3px solid var(--acid);
     border-radius:12px;background:var(--navy-800);padding:12px 15px;margin-bottom:14px;font-size:13.5px;line-height:1.6;color:var(--muted)}
-  #sistema-sub-cashflow .cf-base b{color:var(--text);font-weight:600}
-  #sistema-sub-cashflow .cf-base .cf-falta{color:#f0c060}
+  .cf-base b{color:var(--text);font-weight:600}
+  .cf-base .cf-falta{color:#f0c060}
   #sistema-sub-cashflow .cf-det{padding:0}
   #sistema-sub-cashflow .cf-det > summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;
     gap:10px;flex-wrap:wrap;padding:14px 18px;font-size:15px;font-weight:600;color:var(--text)}
@@ -3407,6 +3409,12 @@ const newsCases = [
          si mantener el booking abierto rinde. Medido el 25 ago 2026: de las 5 personas
          reales que tuvieron call, 3 terminaron en propuesta. Ese número decide si esto
          se cuida o se apaga, y no estaba en ningún lado. -->
+    <!-- Quién aparece HOY en /book/. El 25 ago 2026 el booking de Sebastián estaba
+         apagado y su book_visible en false: estaba configurando horarios de un
+         calendario que nadie puede reservar, y la pantalla no lo decía en ningún lado
+         (el dato vivía tres paneles más abajo, en la config del dueño). -->
+    <div class="cf-base" id="bk-quien" style="margin-bottom:14px" hidden></div>
+
     <div class="panel" id="bk-perf" style="margin-bottom:14px" hidden>
       <h2 style="margin:0 0 4px">📞 ¿Sirven las llamadas?</h2>
       <p class="muted-note" style="margin:0 0 12px">De las video calls que ya pasaron, en cuántas la persona siguió adelante. Las direcciones internas y de prueba no cuentan.</p>
@@ -8795,7 +8803,31 @@ const newsCases = [
     $('bks-hrole').value = c.host_role || prof.role || 'Founder — Viven AG, Zürich';
     $('bks-msg-en').value = c.msg_en || ''; $('bks-msg-de').value = c.msg_de || ''; $('bks-msg-es').value = c.msg_es || '';
     $('bks-note').textContent = bkRowId ? '' : 'Todavía usás los horarios por defecto — guardá para tener los tuyos.';
+    bkQuienRender(c);
     bkPerfRender();
+  }
+
+  /* Quién aparece hoy en la página pública, y si vos sos uno de ellos. */
+  async function bkQuienRender(mio){
+    const box = $('bk-quien'); if (!box) return;
+    const { data, error } = await supabase.from('team_profiles').select('email,name,book_visible');
+    if (error || !data){ box.hidden = true; return; }
+    const visibles = data.filter((p) => p.book_visible);
+    const yoVisible = visibles.some((p) => (p.email || '').toLowerCase() === String(meEmail || '').toLowerCase());
+    const yoActivo = mio && mio.active !== false;
+    const quienes = visibles.length
+      ? visibles.map((p) => p.name || p.email).join(' y ')
+      : 'nadie';
+    let txt = 'Hoy en <b>/book/</b> aparece ' + esc(quienes) + '.';
+    if (!yoVisible){
+      txt += ' <span class="cf-falta">Vos no</span> — lo que configures acá abajo no cambia lo que ve un cliente hasta que te agreguen a la página pública.';
+    } else if (!yoActivo){
+      txt += ' <span class="cf-falta">Tu booking está apagado</span>, así que quien entre a tu agenda ve el link de respaldo.';
+    } else {
+      txt += ' Tu agenda está encendida.';
+    }
+    box.innerHTML = txt;
+    box.hidden = false;
   }
 
   /* Qué pasó DESPUÉS de cada llamada. Se cuenta por persona y no por reserva: la misma
@@ -15361,7 +15393,12 @@ const newsCases = [
         // personas distintas, no pedidos: el mismo email puede pedirlo dos veces
         /* el numerador se recorta al MISMO tramo que el denominador: contar 30 días
            de leads contra 1 día de personas daría un porcentaje enorme y falso */
-        const filasV = lmEnVentana(filas);
+        /* Y las direcciones internas afuera: los 6 pedidos de PDF que había el 25 ago
+           2026 eran los SEIS de Sebastián probando el formulario. La tarjeta decía
+           "2 leads generados" de gente que no existe. Mismo esInterno() que ya limpia
+           Hoy y la cola de info@. */
+        const filasV = lmEnVentana(filas).filter((m) => !esInterno(m.email));
+        const pruebas = lmEnVentana(filas).length - filasV.length;
         const personas = new Set(filasV.map((m) => (m.email || '').toLowerCase()).filter(Boolean));
         const ids = new Set(filasV.filter((m) => m.lead_id).map((m) => String(m.lead_id)));
         const ganados = [...ids].filter((id) => wonSet.has(id)).length;
@@ -15383,7 +15420,10 @@ const newsCases = [
           '<div class="lm-kv"><span>Leads generados</span><b>' + personas.size + '</b></div>' +
           '<div class="lm-kv"><span>Conversión → ganado</span><b>' + ganados + '</b></div>' +
           '<div class="lm-bigpct">' + (pct == null ? '—' : pct.toFixed(1) + '%') + '</div>' +
-          '<div class="lm-bigpct-l">' + (pct == null ? 'sin páginas conocidas' : esc(lmNota) + ' → lead') + '</div></div>';
+          '<div class="lm-bigpct-l">' + (pct == null ? 'sin páginas conocidas' : esc(lmNota) + ' → lead') + '</div>' +
+          (pruebas ? '<div class="muted-note" style="margin-top:6px;font-size:11.5px">' + pruebas
+            + (pruebas === 1 ? ' pedido tuyo de prueba, afuera de la cuenta' : ' pedidos tuyos de prueba, afuera de la cuenta') + '</div>' : '')
+          + '</div>';
       };
       const tarjetasPdf = Object.keys(porMagnet).sort().map((k) => magnetCard(k, porMagnet[k])).join('');
       cardsEl.innerHTML = card('🧮 Calculadora de costos', '3 idiomas', calcSessions, calcLeads.length, calcWon) +
@@ -18881,7 +18921,28 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   // empresa a la que pertenece la persona: override manual (company_domain) o dominio del email
   function leadDomain(l){ return (l && (l.company_domain || domainOf(l.email))) || ''; }
   function slugKey(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48); }
-  function companyName(domain){ return (coMeta[domain] && coMeta[domain].name) || (domain ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : ''); }
+  /* El nombre de la empresa: primero el que cargaste en su ficha, después el que la
+     propia persona escribió al contactarnos, y recién al final el dominio capitalizado.
+     El orden estaba al revés de hecho: 158 de los 172 dominios YA tienen el nombre real
+     en el contacto y la pantalla igual mostraba "Ldc" en vez de "Louis Dreyfus Company",
+     "Schroders" en vez de "Schroder Capital Management (Switzerland) AG". El dato
+     estaba; no se estaba mirando. */
+  function companyNameDeContactos(domain){
+    const cuenta = {};
+    (allLeads || []).forEach((l) => {
+      if (leadDomain(l) !== domain) return;
+      const c = String(l.company || '').trim();
+      if (!c || c.toLowerCase() === domain) return;   // "forseasons.swiss" como nombre no aporta
+      cuenta[c] = (cuenta[c] || 0) + 1;
+    });
+    // el más repetido; a igualdad, el más largo (suele ser la razón social completa)
+    return Object.keys(cuenta).sort((a, b) => (cuenta[b] - cuenta[a]) || (b.length - a.length))[0] || '';
+  }
+  function companyName(domain){
+    return (coMeta[domain] && coMeta[domain].name)
+      || companyNameDeContactos(domain)
+      || (domain ? domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1) : '');
+  }
   // todas las empresas conocidas (con o sin contactos) para el picker connect-or-create
   function allCompanyNames(){ return [...new Set([...companiesData().map((c) => c.name), ...Object.values(coMeta).map((c) => c.name).filter(Boolean)])].sort((a, b) => a.localeCompare(b)); }
   function companiesData(){
