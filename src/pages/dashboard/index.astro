@@ -1454,6 +1454,12 @@ const newsCases = [
   .en-sum{font-size:13px;line-height:1.6;color:var(--text);margin:4px 0 8px}
   /* Personas estilo HubSpot: tabla protagonista, full width */
   .hatt-calls{grid-column:1/-1;display:grid;gap:6px;margin-top:4px}
+  /* lo pasado, en gris: sigue siendo información pero no compite con lo que viene */
+  .ag-pas{opacity:.5}
+  .ag-pas:hover{opacity:.85}
+  .ag-hoy{display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--acid);
+    font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+  .ag-hoy::before,.ag-hoy::after{content:'';flex:1;height:1px;background:color-mix(in srgb,var(--acid) 40%,transparent)}
   .hatt-call{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12.5px;flex-wrap:wrap}
   .hatt-call .hc-when{color:var(--muted);white-space:nowrap}
   .hatt-call .hc-who{background:none;border:0;color:var(--text);font-weight:600;font-size:12.5px;cursor:pointer;padding:0;font-family:inherit}
@@ -2438,7 +2444,7 @@ const newsCases = [
     <!-- ojo: el 1fr 1fr va por CLASE (no inline) — un style inline pisaba los @media
          y en móvil quedaban las dos cards aplastadas lado a lado -->
     <div class="hm-grid agenda-grid">
-        <div class="panel hm-card"><h2>📅 Agenda <span class="count">(próximos 7 días)</span><span id="hm-agenda-seg" class="hm-agenda-seg"></span></h2><div class="hatt-calls" id="hm-agenda"></div></div>
+        <div class="panel hm-card"><h2>📅 Agenda <span class="count">(últimos 30 días y lo que viene)</span><span id="hm-agenda-seg" class="hm-agenda-seg"></span></h2><div class="hatt-calls" id="hm-agenda"></div></div>
         <div class="panel hm-card"><h2>📞 Video calls por persona <span class="count">(30 días)</span></h2><div id="hm-calls"><p class="muted-note">Cargando…</p></div></div>
     </div>
   </div>
@@ -5398,7 +5404,7 @@ const newsCases = [
   let anaCargada = false, anaCargando = false;
 
   async function loadCore(){
-    const [leadsQ, offersQ, coQ, propsQ, dealsQ, bookQ, bookHistQ] = await Promise.all([
+    const [leadsQ, offersQ, coQ, propsQ, dealsQ, bookQ, bookPasadasQ, bookHistQ] = await Promise.all([
       // Las cinco paginan. Un .select() sin paginar se corta en el Max Rows del
       // proyecto SIN avisar: ofertas, deals y empresas todavía no llegan a ese tope,
       // pero el día que lleguen el pipeline mostraría de menos y nada lo diría.
@@ -5411,6 +5417,11 @@ const newsCases = [
       supabase.from('bookings').select('*').gte('start_at', new Date().toISOString()).eq('status', 'confirmed').order('start_at').limit(8),
       // histórico 30d (pedido explícito: trackear video calls booked por persona) — created_at
       // = cuándo se hizo la reserva, no cuándo es la call, así cuenta "booked" de verdad
+      /* Las pasadas también: la Agenda mostraba solo lo que viene y estaba vacía casi
+         siempre (0 reuniones en los próximos 7 días, 8 en los últimos 30, la última
+         ayer). Una pantalla que casi siempre está vacía se deja de abrir. */
+      supabase.from('bookings').select('*').gte('start_at', new Date(Date.now() - 30 * 864e5).toISOString())
+        .lt('start_at', new Date().toISOString()).order('start_at', { ascending: false }).limit(30),
       supabase.from('bookings').select('host_email,created_at').gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()),
     ]);
     // personas: es lo único sin lo cual la pantalla no tiene sentido — igual no se
@@ -5424,6 +5435,7 @@ const newsCases = [
     // DEALS (SQL 0022): la entidad REAL del pipeline (varios proyectos por persona).
     // Sin la tabla → 1 deal sintético por persona (modo legado, mismo comportamiento).
     upBookings = (bookQ && !bookQ.error) ? (bookQ.data || []) : [];
+    bookingsPasadas = (bookPasadasQ && !bookPasadasQ.error) ? (bookPasadasQ.data || []) : [];
     bookingsHist = (bookHistQ && !bookHistQ.error) ? (bookHistQ.data || []) : [];
     dealsReal = !!(dealsQ && !dealsQ.error);
     dealsList = dealsReal ? (dealsQ.data || []) : [];
@@ -6563,22 +6575,60 @@ const newsCases = [
         seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { hmAgendaScope = b.dataset.k; hmRenderAgenda(); }));
       }
     }
-    const lim = Date.now() + 7 * 864e5;
+    /* ===== LO QUE VIENE Y LO QUE PASÓ =====
+       La Agenda mostraba solo los próximos 7 días, y con eso estaba vacía casi
+       siempre: medido el 25 ago, 0 reuniones adelante, 8 en los últimos 30 días y la
+       última fue ayer. Miraba para el lado donde no estaban los datos, y una pantalla
+       que casi siempre está vacía se deja de abrir.
+       Ahora es una línea de tiempo: reuniones pasadas y futuras, más las tareas con
+       fecha —que existían y vivían solo en Hoy— con el día de hoy marcado en el medio.
+       Si no hay nada adelante, lo de atrás sigue siendo información: a quién viste
+       esta semana y con quién no hablás hace un mes. */
+    const ahora = Date.now();
     const mine = (b) => (b.host_email || '').toLowerCase() === (meEmail || '').toLowerCase();
-    const rows = (upBookings || []).filter((b) => Date.parse(b.start_at) <= lim && (hmAgendaScope === 'all' ? true : mine(b)));
-    box.innerHTML = rows.map((b) => {
-      const dt = new Date(b.start_at);
-      const when = dt.toLocaleDateString('es-CH', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + dt.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
-      // el badge de host solo aparece en la vista "Todas" — en "Mías" es redundante (ya sabés que son tuyas)
+    const mias = (b) => hmAgendaScope === 'all' ? true : mine(b);
+    const items = [];
+    (upBookings || []).filter(mias).forEach((b) => items.push({ t: Date.parse(b.start_at), tipo: 'call', b }));
+    (bookingsPasadas || []).filter(mias).forEach((b) => items.push({ t: Date.parse(b.start_at), tipo: 'call', b, pasado: true }));
+    /* Las tareas con fecha son compromisos con día y hora igual que una reunión. Que
+       vivieran solo en Hoy hacía que la Agenda dijera "no tenés nada" teniendo tres. */
+    if (dlTasksAt) Object.keys(dlTasksMap || {}).forEach((lid) => {
+      const t = dlTasksMap[lid];
+      if (!t || !t.due_date) return;
+      if (meEmail && t.assignee && String(t.assignee).toLowerCase() !== meEmail && hmAgendaScope !== 'all') return;
+      const cuando = Date.parse(t.due_date + 'T' + (t.due_time || '09:00') + ':00');
+      if (!cuando || cuando < ahora - 30 * 864e5) return;
+      items.push({ t: cuando, tipo: 'task', task: t, lead: lid, pasado: cuando < ahora });
+    });
+    items.sort((a, b) => a.t - b.t);
+    if (!items.length){
+      box.innerHTML = '<p class="muted-note">' + (hmAgendaScope === 'all' ? 'Sin reuniones ni tareas del equipo en los últimos 30 días ni adelante.' : 'Sin reuniones ni tareas tuyas en los últimos 30 días ni adelante.') + '</p>';
+      return;
+    }
+    const fmtCuando = (ms) => {
+      const d = new Date(ms);
+      return d.toLocaleDateString('es-CH', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+    };
+    let puestoHoy = false;
+    box.innerHTML = items.map((it) => {
+      let marca = '';
+      if (!puestoHoy && it.t >= ahora){ puestoHoy = true; marca = '<div class="ag-hoy"><span>hoy</span></div>'; }
+      if (it.tipo === 'task'){
+        return marca + '<div class="hatt-call' + (it.pasado ? ' ag-pas' : '') + '">' +
+          '<span class="hc-when">✅ ' + esc(fmtCuando(it.t)) + '</span>' +
+          '<button class="hc-who" type="button" data-lead="' + esc(String(it.lead)) + '">' + esc(it.task.title || 'Tarea') + '</button>' +
+          '<span class="hc-dur">' + (it.pasado ? 'vencida' : 'tarea') + '</span></div>';
+      }
+      const b = it.b;
       const hostBadge = (hmAgendaScope === 'all' && b.host_email) ? '<span class="hc-host">' + esc(teamName(b.host_email).split(/\s+/)[0] || b.host_email) + '</span>' : '';
-      return '<div class="hatt-call">' +
-        '<span class="hc-when">📅 ' + esc(when) + '</span>' +
+      return marca + '<div class="hatt-call' + (it.pasado ? ' ag-pas' : '') + '">' +
+        '<span class="hc-when">📅 ' + esc(fmtCuando(it.t)) + '</span>' +
         '<button class="hc-who" type="button"' + (b.lead_id ? ' data-lead="' + esc(String(b.lead_id)) + '"' : '') + '>' + esc(b.name || b.email) + '</button>' +
         hostBadge +
         '<span class="hc-dur">' + (b.duration_m || 15) + ' min</span>' +
-        (b.meet_url ? '<a class="hc-meet" href="' + esc(b.meet_url) + '" target="_blank" rel="noopener">Meet ↗</a>' : '') +
+        (!it.pasado && b.meet_url ? '<a class="hc-meet" href="' + esc(b.meet_url) + '" target="_blank" rel="noopener">Meet ↗</a>' : '') +
       '</div>';
-    }).join('') || '<p class="muted-note">' + (hmAgendaScope === 'all' ? 'Sin video calls del equipo en los próximos 7 días.' : 'Sin video calls tuyos en los próximos 7 días.') + '</p>';
+    }).join('') + (puestoHoy ? '' : '<div class="ag-hoy"><span>hoy</span></div><p class="muted-note" style="margin:10px 0 0">Nada agendado de acá en adelante.</p>');
     box.querySelectorAll('.hc-who[data-lead]').forEach((b) => b.addEventListener('click', () => openLead(b.dataset.lead)));
   }
 
@@ -7587,7 +7637,7 @@ const newsCases = [
      Un contacto puede tener varios proyectos; cada deal vive en el board con su
      etapa. leads.status queda como ESPEJO del deal más reciente (compat con
      follow-ups, Personas y KPIs). Sin SQL 0022 → deals sintéticos (legado). */
-  let dealsList = [], dealsReal = false, upBookings = [], bookingsHist = [];
+  let dealsList = [], dealsReal = false, upBookings = [], bookingsPasadas = [], bookingsHist = [];
   const synthDeal = (l) => ({ id: 'L' + l.id, synthetic: true, lead_id: l.id, title: null, stage: stageOf(l.status), deal_value: l.deal_value, lost_reason: l.lost_reason, archived: false, created_at: l.created_at, last_stage_at: l.last_stage_at, contacted_at: l.contacted_at, videocall_at: l.videocall_at, proposal_at: l.proposal_at, won_at: l.won_at, lost_at: l.lost_at });
   const leadById = (id) => (allLeads || []).find((l) => String(l.id) === String(id));
   const dealsForLead = (lid) => (dealsList || []).filter((d) => String(d.lead_id) === String(lid) && !d.archived);
