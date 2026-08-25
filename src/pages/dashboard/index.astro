@@ -3782,6 +3782,11 @@ const newsCases = [
       <h2 style="margin:0 0 4px">👤 Mi perfil</h2>
       <p class="muted-note" style="margin:0 0 16px">Tu foto y firma — se usan en el compositor de emails y en la 📤 Bandeja de salida cuando salís vos como remitente. Solo vos podés editar tu propio perfil acá.</p>
       <p class="muted-note" id="profile-who" style="margin:0 0 14px"></p>
+      <!-- Qué falta de este perfil y dónde se nota. El de Sofia el 25 ago 2026 no tenía
+           foto, ni teléfono, ni firma — y ella es la única que aparece en /book/, así que
+           es la cara que ve el cliente. Un formulario vacío no pide que lo llenes; decir
+           qué se rompe por estar vacío, sí. -->
+      <div class="cf-base" id="profile-falta" hidden></div>
       <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
         <div id="profile-avatar-preview" style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;background:#8ab4ff"></div>
         <div>
@@ -12666,9 +12671,17 @@ const newsCases = [
       box.querySelectorAll('.sv-row').forEach((row) => {
         const it = servicesList.find((x) => String(x.id) === String(row.dataset.id));
         const span = row.querySelector('[data-usage]'); if (!it || !span) return;
-        const n = m.get(String(it.name || '').trim().toLowerCase()) || 0;
-        if (n > 0){ span.className = 'usage'; span.textContent = 'usado en ' + n + (n === 1 ? ' oferta' : ' ofertas'); }
-        else { span.className = 'usage none'; span.textContent = 'sin uso reciente'; }
+        const clave = String(it.name || '').trim().toLowerCase();
+        const n = m.get(clave) || 0;
+        /* El uso se cuenta por NOMBRE, así que dos servicios que se llaman igual —hoy
+           "Producer" existe dos veces, a CHF 950/Tag y a CHF 120/Std— muestran los dos
+           el mismo número, que es la suma de los dos. Decirlo es más honesto que un 80
+           repetido que parece de cada uno. */
+        const homonimos = servicesList.filter((x) => String(x.name || '').trim().toLowerCase() === clave).length;
+        if (n > 0){
+          span.className = 'usage';
+          span.textContent = 'usado en ' + n + (n === 1 ? ' oferta' : ' ofertas') + (homonimos > 1 ? ' (entre los ' + homonimos + ' que se llaman igual)' : '');
+        } else { span.className = 'usage none'; span.textContent = 'sin uso reciente'; }
       });
     } catch (e) { /* usage es best-effort: nunca rompe la tab */ }
   }
@@ -16132,6 +16145,19 @@ const newsCases = [
     profileAvatarPendingUrl = p.avatar_url || null;
     profileRenderAvatar(p.avatar_url, p.name);
     profileRenderSignPreview();
+    profileFaltaRender(p);
+  }
+  /* Qué le falta a este perfil, dicho por lo que provoca — no por el campo vacío. */
+  function profileFaltaRender(p){
+    const box = $('profile-falta'); if (!box) return;
+    const falta = [];
+    if (!p.avatar_url) falta.push('<b>la foto</b> — los emails que salen a tu nombre muestran solo la inicial');
+    if (!p.signature_text) falta.push('<b>la firma</b> — se firma con tu nombre y rol pelados');
+    if (!p.phone) falta.push('<b>el teléfono</b> — no aparece en la firma de los emails');
+    if (!falta.length){ box.hidden = true; return; }
+    const enBook = p.book_visible ? ' Y sos vos quien aparece en <b>/book/</b>, así que es la cara que ve el cliente al reservar.' : '';
+    box.innerHTML = 'Te falta ' + falta.join('; ') + '.' + enBook;
+    box.hidden = false;
   }
   $('profile-signature') && $('profile-signature').addEventListener('input', profileRenderSignPreview);
   $('profile-avatar-btn') && $('profile-avatar-btn').addEventListener('click', () => $('profile-avatar-file').click());
