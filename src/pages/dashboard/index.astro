@@ -1058,6 +1058,13 @@ const newsCases = [
   .gads-lead-x:hover{border-color:var(--acid);color:var(--acid)}
 
   /* ---- rediseño sub-tab Search Console: oportunidades de CTR, tendencia, canibalización, indexación ---- */
+  /* dos buscadores lado a lado: cada uno con su marca visible */
+  .panel.buscador .bsc-kpis{grid-template-columns:repeat(2,1fr);gap:10px}
+  .panel.buscador .bsc-kpis .n{font-size:26px}
+  .bsc-logo{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;
+    font:800 13px/1 Inter,sans-serif;vertical-align:-4px;margin-right:5px}
+  .bsc-google{background:#fff;color:#4285F4}
+  .bsc-bing{background:#008373;color:#fff}
   #contenido-sub-seo .seo-money{color:var(--acid);font-weight:700;white-space:nowrap}
   #contenido-sub-seo .up{color:#7ed957;font-weight:700}
   #contenido-sub-seo .down{color:#ff8b8b;font-weight:700}
@@ -2890,12 +2897,28 @@ const newsCases = [
       <!-- Bing al lado de Google: hasta agosto 2026 solo mirábamos Google y Bing
            era otra herramienta a la que nadie entra. Manda pocas impresiones
            pero convierte mucho mejor, así que verlos juntos cambia decisiones. -->
-      <div class="panel" id="bing-panel" style="margin-top:14px" hidden>
+      <!-- Google y Bing, lado a lado y con el nombre a la vista. Antes Google no
+           decía "Google" en ningún lado y Bing estaba en otro panel más abajo, después
+           de una tabla de 100 filas — imposible comparar. (Pedido de Sebastián.) -->
+      <div class="gads-two" style="margin-top:0">
+        <div class="panel buscador" style="margin:0">
+          <div class="of-bar" style="margin-bottom:10px">
+            <h2 style="margin:0"><span class="bsc-logo bsc-google">G</span> Google Search Console</h2>
+          </div>
+          <p class="muted-note" id="seo-verdict" style="font-size:13.5px;line-height:1.55;margin:0 0 12px"></p>
+          <div class="kpis four bsc-kpis">
+            <div class="kpi"><div class="n" id="seo-k-clicks">–</div><div class="kdelta" id="seo-k-clicks-d"></div><div class="l">Clicks</div></div>
+            <div class="kpi"><div class="n" id="seo-k-impr">–</div><div class="kdelta" id="seo-k-impr-d"></div><div class="l">Impresiones</div></div>
+            <div class="kpi"><div class="n" id="seo-k-ctr">–</div><div class="kdelta" id="seo-k-ctr-d"></div><div class="l">CTR</div></div>
+            <div class="kpi"><div class="n" id="seo-k-pos">–</div><div class="kdelta" id="seo-k-pos-d"></div><div class="l">Posición media</div></div>
+          </div>
+        </div>
+      <div class="panel buscador" id="bing-panel" style="margin:0" hidden>
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <h2 style="margin:0">Bing <span class="count" id="bing-count"></span></h2>
+          <h2 style="margin:0"><span class="bsc-logo bsc-bing">b</span> Bing <span class="count" id="bing-count"></span></h2>
           <p class="muted-note" id="bing-verdict" style="margin:0;font-size:13.5px"></p>
         </div>
-        <div class="kpis four" style="margin-top:10px">
+        <div class="kpis four bsc-kpis" style="margin-top:10px">
           <div class="kpi"><div class="n" id="bing-k-clicks">–</div><div class="l">Clicks</div></div>
           <div class="kpi"><div class="n" id="bing-k-impr">–</div><div class="l">Impresiones</div></div>
           <div class="kpi"><div class="n" id="bing-k-ctr">–</div><div class="l">CTR</div></div>
@@ -2903,15 +2926,6 @@ const newsCases = [
         </div>
         <div class="lead-table-wrap" id="bing-top" style="margin-top:12px"></div>
       </div>
-
-      <div class="panel">
-        <p class="muted-note" id="seo-verdict" style="font-size:14px;line-height:1.55;margin:0 0 12px"></p>
-        <div class="kpis four">
-          <div class="kpi"><div class="n" id="seo-k-clicks">–</div><div class="kdelta" id="seo-k-clicks-d"></div><div class="l">Clicks</div></div>
-          <div class="kpi"><div class="n" id="seo-k-impr">–</div><div class="kdelta" id="seo-k-impr-d"></div><div class="l">Impresiones</div></div>
-          <div class="kpi"><div class="n" id="seo-k-ctr">–</div><div class="kdelta" id="seo-k-ctr-d"></div><div class="l">CTR</div></div>
-          <div class="kpi"><div class="n" id="seo-k-pos">–</div><div class="kdelta" id="seo-k-pos-d"></div><div class="l">Posición media</div></div>
-        </div>
       </div>
 
       <div id="seo-body"><p class="muted-note">Cargando…</p></div>
@@ -5012,7 +5026,7 @@ const newsCases = [
     // tab-analytics, así que el auto-refresh de Search Console dejaba de dispararse
     // en silencio.
     if (!$('tab-analytics').hidden && anaSub === 'gads' && typeof window.gadsLoad === 'function') window.gadsLoad();
-    if (!$('tab-contenido').hidden && contenidoSub === 'seo' && !seoLoaded) loadSeo();
+    if (!$('tab-contenido').hidden && contenidoSub === 'seo' && !seoLoaded){ loadSeo(); loadBing(); }
     licLoad(); // licencias no entraba en loadAll — se sumó para que también se mantenga al día sola
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
     loadBell();
@@ -7620,7 +7634,7 @@ const newsCases = [
     toast(status === 'actioned' ? '✓ Marcada como accionada' : '✕ Descartada');
   }
   function seoInit(){
-    kwInit(); if (!seoLoaded) loadSeo(); }
+    kwInit(); if (!seoLoaded){ loadSeo(); loadBing(); } }
 
   // ---- estado de sort + cache de la última respuesta de gsc-stats (para re-ordenar sin refetch) ----
   let seoData = null;
