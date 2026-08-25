@@ -68,6 +68,11 @@ Deno.serve(async (req) => {
          contable, y el catálogo por sí solo no dice cuál está vigente para ellos. */
       // ¿qué tasa es cada id? Se listan TODAS las activas con su valor, sin filtrar
       const todas = await bx("3.0/taxes?limit=300");
+      const enCero = Array.isArray(todas.body)
+        ? (todas.body as { id: number; name?: string; code?: string; value: string; is_active: boolean; type?: string }[])
+            .filter((t) => t.is_active && Number(t.value) === 0)
+            .map((t) => ({ id: t.id, name: t.name, code: t.code, type: t.type }))
+        : todas.body;
       const conValor = Array.isArray(todas.body)
         ? (todas.body as { id: number; name: string; value: string; is_active: boolean }[])
             .filter((t) => t.is_active && Number(t.value) > 0)
@@ -131,6 +136,7 @@ Deno.serve(async (req) => {
           : null,
         campos_de_una_factura: facturaEjemplo,
         impuestos_con_valor: conValor,
+        impuestos_en_cero: enCero,
         ultima_emitida: ultimaId,
         cabecera_de_esa: cabecera,
         posiciones_de_esa: posiciones,
@@ -148,32 +154,46 @@ Deno.serve(async (req) => {
                  language_id: 1, bank_account_id: 13, payment_type_id: 4,
                  tax_id: 66, account_id: 326, unit_id: 1 };
 
-    /* ===== EL IVA SE BUSCA, NO SE HARDCODEA =====
-       Sebastián: "es siempre 8,1% de IVA". El id 66 que venía copiado de la factura
-       RE-01121 efectivamente ES 8,1% —lo comprobé— pero dejarlo clavado es frágil:
-       en su catálogo hay SIETE ids activos con 8,1% y CINCO con 7,7%, todos vivos al
-       mismo tiempo. Un id equivocado no rompe nada visible: emite la factura con la
-       tasa vieja y el error aparece en la contabilidad, tarde.
-       Así que se resuelve por VALOR: la tasa de venta activa al 8,1%. El 66 queda
-       solo de respaldo, y si no aparece ninguna de 8,1% la función se niega a
-       facturar en vez de usar la que sea. */
+    /* ===== EL IVA: 8,1% O SIN IVA, SEGÚN EL CLIENTE =====
+       Primero lo hice siempre al 8,1%. Sebastián lo corrigió: "algunos clientes son
+       sin IVA ya que son extranjeros". Una exportación de servicios no lleva IVA
+       suizo, y facturárselo a un cliente alemán es un error que después hay que
+       corregir con una nota de crédito.
+       Ninguno de los dos ids se hardcodea. Se buscan por lo que SON:
+         · con IVA  → la tasa de venta (Umsatz) activa al 8,1%
+         · sin IVA  → la de exportación, que en bexio es la de tipo
+                      "not_taxable_turnover" (id 3 hoy: sales_export)
+       En su catálogo hay siete ids activos al 8,1% y cinco al 7,7% conviviendo, así
+       que elegir por número era jugar a la lotería: un id equivocado no rompe nada
+       visible, emite con la tasa vieja y el error aparece en la contabilidad, tarde.
+       Si falta cualquiera de las dos, la función se niega a facturar en vez de usar
+       la que sea. */
     const IVA_ESPERADO = 8.1;
-    let taxId = BX.tax_id;
+    let taxConIva: number | null = null, taxSinIva: number | null = null;
     {
       const tx = await bx("3.0/taxes?limit=300");
-      const activos = Array.isArray(tx.body)
-        ? (tx.body as { id: number; name?: string; value: string; is_active: boolean; is_sale?: boolean }[])
-            .filter((t) => t.is_active && Math.abs(Number(t.value) - IVA_ESPERADO) < 0.01)
+      const act = Array.isArray(tx.body)
+        ? (tx.body as { id: number; name?: string; value: string; is_active: boolean; type?: string }[]).filter((t) => t.is_active)
         : [];
-      if (activos.length) {
-        // preferir la de VENTA (Umsatz); si no hay, la primera de 8,1%
-        const venta = activos.find((t) => /umsatz/i.test(t.name ?? "")) || activos.find((t) => t.id === BX.tax_id) || activos[0];
-        taxId = venta.id;
-      } else if (tx.ok) {
-        return json({ error: `no encontré una tasa de IVA activa al ${IVA_ESPERADO}% en bexio — no facturo con otra` }, 502);
-      }
-      // si la consulta de impuestos falla (tx.ok === false) se sigue con el respaldo
+      const al81 = act.filter((t) => Math.abs(Number(t.value) - IVA_ESPERADO) < 0.01);
+      taxConIva = (al81.find((t) => /umsatz/i.test(t.name ?? "")) || al81.find((t) => t.id === BX.tax_id) || al81[0])?.id ?? null;
+      taxSinIva = act.find((t) => Number(t.value) === 0 && t.type === "not_taxable_turnover")?.id ?? null;
+      if (tx.ok && !taxConIva) return json({ error: `no encontré una tasa de venta activa al ${IVA_ESPERADO}% en bexio — no facturo con otra` }, 502);
+      if (!taxConIva) taxConIva = BX.tax_id;   // la consulta falló: respaldo
     }
+
+    /* Cuál se usa: lo decide Sebastián en la pantalla. Lo que hace la función es
+       SUGERIR según el país del contacto de bexio —fuera de Suiza y Liechtenstein,
+       exportación— para que el caso raro no dependa de acordarse. */
+    let paisContacto: number | null = null;
+    if (Number(body.contact_id)) {
+      const c = await bx(`contact/${Number(body.contact_id)}`);
+      paisContacto = (c.body as { country_id?: number } | undefined)?.country_id ?? null;
+    }
+    const sugerirSinIva = paisContacto != null && paisContacto !== 1 && paisContacto !== 2;   // 1 CH · 2 LI
+    const sinIva = body.iva === "no" || (body.iva === undefined && sugerirSinIva);
+    if (sinIva && !taxSinIva) return json({ error: "no encontré la tasa de exportación (0%) en bexio — no facturo sin IVA sin ella" }, 502);
+    const taxId = sinIva ? taxSinIva! : taxConIva!;
 
     const tipo = body.tipo === "propuesta" ? "propuesta" : "oferta";
     const docId = body.id;
@@ -330,7 +350,9 @@ Deno.serve(async (req) => {
         candidatos,
         cliente: { empresa, persona, email },
         total_documento: Math.round(totalDoc * 100) / 100,
-        iva: { pct: IVA_ESPERADO, tax_id: taxId },
+        iva: { sin_iva: sinIva, pct: sinIva ? 0 : IVA_ESPERADO, tax_id: taxId,
+               sugerido_por_pais: body.iva === undefined && sugerirSinIva,
+               pais_contacto: paisContacto, hay_tasa_export: !!taxSinIva },
         pct, importe_a_facturar: tramos[0].importe,
         facturas: tramos.map((t) => ({ etiqueta: t.etiqueta || "Factura completa", importe: t.importe })),
         posiciones: posiciones.map((p) => ({ texto: p.text.replace(/<[^>]+>/g, " ").trim().slice(0, 70), cantidad: p.amount, precio: p.unit_price })),
@@ -369,7 +391,8 @@ Deno.serve(async (req) => {
       }).then(() => {}, () => {});   // si falla el registro local, la factura ya existe: no se rompe
     }
 
-    return json({ ok: true, creadas, contacto_id: contactId, contacto_creado: contactoCreado, pct });
+    return json({ ok: true, creadas, contacto_id: contactId, contacto_creado: contactoCreado, pct,
+      iva: { sin_iva: sinIva, pct: sinIva ? 0 : IVA_ESPERADO } });
 
   } catch (e) {
     return json({ error: String(e) }, 500);

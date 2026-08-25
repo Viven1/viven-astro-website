@@ -722,6 +722,10 @@ const newsCases = [
   .bx-pcts button{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);
     font:600 14px/1 inherit;padding:11px 16px;cursor:pointer;font-variant-numeric:tabular-nums}
   .bx-pcts button.on{background:var(--acid);border-color:var(--acid);color:#16210a}
+  .bx-iva{display:inline-flex;gap:0;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;margin-left:8px;vertical-align:-4px}
+  .bx-iva button{background:none;border:0;color:var(--muted);font:600 12px/1 inherit;padding:6px 11px;cursor:pointer}
+  .bx-iva button.on{background:var(--acid);color:#16210a}
+  .bx-iva button:disabled{opacity:.4;cursor:not-allowed}
   .bx-cand{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:11px;
     padding:9px 12px;margin-top:7px;cursor:pointer;background:var(--navy-900)}
   .bx-cand.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 10%,transparent)}
@@ -13750,14 +13754,14 @@ const newsCases = [
      facturas propio (FEATURE_INVOICING) que Sebastián pausó en julio — dos sistemas
      numerando facturas es un problema contable disfrazado de comodidad.
      Siempre BORRADOR: se crea en bexio y la manda él desde ahí. */
-  let bxDoc = null, bxPct = 100, bxCand = null, bxTrasGanar = null;
+  let bxDoc = null, bxPct = 100, bxCand = null, bxTrasGanar = null, bxIva = null;
   const bxCerrar = () => { const m = $('bx-modal'); if (m) m.hidden = true; };
   function bxAbrir(tipo, id){
     const doc = tipo === 'propuesta'
       ? (ppList || []).find((x) => String(x.id) === String(id))
       : (offersList || []).find((x) => String(x.id) === String(id));
     if (!doc){ toast('No encontré ese documento'); return; }
-    bxDoc = { tipo, id, doc }; bxPct = 100; bxCand = null;
+    bxDoc = { tipo, id, doc }; bxPct = 100; bxCand = null; bxIva = null;   // null = que lo sugiera el país
     const lead = doc.lead_id ? (allLeads || []).find((l) => String(l.id) === String(doc.lead_id)) : null;
     $('bx-quien').textContent = doc.title || '(sin título)';
     $('bx-donde').textContent = [doc.client_company || (lead && lead.company), doc.client_email || (lead && lead.email)].filter(Boolean).join(' · ');
@@ -13788,8 +13792,9 @@ const newsCases = [
     const go = $('bx-go'); go.disabled = true;
     try {
       const { data, error } = await supabase.functions.invoke('bexio-invoice', {
-        body: { tipo: bxDoc.tipo, id: bxDoc.id, pct: bxPct, dry_run: true, contact_id: bxCand || undefined,
-                crear_contacto: bxCand === 'nuevo' } });
+        body: { tipo: bxDoc.tipo, id: bxDoc.id, pct: bxPct, dry_run: true,
+                contact_id: (bxCand && bxCand !== 'nuevo') ? bxCand : undefined,
+                crear_contacto: bxCand === 'nuevo', iva: bxIva || undefined } });
       if (error) throw error;
       if (data && data.error) throw new Error(data.error);
       const total = Number(data.total_documento) || 0;
@@ -13827,7 +13832,21 @@ const newsCases = [
         /* El IVA a la vista: no es decorativo. En el catálogo de bexio conviven
            tasas al 8,1% y al 7,7% activas, así que ver cuál se va a usar antes de
            crear es la única forma de cazar el día que agarre la equivocada. */
-        (data.iva ? '<div><i>🧮</i><span>IVA <b>' + data.iva.pct + '%</b> <span style="color:var(--muted-2)">(tasa de venta de bexio)</span></span></div>' : '');
+        (data.iva ? '<div><i>🧮</i><span>IVA:' +
+          '<span class="bx-iva">' +
+            '<button type="button" data-iva="si"' + (data.iva.sin_iva ? '' : ' class="on"') + '>8,1%</button>' +
+            '<button type="button" data-iva="no"' + (data.iva.sin_iva ? ' class="on"' : '') + (data.iva.hay_tasa_export ? '' : ' disabled title="bexio no tiene una tasa de exportación activa"') + '>sin IVA · extranjero</button>' +
+          '</span>' +
+          (data.iva.sugerido_por_pais ? '<br /><span style="color:var(--muted-2)">Sugerido: el contacto de bexio está fuera de Suiza</span>' : '') +
+          '</span></div>' : '');
+      /* La elección del IVA vive en el modal y no en la función: quién paga IVA y
+         quién no lo sabe él, no nosotros — un cliente alemán factura sin IVA aunque
+         la dirección diga otra cosa. La sugerencia por país es una ayuda, no la
+         decisión. */
+      $('bx-ctx').querySelectorAll('[data-iva]').forEach((b) => b.addEventListener('click', () => {
+        if (b.disabled) return;
+        bxIva = b.dataset.iva; bxEnsayo();
+      }));
       $('bx-go').textContent = facturas.length > 1 ? '🧾 Crear los 2 borradores en bexio' : '🧾 Crear borrador en bexio';
       $('bx-note').textContent = facturas.length > 1
         ? 'Las dos quedan en borrador. Mandás la primera ahora y la segunda cuando entregues.'
@@ -13845,7 +13864,7 @@ const newsCases = [
       const { data, error } = await supabase.functions.invoke('bexio-invoice', {
         body: { tipo: bxDoc.tipo, id: bxDoc.id, pct: bxPct,
                 contact_id: (bxCand && bxCand !== 'nuevo') ? bxCand : undefined,
-                crear_contacto: bxCand === 'nuevo' } });
+                crear_contacto: bxCand === 'nuevo', iva: bxIva || undefined } });
       if (error) throw error;
       if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
       bxCerrar();
@@ -13853,6 +13872,7 @@ const newsCases = [
       toast('🧾 ' + cr.map((c) => c.numero).join(' + ') + ' en bexio' + (data.contacto_creado ? ' · contacto nuevo' : ''));
       alert((cr.length > 1 ? 'Dos borradores creados en bexio:' : 'Borrador creado en bexio:') + '\n\n' +
         cr.map((c) => '· ' + c.numero + ' — ' + c.etiqueta + ' — CHF ' + c.total).join('\n') +
+        (data.iva ? '\n\nIVA: ' + (data.iva.sin_iva ? 'sin IVA (exportación)' : data.iva.pct + '%') : '') +
         '\n\nRevisalos y mandalos desde bexio cuando quieras.' +
         (cr.length > 1 ? '\nLa segunda queda esperando para cuando entregues.' : ''));
     } catch (e) {
