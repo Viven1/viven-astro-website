@@ -113,9 +113,24 @@ function parseFrom(headerVal: string): { name: string; email: string } {
 }
 
 Deno.serve(async (req) => {
-  if (CRON_SECRET && req.headers.get("Authorization") !== `Bearer ${CRON_SECRET}`) {
-    return new Response("forbidden", { status: 403 });
+  /* El preflight se contesta ANTES del chequeo de auth: un OPTIONS no lleva el
+     Authorization y devolvía 403, así que cualquier llamada desde el navegador moría
+     antes de empezar. Hasta hoy no molestaba porque solo la llamaba el cron (que no
+     hace preflight), pero el botón de rescate de la ficha sí la llama desde ahí. */
+  const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type" };
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  /* Y vale el JWT del dashboard además del cron_secret: rescatar los emails de una
+     persona es una acción de la pantalla, no del cron. */
+  const auth = req.headers.get("Authorization") ?? "";
+  let permitido = !CRON_SECRET || auth === `Bearer ${CRON_SECRET}`;
+  if (!permitido) {
+    try {
+      const sb = createClient(SB_URL, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
+      const { data: { user } } = await sb.auth.getUser();
+      permitido = !!user;
+    } catch (e) { permitido = false; }
   }
+  if (!permitido) return new Response("forbidden", { status: 403, headers: cors });
   try {
     const out: Record<string, unknown> = {};
     /* Ventana hacia atrás para llenar la cola de una vez con lo que ya llegó:
@@ -136,7 +151,7 @@ Deno.serve(async (req) => {
        y se trae todo lo que falte, entrante y saliente. Sebastián, 25 ago: "mirá que
        todos los emails siempre entren a la persona, si no no sirve de nada eso".
        Es idempotente: lo que ya está se saltea por gmail_id. */
-    const json = (b: unknown, st = 200) => new Response(JSON.stringify(b), { status: st, headers: { "Content-Type": "application/json" } });
+    const json = (b: unknown, st = 200) => new Response(JSON.stringify(b), { status: st, headers: { ...cors, "Content-Type": "application/json" } });
 
     /* Rescate en tanda: el mismo modo pero para varios contactos de una. Sirve para
        tapar el agujero histórico de una vez —los emails que quedaron afuera antes de
@@ -334,9 +349,9 @@ Deno.serve(async (req) => {
         out[mb.key] = "error: " + String(e);
       }
     }
-    return new Response(JSON.stringify({ ok: true, ...out }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, ...out }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 });

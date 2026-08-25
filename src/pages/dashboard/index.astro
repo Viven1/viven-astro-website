@@ -739,6 +739,10 @@ const newsCases = [
   .bx-cand.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 10%,transparent)}
   .bx-cand b{font-size:13.5px}
   .bx-cand small{color:var(--muted-2);font-size:12px;display:block}
+  .lm2-rescatar{margin-left:auto;background:transparent;border:1px dashed var(--line-strong);border-radius:999px;
+    color:var(--muted-2);font:600 11.5px/1 inherit;padding:6px 12px;cursor:pointer}
+  .lm2-rescatar:hover{border-color:var(--acid);color:var(--acid)}
+  .lm2-rescatar:disabled{opacity:.5;cursor:default}
   .pp2-dots{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-size:15px;line-height:1;padding:4px 9px;cursor:pointer}
   .pp2-dots:hover{color:var(--text);border-color:var(--acid)}
   #pp-list table{min-width:920px} /* móvil = scroll horizontal dentro del wrap, sin colapsar columnas */
@@ -10302,8 +10306,29 @@ const newsCases = [
   function lm2RenderChips(){
     const CH = [['all', 'Todo'], ['email', '✉️ Emails'], ['nota', '📝 Notas'], ['task', '✅ Tasks'], ['web', '🌐 Web'], ['sys', '⚙️ Etapas']];
     $('lm2-chips').innerHTML = CH.map(([k, l]) => { const n = k === 'all' ? lm2Events.length : lm2Events.filter((e) => e.ty === k || (k === 'nota' && e.ty === 'brief')).length;
-      return '<button data-f="' + k + '" class="' + (lm2Filter === k ? 'on' : '') + '">' + l + (n ? ' ' + n : '') + '</button>'; }).join('');
-    $('lm2-chips').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { lm2Filter = b.dataset.f; lm2RenderChips(); lm2RenderTl(); }));
+      return '<button data-f="' + k + '" class="' + (lm2Filter === k ? 'on' : '') + '">' + l + (n ? ' ' + n : '') + '</button>'; }).join('') +
+      /* Rescate manual de emails. El sync automático mira desde su último cursor, así
+         que hay tres formas de que falte algo: el email llegó antes de que existiera
+         la ficha (típico: escribe a info@, lo aprobás dos días después), entraron más
+         de 30 en la misma corrida, o el sync estuvo caído.
+         Este botón busca en Gmail por la dirección de esta persona SIN límite de
+         fecha y trae lo que falte. Es idempotente: lo que ya está se saltea.
+         (Sebastián, 25 ago: "mirá que todos los emails siempre entren a la persona".) */
+      (lm2Lead && lm2Lead.email ? '<button id="lm2-rescatar" class="lm2-rescatar" title="Buscar en Gmail todos los emails de esta persona y traer los que falten">⟳ Buscar emails</button>' : '');
+    $('lm2-chips').querySelectorAll('button[data-f]').forEach((b) => b.addEventListener('click', () => { lm2Filter = b.dataset.f; lm2RenderChips(); lm2RenderTl(); }));
+    const rb = $('lm2-rescatar');
+    if (rb) rb.addEventListener('click', async () => {
+      const r = lm2Lead; if (!r || !r.email) return;
+      rb.disabled = true; const prev = rb.textContent; rb.textContent = '⟳ Buscando…';
+      try {
+        const { data, error } = await supabase.functions.invoke('gmail-sync', { body: { lead_id: r.id } });
+        if (error || !data || data.error) throw new Error((data && data.error) || (error && error.message) || 'sin respuesta');
+        toast(data.traidos ? '✓ ' + data.traidos + ' email' + (data.traidos === 1 ? '' : 's') + ' recuperado' + (data.traidos === 1 ? '' : 's')
+                           : '✓ No falta ninguno (' + data.revisados + ' revisados en Gmail)');
+        if (data.traidos) openLead(r.id);   // recargar la ficha para que aparezcan
+      } catch (e) { toast('No se pudo buscar: ' + (e.message || e)); }
+      finally { rb.disabled = false; rb.textContent = prev; }
+    });
   }
   function lm2RenderTl(){
     const box = $('lm2-tl');
