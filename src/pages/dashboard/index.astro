@@ -629,6 +629,9 @@ const newsCases = [
   .fn-meta{text-align:right;font-size:12.5px;color:var(--muted)}
   .fn-meta b{display:block;color:var(--text);font-size:15px}
   .fn-meta span{font-size:11.5px;color:var(--muted-2)}
+  /* la segunda línea del meta: el % del paso previo, secundario al % sobre la base */
+  .fn-meta .fn-prev{display:block;margin-top:2px;font-size:11px;opacity:.75}
+  .fn-meta .fn-skip{color:#f0c060;opacity:.95}
   .fn-foot{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
   .fn-foot b{color:var(--text)}
   .fn-hint{color:var(--muted-2);font-size:11.5px}
@@ -10024,7 +10027,13 @@ const newsCases = [
       grid + '<path d="' + prevPath + '" class="g-prev"/><path d="' + areaPath + '" fill="url(#gfill)"/><path d="' + linePath + '" class="g-line"/>' + leadDots + hover + xls + '</svg>';
 
     /* funnel del período: del tráfico al cierre */
-    renderAnaFunnel(sessions.size, periodLeads, soloPersonas);
+    /* Ojo con qué se le pasa: los leads van del período ENTERO, no del tramo medido.
+       Un lead es un lead, no depende de si sabemos separar bots — recortarlos al
+       tramo dejaba el embudo comercial en dos filas y tiraba 29 días de señal buena.
+       Lo único que tiene otra ventana es el primer escalón (las personas), y por eso
+       el % entre ese escalón y los leads se suprime cuando las ventanas no coinciden. */
+    renderAnaFunnel(sessions.size, periodLeads, soloPersonas, rangeLabel().toLowerCase(),
+      !(soloPersonas && parcial));
 
     /* rendimiento por CANAL: sesiones vs leads */
     const chSessions = new Map();
@@ -10130,26 +10139,72 @@ const newsCases = [
   /* Funnel del período (sub-tab Web): arranca en SESIONES (tráfico) y baja hasta ganado.
      Adaptado de renderFunnel (Home/Personas) SIN tocarlo — acá la base es el tráfico y
      los pasos se cuentan sobre los leads CREADOS en el período (sus timestamps de etapa). */
-  function renderAnaFunnel(sessionCount, periodLeads, soloPersonas){
+  /* ===================== Funnel del período =====================
+     Tres cosas que estaban mal y que Sebastián vio en pantalla:
+
+     1) El primer escalón (personas, tramo medido desde el 24/08) se dividía contra
+        el segundo (leads del período entero). Con 79 personas de un día y 22 leads
+        de treinta daba 28% — la misma cuenta cruzada de las tablas de canales.
+        Ahora los leads del funnel salen del MISMO tramo que las personas.
+
+     2) "Ganado" no mostraba porcentaje. No es un bug del cálculo: el paso previo
+        (Propuesta) estaba en 0, y no se puede dividir por cero. Sebastián: "¿es
+        porque falta la propuesta? ¿no lo podemos dar igual?". Sí se puede, y hay
+        que hacerlo: el camino NO es obligatorio. De los 168 ganados que hay en la
+        base, 168 no tienen ni propuesta ni videollamada cargada. Un cierre que
+        saltó escalones sigue siendo un cierre.
+        Solución: cada escalón muestra su % sobre la BASE (los leads), que siempre
+        existe, y además el % del paso previo cuando ese paso tiene gente. Si el
+        anterior está vacío, se dice "salteó el paso anterior" en vez de un 0%
+        que parece un fracaso.
+
+     3) Es una cohorte: gente que ENTRÓ en el período, seguida hasta hoy. Los
+        escalones de abajo van a estar siempre bajos porque un negocio tarda meses
+        en cerrar — eso no es una fuga, es el calendario. Va dicho al pie. */
+  function renderAnaFunnel(sessionCount, funnelLeads, soloPersonas, ventanaTxt, mismaVentana){
     const el = $('ana-funnel'); if (!el) return;
     const stColor = (k) => (STAGES.find((x) => x.key === k) || {}).color || '#8ab4ff';
+    const base = funnelLeads.length;   // los leads son la base del embudo comercial
     const steps = [
       /* el primer escalón cambia de nombre según qué se esté contando: decir
          "sesiones" cuando son personas hace que el % del paso siguiente parezca otro */
-      { label: soloPersonas ? 'Personas' : 'Sesiones', n: sessionCount, color: '#8ab4ff' },
-      { label: 'Leads',      n: periodLeads.length, color: stColor('lead') },
-      { label: 'Video Call', n: periodLeads.filter((l) => l.videocall_at).length, color: stColor('videocall') },
-      { label: 'Propuesta',  n: periodLeads.filter((l) => l.proposal_at).length, color: stColor('propuesta') },
-      { label: 'Ganado',     n: periodLeads.filter((l) => l.won_at).length, color: stColor('ganado') },
+      { label: soloPersonas ? 'Personas' : 'Sesiones', n: sessionCount, color: '#8ab4ff', web: true },
+      { label: 'Leads',      n: base, color: stColor('lead') },
+      { label: 'Video Call', n: funnelLeads.filter((l) => l.videocall_at).length, color: stColor('videocall') },
+      { label: 'Propuesta',  n: funnelLeads.filter((l) => l.proposal_at).length, color: stColor('propuesta') },
+      { label: 'Ganado',     n: funnelLeads.filter((l) => l.won_at).length, color: stColor('ganado') },
     ];
     const top = Math.max(1, steps[0].n);
     el.innerHTML = steps.map((s, i) => {
-      const prev = i ? steps[i - 1].n : s.n;
-      const conv = i ? (prev ? Math.round(s.n / prev * 100) : 0) : 100;
+      let meta;
+      if (i === 0){
+        meta = '<b>100%</b><span>base</span>';
+      } else if (i === 1){
+        /* Este es el único salto que cruza dos mediciones distintas: arriba, gente
+           medida desde el 24/08; acá, leads del período entero. Dividir uno por otro
+           daba 28% — el número que ya nos hizo tropezar una vez. Si las ventanas no
+           coinciden, no hay porcentaje: se dice por qué. */
+        const pct = (mismaVentana && sessionCount) ? Math.round(s.n / sessionCount * 100) : null;
+        meta = pct == null
+          ? '<b>—</b><span>otra ventana que las personas</span>'
+          : '<b>' + pct + '%</b><span>de las personas</span>';
+      } else {
+        const prev = steps[i - 1].n;
+        const pctBase = base ? (s.n / base * 100) : null;
+        const bTxt = pctBase == null ? '—' : (pctBase < 10 && pctBase > 0 ? pctBase.toFixed(1) : Math.round(pctBase)) + '%';
+        meta = '<b>' + bTxt + '</b><span>de los leads</span>' +
+          (prev > 0 ? '<span class="fn-prev">' + Math.round(s.n / prev * 100) + '% del paso previo</span>'
+                    : (s.n > 0 ? '<span class="fn-prev fn-skip">salteó el paso anterior</span>' : ''));
+      }
       return '<div class="fn-row"><div class="fn-label">' + s.label + '</div>' +
         '<div class="fn-bar-wrap"><div class="fn-bar" style="width:' + Math.max(5, Math.round(s.n / top * 100)) + '%;background:' + s.color + '"><span class="fn-n">' + s.n + '</span></div></div>' +
-        '<div class="fn-meta">' + (i ? '<b>' + conv + '%</b><span>del paso previo</span>' : '<b>100%</b><span>base</span>') + '</div></div>';
-    }).join('') + '<div class="fn-foot">Cada % es sobre el paso anterior · leads creados en ' + esc(rangeLabel().toLowerCase()) + '</div>';
+        '<div class="fn-meta">' + meta + '</div></div>';
+    }).join('') +
+      '<div class="fn-foot">Cohorte: los leads que entraron en ' + esc(ventanaTxt || rangeLabel().toLowerCase()) +
+      ', seguidos hasta hoy. Los escalones de abajo van bajos porque un negocio tarda meses en cerrar — eso es el calendario, no una fuga. ' +
+      'Y los pasos no son obligatorios: se puede cerrar sin propuesta cargada.' +
+      (mismaVentana ? '' : ' El primer escalón mide otra ventana (las personas se miden desde el 24/08), por eso ese salto no lleva porcentaje.') +
+      '</div>';
   }
 
   /* =================== OFFER TOOL (Kostenkalkulation) =================== */
