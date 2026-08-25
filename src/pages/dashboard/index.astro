@@ -2431,10 +2431,9 @@ const newsCases = [
     <div id="ana-sub-web">
       <div class="kpis">
         <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l" id="ka-sessions-l">Sesiones (visitas)</div></div>
-        <div class="kpi"><div class="n" id="ka-people">–</div><div class="kdelta" id="ka-people-d"></div><div class="l" id="ka-people-l">Personas</div></div>
         <div class="kpi"><div class="n" id="ka-views">–</div><div class="kdelta" id="ka-views-d"></div><div class="l" id="ka-views-l">Páginas vistas</div></div>
         <div class="kpi"><div class="n" id="ka-time">–</div><div class="kdelta" id="ka-time-d"></div><div class="l" id="ka-time-l">Tiempo medio en página</div></div>
-        <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l">Leads (conversiones)</div></div>
+        <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l" id="ka-conv-l">Leads (conversiones)</div></div>
         <div class="kpi"><div class="n" id="ka-rate">–</div><div class="kdelta" id="ka-rate-d"></div><div class="l">Tasa de conversión</div></div>
       </div>
       <div class="vv-cargando-aviso"><span class="pt"></span> Actualizando la analítica del período elegido…</div>
@@ -9866,17 +9865,21 @@ const newsCases = [
     setL('ka-views', real.length.toLocaleString('de-CH'));
     setL('ka-views-l', soloPersonas ? 'Páginas vistas de personas' + sufijo : 'Páginas vistas · incluye bots');
     setL('ka-sessions', sessions.size.toLocaleString('de-CH'));
-    setL('ka-sessions-l', soloPersonas ? 'Visitas de personas' + sufijo : 'Sesiones · incluye bots');
-    const actEn = (a, b) => new Set(humanAct
-      .filter((x) => { const t = Date.parse(x.created_at); return t >= a && t <= b; })
-      .map((x) => x.session_id));
-    const people = actEn(rangeStart(), rangeEnd());
-    const pPeople = actEn(prevWin.start, prevWin.end);
-    const hayDato = rangeStart() >= HUMAN_DESDE || people.size > 0;
-    $('ka-people').textContent = hayDato ? people.size : '—';
-    $('ka-people-l').textContent = hayDato ? 'Personas (sin bots)' : 'Personas — se mide desde el 24/08';
-    if (hayDato && prevWin.start >= HUMAN_DESDE) setDelta('ka-people-d', people.size, pPeople.size);
-    else $('ka-people-d').textContent = '';
+    setL('ka-sessions-l', soloPersonas ? 'Personas' + sufijo : 'Sesiones · incluye bots');
+    /* Los leads son del período ENTERO; las personas, solo del tramo medido. Si no
+       se dice, la tarjeta de al lado invita a dividir una por otra — y esa cuenta
+       (22 leads de 30 días ÷ 79 personas de uno) da 28%, que es justo el error que
+       Sebastián ya cazó una vez. Por eso cada tarjeta lleva SU ventana escrita. */
+    setL('ka-conv-l', 'Leads (conversiones)' + (soloPersonas && parcial ? ' · ' + rangeLabel().toLowerCase() : ''));
+    /* Acá había una segunda tarjeta, "Personas (sin bots)", que salía de contar
+       session_activity directo. Daba 81 mientras la de al lado decía 79 "visitas de
+       personas" — y son la misma cosa: no sabemos identificar a una persona entre
+       dos visitas, así que "una persona" y "una visita de una persona" son el mismo
+       número. La diferencia eran dos sesiones con actividad cuyo pageview no estaba
+       en la ventana cargada: ruido de implementación, no un dato distinto.
+       Dos números parecidos con nombres parecidos no informan, hacen dudar de los
+       dos. Queda uno solo. (Sebastián, 25 ago: "visitas de personas y personas...
+       ¿no es lo mismo? ¿por qué diferentes números?") */
     const durs = real.filter((r) => r.duration > 0);
     const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
     /* Hasta el 25/08 esto medía la pestaña abierta, no la pestaña mirada: una
