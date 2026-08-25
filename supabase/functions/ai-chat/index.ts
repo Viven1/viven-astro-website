@@ -92,7 +92,7 @@ GERMAN, when it applies: always formal ("Sie", never "du"), Swiss spelling ("ss"
 LENGTH: two to four sentences. This is a chat, not a brochure. No bullet lists unless they asked for a comparison. At most one question per reply.
 
 THE THREE HARD RULES — breaking any of these costs the company money:
-1. NEVER give a price for their specific project. Not a number, not a "roughly", not a per-day rate, not "somewhere around". You may state the published range (CHF 4,000–80,000) and that price is driven by length, complexity and shoot days. For anything more precise, send them to the cost calculator: it gives an itemised range by email in about a minute. If they push for a number a second time, say plainly that an honest number needs two minutes of their brief and offer the call — do not invent one.
+1. NEVER give a price for their specific project. Not a number, not a "roughly", not a per-day rate, not "somewhere around". You may state the published range (CHF 4,000–80,000) and that price is driven by length, complexity and shoot days. For anything more precise, send them to the cost calculator: it gives an itemised range by email in about a minute. The calculator asks for video type, final length, shoot days, how many locations, who is on camera and extras — it does NOT ask for a city, an industry or a deadline, so never say the estimate is tailored to their location, their sector or their timeline. If they push for a number a second time, say plainly that an honest number needs two minutes of their brief and offer the call — do not invent one.
 2. NEVER promise dates, availability, capacity or that something fits their budget. You may repeat published timings (first draft ~2 weeks after the agreed start; social in days; employer branding 4–8 weeks). Availability for specific dates is confirmed by Sofia or one of our producers, not here.
 3. NEVER mention or hint at anything you know about their behaviour on the site — pages seen, videos watched, that they used the calculator. Those signals are internal. Write as if this conversation is all you have.
 
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
     /* Lectura de la charla para el equipo. Haiku alcanza y cuesta una fracción;
        nunca toca lo que ve el visitante. */
     const transcript = turns.map((t) => (t.role === "user" ? "VISITOR: " : "VIVEN: ") + t.content).join("\n") + "\nVIVEN: " + reply;
-    let lead: Record<string, unknown> = {}; let action = "none"; let handoff = false;
+    let lead: Record<string, unknown> = {}; let action = "none"; let handoff = false; let replyLang = l;
     try {
       const r2 = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -170,8 +170,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 400,
           system: `You read a chat between a visitor and Viven's website assistant and fill in the contact card for the producer. Answer with ONE JSON object and nothing else:
-{"name":"","email":"","company":"","type":"","timing":"","summary":"","action":"book|calc|brief|none","handoff":false}
-Only what the VISITOR actually said — empty string when they did not say it, never a guess. "type" is the kind of video, "timing" is when they need it. "summary" is one line in Spanish for the producer. "action" is the next step the assistant pointed to: book (a call), calc (the cost calculator), brief (the written form), none. "handoff" is true when a human should take over: an existing project, a complaint, a price they keep insisting on, or anything the assistant refused to answer.`,
+{"name":"","email":"","company":"","type":"","timing":"","summary":"","action":"book|calc|brief|none","lang":"en|de|es","handoff":false}
+Only what the VISITOR actually said — empty string when they did not say it, never a guess. "type" is the kind of video, "timing" is when they need it. "summary" is one line in Spanish for the producer. "action" is the next step the ASSISTANT'S LAST MESSAGE actually offered, in its own words — book when it offered a call, calc when it pointed at the cost calculator, brief when it offered the written form. If that last message offered nothing, it is "none": do NOT carry over the step from an earlier message, and do NOT invent one because it seems useful. "lang" is the language that last message is written in ("en", "de" or "es"), whatever the page language was. "handoff" is true when a human should take over: an existing project, a complaint, a price they keep insisting on, or anything the assistant refused to answer.`,
           messages: [{ role: "user", content: transcript.slice(-6000) }],
         }),
       });
@@ -182,13 +182,16 @@ Only what the VISITOR actually said — empty string when they did not say it, n
         const mm = t2.match(/\{[\s\S]*\}/); if (mm) t2 = mm[0];
         const o = JSON.parse(t2) as Record<string, unknown>;
         action = ["book", "calc", "brief", "none"].includes(String(o.action)) ? String(o.action) : "none";
+        // el idioma real de la respuesta, no el de la pantalla: si el visitante
+        // escribió en español, el botón tiene que estar en español
+        if (["en", "de", "es"].includes(String(o.lang))) replyLang = String(o.lang);
         handoff = o.handoff === true;
         lead = { name: o.name ?? "", email: o.email ?? "", company: o.company ?? "", type: o.type ?? "", timing: o.timing ?? "", summary: o.summary ?? "" };
       }
     } catch (e) { console.error("LEAD_READ_FAILED", String(e)); }
 
     return new Response(JSON.stringify({
-      reply, lang: l, action, lead, handoff,
+      reply, lang: replyLang, action, lead, handoff,
       usage: data.usage ?? null,   // solo la llamada que le habla al visitante; la lectura de la ficha es Haiku y cuesta centésimas
     }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {
