@@ -2274,7 +2274,7 @@ const newsCases = [
         <div class="kpi"><div class="n" id="kl-contacted">–</div><div class="l">Contactados</div></div>
         <div class="kpi"><div class="n" id="kl-won">–</div><div class="l">Ganados</div></div>
         <div class="kpi"><div class="n" id="kl-lost">–</div><div class="l">Perdidos</div></div>
-        <div class="kpi"><div class="n" id="kl-convrate">–</div><div class="l">Tasa de conversión</div></div>
+        <div class="kpi"><div class="n" id="kl-convrate">–</div><div class="l" id="ka-rate-l">Tasa de conversión</div></div>
         <div class="kpi"><div class="n" id="kl-followup">–</div><div class="l">Follow-ups esta semana</div></div>
       </div>
       <div class="panel" style="margin-top:14px">
@@ -2419,9 +2419,9 @@ const newsCases = [
     <!-- ============ SUB: WEB ============ -->
     <div id="ana-sub-web">
       <div class="kpis">
-        <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l">Sesiones (visitas)</div></div>
+        <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l" id="ka-sessions-l">Sesiones (visitas)</div></div>
         <div class="kpi"><div class="n" id="ka-people">–</div><div class="kdelta" id="ka-people-d"></div><div class="l" id="ka-people-l">Personas</div></div>
-        <div class="kpi"><div class="n" id="ka-views">–</div><div class="kdelta" id="ka-views-d"></div><div class="l">Páginas vistas</div></div>
+        <div class="kpi"><div class="n" id="ka-views">–</div><div class="kdelta" id="ka-views-d"></div><div class="l" id="ka-views-l">Páginas vistas</div></div>
         <div class="kpi"><div class="n" id="ka-time">–</div><div class="kdelta" id="ka-time-d"></div><div class="l">Tiempo medio en página</div></div>
         <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l">Leads (conversiones)</div></div>
         <div class="kpi"><div class="n" id="ka-rate">–</div><div class="kdelta" id="ka-rate-d"></div><div class="l">Tasa de conversión</div></div>
@@ -9749,8 +9749,36 @@ const newsCases = [
       inRange(l.created_at) && !/^claude-/.test(l.session_id || '') && !esCartera(l));
 
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
-    $('ka-views').textContent = real.length;
-    $('ka-sessions').textContent = sessions.size;
+    /* ===== Sin bots, o dicho ===== (Sebastián, 25 ago: "mirá que las páginas vistas
+       sea sin los bots también, sino no sirve de nada").
+       Desde el 24/08 sabemos qué sesiones son de una persona (session_activity:
+       scroll, puntero, toque). Con eso:
+         · si el período elegido está ENTERO medido → sesiones y páginas vistas se
+           cuentan solo de personas
+         · si está medido a medias → se muestran las de la parte medida, diciendo
+           desde cuándo (mismo criterio que la tarjeta de Hoy)
+       Nunca un total con bots adentro presentado como si fuera gente. */
+    const humanIds = new Set((humanAct || [])
+      .filter((x) => { const t = Date.parse(x.created_at); return t >= Math.max(rangeStart(), HUMAN_DESDE) && t <= rangeEnd(); })
+      .map((x) => x.session_id));
+    const medidoDesde = Math.max(rangeStart(), HUMAN_DESDE);
+    const hayMedicion = rangeEnd() > HUMAN_DESDE;
+    const parcial = rangeStart() < HUMAN_DESDE;
+    const diasMed = Math.max(1, Math.round((rangeEnd() - medidoDesde) / 864e5));
+    const sufijo = parcial ? ' · últimos ' + diasMed + (diasMed === 1 ? ' día' : ' días') : '';
+    const realH = real.filter((r) => humanIds.has(r.session_id));
+    const setL = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
+    if (hayMedicion){
+      setL('ka-views', realH.length.toLocaleString('de-CH'));
+      setL('ka-views-l', 'Páginas vistas de personas' + sufijo);
+      setL('ka-sessions', humanIds.size.toLocaleString('de-CH'));
+      setL('ka-sessions-l', 'Visitas de personas' + sufijo);
+    } else {
+      setL('ka-views', real.length.toLocaleString('de-CH'));
+      setL('ka-views-l', 'Páginas vistas · incluye bots');
+      setL('ka-sessions', sessions.size.toLocaleString('de-CH'));
+      setL('ka-sessions-l', 'Sesiones · incluye bots');
+    }
     const actEn = (a, b) => new Set(humanAct
       .filter((x) => { const t = Date.parse(x.created_at); return t >= a && t <= b; })
       .map((x) => x.session_id));
@@ -9765,7 +9793,26 @@ const newsCases = [
     const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
     $('ka-time').textContent = fmtTime(avg);
     $('ka-conv').textContent = periodLeads.length;
-    $('ka-rate').textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
+    /* La tasa se calculaba leads ÷ sesiones, con las sesiones llenas de bots: daba
+       0,3% y hacía parecer que la web no convierte. Ahora se calcula contra personas
+       y SOLO si el período entero está medido — con medio período, el numerador
+       (leads de 30 días) y el denominador (personas de 1 día) son de escalas
+       distintas y el resultado sería igual de falso, para el otro lado. */
+    const rateEl = $('ka-rate'), rateL = $('ka-rate-l');
+    if (hayMedicion && !parcial && humanIds.size){
+      if (rateEl) rateEl.textContent = (periodLeads.length / humanIds.size * 100).toFixed(1) + '%';
+      if (rateL) rateL.textContent = 'De cada 100 personas, cuántas dejan datos';
+    } else {
+      if (rateEl) rateEl.textContent = '—';
+      /* la fecha se calcula, no se escribe a mano: depende del rango elegido
+         (con 90 días la respuesta es otra que con 30) */
+      const listoEl = new Date(HUMAN_DESDE + (rangeEnd() - rangeStart()));
+      if (rateL) rateL.textContent = parcial || !hayMedicion
+        ? 'se puede calcular desde el ' + listoEl.toLocaleDateString('es-CH', { day: '2-digit', month: '2-digit' }) +
+          ', con el período entero medido'
+        : 'sin personas medidas en el período';
+      const rd = $('ka-rate-d'); if (rd) rd.textContent = '';
+    }
     cvpRender();   // conversión real por mes/trimestre/año (no depende del período de arriba)
 
     /* ▲▼ vs el período anterior de igual longitud (pageviews de prevViews, leads por created_at) */
