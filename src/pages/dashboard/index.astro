@@ -122,7 +122,13 @@ const newsCases = [
   :root[data-theme="light"] .lead-form button[type="submit"],
   :root[data-theme="light"] .toolbar .fpill.active,
   :root[data-theme="light"] .vt-btn.active{background:#dff28b;border-color:#dff28b;color:#1c2508}
-  .dash-wrap{max-width:1220px;margin:0 auto;padding:32px 24px 80px}
+  /* 1220 px fijos dejaban ~350 px de aire a cada lado en un monitor normal, y el
+     dashboard es sobre todo tablas y tableros — cosas que ganan con el ancho, no
+     párrafos que se vuelven ilegibles. (Sebastián, 25 ago: "ninguna pantalla es
+     fullscreen, todas tienen un espacio en los costados al pedo".)
+     El tope alto es para que en un monitor ultra-ancho el pipeline no quede con
+     columnas de dos metros; el 96vw hace el trabajo en todo lo demás. */
+  .dash-wrap{max-width:min(1760px, 96vw);margin:0 auto;padding:32px 28px 80px}
   /* Los KPIs de analítica cargan en una segunda fase (loadAnalytics). Al cambiar
      el período, los números viejos se quedaban en pantalla unos segundos como si
      fueran los nuevos — Sebastián lo leyó como "no cambia". Ahora se ven en
@@ -438,6 +444,8 @@ const newsCases = [
   @media(max-width:980px){.kpis,.kpis.four{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:1280px){.grid-2{grid-template-columns:1fr}}
   /* ---------- Pipeline kanban ---------- */
+  .dl-menu-lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:700;padding:8px 12px 4px}
+  .dl-mv-dot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:8px;vertical-align:0}
   .pipe-pager{display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:6px 8px}
   .pipe-pager[hidden]{display:none!important}
   .pipe-pager button{width:42px;height:38px;border-radius:9px;border:1px solid var(--line-strong);background:transparent;color:var(--text);font-size:20px;line-height:1;cursor:pointer}
@@ -510,7 +518,7 @@ const newsCases = [
   .co2-c{padding:16px 20px;background:rgba(0,0,0,.12);min-width:0}
   .co2-r{border-left:1px solid var(--line);padding:14px}
   /* el detalle necesita todo el ancho: solo cuando está abierto, el wrap crece (los demás tabs no cambian) */
-  .dash-wrap:has(#tab-companies:not([hidden]) #co-detail:not([hidden])){max-width:1600px}
+  /* la ficha de empresa ya no necesita su excepción: el ancho general la cubre */
   /* KPIs del centro más densos: números chicos, menos padding → la timeline gana alto */
   #co-kpis{gap:10px;margin-bottom:14px}
   #co-kpis .kpi{padding:8px 12px}
@@ -2347,7 +2355,12 @@ const newsCases = [
       </div>
     </div>
     <div class="panel crm-form" id="dl-form" hidden>
-      <h2 style="margin-top:0">➕ Nuevo deal (proyecto)</h2>
+      <!-- Se llamaba "Nuevo deal (proyecto)" y en la ficha "Nuevo proyecto", así que
+           parecían dos cosas y son la misma fila. Un deal es una OPORTUNIDAD DE VENTA;
+           un proyecto es el trabajo que se produce después de ganarla, y eso hoy no
+           existe en ningún lado. Mientras no exista, no se llama proyecto.
+           (Sebastián, 25 ago: "creamos proyectos pero no se los ve en ningún lado".) -->
+      <h2 style="margin-top:0">➕ Nuevo deal</h2>
       <div class="crm-grid">
         <label>Persona *<select class="ed-inp" id="dlf-lead"></select></label>
         <label>Nombre del proyecto *<input class="ed-inp" id="dlf-title" placeholder="p. ej. Employer branding 2026" /></label>
@@ -7368,10 +7381,31 @@ const newsCases = [
      hay denominador. Cuando haya historial de perdidos, esto se reemplaza por el
      porcentaje real y se borra este comentario. */
   const PROB_PROPUESTA = [{ dias: 7, p: 0.5 }, { dias: 14, p: 0.35 }, { dias: Infinity, p: 0.2 }];
+  /* ¿Hay un documento de verdad afuera? Una oferta o una propuesta enviada (o
+     aceptada) ligada a este deal. La tarjeta ya lo dice con "⚠ sin documento"; esto
+     es para que el NÚMERO también lo sepa. */
+  function dealTieneDoc(d){
+    const ofs = offersForDeal(d).filter((o) => o.status !== 'tier' && !o.archived);
+    if (ofs.some((o) => o.status === 'sent' || o.status === 'won')) return true;
+    return (propsAll || []).some((p) => !p.archived && !p.is_template && p.lead_id
+      && String(p.lead_id) === String(d.lead_id) && (p.status === 'sent' || p.status === 'accepted'));
+  }
   function dealProb(d){
     const et = stageOf(d.stage);
     const base = (STAGES.find((s) => s.key === et) || {}).prob || 0;
     if (et !== 'propuesta') return base;
+    /* ===== "PROPUESTA ENVIADA" SIN PROPUESTA ENVIADA =====
+       Medido el 25 ago: de los 8 deals en esa columna, solo 3 tienen un documento
+       afuera. Los otros 5 pesaban 80% en el ponderado del mes — o sea que más de la
+       mitad de esa columna era una probabilidad inventada sobre algo que nunca salió.
+       Sebastián: "los deals no pueden estar en propuesta enviada sin documento, eso
+       tiene que ser un error".
+       Decisión: NO se mueve la tarjeta sola. Una propuesta puede haber salido por
+       fuera del sistema —un PDF por mail, una llamada— y mover algo de columna sin
+       que él lo toque hace desconfiar del tablero entero. Pero mientras no haya
+       documento, el deal pesa lo que pesa un "Contactado" (40%), no un 80%. La
+       tarjeta ya avisa con "⚠ sin documento"; ahora el número tampoco miente. */
+    if (!dealTieneDoc(d)) return (STAGES.find((s) => s.key === 'contactado') || {}).prob || 0.4;
     const dias = dealStageDays(d);
     return (PROB_PROPUESTA.find((x) => dias <= x.dias) || { p: 0.2 }).p;
   }
@@ -7875,11 +7909,21 @@ const newsCases = [
     if (!menu.hidden && menu.dataset.id === String(btn.dataset.id)){ menu.hidden = true; return; }
     const d = (dealsList || []).find((x) => String(x.id) === String(btn.dataset.id)); if (!d) return;
     menu.dataset.id = String(d.id);
+    /* Mover de etapa desde acá y no solo arrastrando. En el teléfono el tablero
+       muestra UNA columna por vez con un paginador, así que arrastrar entre columnas
+       es directamente imposible — y el menú solo ofrecía Ganado y Perdido, o sea que
+       desde el teléfono un deal solo podía avanzar hasta cerrarse. */
+    const et = stageOf(d.stage);
     menu.innerHTML =
+      '<div class="dl-menu-lbl">Mover a</div>' +
+      STAGES.filter((x) => DL_OPEN.includes(x.key) && x.key !== et)
+        .map((x) => '<button data-mv="' + x.key + '" type="button"><span class="dl-mv-dot" style="background:' + x.color + '"></span>' + x.label + '</button>').join('') +
+      '<hr />' +
       '<button data-act="won" type="button">🏆 Ganado</button>' +
       '<button data-act="lost" type="button">✖ Perdido</button>' +
-      '<button data-act="task" type="button">➕ Task</button>' +
-      '<hr /><button data-act="open" type="button">👤 Abrir contacto</button>' +
+      (et === 'seguimiento_futuro' ? '' : '<button data-mv="seguimiento_futuro" type="button">💤 Seguimiento futuro</button>') +
+      '<hr /><button data-act="task" type="button">➕ Task</button>' +
+      '<button data-act="open" type="button">👤 Abrir contacto</button>' +
       (d.synthetic ? '' : '<hr /><button data-act="del" type="button" class="danger">🗑 Borrar</button>');
     menu.hidden = false;
     const r = btn.getBoundingClientRect();
@@ -7887,6 +7931,12 @@ const newsCases = [
     menu.style.top = Math.min(r.bottom + 6, window.innerHeight - menu.offsetHeight - 8) + 'px';
     menu.querySelectorAll('button').forEach((mb) => mb.addEventListener('click', async (ev) => {
       ev.stopPropagation(); menu.hidden = true;
+      const mv = mb.dataset.mv;
+      if (mv){
+        const ok = await setDealStage(d.id, mv);
+        if (ok) toast('→ ' + ((STAGES.find((x) => x.key === mv) || {}).label || mv));
+        return;
+      }
       const act = mb.dataset.act;
       if (act === 'won'){ const ok = await setDealStage(d.id, 'ganado'); if (ok) toast('🏆 Deal ganado'); }
       else if (act === 'lost'){ const ok = await setDealStage(d.id, 'perdido'); if (ok) toast('✖ Deal perdido'); }   // setDealStage ya pregunta el motivo
@@ -10284,7 +10334,7 @@ const newsCases = [
       '<div class="lm2-as"><div class="top">🤝 Proyectos <span class="n">' + ldeals.length + '</span></div>' +
         ldeals.map((d) => { const v = stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
           return '<div class="row" style="cursor:default">' + esc(d.title || '(proyecto)') + ' ' + stB(d.stage) + '<span class="amt">' + (v ? fmtChf(v) : '—') + '</span></div>'; }).join('') +
-        '<button class="add" id="lm2-add-deal" type="button">➕ Nuevo proyecto</button></div>' +
+        '<button class="add" id="lm2-add-deal" type="button">➕ Nuevo deal</button></div>' +
       '<div class="lm2-as"><div class="top">🧾 Ofertas y propuestas <span class="n">' + (ofs.length + props.length) + '</span></div>' +
         ofs.map((o) => '<button class="row lm2-of" data-oid="' + o.id + '" type="button">' + esc(o.title || '(sin título)') + ' ' + ofB(o.status) + '<span class="amt">' + fmtM(offerNet(o)) + '</span></button>').join('') +
         props.map((p) => '<button class="row lm2-pp" data-pid="' + p.id + '" type="button">🌐 ' + esc(p.title || '(propuesta)') + ' ' + ofB(p.status) + '</button>').join('') +

@@ -100,6 +100,12 @@ function valeLaPenaPreguntar(email: string, headers: { name: string; value: stri
   if (headers.some((h) => h.name.toLowerCase() === "list-unsubscribe")) return false;
   return true;
 }
+/* Todos los destinatarios de un mensaje (To + Cc), en minúscula. Sirve para los
+   ENVIADOS: ahí el cliente no es quien escribe, es a quien le escribimos. */
+function destinatarios(headers: { name: string; value: string }[]): string[] {
+  const crudo = headers.filter((h) => ["to", "cc"].includes(h.name.toLowerCase())).map((h) => h.value).join(",");
+  return [...new Set((crudo.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi) ?? []).map((e) => e.toLowerCase()))];
+}
 function parseFrom(headerVal: string): { name: string; email: string } {
   const m = headerVal.match(/^(.*?)\s*<(.+?)>$/);
   if (m) return { name: m[1].replace(/"/g, "").trim(), email: m[2].toLowerCase().trim() };
@@ -189,9 +195,45 @@ Deno.serve(async (req) => {
           await service.from("leads").update({ last_reply_at: new Date().toISOString() }).eq("id", leadId).then(() => {}, () => {});
           matched++;
         }
+        /* ================= LO QUE MANDAMOS NOSOTROS =================
+           El sync leía solo la bandeja de ENTRADA, así que la ficha de un contacto
+           mostraba media conversación: lo que él escribió, nunca lo que le
+           contestamos. Sebastián, 25 ago: "a Jason Kendirian le mandé una oferta por
+           Gmail y no se ve en el contacto". Efectivamente — en su ficha estaban los
+           dos emails de Jason y ninguno de los dos que le mandó Sebastián.
+           Acá el cliente no es quien escribe sino a quién le escribimos, así que se
+           busca por los destinatarios (To + Cc). Y NO se encola nada: alguien a quien
+           le escribimos y no está en el CRM no es una consulta entrante — es un email
+           nuestro, y preguntarlo llenaría la cola de gente que ya conocemos. */
+        let enviados = 0;
+        try {
+          const qs = encodeURIComponent(`in:sent after:${sinceTs}`);
+          const lsRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${qs}&maxResults=${maxPorCasilla}`, { headers: { Authorization: "Bearer " + token } });
+          const lsJ = await lsRes.json();
+          for (const m of (lsRes.ok ? lsJ.messages ?? [] : [])) {
+            const { data: ya } = await service.from("email_log").select("id").eq("gmail_id", m.id).maybeSingle();
+            if (ya) continue;
+            const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`, { headers: { Authorization: "Bearer " + token } });
+            const msg = await msgRes.json();
+            if (!msgRes.ok) continue;
+            const headers = (msg.payload?.headers ?? []) as { name: string; value: string }[];
+            const subjH = headers.find((h) => h.name === "Subject")?.value || "";
+            // el primer destinatario que SÍ es un contacto del CRM
+            const destino = destinatarios(headers).find((e) => !e.endsWith("@viven.ch") && leadByEmail.has(e));
+            if (!destino) continue;
+            const cuerpo = decodeBody(msg.payload) || msg.snippet || "";
+            const fechaH = headers.find((h) => h.name === "Date")?.value;
+            await service.from("email_log").insert({
+              lead_id: leadByEmail.get(destino), to_addr: destino, subject: subjH, body: cuerpo,
+              sender_label: mb.email, source: "gmail-" + mb.key, direction: "out", gmail_id: m.id,
+              created_at: fechaH ? new Date(fechaH).toISOString() : new Date().toISOString(),
+            }).then(() => { enviados++; }, () => {});
+          }
+        } catch (e) { /* si falla el pase de enviados, el de entrada ya hizo lo suyo */ }
+
         // en backfill el cursor no se mueve: si no, la recuperación se comería el próximo ciclo
         if (!backfillDias) await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: runStartedAt.toISOString() });
-        out[mb.key] = { seen, matched, encolados };
+        out[mb.key] = { seen, matched, encolados, enviados };
       } catch (e) {
         out[mb.key] = "error: " + String(e);
       }
