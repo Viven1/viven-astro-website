@@ -1506,4 +1506,49 @@ window.addEventListener('message', function(e){
   });
 });
 
+/* ---------- Blog: contextual mid-article CTA (idea #39, aprobada 24 ago 2026) ----------
+   El único CTA de cada post (CalcBanner) vive después de "Related reading" y
+   la ficha del autor — quien abandona a mitad de artículo nunca lo ve. Esto
+   inserta una segunda invitación más arriba, antes del h2 de la mitad del
+   cuerpo, con el link de la calculadora filtrado por el tema del post cuando
+   se puede inferir (mismo mapeo `?type=` que usa CalcBanner). Alcance: solo
+   /en/blog/, tal como pidió el ítem de la cola. */
+(function(){
+  if(!/^\/en\/blog\//.test(location.pathname)) return;
+  var body = document.querySelector('.post-body');
+  if(!body) return;
+  var h2s = [].slice.call(body.querySelectorAll('h2'));
+  if(h2s.length < 3) return;
+  var mid = h2s[Math.floor(h2s.length / 2)];
+  if(!mid || !mid.parentNode) return;
+
+  var SERVICE_TYPE = { 'brand-video': 'brand', 'product-video': 'product', 'employer-branding': 'eb',
+    'how-to-video': 'howto', 'social-media-video': 'social', 'corporate-video': 'corporate' };
+  var TITLE_HINTS = [
+    [/employer branding/i, 'eb'], [/how-to|explainer|tutorial/i, 'howto'],
+    [/social media/i, 'social'], [/product video/i, 'product'],
+    [/brand (video|film)/i, 'brand'], [/corporate/i, 'corporate']
+  ];
+  var type = null;
+  var link = body.querySelector('a[href*="/services/"]');
+  if(link){
+    var m = (link.getAttribute('href') || '').match(/services\/([a-z-]+)/);
+    if(m) type = SERVICE_TYPE[m[1]] || null;
+  }
+  if(!type){
+    for(var i = 0; i < TITLE_HINTS.length; i++){
+      if(TITLE_HINTS[i][0].test(document.title)){ type = TITLE_HINTS[i][1]; break; }
+    }
+  }
+
+  var href = '/en/video-cost-calculator/' + (type ? '?type=' + type : '');
+  var box = document.createElement('a');
+  box.className = 'blog-inline-cta';
+  box.href = href;
+  box.innerHTML = '<span class="bic-ic">🧮</span><span class="bic-tx">'
+    + '<b>Curious what a video like this costs?</b>'
+    + '<small>Get an instant CHF estimate — no form required →</small></span>';
+  mid.parentNode.insertBefore(box, mid);
+})();
+
 })();
