@@ -201,6 +201,9 @@ const newsCases = [
   .kpi{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--navy-700),var(--navy-800));padding:20px}
   .kpi .n{font-family:'Space Grotesk';font-weight:700;font-size:30px;color:var(--acid);line-height:1.1;white-space:nowrap}
   .kpi .n small{font-size:16px;color:var(--muted)}
+  /* Un <small> de una palabra ("/mes") va pegado al número y está bien. Uno de varias
+     ("≈ CHF 105/mes prorrateado") se leía como parte de la cifra: va abajo, chico. */
+  .kpi .n small.bajo{display:block;font-size:12px;line-height:1.35;margin-top:3px;font-weight:400}
   .kpi .l{color:var(--muted);font-size:12.5px;margin-top:6px}
 
   .panel{border:1px solid var(--line);border-radius:var(--radius);background:var(--navy-800);padding:24px;margin-bottom:22px;overflow-x:auto}
@@ -12536,12 +12539,15 @@ const newsCases = [
       .reduce((a, l) => a + (Number(l.amount) || 0), 0);
     const vencidas = active.filter(licVencida);
     $('lic-k-active').innerHTML = licCHF(total)
-      + '<small>' + (mensual > 0 ? '≈ ' + licCHF(mensual) + '/mes prorrateado' : 'valor del período')
+      + '<small class="bajo">' + (mensual > 0 ? '≈ ' + licCHF(mensual) + '/mes prorrateado' : 'valor del período')
       + (sinPeriodo ? ' · ' + sinPeriodo + ' sin fechas' : '') + '</small>';
     $('lic-k-renewed').textContent = licCHF(renewed30);
     $('lic-k-due90').textContent = licCHF(due90);
     const rk = $('lic-k-risk');
-    rk.innerHTML = String(vencidas.length) + (vencidas.length ? '<small>ya vencidas, sin cerrar</small>' : '<small>ninguna vencida</small>');
+    /* Sin repetir lo que ya dice la etiqueta de abajo: ahí pone "Vencidas sin cerrar". */
+    rk.innerHTML = String(vencidas.length) + (vencidas.length
+      ? '<small class="bajo">' + (vencidas.length === 1 ? 'una licencia activa cuya fecha ya pasó' : 'licencias activas cuya fecha ya pasó') + '</small>'
+      : '');
     rk.style.color = vencidas.length > 0 ? '#ff8b8b' : '';
     const rl = document.querySelector('#lic-kpis .kpi:last-child .l');
     if (rl) rl.textContent = vencidas.length ? 'Vencidas sin cerrar' : 'En riesgo';
@@ -16703,8 +16709,11 @@ const newsCases = [
     partes.push('<b>' + recAct + '</b> ' + (recAct === 1 ? 'recurrente' : 'recurrentes'));
     partes.push('<b>' + loanAct + '</b> ' + (loanAct === 1 ? 'préstamo' : 'préstamos'));
 
+    /* Redactado como "falta cargar X" y no "faltan X": con un solo ítem quedaba
+       "todavía falta las salidas", y hacer concordar el verbo con una lista variable es
+       pelearse con el castellano para nada. */
     const falta = [];
-    if (!recAct) falta.push('los costos fijos (sueldos, alquiler, seguros, software)');
+    if (!recAct) falta.push('los costos fijos: sueldos, alquiler, seguros, software');
     if (!cfBalance) falta.push('el saldo real del banco');
     if (!aMano && deBexio) falta.push('las salidas que no pasan por bexio');
 
@@ -16719,12 +16728,14 @@ const newsCases = [
 
     let txt = 'La proyección está hecha con ' + partes.join(' · ') + '.';
     if (viejo > 21){
-      txt += ' <span class="cf-falta">El saldo del banco es del ' + cfBalance.as_of_date + ' — hace ' + viejo
+      const dia = new Date(cfBalance.as_of_date + 'T12:00:00')
+        .toLocaleDateString('es-CH', { day: 'numeric', month: 'long' });
+      txt += ' <span class="cf-falta">El saldo del banco es del ' + esc(dia) + ' — hace ' + viejo
         + ' días</span>, así que el runway y el próximo mes en rojo arrancan de ahí y no de hoy.';
     }
     if (falta.length){
-      txt += ' <span class="cf-falta">Para que dé la verdad todavía ' + (falta.length === 1 ? 'falta ' : 'faltan ')
-        + falta.join(', ') + '</span> — hasta entonces la curva es un techo, no un pronóstico.';
+      txt += ' <span class="cf-falta">Para que dé la verdad todavía falta cargar ' + falta.join('; ')
+        + '</span> — hasta entonces la curva es un techo, no un pronóstico.';
     }
     box.innerHTML = txt;
     box.hidden = false;
