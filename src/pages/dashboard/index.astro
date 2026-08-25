@@ -3902,9 +3902,60 @@ const newsCases = [
 /* rail izquierdo plegable en móvil: en desktop el summary se oculta y el details queda abierto */
 .lm2-l-fold>summary{display:none;cursor:pointer;font-size:12.5px;font-weight:700;padding:4px 0;list-style:none}
 .lm2-l-fold>summary::-webkit-details-marker{display:none}
+/* ---- popup de follow-up ---- */
+.fu-modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:18px}
+.fu-modal[hidden]{display:none}
+.fu-back{position:absolute;inset:0;background:rgba(7,12,20,.66);backdrop-filter:blur(2px)}
+.fu-card{position:relative;width:min(620px,100%);max-height:90vh;overflow:auto;background:var(--navy-800);
+  border:1px solid var(--line-strong);border-radius:16px;padding:20px 22px;box-shadow:0 30px 70px -20px rgba(0,0,0,.7)}
+.fu-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding-bottom:13px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.fu-hd b{display:block;font:700 17px/1.25 'Space Grotesk',sans-serif}
+.fu-hd span{color:var(--muted);font-size:13px}
+.fu-x{background:none;border:0;color:var(--muted-2);font-size:24px;line-height:1;cursor:pointer;padding:0 2px}
+.fu-x:hover{color:var(--text)}
+.fu-ctx{display:grid;gap:8px;margin-bottom:14px}
+.fu-ctx div{display:flex;gap:9px;font-size:13px;color:var(--muted);align-items:baseline}
+.fu-ctx i{font-style:normal;flex:none;width:15px;text-align:center}
+.fu-ctx b{color:var(--text);font-weight:600}
+.fu-mail input,.fu-mail textarea{width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;
+  color:var(--text);font-family:inherit;font-size:14px;padding:11px 13px}
+.fu-mail input{margin-bottom:8px;font-weight:600}
+.fu-mail textarea{resize:vertical;line-height:1.6}
+.fu-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.fu-bar #fu-hint{flex:1;min-width:180px;background:var(--navy-900);border:1px solid var(--line);border-radius:100px;
+  color:var(--text);font-family:inherit;font-size:12.5px;padding:8px 13px}
+.fu-de{font-size:12px;color:var(--muted-2);display:flex;align-items:center;gap:5px}
+.fu-de select{background:var(--navy-900);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:inherit;font-size:12.5px;padding:6px 8px}
+.fu-note{margin-top:10px;font-size:12px}
+@media(max-width:620px){.fu-card{padding:16px 15px;max-height:94vh}}
 /* composer colapsado en móvil: una sola barra finita hasta que lo tocás */
 .lm2-cbar{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--muted);font:600 12.5px Inter,sans-serif;padding:12px 14px;cursor:pointer}
 </style>
+<!-- POPUP DE FOLLOW-UP — se abre desde Hoy, encima de la pantalla. NO es la ficha:
+     la ficha es de tres columnas y tarda; acá se trata de mandar y seguir. Reusa las
+     mismas piezas probadas (ai-email-draft para escribir, send-outreach para mandar). -->
+<div class="fu-modal" id="fu-modal" hidden role="dialog" aria-modal="true" aria-label="Follow-up">
+  <div class="fu-back" data-fu-close></div>
+  <div class="fu-card">
+    <div class="fu-hd">
+      <div><b id="fu-quien">—</b><span id="fu-donde"></span></div>
+      <button class="fu-x" type="button" data-fu-close aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="fu-ctx" id="fu-ctx"></div>
+    <div class="fu-mail">
+      <input id="fu-subj" placeholder="Asunto" />
+      <textarea id="fu-body" rows="9" placeholder="Escribiendo el borrador…"></textarea>
+    </div>
+    <div class="fu-bar">
+      <button class="btn btn-primary small" id="fu-send" type="button">📨 Enviar</button>
+      <button class="btn btn-ghost small" id="fu-redo" type="button">↻ Reescribir</button>
+      <input id="fu-hint" placeholder="¿de qué debería hablar? (opcional)" />
+      <label class="fu-de">De: <select id="fu-de"></select></label>
+    </div>
+    <p class="muted-note fu-note" id="fu-note">La IA lo escribe leyendo la conversación real. Nada sale hasta que toques Enviar.</p>
+  </div>
+</div>
+
 <!-- FICHA DE CONTACTO — única ficha de persona del dashboard -->
 <div class="lead-modal" id="lead-modal2" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="backdrop" data-close2></div>
@@ -5672,6 +5723,103 @@ const newsCases = [
     }));
   }
 
+  /* ================= POPUP DE FOLLOW-UP =================
+     Se abre desde Hoy sin salir de la pantalla: contexto arriba, el borrador ya
+     escrito, y mandar. La ficha completa sigue estando a un click por si hace falta.
+     Nada sale sin que Sebastián toque Enviar — igual que en la ficha. */
+  let fuLead = null, fuCtx = null;
+  const fuCerrar = () => { const m = $('fu-modal'); if (m) m.hidden = true; };
+  function fuAbrir(leadId, ctx){
+    const r = (allLeads || []).find((l) => String(l.id) === String(leadId));
+    if (!r){ toast('No encontré a esa persona'); return; }
+    if (!r.email){ toast('Ese contacto no tiene email — abrí la ficha'); openLead(leadId); return; }
+    fuLead = r; fuCtx = ctx || {};
+    const m = $('fu-modal'); if (!m) return;
+    const dom = leadDomain(r);
+    $('fu-quien').textContent = r.name || r.email;
+    $('fu-donde').textContent = [(dom && companyName(dom)) || r.company || '', r.email].filter(Boolean).join(' · ');
+    // remitentes: los mismos del resto del dashboard
+    const sel = $('fu-de');
+    sel.innerHTML = (TEAM || []).map((t) => '<option value="' + esc(t.email.split('@')[0]) + '">' + esc(t.name) + '</option>').join('')
+      || '<option value="sofia">Sofia</option>';
+    $('fu-subj').value = ''; $('fu-body').value = ''; $('fu-hint').value = '';
+    $('fu-ctx').innerHTML = '<div><i>⏳</i><span>Buscando la conversación…</span></div>';
+    m.hidden = false;
+    fuCargar();
+  }
+  async function fuCargar(){
+    const r = fuLead; if (!r) return;
+    const cuerpo = $('fu-body'); cuerpo.value = ''; cuerpo.placeholder = 'Escribiendo el borrador…';
+    // contexto real: propuesta/oferta esperando, emails cruzados, última nota
+    const [{ data: hist }, { data: notas }] = await Promise.all([
+      supabase.from('email_log').select('direction,subject,body,created_at').eq('lead_id', String(r.id)).order('created_at', { ascending: true }).limit(20),
+      supabase.from('lead_notes').select('body,created_at').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(1),
+    ]);
+    const prop = (propsAll || []).find((x) => String(x.lead_id) === String(r.id) && x.status === 'sent' && !x.archived);
+    const ofer = (offersList || []).find((x) => String(x.lead_id) === String(r.id) && x.status === 'sent' && !x.archived);
+    const deal = (dealsList || []).find((x) => String(x.lead_id) === String(r.id) && !x.archived && DL_OPEN.includes(stageOf(x.stage)));
+    const ctx = [];
+    if (prop) ctx.push('<div><i>📄</i><span>Propuesta <b>' + esc(prop.title || 'sin título') + '</b>' +
+      (prop.published_at ? ' · publicada hace ' + Math.floor((Date.now() - Date.parse(prop.published_at)) / 864e5) + ' d' : '') +
+      (prop.views ? ' · <b>vista ' + prop.views + ' ' + (prop.views === 1 ? 'vez' : 'veces') + '</b>' : ' · sin vistas todavía') + '</span></div>');
+    else if (ofer) ctx.push('<div><i>🧾</i><span>Oferta <b>' + esc(ofer.title || ofer.number || '') + '</b> enviada</span></div>');
+    const nIn = (hist || []).filter((h) => h.direction === 'in').length;
+    ctx.push('<div><i>✉️</i><span><b>' + (hist || []).length + ' emails</b> en la conversación' +
+      (nIn ? ' — ' + nIn + ' de ' + (r.name || 'ellos').split(' ')[0] : ' — todavía no contestaron') + '</span></div>');
+    if (notas && notas[0]) ctx.push('<div><i>📝</i><span>Tu nota: ' + esc(String(notas[0].body).slice(0, 120)) + '</span></div>');
+    if (deal) ctx.push('<div><i>🤝</i><span>Deal en <b>' + esc((STAGES.find((x) => x.key === stageOf(deal.stage)) || {}).label || '') + '</b>' +
+      (dealValue(deal) ? ' · ' + fmtChf(dealValue(deal)) : '') + '</span></div>');
+    ctx.push('<div><i>👤</i><span><a href="#" id="fu-ficha" style="color:var(--acid)">Abrir la ficha completa →</a></span></div>');
+    $('fu-ctx').innerHTML = ctx.join('');
+    const fl = $('fu-ficha'); if (fl) fl.addEventListener('click', (e) => { e.preventDefault(); fuCerrar(); openLead(r.id); });
+    fuEscribir(hist);
+  }
+  async function fuEscribir(hist){
+    const r = fuLead; if (!r) return;
+    const b = $('fu-redo'), prev = b ? b.textContent : '';
+    if (b){ b.disabled = true; b.textContent = '✨ Escribiendo…'; }
+    try {
+      let h = hist;
+      if (!h){ const q = await supabase.from('email_log').select('direction,subject,body,created_at').eq('lead_id', String(r.id)).order('created_at', { ascending: true }).limit(20); h = q.data; }
+      const history = (h || []).map((x) => ({ direction: x.direction, subject: x.subject, body: String(x.body || '').replace(/<[^>]+>/g, ' ').slice(0, 800) }));
+      const brief = briefFullText(await latestBriefFor(r));
+      const { data, error } = await supabase.functions.invoke('ai-email-draft', {
+        body: { lead: r, sender: $('fu-de').value, hint: ($('fu-hint').value || '').trim(), history, brief }
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'sin respuesta');
+      $('fu-subj').value = data.subject || '';
+      $('fu-body').value = data.body || '';
+    } catch (e) {
+      $('fu-body').placeholder = '';
+      toast('No se pudo escribir el borrador: ' + (e.message || e) + ' — podés escribirlo a mano');
+    } finally { if (b){ b.disabled = false; b.textContent = prev || '↻ Reescribir'; } }
+  }
+  async function fuEnviar(){
+    const r = fuLead; if (!r) return;
+    const cuerpo = ($('fu-body').value || '').trim();
+    const asunto = ($('fu-subj').value || '').trim();
+    if (!cuerpo){ toast('El email está vacío'); return; }
+    if (!asunto){ toast('Falta el asunto'); return; }
+    if (!confirm('¿Enviar este email a ' + r.email + '?\n\nSale desde info@viven.ch.')) return;
+    const b = $('fu-send'); b.disabled = true; b.textContent = '📨 Enviando…';
+    try {
+      const de = $('fu-de').value;
+      const { data, error } = await supabase.functions.invoke('send-outreach', {
+        body: { to: r.email, subject: asunto, body: cuerpo, lead_id: r.id, mark_contacted: true,
+                fromName: (SENDERS[de] || SENDERS.sofia).name }
+      });
+      if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
+      r.status = 'contactado';
+      toast('✓ Enviado — quedó en la conversación de ' + (r.name || r.email));
+      fuCerrar(); renderLeads(); renderHome();
+    } catch (e) { toast('No se pudo enviar: ' + (e.message || e)); }
+    finally { b.disabled = false; b.textContent = '📨 Enviar'; }
+  }
+  document.addEventListener('click', (e) => { if (e.target && e.target.closest && e.target.closest('[data-fu-close]')) fuCerrar(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('fu-modal') && !$('fu-modal').hidden) fuCerrar(); });
+  $('fu-send') && $('fu-send').addEventListener('click', fuEnviar);
+  $('fu-redo') && $('fu-redo').addEventListener('click', () => fuEscribir(null));
+
   // "🎯 Para hoy": UNA lista por urgencia — cada fila sabe abrir lo suyo (openLead/openOffer/gotoTab)
   function hmTodayItems(){
     const now = Date.now(), D = 864e5, items = [];
@@ -5687,7 +5835,12 @@ const newsCases = [
         t: o.title || ('Oferta ' + (o.number || '#' + o.id)),
         ctx: [l.name || l.email || o.client || '', 'esperando hace ' + days + ' d'].filter(Boolean).join(' · ') +
           (opened ? ' · abrió el email hace ' + timeAgo(o.last_open_at) + ' → seguir HOY' : ''),
-        hint: 'Follow-up →', go: () => { gotoTab('offers'); openOffer(o.id); } });
+        /* Antes esto te mandaba a la pestaña de Ofertas y ahí tenías que buscar y
+           escribir de cero. Ahora abre el popup con el borrador ya hecho, sin salir
+           de Hoy (pedido de Sebastián). Sin lead_id no hay a quién escribirle: en ese
+           caso se mantiene el camino viejo. */
+        hint: 'Follow-up →', go: () => (o.lead_id ? fuAbrir(o.lead_id, { tipo: 'oferta', id: o.id })
+                                                  : (gotoTab('offers'), openOffer(o.id))) });
     });
     // (b) propuestas publicadas: >8d sin respuesta (rojo) / >2d con 0 vistas (azul: ¿le llegó el link?)
     (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent').forEach((p) => {
@@ -5699,7 +5852,7 @@ const newsCases = [
         if (p.lead_id) busyLeads.add(String(p.lead_id));
         items.push({ rank: 1, sev: 'rojo', icon: '🌐', at: ref, leadId: p.lead_id || null, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', 'publicada hace ' + days + ' d sin respuesta'].filter(Boolean).join(' · '),
-          hint: 'Follow-up →', go: goP });
+          hint: 'Follow-up →', go: () => (p.lead_id ? fuAbrir(p.lead_id, { tipo: 'propuesta', id: p.id }) : goP()) });
       } else if (days > 2 && !p.last_view_at){
         items.push({ rank: 5, sev: 'azul', icon: '👁', at: ref, leadId: p.lead_id || null, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', 'publicada hace ' + days + ' d · 0 vistas — ¿le llegó el link?'].filter(Boolean).join(' · '),
