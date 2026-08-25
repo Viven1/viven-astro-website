@@ -1830,14 +1830,6 @@ const newsCases = [
   .hm-sub{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
     font-weight:700;color:var(--muted-2);margin:16px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
   .hm-sub .count{text-transform:none;letter-spacing:0}
-  .hm-ai-det{padding:0}
-  .hm-ai-det > summary{cursor:pointer;list-style:none;padding:16px 18px;display:flex;align-items:center;gap:10px;
-    font-weight:700;font-size:14.5px}
-  .hm-ai-det > summary::-webkit-details-marker{display:none}
-  .hm-ai-det > summary::before{content:'▸';color:var(--muted-2);font-size:12px}
-  .hm-ai-det[open] > summary::before{content:'▾'}
-  .hm-ai-det > summary .btn{margin-left:auto}
-  .hm-ai-det > div{padding:0 18px 16px}
   .hm-item .hm-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-left:10px}
   .hm-item .hm-chf{font-family:'Space Grotesk','Space Grotesk Fallback','Inter',sans-serif;font-weight:700;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.2}
   .hm-item .go{flex:none;color:var(--acid);font-size:11.5px;font-weight:700;white-space:nowrap}
@@ -2209,14 +2201,6 @@ const newsCases = [
         <h2>🎯 Lo que mueve la aguja hoy <span class="count" id="hm-today-n"></span></h2>
         <div class="hm-list" id="hm-today"></div>
 
-        <!-- Aprobado desde el teléfono y todavía sin ejecutar. La espera va al lado
-             de cada cosa, para que "hace ocho días" no sea una sorpresa. -->
-        <div id="wq-card" hidden>
-          <div class="hm-sub">🤖 Aprobado, falta hacerlo <span class="count" id="wq-n"></span></div>
-          <div class="hm-list" id="wq-list"></div>
-          <p class="muted-note" id="wq-note" style="margin:6px 0 0"></p>
-        </div>
-
         <!-- Borradores listos esperando el ok. El texto ya está escrito, se aprueba
              y sale — con 10 minutos de arrepentimiento antes de que salga de verdad. -->
         <div id="sq-card" hidden>
@@ -2246,13 +2230,12 @@ const newsCases = [
         <div id="hm-alive"></div>
       </div>
 
-      <!-- El resumen de IA queda, pero plegado: el titular de arriba ya contesta
-           "¿cómo viene el mes?" con números calculados, que no se equivocan y no
-           cuestan una llamada. Esto es el complemento, no la portada. -->
-      <details class="panel hm-card hm-ai-det">
-        <summary>🪄 Resumen del día por IA <button class="btn btn-ghost small" id="hm-ai-btn" type="button" title="Regenerar ahora">↻</button></summary>
-        <div id="hm-ai"><p class="muted-note">Se genera al abrirlo.</p></div>
-      </details>
+      <!-- Acá vivía "🪄 Resumen del día por IA". Sebastián lo sacó el 25 ago: el
+           titular de arriba ya contesta "¿cómo viene el mes?" con números calculados
+           —que no se equivocan y no cuestan una llamada a la IA—, y la lista de abajo
+           contesta "¿qué hago ahora?". Un tercer bloque que opina sobre las dos cosas
+           es una opinión más para leer, no una decisión más para tomar.
+           La función hmAi se borró con él: no quedó código muerto esperando. -->
       <!-- Oportunidades de la web: lo que la gente está mirando y no estamos
            aprovechando. Sebastián, 14 ago: "mucha gente está viendo employer
            branding, hagamos un lead magnet, o más blogs... tenemos que cubrir
@@ -3255,6 +3238,16 @@ const newsCases = [
     <div id="ab-list"><p class="muted-note">Cargando…</p></div>
   </div>
     <div id="sistema-sub-auto" hidden>
+    <!-- 🤖 Aprobado, falta hacerlo. Vivía en Hoy hasta el 25 ago 2026: es una cola de
+         trabajo, no una decisión del día, y en Hoy competía con lo que sí mueve plata.
+         Su lugar es acá, al lado de la bandeja de salida y los workflows — todo lo que
+         está encolado esperando que alguien lo ejecute, en una sola pantalla. -->
+    <div class="panel" id="wq-card" hidden>
+      <h2 style="margin-top:0">🤖 Aprobado, falta hacerlo <span class="count" id="wq-n"></span></h2>
+      <p class="muted-note" style="margin:2px 0 12px">Lo que aprobaste desde el teléfono y todavía nadie ejecutó. La espera va al lado de cada cosa.</p>
+      <div class="hm-list" id="wq-list"></div>
+      <p class="muted-note" id="wq-note" style="margin:8px 0 0"></p>
+    </div>
     <div class="panel">
       <div class="draft-head">
         <h2 style="margin:0">⚙️ Workflows <span class="count">si esto → hacé aquello</span></h2>
@@ -5779,12 +5772,12 @@ const newsCases = [
      render dispararía fetches nuevos (sparkline, gads-stats, IA) y martillaría las APIs. */
   let hmViews60 = null, hmViews60At = 0, hmViews60Busy = false;   // pageviews 60d: sparkline semanal + KPI visitas
   let hmAds = null, hmAdsBusy = false;                            // gasto de Ads: gads-stats 1 sola vez por día
-  let hmAiTried = false, hmTodayCur = [], hmSigCur = [];
+  let hmTodayCur = [], hmSigCur = [];
   // Agenda: 'mine' filtra por host_email===meEmail (default para todos, incluida Sofia).
   // Solo superadmin puede pasar a 'all' para overview — sin esto, todos veían las
   // reuniones de todo el equipo mezcladas (reporte: "asi uno se confunde y toca la equivocada").
   let hmAgendaScope = 'mine';
-  const HM_AI_LS = 'vv_home_ai', HM_ADS_LS = 'vv_home_gads';
+  const HM_ADS_LS = 'vv_home_gads';
 
   // KPIs de deals con las MISMAS fórmulas que el board (renderPipeline) — números idénticos en todos lados
   function hmDealKpis(){
@@ -6402,67 +6395,10 @@ const newsCases = [
     if (!$('tab-hoy').hidden) renderHome();
   }
 
-  // resumen IA del día: 1 invoke por día por navegador (cache vv_home_ai) — ↻ regenera
-  function hmAiRender(i){
-    $('hm-ai').innerHTML = '<div class="ai-insight"><span class="ico">' + esc(i.icon || '🪄') + '</span>' +
-      '<div class="txt"><h4>' + esc(i.title || '') + '</h4><p>' + esc(i.detail || '') + '</p></div></div>';
-  }
-  function hmAiSummary(){
-    const k = hmDealKpis();
-    const ads = hmAdsStats();
-    const spend = hmAds ? (+hmAds.spend || 0) : 0;
-    return {
-      /* La IA recibía la lista de pendientes y le pedíamos "la prioridad del día":
-         devolvía los mismos tres clientes que ya estaban listados dos paneles más
-         arriba. Medido en la pantalla del 24/08: Forseasons, Toradex y Syz Capital
-         aparecían en "Para hoy" y otra vez, con las mismas palabras, en el resumen.
-         Ahora se le pide explícitamente lo contrario: que NO repita la lista y que
-         diga lo que la lista no puede decir — un patrón, un riesgo, una idea. */
-      contexto: 'Arranque del día en Viven (productora de video, Zúrich). En "para_hoy" tenés los pendientes que YA están listados en pantalla, al lado tuyo. NO los repitas ni los enumeres: sería decir dos veces lo mismo. Usalos como contexto y devolvé lo que esa lista NO dice — un patrón entre varios casos, un riesgo que nadie está mirando, o una idea concreta. Si de verdad lo más importante del día es uno de esos pendientes, decilo en media línea y dedicá el resto a QUÉ hacer con él, no a repetir que existe. Dos líneas máximo, en español, sin saludos.',
-      fecha: new Date().toISOString().slice(0, 10),
-      para_hoy: hmTodayItems().slice(0, 8).map((i) => i.t + ' — ' + i.ctx),
-      senales_calientes: hmSignalItems().slice(0, 6).map((s) => s.plain),
-      kpis: {
-        pipeline_abierto_chf: Math.round(k.openVal), deals_abiertos: k.openN,
-        ponderado_chf: Math.round(k.weighted), ganado_30d_chf: Math.round(k.won30Val),
-        win_rate_90d_pct: k.winRate, roas_ads_30d: spend ? +(hmAdsStats().wonVal / spend).toFixed(2) : null,
-        leads_ads_30d: ads.leads,
-      },
-    };
-  }
-  async function hmAi(force){
-    const body = $('hm-ai'); if (!body) return;
-    const today = new Date().toISOString().slice(0, 10);
-    if (!force){
-      try {
-        const c = JSON.parse(localStorage.getItem(HM_AI_LS) || 'null');
-        if (c && c.date === today && c.insight){ hmAiRender(c.insight); return; }
-      } catch (e) { /* cache corrupto → regenerar */ }
-      if (hmAiTried) return;   // ya falló hoy en esta sesión: no martillar la función
-    }
-    hmAiTried = true;
-    const btn = $('hm-ai-btn'); if (btn) btn.disabled = true;
-    body.innerHTML = '<p class="ai-loading">La IA está eligiendo la prioridad del día…</p>';
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-insights', { body: { summary: hmAiSummary(), lang: 'es' } });
-      const ins = data && Array.isArray(data.insights) && data.insights[0];
-      if (error || !ins) throw new Error(data?.error || error?.message || 'sin respuesta');
-      try { localStorage.setItem(HM_AI_LS, JSON.stringify({ date: today, insight: ins })); } catch (e) { /* sin espacio */ }
-      hmAiRender(ins);
-    } catch (e) {
-      body.innerHTML = '<p class="muted-note">No se pudo generar (¿deployaste ai-insights y hay crédito en Anthropic?): ' + esc(e.message) + '</p>';
-    } finally { if (btn) btn.disabled = false; }
-  }
-  /* El ↻ vive dentro del <summary>: sin stopPropagation, tocarlo pliega el bloque
-     justo cuando pedís que se regenere. */
-  $('hm-ai-btn').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); hmAi(true); });
-  /* Se genera al abrirlo, no al cargar el dashboard: es una llamada a la IA por
-     visita para un bloque que ahora está plegado. Si nadie lo abre, no se gasta. */
-  (function(){
-    const det = document.querySelector('.hm-ai-det');
-    if (det) det.addEventListener('toggle', () => { if (det.open) hmAi(false); });
-  })();
-
+  /* El resumen de IA del día (hmAi/hmAiRender/hmAiSummary) vivía acá. Se borró el
+     25 ago 2026 junto con su tarjeta en Hoy — ver el comentario del markup. Los
+     insights con IA siguen existiendo donde sí aportan: Analytics (sobre el tráfico)
+     y Pipeline (sobre los deals). */
   /* ---------- 📤 Para mandar: borradores esperando el ok ----------
      Reusa la bandeja de salida que ya existe (tabla outbox) y su camino de
      envío: aprobar deja status='approved' con 10 minutos de ventana, y
@@ -6911,13 +6847,12 @@ const newsCases = [
        queda contradiciendo a la cola. */
     if (r && r.source === 'cro' && r.ref) await croMarcarIdea(r.ref, status === 'done' ? 'done' : null);
     // avisar al equipo que se hizo: el que aprobó no tiene que venir a preguntar
-    if (status === 'done' && r) pushTo(null, '✅ Hecho: ' + (r.title || '').slice(0, 60), 'Lo aprobado ya está resuelto.', '/dashboard/?tab=hoy');
+    if (status === 'done' && r) pushTo(null, '✅ Hecho: ' + (r.title || '').slice(0, 60), 'Lo aprobado ya está resuelto.', '/dashboard/?tab=auto');
     toast(status === 'done' ? '✅ Marcado como hecho' : 'Sacado de la cola');
     await wqLoad();
   }
 
   function renderHome(){
-    wqLoad();
     const now = Date.now(), D = 864e5;
     /* --- KPIs --- */
     const k = hmDealKpis();
@@ -7056,7 +6991,6 @@ const newsCases = [
     hmFetchAds();
     ppEnsureForHome();
     sqLoad();
-    /* hmAi ya no se llama acá: el resumen está plegado y se genera al abrirlo. */
     /* hmOportunidades ya no se llama desde Hoy: el panel se mudó a Contenido →
        Search Console y se carga cuando se abre ese sub-tab. Llamarlo acá gastaba una
        llamada a la IA en cada carga del dashboard para una tarjeta que no está. */
@@ -14682,6 +14616,7 @@ const newsCases = [
       (hasEmail ? '<div class="wfp-note">ⓘ aperturas por paso: follow-up — el webhook de Resend todavía no marca aperturas de emails de workflow (sólo newsletter/ofertas).</div>' : '');
   }
   async function autoInit(){
+   wqLoad();   // 🤖 "Aprobado, falta hacerlo" vive acá desde el 25 ago (antes en Hoy)
    try {
     const [{ data, error }, runsQ, obQ] = await Promise.all([
       supabase.from('automations').select('*').order('created_at', { ascending: false }),
