@@ -176,23 +176,34 @@ Deno.serve(async (req) => {
     const titulo = String(doc.title || (tipo === "propuesta" ? "Propuesta" : "Oferta")) .slice(0, 180);
     const detalle = items.map((it) => `• ${it.name ?? ""} — ${Number(it.qty) || 0} ${it.unit ?? ""} × CHF ${Number(it.price) || 0}`).join("<br />");
 
-    let posiciones: { text: string; amount: number; unit_price: number }[];
-    let header: string;
+    /* ===== UNA FACTURA O DOS =====
+       Con 100% va una sola, con el detalle completo. Con un parcial se arman LAS DOS:
+       el acconto para mandar ahora y el saldo ya preparado como borrador — pedido de
+       Sebastián: "si ponemos 50% que arme ambas, así mandamos una y la segunda ya
+       queda preparada". Las dos quedan en borrador; él decide cuándo sale cada una.
+       El saldo se calcula como total − acconto (no como total × (100−pct)), así los
+       dos importes suman exactamente el total sin que sobre ni falte un centavo. */
+    const acconto = Math.round(totalDoc * pct) / 100;
+    const saldo = Math.round((totalDoc - acconto) * 100) / 100;
+    type Tramo = { etiqueta: string; posiciones: { text: string; amount: number; unit_price: number }[]; header: string; suf: string; importe: number };
+    const tramos: Tramo[] = [];
     if (pct >= 100) {
-      // factura completa: cada línea como está en el documento
-      posiciones = items.filter((it) => (Number(it.qty) || 0) * (Number(it.price) || 0) > 0)
+      const pos = items.filter((it) => (Number(it.qty) || 0) * (Number(it.price) || 0) > 0)
         .map((it) => ({ text: `<strong>${(it.name ?? "").slice(0, 200)}</strong>${it.phase ? "<br />" + it.phase : ""}`,
                         amount: Number(it.qty) || 0, unit_price: Number(it.price) || 0 }));
-      header = titulo;
+      tramos.push({ etiqueta: "", posiciones: pos, header: titulo, suf: "", importe: totalDoc });
     } else {
-      /* Pago parcial: UNA línea con el importe y el porcentaje dicho, y el detalle
-         completo arriba en el encabezado. Prorratear cada posición daría números con
-         decimales raros y una factura que no se parece a la oferta que firmó. */
-      posiciones = [{ text: `<strong>Akontozahlung ${pct}% — ${titulo}</strong><br />Gemäss Offerte über CHF ${totalDoc.toFixed(2)}`,
-                      amount: 1, unit_price: Math.round(totalDoc * pct) / 100 }];
-      header = `${titulo}<br /><br />${detalle}`;
+      tramos.push({ etiqueta: `Akontozahlung ${pct}%`,
+        posiciones: [{ text: `<strong>Akontozahlung ${pct}% — ${titulo}</strong><br />Gemäss Offerte über CHF ${totalDoc.toFixed(2)}`,
+                       amount: 1, unit_price: acconto }],
+        header: `${titulo}<br /><br />${detalle}`, suf: ` (${pct}%)`, importe: acconto });
+      if (saldo > 0) tramos.push({ etiqueta: `Schlussrechnung ${100 - pct}%`,
+        posiciones: [{ text: `<strong>Schlussrechnung ${100 - pct}% — ${titulo}</strong><br />Restbetrag gemäss Offerte über CHF ${totalDoc.toFixed(2)}`,
+                       amount: 1, unit_price: saldo }],
+        header: `${titulo}<br /><br />${detalle}`, suf: ` (saldo ${100 - pct}%)`, importe: saldo });
     }
-    if (!posiciones.length) return json({ error: "no hay posiciones con importe" }, 400);
+    if (!tramos.length || !tramos[0].posiciones.length) return json({ error: "no hay posiciones con importe" }, 400);
+    const posiciones = tramos[0].posiciones;
 
     // ---------- 3. el contacto en bexio ----------
     const email = String(doc.client_email || lead?.email || "").toLowerCase().trim();
@@ -265,7 +276,7 @@ Deno.serve(async (req) => {
       title: titulo, contact_id: contactId, user_id: BX.user_id,
       language_id: BX.language_id, bank_account_id: BX.bank_account_id,
       currency_id: BX.currency_id, payment_type_id: BX.payment_type_id,
-      header, footer: "",
+      header: tramos[0].header, footer: "",
       mwst_type: BX.mwst_type, mwst_is_net: BX.mwst_is_net, show_position_taxes: false,
       is_valid_from: iso(hoy), is_valid_to: iso(vence),
       api_reference: `viven-${tipo}-${docId}-${pct}`,
@@ -283,29 +294,45 @@ Deno.serve(async (req) => {
         candidatos,
         cliente: { empresa, persona, email },
         total_documento: Math.round(totalDoc * 100) / 100,
-        pct, importe_a_facturar: posiciones.reduce((a, p) => a + p.amount * p.unit_price, 0),
+        pct, importe_a_facturar: tramos[0].importe,
+        facturas: tramos.map((t) => ({ etiqueta: t.etiqueta || "Factura completa", importe: t.importe })),
         posiciones: posiciones.map((p) => ({ texto: p.text.replace(/<[^>]+>/g, " ").trim().slice(0, 70), cantidad: p.amount, precio: p.unit_price })),
       });
     }
 
-    const cr = await bx("kb_invoice", { method: "POST", body: JSON.stringify(payload) });
-    if (!cr.ok) return json({ error: "bexio rechazó la factura", status: cr.status, detalle: cr.body }, 502);
-    const inv = cr.body as { id: number; document_nr: string; total: string; total_net: string };
+    const creadas: { etiqueta: string; numero: string; bexio_id: number; total: string }[] = [];
+    for (const t of tramos) {
+      const cuerpo = { ...payload, header: t.header,
+        api_reference: `viven-${tipo}-${docId}-${t.suf ? t.suf.replace(/[^a-z0-9]/gi, "") : "full"}`,
+        positions: t.posiciones.map((p) => ({
+          type: "KbPositionCustom", text: p.text, amount: String(p.amount),
+          unit_price: String(p.unit_price), unit_id: BX.unit_id,
+          tax_id: BX.tax_id, account_id: BX.account_id, discount_in_percent: "0",
+        })) };
+      const cr = await bx("kb_invoice", { method: "POST", body: JSON.stringify(cuerpo) });
+      if (!cr.ok) {
+        /* Si la segunda falla, la primera YA existe: hay que decirlo, no fingir que
+           no pasó nada. Con el número en la mano él sabe qué quedó y qué falta. */
+        return json({ error: "bexio rechazó la factura" + (creadas.length ? " del saldo (la primera SÍ se creó)" : ""),
+          status: cr.status, detalle: cr.body, creadas }, 502);
+      }
+      const inv = cr.body as { id: number; document_nr: string; total: string; total_net: string };
+      creadas.push({ etiqueta: t.etiqueta || "Factura completa", numero: inv.document_nr, bexio_id: inv.id, total: inv.total });
 
-    /* Queda registrada de nuestro lado para saber qué ya se facturó y no mandarlo dos
-       veces. El número es el de BEXIO: acá no se numera nada. */
-    await service.from("invoices").insert({
-      offer_id: tipo === "oferta" ? docId : null,
-      lead_id: doc.lead_id ?? null,
-      number: inv.document_nr,
-      client_company: empresa, client_contact: persona, client_email: email,
-      title: titulo + (pct < 100 ? ` (${pct}%)` : ""),
-      items: posiciones, net: Number(inv.total_net) || null, gross: Number(inv.total) || null,
-      status: "draft", issued_at: new Date().toISOString(), due_date: iso(vence),
-    }).then(() => {}, () => {});   // si falla el registro local, la factura ya existe: no se rompe
+      /* Queda registrada de nuestro lado para saber qué ya se facturó. El número es
+         el de BEXIO: acá no se numera nada. */
+      await service.from("invoices").insert({
+        offer_id: tipo === "oferta" ? docId : null,
+        lead_id: doc.lead_id ?? null,
+        number: inv.document_nr,
+        client_company: empresa, client_contact: persona, client_email: email,
+        title: titulo + t.suf,
+        items: t.posiciones, net: Number(inv.total_net) || null, gross: Number(inv.total) || null,
+        status: "draft", issued_at: new Date().toISOString(), due_date: iso(vence),
+      }).then(() => {}, () => {});   // si falla el registro local, la factura ya existe: no se rompe
+    }
 
-    return json({ ok: true, bexio_id: inv.id, numero: inv.document_nr,
-      total: inv.total, contacto_id: contactId, contacto_creado: contactoCreado, pct });
+    return json({ ok: true, creadas, contacto_id: contactId, contacto_creado: contactoCreado, pct });
 
   } catch (e) {
     return json({ error: String(e) }, 500);

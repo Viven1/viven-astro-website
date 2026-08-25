@@ -13813,13 +13813,21 @@ const newsCases = [
         return;
       }
       $('bx-cands').innerHTML = '';
+      /* Con un parcial se crean DOS borradores: el acconto y el saldo. Se listan los
+         dos acá para que no haya sorpresas — "si ponemos 50% que arme ambas, así
+         mandamos una y la segunda ya queda preparada". */
+      const facturas = data.facturas || [];
       $('bx-ctx').innerHTML =
-        '<div><i>💰</i><span><b>' + fmtChf(total) + '</b> el documento · a facturar <b>' + fmtChf(Number(data.importe_a_facturar) || 0) + '</b> (' + bxPct + '%)</span></div>' +
+        '<div><i>💰</i><span><b>' + fmtChf(total) + '</b> el documento</span></div>' +
+        facturas.map((f, i) => '<div><i>' + (i === 0 ? '🧾' : '⏳') + '</i><span>' + esc(f.etiqueta) +
+          ' — <b>' + fmtChf(Number(f.importe) || 0) + '</b>' + (i > 0 ? ' <span style="color:var(--muted-2)">(queda lista para después)</span>' : '') + '</span></div>').join('') +
         '<div><i>👤</i><span>' + (data.se_crearia_contacto
           ? 'Se crea el contacto en bexio: <b>' + esc([data.cliente.empresa, data.cliente.persona].filter(Boolean).join(' · ')) + '</b>'
-          : 'Contacto de bexio #' + data.contacto_id) + '</span></div>' +
-        (data.posiciones || []).map((p) => '<div><i>·</i><span>' + esc(p.texto) + ' — ' + p.cantidad + ' × ' + fmtChf(p.precio) + '</span></div>').join('');
-      $('bx-note').textContent = 'Se crea como borrador. La factura la mandás vos desde bexio.';
+          : 'Contacto de bexio #' + data.contacto_id) + '</span></div>';
+      $('bx-go').textContent = facturas.length > 1 ? '🧾 Crear los 2 borradores en bexio' : '🧾 Crear borrador en bexio';
+      $('bx-note').textContent = facturas.length > 1
+        ? 'Las dos quedan en borrador. Mandás la primera ahora y la segunda cuando entregues.'
+        : 'Se crea como borrador. La factura la mandás vos desde bexio.';
       go.disabled = false;
     } catch (e) {
       $('bx-ctx').innerHTML = '<div><i>⚠️</i><span>' + esc(e.message || String(e)) + '</span></div>';
@@ -13837,8 +13845,12 @@ const newsCases = [
       if (error) throw error;
       if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
       bxCerrar();
-      toast('🧾 ' + data.numero + ' creada en bexio como borrador' + (data.contacto_creado ? ' · contacto nuevo' : ''));
-      alert('Factura ' + data.numero + ' creada en BORRADOR en bexio por ' + data.total + ' CHF.\n\nRevisala y mandala desde bexio cuando quieras.');
+      const cr = data.creadas || [];
+      toast('🧾 ' + cr.map((c) => c.numero).join(' + ') + ' en bexio' + (data.contacto_creado ? ' · contacto nuevo' : ''));
+      alert((cr.length > 1 ? 'Dos borradores creados en bexio:' : 'Borrador creado en bexio:') + '\n\n' +
+        cr.map((c) => '· ' + c.numero + ' — ' + c.etiqueta + ' — CHF ' + c.total).join('\n') +
+        '\n\nRevisalos y mandalos desde bexio cuando quieras.' +
+        (cr.length > 1 ? '\nLa segunda queda esperando para cuando entregues.' : ''));
     } catch (e) {
       alert('No se pudo crear la factura: ' + (e.message || e));
     } finally { go.disabled = false; go.textContent = prev; }
