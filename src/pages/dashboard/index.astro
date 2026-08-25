@@ -978,6 +978,22 @@ const newsCases = [
   /* ============ rediseño tab NEWSLETTER (scoped a #contenido-sub-news — nunca inputs pelados) ============ */
   #contenido-sub-news .nw-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
   @media(max-width:900px){#contenido-sub-news .nw-grid{grid-template-columns:1fr}}
+  /* ===== los tres pasos ===== */
+  #contenido-sub-news .nw-paso{border:1px solid var(--line);border-radius:14px;background:var(--navy-800);margin-bottom:10px}
+  #contenido-sub-news .nw-paso > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:11px;
+    padding:14px 16px;font-weight:700;font-size:15px}
+  #contenido-sub-news .nw-paso > summary::-webkit-details-marker{display:none}
+  #contenido-sub-news .nw-paso > summary::after{content:'▸';margin-left:auto;color:var(--muted-2);font-size:13px}
+  #contenido-sub-news .nw-paso[open] > summary::after{content:'▾'}
+  #contenido-sub-news .nw-paso > summary em{font-style:normal;font-weight:400;font-size:12.5px;color:var(--muted-2)}
+  #contenido-sub-news .nw-paso-n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--acid);color:#16210a;
+    font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+  #contenido-sub-news .nw-paso-body{padding:0 16px 16px}
+  #contenido-sub-news .nw-paso-body > .panel{border:0;background:none;padding:0;margin:0}
+  /* lo automático pesa menos: se configura una vez y no compite con el envío de hoy */
+  #contenido-sub-news .nw-auto{opacity:.75}
+  #contenido-sub-news .nw-auto:hover,#contenido-sub-news .nw-auto[open]{opacity:1}
+  #contenido-sub-news .nw-auto .nw-paso-n{background:var(--navy-600);color:var(--text)}
   #contenido-sub-news .nw-sec-h{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
   #contenido-sub-news .nw-sec-h:first-child{margin-top:0}
   /* campos de formulario — dedicados, con clase reconocible */
@@ -2914,7 +2930,107 @@ const newsCases = [
     <div class="lm2-menu" id="bl2-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
   </div>
     <div id="contenido-sub-news" hidden>
-    <div class="panel" style="margin-bottom:14px">
+    
+    <div class="panel">
+      <h2>📰 Newsletter</h2>
+      <p class="muted-note" style="margin:6px 0 14px">Envíos segmentados vía Resend (API batch + reintentos + retomable sin duplicar). Se excluyen solos: dados de baja, spam/descartados, repetidos y la cartera importada de bexio — esos 167 contactos nunca pidieron un newsletter, y mandarles de golpe quema la reputación del dominio para todo lo demás, incluidas las propuestas. Cada mail sale con link de baja de un click y con los links taggeados <code>utm_campaign=nl-{'{id}'}</code> para la atribución de ventas.</p>
+
+      <div class="nw-grid">
+        <!-- ===== columna izquierda: redactar + destinatarios + envío ===== -->
+        <div class="nw-lft">
+          
+        <!-- ===== TRES PASOS =====
+             Eran cuatro bloques abiertos a la vez —edición mensual automática,
+             newsletter manual, email de bienvenida e historial— y los cuatro hacen
+             cosas distintas: uno es un motor que corre solo, otro un envío puntual,
+             otro una plantilla que se dispara sola, el último es historial. Puestos
+             uno abajo del otro parecían pasos de lo mismo.
+             Ahora el envío es lo que se ve, en el orden en que se piensa: a quién,
+             qué decís, revisar. Lo que se configura una vez baja a "⚙ Automático". -->
+
+        <details class="nw-paso" open>
+          <summary><span class="nw-paso-n">①</span>A quién<em id="nw-paso1-n">a cuántas personas le llega</em></summary>
+          <div class="nw-paso-body"><div class="nw-sec-h">Destinatarios</div>
+          <div class="nw-row">
+            <!-- El segmento "Follow up — clientes viejos de bexio" (167 personas) se
+                 sacó el 25 ago por decisión de Sebastián: "Bexio - NO". Son clientes
+                 de facturas viejas que nunca pidieron un newsletter, y mandarles de
+                 golpe con un dominio que casi no manda email es la forma más rápida
+                 de que viven.ch termine en spam — incluidas las propuestas que sí hay
+                 que cobrar. El motor lo sigue soportando por si alguna campaña vieja
+                 lo tiene guardado; lo que ya no se puede es elegirlo por error. -->
+            <select id="nw-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select>
+            <select id="nw-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
+            <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver / editar lista</button>
+          </div>
+          <div class="nw-row">
+            <select id="nw-mode" class="nw-sel"><option value="segment">Todo el segmento</option><option value="one">Una persona (email directo)</option></select>
+            <input id="nw-one-email" class="nw-inp" type="email" placeholder="nombre@empresa.com" style="flex:1;min-width:180px" hidden />
+          </div>
+
+          </div>
+        </details>
+
+        <details class="nw-paso" open>
+          <summary><span class="nw-paso-n">②</span>Qué decís<em>asunto y contenido</em></summary>
+          <div class="nw-paso-body"><div class="nw-sec-h">Asunto</div>
+          <input id="nw-subject" class="nw-inp" placeholder="p. ej. Was kostet ein Imagefilm 2026?" />
+
+          <div class="nw-sec-h">Redactar <span class="muted-note" style="font-weight:400;text-transform:none;letter-spacing:0">— texto + bloques listos de tu propio material</span></div>
+          <div id="nw-editor"></div>
+          <!-- backward-compat: el cuerpo en texto plano sigue existiendo (IA/preview/legacy) -->
+          <textarea id="nw-body" hidden></textarea>
+          <div class="nw-addrow">
+            <button class="nw-addbtn" id="nw-add-text" type="button">➕ ¶ texto</button>
+            <button class="nw-addbtn" id="nw-add-video" type="button">➕ 🎬 video</button>
+            <button class="nw-addbtn" id="nw-add-still" type="button">➕ 🖼 still</button>
+            <button class="nw-addbtn" id="nw-add-cta" type="button">➕ 🔘 CTA</button>
+            <button class="nw-addbtn" id="nw-add-case" type="button">➕ 📋 case</button>
+          </div>
+          <div class="nw-row" style="margin-top:12px">
+            <button class="btn btn-ghost small" id="nw-ai" type="button">✨ Generar con IA</button>
+            <button class="btn btn-ghost small" id="nw-blog" type="button">📰 Usar último artículo</button>
+            <span style="flex:1"></span>
+            <button class="btn btn-ghost small" id="nw-preview" type="button">👁 Preview HTML</button>
+          </div>
+          <div class="nw-bfield" style="margin-top:10px">
+            <label style="font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em">Notas para la IA (opcional)</label>
+            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. mencionar el case study de Meteomatics, tono relajado" />
+          </div>
+
+          </div>
+        </details>
+
+        <details class="nw-paso" open>
+          <summary><span class="nw-paso-n">③</span>Revisar y mandar<em>prueba, programación y envío</em></summary>
+          <div class="nw-paso-body"><div class="nw-sec-h">Programar</div>
+          <div class="nw-row">
+            <select id="nw-sched-mode" class="nw-sel"><option value="now">Enviar ahora</option><option value="at">Programar fecha/hora</option></select>
+            <input id="nw-sched-at" class="nw-inp" type="datetime-local" style="flex:1;min-width:200px" hidden />
+          </div>
+          <p class="muted-note" id="nw-sched-note" style="margin:2px 0 0;font-size:11.5px">Los programados salen solos, <b>en horario laboral suizo</b>: lunes a viernes, 09:00–12:00 y 13:30–17:00 (hora de Zúrich). Si elegís una hora fuera de esas ventanas, sale en la siguiente. Se revisa cada 15 minutos.</p>
+          <p class="muted-note" id="nw-sched-real" style="margin:5px 0 0;font-size:11.5px" hidden></p>
+
+          <!-- ===== send box ===== -->
+          <div class="nw-sendbox">
+            <div class="t" id="nw-send-title">📤 Preparando…</div>
+            <div class="m" id="nw-send-info"></div>
+            <div class="nw-bar" id="nw-bar" hidden><i id="nw-bar-fill"></i></div>
+            <div class="nw-bar-t" id="nw-bar-t" hidden></div>
+            <div class="nw-row" style="margin-top:12px;margin-bottom:0">
+              <button class="btn btn-ghost small" id="nw-test" type="button">📧 Probar en mi casilla</button>
+              <span style="flex:1"></span>
+              <button class="btn btn-primary small" id="nw-send" type="button">📤 Enviar ahora</button>
+            </div>
+          </div>
+          <p class="muted-note" id="nw-note" style="margin-top:8px"></p>
+
+          </div>
+        </details>
+
+        <details class="nw-paso nw-auto">
+          <summary><span class="nw-paso-n">⚙</span>Automático<em>se configura una vez y corre solo</em></summary>
+          <div class="nw-paso-body"><div class="panel" style="margin-bottom:14px">
       <div class="draft-head">
         <h2 style="margin:0">📬 Edición mensual automática <span class="count" id="nwi-count"></span></h2>{/* OJO: nwi-count es ESTE span (el "N para revisar"). El botón de destinatarios usa nwi-recips-btn — el 12 ago 2026 le puse el mismo id que a este span y getElementById devolvía el span, así que el botón quedó sin listener y no hacía nada. */}
         <button class="btn btn-ghost small" id="nwi-gen" type="button">⚙️ Generar draft ahora</button>
@@ -2947,80 +3063,7 @@ const newsCases = [
         </div>
         <p class="muted-note" id="nwi-note" style="margin-top:8px"></p>
       </div>
-    </div>
-    <div class="panel">
-      <h2>📰 Newsletter</h2>
-      <p class="muted-note" style="margin:6px 0 14px">Envíos segmentados vía Resend (API batch + reintentos + retomable sin duplicar). Se excluyen solos: dados de baja, spam/descartados, repetidos y el grupo <b>Follow up</b> (los clientes viejos importados de bexio, que hace mucho no escuchan nada nuestro — mandarles un newsletter de golpe quema la reputación del dominio). Para escribirles, elegí el segmento «Follow up» a propósito. Cada mail sale con link de baja de un click y con los links taggeados <code>utm_campaign=nl-{'{id}'}</code> para la atribución de ventas.</p>
-
-      <div class="nw-grid">
-        <!-- ===== columna izquierda: redactar + destinatarios + envío ===== -->
-        <div class="nw-lft">
-          <div class="nw-sec-h">Asunto</div>
-          <input id="nw-subject" class="nw-inp" placeholder="p. ej. Was kostet ein Imagefilm 2026?" />
-
-          <div class="nw-sec-h">Redactar <span class="muted-note" style="font-weight:400;text-transform:none;letter-spacing:0">— texto + bloques listos de tu propio material</span></div>
-          <div id="nw-editor"></div>
-          <!-- backward-compat: el cuerpo en texto plano sigue existiendo (IA/preview/legacy) -->
-          <textarea id="nw-body" hidden></textarea>
-          <div class="nw-addrow">
-            <button class="nw-addbtn" id="nw-add-text" type="button">➕ ¶ texto</button>
-            <button class="nw-addbtn" id="nw-add-video" type="button">➕ 🎬 video</button>
-            <button class="nw-addbtn" id="nw-add-still" type="button">➕ 🖼 still</button>
-            <button class="nw-addbtn" id="nw-add-cta" type="button">➕ 🔘 CTA</button>
-            <button class="nw-addbtn" id="nw-add-case" type="button">➕ 📋 case</button>
-          </div>
-          <div class="nw-row" style="margin-top:12px">
-            <button class="btn btn-ghost small" id="nw-ai" type="button">✨ Generar con IA</button>
-            <button class="btn btn-ghost small" id="nw-blog" type="button">📰 Usar último artículo</button>
-            <span style="flex:1"></span>
-            <button class="btn btn-ghost small" id="nw-preview" type="button">👁 Preview HTML</button>
-          </div>
-          <div class="nw-bfield" style="margin-top:10px">
-            <label style="font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em">Notas para la IA (opcional)</label>
-            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. mencionar el case study de Meteomatics, tono relajado" />
-          </div>
-
-          <div class="nw-sec-h">Destinatarios</div>
-          <div class="nw-row">
-            <!-- El segmento "Follow up — clientes viejos de bexio" (167 personas) se
-                 sacó el 25 ago por decisión de Sebastián: "Bexio - NO". Son clientes
-                 de facturas viejas que nunca pidieron un newsletter, y mandarles de
-                 golpe con un dominio que casi no manda email es la forma más rápida
-                 de que viven.ch termine en spam — incluidas las propuestas que sí hay
-                 que cobrar. El motor lo sigue soportando por si alguna campaña vieja
-                 lo tiene guardado; lo que ya no se puede es elegirlo por error. -->
-            <select id="nw-stage" class="nw-sel"><option value="all">Todos los suscriptos</option><option value="won">Clientes (ganados)</option><option value="open">Prospectos (no ganados)</option></select>
-            <select id="nw-lang" class="nw-sel"><option value="all">Todos los idiomas</option><option value="en">EN</option><option value="de">DE</option><option value="es">ES</option></select>
-            <button class="btn btn-ghost small" id="nw-count" type="button">👥 Ver / editar lista</button>
-          </div>
-          <div class="nw-row">
-            <select id="nw-mode" class="nw-sel"><option value="segment">Todo el segmento</option><option value="one">Una persona (email directo)</option></select>
-            <input id="nw-one-email" class="nw-inp" type="email" placeholder="nombre@empresa.com" style="flex:1;min-width:180px" hidden />
-          </div>
-
-          <div class="nw-sec-h">Programar</div>
-          <div class="nw-row">
-            <select id="nw-sched-mode" class="nw-sel"><option value="now">Enviar ahora</option><option value="at">Programar fecha/hora</option></select>
-            <input id="nw-sched-at" class="nw-inp" type="datetime-local" style="flex:1;min-width:200px" hidden />
-          </div>
-          <p class="muted-note" id="nw-sched-note" style="margin:2px 0 0;font-size:11.5px">Los programados salen solos, <b>en horario laboral suizo</b>: lunes a viernes, 09:00–12:00 y 13:30–17:00 (hora de Zúrich). Si elegís una hora fuera de esas ventanas, sale en la siguiente. Se revisa cada 15 minutos.</p>
-          <p class="muted-note" id="nw-sched-real" style="margin:5px 0 0;font-size:11.5px" hidden></p>
-
-          <!-- ===== send box ===== -->
-          <div class="nw-sendbox">
-            <div class="t" id="nw-send-title">📤 Preparando…</div>
-            <div class="m" id="nw-send-info"></div>
-            <div class="nw-bar" id="nw-bar" hidden><i id="nw-bar-fill"></i></div>
-            <div class="nw-bar-t" id="nw-bar-t" hidden></div>
-            <div class="nw-row" style="margin-top:12px;margin-bottom:0">
-              <button class="btn btn-ghost small" id="nw-test" type="button">📧 Probar en mi casilla</button>
-              <span style="flex:1"></span>
-              <button class="btn btn-primary small" id="nw-send" type="button">📤 Enviar ahora</button>
-            </div>
-          </div>
-          <p class="muted-note" id="nw-note" style="margin-top:8px"></p>
-
-          <!-- 👋 la bienvenida automática. No se edita desde acá a propósito:
+    </div><!-- 👋 la bienvenida automática. No se edita desde acá a propósito:
                es un texto fijo por idioma que vive en la function
                newsletter-welcome. Lo que sí se puede hacer —y es lo que hacía
                falta— es VERLO como lo ve el que se suscribe. -->
@@ -3060,7 +3103,10 @@ const newsCases = [
             <div class="k clickable" id="nw-k-open" title="Ver quiénes abrieron y quiénes no"><div class="n" id="nw-kmini-open">—</div><div class="l">Apertura últ. envío&nbsp;›</div></div>
             <div class="k clickable" id="nw-k-unsub" title="Ver quiénes se dieron de baja"><div class="n" id="nw-kmini-unsub">—</div><div class="l">Bajas&nbsp;›</div></div>
           </div>
-          <div class="nw-sec-h">Envíos anteriores <span class="count" id="nw-listcount" style="margin-left:auto"></span></div>
+          </div>
+        </details>
+
+        <div class="nw-sec-h">Envíos anteriores <span class="count" id="nw-listcount" style="margin-left:auto"></span></div>
           <div id="nw-list"><p class="muted-note">Sin campañas todavía.</p></div>
         </div>
       </div>
@@ -7780,7 +7826,15 @@ const newsCases = [
     $('leads-empty').hidden = open.length > 0;
     const byStage = {}; DL_OPEN.forEach((k) => byStage[k] = []);
     open.forEach((d) => byStage[stageOf(d.stage)].push(d));
-    Object.values(byStage).forEach((a) => a.sort((x, y) => new Date(y.created_at) - new Date(x.created_at)));
+    /* El más QUIETO primero, no el más nuevo.
+       Antes cada columna ordenaba por fecha de alta, así que arriba quedaba el deal
+       recién creado y el que lleva cinco semanas parado se hundía al fondo — donde
+       nadie mira. Medido el 25 ago: 10 de los 23 deals abiertos están en Contactado
+       con 27 días de promedio y ninguno con propuesta. Ese es el que hay que ver al
+       abrir la columna, no el de ayer.
+       El color del borde ya avisaba (verde <7 d, ámbar 7-14, rojo >14); lo que
+       faltaba era que el orden acompañara al color. */
+    Object.values(byStage).forEach((a) => a.sort((x, y) => dealStageDays(y) - dealStageDays(x)));
     // resumen por etapa: total abierto (todo lo que ves en el board) + cada etapa
     // por separado, sin tener que sumar columna por columna a ojo
     if (stageSum) {
@@ -13733,7 +13787,12 @@ const newsCases = [
     const segMatchProp = (p, k) =>
       k === 'archived' ? !!p.archived :
       !p.archived && (k === 'active' ? (p.status === 'draft' || p.status === 'sent') : k === 'tier' ? false : (k === 'won' ? p.status === 'accepted' : p.status === k));
-    $('opl-seg').innerHTML = [['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['tier', 'Paquetes'], ['archived', '🗄']]
+    /* "Paquetes" salió del segmentador. Son las 44 opciones internas que el cliente
+       ve DENTRO de una propuesta (status 'tier') — piezas, no documentos. Tenían su
+       propio botón, así que ocupaban el mismo lugar visual que las nueve cosas que sí
+       son documentos, y de 57 filas en la tabla de ofertas solo 4 son ofertas.
+       Se siguen viendo donde tienen sentido: adentro de su propuesta. */
+    $('opl-seg').innerHTML = [['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['archived', '🗄']]
       .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (oplSeg === k ? 'on' : '') + '">' + l + ' ' + (searchedOff.filter((o) => segMatchOff(o, k)).length + searchedProp.filter((p) => segMatchProp(p, k)).length) + '</button>').join('');
     $('opl-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { oplSeg = b.dataset.k; renderComboList(); }));
     const offRows = searchedOff.filter((o) => segMatchOff(o, oplSeg));
@@ -17286,7 +17345,15 @@ const newsCases = [
     if ($('nw-kmini-subs')){
       $('nw-kmini-subs').textContent = '…';
       supabase.functions.invoke('newsletter-send', { body: { preview: true, segment_stage: 'all', segment_lang: 'all', exclude_ids: [], extra_emails: [] } })
-        .then(({ data, error }) => { $('nw-kmini-subs').textContent = (error || !data || data.error) ? '?' : data.total; })
+        .then(({ data, error }) => {
+          const n = (error || !data || data.error) ? null : data.total;
+          $('nw-kmini-subs').textContent = n == null ? '?' : n;
+          /* El número en el encabezado del paso ①: saber a cuántos le llega no debería
+             requerir abrir nada. Sale del MISMO preview del servidor que usa el envío
+             —no de una cuenta hecha acá— así que lo que dice es lo que va a salir. */
+          const e1 = $('nw-paso1-n');
+          if (e1 && n != null) e1.textContent = n + (n === 1 ? ' persona' : ' personas');
+        })
         .catch(() => { $('nw-kmini-subs').textContent = '?'; });
     }
     const lastSent = nwList.find((n) => n.status === 'sent');
