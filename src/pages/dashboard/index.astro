@@ -3402,6 +3402,18 @@ const newsCases = [
       </div>
       <a class="btn btn-ghost small" href="/book/" target="_blank" rel="noopener">👁 Ver /book/</a>
     </div>
+
+    <!-- ¿Sirven las llamadas? La pantalla eran puros horarios: no había forma de saber
+         si mantener el booking abierto rinde. Medido el 25 ago 2026: de las 5 personas
+         reales que tuvieron call, 3 terminaron en propuesta. Ese número decide si esto
+         se cuida o se apaga, y no estaba en ningún lado. -->
+    <div class="panel" id="bk-perf" style="margin-bottom:14px" hidden>
+      <h2 style="margin:0 0 4px">📞 ¿Sirven las llamadas?</h2>
+      <p class="muted-note" style="margin:0 0 12px">De las video calls que ya pasaron, en cuántas la persona siguió adelante. Las direcciones internas y de prueba no cuentan.</p>
+      <div class="kpis four" id="bk-perf-k"></div>
+      <p class="muted-note" id="bk-perf-note" style="margin:10px 0 0"></p>
+    </div>
+
     <div class="panel" id="bk-set-panel">
       <div class="crm-grid">
         <label style="grid-column:1/-1;display:flex;align-items:center;gap:10px;font-weight:600"><input type="checkbox" id="bks-active" style="width:18px;height:18px"/> Booking ACTIVO <span class="muted-note" style="font-weight:400">(apagado → /book/ muestra el link de respaldo)</span></label>
@@ -8783,7 +8795,42 @@ const newsCases = [
     $('bks-hrole').value = c.host_role || prof.role || 'Founder — Viven AG, Zürich';
     $('bks-msg-en').value = c.msg_en || ''; $('bks-msg-de').value = c.msg_de || ''; $('bks-msg-es').value = c.msg_es || '';
     $('bks-note').textContent = bkRowId ? '' : 'Todavía usás los horarios por defecto — guardá para tener los tuyos.';
+    bkPerfRender();
   }
+
+  /* Qué pasó DESPUÉS de cada llamada. Se cuenta por persona y no por reserva: la misma
+     persona que reprograma dos veces sigue siendo una sola conversación, contarla dos
+     veces inflaría el numerador y el denominador de formas distintas. */
+  async function bkPerfRender(){
+    const box = $('bk-perf'); if (!box) return;
+    const { data, error } = await supabase.from('bookings')
+      .select('lead_id,start_at,status').lt('start_at', new Date().toISOString()).limit(1000);
+    if (error || !data || !data.length){ box.hidden = true; return; }
+    const AVANZO = ['videocall', 'propuesta', 'ganado'];
+    const ids = [...new Set(data.map((b) => b.lead_id).filter(Boolean))];
+    const gente = ids.map((id) => (allLeads || []).find((l) => String(l.id) === String(id))).filter(Boolean)
+      .filter((l) => !esInterno(l.email));
+    if (!gente.length){ box.hidden = true; return; }
+    const avanzaron = gente.filter((l) => AVANZO.includes(l.status));
+    const propuesta = gente.filter((l) => l.status === 'propuesta' || l.status === 'ganado');
+    const ganados = gente.filter((l) => l.status === 'ganado');
+    const pct = Math.round((propuesta.length / gente.length) * 100);
+    const k = (n, l, sub) => '<div class="kpi"><div class="n">' + n + '</div><div class="l">' + l + '</div>'
+      + (sub ? '<div class="muted-note" style="margin-top:2px;font-size:11.5px">' + sub + '</div>' : '') + '</div>';
+    $('bk-perf-k').innerHTML = k(gente.length, 'Personas con call', 'sin internos ni pruebas')
+      + k(propuesta.length, 'Llegaron a propuesta', '')
+      + k(pct + '%', 'Call → propuesta', '')
+      + k(ganados.length, 'Ganados', '');
+    /* Con un puñado de llamadas el porcentaje se mueve 20 puntos con una sola persona:
+       se muestra igual, pero diciendo que todavía no se lee como una tasa. */
+    $('bk-perf-note').textContent = gente.length < 8
+      ? 'Son ' + gente.length + (gente.length === 1 ? ' llamada' : ' llamadas') + ' — todavía muy pocas para leer el porcentaje como una tasa.'
+      : (avanzaron.length - propuesta.length > 0
+        ? (avanzaron.length - propuesta.length) + ' más quedaron en videocall sin propuesta todavía.'
+        : 'Todas las que avanzaron llegaron hasta la propuesta.');
+    box.hidden = false;
+  }
+
   async function saveBookingSet(){
     if (!meEmail) { toast('Sin sesión detectada — entrá de nuevo'); return; }
     const durations = [...document.querySelectorAll('.bks-dur:checked')].map((x) => +x.value);
@@ -12423,25 +12470,53 @@ const newsCases = [
     licRender();
   }
   const licCHF = (n) => 'CHF ' + Math.round(Number(n) || 0).toLocaleString('de-CH');
-  // KPIs de ingreso recurrente — todo client-side sobre licList (montos = mensuales)
+  /* El monto de una licencia es el del PERÍODO, no del mes: el formulario dice "Monto
+     (CHF)" a secas y así se cargaron las dos que hay — Kanebo CHF 2.500 por dos años,
+     Sonova CHF 1.500 por uno. El KPI los sumaba y les ponía "/mes", así que una cartera
+     de CHF 4.000 se leía como CHF 48.000 al año. Para tener un mensual de verdad hay
+     que prorratear cada una por su propia duración. (Regla: verificar la semántica de
+     un campo de plata antes de sumarlo.) */
+  function licMensual(l){
+    const monto = Number(l.amount) || 0;
+    if (!monto || !l.start_date || !l.renewal_date) return null;
+    const dias = (Date.parse(l.renewal_date) - Date.parse(l.start_date)) / 864e5;
+    if (!(dias > 20)) return null;              // período raro o de un día: no se inventa
+    return monto / (dias / 30.44);
+  }
+  const licVencida = (l) => l.status === 'active' && l.renewal_date && licDaysTo(l.renewal_date) < 0;
   function licKpis(){
     const active = licList.filter((l) => l.status === 'active');
-    const monthly = active.reduce((a, l) => a + (Number(l.amount) || 0), 0);
+    /* Una licencia cuya fecha de renovación ya pasó no es cartera activa: es un
+       vencimiento que nadie cerró. El 25 ago 2026 la de Sonova llevaba 43 días así y
+       sumaba igual. */
+    const vigentes = active.filter((l) => !licVencida(l));
+    const total = vigentes.reduce((a, l) => a + (Number(l.amount) || 0), 0);
+    const mensual = vigentes.reduce((a, l) => a + (licMensual(l) || 0), 0);
+    const sinPeriodo = vigentes.filter((l) => licMensual(l) == null && Number(l.amount)).length;
     const renewed30 = licList.filter((l) => l.status === 'renewed' && l.updated_at && (Date.now() - Date.parse(l.updated_at) < 30 * 864e5))
       .reduce((a, l) => a + (Number(l.amount) || 0), 0);
-    const due90 = active.filter((l) => l.renewal_date && licDaysTo(l.renewal_date) >= 0 && licDaysTo(l.renewal_date) <= 90)
+    const due90 = vigentes.filter((l) => l.renewal_date && licDaysTo(l.renewal_date) <= 90)
       .reduce((a, l) => a + (Number(l.amount) || 0), 0);
-    const risk = active.filter((l) => l.renewal_date && licDaysTo(l.renewal_date) <= 30).length;
-    $('lic-k-active').innerHTML = licCHF(monthly) + '<small>/mes</small>';
+    const vencidas = active.filter(licVencida);
+    $('lic-k-active').innerHTML = licCHF(total)
+      + '<small>' + (mensual > 0 ? '≈ ' + licCHF(mensual) + '/mes prorrateado' : 'valor del período')
+      + (sinPeriodo ? ' · ' + sinPeriodo + ' sin fechas' : '') + '</small>';
     $('lic-k-renewed').textContent = licCHF(renewed30);
     $('lic-k-due90').textContent = licCHF(due90);
-    const rk = $('lic-k-risk'); rk.textContent = String(risk); rk.style.color = risk > 0 ? '#ff8b8b' : '';
+    const rk = $('lic-k-risk');
+    rk.innerHTML = String(vencidas.length) + (vencidas.length ? '<small>ya vencidas, sin cerrar</small>' : '<small>ninguna vencida</small>');
+    rk.style.color = vencidas.length > 0 ? '#ff8b8b' : '';
+    const rl = document.querySelector('#lic-kpis .kpi:last-child .l');
+    if (rl) rl.textContent = vencidas.length ? 'Vencidas sin cerrar' : 'En riesgo';
   }
   function licMatch(l){
-    if (licFilter === 'active') return l.status === 'active';
+    if (licFilter === 'active') return l.status === 'active' && !licVencida(l);
     if (licFilter === 'due') return l.status === 'active' && l.renewal_date && licDaysTo(l.renewal_date) <= 30;
+    /* "Vencidas" filtraba por status='expired' —que hay que poner a mano— así que la de
+       Sonova, vencida hace 43 días y todavía en 'active', no aparecía en ningún filtro
+       que la señalara. Ahora también entran las que ya pasaron su fecha. */
+    if (licFilter === 'expired') return l.status === 'expired' || licVencida(l);
     if (licFilter === 'renewed') return l.status === 'renewed';
-    if (licFilter === 'expired') return l.status === 'expired';
     if (licFilter === 'cancelled') return l.status === 'cancelled';
     return true;
   }
@@ -12461,7 +12536,9 @@ const newsCases = [
     box.innerHTML = rows.map((l) => {
       const lead = l.lead_id ? leadById(l.lead_id) : null;
       const statusLbl = { renewed: '✅ Renovada', expired: '⏹ Vencida', cancelled: '🚫 Cancelada' }[l.status] || '';
-      const sub = (l.amount ? licCHF(l.amount) + '/mes · ' : '') + (l.start_date ? 'desde ' + esc(l.start_date) + ' · ' : '') +
+      const men = licMensual(l);
+      const sub = (l.amount ? licCHF(l.amount) + (men ? ' por el período (≈ ' + licCHF(men) + '/mes)' : '') + ' · ' : '')
+        + (l.start_date ? 'desde ' + esc(l.start_date) + ' · ' : '') +
         'renueva ' + esc(l.renewal_date || '—') + (lead ? ' · ' + esc(lead.name || lead.email) : '');
       const actions = l.status === 'active'
         ? '<button class="of-act lic-pri" data-act="genoffer" type="button">🧾 Generar oferta de renovación</button>' +
@@ -15902,7 +15979,9 @@ const newsCases = [
       de: { subject: 'Ihr Call mit Viven ist gebucht — {{when}}', body: 'Ihr {{duration}}-Minuten-Call ist bestätigt: {{when}} (Zürich). Die Google-Kalender-Einladung ist ebenfalls unterwegs.\n\nMit Google Meet beitreten über den Link in der Kalendereinladung.\n\nNoch etwas: Mit dem kurzen Projekt-Briefing (2 Min.) kommen wir bestens vorbereitet.' },
       es: { subject: 'Tu llamada con Viven está reservada — {{when}}', body: 'Tu llamada de {{duration}} minutos está confirmada: {{when}} (hora de Zúrich). La invitación de Google Calendar también va en camino.\n\nEntrar con Google Meet usando el link de la invitación del calendario.\n\nUna cosa más: completá el brief de 2 min para que lleguemos preparados.' },
     } },
-    { key: 'review_request', label: '⭐ Pedido de reseña Google', wired: false, vars: ['first_name'], defaults: {
+    /* wired pasó a true el 25 ago 2026: review-request ahora sí lee email_templates.
+       Estaba editada en los tres idiomas desde julio y no salía nunca. */
+    { key: 'review_request', label: '⭐ Pedido de reseña Google', wired: true, vars: ['first_name', 'last_name'], defaults: {
       en: { subject: 'How was working with Viven? 🌟', body: 'Hi {{first_name}},\n\nIt was a pleasure producing your video — we hope it\'s already working hard for you.\n\nIf you have 60 seconds, a short Google review would mean a lot to our small team (and helps other companies find us).\n\nThank you — and see you on the next project!\nSebastian & the Viven team' },
       de: { subject: 'Wie war die Zusammenarbeit mit Viven? 🌟', body: 'Guten Tag {{first_name}},\n\nEs war uns eine Freude, Ihr Video zu produzieren — wir hoffen, es arbeitet bereits fleissig für Sie.\n\nWenn Sie 60 Sekunden haben: Eine kurze Google-Bewertung würde unserem kleinen Team enorm helfen.\n\nHerzlichen Dank — bis zum nächsten Projekt!\nSebastian & das Viven-Team' },
       es: { subject: '¿Cómo fue trabajar con Viven? 🌟', body: 'Hola {{first_name}}:\n\nFue un placer producir tu video — esperamos que ya esté trabajando duro para vos.\n\nSi tenés 60 segundos, una reseña corta en Google ayuda muchísimo a nuestro equipo.\n\n¡Gracias — y hasta el próximo proyecto!\nSebastian y el equipo de Viven' },
@@ -15953,7 +16032,13 @@ const newsCases = [
     tmplSwitchLang('en');
     $('tmpl-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  const TMPL_SAMPLE = { first_name: 'Alex', name: 'Alex Muster', company: 'Acme AG', range: "CHF 8'000 – 14'000", calc_range: "CHF 8'000 – 14'000", when: 'Montag, 14. Juli, 10:00', duration: '15' };
+  const TMPL_SAMPLE = { first_name: 'Alex', last_name: 'Muster', name: 'Alex Muster', company: 'Acme AG', range: "CHF 8'000 – 14'000", calc_range: "CHF 8'000 – 14'000", when: 'Montag, 14. Juli, 10:00', duration: '15' };
+  /* Una llave mal escrita no rompe nada: sale literal en el email del cliente. Pasó de
+     verdad — la plantilla alemana de reseña usaba {{last_name}} cuando el envío solo
+     resolvía {{first_name}}, y ese email decía "Guten Tag {{last_name}}," (nunca llegó a
+     salir porque la función tampoco leía la plantilla, pero iba a salir así). */
+  const tmplTokensRaros = (txt, vars) => [...new Set(String(txt || '').match(/\{\{[a-z_]+\}\}/gi) || [])]
+    .filter((t) => !vars.includes(t.slice(2, -2)));
   $('tmpl-ed-preview-btn') && $('tmpl-ed-preview-btn').addEventListener('click', () => {
     const tok = (s) => String(s || '').replace(/\{\{(\w+)\}\}/g, (m, k) => (TMPL_SAMPLE[k] !== undefined ? TMPL_SAMPLE[k] : m));
     const subj = tok($('tmpl-ed-subject').value);
@@ -15964,6 +16049,11 @@ const newsCases = [
   $('tmpl-ed-save') && $('tmpl-ed-save').addEventListener('click', async () => {
     const subject = $('tmpl-ed-subject').value.trim(), body = $('tmpl-ed-body').value.trim();
     if (!subject || !body){ toast('Completá asunto y cuerpo'); return; }
+    const tDef = TMPL_TOUCHPOINTS.find((x) => x.key === tmplCurKey) || { vars: [] };
+    const raros = tmplTokensRaros(subject + ' ' + body, tDef.vars);
+    if (raros.length && !confirm('Estas llaves no existen para esta plantilla y saldrían tal cual en el email:\n\n'
+      + raros.join('  ') + '\n\nLas que sí funcionan: ' + tDef.vars.map((v) => '{{' + v + '}}').join('  ')
+      + '\n\n¿Guardar igual?')) return;
     const { error } = await supabase.from('email_templates').upsert({ key: tmplCurKey, lang: tmplCurLang, subject, body, updated_at: new Date().toISOString() });
     if (error){ toast('⚠️ ' + error.message + ' (¿corriste la SQL 0062?)'); return; }
     tmplRows[tmplCurKey + '|' + tmplCurLang] = { key: tmplCurKey, lang: tmplCurLang, subject, body };

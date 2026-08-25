@@ -17,6 +17,38 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const REVIEW_LINK = Deno.env.get("REVIEW_LINK") || "https://www.google.com/maps/search/?api=1&query=Viven+AG+Zeughausstrasse+31+Z%C3%BCrich";
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Content-Type": "application/json" } });
 
+/* 📚 Plantillas (email_templates, key='review_request'). Estaban editadas en los tres
+   idiomas desde el 14 jul 2026 y esta función nunca las leía: lo que Sebastián escribió
+   en Sistema → Plantillas no salía nunca, y nada lo avisaba. Igual que en
+   booking-create: la plantilla pisa asunto y párrafos; el botón de reseña y la firma
+   quedan fijos porque son estructura, no texto. */
+const esc = (x: string) => String(x || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+async function getTemplate(key: string, lang: string): Promise<{ subject: string; body: string } | null> {
+  try {
+    const { data, error } = await service.from("email_templates").select("subject,body").eq("key", key).eq("lang", lang).maybeSingle();
+    if (error || !data || !data.subject || !data.body) return null;
+    return data as { subject: string; body: string };
+  } catch (_e) { return null; }
+}
+const CTA = { en: "⭐ Leave a quick review", de: "⭐ Kurze Bewertung schreiben", es: "⭐ Dejar una reseña" };
+/* La plantilla alemana usa {{last_name}} (Sie + apellido) y las otras dos
+   {{first_name}}: reemplazar solo uno dejaba "Guten Tag {{last_name}}," literal en el
+   email del cliente. Se reemplazan los dos siempre, y {{name}} por si alguien lo
+   escribe. Los que queden sin resolver se borran antes de mandar: mejor un saludo
+   corto que una llave a la vista. */
+function tokens(txt: string, first: string, last: string): string {
+  return String(txt || "")
+    .replaceAll("{{first_name}}", first)
+    .replaceAll("{{last_name}}", last)
+    .replaceAll("{{name}}", first)
+    .replace(/\{\{[a-z_]+\}\}/gi, "");
+}
+function htmlDePlantilla(cuerpo: string, first: string, last: string, lang: "en" | "de" | "es"): string {
+  const parrafos = tokens(cuerpo, first, last).trim().split(/\n{2,}/)
+    .map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
+  return parrafos + `<p><a href="${REVIEW_LINK}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:12px 22px;border-radius:100px;text-decoration:none">${CTA[lang]}</a></p>`;
+}
+
 const MAIL = {
   en: { subject: "How was working with Viven? 🌟", html: (n: string) => `<p>Hi ${n},</p><p>It was a pleasure producing your video — we hope it's already working hard for you.</p><p>If you have 60 seconds, a short Google review would mean a lot to our small team (and helps other companies find us):</p><p><a href="${REVIEW_LINK}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:12px 22px;border-radius:100px;text-decoration:none">⭐ Leave a quick review</a></p><p>Thank you — and see you on the next project!<br>Sebastian &amp; the Viven team</p>` },
   de: { subject: "Wie war die Zusammenarbeit mit Viven? 🌟", html: (n: string) => `<p>Guten Tag ${n},</p><p>Es war uns eine Freude, Ihr Video zu produzieren — wir hoffen, es arbeitet bereits fleissig für Sie.</p><p>Wenn Sie 60 Sekunden haben: Eine kurze Google-Bewertung würde unserem kleinen Team enorm helfen:</p><p><a href="${REVIEW_LINK}" style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;padding:12px 22px;border-radius:100px;text-decoration:none">⭐ Kurze Bewertung schreiben</a></p><p>Herzlichen Dank — bis zum nächsten Projekt!<br>Sebastian &amp; das Viven-Team</p>` },
@@ -62,10 +94,13 @@ Deno.serve(async (req) => {
       const first = nmParts[0] || (lang === "en" ? "there" : "");
       const lastN = nmParts.slice(1).join(" ") || nmParts[0] || "";
       const sal = lang === "de" ? lastN : first;   // DE: Sie + apellido (regla fija)
+      const tmpl = await getTemplate("review_request", lang);
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: "Sebastian de Viven <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [lead.email], subject: MAIL[lang].subject, html: MAIL[lang].html(sal) }),
+        body: JSON.stringify({ from: "Sebastian de Viven <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [lead.email],
+          subject: tmpl ? tokens(tmpl.subject, first, lastN) : MAIL[lang].subject,
+          html: tmpl ? htmlDePlantilla(tmpl.body, first, lastN, lang) : MAIL[lang].html(sal) }),
       });
       if (!r.ok) return json({ error: "Resend " + r.status }, 500);
       await service.from("lead_notes").insert({ lead_id: String(lead.id), author: "Sistema", body: "⭐ Pedido de reseña ENVIADO a " + lead.email });
