@@ -4924,7 +4924,39 @@ const newsCases = [
     return [...acc.values()].sort((a, b) => b.k.localeCompare(a.k))
       .map((a) => ({ ...a, pct: a.leads ? Math.round(1000 * a.ganados / a.leads) / 10 : 0 }));
   }
+  /* ===== Visitantes por período (SQL 0140) =====
+     Sebastián: "acá faltarían los visitantes, los leads, la conversión en % y de
+     esos los clientes y esa conversión, para entender mejoras de mes a mes".
+     Tiene razón: sin el escalón de arriba no se distingue un mes con menos leads
+     por menos tráfico de uno con peor conversión.
+     Se pide una vez por modo y se guarda: la tabla se re-dibuja en cada render de
+     Analytics y no vale una consulta cada vez. */
+  /* primer instante del período, a partir de su clave ('2026-08', '2026-Q3', '2026') */
+  function cvpInicioDe(k){
+    if (/^\d{4}$/.test(k)) return new Date(+k, 0, 1).getTime();
+    const q = k.match(/^(\d{4})-Q([1-4])$/);
+    if (q) return new Date(+q[1], (+q[2] - 1) * 3, 1).getTime();
+    const m = k.match(/^(\d{4})-(\d{2})$/);
+    return m ? new Date(+m[1], +m[2] - 1, 1).getTime() : 0;
+  }
+  const cvpVis = {};        // modo -> Map(clave -> {sesiones, personas})
+  const cvpVisPidiendo = {};
+  async function cvpCargarVisitas(modo){
+    if (cvpVis[modo] || cvpVisPidiendo[modo]) return;
+    cvpVisPidiendo[modo] = true;
+    try {
+      const { data, error } = await supabase.rpc('rpc_visitas_por_periodo', { p_modo: modo });
+      if (error) throw error;
+      const m = new Map();
+      (data || []).forEach((r) => m.set(r.clave, { sesiones: +r.sesiones || 0, personas: +r.personas || 0 }));
+      cvpVis[modo] = m;
+      cvpRender();          // ya con los visitantes adentro
+    } catch (e) {
+      cvpVis[modo] = new Map();   // sin datos: la columna queda en '—', no rompe la tabla
+    } finally { cvpVisPidiendo[modo] = false; }
+  }
   function cvpRender(){
+    cvpCargarVisitas(cvpModo);
     const box = $('cvp-body'); if (!box) return;
     const filas = cvpPeriodos(cvpModo);
     const cart = leadsCartera();
@@ -4932,18 +4964,47 @@ const newsCases = [
     if (!filas.length){ box.innerHTML = '<p class="muted-note">Todavía no hay leads de origen real cargados.</p>'; }
     else {
       const max = Math.max(...filas.map((f) => f.leads), 1);
+      const vis = cvpVis[cvpModo] || new Map();
       box.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
         '<tr style="text-align:left;color:var(--muted-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em">' +
-        '<th style="padding:6px 8px 6px 0;font-weight:600">Período</th><th style="padding:6px 8px;font-weight:600">Leads</th>' +
-        '<th style="padding:6px 8px;font-weight:600">Clientes</th><th style="padding:6px 8px;font-weight:600">Conversión</th>' +
+        '<th style="padding:6px 8px 6px 0;font-weight:600">Período</th>' +
+        '<th style="padding:6px 8px;font-weight:600">Visitantes</th><th style="padding:6px 8px;font-weight:600">Leads</th>' +
+        '<th style="padding:6px 8px;font-weight:600">Visita → lead</th>' +
+        '<th style="padding:6px 8px;font-weight:600">Clientes</th><th style="padding:6px 8px;font-weight:600">Lead → cliente</th>' +
         '<th style="padding:6px 0;font-weight:600;min-width:90px"></th></tr>' +
-        filas.map((f) => '<tr style="border-top:1px solid var(--line)">' +
+        filas.map((f) => {
+          /* Dos fuentes posibles para "visitantes": personas confirmadas (solo desde
+             el 24/08) o sesiones con bots adentro (lo único que existe para los meses
+             viejos). Se usa la que haya y se DICE cuál es — un 🤖 al lado del número
+             y el porcentaje en gris cuando el denominador incluye tráfico automático.
+             Un 0,3% calculado sobre bots no se puede comparar contra un 12% de gente,
+             y sin la marca parecería que la web se desplomó. */
+          const v = vis.get(f.k);
+          const per = v ? v.personas : 0, ses = v ? v.sesiones : 0;
+          /* Solo se usan PERSONAS si el período empieza dentro de la era medida.
+             En agosto 2026 hay 79 personas (del 24 al 31) y 18 leads (del 1 al 31):
+             dividir uno por otro daba 23%, que es el mismo cruce de ventanas de
+             siempre. Mientras el período esté medido a medias se usan las sesiones
+             —que sí cubren el mes entero— con su 🤖 y su porcentaje en gris. */
+          const usaPersonas = per > 0 && cvpInicioDe(f.k) >= HUMAN_DESDE;
+          const den = usaPersonas ? per : ses;
+          const visTxt = !den ? '<span style="color:var(--muted-2)">—</span>'
+            : den.toLocaleString('de-CH') + (usaPersonas ? '' : ' <span title="Incluye tráfico automático: las personas se miden desde el 24/08" style="opacity:.6">🤖</span>');
+          const pctVis = den ? (f.leads / den * 100) : null;
+          const pctVisTxt = pctVis == null ? '<span style="color:var(--muted-2)">—</span>'
+            : '<span style="color:' + (usaPersonas ? 'var(--acid)' : 'var(--muted-2)') + '"' +
+              (usaPersonas ? '' : ' title="Sobre sesiones con bots incluidos — sirve para comparar meses entre sí, no como tasa real"') + '>' +
+              (pctVis < 10 ? pctVis.toFixed(1) : Math.round(pctVis)) + '%</span>';
+          return '<tr style="border-top:1px solid var(--line)">' +
           '<td style="padding:8px 8px 8px 0;color:var(--text)">' + esc(f.label) + '</td>' +
+          '<td style="padding:8px;font-family:\'Space Grotesk\';font-weight:700">' + visTxt + '</td>' +
           '<td style="padding:8px;font-family:\'Space Grotesk\';font-weight:700">' + f.leads + '</td>' +
+          '<td style="padding:8px;font-family:\'Space Grotesk\';font-weight:700">' + pctVisTxt + '</td>' +
           '<td style="padding:8px">' + f.ganados + '</td>' +
           '<td style="padding:8px;font-family:\'Space Grotesk\';font-weight:700;color:' + (f.pct >= 10 ? 'var(--won)' : f.pct > 0 ? 'var(--acid)' : 'var(--muted-2)') + '">' + f.pct + '%</td>' +
           '<td style="padding:8px 0"><div style="height:7px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden"><i style="display:block;height:100%;width:' + Math.round(100 * f.leads / max) + '%;background:var(--acid);border-radius:6px"></i></div></td>' +
-          '</tr>').join('') + '</table></div>';
+          '</tr>'; }).join('') + '</table></div>' +
+        (vis.size ? '<p class="muted-note" style="margin:10px 0 0">🤖 = visitantes con tráfico automático adentro (las personas se miden desde el 24/08). Esos porcentajes van en gris: sirven para comparar un mes contra otro, no como tasa real.</p>' : '');
     }
     const cg = cart.filter(esGanado).length;
     $('cvp-cartera').innerHTML = cart.length
