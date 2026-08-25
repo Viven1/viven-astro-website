@@ -235,6 +235,9 @@ const newsCases = [
   .kdelta.down{color:#ff8b8b}
   .kdelta.flat{color:var(--muted-2)}
   /* sub-tabs de Analytics: pills en UNA fila, scrolleables en móvil */
+  .ana-modo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .ana-modo .muted-note{font-size:12.5px}
+  .ana-modo .btn.on{background:var(--acid);border-color:var(--acid);color:#16210a}
   .ana-seg{margin:0 0 18px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
   .ana-seg::-webkit-scrollbar{display:none}
   .ana-seg button{flex:none;font-size:12px;padding:7px 14px}
@@ -2397,7 +2400,11 @@ const newsCases = [
         <h2 style="margin:0">Analytics</h2>
         <p class="muted-note" style="margin:2px 0 0">Tráfico, buscadores, Ads y videos — todo del período elegido, comparado con el período anterior.</p>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="ana-modo" id="ana-modo">
+          <button class="btn btn-ghost small" id="ana-modo-btn" type="button">👥 Solo personas</button>
+          <span class="muted-note" id="ana-modo-txt"></span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <select id="range-sel" class="status" title="Período">
           <option value="1">Hoy</option>
           <option value="7">7 días</option>
@@ -2427,7 +2434,7 @@ const newsCases = [
         <div class="kpi"><div class="n" id="ka-sessions">–</div><div class="kdelta" id="ka-sessions-d"></div><div class="l" id="ka-sessions-l">Sesiones (visitas)</div></div>
         <div class="kpi"><div class="n" id="ka-people">–</div><div class="kdelta" id="ka-people-d"></div><div class="l" id="ka-people-l">Personas</div></div>
         <div class="kpi"><div class="n" id="ka-views">–</div><div class="kdelta" id="ka-views-d"></div><div class="l" id="ka-views-l">Páginas vistas</div></div>
-        <div class="kpi"><div class="n" id="ka-time">–</div><div class="kdelta" id="ka-time-d"></div><div class="l">Tiempo medio en página</div></div>
+        <div class="kpi"><div class="n" id="ka-time">–</div><div class="kdelta" id="ka-time-d"></div><div class="l" id="ka-time-l">Tiempo medio en página</div></div>
         <div class="kpi"><div class="n" id="ka-conv">–</div><div class="kdelta" id="ka-conv-d"></div><div class="l">Leads (conversiones)</div></div>
         <div class="kpi"><div class="n" id="ka-rate">–</div><div class="kdelta" id="ka-rate-d"></div><div class="l">Tasa de conversión</div></div>
       </div>
@@ -2650,7 +2657,8 @@ const newsCases = [
       <p class="muted-note" style="margin:2px 0 10px">Entran acá → pasan a esto → salen acá. Click en una página de entrada para ver solo sus flujos; las cintas grises son sesiones que terminan ahí.</p>
       <div class="rc-flow-wrap"><div class="rc-flow-inner" id="rc-flow"><p class="muted-note">Cargando…</p></div></div>
 
-      <h2 style="margin-top:24px">📊 Funnels con drop-off <span class="count">(calculadora · brief · lead magnet)</span></h2>
+      <p class="muted-note" id="rc-nota" style="margin:14px 0 0"></p>
+      <h2 style="margin-top:10px">📊 Funnels con drop-off <span class="count">(calculadora · brief · lead magnet)</span></h2>
       <div class="rc-funnels" id="rc-funnels"><p class="muted-note">Cargando…</p></div>
 
       <h2 style="margin-top:24px">🚪 Páginas de entrada <span class="count">(landing · rebote · profundidad)</span></h2>
@@ -4199,7 +4207,10 @@ const newsCases = [
      Datos de funnel_events / ux_signals (SQL 0106) vía RPCs security definer —
      el dashboard nunca baja filas crudas. Período propio 7/28 días, independiente
      del selector global (los funnels miran conversión reciente, no un día puntual). */
-  let rcDays = 28, rcLoadedFor = 0;
+  let rcDays = 28, rcLoadedFor = 0, rcLoadedSolo = null;
+  /* Estos dos paneles se calculan en Postgres, no acá: el filtro de personas viaja
+     como parámetro (SQL 0137). Medido el 25 ago: el rebote pasaba de 91% (bots) a
+     58% (gente) — o sea que el panel viejo describía a los bots, no a la web. */
   const RC_FUNNELS = [
     { id: 'landing', name: '🎯 Landings de Ads (film-production)' },
     { id: 'calc', name: '🧮 Calculadora de costos' },
@@ -4345,7 +4356,7 @@ const newsCases = [
   async function rcFlowLoad(){
     const box = $('rc-flow'); if (!box) return;
     try {
-      const { data, error } = await supabase.rpc('rpc_path_flows', { p_days: rcDays });
+      const { data, error } = await supabase.rpc('rpc_path_flows', { p_days: rcDays, p_solo_personas: anaSoloPersonas });
       if (error) throw error;
       rcFlowRows = data || []; rcFlowFilter = null; rcFlowRender();
     } catch (e) {
@@ -4357,8 +4368,17 @@ const newsCases = [
 
   async function rcLoad(force){
     const box = $('rc-funnels'); if (!box) return;
-    if (!force && rcLoadedFor === rcDays) return; // ya cargado para este período
-    rcLoadedFor = rcDays;
+    if (!force && rcLoadedFor === rcDays && rcLoadedSolo === anaSoloPersonas) return; // ya cargado así
+    rcLoadedFor = rcDays; rcLoadedSolo = anaSoloPersonas;
+    /* la ventana real: con el filtro puesto, Postgres recorta al 24/08 porque antes
+       no hay con qué separar. Decirlo, si no parece que se desplomó el tráfico. */
+    const rcNota = $('rc-nota');
+    if (rcNota){
+      const diasReales = Math.min(rcDays, Math.ceil((Date.now() - HUMAN_DESDE) / 864e5));
+      rcNota.textContent = anaSoloPersonas
+        ? 'Solo personas · ' + (diasReales < rcDays ? 'últimos ' + diasReales + (diasReales === 1 ? ' día' : ' días') + ' (se mide desde el 24/08)' : 'últimos ' + rcDays + ' días')
+        : 'Todo el tráfico, bots incluidos · últimos ' + rcDays + ' días';
+    }
     rcFlowLoad(); // 🗺️ flujo de visitas — mismo período, en paralelo con los funnels
     // 1) funnels con drop-off (calc / brief / magnet) en paralelo
     const rs = await Promise.all(RC_FUNNELS.map((f) => Promise.resolve(supabase.rpc('rpc_funnel_steps', { p_funnel: f.id, p_days: rcDays })).catch((e) => ({ error: e }))));
@@ -4366,7 +4386,7 @@ const newsCases = [
     // 2) páginas de entrada (landing → rebote → profundidad)
     const eb = $('rc-entry');
     try {
-      const { data, error } = await supabase.rpc('rpc_entry_pages', { p_days: rcDays });
+      const { data, error } = await supabase.rpc('rpc_entry_pages', { p_days: rcDays, p_solo_personas: anaSoloPersonas });
       if (error) throw error;
       // las landings de ads (film-production.viven.ch) comparten tablas con el
       // sitio pero tienen paths propios — acá se etiquetan para diferenciarlas
@@ -4719,6 +4739,11 @@ const newsCases = [
     seoLoaded = false; // el período cambió: Search Console debe refetchear con los días nuevos
     loadAll();
   });
+  $('ana-modo-btn') && $('ana-modo-btn').addEventListener('click', () => {
+    anaSoloPersonas = !anaSoloPersonas;
+    renderAnalytics(lastViews, allLeads);
+    rcLoad(true);   // los recorridos se calculan en la base: hay que volver a pedirlos
+  });
   $('range-day').addEventListener('change', (e) => {
     rangeDay = e.target.value || null;
     if (rangeDay) rangeMes = false;
@@ -4796,7 +4821,9 @@ const newsCases = [
 
   /* Insights de Analytics: automáticos, 1 vez por día por navegador (cache en localStorage).
      El ↻ fuerza una regeneración; si el invoke falla, no se reintenta solo hasta recargar. */
-  const AI_AUTO_LS = 'vv_ai_insights';
+  /* v2: hasta el 25 ago los insights se generaban sobre datos con bots adentro. El
+     sufijo invalida ese cache de una vez, sin tener que borrarlo a mano. */
+  const AI_AUTO_LS = 'vv_ai_insights_v2';
   let aiAutoTried = false;
   function renderAiCards(list){
     $('ai-insights-body').innerHTML = list.map((i) =>
@@ -9754,9 +9781,47 @@ const newsCases = [
     el.className = 'kdelta ' + (pct > 0 ? 'up' : 'down');
   }
 
+  /* Por defecto SOLO personas: es lo que Sebastián pidió ver. El interruptor deja
+     volver al tráfico completo cuando hace falta (por ejemplo para comparar con una
+     herramienta externa que sí cuenta bots). */
+  let anaSoloPersonas = true;
+  function anaAvisoModo(solo, parcial, hayMedicion, totalCrudo, totalFiltrado){
+    const b = $('ana-modo-btn'), t = $('ana-modo-txt');
+    if (!b || !t) return;
+    b.classList.toggle('on', !!solo);
+    b.textContent = solo ? '👥 Solo personas' : '🌐 Todo el tráfico';
+    if (!hayMedicion){
+      t.textContent = 'La separación de bots se mide desde el 24/08 — en este período todavía no hay con qué separar.';
+      b.disabled = true; return;
+    }
+    b.disabled = false;
+    const desc = totalCrudo - totalFiltrado;
+    t.textContent = solo
+      ? 'Se descartaron ' + desc.toLocaleString('de-CH') + ' visitas automáticas' +
+        (parcial ? ' · antes del 24/08 no se puede separar, así que ese tramo no aparece' : '')
+      : 'Estás viendo TODO, bots incluidos (' + totalCrudo.toLocaleString('de-CH') + ' visitas)';
+  }
   function renderAnalytics(rows, leads){
-    /* fuera las sesiones/leads de prueba */
-    const real = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
+    /* ================= UN SOLO FILTRO PARA TODO EL TAB =================
+       Analytics tiene 22 paneles y casi todos cuentan sesiones o páginas vistas.
+       Parchear uno por uno era garantizar que se escapara alguno, así que el filtro
+       vive acá: todo lo de abajo usa `real`, así que si `real` no tiene bots, no los
+       tiene ninguno. (Sebastián, 25 ago: "controlá toda la info en analytics, muchos
+       siguen con sesiones que deben ser con bots".)
+       El interruptor de arriba permite ver el tráfico completo cuando hace falta. */
+    const sinTest = rows.filter((r) => !/^claude-/.test(r.session_id || ''));
+    const humIds = new Set((humanAct || [])
+      .filter((x) => { const t = Date.parse(x.created_at); return t >= Math.max(rangeStart(), HUMAN_DESDE) && t <= rangeEnd(); })
+      .map((x) => x.session_id));
+    const hayMedicion = rangeEnd() > HUMAN_DESDE;
+    const parcial = rangeStart() < HUMAN_DESDE;
+    const soloPersonas = anaSoloPersonas && hayMedicion;
+    const real = soloPersonas ? sinTest.filter((r) => humIds.has(r.session_id)) : sinTest;
+    /* Las comparaciones ▲▼ solo tienen sentido si el período ANTERIOR está medido con
+       el mismo criterio. Si no, compararíamos personas contra personas+bots y daría
+       un derrumbe que no existe. */
+    const compararOk = !soloPersonas || prevWin.start >= HUMAN_DESDE;
+    anaAvisoModo(soloPersonas, parcial, hayMedicion, sinTest.length, real.length);
     const entries = real.filter((r) => r.is_entry);
     const sessions = new Set(real.map((r) => r.session_id));
     /* la cartera de bexio queda afuera de los KPIs de performance (ver esCartera):
@@ -9766,36 +9831,19 @@ const newsCases = [
       inRange(l.created_at) && !/^claude-/.test(l.session_id || '') && !esCartera(l));
 
     /* KPIs — la conversión = lead real enviado (fiable, no depende del pageview) */
-    /* ===== Sin bots, o dicho ===== (Sebastián, 25 ago: "mirá que las páginas vistas
-       sea sin los bots también, sino no sirve de nada").
-       Desde el 24/08 sabemos qué sesiones son de una persona (session_activity:
-       scroll, puntero, toque). Con eso:
-         · si el período elegido está ENTERO medido → sesiones y páginas vistas se
-           cuentan solo de personas
-         · si está medido a medias → se muestran las de la parte medida, diciendo
-           desde cuándo (mismo criterio que la tarjeta de Hoy)
-       Nunca un total con bots adentro presentado como si fuera gente. */
-    const humanIds = new Set((humanAct || [])
-      .filter((x) => { const t = Date.parse(x.created_at); return t >= Math.max(rangeStart(), HUMAN_DESDE) && t <= rangeEnd(); })
-      .map((x) => x.session_id));
+    /* Los dos KPIs de arriba solo cambian de ETIQUETA: los números ya vienen
+       filtrados de `real` según el interruptor. El texto tiene que decir qué se está
+       contando, porque "7.158 sesiones" y "78 visitas de personas" miden cosas
+       distintas y sin la etiqueta parecería que la web se cayó. */
     const medidoDesde = Math.max(rangeStart(), HUMAN_DESDE);
-    const hayMedicion = rangeEnd() > HUMAN_DESDE;
-    const parcial = rangeStart() < HUMAN_DESDE;
     const diasMed = Math.max(1, Math.round((rangeEnd() - medidoDesde) / 864e5));
     const sufijo = parcial ? ' · últimos ' + diasMed + (diasMed === 1 ? ' día' : ' días') : '';
-    const realH = real.filter((r) => humanIds.has(r.session_id));
+    const humanIds = humIds;
     const setL = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
-    if (hayMedicion){
-      setL('ka-views', realH.length.toLocaleString('de-CH'));
-      setL('ka-views-l', 'Páginas vistas de personas' + sufijo);
-      setL('ka-sessions', humanIds.size.toLocaleString('de-CH'));
-      setL('ka-sessions-l', 'Visitas de personas' + sufijo);
-    } else {
-      setL('ka-views', real.length.toLocaleString('de-CH'));
-      setL('ka-views-l', 'Páginas vistas · incluye bots');
-      setL('ka-sessions', sessions.size.toLocaleString('de-CH'));
-      setL('ka-sessions-l', 'Sesiones · incluye bots');
-    }
+    setL('ka-views', real.length.toLocaleString('de-CH'));
+    setL('ka-views-l', soloPersonas ? 'Páginas vistas de personas' + sufijo : 'Páginas vistas · incluye bots');
+    setL('ka-sessions', sessions.size.toLocaleString('de-CH'));
+    setL('ka-sessions-l', soloPersonas ? 'Visitas de personas' + sufijo : 'Sesiones · incluye bots');
     const actEn = (a, b) => new Set(humanAct
       .filter((x) => { const t = Date.parse(x.created_at); return t >= a && t <= b; })
       .map((x) => x.session_id));
@@ -9808,7 +9856,15 @@ const newsCases = [
     else $('ka-people-d').textContent = '';
     const durs = real.filter((r) => r.duration > 0);
     const avg = durs.length ? durs.reduce((a, r) => a + r.duration, 0) / durs.length : 0;
+    /* Hasta el 25/08 esto medía la pestaña abierta, no la pestaña mirada: una
+       dejada de fondo toda la tarde entraba como una lectura de horas. Se arregló en
+       site.js, pero los datos viejos ya están guardados así — decirlo, en vez de
+       presentar un promedio contaminado como si fuera limpio. */
     $('ka-time').textContent = fmtTime(avg);
+    const tl = $('ka-time-l');
+    if (tl) tl.innerHTML = rangeStart() < Date.parse('2026-08-25T00:00:00Z')
+      ? 'Tiempo medio en página <small style="opacity:.6">· antes del 25/08 contaba pestañas de fondo</small>'
+      : 'Tiempo medio en página';
     $('ka-conv').textContent = periodLeads.length;
     /* La tasa se calculaba leads ÷ sesiones, con las sesiones llenas de bots: daba
        0,3% y hacía parecer que la web no convierte. Ahora se calcula contra personas
@@ -9816,7 +9872,13 @@ const newsCases = [
        (leads de 30 días) y el denominador (personas de 1 día) son de escalas
        distintas y el resultado sería igual de falso, para el otro lado. */
     const rateEl = $('ka-rate'), rateL = $('ka-rate-l');
-    if (hayMedicion && !parcial && humanIds.size){
+    if (!soloPersonas){
+      /* En modo "todo el tráfico" la tasa se calcula contra sesiones con bots
+         adentro: es un número bajo y diluido, pero es el que devuelven las
+         herramientas externas, así que sirve para comparar. Se dice qué es. */
+      if (rateEl) rateEl.textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
+      if (rateL) rateL.textContent = 'De cada 100 sesiones (bots incluidos)';
+    } else if (hayMedicion && !parcial && humanIds.size){
       if (rateEl) rateEl.textContent = (periodLeads.length / humanIds.size * 100).toFixed(1) + '%';
       if (rateL) rateL.textContent = 'De cada 100 personas, cuántas dejan datos';
     } else {
@@ -9843,16 +9905,24 @@ const newsCases = [
     });
     const pDurs = pReal.filter((r) => r.duration > 0);
     const pAvg = pDurs.length ? pDurs.reduce((a, r) => a + r.duration, 0) / pDurs.length : 0;
-    setDelta('ka-sessions-d', sessions.size, pSessions.size);
-    setDelta('ka-views-d', real.length, pReal.length);
-    setDelta('ka-time-d', avg, pAvg);
+    /* los leads no dependen de bots: esa comparación vale siempre */
     setDelta('ka-conv-d', periodLeads.length, pLeads.length);
-    setDelta('ka-rate-d', sessions.size ? periodLeads.length / sessions.size : 0, pSessions.size ? pLeads.length / pSessions.size : 0);
+    if (compararOk){
+      setDelta('ka-sessions-d', sessions.size, pSessions.size);
+      setDelta('ka-views-d', real.length, pReal.length);
+      setDelta('ka-time-d', avg, pAvg);
+      setDelta('ka-rate-d', sessions.size ? periodLeads.length / sessions.size : 0, pSessions.size ? pLeads.length / pSessions.size : 0);
+    } else {
+      // sin período anterior medido, una flecha sería una caída inventada
+      ['ka-sessions-d', 'ka-views-d', 'ka-time-d', 'ka-rate-d'].forEach((id) => { const e = $(id); if (e){ e.textContent = ''; e.className = 'kdelta'; } });
+    }
 
     /* tráfico + leads por día (anclado al fin de la ventana) */
     const span = rangeSpanDays();
     const anchor = rangeEnd();
-    const dl = $('daily-label'); if (dl) dl.textContent = '(' + rangeLabel().toLowerCase() + ' vs anterior)';
+    // el subtítulo dice QUÉ se está contando y si hay contra qué comparar
+    const dl = $('daily-label');
+    if (dl) dl.textContent = '(' + (soloPersonas ? 'personas · ' : '') + rangeLabel().toLowerCase() + (compararOk ? ' vs anterior)' : ')');
     const spanMs = span * 864e5; // corrimiento para alinear día a día con la ventana previa
     const days = [];
     for (let i = span - 1; i >= 0; i--) {
@@ -9862,7 +9932,11 @@ const newsCases = [
     const dayMap = new Map(days.map((d) => [d.key, d]));
     const prevDayMap = new Map(days.map((d) => [d.pkey, d]));
     real.forEach((r) => { const d = dayMap.get(r.created_at.slice(0, 10)); if (d) d.set.add(r.session_id); });
-    pReal.forEach((r) => { const d = prevDayMap.get(r.created_at.slice(0, 10)); if (d) d.pset.add(r.session_id); });
+    /* La línea punteada del período anterior solo se dibuja si ese período está
+       medido con el MISMO criterio. Si no, sería la curva de bots contra la curva de
+       gente: la escala se iría a las nubes y la línea real quedaría pegada al piso,
+       leyéndose como un derrumbe que nunca pasó. */
+    if (compararOk) pReal.forEach((r) => { const d = prevDayMap.get(r.created_at.slice(0, 10)); if (d) d.pset.add(r.session_id); });
     periodLeads.forEach((l) => { const d = dayMap.get(l.created_at.slice(0, 10)); if (d) d.leads++; });
     /* gráfico SVG real: área + línea de sesiones, puntos de leads, línea punteada del período anterior */
     const n = days.length, W = 1000, H = 260, padL = 42, padR = 14, padT = 16, padB = 28;
@@ -9873,14 +9947,14 @@ const newsCases = [
     const pts = days.map((d, i) => [X(i), Y(d.set.size)]);
     const linePath = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
     const areaPath = 'M' + X(0).toFixed(1) + ' ' + baseY + ' ' + pts.map((p) => 'L' + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' L' + X(n - 1).toFixed(1) + ' ' + baseY + ' Z';
-    const prevPath = days.map((d, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(d.pset.size).toFixed(1)).join(' ');
+    const prevPath = compararOk ? days.map((d, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(d.pset.size).toFixed(1)).join(' ') : '';
     const grid = [0, 0.5, 1].map((t) => {
       const v = Math.round(maxS * t), y = Y(v);
       return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" class="g-grid"/>' +
         '<text x="' + (padL - 8) + '" y="' + (y + 4).toFixed(1) + '" class="g-yl">' + v + '</text>';
     }).join('');
     const leadDots = days.map((d, i) => d.leads ? '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="' + (3 + Math.min(4, d.leads)) + '" class="g-lead"><title>' + d.label + ': ' + d.leads + ' leads</title></circle>' : '').join('');
-    const hover = days.map((d, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="11" fill="transparent"><title>' + d.label + ' — ' + d.set.size + ' sesiones · ' + d.leads + ' leads · período anterior: ' + d.pset.size + '</title></circle>').join('');
+    const hover = days.map((d, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.set.size).toFixed(1) + '" r="11" fill="transparent"><title>' + d.label + ' — ' + d.set.size + ' sesiones · ' + d.leads + ' leads' + (compararOk ? ' · período anterior: ' + d.pset.size : '') + '</title></circle>').join('');
     const step = Math.max(1, Math.ceil(n / 7));
     const xls = days.map((d, i) => ((i % step === 0) || i === n - 1) ? '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" class="g-xl" text-anchor="middle">' + d.label + '</text>' : '').join('');
     $('daily-chart').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="gsvg">' +
@@ -9888,7 +9962,7 @@ const newsCases = [
       grid + '<path d="' + prevPath + '" class="g-prev"/><path d="' + areaPath + '" fill="url(#gfill)"/><path d="' + linePath + '" class="g-line"/>' + leadDots + hover + xls + '</svg>';
 
     /* funnel del período: del tráfico al cierre */
-    renderAnaFunnel(sessions.size, periodLeads);
+    renderAnaFunnel(sessions.size, periodLeads, soloPersonas);
 
     /* rendimiento por CANAL: sesiones vs leads */
     const chSessions = new Map();
@@ -9946,8 +10020,12 @@ const newsCases = [
     perfTable($('perf-ref'), refPerf);
 
     /* resumen compacto para los insights con IA */
+    /* La IA lee ESTO. Si le mandábamos sesiones con 75% de bots, escribía consejos
+       sobre el comportamiento de los bots con total seguridad. Ahora recibe lo mismo
+       que ve la pantalla, y se le dice qué está mirando. */
     insightsData = {
       periodo: rangeLabel(),
+      medicion: soloPersonas ? 'solo personas (tráfico automático excluido)' : 'todo el tráfico, bots incluidos',
       sesiones: sessions.size,
       paginas_vistas: real.length,
       tiempo_medio_seg: Math.round(avg),
@@ -9983,11 +10061,13 @@ const newsCases = [
   /* Funnel del período (sub-tab Web): arranca en SESIONES (tráfico) y baja hasta ganado.
      Adaptado de renderFunnel (Home/Personas) SIN tocarlo — acá la base es el tráfico y
      los pasos se cuentan sobre los leads CREADOS en el período (sus timestamps de etapa). */
-  function renderAnaFunnel(sessionCount, periodLeads){
+  function renderAnaFunnel(sessionCount, periodLeads, soloPersonas){
     const el = $('ana-funnel'); if (!el) return;
     const stColor = (k) => (STAGES.find((x) => x.key === k) || {}).color || '#8ab4ff';
     const steps = [
-      { label: 'Sesiones',   n: sessionCount, color: '#8ab4ff' },
+      /* el primer escalón cambia de nombre según qué se esté contando: decir
+         "sesiones" cuando son personas hace que el % del paso siguiente parezca otro */
+      { label: soloPersonas ? 'Personas' : 'Sesiones', n: sessionCount, color: '#8ab4ff' },
       { label: 'Leads',      n: periodLeads.length, color: stColor('lead') },
       { label: 'Video Call', n: periodLeads.filter((l) => l.videocall_at).length, color: stColor('videocall') },
       { label: 'Propuesta',  n: periodLeads.filter((l) => l.proposal_at).length, color: stColor('propuesta') },

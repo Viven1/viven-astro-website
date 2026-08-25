@@ -39,7 +39,7 @@ Process: four stages — creative development, pre-production, production, post-
 Scope: concept, script, casting, shoot, edit, sound design and finishing all run by one Viven team. You brief once and receive delivery-ready assets.
 Revisions: every quote includes structured feedback rounds agreed upfront. No surprise costs at the end.
 Pricing: most projects range from CHF 4,000 to 80,000 — length, complexity and number of shoot days drive the price. A clear, no-obligation quote usually comes within one business day.
-Languages: English, German and Spanish, produced natively, not just translated. Subtitles and extra language versions available for every film.
+Languages: practically any language, produced natively — the people on camera speak their own, the film is written and directed in it, not translated from an English shoot. German, French, English, Spanish and Italian are all normal for us; French-speaking Switzerland (Geneva, Lausanne) is covered exactly like Zurich. Where the language is not one the core team speaks, direction runs in English while the contributors speak theirs, and a native-speaking director or interpreter joins the shoot — that is a crew and casting question, not a limit. Subtitles and additional language versions are available for every film.
 Formats: delivery-ready masters plus cutdowns — 16:9 for web and TV, 1:1 and 9:16 for social.
 Rights: you receive the usage rights agreed in your quote, clearly defined. Footage stays archived with us so future cutdowns need no new shoot. Third-party licences (music, stock, and cast usage under the Swiss SSFV / SzeneSchweiz guidelines) are written into the quote before the shoot, never invoiced afterwards.
 Brand guidelines: yes, we work inside your corporate identity — logo animation, typography, grading, tone of voice.
@@ -58,7 +58,7 @@ Prozess: vier Phasen — Kreativentwicklung, Pre-Production, Produktion, Post-Pr
 Leistungsumfang: Konzept, Drehbuch, Casting, Dreh, Schnitt, Sound Design und Finishing aus einer Hand. Sie briefen einmal und erhalten lieferfertige Assets.
 Korrekturschleifen: jedes Angebot enthält vorab vereinbarte, strukturierte Feedback-Runden. Keine Überraschungen am Ende.
 Preise: die meisten Projekte liegen zwischen CHF 4'000 und 80'000 — Länge, Komplexität und die Anzahl der Drehtage bestimmen den Preis. Ein klares, unverbindliches Angebot folgt in der Regel innerhalb eines Werktags.
-Sprachen: Englisch, Deutsch und Spanisch — nativ produziert, nicht bloss übersetzt. Untertitel und weitere Sprachversionen für jeden Film.
+Sprachen: praktisch jede Sprache, nativ produziert — die Menschen vor der Kamera sprechen ihre eigene, der Film wird darin geschrieben und inszeniert, nicht aus einem englischen Dreh übersetzt. Deutsch, Französisch, Englisch, Spanisch und Italienisch sind für uns Alltag; die Romandie (Genf, Lausanne) ist gleich abgedeckt wie Zürich. Spricht das Kernteam eine Sprache nicht selbst, führen wir die Regie auf Englisch, während die Protagonisten in ihrer Sprache sprechen, und holen eine muttersprachliche Regie oder eine Dolmetscherin an den Dreh — eine Frage von Crew und Casting, keine Grenze. Untertitel und weitere Sprachfassungen für jeden Film.
 Formate: lieferfertige Master plus Cutdowns — 16:9 für Web und TV, 1:1 und 9:16 für Social.
 Rechte: Sie erhalten die im Angebot vereinbarten Nutzungsrechte, klar definiert. Ihr Material bleibt archiviert, künftige Cutdowns brauchen keinen neuen Dreh. Lizenzen Dritter (Musik, Stock, und Darsteller-Nutzung nach SSFV / SzeneSchweiz) stehen vor dem Dreh in der Offerte und werden nie nachträglich verrechnet.
 Brand Guidelines: ja, wir arbeiten innerhalb Ihrer Corporate Identity — Logo-Animation, Typografie, Farbkorrektur, Tonalität.
@@ -73,7 +73,7 @@ Qué producimos: films de marca, videos de producto, campañas de employer brand
 Trayectoria: 187 marcas en 32 industrias — UBS, Siemens, Porsche, ON, Chanel, FIFA, Philips. 5.0 en Google con 47+ reseñas.
 Tiempos: el primer corte llega unas dos semanas después del inicio acordado. Series para redes en días. Campañas grandes de employer branding, de cuatro a ocho semanas.
 Precios: la mayoría de los proyectos van de CHF 4'000 a 80'000. El presupuesto claro y sin compromiso llega normalmente en un día hábil.
-Idiomas: inglés, alemán y español, producidos de forma nativa. Subtítulos y versiones adicionales disponibles.
+Idiomas: prácticamente cualquiera, de forma nativa: la gente frente a cámara habla el suyo y el film se escribe y se dirige en ese idioma, no se traduce de un rodaje en inglés. Alemán, francés, inglés, español e italiano son rutina; la Suiza francesa (Ginebra, Lausana) queda cubierta igual que Zúrich. Si el equipo no habla ese idioma, la dirección va en inglés mientras los protagonistas hablan el suyo, y sumamos dirección nativa o intérprete al rodaje: es una cuestión de equipo y casting, no un límite. Subtítulos y versiones adicionales para cada film.
 Derechos: recibís los derechos de uso acordados en la oferta. El material queda archivado con nosotros.
 `.trim();
 
@@ -95,6 +95,11 @@ THE THREE HARD RULES — breaking any of these costs the company money:
 1. NEVER give a price for their specific project. Not a number, not a "roughly", not a per-day rate, not "somewhere around". You may state the published range (CHF 4,000–80,000) and that price is driven by length, complexity and shoot days. For anything more precise, send them to the cost calculator: it gives an itemised range by email in about a minute. The calculator asks for video type, final length, shoot days, how many locations, who is on camera and extras — it does NOT ask for a city, an industry or a deadline, so never say the estimate is tailored to their location, their sector or their timeline. If they push for a number a second time, say plainly that an honest number needs two minutes of their brief and offer the call — do not invent one.
 2. NEVER promise dates, availability, capacity or that something fits their budget. You may repeat published timings (first draft ~2 weeks after the agreed start; social in days; employer branding 4–8 weeks). Availability for specific dates is confirmed by Sofia or one of our producers, not here.
 3. NEVER mention or hint at anything you know about their behaviour on the site — pages seen, videos watched, that they used the calculator. Those signals are internal. Write as if this conversation is all you have.
+
+LANGUAGE OF THE FILM — the answer is always yes, but there are two honest levels and you must not blur them:
+ - German, French, English, Spanish and Italian are routine and fully native: written, cast and directed in the language. Say so plainly.
+ - Any other language (Japanese, Portuguese, Mandarin, anything) is also delivered, and the contributors absolutely speak their own language on camera — but do NOT claim it is "normal for us" or that we write and direct natively in it. Say that we produce in it by staffing for it: a native-speaking director or an interpreter joins the shoot, direction runs in English, and the film is still in their language. Offer the call to work out the setup.
+Lead with what is possible, never with the workaround, and never downgrade a language to subtitles-only on your own.
 
 ALSO NEVER: invent clients, numbers, awards or case studies that are not in the knowledge base; quote competitors; discuss internal costs, margins or crew rates; give legal or tax advice; agree to a discount.
 
@@ -185,6 +190,16 @@ Only what the VISITOR actually said — empty string when they did not say it, n
         // el idioma real de la respuesta, no el de la pantalla: si el visitante
         // escribió en español, el botón tiene que estar en español
         if (["en", "de", "es"].includes(String(o.lang))) replyLang = String(o.lang);
+        /* Red de seguridad: el modelo arrastraba el botón de un mensaje anterior
+           —contestaba sobre derechos de autor y abajo aparecía "abrí la
+           calculadora"—. Si la respuesta no nombra la cosa, no hay botón. */
+        const r = reply.toLowerCase();
+        const nombra: Record<string, RegExp> = {
+          calc: /calculator|rechner|calculadora/,
+          book: /\bcall\b|15-min|gespräch|termin|llamada|videollamada/,
+          brief: /brief|form\b|formular|formulario/,
+        };
+        if (action !== "none" && !nombra[action].test(r)) action = "none";
         handoff = o.handoff === true;
         lead = { name: o.name ?? "", email: o.email ?? "", company: o.company ?? "", type: o.type ?? "", timing: o.timing ?? "", summary: o.summary ?? "" };
       }

@@ -1216,12 +1216,26 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     window.addEventListener('keydown', onKey);
   })();
 
-  /* ---- Tiempo en página: se reporta al ocultar/cerrar la pestaña ---- */
-  var t0 = Date.now();
+  /* ---- Tiempo en página ----
+     Antes esto medía (Date.now() - carga): o sea el reloj de pared con la pestaña
+     abierta. Una pestaña olvidada en segundo plano durante la tarde entera contaba
+     como una lectura de cuatro horas, y por eso el promedio del dashboard daba
+     6m17s — un número que no describía a nadie. (Sebastián, 25 ago: "¿el tiempo
+     medido en página es real?". No lo era.)
+     Ahora se acumula SOLO el tiempo con la pestaña visible: se suma el tramo al
+     ocultarla y el reloj vuelve a arrancar al volver. Sigue sin ser "tiempo
+     leyendo" —eso no se puede saber— pero ya no cuenta las horas de una pestaña
+     de fondo. */
+  var visDesde = document.visibilityState === 'visible' ? Date.now() : 0;
+  var visAcum = 0;
+  function visSecs(){
+    var extra = visDesde ? (Date.now() - visDesde) : 0;
+    return Math.round((visAcum + extra) / 1000);
+  }
   var lastSent = 0;
   function sendDuration(){
     if(!pvId) return;
-    var secs = Math.round((Date.now() - t0) / 1000);
+    var secs = visSecs();
     if(secs < 3 || secs <= lastSent) return;  /* rebotes de <3s no aportan */
     lastSent = secs;
     fetch(SB_URL + '/rest/v1/rpc/update_duration', {
@@ -1236,9 +1250,18 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     }).catch(function(){});
   }
   document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState === 'hidden') sendDuration();
+    if(document.visibilityState === 'hidden'){
+      /* cerrar el tramo ANTES de enviar: si no, el envío no lo incluiría */
+      if(visDesde){ visAcum += Date.now() - visDesde; visDesde = 0; }
+      sendDuration();
+    } else if(!visDesde){
+      visDesde = Date.now();   /* volvió a la pestaña: el reloj arranca de nuevo */
+    }
   });
-  window.addEventListener('pagehide', sendDuration);
+  window.addEventListener('pagehide', function(){
+    if(visDesde){ visAcum += Date.now() - visDesde; visDesde = 0; }
+    sendDuration();
+  });
 
   /* la atribución queda disponible para el futuro insert de leads
      (formulario) — así cada lead nace con su gclid/canal/idioma.
