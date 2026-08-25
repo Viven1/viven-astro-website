@@ -1434,10 +1434,22 @@ const newsCases = [
   .sistema-seg-2 .seg-lbl{align-self:center;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
     color:var(--muted-2);font-weight:700;padding:0 8px 0 2px}
   @media(max-width:620px){.sistema-seg-2 .seg-lbl{display:none}}
+  .ana-grupo-det{border-bottom:1px solid var(--line)}
+  .ana-grupo-det > summary{cursor:pointer;list-style:none}
+  .ana-grupo-det > summary::-webkit-details-marker{display:none}
+  .ana-grupo-det > summary::after{content:'▸';margin-left:auto;color:var(--muted-2);font-size:13px;
+    transition:transform .18s var(--ease, ease)}
+  .ana-grupo-det[open] > summary::after{transform:rotate(90deg)}
+  .ana-grupo-det > summary:hover{color:var(--acid-dim)}
+  .ana-grupo-det[open]{padding-bottom:8px}
+  .ana-grupo-n{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:400;
+    color:var(--muted-2);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
   .ana-grupo{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
     font-size:12px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:var(--acid);
     margin:30px 0 12px;padding-bottom:9px;border-bottom:1px solid var(--line)}
-  .ana-grupo:first-of-type{margin-top:18px}
+  .ana-grupo-det:first-of-type > .ana-grupo{margin-top:18px}
+  .ana-grupo-det > .ana-grupo{border-bottom:0;margin-bottom:0}
+  .ana-grupo-det[open] > .ana-grupo{margin-bottom:14px}
   .ana-grupo span{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:400;color:var(--muted-2)}
   .ps-seg{margin-bottom:12px}
   .ps-cards{display:grid;gap:8px}
@@ -2528,8 +2540,16 @@ const newsCases = [
            guiaba: para llegar a "qué posts del blog rinden" había que pasar por el
            funnel, los canales, los referrers y los insights. No se sacó ni se agregó
            nada — los mismos once paneles, agrupados bajo la pregunta que contestan. -->
-
-      <h3 class="ana-grupo">Cuánta gente vino<span>volumen y qué pasó con ella</span></h3>
+      <!-- ===== GRUPOS PLEGABLES =====
+           Primera versión: tres títulos entre once paneles que seguían midiendo lo
+           mismo. Sebastián: "analytics sigue igual". Y tenía razón — un encabezado
+           no te ahorra un scroll, y lo que el mockup prometía era "poder saltar al
+           que importa". Ahora cada grupo se abre y se cierra: la pantalla arranca
+           con la primera pregunta contestada y las otras dos a un click, con la
+           cuenta de paneles a la vista para saber qué hay adentro. Lo que abrís
+           queda abierto la próxima vez. -->
+      <details class="ana-grupo-det" data-g="g0" open>
+        <summary class="ana-grupo">Cuánta gente vino<span>volumen y qué pasó con ella</span><em class="ana-grupo-n">3 paneles</em></summary>
 <div class="panel">
         <h2>Tráfico y leads por día <span class="count" id="daily-label">(en el período)</span></h2>
         <div class="chart" id="daily-chart"></div>
@@ -2556,10 +2576,9 @@ const newsCases = [
       <div class="panel">
         <h2>Funnel del período <span class="count">(sesiones → ganado)</span></h2>
         <div class="funnel" id="ana-funnel"></div>
-      </div>
-
-      
-      <h3 class="ana-grupo">De dónde salió<span>canales, referrers y con qué entran</span></h3>
+      </div>      </details>
+      <details class="ana-grupo-det" data-g="g1">
+        <summary class="ana-grupo">De dónde salió<span>canales, referrers y con qué entran</span><em class="ana-grupo-n">4 paneles</em></summary>
 <div class="grid-2">
         <div class="panel">
           <h2>¿Qué canales traen leads? <span class="count" id="perf-ch-c">(sesiones → leads)</span></h2>
@@ -2585,9 +2604,9 @@ const newsCases = [
             <div class="bars" id="bars-lang"></div>
           </div>
         </div>
-      </details>
-    
-      <h3 class="ana-grupo">Qué hacemos con eso<span>dónde convierte y dónde no</span></h3>
+      </details>      </details>
+      <details class="ana-grupo-det" data-g="g2">
+        <summary class="ana-grupo">Qué hacemos con eso<span>dónde convierte y dónde no</span><em class="ana-grupo-n">4 paneles</em></summary>
       <div class="panel">
           <h2>Páginas más vistas <span class="count">(visitas · cuánto se quedan)</span></h2>
           <div class="bars" id="bars-pages"></div>
@@ -2614,7 +2633,8 @@ const newsCases = [
         <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Post</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-blog"></tbody></table></div>
       </div>
 
-    </div>
+          </details>
+</div>
 <div id="ana-sub-gads" hidden>
       <div class="warnbox" id="gads-pending" hidden></div>
 
@@ -10381,6 +10401,20 @@ const newsCases = [
   }
   /* recorta una lista de leads al tramo medido — mismo criterio que las sesiones */
   const periodLeadsTramo = (arr, desde) => (arr || []).filter((l) => Date.parse(l.created_at) >= desde);
+  /* Qué grupos de Analytics quedaron abiertos. Si cerrás "De dónde salió" porque no
+     lo mirás, no tiene que volver a aparecer abierto mañana. */
+  (function anaGruposMemoria(){
+    let abiertos;
+    try { abiertos = JSON.parse(localStorage.getItem('vv_ana_grupos') || 'null'); } catch (e) { /* cache corrupto */ }
+    document.querySelectorAll('.ana-grupo-det').forEach((d) => {
+      if (abiertos && Object.prototype.hasOwnProperty.call(abiertos, d.dataset.g)) d.open = !!abiertos[d.dataset.g];
+      d.addEventListener('toggle', () => {
+        const est = {};
+        document.querySelectorAll('.ana-grupo-det').forEach((x) => { est[x.dataset.g] = x.open; });
+        try { localStorage.setItem('vv_ana_grupos', JSON.stringify(est)); } catch (e) { /* modo privado */ }
+      });
+    });
+  })();
   function renderAnalytics(rows, leads){
     /* ================= UN SOLO FILTRO PARA TODO EL TAB =================
        Analytics tiene 22 paneles y casi todos cuentan sesiones o páginas vistas.
@@ -17883,12 +17917,13 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       offers: ofs
     };
   }
-  /* Arranca en "Clientes", no en "Todas". Las empresas se arman solas agrupando por
-     el dominio del email, así que "Todas" son 173 filas de las que la enorme mayoría
-     tiene un solo contacto y ningún dato cargado — y una lista donde casi todo está
-     vacío no invita a abrir nada. Los filtros ya existían; lo que estaba mal era con
-     cuál abre. Se recuerda la última elección. */
-  let coSeg = 'client';
+  /* Arranca en "Prospectos". Primero probé con "Clientes" —cualquier cosa antes que
+     las 173 filas de "Todas", que en su mayoría tienen un contacto y ningún dato—
+     pero Sebastián lo corrigió y el criterio es mejor que el mío: "que abra en
+     prospectos, que son los que queremos convertir. Siempre convertir y ganar
+     primero". Un cliente ya ganado no necesita que lo mires al abrir la pantalla;
+     un prospecto sí. Se recuerda la última elección igual. */
+  let coSeg = 'prospect';
   try { const g = localStorage.getItem('vv_co_seg'); if (['all', 'client', 'prospect', 'empty'].includes(g)) coSeg = g; } catch (e) { /* modo privado */ }
   function renderCompanies(){
     if (!coBound){ coBound = true;
