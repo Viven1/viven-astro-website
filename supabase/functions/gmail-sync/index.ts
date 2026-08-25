@@ -125,6 +125,96 @@ Deno.serve(async (req) => {
     const cuerpoReq = await req.json().catch(() => ({}));
     const backfillDias = Math.max(0, Math.min(90, +cuerpoReq.backfill_days || 0));
     const maxPorCasilla = backfillDias ? 200 : 30;
+    /* ================= MODO RESCATE: todos los emails de UNA persona =================
+       El sync normal solo mira desde el último cursor, así que hay tres formas de que
+       un email nunca llegue a la ficha, y las tres pasan seguido:
+         · llegó ANTES de que la persona existiera en el CRM (el caso típico: escribe
+           a info@, la aprobás dos días después, y sus emails viejos ya pasaron),
+         · entraron más de 30 en una misma corrida y el cursor avanzó igual,
+         · el sync estuvo caído un rato.
+       Con {lead_id} o {email} se busca en Gmail por esa dirección SIN límite de fecha
+       y se trae todo lo que falte, entrante y saliente. Sebastián, 25 ago: "mirá que
+       todos los emails siempre entren a la persona, si no no sirve de nada eso".
+       Es idempotente: lo que ya está se saltea por gmail_id. */
+    const json = (b: unknown, st = 200) => new Response(JSON.stringify(b), { status: st, headers: { "Content-Type": "application/json" } });
+
+    /* Rescate en tanda: el mismo modo pero para varios contactos de una. Sirve para
+       tapar el agujero histórico de una vez —los emails que quedaron afuera antes de
+       que existiera este modo— sin tener que entrar contacto por contacto.
+       Se salta la cartera de bexio: son clientes de facturas viejas, no gente con la
+       que haya una conversación por email que rescatar. */
+    if (cuerpoReq.rescatar_todos) {
+      const limite = Math.max(1, Math.min(60, +cuerpoReq.limite || 20));
+      const desde = Math.max(0, +cuerpoReq.desde || 0);
+      const { data: gente } = await service.from("leads").select("id,email,channel")
+        .not("email", "is", null).order("id").range(desde, desde + limite - 1);
+      const cands = (gente ?? []).filter((l: { email?: string; channel?: string }) =>
+        l.email && !/bexio/i.test(l.channel ?? ""));
+      const resumen: { lead: string; traidos: number }[] = [];
+      for (const l of cands) {
+        const r = await fetch(new URL(req.url).toString(), {
+          method: "POST", headers: { "Content-Type": "application/json", Authorization: req.headers.get("Authorization") ?? "" },
+          body: JSON.stringify({ lead_id: l.id }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (j.traidos) resumen.push({ lead: String(l.id), traidos: j.traidos });
+      }
+      return json({ ok: true, modo: "rescate_tanda", mirados: cands.length, desde,
+        siguiente: desde + limite, con_novedades: resumen });
+    }
+
+    if (cuerpoReq.lead_id || cuerpoReq.email) {
+      let quien = String(cuerpoReq.email || "").toLowerCase().trim();
+      let leadId = cuerpoReq.lead_id ? String(cuerpoReq.lead_id) : null;
+      if (!quien && leadId) {
+        const { data: l } = await service.from("leads").select("email").eq("id", leadId).maybeSingle();
+        quien = String(l?.email || "").toLowerCase().trim();
+      }
+      if (!quien) return json({ error: "esa persona no tiene email" }, 400);
+      if (!leadId) {
+        const { data: l } = await service.from("leads").select("id").ilike("email", quien).maybeSingle();
+        leadId = l?.id ? String(l.id) : null;
+      }
+      if (!leadId) return json({ error: "no encontré a esa persona en el CRM" }, 404);
+      let traidos = 0, revisados = 0;
+      for (const mb of MAILBOXES) {
+        const rt = Deno.env.get(mb.refreshSecret); if (!rt) continue;
+        try {
+          const tok = await accessToken(rt);
+          const q = encodeURIComponent(`{from:${quien} to:${quien} cc:${quien}}`);
+          let page = "";
+          for (let vuelta = 0; vuelta < 6; vuelta++) {   // hasta 600 mensajes por casilla
+            const lr = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=100${page ? "&pageToken=" + page : ""}`, { headers: { Authorization: "Bearer " + tok } });
+            const lj = await lr.json();
+            if (!lr.ok) break;
+            for (const m of lj.messages ?? []) {
+              revisados++;
+              const { data: ya } = await service.from("email_log").select("id").eq("gmail_id", m.id).maybeSingle();
+              if (ya) continue;
+              const mr = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`, { headers: { Authorization: "Bearer " + tok } });
+              const msg = await mr.json(); if (!mr.ok) continue;
+              const hs = (msg.payload?.headers ?? []) as { name: string; value: string }[];
+              const { name, email } = parseFrom(hs.find((h) => h.name === "From")?.value || "");
+              const subj = hs.find((h) => h.name === "Subject")?.value || "";
+              const fecha = hs.find((h) => h.name === "Date")?.value;
+              // si lo escribió la persona es entrante; si lo escribimos nosotros, saliente
+              const entrante = email === quien;
+              await service.from("email_log").insert({
+                lead_id: leadId, to_addr: entrante ? mb.email : quien, subject: subj,
+                body: decodeBody(msg.payload) || msg.snippet || "",
+                sender_label: entrante ? (name || email) : mb.email,
+                source: "gmail-" + mb.key, direction: entrante ? "in" : "out", gmail_id: m.id,
+                created_at: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
+              }).then(() => { traidos++; }, () => {});
+            }
+            page = lj.nextPageToken || "";
+            if (!page) break;
+          }
+        } catch (e) { /* una casilla que falla no tumba la otra */ }
+      }
+      return json({ ok: true, modo: "rescate", email: quien, lead_id: leadId, revisados, traidos });
+    }
+
     const { data: leads } = await service.from("leads").select("id,email").not("email", "is", null);
     const leadByEmail = new Map<string, string>();
     (leads ?? []).forEach((l: { id: string; email: string }) => { if (l.email) leadByEmail.set(l.email.toLowerCase().trim(), String(l.id)); });
@@ -148,6 +238,12 @@ Deno.serve(async (req) => {
         const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${maxPorCasilla}`, { headers: { Authorization: "Bearer " + token } });
         const listJ = await listRes.json();
         if (!listRes.ok) { out[mb.key] = "list_error: " + JSON.stringify(listJ).slice(0, 200); continue; }
+        /* Si Gmail devuelve más de los que entran en un batch, el cursor NO se mueve:
+           en la próxima corrida se vuelve a mirar desde el mismo punto y se termina el
+           resto. Antes el cursor avanzaba igual, así que un pico de más de 30 emails
+           en cinco minutos perdía los que sobraban PARA SIEMPRE — sin error, sin
+           aviso, y sin forma de notarlo salvo que faltara justo el que buscabas. */
+        const quedaronAfuera = !!listJ.nextPageToken;
         let matched = 0, seen = 0, encolados = 0;
         for (const m of listJ.messages ?? []) {
           seen++;
@@ -232,8 +328,8 @@ Deno.serve(async (req) => {
         } catch (e) { /* si falla el pase de enviados, el de entrada ya hizo lo suyo */ }
 
         // en backfill el cursor no se mueve: si no, la recuperación se comería el próximo ciclo
-        if (!backfillDias) await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: runStartedAt.toISOString() });
-        out[mb.key] = { seen, matched, encolados, enviados };
+        if (!backfillDias && !quedaronAfuera) await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: runStartedAt.toISOString() });
+        out[mb.key] = { seen, matched, encolados, enviados, quedaron_afuera: quedaronAfuera };
       } catch (e) {
         out[mb.key] = "error: " + String(e);
       }
