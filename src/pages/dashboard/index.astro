@@ -2883,7 +2883,7 @@ const newsCases = [
       <div class="of-bar" style="margin-bottom:14px">
         <div>
           <h2 style="margin:0">Search Console</h2>
-          <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentra Google: clicks, impresiones y las búsquedas reales del período elegido — siempre comparado contra el período anterior de la misma longitud.</p>
+          <p class="muted-note" style="margin:2px 0 0">Cómo nos encuentran Google y Bing: clicks, impresiones y las búsquedas reales del período elegido — siempre comparado contra el período anterior de la misma longitud.</p>
         </div>
         <div class="co-seg" id="seo-period">
           <button data-days="7" type="button">7 días</button>
@@ -5460,6 +5460,23 @@ const newsCases = [
      (fecha, consulta) igual que gsc_daily — así los dos buscadores se comparan
      sobre el MISMO período. Si la tabla está vacía el panel no se muestra, en
      vez de mostrar ceros que parecen una caída. */
+  /* El veredicto compara Bing CONTRA Google, así que necesita los dos cargados.
+     Antes se escribía dentro de loadBing() leyendo seoData: como ahora los dos
+     arrancan a la vez, Bing solía terminar primero y la línea nunca aparecía.
+     Ahora la escribe quien termine último. */
+  let bingTotals = null;
+  function bingVerdict(){
+    const v = $('bing-verdict'); if (!v || !bingTotals) return;
+    const g = (seoData && seoData.totals) || null;
+    const { clicks, impr } = bingTotals;
+    if (!g || !g.impressions){ v.textContent = 'Mismo período que Google'; return; }
+    const ctrB = impr ? clicks / impr : 0, ctrG = g.ctr || 0;
+    const menos = impr ? Math.round(g.impressions / impr) : 0;
+    v.innerHTML = ctrB > ctrG * 1.5
+      ? '⚡ Manda ' + menos + '× menos impresiones que Google, pero su CTR es ' +
+        (ctrG ? (ctrB / ctrG).toFixed(1) : '–') + '× mejor'
+      : 'Comparado con Google en el mismo período';
+  }
   async function loadBing(){
     const box = $('bing-panel'); if (!box) return;
     try {
@@ -5489,16 +5506,8 @@ const newsCases = [
       }
       $('bing-count').textContent = consultas.size + ' búsquedas';
 
-      // el dato que importa: Bing manda menos gente pero la que manda hace click
-      const g = (seoData && seoData.totals) || null;
-      const v = $('bing-verdict');
-      if (v && g && g.impressions) {
-        const ctrB = impr ? clicks / impr : 0, ctrG = g.ctr || 0;
-        v.innerHTML = ctrB > ctrG * 1.5
-          ? '⚡ Manda ' + (impr ? Math.round(g.impressions / impr) : 0) + '× menos impresiones que Google, pero su CTR es ' +
-            (ctrG ? (ctrB / ctrG).toFixed(1) : '–') + '× mejor'
-          : 'Comparado con Google en el mismo período';
-      }
+      bingTotals = { clicks, impr };
+      bingVerdict();
 
       const top = [...consultas.entries()].sort((a, b) => b[1].clicks - a[1].clicks || b[1].impressions - a[1].impressions).slice(0, 10);
       $('bing-top').innerHTML =
@@ -8384,6 +8393,7 @@ const newsCases = [
       const { data, error } = await supabase.functions.invoke('gsc-stats', { body: { days: seoDays } });
       if (error || (data && data.error)) throw new Error((data && data.error) || error.message);
       seoData = data;
+      bingVerdict();   // si Bing terminó primero, recién ahora hay con qué comparar
       seoRenderKpis(data);
       el.innerHTML =
         '<div class="panel" style="margin-top:14px"><h2>🔎 Top búsquedas <span class="count" id="seo-q-count"></span></h2><div class="lead-table-wrap" id="seo-q-wrap"></div></div>' +
