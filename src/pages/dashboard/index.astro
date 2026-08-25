@@ -979,6 +979,12 @@ const newsCases = [
   #contenido-sub-news .nw-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
   @media(max-width:900px){#contenido-sub-news .nw-grid{grid-template-columns:1fr}}
   /* ===== los tres pasos ===== */
+  #contenido-sub-news .nw-langtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+  #contenido-sub-news .nw-langtabs button{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:999px;
+    color:var(--muted);font:600 12.5px/1 inherit;padding:8px 14px;cursor:pointer}
+  #contenido-sub-news .nw-langtabs button.on{background:var(--acid);border-color:var(--acid);color:#16210a}
+  #contenido-sub-news .nw-langtabs button.full:not(.on){border-color:color-mix(in srgb,var(--acid) 45%,transparent);color:var(--acid)}
+  #contenido-sub-news .nw-langtabs .nw-trad{margin-left:auto;background:transparent}
   #contenido-sub-news .nw-paso{border:1px solid var(--line);border-radius:14px;background:var(--navy-800);margin-bottom:10px}
   #contenido-sub-news .nw-paso > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:11px;
     padding:14px 16px;font-weight:700;font-size:15px}
@@ -11737,7 +11743,9 @@ const newsCases = [
         if (fill) fill.style.width = '100%';
         if (barT) barT.textContent = 'Listo · ' + (data.sent || 0) + ' enviados' + (data.skipped ? ' · ' + data.skipped + ' ya estaban (no duplicados)' : '') + (data.failed ? ' · ' + data.failed + ' fallaron' : '');
         $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + (data.sent || 0) + ' contactos' + (data.skipped ? ' (+' + data.skipped + ' ya registrados)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') + '.';
-        nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = ''; nwBlocks = []; nwRenderEditor(); newsInit();
+        nwCur = null; nwExcludeIds = new Set(); nwExcludeEmails = new Set(); nwExtraEmails = []; $('nw-subject').value = ''; $('nw-ai-notes').value = ''; $('nw-one-email').value = '';
+        nwI18n = { en: { subject: '', blocks: [] }, de: { subject: '', blocks: [] }, es: { subject: '', blocks: [] } };
+        nwBlocks = []; nwCargarTab('en'); newsInit();
       });
       // Automatizaciones — cada handler blindado: si algo falla, se ve en un toast (nunca "no pasa nada" en silencio)
       const auGuard = (fn) => (...args) => { try { const r = fn(...args); if (r && r.catch) r.catch((e) => toast('⚠️ ' + (e && e.message || e))); } catch (e) { toast('⚠️ ' + (e && e.message || e)); } };
@@ -16960,6 +16968,64 @@ const newsCases = [
   }
 
   let nwCur = null, nwList = [], nwExcludeIds = new Set(), nwExcludeEmails = new Set(), nwExtraEmails = [], nwBlocks = [];
+  /* ===== TRES IDIOMAS EN EL NEWSLETTER MANUAL =====
+     La edición mensual automática ya mandaba a cada persona en su idioma; el manual
+     no. De los 33 destinatarios reales, 9 son de habla alemana, así que uno de cada
+     cuatro recibía "Guten Tag" y después texto en inglés.
+     nwBlocks/nw-subject siguen siendo "lo que estás editando ahora"; nwI18n guarda
+     las tres versiones. Cambiar de pestaña guarda la que dejás y carga la otra —
+     igual que las pestañas de idioma del blog, donde ese mismo olvido perdía trabajo. */
+  let nwLangTab = 'en';
+  let nwI18n = { en: { subject: '', blocks: [] }, de: { subject: '', blocks: [] }, es: { subject: '', blocks: [] } };
+  const NW_LANG_LBL = { en: 'Inglés', de: 'Alemán', es: 'Español' };
+  function nwGuardarTab(){
+    if (!nwI18n[nwLangTab]) nwI18n[nwLangTab] = { subject: '', blocks: [] };
+    nwI18n[nwLangTab].subject = ($('nw-subject') && $('nw-subject').value) || '';
+    nwI18n[nwLangTab].blocks = nwBlocks.map((b) => ({ ...b }));
+  }
+  function nwCargarTab(lg){
+    nwLangTab = lg;
+    const v = nwI18n[lg] || { subject: '', blocks: [] };
+    if ($('nw-subject')) $('nw-subject').value = v.subject || '';
+    nwBlocks = (v.blocks || []).map((b) => ({ ...b }));
+    nwRenderEditor(); nwRenderLangTabs();
+  }
+  function nwRenderLangTabs(){
+    const box = $('nw-langtabs'); if (!box) return;
+    box.innerHTML = ['en', 'de', 'es'].map((lg) => {
+      const v = nwI18n[lg] || {};
+      const lleno = !!(String(v.subject || '').trim() && (v.blocks || []).some((b) => b.type !== 'text' || String(b.text || '').trim()));
+      return '<button type="button" data-lg="' + lg + '" class="' + (nwLangTab === lg ? 'on' : '') + (lleno ? ' full' : '') + '">' +
+        NW_LANG_LBL[lg] + (lleno ? ' ✓' : '') + '</button>';
+    }).join('') + '<button type="button" id="nw-traducir" class="nw-trad">✨ Traducir desde ' + NW_LANG_LBL[nwLangTab] + '</button>';
+    box.querySelectorAll('[data-lg]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.lg === nwLangTab) return;
+      nwGuardarTab(); nwCargarTab(b.dataset.lg);
+    }));
+    const tr = $('nw-traducir'); if (tr) tr.addEventListener('click', nwTraducir);
+  }
+  /* Traduce lo que estás editando a los OTROS dos idiomas. Nunca pisa una versión que
+     ya tenga contenido sin preguntar: si ya escribiste el alemán a mano, se respeta. */
+  async function nwTraducir(){
+    nwGuardarTab();
+    const origen = nwI18n[nwLangTab];
+    if (!String(origen.subject || '').trim() || !(origen.blocks || []).length){ toast('Escribí primero esta versión'); return; }
+    const otros = ['en', 'de', 'es'].filter((l) => l !== nwLangTab);
+    const conTexto = otros.filter((l) => String((nwI18n[l] || {}).subject || '').trim());
+    if (conTexto.length && !confirm('Ya hay texto en ' + conTexto.map((l) => NW_LANG_LBL[l]).join(' y ') + '.\n\n¿Reemplazarlo con la traducción?')) return;
+    const btn = $('nw-traducir'); if (btn){ btn.disabled = true; btn.textContent = '✨ Traduciendo…'; }
+    try {
+      for (const lg of otros){
+        const { data, error } = await supabase.functions.invoke('ai-newsletter-translate', {
+          body: { from: nwLangTab, to: lg, subject: origen.subject, blocks: origen.blocks } });
+        if (error || !data || data.error) throw new Error((data && data.error) || (error && error.message) || 'sin respuesta');
+        nwI18n[lg] = { subject: data.subject || '', blocks: data.blocks || [] };
+        toast('✓ ' + NW_LANG_LBL[lg] + ' traducido');
+      }
+      nwRenderLangTabs();
+    } catch (e) { toast('No se pudo traducir: ' + (e.message || e)); }
+    finally { if (btn){ btn.disabled = false; btn.textContent = '✨ Traducir desde ' + NW_LANG_LBL[nwLangTab]; } }
+  }
   // ===== bloques de contenido (editor) =====
   const NW_CTA_DESTS = [['calculator', 'Calculadora'], ['brief', 'Brief'], ['call', 'Agendar call'], ['custom', 'URL propia…']];
   function nwDerivedBody(){ return nwBlocks.filter((b) => b.type === 'text').map((b) => String(b.text || '').trim()).filter(Boolean).join('\n\n'); }
@@ -17135,12 +17201,23 @@ const newsCases = [
     return items;
   }
   let nwPrevLang = 'en';
-  function nwPreview(){
+  /* ===== EL PREVIEW SALE DEL SERVIDOR =====
+     "Siempre antes de mandar tengo que poder ver como preview y corregir si
+     necesario". Antes esta ventana dibujaba el email acá, en el navegador, con su
+     propia copia de cómo se arma — o sea que el preview y el email que sale eran dos
+     programas distintos haciendo lo mismo. Funciona hasta que uno de los dos cambia.
+     Ahora se le pide a newsletter-send que lo renderice con buildFull(), el MISMO
+     código que arma lo que se manda. Para eso hace falta que la campaña esté guardada,
+     así que se guarda antes: el borrador ya se guardaba solo en cada paso.
+     Es la misma regla que ya rige los destinatarios — el número y el contenido salen
+     de la función que envía, nunca de una copia en la pantalla. */
+  async function nwPreview(){
     let ov = $('nw-preview-ov'); if (!ov){ ov = document.createElement('div'); ov.id = 'nw-preview-ov'; document.body.appendChild(ov); }
     ov.className = 'of-composer';
     const seg = $('nw-lang').value;
     if (seg !== 'all') nwPrevLang = seg;                      // segmento de un idioma: arrancá por ese
     else if (!['en', 'de', 'es'].includes(nwPrevLang)) nwPrevLang = 'en';
+    let render = {};   // idioma → { subject, html } tal como lo devuelve el servidor
     const pintar = () => {
       const lg = nwPrevLang, p = nwPrev;
       const cuantos = p && p.por_idioma ? p.por_idioma[lg] : null;
@@ -17149,11 +17226,17 @@ const newsCases = [
         return '<button class="btn ' + (x === lg ? 'btn-primary' : 'btn-ghost') + ' small" data-plg="' + x + '" type="button">' +
           NW_LG[x] + (n != null ? ' · ' + n : '') + '</button>';
       }).join('');
+      const r = render[lg];
+      const propio = r && r.tiene_version_propia;
       ov.querySelector('#nw-prev-diffs').innerHTML =
         (cuantos != null ? '<b style="color:var(--acid)">' + cuantos + '</b> ' + (cuantos === 1 ? 'persona lo recibe' : 'personas lo reciben') + ' así. ' : '') +
-        'Lo que cambia en esta versión: ' + nwLangDiffs(lg).join(' · ') + '.' +
-        '<div style="margin-top:4px;color:var(--muted-2)">El texto que escribís NO se traduce: sale igual en los tres. La que tiene texto propio por idioma es la Edición mensual automática.</div>';
-      ov.querySelector('#nw-prev-body').innerHTML = nwEmailHtml(lg);
+        (r ? '<b>Asunto:</b> ' + esc(r.subject || '(sin asunto)') : 'Pidiéndoselo al servidor…') +
+        '<div style="margin-top:4px;color:' + (propio ? 'var(--acid)' : '#f0c060') + '">' +
+        (propio ? '✓ Versión escrita en este idioma.'
+                : '⚠️ Todavía no escribiste esta versión — estas personas reciben la inglesa. Escribila en la pestaña de arriba o usá «✨ Traducir».') +
+        '</div>' +
+        '<div style="margin-top:4px;color:var(--muted-2)">Esto es exactamente lo que sale: lo arma la misma función que hace el envío.</div>';
+      ov.querySelector('#nw-prev-body').innerHTML = r ? r.html : '<p style="color:#666">Cargando…</p>';
       ov.querySelectorAll('[data-plg]').forEach((b) => b.addEventListener('click', () => { nwPrevLang = b.dataset.plg; pintar(); }));
     };
     ov.innerHTML = '<div class="ofc-card" style="max-width:640px"><h3 style="margin:0 0 4px">👁 Así le llega — por idioma</h3>' +
@@ -17166,6 +17249,21 @@ const newsCases = [
     ov.querySelector('#nw-prev-close').addEventListener('click', () => ov.remove());
     ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
     nwFetchPrev().then((p) => { if (p && $('nw-preview-ov')) pintar(); });   // cuántos por idioma
+
+    // guardar primero: el servidor renderiza lo GUARDADO, así que lo que ves es lo
+    // que hay, no lo que quedó a medio escribir en la pantalla
+    const idCampana = await nwSave();
+    if (!idCampana){
+      ov.querySelector('#nw-prev-body').innerHTML = '<p style="color:#a33">No pude guardar el borrador, así que no puedo mostrarte el email real. Revisá que haya asunto y contenido.</p>';
+      return;
+    }
+    for (const lg of ['en', 'de', 'es']){
+      try {
+        const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { render_preview: true, id: idCampana, lang: lg } });
+        if (!error && data && data.ok) render[lg] = data;
+      } catch (e) { /* un idioma que falla no tapa los otros */ }
+      if ($('nw-preview-ov')) pintar();
+    }
   }
 
   // ===== destinatarios: SIEMPRE del servidor =====
@@ -17413,6 +17511,7 @@ const newsCases = [
     $('nw-listcount').textContent = nwList.length || '';
     // editor: inicializar si está vacío
     if (!$('nw-editor').children.length) nwRenderEditor();
+    nwRenderLangTabs();
     nwUpdateSendPanel();
 
     // agregado de envíos por campaña
@@ -17489,8 +17588,17 @@ const newsCases = [
     $('nw-list').querySelectorAll('[data-nw]').forEach((c) => c.addEventListener('click', () => {
       const n = nwList.find((x) => x.id === c.dataset.nw); if (!n) return;
       nwCur = n.status === 'sent' ? null : n;
-      $('nw-subject').value = n.subject; $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
-      nwBlocks = nwBlocksFromRow(n); nwRenderEditor();
+      $('nw-stage').value = n.segment_stage; $('nw-lang').value = n.segment_lang;
+      /* Las tres versiones. Una campaña vieja (sin i18n) entra como versión inglesa:
+         es lo que de hecho recibieron todos, así que ponerla ahí es describir lo que
+         pasó, no inventar una traducción que nunca existió. */
+      const bi = n.blocks_i18n || {}, si = n.subject_i18n || {};
+      nwI18n = { en: { subject: '', blocks: [] }, de: { subject: '', blocks: [] }, es: { subject: '', blocks: [] } };
+      ['en', 'de', 'es'].forEach((lg) => {
+        if (Array.isArray(bi[lg]) && bi[lg].length) nwI18n[lg] = { subject: si[lg] || '', blocks: bi[lg].map((b) => ({ ...b })) };
+      });
+      if (!nwI18n.en.blocks.length) nwI18n.en = { subject: n.subject || '', blocks: nwBlocksFromRow(n) };
+      nwCargarTab('en');
       nwExcludeIds = new Set((n.exclude_ids || []).map(String)); nwExcludeEmails = new Set((n.exclude_emails || []).map((x) => String(x).toLowerCase())); nwExtraEmails = (n.extra_emails || []).slice();
       if (n.scheduled_at && n.status !== 'sent'){ $('nw-sched-mode').value = 'at'; $('nw-sched-at').hidden = false; try { $('nw-sched-at').value = new Date(n.scheduled_at).toISOString().slice(0, 16); } catch (e) {} }
       else { $('nw-sched-mode').value = 'now'; $('nw-sched-at').hidden = true; }
@@ -17500,18 +17608,35 @@ const newsCases = [
     }));
   }
   async function nwSave(){
+    nwGuardarTab();   // lo que estás editando ahora entra en su idioma antes de guardar
     const cleanBlocks = nwBlocks.map((b) => ({ ...b })).filter((b) => b.type !== 'text' || String(b.text || '').trim());
     const body = nwDerivedBody();
     const hasContent = body.trim() || cleanBlocks.some((b) => b.type !== 'text');
     const subject = $('nw-subject').value.trim();
     if (!subject || !hasContent){ toast('Falta asunto o contenido'); return null; }
     const schedAt = ($('nw-sched-mode') && $('nw-sched-mode').value === 'at' && $('nw-sched-at').value) ? new Date($('nw-sched-at').value).toISOString() : null;
-    const row = { subject, body, blocks: cleanBlocks, scheduled_at: schedAt, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), exclude_emails: [...nwExcludeEmails], extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
+    /* Las tres versiones van a blocks_i18n/subject_i18n (SQL 0145). Los campos planos
+       (subject/body/blocks) siguen guardándose con la versión que estás editando: así
+       una campaña abierta con una versión vieja del dashboard, o el preview de otra
+       pantalla, siguen encontrando algo. */
+    const i18nB = {}, i18nS = {};
+    ['en', 'de', 'es'].forEach((lg) => {
+      const v = nwI18n[lg] || {};
+      const bs = (v.blocks || []).map((b) => ({ ...b })).filter((b) => b.type !== 'text' || String(b.text || '').trim());
+      if (String(v.subject || '').trim() && bs.length){ i18nB[lg] = bs; i18nS[lg] = String(v.subject).trim(); }
+    });
+    const row = { subject, body, blocks: cleanBlocks, blocks_i18n: i18nB, subject_i18n: i18nS, scheduled_at: schedAt, segment_stage: $('nw-stage').value, segment_lang: $('nw-lang').value, exclude_ids: [...nwExcludeIds].map(Number), exclude_emails: [...nwExcludeEmails], extra_emails: nwExtraEmails.slice(), updated_at: new Date().toISOString() };
     const saveRow = async (r) => {
       if (nwCur && nwCur.id){ const { error } = await supabase.from('newsletters').update(r).eq('id', nwCur.id); return { id: nwCur.id, error }; }
       const { data, error } = await supabase.from('newsletters').insert(r).select().single(); if (!error) nwCur = data; return { id: data && data.id, error };
     };
     let { id, error } = await saveRow(row);
+    if (error && /blocks_i18n|subject_i18n/i.test(error.message || '')){
+      // base sin el SQL 0145: se guarda igual, en un solo idioma
+      const sinI18n = { ...row }; delete sinI18n.blocks_i18n; delete sinI18n.subject_i18n;
+      ({ id, error } = await saveRow(sinI18n));
+      if (!error) toast('Guardado en un solo idioma — falta correr el SQL 0145');
+    }
     if (error && /blocks|scheduled_at|exclude_emails|column/i.test(error.message || '')){
       const legacy = { subject: row.subject, body: row.body, segment_stage: row.segment_stage, segment_lang: row.segment_lang, exclude_ids: row.exclude_ids, extra_emails: row.extra_emails, updated_at: row.updated_at };   // sin exclude_emails: base sin el SQL 0122
       ({ id, error } = await saveRow(legacy));
