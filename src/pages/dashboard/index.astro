@@ -5949,13 +5949,16 @@ const newsCases = [
   function hmRenderToday(items){
     const box = $('hm-today'); if (!box) return;
     hmTodayCur = items;
-    box.innerHTML = items.slice(0, 8).map((it, i) =>
+    /* Cuatro, no ocho (mockup aprobado). Una lista de 21 no se termina nunca: se mira
+       una vez y se deja de mirar. Las demás siguen a un click. */
+    const VISIBLES = 4;
+    box.innerHTML = items.slice(0, VISIBLES).map((it, i) =>
       '<button class="hm-item ' + it.sev + '" type="button" data-i="' + i + '">' +
       '<span class="ic">' + it.icon + '</span>' +
       '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
       '<span class="go">' + it.hint + '</span></button>'
     ).join('') || '<p class="muted-note">Todo al día 🎉</p>';
-    if (items.length > 8) box.innerHTML += '<button class="hm-more" id="hm-today-more" type="button">ver todo (' + items.length + ') →</button>';
+    if (items.length > VISIBLES) box.innerHTML += '<button class="hm-more" id="hm-today-more" type="button">ver las otras ' + (items.length - VISIBLES) + ' →</button>';
     box.querySelectorAll('.hm-item').forEach((b) => b.addEventListener('click', () => { const it = hmTodayCur[+b.dataset.i]; if (it && it.go) it.go(); }));
     const more = $('hm-today-more'); if (more) more.addEventListener('click', () => gotoTab('deals'));
   }
@@ -6151,7 +6154,13 @@ const newsCases = [
     const ads = hmAdsStats();
     const spend = hmAds ? (+hmAds.spend || 0) : 0;
     return {
-      contexto: 'Arranque del día en Viven (productora de video, Zúrich). Con estos pendientes, señales de compra y KPIs, devolvé UNA sola prioridad del día, concreta y accionable, en 2 líneas máximo, en español.',
+      /* La IA recibía la lista de pendientes y le pedíamos "la prioridad del día":
+         devolvía los mismos tres clientes que ya estaban listados dos paneles más
+         arriba. Medido en la pantalla del 24/08: Forseasons, Toradex y Syz Capital
+         aparecían en "Para hoy" y otra vez, con las mismas palabras, en el resumen.
+         Ahora se le pide explícitamente lo contrario: que NO repita la lista y que
+         diga lo que la lista no puede decir — un patrón, un riesgo, una idea. */
+      contexto: 'Arranque del día en Viven (productora de video, Zúrich). En "para_hoy" tenés los pendientes que YA están listados en pantalla, al lado tuyo. NO los repitas ni los enumeres: sería decir dos veces lo mismo. Usalos como contexto y devolvé lo que esa lista NO dice — un patrón entre varios casos, un riesgo que nadie está mirando, o una idea concreta. Si de verdad lo más importante del día es uno de esos pendientes, decilo en media línea y dedicá el resto a QUÉ hacer con él, no a repetir que existe. Dos líneas máximo, en español, sin saludos.',
       fecha: new Date().toISOString().slice(0, 10),
       para_hoy: hmTodayItems().slice(0, 8).map((i) => i.t + ' — ' + i.ctx),
       senales_calientes: hmSignalItems().slice(0, 6).map((s) => s.plain),
