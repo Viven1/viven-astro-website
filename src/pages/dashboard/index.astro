@@ -13823,7 +13823,11 @@ const newsCases = [
           ' — <b>' + fmtChf(Number(f.importe) || 0) + '</b>' + (i > 0 ? ' <span style="color:var(--muted-2)">(queda lista para después)</span>' : '') + '</span></div>').join('') +
         '<div><i>👤</i><span>' + (data.se_crearia_contacto
           ? 'Se crea el contacto en bexio: <b>' + esc([data.cliente.empresa, data.cliente.persona].filter(Boolean).join(' · ')) + '</b>'
-          : 'Contacto de bexio #' + data.contacto_id) + '</span></div>';
+          : 'Contacto de bexio #' + data.contacto_id) + '</span></div>' +
+        /* El IVA a la vista: no es decorativo. En el catálogo de bexio conviven
+           tasas al 8,1% y al 7,7% activas, así que ver cuál se va a usar antes de
+           crear es la única forma de cazar el día que agarre la equivocada. */
+        (data.iva ? '<div><i>🧮</i><span>IVA <b>' + data.iva.pct + '%</b> <span style="color:var(--muted-2)">(tasa de venta de bexio)</span></span></div>' : '');
       $('bx-go').textContent = facturas.length > 1 ? '🧾 Crear los 2 borradores en bexio' : '🧾 Crear borrador en bexio';
       $('bx-note').textContent = facturas.length > 1
         ? 'Las dos quedan en borrador. Mandás la primera ahora y la segunda cuando entregues.'

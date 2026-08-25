@@ -66,6 +66,14 @@ Deno.serve(async (req) => {
          tasas viejas y nuevas): sale de la última factura que emitieron de verdad.
          Facturar al 7,7% cuando la tasa suiza es 8,1% desde 2024 sería un error
          contable, y el catálogo por sí solo no dice cuál está vigente para ellos. */
+      // ¿qué tasa es cada id? Se listan TODAS las activas con su valor, sin filtrar
+      const todas = await bx("3.0/taxes?limit=300");
+      const conValor = Array.isArray(todas.body)
+        ? (todas.body as { id: number; name: string; value: string; is_active: boolean }[])
+            .filter((t) => t.is_active && Number(t.value) > 0)
+            .map((t) => ({ id: t.id, name: t.name, value: Number(t.value) }))
+            .sort((a, b) => b.value - a.value)
+        : todas.body;
       const ref = Number(body.ref_invoice) || 1121;   // una factura reciente de verdad
       const cab = await bx(`kb_invoice/${ref}`);
       const pos = await bx(`kb_invoice/${ref}/kb_position_custom`);
@@ -122,6 +130,7 @@ Deno.serve(async (req) => {
                        total: f.total, estado: f.kb_item_status_id }; })()
           : null,
         campos_de_una_factura: facturaEjemplo,
+        impuestos_con_valor: conValor,
         ultima_emitida: ultimaId,
         cabecera_de_esa: cabecera,
         posiciones_de_esa: posiciones,
@@ -138,6 +147,33 @@ Deno.serve(async (req) => {
     const BX = { user_id: 1, mwst_type: 0, mwst_is_net: true, currency_id: 1,
                  language_id: 1, bank_account_id: 13, payment_type_id: 4,
                  tax_id: 66, account_id: 326, unit_id: 1 };
+
+    /* ===== EL IVA SE BUSCA, NO SE HARDCODEA =====
+       Sebastián: "es siempre 8,1% de IVA". El id 66 que venía copiado de la factura
+       RE-01121 efectivamente ES 8,1% —lo comprobé— pero dejarlo clavado es frágil:
+       en su catálogo hay SIETE ids activos con 8,1% y CINCO con 7,7%, todos vivos al
+       mismo tiempo. Un id equivocado no rompe nada visible: emite la factura con la
+       tasa vieja y el error aparece en la contabilidad, tarde.
+       Así que se resuelve por VALOR: la tasa de venta activa al 8,1%. El 66 queda
+       solo de respaldo, y si no aparece ninguna de 8,1% la función se niega a
+       facturar en vez de usar la que sea. */
+    const IVA_ESPERADO = 8.1;
+    let taxId = BX.tax_id;
+    {
+      const tx = await bx("3.0/taxes?limit=300");
+      const activos = Array.isArray(tx.body)
+        ? (tx.body as { id: number; name?: string; value: string; is_active: boolean; is_sale?: boolean }[])
+            .filter((t) => t.is_active && Math.abs(Number(t.value) - IVA_ESPERADO) < 0.01)
+        : [];
+      if (activos.length) {
+        // preferir la de VENTA (Umsatz); si no hay, la primera de 8,1%
+        const venta = activos.find((t) => /umsatz/i.test(t.name ?? "")) || activos.find((t) => t.id === BX.tax_id) || activos[0];
+        taxId = venta.id;
+      } else if (tx.ok) {
+        return json({ error: `no encontré una tasa de IVA activa al ${IVA_ESPERADO}% en bexio — no facturo con otra` }, 502);
+      }
+      // si la consulta de impuestos falla (tx.ok === false) se sigue con el respaldo
+    }
 
     const tipo = body.tipo === "propuesta" ? "propuesta" : "oferta";
     const docId = body.id;
@@ -283,7 +319,7 @@ Deno.serve(async (req) => {
       positions: posiciones.map((p) => ({
         type: "KbPositionCustom", text: p.text, amount: String(p.amount),
         unit_price: String(p.unit_price), unit_id: BX.unit_id,
-        tax_id: BX.tax_id, account_id: BX.account_id, discount_in_percent: "0",
+        tax_id: taxId, account_id: BX.account_id, discount_in_percent: "0",
       })),
     };
 
@@ -294,6 +330,7 @@ Deno.serve(async (req) => {
         candidatos,
         cliente: { empresa, persona, email },
         total_documento: Math.round(totalDoc * 100) / 100,
+        iva: { pct: IVA_ESPERADO, tax_id: taxId },
         pct, importe_a_facturar: tramos[0].importe,
         facturas: tramos.map((t) => ({ etiqueta: t.etiqueta || "Factura completa", importe: t.importe })),
         posiciones: posiciones.map((p) => ({ texto: p.text.replace(/<[^>]+>/g, " ").trim().slice(0, 70), cantidad: p.amount, precio: p.unit_price })),
@@ -307,7 +344,7 @@ Deno.serve(async (req) => {
         positions: t.posiciones.map((p) => ({
           type: "KbPositionCustom", text: p.text, amount: String(p.amount),
           unit_price: String(p.unit_price), unit_id: BX.unit_id,
-          tax_id: BX.tax_id, account_id: BX.account_id, discount_in_percent: "0",
+          tax_id: taxId, account_id: BX.account_id, discount_in_percent: "0",
         })) };
       const cr = await bx("kb_invoice", { method: "POST", body: JSON.stringify(cuerpo) });
       if (!cr.ok) {
