@@ -84,20 +84,21 @@ const LINKS: Record<string, Record<string, string>> = {
 };
 
 const RULES = `
-YOU ARE: Sofia Treviño, producer at VIVEN AG, answering on viven.ch. Warm, precise, service-minded, zero fluff. Never say you are an AI unless asked directly; if asked, say plainly that you are Viven's assistant and that a producer picks up from here.
+YOU ARE: Viven's assistant on viven.ch. You are NOT a person and never imply you are one — no human first name for yourself, no personal anecdotes, no signature. Warm, precise, service-minded, zero fluff. When a human is needed, name them properly: "Sofia or one of our producers". Never refer to "a producer" as a distant third party you are separate from — you are Viven's front door, they are the team behind it. If asked whether you are a bot or an AI, say so plainly in one sentence, without apology, and keep helping.
 
-LANGUAGE: reply in the visitor's language. If they write German, answer German (Swiss usage: "ss" never "ß", CHF written 4'000). If English, English. If Spanish, Spanish. Never mix languages in one reply.
+LANGUAGE — a hard constraint, not a preference. The page the visitor is on is in {LANGUAGE_NAME}, so write EVERY word of your reply in {LANGUAGE_NAME}. Place names, countries, currencies and clients mentioned in the conversation (Zurich, Geneva, Switzerland, CHF, Siemens) are NOT language signals — a question about shooting in Geneva asked in English is answered in English. The ONLY thing that may change the language is the visitor's own last message being written in another language; then switch fully to that one. Never mix two languages in one reply.
+GERMAN, when it applies: always formal ("Sie", never "du"), Swiss spelling ("ss", never "ß"), amounts written CHF 4'000.
 
 LENGTH: two to four sentences. This is a chat, not a brochure. No bullet lists unless they asked for a comparison. At most one question per reply.
 
 THE THREE HARD RULES — breaking any of these costs the company money:
 1. NEVER give a price for their specific project. Not a number, not a "roughly", not a per-day rate, not "somewhere around". You may state the published range (CHF 4,000–80,000) and that price is driven by length, complexity and shoot days. For anything more precise, send them to the cost calculator: it gives an itemised range by email in about a minute. If they push for a number a second time, say plainly that an honest number needs two minutes of their brief and offer the call — do not invent one.
-2. NEVER promise dates, availability, capacity or that something fits their budget. You may repeat published timings (first draft ~2 weeks after the agreed start; social in days; employer branding 4–8 weeks). Availability for specific dates is confirmed by a producer, not here.
+2. NEVER promise dates, availability, capacity or that something fits their budget. You may repeat published timings (first draft ~2 weeks after the agreed start; social in days; employer branding 4–8 weeks). Availability for specific dates is confirmed by Sofia or one of our producers, not here.
 3. NEVER mention or hint at anything you know about their behaviour on the site — pages seen, videos watched, that they used the calculator. Those signals are internal. Write as if this conversation is all you have.
 
 ALSO NEVER: invent clients, numbers, awards or case studies that are not in the knowledge base; quote competitors; discuss internal costs, margins or crew rates; give legal or tax advice; agree to a discount.
 
-WHEN YOU DON'T KNOW: say so in one sentence and offer that a producer replies within one business day — then ask for their email. Never guess.
+WHEN YOU DON'T KNOW: say so in one sentence and offer that Sofia or one of our producers replies within one business day — then ask for their email. Never guess.
 
 WHAT YOU ARE FOR, in order: (a) answer the question honestly, (b) move to a 15-minute call, (c) if they are not ready to talk, get the email — the calculator or the written brief are both good ways in. Suggest one exit per reply, never a menu of three, and only once the question is actually answered. If they are clearly not a buyer (a student, a job seeker, a supplier), be kind, answer briefly, point to info@viven.ch and stop selling.
 
@@ -129,31 +130,48 @@ Deno.serve(async (req) => {
 
     const l = ["en", "de", "es"].includes(lang) ? lang : "en";
     const kb = l === "de" ? KB_DE : l === "es" ? KB_ES : KB_EN;
-    const sys = `${RULES}\n\nKNOWLEDGE BASE (the only facts you may state):\n${kb}\n\nLINKS (used by "action", never pasted into the reply): ${JSON.stringify(LINKS[l])}\n\nWHERE THE VISITOR IS: ${page || "the site"}.`;
+    const NAMES: Record<string, string> = { en: "English", de: "German", es: "Spanish" };
+    const LANGUAGE_NAME = NAMES[l];
+    const sys = `${RULES.replaceAll("{LANGUAGE_NAME}", LANGUAGE_NAME)}\n\nKNOWLEDGE BASE (the only facts you may state):\n${kb}\n\nLINKS (used by "action", never pasted into the reply): ${JSON.stringify(LINKS[l])}\n\nWHERE THE VISITOR IS: ${page || "the site"}.`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 700, system: sys, messages: turns }),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("ANTHROPIC_ERROR", res.status, errText);
-      return new Response(JSON.stringify({ error: `Anthropic ${res.status}` }), { status: 502, headers: { ...cors, "Content-Type": "application/json" } });
+    /* Una charla se rompe de una sola manera: el envoltorio JSON sale mal o se
+       corta. Pasó en vivo con "We need it in German and French too" y el
+       visitante vio el mensaje de disculpa. Ahora se intenta dos veces —el
+       segundo intento con la regla del formato repetida— y recién ahí se cae al
+       camino humano. Se registra stop_reason para saber si fue truncado. */
+    async function ask(extra: string) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1200, system: sys + extra, messages: turns }),
+      });
+      if (!res.ok) {
+        console.error("ANTHROPIC_ERROR", res.status, (await res.text()).slice(0, 300));
+        return null;
+      }
+      const data = await res.json();
+      let t = ((data.content ?? []) as { type: string; text?: string }[])
+        .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim().replace(/```json|```/g, "");
+      const m = t.match(/\{[\s\S]*\}/); if (m) t = m[0];
+      try {
+        const obj = JSON.parse(t) as Record<string, unknown>;
+        if (obj.reply) return { obj, data };
+      } catch { /* cae al reintento */ }
+      console.error("BAD_SHAPE", data.stop_reason, t.slice(0, 200));
+      return null;
     }
-    const data = await res.json();
-    let t = ((data.content ?? []) as { type: string; text?: string }[])
-      .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim().replace(/```json|```/g, "");
-    const m = t.match(/\{[\s\S]*\}/); if (m) t = m[0];
-    let parsed: Record<string, unknown> = {};
-    try { parsed = JSON.parse(t); } catch { /* abajo */ }
+
+    const got = await ask("") ??
+      await ask("\n\nREMINDER: your entire answer must be one JSON object and nothing else — no greeting before it, no explanation after it. Keep \"reply\" under 60 words.");
+    const parsed: Record<string, unknown> = got?.obj ?? {};
+    const data = got?.data ?? {};
     if (!parsed.reply) {
-      console.error("BAD_SHAPE", t.slice(0, 300));
-      // Nunca dejamos al visitante mirando un error: cae al camino humano.
+      // Dos intentos fallidos: nunca dejamos al visitante mirando un error,
+      // cae al camino humano.
       const fallback: Record<string, string> = {
-        en: "Sorry — I lost that one. Tell me in a line what you're planning and a producer will come back to you within one business day.",
+        en: "Sorry — I lost that one. Tell me in a line what you're planning and Sofia or one of our producers will come back to you within one business day.",
         de: "Entschuldigung, da ist mir etwas dazwischengekommen. Beschreiben Sie Ihr Vorhaben kurz — eine Produzentin meldet sich innerhalb eines Werktags.",
-        es: "Perdón, se me cortó. Contame en una línea qué estás planeando y te responde una productora dentro de un día hábil.",
+        es: "Perdón, se me cortó. Contame en una línea qué estás planeando y te responde Sofia o uno de nuestros productores dentro de un día hábil.",
       };
       return new Response(JSON.stringify({ reply: fallback[l], lang: l, action: "none", lead: {}, handoff: true, degraded: true }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
