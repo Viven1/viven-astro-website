@@ -17284,6 +17284,7 @@ const newsCases = [
       ? '<br/><span class="cap-over">⚠️ ' + n + " supera el tope diario del plan Free (100/día) — conviene Pro (USD 20/mes = 50'000).</span>"
       : "<br/>Cupo Free: <b>" + n + " de 3'000 este mes</b> ✓";
     const fuera = nwFueraLine(p.fuera);
+    nwAvisoIdiomas(p.por_idioma);
     title.textContent = '📤 Listo para enviar a ' + n + ' persona' + (n === 1 ? '' : 's');
     info.innerHTML = '<div class="nw-sum">' + nwLangLine(p.por_idioma) + '</div>' +
       'En <b>' + batches + ' tanda' + (batches === 1 ? '' : 's') + ' de 100</b> (API batch de Resend) · duración estimada: <b>~' + secs + 's</b>' + cap +
@@ -17430,7 +17431,18 @@ const newsCases = [
              requerir abrir nada. Sale del MISMO preview del servidor que usa el envío
              —no de una cuenta hecha acá— así que lo que dice es lo que va a salir. */
           const e1 = $('nw-paso1-n');
-          if (e1 && n != null) e1.textContent = n + (n === 1 ? ' persona' : ' personas');
+          if (e1 && n != null){
+            /* Además del total, POR IDIOMA — y del MISMO desglose que ya calcula el
+               servidor (p.por_idioma), no de una cuenta hecha acá. El cuerpo del email
+               sale igual para todos —solo el saludo, el pie y el destino del botón
+               cambian por idioma— así que saber que 9 de 33 son de habla alemana antes
+               de escribir cambia lo que escribís. (Sebastián, 25 ago: "¿sale también
+               con el idioma de cada uno?" — a medias, y esta es la mitad que hay que
+               ver antes de escribir.) */
+            const det = Object.entries(data.por_idioma || {}).filter(([, c]) => c > 0)
+              .sort((a, b) => b[1] - a[1]).map(([L, c]) => c + ' ' + L.toUpperCase()).join(' · ');
+            e1.textContent = n + (n === 1 ? ' persona' : ' personas') + (det ? ' · ' + det : '');
+          }
         })
         .catch(() => { $('nw-kmini-subs').textContent = '?'; });
     }
@@ -17550,6 +17562,27 @@ const newsCases = [
     fetch: (f) => nwFetchPrev(f),
     onClose: async () => { if ($('nw-subject').value.trim() && nwDerivedBody().trim()) await nwSave(); nwUpdateSendPanel(); },
   });
+  /* ===== EL CUERPO NO SE TRADUCE =====
+     Lo que SÍ sale en el idioma de cada persona: el saludo (greeting), el pie con la
+     firma, el link de baja y el destino del botón (/de/book/ vs /en/book/).
+     Lo que NO: el asunto, el texto que escribís y la etiqueta del botón — eso es uno
+     solo para todos. Medido el 25 ago: de los 33 destinatarios, 24 son EN y 9 DE, o
+     sea que más de uno de cada cuatro recibiría "Guten Tag" y después texto en inglés,
+     que se lee peor que no traducir nada.
+     No se traduce solo a propósito: una traducción automática de un newsletter
+     comercial se nota, y el selector de idioma ya permite mandar uno por idioma. Lo
+     que faltaba era decirlo antes de apretar Enviar. */
+  function nwAvisoIdiomas(porIdioma){
+    const el = $('nw-aviso-lang'); if (!el) return;
+    const langs = Object.entries(porIdioma || {}).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
+    if (langs.length < 2){ el.hidden = true; return; }
+    const NOMBRE = { en: 'inglés', de: 'alemán', es: 'español' };
+    el.hidden = false;
+    el.innerHTML = '⚠️ Van <b>' + langs.length + ' idiomas</b> en el mismo envío (' +
+      langs.map(([L, c]) => c + ' en ' + (NOMBRE[L] || L)).join(' · ') + '). ' +
+      'El saludo y el pie salen en el idioma de cada uno, pero <b>el texto que escribís va igual para todos</b>. ' +
+      'Si querés cada uno en su idioma, filtrá por idioma arriba y mandá uno por vez.';
+  }
   async function nwShowRecipients(ctx){
     ctx = ctx || nwCtxCampana();
     const EXCL = ctx.exclIds, EXCLEM = ctx.exclEmails, EXTRAS = ctx.extras;
