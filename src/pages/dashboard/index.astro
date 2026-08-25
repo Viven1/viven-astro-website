@@ -6676,7 +6676,11 @@ const newsCases = [
        que sí lo está y se dice desde cuándo. Esconder el número hasta tener 30 días
        completos sería tirar un dato bueno por no ser perfecto. */
     const desdeMed = Math.max(rangeStart(), HUMAN_DESDE);
-    const medido = rangeEnd() > HUMAN_DESDE;
+    /* anaCargada, otra vez: session_activity llega en la segunda tanda igual que los
+       pageviews. Sin este chequeo la tarjeta mostraba "Personas: 0" durante unos
+       segundos — el mismo cero falso que ya habíamos sacado de las visitas, entrando
+       por la puerta de al lado. */
+    const medido = anaCargada && rangeEnd() > HUMAN_DESDE;
     if (medido){
       const pers = persEn(desdeMed, rangeEnd());
       const parcial = rangeStart() < HUMAN_DESDE;
@@ -6690,8 +6694,8 @@ const newsCases = [
                           : 'medido por scroll, puntero o toque');
       const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; }
     } else {
-      $('hm-vis-l').textContent = 'Visitas (' + rangeLabel().toLowerCase() + ')';
-      $('hm-vis-t').textContent = 'incluye tráfico automático · personas se mide desde el 24/08';
+      $('hm-vis-l').textContent = anaCargada ? 'Visitas (' + rangeLabel().toLowerCase() + ')' : 'Personas';
+      $('hm-vis-t').textContent = anaCargada ? 'incluye tráfico automático · personas se mide desde el 24/08' : 'cargando…';
       $('hm-vis').textContent = visCur == null ? '–' : visCur.toLocaleString('de-CH');
       if (visCur == null){ const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; } }
       else setDelta('hm-vis-d', visCur, visPrev);
