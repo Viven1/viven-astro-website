@@ -1,7 +1,7 @@
 <!-- Lo escribe sola la function cola-a-repo, todos los días. No editar a mano. -->
 # Cola de trabajo aprobada por Sebastián
 
-Actualizada: 2026-08-24 · 4 pendientes
+Actualizada: 2026-08-25 · 5 pendientes
 
 Cada ítem lo aprobó Sebastián desde el teléfono. El agente diario los trabaja
 y deja un PR; el merge sigue siendo decisión suya.
@@ -29,3 +29,9 @@ Cortar el test ahora, mover 80-100% del tráfico DE a la variante B, y monitorea
 - **Origen:** cro · /dashboard/?tab=analytics&sub=cro
 
 Agregar un CTA embebido a mitad de artículo (ej. 'calculá el costo de tu video' o descarga del lead magnet) segmentado por tema del post, y medir sesiones que avanzan a más de 1 página o completan email_submitted.
+
+## #40 — Replicar modelo de calculadora en recursos
+- **Esperando:** 0 días (aprobado 2026-08-25)
+- **Origen:** idea
+
+La calculadora generó 8 leads de 189 personas (4.2% conversion). Los 'recursos' atrajeron 769 personas con 0 leads. Crear 2-3 calculadoras temáticas (ej: presupuesto de video, ROI de contenido) como lead magnet en la sección recursos para capturar ese tráfico.
