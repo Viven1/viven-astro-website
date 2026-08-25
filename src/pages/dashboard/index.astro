@@ -17800,7 +17800,15 @@ const newsCases = [
       if (!s) return '<button class="bl2-ltab miss" data-loc="' + l + '" data-id="' + esc(b.id) + '" type="button" title="Generar versión ' + LANGNAME[l] + ' (nativa, keywords locales)">+ ' + LANGNAME[l] + '</button>';
       return '<button class="bl2-ltab' + (String(s.id) === String(b.id) ? ' on' : '') + (s.status === 'published' ? ' pub' : '') + '" data-open="' + esc(s.id) + '" type="button" title="' + LANGNAME[l] + (s.status === 'published' ? ' — publicado' : ' — borrador') + '">' + LANGNAME[l] + (s.status === 'published' ? ' ✓' : '') + '</button>';
     }).join('');
-    $('bg-versions').querySelectorAll('[data-open]').forEach((t) => t.addEventListener('click', () => { if (String(t.dataset.open) !== String(b.id)) loadBlog(t.dataset.open); }));
+    /* Cambiar de idioma guarda lo que estabas editando. Antes se perdía sin aviso:
+       cambiabas la foto del alemán, tocabas "English" para ver cómo iba, y al volver
+       la foto era la vieja otra vez. Nada avisaba porque nada fallaba — simplemente
+       nunca se había guardado. */
+    $('bg-versions').querySelectorAll('[data-open]').forEach((t) => t.addEventListener('click', async () => {
+      if (String(t.dataset.open) === String(b.id)) return;
+      if (bgCur && bgCur.id) await saveBlogEdits(true);
+      loadBlog(t.dataset.open);
+    }));
     $('bg-versions').querySelectorAll('[data-loc]').forEach((t) => t.addEventListener('click', () => localizeBlog(t.dataset.id, t.dataset.loc)));
     bl2RenderImgPick(); bl2RenderVidPick();
     $('bg-result').hidden = false; $('bg-pub-note').textContent = '';
@@ -17848,7 +17856,17 @@ const newsCases = [
         } });
         if (error || !data || !data.body_html) throw new Error(data?.error || error?.message || 'sin respuesta');
         const sib = blogsList.find((x) => x.group_id === bgCur.group_id && x.lang === l);
-        const row = { lang: l, topic: bgCur.topic, slug: data.slug, title: data.title, description: data.description, eyebrow: data.eyebrow, lead: data.lead, body_html: data.body_html, faq: data.faq || [], status: 'draft', group_id: bgCur.group_id, hero_image: bgCur.hero_image || null, video_id: bgCur.video_id || null };
+        /* La foto y el video de cada idioma NO se pisan.
+           Propagar reescribe el TEXTO desde el master, que es para lo que sirve. Pero
+           antes también mandaba hero_image y video_id del master, así que si él había
+           elegido una foto distinta para el alemán, propagar desde el inglés se la
+           borraba — y las tres versiones terminaban con la misma imagen. Pasó de
+           verdad el 25 ago con los tres posts de "Video SEO".
+           Ahora: si el hermano ya tiene lo suyo, se respeta; solo se le pasa la del
+           master cuando está vacío. */
+        const row = { lang: l, topic: bgCur.topic, slug: data.slug, title: data.title, description: data.description, eyebrow: data.eyebrow, lead: data.lead, body_html: data.body_html, faq: data.faq || [], status: 'draft', group_id: bgCur.group_id };
+        if (!sib || !sib.hero_image) row.hero_image = bgCur.hero_image || null;
+        if (!sib || !sib.video_id) row.video_id = bgCur.video_id || null;
         if (sib) { const { error: e2 } = await supabase.from('blogs').update(row).eq('id', sib.id); if (e2 && /column/.test(e2.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').update(row).eq('id', sib.id); } }
         else { const { error: e3 } = await supabase.from('blogs').insert(row); if (e3 && /column/.test(e3.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').insert(row); } }
         toast('✓ ' + (LANGNAME[l] || l) + ' actualizado desde el master');
@@ -18019,6 +18037,16 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   }
   async function publishBlog(opts){
     opts = opts || {};   // ojo: el click del botón pasa el MouseEvent — ahí opts.skipConfirm es undefined y se confirma como siempre
+    /* GUARDAR ANTES DE PUBLICAR.
+       buildBlogAstro lee el cuerpo, el lead, el eyebrow y las FAQ de bgCur —o sea de
+       lo último GUARDADO— mientras que el título, el slug, la foto y el video los lee
+       de los campos en pantalla. Con esa mezcla, publicar sin guardar mandaba a la web
+       una versión Frankenstein: la foto nueva con el texto viejo, o al revés. Y la
+       fila de la base quedaba con lo viejo, así que al reabrir el editor los cambios
+       "desaparecían". (Sebastián, 25 ago: "guardé fotos y videos distintos, pero no
+       los guardó y publicó los que él quería".)
+       Guardar primero hace que las dos mitades vengan del mismo lugar. */
+    if (bgCur && bgCur.id && !(await saveBlogEdits(true))) return false;
     let sibs = {};
     if (bgCur && bgCur.group_id){
       const { data: sb } = await supabase.from('blogs').select('lang,slug').eq('group_id', bgCur.group_id).eq('status', 'published');
