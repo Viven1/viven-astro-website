@@ -386,9 +386,20 @@ Deno.serve(async (req) => {
         number: inv.document_nr,
         client_company: empresa, client_contact: persona, client_email: email,
         title: titulo + t.suf,
-        items: t.posiciones, net: Number(inv.total_net) || null, gross: Number(inv.total) || null,
+        items: t.posiciones,
+        /* net y gross son NOT NULL en la tabla: `Number(x) || null` convertía un 0
+           legítimo en null y el insert se caía en silencio. Y el vat_rate por defecto
+           es 8,1 — para los clientes extranjeros sin IVA el registro local decía 8,1%
+           mientras bexio decía 0%. (Sebastián: "algunos clientes son sin IVA ya que
+           son extranjeros".) */
+        net: Number.isFinite(Number(inv.total_net)) ? Number(inv.total_net) : 0,
+        gross: Number.isFinite(Number(inv.total)) ? Number(inv.total) : 0,
+        vat_rate: sinIva ? 0 : IVA_ESPERADO,
         status: "draft", issued_at: new Date().toISOString(), due_date: iso(vence),
-      }).then(() => {}, () => {});   // si falla el registro local, la factura ya existe: no se rompe
+      }).then((r) => { if (r.error) console.error("no se pudo registrar la factura local:", r.error.message); },
+              (e) => { console.error("no se pudo registrar la factura local:", String(e)); });
+      /* Si el registro local falla la factura en bexio YA existe, así que no se corta
+         el flujo — pero queda en el log en vez de desaparecer sin dejar rastro. */
     }
 
     return json({ ok: true, creadas, contacto_id: contactId, contacto_creado: contactoCreado, pct,

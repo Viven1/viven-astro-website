@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v65';   // v65: 25 ago 2026 — Search Console en 3 grupos plegables + Cash Flow dice con qué está hecha la proyección
+var CACHE = 'viven-crm-v66';   // v66: 25 ago 2026 — puntería de los motores en la Bandeja, descartar ya no quema al contacto, y el A/B no declara ganador con tres conversiones
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));

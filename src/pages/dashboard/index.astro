@@ -1505,6 +1505,19 @@ const newsCases = [
   #sistema-sub-cashflow .cf-det > summary:hover .cf-det-t{color:var(--acid-dim)}
   #sistema-sub-cashflow .cf-det > summary em{font-style:normal;font-weight:400;font-size:12.5px;color:var(--muted-2)}
   #sistema-sub-cashflow .cf-det-body{padding:0 18px 18px}
+  /* Bandeja: puntería de cada motor */
+  #ob-motores{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:12px 14px;margin:0 0 14px}
+  #ob-motores .ob-mot-h{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin-bottom:10px}
+  #ob-motores .ob-mot-h em{font-style:normal;letter-spacing:0;text-transform:none;font-weight:400;font-size:11.5px}
+  #ob-motores .ob-mot{display:grid;grid-template-columns:150px 1fr auto;align-items:center;gap:10px;padding:5px 0;font-size:13px}
+  #ob-motores .ob-mot b{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #ob-motores .ob-mot-bar{height:6px;border-radius:99px;background:var(--navy-600);overflow:hidden;min-width:60px}
+  #ob-motores .ob-mot-bar i{display:block;height:100%;background:var(--acid);border-radius:99px}
+  #ob-motores .ob-mot.mal .ob-mot-bar i{background:#ff8b8b}
+  #ob-motores .ob-mot-n{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12.5px}
+  #ob-motores .ob-mot-w{grid-column:2/-1;color:#ff8b8b;font-size:12px;margin:-2px 0 4px}
+  @media(max-width:640px){#ob-motores .ob-mot{grid-template-columns:1fr;gap:3px}
+    #ob-motores .ob-mot-w{grid-column:1}}
   .ana-grupo-det{border-bottom:1px solid var(--line)}
   .ana-grupo-det > summary{cursor:pointer;list-style:none}
   .ana-grupo-det > summary::-webkit-details-marker{display:none}
@@ -3501,6 +3514,11 @@ const newsCases = [
         <button class="btn btn-ghost small" id="ob-approve-all" type="button" hidden>✅ Aprobar todos</button>
       </div>
       <p class="muted-note" style="margin:6px 0 10px">Acá caen TODOS los borradores automáticos — workflows (📧/🤖) y 📬 follow-ups — sin excepción, ninguno sale solo. Editá, cambiá el remitente, posponé o descartá. Los aprobados salen en la próxima corrida del motor correspondiente (máx. 30 min).</p>
+      <!-- Qué motor acierta y cuál te hace perder el tiempo. Sin esto no había forma de
+           notarlo: el 25 ago 2026 el de contenido llevaba 26 enviados de 30 decididos y
+           el de reactivación 2 de 15 — un motor que escribe para el tacho, y la pantalla
+           lo mostraba igual que a los que funcionan. -->
+      <div id="ob-motores" hidden></div>
       <div id="ob-list"><p class="muted-note">Bandeja vacía.</p></div>
     </div>
 
@@ -11990,10 +12008,27 @@ const newsCases = [
     const confPct = Math.round(r.conf * 100);
     const day = abDayOf(t);
     const endTxt = t.end_at ? new Date(t.end_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : null;
-    const canDeclare = r.conf >= 0.95;
+    /* Un z-test al 95% con TRES conversiones no es un ganador, es una moneda que salió
+       cara tres veces. El test DE se declaró así el 24 ago 2026: 0 leads en A, 3 en B,
+       96% de confianza — y B se desplegó. La confianza sola no alcanza: hace falta
+       que la muestra de conversiones aguante. Regla: al menos 5 conversiones en el
+       brazo que gana y 10 entre los dos, además del 95%. */
+    const convTot = r.la + r.lb, convGana = Math.max(r.la, r.lb);
+    const muestraOk = convGana >= 5 && convTot >= 10;
+    const canDeclare = r.conf >= 0.95 && muestraOk;
     // barra de veredicto
     let verdict;
-    if (canDeclare && (bWins || aWins)){
+    const yaDeclarado = t.status === 'done_a' || t.status === 'done_b';
+    if (yaDeclarado && !muestraOk){
+      /* El test DE se cerró el 24 ago con 0 leads en A y 3 en B. Decir "ganó B" y
+         nada más era esconder de qué está hecha esa decisión: si mañana el hero rinde
+         peor, esto es lo primero que hay que saber. */
+      verdict = '<div class="verdictbar wait"><span class="conf" style="color:#f0c060">' + confPct + '%</span>' +
+        '<div class="vtxt"><b>Declarado con poca muestra.</b> Se cerró a favor de ' + (t.status === 'done_b' ? 'B' : 'A') + ' con '
+        + convTot + (convTot === 1 ? ' conversión' : ' conversiones') + ' en total (' + r.la + ' en A, ' + r.lb + ' en B). '
+        + 'El ' + confPct + '% sale de esa muestra, así que tomalo como una corazonada con datos, no como una certeza — si el cambio es barato de mantener, no pasa nada; si te apoyás en él para decidir otra cosa, conviene volver a correrlo.</div>' +
+        '<div class="bar"><i style="width:' + Math.max(3, Math.min(100, confPct)) + '%;background:#f0c060"></i></div></div>';
+    } else if (canDeclare && (bWins || aWins)){
       const winner = bWins ? 'B' : 'A', wc = bWins ? r.cb : r.ca, lc = bWins ? r.ca : r.cb;
       const uplift = lc > 0 ? Math.round((wc - lc) / lc * 100) : 100;
       verdict = '<div class="verdictbar win"><span class="conf" style="color:#7ed957">' + confPct + '%</span>' +
@@ -12007,8 +12042,14 @@ const newsCases = [
       const remaining = Math.max(0, needTot - total);
       const weeks = rate > 0 ? Math.ceil(remaining / (rate * 7)) : null;
       const eta = remaining <= 0 ? 'ya hay muestra suficiente — juntando la señal' : (weeks != null ? '~' + weeks + (weeks === 1 ? ' semana' : ' semanas') + ' al ritmo actual' : 'sin ritmo de tráfico todavía');
+      /* Cuando la estadística ya dice 95% pero las conversiones son cuatro gatos, el
+         motivo real de no decidir es ese y no el tráfico — decirlo con el número. */
+      const porQue = (r.conf >= 0.95 && !muestraOk)
+        ? '<b>Todavía no hay nada que decidir.</b> La cuenta da ' + confPct + '% de confianza, pero con ' + convTot
+          + (convTot === 1 ? ' conversión' : ' conversiones') + ' en total eso es ruido, no señal — hacen falta al menos 5 en la variante que gana y 10 entre las dos.'
+        : '<b>Todavía no hay nada que decidir.</b> ' + total + ' de ~' + needTot + ' sesiones necesarias para detectar una diferencia real. ' + eta + '.';
       verdict = '<div class="verdictbar wait"><span class="conf" style="color:#f0c060">' + (confPct > 0 ? confPct + '%' : '—') + '</span>' +
-        '<div class="vtxt"><b>Todavía no hay nada que decidir.</b> ' + total + ' de ~' + needTot + ' sesiones necesarias para detectar una diferencia real. ' + eta + '.</div>' +
+        '<div class="vtxt">' + porQue + '</div>' +
         '<div class="bar"><i style="width:' + Math.max(3, Math.min(100, confPct)) + '%;background:#f0c060"></i></div></div>';
     }
     // leads clickeables (pedido de Sebastián: "si tienen leads, dejame tocar el botón
@@ -12024,14 +12065,26 @@ const newsCases = [
         '<div class="nums"><div><b>' + e2 + '</b><span>sesiones</span></div>' + leadsNum(side, l2) + '<div><b>' + (e2 ? (conv * 100).toFixed(1) : '0') + '%</b><span>conv.</span></div></div></div>';
     const leadList = (abLeadsOpen === t.id + ':a' || abLeadsOpen === t.id + ':b') ? abLeadListHtml(t, abLeadsOpen.slice(-1)) : '';
     /* Aviso de bots: las exposiciones se cuentan al cargar la página, así que un bot
-       queda "expuesto" igual que una persona. Eso no vuelca el test para un lado
-       (los bots caen en A y B por igual), pero infla la n — y la n es lo que decide
-       la significancia. Con 1.465 exposiciones el z-test declara ganador por ruido.
-       Se dice cuántas están confirmadas de gente; del resto, antes del 24/08, no se
-       puede saber. */
-    const humCard = r.ha + r.hb
-      ? '<div class="muted-note" style="margin:6px 0 0">👥 ' + (r.ha + r.hb) + ' de ' + (r.ea + r.eb) + ' exposiciones están confirmadas de personas · el resto puede ser tráfico automático (se mide desde el 24/08)</div>'
-      : '<div class="muted-note" style="margin:6px 0 0">⚠️ Ninguna exposición confirmada de una persona todavía — la separación de bots se mide desde el 24/08, así que estas cifras incluyen tráfico automático.</div>';
+       queda "expuesto" igual que una persona. Acá decía que eso no vuelca el test
+       porque los bots caen en A y B por igual — MEDIDO EL 25 AGO 2026, ES FALSO: el
+       test EN tenía 939 sesiones en A contra 572 en B con un split 50/50 (nueve
+       desvíos estándar), y entre las personas confirmadas iba 23 a 26. La causa es de
+       diseño: la variante se sortea UNA VEZ POR NAVEGADOR (localStorage) y la
+       exposición se cuenta POR SESIÓN, así que un mismo navegador que vuelve mil veces
+       —un crawler con perfil persistente, o vos— carga mil exposiciones de su lado.
+       Por eso el reparto desbalanceado se muestra como lo que es: un aviso de que el
+       denominador no sirve, no un dato del test. */
+    const expTot = r.ea + r.eb;
+    const pctA = expTot ? Math.round((r.ea / expTot) * 100) : 50;
+    const espA = 100 - (Number(t.split_pct) || 50);
+    const desbalance = expTot >= 200 && Math.abs(pctA - espA) >= 12;
+    const humCard = (r.ha + r.hb
+      ? '<div class="muted-note" style="margin:6px 0 0">👥 ' + (r.ha + r.hb) + ' de ' + expTot + ' exposiciones están confirmadas de personas · el resto puede ser tráfico automático (se mide desde el 24/08)</div>'
+      : '<div class="muted-note" style="margin:6px 0 0">⚠️ Ninguna exposición confirmada de una persona todavía — la separación de bots se mide desde el 24/08, así que estas cifras incluyen tráfico automático.</div>')
+      + (desbalance
+        ? '<div class="muted-note" style="margin:4px 0 0;color:#f0c060">⚠️ El reparto tendría que ser ' + espA + '/' + (100 - espA)
+          + ' y está saliendo ' + pctA + '/' + (100 - pctA) + '. La variante se sortea una vez por navegador pero la exposición se cuenta por sesión: un navegador que vuelve muchas veces carga muchas exposiciones de su lado. Mirá las de personas, no el total.</div>'
+        : '');
     // sub-línea: path · split · día · auto-stop
     const sub = esc(t.url_path) + ' · split ' + (t.split_pct || 50) + '/' + (100 - (t.split_pct || 50)) +
       (day ? ' · día ' + day : '') + (endTxt ? ' · termina ' + endTxt + ' (auto-stop)' : '') + ' · ' + changes.length + ' cambio(s)';
@@ -15655,6 +15708,38 @@ const newsCases = [
           '<button class="btn btn-ghost small" data-obundo="' + esc(String(o.id)) + '" type="button" style="flex:none">↩︎ Deshacer</button></div>';
       }).join('') + '</div>';
   }
+  /* Puntería de cada motor: de todo lo que ya decidiste, cuánto salió y cuánto tiraste.
+     Es lo único que distingue un motor que trabaja para vos de uno que te da trabajo. */
+  async function obMotores(){
+    const box = $('ob-motores'); if (!box) return;
+    const { data, error } = await supabase.from('outbox').select('kind,status').in('status', ['sent', 'discarded']);
+    if (error || !data || !data.length){ box.hidden = true; return; }
+    const LBL = { content_followup: '🎯 Contenido', reactivation: '♻️ Reactivación', followup: '📬 Follow-up',
+                  followup_later: '🕓 Seguimiento futuro' };
+    const por = {};
+    data.forEach((o) => {
+      const k = o.kind || 'workflow';
+      por[k] = por[k] || { sent: 0, discarded: 0 };
+      por[k][o.status] += 1;
+    });
+    const filas = Object.keys(por).map((k) => {
+      const p = por[k], tot = p.sent + p.discarded;
+      const pct = Math.round((p.sent / tot) * 100);
+      /* Menos de un tercio aprobado y al menos 5 decididos: no es mala racha, es el
+         motor. Con 4 decididos todavía puede ser casualidad y no vale asustar. */
+      const mal = tot >= 5 && pct < 34;
+      return { k, lbl: LBL[k] || '⚙️ ' + k, sent: p.sent, disc: p.discarded, tot, pct, mal };
+    }).sort((a, b) => b.tot - a.tot);
+    box.innerHTML = '<div class="ob-mot-h">Puntería de cada motor <em>de lo ya decidido</em></div>'
+      + filas.map((f) => '<div class="ob-mot' + (f.mal ? ' mal' : '') + '">'
+        + '<b>' + esc(f.lbl) + '</b>'
+        + '<span class="ob-mot-bar"><i style="width:' + f.pct + '%"></i></span>'
+        + '<span class="ob-mot-n">' + f.sent + ' de ' + f.tot + ' salieron · ' + f.pct + '%</span>'
+        + (f.mal ? '<span class="ob-mot-w">tiraste ' + f.disc + ' — este motor te está dando trabajo, no ahorrándotelo</span>' : '')
+        + '</div>').join('');
+    box.hidden = false;
+  }
+
   async function obLoad(){
    try {
     const nowIso = new Date().toISOString();
@@ -15681,6 +15766,7 @@ const newsCases = [
     $('ob-count').textContent = obs.length || '';
     $('ob-approve-all').hidden = obs.length < 2;
     obBadgeRefresh();
+    obMotores();
     $('ob-list').innerHTML = obPorSalirHTML(aprRows) + obs.map((o) => {
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
       const CFW_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', howto: '🎓 How-to', social: '📱 Social', corporate: '🏢 Corporate' };
@@ -15696,7 +15782,7 @@ const newsCases = [
       const schedNote = '<div class="ob-sched-note">📅 Si lo aprobás, ' + esc(obCuandoSaleTxt(o.scheduled_at)) +
         // los 10 min de arrepentimiento solo aplican cuando no tiene fecha propia futura
         (!o.scheduled_at || o.scheduled_at <= nowIso ? ' · tenés 10 minutos para deshacer' : '') + '</div>';
-      return '<div class="au-step" data-ob="' + o.id + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
+      return '<div class="au-step" data-ob="' + o.id + '" data-kind="' + esc(o.kind || '') + '" data-lead="' + esc(String(o.lead_id || '')) + '" data-to="' + esc(l.name || l.email || ('Lead #' + o.lead_id)) + (l.email ? ' <' + esc(l.email) + '>' : '') + '">' +
         '<div class="ob-hd"><div class="ob-who">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b>' + (l.company ? '<span class="muted-note">' + esc(l.company) + '</span>' : '') + '</div>' +
         '<span class="ob-kind">' + esc(srcTag) + '</span></div>' +
         schedNote +
@@ -15754,8 +15840,28 @@ const newsCases = [
         if (e2){ toast('⚠️ ' + e2.message + ' (¿corriste la SQL 0063?)'); return; }
         toast('⏰ Pospuesto 4 horas');
       } else {
-        await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.id);
-        toast('✕ No se envía');
+        /* Descartar una reactivación no era solo "este texto no": el motor marca
+           leads.reactivation_drafted_at al CREAR el draft y no lo resetea nunca, así
+           que descartar sacaba a esa persona de la lista para toda la vida — en
+           silencio. Medido el 25 ago 2026: 13 de 15 borradores descartados, y 12
+           personas quemadas sin que nadie lo decidiera. Ahora la pantalla pregunta
+           cuál de las dos cosas quisiste. */
+        if (card.dataset.kind === 'reactivation' && card.dataset.lead){
+          const vuelve = confirm('Descartás el borrador para ' + card.dataset.to + '.\n\n'
+            + 'A cada persona se le escribe UNA sola vez en la vida, así que descartar también la saca de la lista para siempre.\n\n'
+            + 'Aceptar → descartar este texto, pero que pueda volver a proponerse más adelante\n'
+            + 'Cancelar → descartar y no escribirle nunca más');
+          await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.id);
+          if (vuelve){
+            const { error: e3 } = await supabase.from('leads').update({ reactivation_drafted_at: null }).eq('id', card.dataset.lead);
+            toast(e3 ? ('✕ Descartado, pero no pude devolverlo a la lista: ' + e3.message) : '✕ Descartado — vuelve a la lista más adelante');
+          } else {
+            toast('✕ Descartado — no se le vuelve a escribir');
+          }
+        } else {
+          await supabase.from('outbox').update({ status: 'discarded' }).eq('id', b.dataset.id);
+          toast('✕ No se envía');
+        }
       }
       obLoad();
     }));
@@ -16446,7 +16552,20 @@ const newsCases = [
     if (!cfBalance) falta.push('el saldo real del banco');
     if (!aMano && deBexio) falta.push('las salidas que no pasan por bexio');
 
+    /* El runway y "próximo mes en rojo" arrancan del saldo del banco. Si ese saldo es
+       de hace un mes, los dos números son de hace un mes y la pantalla no lo dice: el
+       25 ago 2026 el último cargado era del 24 de julio. Un saldo viejo no es un hueco
+       —es un número que parece fresco y no lo es—, así que va con su fecha a la vista. */
+    let viejo = 0;
+    if (cfBalance && cfBalance.as_of_date){
+      viejo = Math.floor((Date.now() - new Date(cfBalance.as_of_date + 'T12:00:00').getTime()) / 864e5);
+    }
+
     let txt = 'La proyección está hecha con ' + partes.join(' · ') + '.';
+    if (viejo > 21){
+      txt += ' <span class="cf-falta">El saldo del banco es del ' + cfBalance.as_of_date + ' — hace ' + viejo
+        + ' días</span>, así que el runway y el próximo mes en rojo arrancan de ahí y no de hoy.';
+    }
     if (falta.length){
       txt += ' <span class="cf-falta">Para que dé la verdad todavía ' + (falta.length === 1 ? 'falta ' : 'faltan ')
         + falta.join(', ') + '</span> — hasta entonces la curva es un techo, no un pronóstico.';
