@@ -1,4 +1,31 @@
 ---
+/* Dónde vive cada formulario de PDF. Se calcula en el BUILD leyendo las páginas, no
+   a mano: si mañana el magnet se embebe en otra página, el denominador del panel de
+   lead magnets se actualiza solo. Sin esto no hay "sesiones" para los PDF, porque el
+   formulario no tiene una landing propia — está embebido en decenas de páginas. */
+const _paginas = import.meta.glob('/src/pages/**/*.astro', { query: '?raw', import: 'default', eager: true });
+const _magnetPaths = {};
+for (const [archivo, fuente] of Object.entries(_paginas)) {
+  const claves = [...String(fuente).matchAll(/magnet="([a-z0-9-]+)"/g)].map((m) => m[1]);
+  if (!claves.length) continue;
+  let ruta = archivo.replace('/src/pages', '').replace(/index\.astro$/, '').replace(/\.astro$/, '/');
+  if (!ruta.endsWith('/')) ruta += '/';
+  // las rutas [lang] se sirven una vez por idioma
+  let rutas = ruta.includes('/[lang]/') ? ['en', 'de', 'es'].map((l) => ruta.replace('/[lang]/', '/' + l + '/')) : [ruta];
+  /* Si todavía queda un [param] (ej. /en/resources/[slug]/) es una ruta dinámica: no se
+     puede expandir a mano, así que se guarda como PREFIJO y se compara con startsWith.
+     Sin esto quedaban rutas literales con corchetes que no coinciden con ninguna visita
+     real — el contador daba 0 y encima decía "en 27 páginas". */
+  rutas = rutas.map((r) => (r.includes('[') ? { pre: r.slice(0, r.indexOf('[')) } : r));
+  for (const k of new Set(claves)) (_magnetPaths[k] = _magnetPaths[k] || new Set()), rutas.forEach((r) => _magnetPaths[k].add(r));
+}
+const MAGNET_PATHS = Object.fromEntries(Object.entries(_magnetPaths).map(([k, v]) => {
+  const arr = [...v];
+  return [k, {
+    exactas: arr.filter((x) => typeof x === 'string').sort(),
+    prefijos: [...new Set(arr.filter((x) => x && x.pre).map((x) => x.pre))].sort(),
+  }];
+}));
 // pool de fotos reales (stills de rodajes) para elegir los separadores de una propuesta
 import projects from '../../data/projects.json';
 import videos from '../../data/videos.json';
@@ -1897,6 +1924,8 @@ const newsCases = [
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="viven-logo" viewBox="125 126 1374 288" fill="currentColor"><path d="M756.66,346.9l114.7-80.57c-37.87-83.92-102.57-60.93-102.57-60.93l-71.71,57.88v65.56c0,38.77,25.21,75.91,62.34,80.84h68.27l35.95-40.9-107,.1C756.66,371,756.7,346.56,756.66,346.9Zm.06-108.77s55.51-13.37,55.51,34.2l-55.51,39C757,310.8,756.72,238.13,756.72,238.13Z"/><path d="M270.4,255.39l-32.57,61.44L179,197.28l-54.41,44.41,22.58,22.58,74.76,149.91,106.6-198H237.09ZM431.78,125.83H372.19v49.22h59.59Zm1,71.45-82.54,67.36,22.95,22.95v78.47l-32.57,38.86H465.37l-32.58-38.86Zm704.72,207.64-32.58-38.86V286.85c0-43.67-29.24-84-71.06-89.57l-50.34,41.08L962.06,195.8l-57.37,47,22.58,22.95V366.06L894.7,404.92h124.73l-32.57-38.86V248.73h11.85a46.75,46.75,0,0,1,46.63,47V404.92ZM621.28,255.39l-32.57,61.44L529.86,197.28l-54.41,44.41L498,264.27,572.8,414.18l106.6-198H588Z"/><path d="M1168,219.81v14h18.21v6.48H1168v17.14h-7.24v-44.1h25.45v6.49Z"/><path d="M1201.84,212.25a5.08,5.08,0,1,1-5,5.11A5.09,5.09,0,0,1,1201.84,212.25Zm-3.41,15.81h6.87v29.36h-6.87Z"/><path d="M1218.27,213.32h6.87v44.1h-6.87Z"/><path d="M1275.15,257.42V241c0-4.66-1.63-7.62-5.48-7.62-3.46,0-6.17,2.14-6.17,9.13v14.93h-6.87V240.91c0-4.66-1.51-7.55-5.35-7.55-3.46,0-6.3,2.14-6.3,9.13v14.93h-6.87V228.06H1245v4.1a8.93,8.93,0,0,1,8.19-4.85c5.35,0,8,2.33,9.26,5.23a9.86,9.86,0,0,1,9-5.23c8.82,0,10.58,6.05,10.58,11.52v18.59Z"/><path d="M1160.77,275.55h15.81a15.43,15.43,0,1,1,0,30.86H1168v13.23h-7.24ZM1184.9,291c0-4.85-3.28-8.94-8.32-8.94H1168v17.89h8.57C1181.62,299.93,1184.9,295.83,1184.9,291Z"/><path d="M1220.73,296.65a10,10,0,0,0-2.7-.31c-5.86,0-9.08,3.33-9.08,10.64v12.66h-6.86V290.29H1209V295c1.33-2.71,5.17-5.1,9.08-5.1a7,7,0,0,1,2.7.44Z"/><path d="M1226,305a15.5,15.5,0,1,1,15.43,15.44A15.06,15.06,0,0,1,1226,305Zm24.13,0c0-5-3.4-9.32-8.7-9.32s-8.56,4.29-8.56,9.32,3.4,9.33,8.56,9.33S1250.15,310,1250.15,305Z"/><path d="M1289.7,315.67a11,11,0,0,1-9.07,4.73c-8.94,0-15.05-7.12-15.05-15.44s6.11-15.43,15.05-15.43a11,11,0,0,1,9.07,4.73V275.55h6.87v44.09h-6.87Zm0-10.71c0-5-3.4-9.32-8.69-9.32s-8.57,4.29-8.57,9.32,3.4,9.33,8.57,9.33S1289.7,310,1289.7,305Z"/><path d="M1336.19,290.29v29.35h-6.87v-4.09c-1.83,3.15-5.23,4.85-9.58,4.85s-7.18-1.51-8.81-4c-1.45-2.21-1.89-4.66-1.89-8.69V290.29h6.86v15.18c0,5,1.45,8.88,6.36,8.88s7.06-3.84,7.06-8.88V290.29Z"/><path d="M1368.75,301c-.38-3.22-2.27-5.36-6.93-5.36-5.29,0-7.88,4.35-7.88,9.32s2.4,9.33,8.32,9.33c4,0,5.67-1.77,6.55-4.73h6.87c-1,6.11-5.42,10.84-13.93,10.84-9.57,0-14.67-7.43-14.67-15.44s5.1-15.43,14.61-15.43,13.48,5.8,13.92,11.47Z"/><path d="M1402.82,319.64a33,33,0,0,1-5.1.38c-3.34,0-9.51-.44-9.51-10.33V296h-5v-5.73h5v-8.88h6.86v8.88h6.74V296h-6.74v12.1c0,5.1,1.58,5.73,4.29,5.73a27.13,27.13,0,0,0,3.46-.25Z"/><path d="M1415.86,274.48a5.07,5.07,0,1,1-5,5.1A5.08,5.08,0,0,1,1415.86,274.48Zm-3.4,15.81h6.86v29.35h-6.86Z"/><path d="M1430.09,305a15.5,15.5,0,1,1,15.43,15.44A15.06,15.06,0,0,1,1430.09,305Zm24.13,0c0-5-3.4-9.32-8.7-9.32S1437,299.93,1437,305s3.4,9.33,8.56,9.33S1454.22,310,1454.22,305Z"/><path d="M1471.85,290.29h6.87v4.09c1.82-3.15,5.22-4.85,9.57-4.85s7.18,1.51,8.82,4c1.45,2.2,1.89,4.66,1.89,8.69v17.45h-6.87V304.46c0-5-1.44-8.88-6.36-8.88s-7,3.84-7,8.88v15.18h-6.87Z"/></symbol></svg>
 
 <!-- ============ LOGIN ============ -->
+<script type="application/json" id="magnet-paths" set:html={JSON.stringify(MAGNET_PATHS)}></script>
+
 <div id="login-view" class="dash-wrap" hidden>
   <div class="login-card">
     <svg class="logo-mark" aria-label="Viven"><use href="#viven-logo"/></svg>
@@ -13308,6 +13337,14 @@ const newsCases = [
     'explainer-guide': { t: 'Guía de video explicativo', e: '🎬' },
     'social-formats':  { t: 'Formatos para redes',       e: '📱' },
   };
+  /* El mapa lo arma el BUILD (ver frontmatter) y viaja en un <script type="application/json">
+     del HTML. NO se puede interpolar una variable del frontmatter acá adentro: Astro
+     empaqueta este script aparte y no ve el frontmatter — si se intenta, queda un
+     JSON.parse de sí mismo que tira el script entero al piso (pasó, 24 ago 2026). */
+  const MAGNET_PATHS = (() => {
+    try { return JSON.parse(document.getElementById('magnet-paths').textContent) || {}; }
+    catch (e) { return {}; }
+  })();
   const LM_CALC_PATHS = ['/en/video-cost-calculator/', '/de/videoproduktion-kosten-rechner/', '/es/calculadora-costos-video/'];
   const lmNormPath = (p) => { let s = String(p || '').split('?')[0].split('#')[0]; if (!s.startsWith('/')) s = '/' + s; if (!s.endsWith('/')) s += '/'; return s; };
   let lmBound = false;
@@ -13373,11 +13410,25 @@ const newsCases = [
         const personas = new Set(filas.map((m) => (m.email || '').toLowerCase()).filter(Boolean));
         const ids = new Set(filas.filter((m) => m.lead_id).map((m) => String(m.lead_id)));
         const ganados = [...ids].filter((id) => wonSet.has(id)).length;
-        return '<div class="of-card lm-card"><h3>' + meta.e + ' ' + esc(meta.t) + '<small>PDF</small></h3>' +
-          '<div class="lm-kv"><span>Pedidos</span><b>' + filas.length + '</b></div>' +
-          '<div class="lm-kv"><span>Personas distintas</span><b>' + personas.size + '</b></div>' +
+        /* Sesiones = las que vieron alguna página donde está embebido ESTE formulario.
+           El PDF no tiene landing propia, así que el denominador sale del mapa que arma
+           el build. Si no sabemos en qué páginas está, se muestra '—' y sin porcentaje:
+           un porcentaje sobre un denominador inventado es peor que no tenerlo. */
+        const rutas = MAGNET_PATHS[clave] || { exactas: [], prefijos: [] };
+        const exactas = rutas.exactas || [], prefijos = rutas.prefijos || [];
+        const cuantas = exactas.length + prefijos.length;
+        const ses = cuantas
+          ? new Set((views || []).filter((v) => { const q = lmNormPath(v.path);
+              return exactas.includes(q) || prefijos.some((pre) => q.startsWith(pre)); }).map((v) => v.session_id)).size
+          : null;
+        const pct = ses ? (personas.size / ses * 100) : null;
+        return '<div class="of-card lm-card"><h3>' + meta.e + ' ' + esc(meta.t) +
+            '<small>' + (cuantas ? 'PDF · en ' + exactas.length + (prefijos.length ? '+ páginas' : (exactas.length === 1 ? ' página' : ' páginas')) : 'PDF') + '</small></h3>' +
+          '<div class="lm-kv"><span>Sesiones</span><b>' + (ses == null ? '—' : ses.toLocaleString('de-CH')) + '</b></div>' +
+          '<div class="lm-kv"><span>Leads generados</span><b>' + personas.size + '</b></div>' +
           '<div class="lm-kv"><span>Conversión → ganado</span><b>' + ganados + '</b></div>' +
-          '<div class="lm-bigpct">' + personas.size + '</div><div class="lm-bigpct-l">leads que dejó</div></div>';
+          '<div class="lm-bigpct">' + (pct == null ? '—' : pct.toFixed(1) + '%') + '</div>' +
+          '<div class="lm-bigpct-l">' + (pct == null ? 'sin páginas conocidas' : 'sesión → lead') + '</div></div>';
       };
       const tarjetasPdf = Object.keys(porMagnet).sort().map((k) => magnetCard(k, porMagnet[k])).join('');
       cardsEl.innerHTML = card('🧮 Calculadora de costos', '3 idiomas', calcSessions, calcLeads.length, calcWon) +
