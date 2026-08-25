@@ -1820,6 +1820,12 @@ const newsCases = [
   #wq-list .wq-det{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   #wq-list .wq-age{opacity:.75;margin-top:2px}
   #wq-list .hm-item{align-items:flex-start}
+  .hm-alive-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:11px 0;border-top:1px solid var(--line)}
+  .hm-alive-row:first-child{border-top:0}
+  .hm-alive-q{flex:1;min-width:190px}
+  .hm-alive-q b{display:block;font-size:14.5px;font-weight:600}
+  .hm-alive-q small{color:var(--muted);font-size:12.5px}
+  .hm-alive-b{display:flex;gap:7px;flex-wrap:wrap}
   /* oportunidades de la web: mismo peso visual que una fila de Para hoy, con la
      acción abajo porque el texto es lo que se lee primero */
   .hm-op-it{border-top:1px solid var(--line);padding:11px 0}
@@ -2169,6 +2175,14 @@ const newsCases = [
         <div class="hm-list" id="sq-list"></div>
         <div style="margin-top:10px"><button class="btn btn-ghost small" id="sq-write" type="button">✍️ Escribir el próximo</button></div>
         <p class="muted-note" id="sq-note" style="margin:8px 0 0"></p>
+      </div>
+      <!-- Propuestas que llevan más de un mes calladas. No es "hacé follow-up" otra
+           vez: es decidir qué son. OJO: silencio NO es "perdido" — puede seguir viva
+           y sin novedades (Sebastián, 24 ago 2026), por eso la primera opción es esa. -->
+      <div class="panel hm-card" id="hm-alive-panel" hidden>
+        <h2>🤔 ¿Siguen vivas? <span class="count" id="hm-alive-n"></span></h2>
+        <p class="muted-note" style="margin:-2px 0 10px">Más de un mes sin respuesta y sin próximo paso. Decidir qué son es lo que después deja medir cuántas se ganan.</p>
+        <div id="hm-alive"></div>
       </div>
       <div class="panel hm-card">
         <h2>🎯 Para hoy <span class="count" id="hm-today-n"></span></h2>
@@ -5558,10 +5572,14 @@ const newsCases = [
     const dec90 = won90 + lost90;
     return { openVal: dealsValue(open), openN: open.length, weighted, won30Val: dealsValue(won30), prev30Val: dealsValue(won3060),
       /* Un win rate necesita perdidos. Si nadie marca deals como perdidos —el caso
-         de esta base: 0 perdidos históricos— la cuenta da 100% siempre y no dice
-         nada. Y con dos o tres casos tampoco: un 100% sobre 1 caso parece un logro
-         y es ruido. Se muestra sólo con al menos 5 decididos Y algún perdido; si no,
-         el KPI dice por qué no hay número. (24 ago 2026, tras archivar el import.) */
+         de esta base: 0 perdidos— la cuenta da 100% siempre y no dice nada. Y con
+         dos o tres casos tampoco: un 100% sobre 1 caso parece un logro y es ruido.
+         Se muestra sólo con al menos 5 decididos Y algún perdido; si no, el KPI dice
+         por qué no hay número.
+         OJO CON LA REDACCIÓN (Sebastián, 24 ago 2026): que no haya perdidos NO es un
+         descuido de carga. Es que esas propuestas todavía no se perdieron — no
+         contestaron, que es otra cosa. El texto dice "todavía no se perdió ninguno",
+         no "no los marcaste". */
       winRate: (dec90 >= 5 && lost90 > 0) ? Math.round(won90 / dec90 * 100) : null,
       won90, dec90, lost90 };
   }
@@ -5599,6 +5617,59 @@ const newsCases = [
   function hmAdsStats(){
     const r = adsRoasFor(30, 0);
     return { leads: r.leads.length, wonVal: r.wonVal, wonN: r.won.length };
+  }
+
+  /* ¿Siguen vivas?: propuestas enviadas hace más de un mes, sin próximo paso definido.
+     El corte en 30 días no es caprichoso: a esa altura la probabilidad ya cayó a 20%
+     (ver dealProb) y seguir mandando follow-ups no cambia nada — falta una decisión. */
+  const HM_DUDA_DIAS = 30;
+  function hmEsDudosa(d, days){
+    if (stageOf(d.stage) !== 'propuesta') return false;
+    if ((days == null ? dealStageDays(d) : days) <= HM_DUDA_DIAS) return false;
+    if (!dlTasksAt) return false;                       // sin el cache de tasks no se sabe
+    const r = leadById(d.lead_id) || {};
+    return !dlTasksMap[String(d.lead_id)] && !r.next_follow_up_at;
+  }
+  function hmAliveItems(){
+    return (dealsList || [])
+      .filter((d) => !d.archived && !d.synthetic && hmEsDudosa(d, null))
+      .map((d) => ({ d, dias: dealStageDays(d) }))
+      .sort((a, b) => b.dias - a.dias);
+  }
+  function hmRenderAlive(){
+    const box = $('hm-alive'), pan = $('hm-alive-panel'); if (!box || !pan) return;
+    const items = hmAliveItems();
+    pan.hidden = !items.length;
+    if (!items.length) return;
+    $('hm-alive-n').textContent = '(' + items.length + ')';
+    box.innerHTML = items.slice(0, 6).map(({ d, dias }, i) => {
+      const r = leadById(d.lead_id) || {};
+      const quien = d.title || r.name || r.email || '(deal)';
+      const val = dealValue(d);
+      return '<div class="hm-alive-row"><div class="hm-alive-q"><b>' + esc(quien) + '</b>' +
+        '<small>' + dias + ' días sin respuesta' + (val ? ' · ' + fmtChf(val) : '') + '</small></div>' +
+        '<div class="hm-alive-b">' +
+          '<button class="btn btn-ghost small" data-viva="' + i + '" type="button">Sigue viva</button>' +
+          '<button class="btn btn-ghost small" data-luego="' + i + '" type="button">Más adelante</button>' +
+          '<button class="btn btn-ghost small danger" data-perd="' + i + '" type="button">Se perdió</button>' +
+        '</div></div>';
+    }).join('');
+    const de = (b, k) => items[+b.dataset[k]];
+    // "Sigue viva" no cambia el estado: lo que falta es una fecha, no una etiqueta.
+    // Abre la ficha en el composer de tasks para poner el próximo contacto.
+    box.querySelectorAll('[data-viva]').forEach((b) => b.addEventListener('click', () => {
+      const it = de(b, 'viva'); if (!it) return;
+      lm2Tab = 'task'; lm2CompCollapsed = false;
+      if (it.d.lead_id) openLead(it.d.lead_id); else gotoTab('deals');
+    }));
+    box.querySelectorAll('[data-luego]').forEach((b) => b.addEventListener('click', async () => {
+      const it = de(b, 'luego'); if (!it) return;
+      if (await setDealStage(it.d.id, 'seguimiento_futuro')) { toast('Guardado — vuelve solo cuando toque'); renderHome(); }
+    }));
+    box.querySelectorAll('[data-perd]').forEach((b) => b.addEventListener('click', async () => {
+      const it = de(b, 'perd'); if (!it) return;
+      if (await setDealStage(it.d.id, 'perdido')) { toast('Marcado como perdido'); renderHome(); }
+    }));
   }
 
   // "🎯 Para hoy": UNA lista por urgencia — cada fila sabe abrir lo suyo (openLead/openOffer/gotoTab)
@@ -5640,6 +5711,9 @@ const newsCases = [
     if (dlTasksAt){
       (dealsList || []).filter((d) => !d.archived && DL_OPEN.includes(stageOf(d.stage))).forEach((d) => {
         const days = dealStageDays(d); if (days <= 14) return;
+        // los de más de 30 días en "propuesta" tienen su propio bloque (¿siguen vivas?):
+        // ahí la pregunta no es "definí un paso" sino "decidí qué es esto"
+        if (hmEsDudosa(d, days)) return;
         if (busyLeads.has(String(d.lead_id))) return;
         const r = leadById(d.lead_id) || {};
         if (dlTasksMap[String(d.lead_id)] || r.next_follow_up_at) return;
@@ -6145,13 +6219,27 @@ const newsCases = [
     // cerrado este mes: ganados con won_at (fallback last_stage_at) dentro del mes en curso
     const wonMonth = all.filter((d) => stageOf(d.stage) === 'ganado' && Date.parse(d.won_at || d.last_stage_at || '') >= m0);
     const closed = dealsValue(wonMonth);
+    /* Contra el MES ANTERIOR completo, no contra "los 30 días de antes": Sebastián
+       cobra del 1 al último día, así que la comparación tiene que ser mes contra mes.
+       A esta altura del mes se compara contra el mes entero, que es lo que hay que
+       igualar — por eso el texto dice "cerró" y no "vamos igual". */
+    const mPrev0 = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const wonPrev = all.filter((d) => { const t = Date.parse(d.won_at || d.last_stage_at || '');
+      return stageOf(d.stage) === 'ganado' && t >= mPrev0 && t < m0; });
+    const closedPrev = dealsValue(wonPrev);
+    const nomPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('es-CH', { month: 'long' });
     // ponderado: mismos pesos/valores que hmDealKpis (números idénticos en todo el dashboard)
     const open = all.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
     const weighted = dealsWeighted(open);
     const proj = closed + weighted;
     const goal = +rmGoal || 0;
     $('rm-closed').textContent = closed ? fmtChf(closed) : 'CHF 0';
-    $('rm-closed-t').textContent = wonMonth.length ? wonMonth.length + (wonMonth.length === 1 ? ' deal ganado' : ' deals ganados') : 'sin cierres todavía';
+    const cuantos = wonMonth.length ? wonMonth.length + (wonMonth.length === 1 ? ' deal ganado' : ' deals ganados') : 'sin cierres todavía';
+    // el mes anterior al lado: sin comparación, un "CHF 0" no dice si es raro o normal
+    const cmp = closedPrev
+      ? ' · ' + nomPrev + ' cerró ' + fmtChf(closedPrev)
+      : ' · ' + nomPrev + ' tampoco tuvo cierres';
+    $('rm-closed-t').textContent = cuantos + cmp;
     $('rm-weighted').textContent = fmtChf(Math.round(weighted));
     $('rm-proj').textContent = fmtChf(Math.round(proj));
     $('rm-goal-val').textContent = goal ? fmtChf(goal) : (rmGoalFetched ? 'sin definir' : '–');
@@ -6368,7 +6456,7 @@ const newsCases = [
     $('hm-wr').textContent = k.winRate === null ? '–' : k.winRate + '%';
     $('hm-wr-t').textContent = k.winRate !== null ? 'ganado / decidido: ' + k.won90 + '/' + k.dec90
       : !k.dec90 ? 'sin decididos en 90 d'
-      : !k.lost90 ? 'no hay deals marcados como perdidos'
+      : !k.lost90 ? 'todavía no se perdió ninguno — sin perdidos no hay porcentaje'
       : 'muy pocos casos (' + k.dec90 + ') para un porcentaje';
     // visitas 30d: con el rango global en 30d uso lastViews/prevViews (ya en memoria); si no, el cache de 60d
     let visCur = null, visPrev = null;
@@ -6408,6 +6496,7 @@ const newsCases = [
     const items = hmTodayItems();
     $('hm-today-n').textContent = items.length ? '(' + items.length + ')' : '';
     hmRenderToday(items);
+    hmRenderAlive();
     hmRenderSignals();
     hmRenderAgenda();
     hmRenderCalls();
