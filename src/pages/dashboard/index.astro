@@ -18339,8 +18339,20 @@ const newsCases = [
     const fdate = (t) => t ? new Date(t).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '—';
     // badges EN/DE/ES: verde publicado · azul borrador · gris punteado = falta (click → generar)
     const badges = (g) => ['en', 'de', 'es'].map((l) => {
-      const r = g.rows.find((x) => x.lang === l);
+      /* Puede haber MÁS de una fila para el mismo idioma: el motor creó mellizas con
+         segundos de diferencia (13:16:34 y 13:16:41) y las dos quedaron publicadas
+         apuntando a la misma URL. `find` devolvía la primera y la otra desaparecía de
+         la pantalla — por eso editar el artículo no cambiaba nada en la web: estabas
+         editando la melliza que no está en vivo. Se prefiere la publicada para el
+         estado, y si hay más de una se avisa. */
+      const mismas = g.rows.filter((x) => x.lang === l);
+      const r = mismas.find((x) => x.status === 'published') || mismas[0];
       if (!r) return '<button class="bl2-lang no" data-loc="' + l + '" data-id="' + esc(g.main.id) + '" type="button" title="Generar versión ' + LANGNAME[l] + ' (nativa)">+' + LANGNAME[l] + '</button>';
+      if (mismas.length > 1){
+        return '<span class="bl2-lang dr" style="border-color:#f0c060;color:#f0c060" title="' + LANGNAME[l]
+          + ' — hay ' + mismas.length + ' versiones de este artículo en ' + LANGNAME[l] + '. La web sirve una sola: si editás la otra, no pasa nada. Abrilo y dejá una.">'
+          + LANGNAME[l] + ' ⚠</span>';
+      }
       /* Tres estados, no dos: publicado · publicado con cambios sin subir ·
          borrador. El del medio faltaba y era el confuso: propagar o editar un idioma
          ya publicado cambia el texto en la base pero la web sigue con el viejo hasta
@@ -19796,7 +19808,9 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       const lg = cell(r, ix.lang).toLowerCase().slice(0, 2);
       list.push({ name: (first + ' ' + last).trim() || email, first_name: first || null, last_name: last || null, email,
         phone: cell(r, ix.phone) || null, company: company || null, company_domain: dom || null, job_title: cell(r, ix.job) || null,
-        lang: ['en', 'de', 'es'].includes(lg) ? lg : 'en', status: 'new', channel: 'import', message: cell(r, ix.msg) || null });
+        // 'nuevo', no 'new': el resto del sistema escribe 'nuevo' y tener las dos formas
+        // conviviendo hace que cualquier filtro futuro se saltee estas filas en silencio.
+        lang: ['en', 'de', 'es'].includes(lg) ? lg : 'en', status: 'nuevo', channel: 'import', message: cell(r, ix.msg) || null });
     });
     if (!list.length){ toast('Nada para importar (' + skipped + ' filas saltadas: sin email válido o ya existen)'); return; }
     if (!confirm('¿Importar ' + list.length + ' personas' + (skipped ? ' (' + skipped + ' saltadas por duplicado/email inválido)' : '') + '?')) return;
