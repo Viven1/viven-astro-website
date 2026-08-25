@@ -6367,6 +6367,31 @@ const newsCases = [
            automática".) Sin email no hay a quién escribirle: ahí sí va la ficha. */
         hint: 'Contactar →', go: () => (l.email ? fuAbrir(l.id, { tipo: 'lead_nuevo', id: l.id }) : openLead(l.id)) });
     });
+    /* (0) LO QUE TIENE HORA FIJA EN LAS PRÓXIMAS 24 h.
+       Sebastián: "¿por qué no ponemos la agenda en Hoy? Así tenemos real overview".
+       Tiene razón: una reunión a las 10 es literalmente "lo que hay que hacer ahora",
+       y hasta ahora Hoy no la mencionaba — vivía en otra pestaña.
+       Va como FILA de la lista única, no como panel nuevo: la pantalla ya se ordenó
+       una vez para tener una sola lista y no la vamos a volver a partir.
+       Y va PRIMERO de todo, que es la única excepción al orden por plata en toda la
+       pantalla. Se justifica sola: una propuesta de CHF 17'700 se puede seguir a las
+       18:00 y sigue valiendo lo mismo; una reunión a las 10:00 no se puede hacer a
+       las 18:00. La hora fija no se negocia con la plata.
+       Solo 24 h: más adelante que eso no es "hoy" y ya está en la Agenda. */
+    (upBookings || []).forEach((b) => {
+      const t = Date.parse(b.start_at); if (!t) return;
+      if (t < now - 36e5 || t > now + 24 * 36e5) return;   // desde hace 1 h (por si está en curso) hasta mañana
+      if (meEmail && b.host_email && String(b.host_email).toLowerCase() !== meEmail) return;
+      const d = new Date(t);
+      const hora = d.toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+      const dia = t < now + (24 - d.getHours()) * 36e5 && d.toDateString() === new Date(now).toDateString() ? 'hoy' : 'mañana';
+      items.push({ rank: -3, sev: 'azul', icon: '📅', at: t, chf: 0, fija: true,
+        t: (b.name || b.email || 'Video call') + ' — ' + hora,
+        ctx: 'video call ' + dia + ' · ' + (b.duration_m || 15) + ' min' + (b.meet_url ? ' · Meet' : ''),
+        hint: b.meet_url ? 'Abrir Meet →' : 'Ver ficha →',
+        go: () => { if (b.meet_url) window.open(b.meet_url, '_blank', 'noopener'); else if (b.lead_id) openLead(b.lead_id); } });
+    });
+
     /* (d bis) ESCRIBIERON A info@ Y NO ESTÁN EN EL CRM (SQL 0144).
        Va en la misma lista y no en un panel propio: una consulta que entró hoy y
        nadie contestó es exactamente "lo que hay que hacer hoy", y meterla en otra
@@ -6435,13 +6460,16 @@ const newsCases = [
        (Antes marcaba "urgentes" también a las tareas vencidas, y como hay varias y
        todas valen CHF 0, la pantalla abría con dos tareas de "sin contacto hace 5
        semanas" mientras la propuesta de CHF 17'700 quedaba fuera de vista.) */
-    const porEdad = items.filter((x) => x.espera).sort((a, b) => a.at - b.at);
+    /* Lo que tiene hora fija va arriba de todo, por hora. Ver el comentario del
+       bloque (0): es la única excepción al orden por plata, y dura 24 horas. */
+    const fijas = items.filter((x) => x.fija).sort((a, b) => a.at - b.at);
+    const porEdad = items.filter((x) => x.espera && !x.fija).sort((a, b) => a.at - b.at);
     const arriba = [];
     if (porEdad.length) arriba.push(porEdad[0]);                                  // el que más espera
     if (porEdad.length > 1) arriba.push(porEdad[porEdad.length - 1]);             // el más nuevo
-    const resto = items.filter((x) => !arriba.includes(x));
+    const resto = items.filter((x) => !x.fija && !arriba.includes(x));
     resto.sort((a, b) => ((b.chf || 0) - (a.chf || 0)) || (a.rank - b.rank) || (a.at - b.at));
-    return arriba.concat(resto);
+    return fijas.concat(arriba, resto);
   }
 
   // "🔥 Señales calientes": aperturas de propuesta/oferta <48h + leads conocidos que volvieron a la web <24h
