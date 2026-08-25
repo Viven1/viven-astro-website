@@ -17825,6 +17825,19 @@ const newsCases = [
       $('bg-faqwrap').appendChild(d); bindFaq(); d.querySelector('.q').focus();
     });
     $('bg-editing-lang').textContent = (LANGNAME[b.lang] || b.lang) + (b.status === 'published' ? ' · publicado' : ' · borrador');
+    /* El botón decía siempre "Publicar en la web", así que para cambiar la foto de un
+       artículo YA publicado no quedaba claro qué hacer — parecía que iba a crear un
+       duplicado. No lo crea: publish-blog busca el sha del archivo en GitHub y lo
+       reemplaza. Cambiar el texto es todo lo que faltaba para que se entienda.
+       (Sebastián, 25 ago: "pero si publiqué una página y quiero cambiar foto o video,
+       ¿cómo lo hago?".) */
+    const pb = $('bg-publish');
+    if (pb){
+      pb.textContent = b.status === 'published' ? '🔄 Actualizar en la web' : '🚀 Publicar en la web';
+      pb.title = b.status === 'published'
+        ? 'Reemplaza el artículo que ya está publicado — misma URL, sin duplicados'
+        : 'Lo sube por primera vez a viven.ch';
+    }
     // tabs de idioma del grupo: cambiar de variante sin salir del editor; + = generar la que falta
     const sibs = blogsList.filter((x) => x.group_id && x.group_id === b.group_id);
     $('bg-versions').innerHTML = ['en', 'de', 'es'].map((l) => {
@@ -18099,8 +18112,13 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     }
     const b = buildBlogAstro(sibs); if (!b) return false;
     if (!/^[a-z0-9-]+$/.test(b.slug)) { toast('El slug solo puede tener letras, números y guiones'); return false; }
-    if (!opts.skipConfirm && !confirm('¿Publicar "' + $('bg-title').value + '" en la web?\n\nSe commitea a GitHub y Netlify lo publica en ~1-2 min en viven.ch/blog/' + b.slug + '/')) return false;
-    const btn = $('bg-publish'), prev = btn.textContent; btn.disabled = true; btn.textContent = '🚀 Publicando…';
+    const yaEsta = !!(bgCur && bgCur.status === 'published');
+    if (!opts.skipConfirm && !confirm(
+      yaEsta
+        ? '¿Actualizar "' + $('bg-title').value + '" en la web?\n\nReemplaza el artículo que ya está publicado — misma URL, no se crea un duplicado. Tarda ~1-2 min en verse.'
+        : '¿Publicar "' + $('bg-title').value + '" en la web?\n\nSe commitea a GitHub y Netlify lo publica en ~1-2 min en viven.ch/blog/' + b.slug + '/')) return false;
+    const btn = $('bg-publish'), prev = btn.textContent; btn.disabled = true;
+    btn.textContent = yaEsta ? '🔄 Actualizando…' : '🚀 Publicando…';
     $('bg-pub-note').textContent = 'Commiteando a GitHub… (' + (LANGNAME[b.lang] || b.lang) + ')';
     let ok = false;
     try {
