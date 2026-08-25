@@ -75,6 +75,23 @@ function decodeBody(payload: any): string {
        limpia que hay para separar un correo masivo de una consulta real.
    Medido el 25 ago sobre 60 días de info@: de 201 hilos, aproximadamente la mitad
    era proveedores, outreach frío y avisos automáticos. */
+/* ============ SOLO LO QUE VINO A info@ ============
+   La primera versión encolaba cualquier remitente desconocido de cualquiera de las
+   dos casillas, y eso mezclaba las consultas de la dirección pública con el correo
+   personal de Sebastián y de Sofia. (Él lo cazó mirando la lista: "¿seguro que esos
+   emails vienen de info? me parece que mezclás Sofia con Viven y los míos".)
+   Tenía razón, y el error era mío: guardaba de qué CASILLA salió el mensaje, no a
+   qué DIRECCIÓN estaba dirigido — y como info@viven.ch entrega en la casilla de
+   Sebastián, las dos cosas caen en el mismo lugar.
+   Ahora se mira a quién iba de verdad: To, Cc y Delivered-To. Si info@ no está ahí,
+   no es una consulta a la empresa y no se pregunta. */
+const BUZON_PUBLICO = "info@viven.ch";
+function vinoAlBuzonPublico(headers: { name: string; value: string }[]): boolean {
+  const relevantes = ["to", "cc", "delivered-to", "x-original-to", "x-forwarded-to"];
+  return headers.some((h) =>
+    relevantes.includes(h.name.toLowerCase()) && h.value.toLowerCase().includes(BUZON_PUBLICO));
+}
+
 const REMITENTE_AUTOMATICO = /(^|[._+-])(no-?reply|noreply|notifications?|mailer|bounce|postmaster|automated|do-?not-?reply|invoice|billing|support|newsletter)([._+-]|@)/i;
 function valeLaPenaPreguntar(email: string, headers: { name: string; value: string }[]): boolean {
   if (!email || !email.includes("@")) return false;
@@ -141,6 +158,7 @@ Deno.serve(async (req) => {
                para que Sebastián decida: crear la persona o descartarla. El insert
                choca contra el unique de gmail_id si ya estaba —eso es justamente lo
                que queremos— y contra los ya decididos no vuelve a preguntar. */
+            if (!vinoAlBuzonPublico(headers)) continue;   // correo personal: no es del CRM
             if (!valeLaPenaPreguntar(email, headers)) continue;
             const { data: yaDecidido } = await service.from("email_pendientes")
               .select("id").eq("status", "ignorado").ilike("from_email", email).limit(1).maybeSingle();
@@ -148,7 +166,7 @@ Deno.serve(async (req) => {
             const cuerpo = decodeBody(msg.payload) || msg.snippet || "";
             const fechaH = headers.find((h) => h.name === "Date")?.value;
             await service.from("email_pendientes").insert({
-              gmail_id: m.id, mailbox: mb.key, from_email: email, from_name: name || null,
+              gmail_id: m.id, mailbox: mb.key, para: BUZON_PUBLICO, from_email: email, from_name: name || null,
               subject: subjH, body: cuerpo,
               received_at: fechaH ? new Date(fechaH).toISOString() : new Date().toISOString(),
             }).then(() => { encolados++; }, () => {});   // duplicado = ya estaba, no es error

@@ -1845,6 +1845,10 @@ const newsCases = [
   .hm-sub{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
     font-weight:700;color:var(--muted-2);margin:16px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
   .hm-sub .count{text-transform:none;letter-spacing:0}
+  .hm-item .hm-acts{flex:none;display:flex;gap:6px;align-items:center;padding-left:10px}
+  @media(max-width:560px){
+    .hm-item .hm-acts .btn{padding:6px 9px;font-size:11.5px}
+  }
   .hm-item .hm-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-left:10px}
   .hm-item .hm-chf{font-family:'Space Grotesk','Space Grotesk Fallback','Inter',sans-serif;font-weight:700;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.2}
   .hm-item .go{flex:none;color:var(--acid);font-size:11.5px;font-weight:700;white-space:nowrap}
@@ -2117,21 +2121,6 @@ const newsCases = [
         <button class="btn btn-primary small" id="psf-save" type="button">Guardar persona</button>
         <button class="btn btn-ghost small" id="psf-cancel" type="button">Cancelar</button>
       </div>
-    </div>
-    <!-- 📥 Escribieron y no están en el CRM. El sync de Gmail encolaba estos emails
-         en la nada: si el remitente no era ya un lead, se descartaban. Como
-         info@viven.ch entrega en la casilla de Sebastián, las consultas de la
-         dirección pública eran justo las que se perdían. Ahora se acumulan acá y él
-         decide — mismo criterio que los emails salientes: nada pasa sin su ✓. -->
-    <div class="panel ep-panel" id="ep-panel" hidden>
-      <div class="of-bar" style="margin-bottom:10px">
-        <div>
-          <h2 style="margin:0">📥 Escribieron y no están en el CRM <span class="count" id="ep-n"></span></h2>
-          <p class="muted-note" style="margin:2px 0 0">Emails que llegaron a info@ o a tu casilla de gente sin ficha. Creá la persona o descartala — si descartás, no vuelve a preguntar por ese remitente.</p>
-        </div>
-        <button class="btn btn-ghost small" id="ep-reload" type="button">↻</button>
-      </div>
-      <div id="ep-list"></div>
     </div>
     <div class="ps-stats"><b id="kl-total">–</b> personas · <b id="kl-new">–</b> sin contactar · <b id="kl-week">–</b> <span id="kl-week-l" style="display:none">en el período</span>en el período · <b id="kl-ads">–</b> desde Ads</div>
     <div class="pipe-bar ps-toolbar">
@@ -5672,7 +5661,6 @@ const newsCases = [
   }
 
   function renderLeads(){
-    epLoad();   // 📥 emails de gente sin ficha (SQL 0144) — se pide al abrir Personas
     /* leads dentro de la ventana de tiempo seleccionada */
     const viewLeads = allLeads.filter((r) => inRange(r.created_at));
     $('kl-total').textContent = allLeads.length;                       // histórico
@@ -6131,10 +6119,8 @@ const newsCases = [
     (allLeads || []).filter((l) => !/^claude-/.test(l.session_id || '') && isNew(l.status) && l.channel !== 'manual' && (now - Date.parse(l.created_at)) < 72 * 36e5).forEach((l) => {
       items.push({ rank: 3, sev: 'ambar', icon: '📥', at: Date.parse(l.created_at), leadId: l.id, chf: 0,
         dias: Math.floor((now - Date.parse(l.created_at)) / D),
-        /* un lead recién entrado no tiene monto todavía, pero es lo más perecedero
-           que hay: se contesta hoy o se enfría. Va marcado como urgente para que el
-           orden por plata no lo hunda abajo de una propuesta vieja. */
-        urgente: (now - Date.parse(l.created_at)) < 24 * 36e5,
+        /* la pelota es nuestra: preguntó y está esperando */
+        espera: true,
         t: l.name || l.email || '(lead)',
         ctx: 'lead nuevo hace ' + timeAgo(l.created_at) + ' · sin contactar',
         /* Antes esto te mandaba a la ficha y ahí escribías de cero. Las propuestas y
@@ -6143,6 +6129,26 @@ const newsCases = [
            "me sale contactar con gente nueva pero no me da popup con respuesta
            automática".) Sin email no hay a quién escribirle: ahí sí va la ficha. */
         hint: 'Contactar →', go: () => (l.email ? fuAbrir(l.id, { tipo: 'lead_nuevo', id: l.id }) : openLead(l.id)) });
+    });
+    /* (d bis) ESCRIBIERON A info@ Y NO ESTÁN EN EL CRM (SQL 0144).
+       Va en la misma lista y no en un panel propio: una consulta que entró hoy y
+       nadie contestó es exactamente "lo que hay que hacer hoy", y meterla en otra
+       pantalla es pedirle a alguien que se acuerde de ir a mirarla. Sebastián, 25
+       ago, después de que le propusiera un panel aparte: "¿en hoy?".
+       Es lo más perecedero que hay —alguien preguntó y está esperando— así que
+       entra como urgente mientras tenga menos de un día. */
+    epGente().forEach((g) => {
+      const t = Date.parse(g.received_at || '') || now;
+      items.push({ rank: -2, sev: 'azul', icon: '📥', at: t, chf: 0, espera: true,
+        t: (g.from_name || g.from_email) + (g.n > 1 ? ' (' + g.n + ' emails)' : ''),
+        ctx: 'escribió a info@ hace ' + timeAgo(g.received_at) + ' · ' + (g.subject || 'sin asunto'),
+        /* dos botones en vez de un destino: la decisión es sí o no, y las dos
+           opciones tienen que estar a un toque. Por eso esta fila no es un <button>
+           como las demás (no se pueden anidar botones) sino una fila con acciones. */
+        acts: [
+          { label: '✓ Es cliente', cls: 'btn-primary', fn: (b) => epAprobar(g, b) },
+          { label: '✕', cls: 'btn-ghost', title: 'No es un cliente — no vuelvo a preguntar por esta dirección', fn: (b) => epIgnorar(g, b) },
+        ] });
     });
     // (e) tasks para hoy o vencidas, mías o sin asignar (mismo criterio que la campana)
     if (dlTasksAt){
@@ -6169,21 +6175,36 @@ const newsCases = [
           hint: 'Hacer →', go: () => openLead(lid) });
       });
     }
-    /* ===== ORDEN POR PLATA, no por tipo =====
-       El mockup que Sebastián eligió dice "ordenada por lo que más plata mueve". Con
-       cuatro lugares visibles, el criterio de orden ES la pantalla: lo que quede
-       quinto no existe.
-       "Urgente" es una excepción angosta a propósito: SOLO lo que se enfría hoy —un
-       lead que entró hace horas, alguien que acaba de abrir el email—. La primera
-       versión también marcaba urgentes las tareas vencidas, y como hay muchas y todas
-       valen CHF 0, se comieron los cuatro lugares: la pantalla abría con dos tareas
-       de "sin contacto hace 5 semanas" y la propuesta de CHF 17'700 quedaba fuera de
-       vista. Una tarea vencida hace cinco semanas aguanta una más. */
-    const URGENTES_MAX = 1;   // ni siquiera lo perecedero puede quedarse con la lista
-    const urg = items.filter((x) => x.urgente).sort((a, b) => (b.chf || 0) - (a.chf || 0) || (a.at - b.at));
-    const resto = items.filter((x) => !x.urgente).concat(urg.slice(URGENTES_MAX));
+    /* ===== DE QUIÉN ES LA PELOTA, y después la plata =====
+       El mockup que Sebastián eligió dice "ordenada por lo que más plata mueve", y
+       eso vale — pero no para todo. Hay dos clases de pendiente distintas:
+
+       · La pelota es NUESTRA: alguien preguntó y está esperando una respuesta. Un
+         lead que entró anoche, una consulta a info@ que lleva doce días sin
+         contestar. No tienen monto todavía y por eso el orden por plata los hundía
+         al fondo, que es justo donde no hay que dejarlos: mientras no contestamos,
+         la deuda es nuestra y crece sola.
+       · La pelota es de ELLOS: una propuesta enviada, una oferta esperando, un deal
+         quieto. Ahí sí manda la plata, porque lo único que cambia entre uno y otro
+         es cuánto mueve.
+
+       Arriba van los primeros, y como mucho DOS: si no, una racha de consultas se
+       queda con la pantalla entera y las propuestas grandes desaparecen.
+       Cuáles dos: el que MÁS espera y el MÁS nuevo. Ordenar solo por antigüedad
+       hundía el lead que entró anoche abajo de cuatro propuestas, y contestar rápido
+       es la mitad de convertirlo; ordenar solo por lo nuevo dejaba una consulta de
+       doce días pudriéndose para siempre. Uno es el que más riesgo corre, el otro el
+       que más chance tiene. El resto se ordena por plata.
+       (Antes marcaba "urgentes" también a las tareas vencidas, y como hay varias y
+       todas valen CHF 0, la pantalla abría con dos tareas de "sin contacto hace 5
+       semanas" mientras la propuesta de CHF 17'700 quedaba fuera de vista.) */
+    const porEdad = items.filter((x) => x.espera).sort((a, b) => a.at - b.at);
+    const arriba = [];
+    if (porEdad.length) arriba.push(porEdad[0]);                                  // el que más espera
+    if (porEdad.length > 1) arriba.push(porEdad[porEdad.length - 1]);             // el más nuevo
+    const resto = items.filter((x) => !arriba.includes(x));
     resto.sort((a, b) => ((b.chf || 0) - (a.chf || 0)) || (a.rank - b.rank) || (a.at - b.at));
-    return urg.slice(0, URGENTES_MAX).concat(resto);
+    return arriba.concat(resto);
   }
 
   // "🔥 Señales calientes": aperturas de propuesta/oferta <48h + leads conocidos que volvieron a la web <24h
@@ -6237,18 +6258,33 @@ const newsCases = [
        ancho al título ("Syz Capital AG - Podcast Post-Pro…") y metido en la línea de
        contexto se partía en dos renglones dejando un "·" suelto al empezar el
        segundo. Acá no compite con nada y las cifras quedan alineadas en columna. */
-    const fila = (it, i) =>
-      '<button class="hm-item ' + it.sev + '" type="button" data-i="' + i + '">' +
-      '<span class="ic">' + it.icon + '</span>' +
-      '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
-      '<span class="hm-right">' +
-        (it.chf ? '<b class="hm-chf">' + fmtChf(Math.round(it.chf)) + '</b>' : '') +
-        '<span class="go">' + it.hint + '</span></span></button>';
+    const fila = (it, i) => it.acts
+      ? '<div class="hm-item ' + it.sev + '" style="cursor:default" data-i="' + i + '">' +
+        '<span class="ic">' + it.icon + '</span>' +
+        '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
+        '<span class="hm-acts">' + it.acts.map((a, j) =>
+          '<button class="btn ' + a.cls + ' small" data-act="' + i + ':' + j + '" type="button"' +
+          (a.title ? ' title="' + esc(a.title) + '"' : '') + '>' + a.label + '</button>').join('') +
+        '</span></div>'
+      : '<button class="hm-item ' + it.sev + '" type="button" data-i="' + i + '">' +
+        '<span class="ic">' + it.icon + '</span>' +
+        '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
+        '<span class="hm-right">' +
+          (it.chf ? '<b class="hm-chf">' + fmtChf(Math.round(it.chf)) + '</b>' : '') +
+          '<span class="go">' + it.hint + '</span></span></button>';
     box.innerHTML = items.slice(0, VISIBLES).map(fila).join('') || '<p class="muted-note">Todo al día 🎉</p>';
     if (items.length > VISIBLES){
       box.innerHTML += '<button class="hm-more" id="hm-today-more" type="button">ver las otras ' + (items.length - VISIBLES) + ' →</button>';
     }
-    const enganchar = () => box.querySelectorAll('.hm-item').forEach((b) => b.addEventListener('click', () => { const it = hmTodayCur[+b.dataset.i]; if (it && it.go) it.go(); }));
+    const enganchar = () => {
+      box.querySelectorAll('.hm-item').forEach((b) => b.addEventListener('click', () => { const it = hmTodayCur[+b.dataset.i]; if (it && it.go) it.go(); }));
+      box.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const [i, j] = b.dataset.act.split(':').map(Number);
+        const a = hmTodayCur[i] && hmTodayCur[i].acts && hmTodayCur[i].acts[j];
+        if (a && a.fn) a.fn(b);
+      }));
+    };
     enganchar();
     /* "Ver las otras" ahora despliega acá mismo. Antes te mandaba a la pestaña de
        Deals, que es otra pantalla con otro orden: perdías las cuatro que estabas
@@ -7072,6 +7108,7 @@ const newsCases = [
     hmRenderAds();
 
     /* --- datos async con cache (los TTLs evitan refetch en cada auto-refresh) --- */
+    epLoad();        // 📥 los que escribieron a info@ y no están en el CRM
     hmFetchWeeks();
     hmFetchAds();
     ppEnsureForHome();
@@ -7793,72 +7830,45 @@ const newsCases = [
     } catch (e) { epRows = []; }
     epRender();
   }
-  function epRender(){
-    const panel = $('ep-panel'), box = $('ep-list'); if (!panel || !box) return;
-    // una tarjeta por persona: la más reciente manda, las otras se cuentan
+  /* Agrupado por REMITENTE: quien escribió tres veces es UNA decisión, no tres. */
+  function epGente(){
     const porRemitente = new Map();
-    epRows.forEach((r) => {
+    (epRows || []).forEach((r) => {
       const k = (r.from_email || '').toLowerCase();
       const g = porRemitente.get(k) || { ...r, n: 0, ids: [] };
       g.n++; g.ids.push(r.id);
       porRemitente.set(k, g);
     });
-    const gente = [...porRemitente.values()];
-    panel.hidden = gente.length === 0;
-    $('ep-n').textContent = gente.length ? '(' + gente.length + ')' : '';
-    if (!gente.length){ box.innerHTML = ''; return; }
-    box.innerHTML = gente.map((g) => {
-      const nm = g.from_name || g.from_email.split('@')[0];
-      const ini = (nm[0] || '?').toUpperCase();
-      /* mismo recorte de citas que el popup de follow-up: en una respuesta larga lo
-         nuevo son las primeras líneas y el resto es lo que ya mandamos nosotros */
-      const limpio = String(g.body || '')
-        .split(/\n\s*(?:>|El .{0,40} escribió:|On .{0,40} wrote:|Am .{0,40} schrieb:|-{3,}\s*Forwarded)/)[0]
-        .replace(/\s+/g, ' ').trim().slice(0, 260);
-      return '<div class="ep-it" data-id="' + g.id + '">' +
-        '<span class="ep-av" style="background:' + avColorG(nm) + '">' + esc(ini) + '</span>' +
-        '<span class="ep-tx">' +
-          '<div class="ep-nm">' + esc(nm) + ' <span class="ep-mail">' + esc(g.from_email) + '</span>' +
-            (g.n > 1 ? ' <span class="lt-nd" title="' + g.n + ' emails">×' + g.n + '</span>' : '') + '</div>' +
-          '<div class="ep-subj">' + esc(g.subject || '(sin asunto)') + ' · a ' + esc(g.mailbox) + '@viven.ch · ' + timeAgo(g.received_at) + '</div>' +
-          (limpio ? '<div class="ep-body">' + esc(limpio) + (String(g.body || '').length > 260 ? '…' : '') + '</div>' : '') +
-        '</span>' +
-        '<span class="ep-acts">' +
-          '<button class="btn btn-primary small" data-ep-ok="' + g.id + '" type="button">✓ Crear persona</button>' +
-          '<button class="btn btn-ghost small" data-ep-no="' + g.id + '" type="button" title="No es un cliente — no vuelve a preguntar por este remitente">✕</button>' +
-        '</span></div>';
-    }).join('');
-    box.querySelectorAll('[data-ep-ok]').forEach((b) => b.addEventListener('click', async () => {
-      const g = gente.find((x) => String(x.id) === b.dataset.epOk); if (!g) return;
-      b.disabled = true;
-      try {
-        /* Se aprueban TODOS los emails de esa persona, no solo el que se ve: si
-           escribió tres veces, los tres van a su ficha. El primero crea el contacto
-           y los demás se le cuelgan. */
-        let lid = null;
-        for (const id of g.ids){
-          const { data, error } = await supabase.rpc('aprobar_email_pendiente', { p_id: id, p_nombre: g.from_name || null });
-          if (error) throw error;
-          if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
-          lid = data.lead_id;
-        }
-        toast('✅ ' + (g.from_name || g.from_email) + ' está en el CRM');
-        await loadAll();
-        epLoad(true);
-        if (lid) openLead(lid);
-      } catch (e) { alert('No se pudo: ' + (e.message || e)); b.disabled = false; }
-    }));
-    box.querySelectorAll('[data-ep-no]').forEach((b) => b.addEventListener('click', async () => {
-      const g = gente.find((x) => String(x.id) === b.dataset.epNo); if (!g) return;
-      if (!confirm('¿' + (g.from_name || g.from_email) + ' no es un cliente?\n\nSe descartan sus ' + g.n + (g.n === 1 ? ' email' : ' emails') + ' y no vuelvo a preguntar por esa dirección.')) return;
-      b.disabled = true;
-      const { data, error } = await supabase.rpc('ignorar_email_pendiente', { p_id: g.id, p_todos_del_remitente: true });
-      if (error || !data || !data.ok){ alert('No se pudo: ' + ((error && error.message) || (data && data.error))); b.disabled = false; return; }
-      toast('Descartado — no vuelvo a preguntar por ' + g.from_email);
-      epLoad(true);
-    }));
+    return [...porRemitente.values()];
   }
-  $('ep-reload') && $('ep-reload').addEventListener('click', () => epLoad(true));
+  async function epAprobar(g, btn){
+    if (btn) btn.disabled = true;
+    try {
+      /* Se aprueban TODOS los emails de esa persona, no solo el último: si escribió
+         tres veces, los tres van a su ficha. El primero crea el contacto. */
+      let lid = null;
+      for (const id of g.ids){
+        const { data, error } = await supabase.rpc('aprobar_email_pendiente', { p_id: id, p_nombre: g.from_name || null });
+        if (error) throw error;
+        if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
+        lid = data.lead_id;
+      }
+      toast('✅ ' + (g.from_name || g.from_email) + ' está en el CRM');
+      await loadAll();
+      await epLoad(true);
+      if (lid) fuAbrir(lid, { tipo: 'lead_nuevo', id: lid });   // y contestale ya, sin buscarlo
+    } catch (e) { alert('No se pudo: ' + (e.message || e)); if (btn) btn.disabled = false; }
+  }
+  async function epIgnorar(g, btn){
+    if (!confirm('¿' + (g.from_name || g.from_email) + ' no es un cliente?\n\nSe descartan sus ' + g.n + (g.n === 1 ? ' email' : ' emails') + ' y no vuelvo a preguntar por esa dirección.')) return;
+    if (btn) btn.disabled = true;
+    const { data, error } = await supabase.rpc('ignorar_email_pendiente', { p_id: g.id, p_todos_del_remitente: true });
+    if (error || !data || !data.ok){ alert('No se pudo: ' + ((error && error.message) || (data && data.error))); if (btn) btn.disabled = false; return; }
+    toast('Descartado — no vuelvo a preguntar por ' + g.from_email);
+    epLoad(true);
+  }
+  /* La cola alimenta la lista de Hoy, así que al llegar hay que redibujarla. */
+  function epRender(){ if (!$('tab-hoy').hidden) renderHome(); }
 
   let psSelected = new Set();
   function updatePsDelBtn(){
