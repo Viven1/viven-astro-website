@@ -63,6 +63,26 @@ function decodeBody(payload: any): string {
   if (raw === html) text = text.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   return text.slice(0, 20000);
 }
+/* ============ QUÉ NO VALE LA PENA PREGUNTAR ============
+   Los remitentes desconocidos ya no se tiran: se encolan para que Sebastián decida
+   si son clientes (SQL 0144). Pero encolar TODO convierte la lista en ruido y el
+   ruido se aprende a ignorar, así que estas cosas ni siquiera preguntan:
+     · direcciones que nadie lee ni contesta (noreply, notifications, mailer…)
+     · lo que sale de nuestro propio dominio, incluido leads@viven.ch, que es el
+       aviso de los formularios — esa gente ya entra al CRM por el formulario
+     · cualquier cosa con List-Unsubscribe: todo newsletter legal lleva ese
+       encabezado y ninguna persona escribiendo a mano lo tiene. Es la señal más
+       limpia que hay para separar un correo masivo de una consulta real.
+   Medido el 25 ago sobre 60 días de info@: de 201 hilos, aproximadamente la mitad
+   era proveedores, outreach frío y avisos automáticos. */
+const REMITENTE_AUTOMATICO = /(^|[._+-])(no-?reply|noreply|notifications?|mailer|bounce|postmaster|automated|do-?not-?reply|invoice|billing|support|newsletter)([._+-]|@)/i;
+function valeLaPenaPreguntar(email: string, headers: { name: string; value: string }[]): boolean {
+  if (!email || !email.includes("@")) return false;
+  if (email.endsWith("@viven.ch")) return false;
+  if (REMITENTE_AUTOMATICO.test(email)) return false;
+  if (headers.some((h) => h.name.toLowerCase() === "list-unsubscribe")) return false;
+  return true;
+}
 function parseFrom(headerVal: string): { name: string; email: string } {
   const m = headerVal.match(/^(.*?)\s*<(.+?)>$/);
   if (m) return { name: m[1].replace(/"/g, "").trim(), email: m[2].toLowerCase().trim() };
@@ -75,6 +95,13 @@ Deno.serve(async (req) => {
   }
   try {
     const out: Record<string, unknown> = {};
+    /* Ventana hacia atrás para llenar la cola de una vez con lo que ya llegó:
+       {"backfill_days": 14}. Sin esto, la cola arranca vacía y se va poblando de a
+       poco, y lo que entró la semana pasada nunca aparece. El cursor NO se toca en
+       modo backfill: no queremos que una recuperación se coma el próximo ciclo. */
+    const cuerpoReq = await req.json().catch(() => ({}));
+    const backfillDias = Math.max(0, Math.min(90, +cuerpoReq.backfill_days || 0));
+    const maxPorCasilla = backfillDias ? 200 : 30;
     const { data: leads } = await service.from("leads").select("id,email").not("email", "is", null);
     const leadByEmail = new Map<string, string>();
     (leads ?? []).forEach((l: { id: string; email: string }) => { if (l.email) leadByEmail.set(l.email.toLowerCase().trim(), String(l.id)); });
@@ -91,12 +118,14 @@ Deno.serve(async (req) => {
         const runStartedAt = new Date();
         const token = await accessToken(refreshToken);
         const { data: st } = await service.from("gmail_sync_state").select("*").eq("mailbox", mb.key).maybeSingle();
-        const sinceTs = st?.last_synced_at ? Math.floor(new Date(st.last_synced_at).getTime() / 1000) : Math.floor((Date.now() - 24 * 3600e3) / 1000);
+        const sinceTs = backfillDias
+          ? Math.floor((Date.now() - backfillDias * 24 * 3600e3) / 1000)
+          : (st?.last_synced_at ? Math.floor(new Date(st.last_synced_at).getTime() / 1000) : Math.floor((Date.now() - 24 * 3600e3) / 1000));
         const q = encodeURIComponent(`in:inbox after:${sinceTs}`);
-        const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=30`, { headers: { Authorization: "Bearer " + token } });
+        const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${maxPorCasilla}`, { headers: { Authorization: "Bearer " + token } });
         const listJ = await listRes.json();
         if (!listRes.ok) { out[mb.key] = "list_error: " + JSON.stringify(listJ).slice(0, 200); continue; }
-        let matched = 0, seen = 0;
+        let matched = 0, seen = 0, encolados = 0;
         for (const m of listJ.messages ?? []) {
           seen++;
           const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`, { headers: { Authorization: "Bearer " + token } });
@@ -107,7 +136,24 @@ Deno.serve(async (req) => {
           const subjH = headers.find((h) => h.name === "Subject")?.value || "";
           const { name, email } = parseFrom(fromH);
           const leadId = leadByEmail.get(email);
-          if (!leadId) continue; // no es un lead conocido — no es "cliente", lo ignoramos
+          if (!leadId) {
+            /* Antes acá había un `continue` y el email se perdía. Ahora se encola
+               para que Sebastián decida: crear la persona o descartarla. El insert
+               choca contra el unique de gmail_id si ya estaba —eso es justamente lo
+               que queremos— y contra los ya decididos no vuelve a preguntar. */
+            if (!valeLaPenaPreguntar(email, headers)) continue;
+            const { data: yaDecidido } = await service.from("email_pendientes")
+              .select("id").eq("status", "ignorado").ilike("from_email", email).limit(1).maybeSingle();
+            if (yaDecidido) continue;   // ya dijo que no es cliente: no se vuelve a preguntar
+            const cuerpo = decodeBody(msg.payload) || msg.snippet || "";
+            const fechaH = headers.find((h) => h.name === "Date")?.value;
+            await service.from("email_pendientes").insert({
+              gmail_id: m.id, mailbox: mb.key, from_email: email, from_name: name || null,
+              subject: subjH, body: cuerpo,
+              received_at: fechaH ? new Date(fechaH).toISOString() : new Date().toISOString(),
+            }).then(() => { encolados++; }, () => {});   // duplicado = ya estaba, no es error
+            continue;
+          }
           const { data: exists } = await service.from("email_log").select("id").eq("source", "gmail-" + mb.key).eq("gmail_id", m.id).maybeSingle();
           if (exists) continue;
           const body = decodeBody(msg.payload) || msg.snippet || "";
@@ -118,8 +164,9 @@ Deno.serve(async (req) => {
           await service.from("leads").update({ last_reply_at: new Date().toISOString() }).eq("id", leadId).then(() => {}, () => {});
           matched++;
         }
-        await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: runStartedAt.toISOString() });
-        out[mb.key] = { seen, matched };
+        // en backfill el cursor no se mueve: si no, la recuperación se comería el próximo ciclo
+        if (!backfillDias) await service.from("gmail_sync_state").upsert({ mailbox: mb.key, last_synced_at: runStartedAt.toISOString() });
+        out[mb.key] = { seen, matched, encolados };
       } catch (e) {
         out[mb.key] = "error: " + String(e);
       }

@@ -1425,6 +1425,21 @@ const newsCases = [
   .hm-agenda-seg{display:inline-flex;gap:4px;margin-left:10px;vertical-align:middle}
   .hm-agenda-seg button{background:none;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:600 10.5px Inter,sans-serif;padding:3px 10px;cursor:pointer}
   .hm-agenda-seg button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
+  .ep-panel .ep-it{border-top:1px solid var(--line);padding:13px 0;display:flex;gap:12px;align-items:flex-start}
+  .ep-panel .ep-it:first-child{border-top:0;padding-top:2px}
+  .ep-panel .ep-av{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:13px;color:#0b1220}
+  .ep-panel .ep-tx{flex:1;min-width:0}
+  .ep-panel .ep-nm{font-weight:700;font-size:14px}
+  .ep-panel .ep-mail{color:var(--muted-2);font-size:12px;font-weight:400}
+  .ep-panel .ep-subj{font-size:12.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ep-panel .ep-body{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.5;
+    border-left:2px solid color-mix(in srgb,var(--acid) 40%,transparent);padding-left:9px}
+  .ep-panel .ep-acts{flex:none;display:flex;gap:6px;align-items:center}
+  @media(max-width:640px){
+    .ep-panel .ep-it{flex-wrap:wrap}
+    .ep-panel .ep-acts{width:100%;padding-left:42px}
+  }
   .ps-stats{font-size:13px;color:var(--muted);margin:2px 0 12px}
   .ps-stats b{color:var(--text);font-variant-numeric:tabular-nums}
   .ps-toolbar input[type="search"]{flex:1;min-width:220px}
@@ -2102,6 +2117,21 @@ const newsCases = [
         <button class="btn btn-primary small" id="psf-save" type="button">Guardar persona</button>
         <button class="btn btn-ghost small" id="psf-cancel" type="button">Cancelar</button>
       </div>
+    </div>
+    <!-- 📥 Escribieron y no están en el CRM. El sync de Gmail encolaba estos emails
+         en la nada: si el remitente no era ya un lead, se descartaban. Como
+         info@viven.ch entrega en la casilla de Sebastián, las consultas de la
+         dirección pública eran justo las que se perdían. Ahora se acumulan acá y él
+         decide — mismo criterio que los emails salientes: nada pasa sin su ✓. -->
+    <div class="panel ep-panel" id="ep-panel" hidden>
+      <div class="of-bar" style="margin-bottom:10px">
+        <div>
+          <h2 style="margin:0">📥 Escribieron y no están en el CRM <span class="count" id="ep-n"></span></h2>
+          <p class="muted-note" style="margin:2px 0 0">Emails que llegaron a info@ o a tu casilla de gente sin ficha. Creá la persona o descartala — si descartás, no vuelve a preguntar por ese remitente.</p>
+        </div>
+        <button class="btn btn-ghost small" id="ep-reload" type="button">↻</button>
+      </div>
+      <div id="ep-list"></div>
     </div>
     <div class="ps-stats"><b id="kl-total">–</b> personas · <b id="kl-new">–</b> sin contactar · <b id="kl-week">–</b> <span id="kl-week-l" style="display:none">en el período</span>en el período · <b id="kl-ads">–</b> desde Ads</div>
     <div class="pipe-bar ps-toolbar">
@@ -3993,6 +4023,15 @@ const newsCases = [
 .fu-x{background:none;border:0;color:var(--muted-2);font-size:24px;line-height:1;cursor:pointer;padding:0 2px}
 .fu-x:hover{color:var(--text)}
 .fu-ctx{display:grid;gap:8px;margin-bottom:14px}
+/* lo que escribió el cliente: se lee como una cita, no como un dato más de la lista */
+.fu-ctx .fu-dijo{display:flex;gap:9px;align-items:flex-start;background:var(--navy-900);border:1px solid var(--line);
+  border-radius:12px;padding:11px 13px}
+.fu-ctx .fu-dijo > i{font-style:normal;flex:none;opacity:.8}
+.fu-ctx .fu-dijo > div{min-width:0}
+.fu-ctx .fu-dijo b{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted-2);margin-bottom:5px}
+.fu-ctx .fu-dijo .fu-asunto{text-transform:none;letter-spacing:0;color:var(--muted)}
+.fu-ctx .fu-dijo blockquote{margin:0;font-size:13.5px;line-height:1.55;color:var(--text);
+  border-left:2px solid color-mix(in srgb,var(--acid) 45%,transparent);padding-left:10px}
 .fu-ctx div{display:flex;gap:9px;font-size:13px;color:var(--muted);align-items:baseline}
 .fu-ctx i{font-style:normal;flex:none;width:15px;text-align:center}
 .fu-ctx b{color:var(--text);font-weight:600}
@@ -5633,6 +5672,7 @@ const newsCases = [
   }
 
   function renderLeads(){
+    epLoad();   // 📥 emails de gente sin ficha (SQL 0144) — se pide al abrir Personas
     /* leads dentro de la ventana de tiempo seleccionada */
     const viewLeads = allLeads.filter((r) => inRange(r.created_at));
     $('kl-total').textContent = allLeads.length;                       // histórico
@@ -5948,6 +5988,34 @@ const newsCases = [
     const nIn = (hist || []).filter((h) => h.direction === 'in').length;
     ctx.push('<div><i>✉️</i><span><b>' + (hist || []).length + ' emails</b> en la conversación' +
       (nIn ? ' — ' + nIn + ' de ' + (r.name || 'ellos').split(' ')[0] : ' — todavía no contestaron') + '</span></div>');
+    /* ===== LO QUE ESCRIBIÓ, con sus palabras =====
+       El bloque decía "3 emails en la conversación" y nada más: para saber QUÉ
+       pidieron había que abrir la ficha, o sea salir de acá — justo lo que el popup
+       vino a evitar. Y sin leer lo que escribieron no se puede juzgar si el borrador
+       de la IA contesta lo que preguntaron. (Sebastián, 25 ago: "mostrá lo que
+       escribió el cliente para entender mejor lo que respondemos".)
+       Se muestra el último mensaje ENTRANTE; si nunca escribió por email —un lead
+       del formulario— se muestra lo que dejó en el formulario, que es lo mismo con
+       otro sobre. */
+    const ultimoIn = (hist || []).filter((h) => h.direction === 'in').slice(-1)[0];
+    const delForm = !ultimoIn && String(r.message || '').trim() && !/^🧮|^Newsletter signup$/.test(String(r.message).trim());
+    if (ultimoIn || delForm){
+      const crudo = ultimoIn ? String(ultimoIn.body || '') : String(r.message || '');
+      /* fuera las citas del hilo (">" y "El ... escribió:"): en una respuesta larga,
+         lo nuevo son las primeras líneas y el resto es lo que ya mandamos nosotros */
+      const limpio = crudo
+        .split(/\n\s*(?:>|El .{0,40} escribió:|On .{0,40} wrote:|Am .{0,40} schrieb:|-{3,}\s*Forwarded)/)[0]
+        .replace(/\s+/g, ' ').trim();
+      const corte = 420;
+      const txt = limpio.length > corte ? limpio.slice(0, corte) + '…' : limpio;
+      if (txt){
+        ctx.push('<div class="fu-dijo"><i>💬</i><div>' +
+          '<b>' + (ultimoIn ? 'Lo último que escribió' + (ultimoIn.created_at ? ' · ' + timeAgo(ultimoIn.created_at) : '')
+                            : 'Lo que dejó en el formulario') +
+          (ultimoIn && ultimoIn.subject ? ' · <span class="fu-asunto">' + esc(ultimoIn.subject) + '</span>' : '') + '</b>' +
+          '<blockquote>' + esc(txt) + '</blockquote></div></div>');
+      }
+    }
     if (notas && notas[0]) ctx.push('<div><i>📝</i><span>Tu nota: ' + esc(String(notas[0].body).slice(0, 120)) + '</span></div>');
     if (deal) ctx.push('<div><i>🤝</i><span>Deal en <b>' + esc((STAGES.find((x) => x.key === stageOf(deal.stage)) || {}).label || '') + '</b>' +
       (dealValue(deal) ? ' · ' + fmtChf(dealValue(deal)) : '') + '</span></div>');
@@ -6068,7 +6136,13 @@ const newsCases = [
            orden por plata no lo hunda abajo de una propuesta vieja. */
         urgente: (now - Date.parse(l.created_at)) < 24 * 36e5,
         t: l.name || l.email || '(lead)',
-        ctx: 'lead nuevo hace ' + timeAgo(l.created_at) + ' · sin contactar', hint: 'Contactar →', go: () => openLead(l.id) });
+        ctx: 'lead nuevo hace ' + timeAgo(l.created_at) + ' · sin contactar',
+        /* Antes esto te mandaba a la ficha y ahí escribías de cero. Las propuestas y
+           las ofertas ya abrían el popup con el borrador hecho; los leads nuevos no,
+           que son justo los que más rápido hay que contestar. (Sebastián, 25 ago:
+           "me sale contactar con gente nueva pero no me da popup con respuesta
+           automática".) Sin email no hay a quién escribirle: ahí sí va la ficha. */
+        hint: 'Contactar →', go: () => (l.email ? fuAbrir(l.id, { tipo: 'lead_nuevo', id: l.id }) : openLead(l.id)) });
     });
     // (e) tasks para hoy o vencidas, mías o sin asignar (mismo criterio que la campana)
     if (dlTasksAt){
@@ -7693,6 +7767,99 @@ const newsCases = [
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   // Personas: selección múltiple para borrar en batch
+  /* ================= 📥 Escribieron y no están en el CRM (SQL 0144) =================
+     El sync de Gmail tenía una línea que decía "no es un lead conocido, lo ignoramos":
+     si el remitente no estaba ya en el CRM, el email se descartaba sin dejar rastro.
+     Y como info@viven.ch entrega en la casilla de Sebastián, las consultas que llegan
+     por la dirección pública eran justo las que se perdían.
+     Ahora se encolan y él decide. No se crea nada solo: medido el 25 ago sobre 14
+     días, de 58 emails encolados había prospectos reales mezclados con facturas de
+     proveedores y outreach frío. Un CRM que se llena solo de eso deja de servir.
+     Se agrupa por REMITENTE, no por email: la misma persona que escribió tres veces
+     es una decisión, no tres. */
+  let epRows = [], epAt = 0;
+  async function epLoad(forzar){
+    const panel = $('ep-panel'); if (!panel) return;
+    /* renderLeads() se llama desde el realtime, desde los filtros y desde cada
+       edición: sin este freno, cada tecla en el buscador pedía la cola de nuevo. */
+    if (!forzar && Date.now() - epAt < 30000){ epRender(); return; }
+    epAt = Date.now();
+    try {
+      const { data, error } = await supabase.from('email_pendientes')
+        .select('id,from_email,from_name,subject,body,received_at,mailbox')
+        .eq('status', 'pendiente').order('received_at', { ascending: false }).limit(200);
+      if (error) throw error;
+      epRows = data || [];
+    } catch (e) { epRows = []; }
+    epRender();
+  }
+  function epRender(){
+    const panel = $('ep-panel'), box = $('ep-list'); if (!panel || !box) return;
+    // una tarjeta por persona: la más reciente manda, las otras se cuentan
+    const porRemitente = new Map();
+    epRows.forEach((r) => {
+      const k = (r.from_email || '').toLowerCase();
+      const g = porRemitente.get(k) || { ...r, n: 0, ids: [] };
+      g.n++; g.ids.push(r.id);
+      porRemitente.set(k, g);
+    });
+    const gente = [...porRemitente.values()];
+    panel.hidden = gente.length === 0;
+    $('ep-n').textContent = gente.length ? '(' + gente.length + ')' : '';
+    if (!gente.length){ box.innerHTML = ''; return; }
+    box.innerHTML = gente.map((g) => {
+      const nm = g.from_name || g.from_email.split('@')[0];
+      const ini = (nm[0] || '?').toUpperCase();
+      /* mismo recorte de citas que el popup de follow-up: en una respuesta larga lo
+         nuevo son las primeras líneas y el resto es lo que ya mandamos nosotros */
+      const limpio = String(g.body || '')
+        .split(/\n\s*(?:>|El .{0,40} escribió:|On .{0,40} wrote:|Am .{0,40} schrieb:|-{3,}\s*Forwarded)/)[0]
+        .replace(/\s+/g, ' ').trim().slice(0, 260);
+      return '<div class="ep-it" data-id="' + g.id + '">' +
+        '<span class="ep-av" style="background:' + avColorG(nm) + '">' + esc(ini) + '</span>' +
+        '<span class="ep-tx">' +
+          '<div class="ep-nm">' + esc(nm) + ' <span class="ep-mail">' + esc(g.from_email) + '</span>' +
+            (g.n > 1 ? ' <span class="lt-nd" title="' + g.n + ' emails">×' + g.n + '</span>' : '') + '</div>' +
+          '<div class="ep-subj">' + esc(g.subject || '(sin asunto)') + ' · a ' + esc(g.mailbox) + '@viven.ch · ' + timeAgo(g.received_at) + '</div>' +
+          (limpio ? '<div class="ep-body">' + esc(limpio) + (String(g.body || '').length > 260 ? '…' : '') + '</div>' : '') +
+        '</span>' +
+        '<span class="ep-acts">' +
+          '<button class="btn btn-primary small" data-ep-ok="' + g.id + '" type="button">✓ Crear persona</button>' +
+          '<button class="btn btn-ghost small" data-ep-no="' + g.id + '" type="button" title="No es un cliente — no vuelve a preguntar por este remitente">✕</button>' +
+        '</span></div>';
+    }).join('');
+    box.querySelectorAll('[data-ep-ok]').forEach((b) => b.addEventListener('click', async () => {
+      const g = gente.find((x) => String(x.id) === b.dataset.epOk); if (!g) return;
+      b.disabled = true;
+      try {
+        /* Se aprueban TODOS los emails de esa persona, no solo el que se ve: si
+           escribió tres veces, los tres van a su ficha. El primero crea el contacto
+           y los demás se le cuelgan. */
+        let lid = null;
+        for (const id of g.ids){
+          const { data, error } = await supabase.rpc('aprobar_email_pendiente', { p_id: id, p_nombre: g.from_name || null });
+          if (error) throw error;
+          if (!data || !data.ok) throw new Error((data && data.error) || 'no se pudo');
+          lid = data.lead_id;
+        }
+        toast('✅ ' + (g.from_name || g.from_email) + ' está en el CRM');
+        await loadAll();
+        epLoad(true);
+        if (lid) openLead(lid);
+      } catch (e) { alert('No se pudo: ' + (e.message || e)); b.disabled = false; }
+    }));
+    box.querySelectorAll('[data-ep-no]').forEach((b) => b.addEventListener('click', async () => {
+      const g = gente.find((x) => String(x.id) === b.dataset.epNo); if (!g) return;
+      if (!confirm('¿' + (g.from_name || g.from_email) + ' no es un cliente?\n\nSe descartan sus ' + g.n + (g.n === 1 ? ' email' : ' emails') + ' y no vuelvo a preguntar por esa dirección.')) return;
+      b.disabled = true;
+      const { data, error } = await supabase.rpc('ignorar_email_pendiente', { p_id: g.id, p_todos_del_remitente: true });
+      if (error || !data || !data.ok){ alert('No se pudo: ' + ((error && error.message) || (data && data.error))); b.disabled = false; return; }
+      toast('Descartado — no vuelvo a preguntar por ' + g.from_email);
+      epLoad(true);
+    }));
+  }
+  $('ep-reload') && $('ep-reload').addEventListener('click', () => epLoad(true));
+
   let psSelected = new Set();
   function updatePsDelBtn(){
     const btn = $('ps-del-sel'); if (!btn) return;
