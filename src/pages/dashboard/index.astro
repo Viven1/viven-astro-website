@@ -1425,6 +1425,35 @@ const newsCases = [
   .hm-agenda-seg{display:inline-flex;gap:4px;margin-left:10px;vertical-align:middle}
   .hm-agenda-seg button{background:none;border:1px solid var(--line-strong);border-radius:100px;color:var(--muted);font:600 10.5px Inter,sans-serif;padding:3px 10px;cursor:pointer}
   .hm-agenda-seg button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
+  /* ===== Personas en el teléfono ===== */
+  /* encabezado de grupo en Analytics: separa sin pesar como un panel */
+  /* segunda fila de Sistema: lo que se configura una vez, en gris y más chico */
+  .sistema-seg-2{margin-top:-4px;opacity:.72}
+  .sistema-seg-2:hover,.sistema-seg-2:focus-within{opacity:1}
+  .sistema-seg-2 button{font-size:12.5px}
+  .sistema-seg-2 .seg-lbl{align-self:center;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted-2);font-weight:700;padding:0 8px 0 2px}
+  @media(max-width:620px){.sistema-seg-2 .seg-lbl{display:none}}
+  .ana-grupo{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    font-size:12px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:var(--acid);
+    margin:30px 0 12px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+  .ana-grupo:first-of-type{margin-top:18px}
+  .ana-grupo span{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:400;color:var(--muted-2)}
+  .ps-seg{margin-bottom:12px}
+  .ps-cards{display:grid;gap:8px}
+  .ps-card{display:flex;gap:10px;align-items:flex-start;background:var(--navy-800);border:1px solid var(--line);
+    border-radius:13px;padding:11px 12px;cursor:pointer}
+  .ps-card:active{background:var(--navy-700)}
+  .ps-card-chk{flex:none;padding-top:3px}
+  .ps-card .lt-av{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:13px;color:#0b1220}
+  .ps-card-tx{flex:1;min-width:0}
+  .ps-card-nm{font-weight:700;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ps-card-co{color:var(--muted);font-size:12.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ps-card-bot{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
+  .ps-card-val{font-family:'Space Grotesk','Space Grotesk Fallback','Inter',sans-serif;font-size:13px;
+    font-variant-numeric:tabular-nums}
+  .ps-card-act{color:var(--muted-2);font-size:11.5px;margin-left:auto}
   .ep-panel .ep-it{border-top:1px solid var(--line);padding:13px 0;display:flex;gap:12px;align-items:flex-start}
   .ep-panel .ep-it:first-child{border-top:0;padding-top:2px}
   .ep-panel .ep-av{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
@@ -2123,6 +2152,14 @@ const newsCases = [
       </div>
     </div>
     <div class="ps-stats"><b id="kl-total">–</b> personas · <b id="kl-new">–</b> sin contactar · <b id="kl-week">–</b> <span id="kl-week-l" style="display:none">en el período</span>en el período · <b id="kl-ads">–</b> desde Ads</div>
+    <!-- ===== EN JUEGO / CARTERA / TODAS =====
+         De 201 personas, 167 son la cartera que se importó de bexio: clientes de
+         antes, todos en "Ganado". Al abrir Personas lo primero que aparecía era el
+         archivo, y para llegar a los que están en movimiento había que filtrar por
+         etapa una por una — nuevo, contactado, video call y propuesta son cuatro
+         filtros distintos y no había forma de pedir "los cuatro".
+         "En juego" incluye a los que están en Nuevo: son justo los que se enfrían. -->
+    <div class="co-seg ps-seg" id="ps-seg"></div>
     <div class="pipe-bar ps-toolbar">
       <input type="search" id="lead-search" placeholder="Buscar por nombre, email, empresa o mensaje…" />
       <select id="ps-stage" class="status" title="Filtrar por etapa">
@@ -2485,6 +2522,21 @@ const newsCases = [
            movemos mes por mes, por quartal y por anio"). Cohorte por fecha de alta:
            de los leads que entraron en el período, cuántos terminaron ganados.
            Excluye la cartera de bexio (ver esCartera) — con ella daba 89% plano. -->
+      
+      <!-- ===== TRES PREGUNTAS, EN ORDEN =====
+           Eran once paneles seguidos, todos con el mismo peso visual, así que ninguno
+           guiaba: para llegar a "qué posts del blog rinden" había que pasar por el
+           funnel, los canales, los referrers y los insights. No se sacó ni se agregó
+           nada — los mismos once paneles, agrupados bajo la pregunta que contestan. -->
+
+      <h3 class="ana-grupo">Cuánta gente vino<span>volumen y qué pasó con ella</span></h3>
+<div class="panel">
+        <h2>Tráfico y leads por día <span class="count" id="daily-label">(en el período)</span></h2>
+        <div class="chart" id="daily-chart"></div>
+        <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
+        <div class="chart-legend"><span><i class="s"></i>Sesiones</span><span><i class="c"></i>Leads</span><span><i class="p"></i>Período anterior</span></div>
+      </div>
+
       <div class="panel">
         <div class="of-bar" style="margin-bottom:10px">
           <div>
@@ -2502,18 +2554,13 @@ const newsCases = [
       </div>
 
       <div class="panel">
-        <h2>Tráfico y leads por día <span class="count" id="daily-label">(en el período)</span></h2>
-        <div class="chart" id="daily-chart"></div>
-        <div class="chart-labels"><span id="chart-from"></span><span id="chart-to"></span></div>
-        <div class="chart-legend"><span><i class="s"></i>Sesiones</span><span><i class="c"></i>Leads</span><span><i class="p"></i>Período anterior</span></div>
-      </div>
-
-      <div class="panel">
         <h2>Funnel del período <span class="count">(sesiones → ganado)</span></h2>
         <div class="funnel" id="ana-funnel"></div>
       </div>
 
-      <div class="grid-2">
+      
+      <h3 class="ana-grupo">De dónde salió<span>canales, referrers y con qué entran</span></h3>
+<div class="grid-2">
         <div class="panel">
           <h2>¿Qué canales traen leads? <span class="count" id="perf-ch-c">(sesiones → leads)</span></h2>
           <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Canal</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-channel"></tbody></table></div>
@@ -2524,7 +2571,28 @@ const newsCases = [
         </div>
       </div>
 
-      <div class="grid-2">
+      <!-- detalle secundario plegado: no se come media pantalla -->
+      <details style="margin-top:2px">
+        <summary class="of-more-sum">Más detalle: dispositivos e idiomas ▾</summary>
+        
+        <div class="grid-2">
+          <div class="panel">
+            <h2>Dispositivos <span class="count">(páginas vistas)</span></h2>
+            <div class="bars" id="bars-device"></div>
+          </div>
+          <div class="panel">
+            <h2>Idiomas del navegador <span class="count">(sesiones)</span></h2>
+            <div class="bars" id="bars-lang"></div>
+          </div>
+        </div>
+      </details>
+    
+      <h3 class="ana-grupo">Qué hacemos con eso<span>dónde convierte y dónde no</span></h3>
+      <div class="panel">
+          <h2>Páginas más vistas <span class="count">(visitas · cuánto se quedan)</span></h2>
+          <div class="bars" id="bars-pages"></div>
+        </div>
+<div class="grid-2">
         <div class="panel">
           <h2>¿Qué páginas convierten? <span class="count" id="perf-lp-c">(entrada → leads)</span></h2>
           <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Página de entrada</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-landing"></tbody></table></div>
@@ -2546,28 +2614,8 @@ const newsCases = [
         <div style="overflow-x:auto"><table class="perf"><thead><tr><th>Post</th><th class="num">Sesiones</th><th class="num">Leads</th><th class="num">Conversión</th></tr></thead><tbody id="perf-blog"></tbody></table></div>
       </div>
 
-      <!-- detalle secundario plegado: no se come media pantalla -->
-      <details style="margin-top:2px">
-        <summary class="of-more-sum">Más detalle: páginas vistas, dispositivos e idiomas ▾</summary>
-        <div class="panel" style="margin-top:12px">
-          <h2>Páginas más vistas <span class="count">(visitas · cuánto se quedan)</span></h2>
-          <div class="bars" id="bars-pages"></div>
-        </div>
-        <div class="grid-2">
-          <div class="panel">
-            <h2>Dispositivos <span class="count">(páginas vistas)</span></h2>
-            <div class="bars" id="bars-device"></div>
-          </div>
-          <div class="panel">
-            <h2>Idiomas del navegador <span class="count">(sesiones)</span></h2>
-            <div class="bars" id="bars-lang"></div>
-          </div>
-        </div>
-      </details>
     </div>
-    <!-- ============ SUB: GOOGLE ADS (antes tab propio) — rediseño: ROAS canónico, ============ -->
-    <!-- ============ 1 tabla de campañas (Google + CRM), search terms y pacing ============ -->
-    <div id="ana-sub-gads" hidden>
+<div id="ana-sub-gads" hidden>
       <div class="warnbox" id="gads-pending" hidden></div>
 
       <div class="panel">
@@ -3111,14 +3159,23 @@ const newsCases = [
 
   <!-- ============ TAB: SISTEMA (Servicios+Licencias+Booking+A/B+Workflows+Plantillas+CashFlow+Perfil) ============ -->
   <div id="tab-sistema" hidden>
+    <!-- ===== DOS FILAS: lo que se usa y lo que se configura una vez =====
+         Eran diez sub-pestañas al mismo nivel y en el mismo orden siempre, así que
+         Cash Flow —que se mira seguido— pesaba lo mismo que Crons, que se toca una
+         vez por año. Arriba lo de todos los días; abajo, en gris, lo que se deja
+         configurado y no se vuelve a tocar. Es un cambio de orden, no de qué hace
+         cada cosa: los mismos botones, los mismos destinos. -->
     <div class="co-seg ana-seg" id="sistema-seg">
-      <button data-sub="services" class="on" type="button">🛠 Servicios</button>
-      <button data-sub="licenses" type="button">📄 Licencias</button>
+      <button data-sub="cashflow" type="button" id="sistema-seg-cashflow-btn" hidden>💰 Cash Flow</button>
+      <button data-sub="auto" type="button">⚙️ Bandeja y workflows<span class="pill js-ob-count" hidden></span></button>
+      <button data-sub="tmpl" type="button">📚 Plantillas</button>
       <button data-sub="booking" type="button">📅 Booking</button>
       <button data-sub="ab" type="button">🧪 A/B Tests</button>
-      <button data-sub="auto" type="button">⚙️ Workflows<span class="pill js-ob-count" hidden></span></button>
-      <button data-sub="tmpl" type="button">📚 Plantillas</button>
-      <button data-sub="cashflow" type="button" id="sistema-seg-cashflow-btn" hidden>💰 Cash Flow</button>
+    </div>
+    <div class="co-seg ana-seg sistema-seg-2" id="sistema-seg-2">
+      <span class="seg-lbl">Se configura una vez</span>
+      <button data-sub="services" class="on" type="button">🛠 Servicios</button>
+      <button data-sub="licenses" type="button">📄 Licencias</button>
       <button data-sub="crons" type="button">🩺 Crons</button>
       <button data-sub="usuarios" type="button" id="sistema-seg-usuarios-btn" hidden>🔑 Usuarios</button>
       <button data-sub="profile" type="button">👤 Mi perfil</button>
@@ -4715,7 +4772,7 @@ const newsCases = [
     sistemaSub = sub;
     try { localStorage.setItem('vv_sistema_sub', sub); } catch (e) { /* modo privado */ }
     ['services', 'licenses', 'booking', 'ab', 'auto', 'tmpl', 'cashflow', 'crons', 'usuarios', 'profile'].forEach((k) => { const el = $('sistema-sub-' + k); if (el) el.hidden = k !== sub; });
-    document.querySelectorAll('#sistema-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
+    document.querySelectorAll('#sistema-seg button, #sistema-seg-2 button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
     if (sub === 'services') servicesInit();
     if (sub === 'licenses') licensesInit();
     if (sub === 'booking') bookingInit();
@@ -4728,7 +4785,7 @@ const newsCases = [
     if (sub === 'profile') profileInit();
     syncTabUrl();
   }
-  document.querySelectorAll('#sistema-seg button').forEach((b) => b.addEventListener('click', () => sistemaSetSub(b.dataset.sub)));
+  document.querySelectorAll('#sistema-seg button, #sistema-seg-2 button').forEach((b) => b.addEventListener('click', () => sistemaSetSub(b.dataset.sub)));
   // grupos del sidebar: colapsables, con memoria por navegador (localStorage)
   document.querySelectorAll('.side-group').forEach((g) => {
     const key = 'vv_side_' + g.dataset.group;
@@ -5651,6 +5708,32 @@ const newsCases = [
     });
   });
 
+  /* En juego = todavía se puede ganar o perder. Ganado y perdido ya se decidieron;
+     spam tiene su propio camino. La cartera de bexio cae entera en "Clientes" porque
+     está toda en ganado — no hace falta una regla aparte para ella. */
+  const PS_EN_JUEGO = ['lead', 'contactado', 'videocall', 'propuesta'];
+  let psSeg = 'juego';
+  function psSegMatch(r){
+    if (psSeg === 'todas') return true;
+    const et = stageOf(r.status);
+    return psSeg === 'juego' ? PS_EN_JUEGO.includes(et) : et === 'ganado';
+  }
+  function psSegRender(){
+    const el = $('ps-seg'); if (!el) return;
+    // los contadores salen de la misma lista filtrada, sin el segmentador aplicado
+    const base = allLeads.filter((r) => !/^spam$/i.test(r.status || ''));
+    const n = (k) => k === 'todas' ? base.length
+      : base.filter((r) => k === 'juego' ? PS_EN_JUEGO.includes(stageOf(r.status)) : stageOf(r.status) === 'ganado').length;
+    el.innerHTML = [['juego', 'En juego'], ['clientes', 'Clientes'], ['todas', 'Todas']]
+      .map(([k, l]) => '<button type="button" data-seg="' + k + '"' + (psSeg === k ? ' class="on"' : '') + '>' + l + ' ' + n(k) + '</button>').join('');
+    el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      psSeg = b.dataset.seg;
+      try { localStorage.setItem('vv_ps_seg', psSeg); } catch (e) { /* modo privado */ }
+      psSegRender(); renderPeopleList();
+    }));
+  }
+  try { const g = localStorage.getItem('vv_ps_seg'); if (['juego', 'clientes', 'todas'].includes(g)) psSeg = g; } catch (e) { /* modo privado */ }
+
   function filteredLeads(){
     return allLeads.filter((r) => {
       // spam queda afuera de todas las vistas salvo que se pida explícitamente
@@ -5661,6 +5744,7 @@ const newsCases = [
       // OJO: la lista de Personas NO se filtra por el período global — es el
       // directorio completo del CRM (el período solo recorta los KPIs). Con el
       // selector en "Hoy" la lista quedaba vacía y parecía un bug (2026-07-26).
+      if (!psSegMatch(r) && psStage === 'all') return false;   // el filtro de etapa manda sobre el segmentador
       if (statusFilter === 'new' && !isNew(r.status)) return false;
       if (statusFilter === 'contacted' && !(r.status === 'contacted' || r.status === 'contactado')) return false;
       if (statusFilter === 'won' && !(r.status === 'won' || r.status === 'cerrado')) return false;
@@ -5675,6 +5759,7 @@ const newsCases = [
   }
 
   function renderLeads(){
+    psSegRender();
     /* leads dentro de la ventana de tiempo seleccionada */
     const viewLeads = allLeads.filter((r) => inRange(r.created_at));
     $('kl-total').textContent = allLeads.length;                       // histórico
@@ -5723,7 +5808,8 @@ const newsCases = [
     cont.innerHTML = chNote + lpNote + leadsListHTML(rows);
     const clearCh = $('ps-clear-channel'); if (clearCh) clearCh.addEventListener('click', (ev) => { ev.preventDefault(); channelFilter = null; renderPeopleList(); });
     const clearLp = $('ps-clear-landing'); if (clearLp) clearLp.addEventListener('click', (ev) => { ev.preventDefault(); landingFilter = null; renderPeopleList(); });
-    cont.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id)));
+    // en escritorio son filas de tabla; en el teléfono, tarjetas. Las dos abren la ficha.
+    cont.querySelectorAll('.lead-table tbody tr, .ps-card').forEach((el) => el.addEventListener('click', () => openLead(el.dataset.id)));
     bindPsSelection(); updatePsDelBtn();
     cont.querySelectorAll('.lead-table th[data-k]').forEach((th) => th.addEventListener('click', () => {
       const k = th.dataset.k;
@@ -7767,6 +7853,11 @@ const newsCases = [
   $('dl-view-list') && $('dl-view-list').addEventListener('click', () => setDealsView('lista'));
   // orden de la tabla de Personas: click en el encabezado alterna ↑/↓
   let psSort = { k: 'created', dir: -1 }, psStage = 'all', psAct = 'all';
+  /* Una sola fuente de verdad para "¿estamos en pantalla angosta?". Se usa
+     matchMedia y no innerWidth para que rotar el teléfono redibuje solo. */
+  const PS_ANGOSTO = window.matchMedia('(max-width: 700px)');
+  const psAngosto = () => PS_ANGOSTO.matches;
+  PS_ANGOSTO.addEventListener('change', () => { if (!$('tab-leads').hidden) renderLeads(); });
   function leadsListHTML(rows){
     if (!rows.length) return '<p class="muted-note" style="padding:14px">Sin personas que coincidan con la búsqueda o el filtro.</p>';
     const stageIdx = (r) => STAGES.findIndex((s) => s.key === stageOf(r.status));
@@ -7811,6 +7902,37 @@ const newsCases = [
         '<td class="lt-act">' + esc(actLabel(act)) + '</td>' +
         '<td class="lt-num">' + new Date(r.created_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) + '</td></tr>';
     }).join('');
+    /* ===== EN EL TELÉFONO, TARJETAS =====
+       La tabla tiene nueve columnas y un ancho mínimo de 980 px. Un iPhone tiene 390:
+       para ver la etapa había que arrastrar de costado, y otra vez para ver el valor.
+       Y el teléfono es donde Sebastián lo usa cuando está en el set.
+       Abajo de 700 px se dibuja la misma gente como tarjetas —nombre y empresa
+       arriba, etapa y plata abajo— sin arrastrar nada. En escritorio la tabla queda
+       igual que siempre: no se pierde ninguna columna. */
+    if (psAngosto()){
+      return '<div class="ps-cards">' + sorted.map((r) => {
+        const st = STAGES.find((x) => x.key === stageOf(r.status)) || STAGES[0];
+        const val = rowVal(r);
+        const act = actMap.get(r.id);
+        const isNl = String(r.message || '') === 'Newsletter signup';
+        const nm = r.name || r.first_name || (isNl && r.email) || '(sin nombre)';
+        const dom = leadDomain(r);
+        const co = (dom && companyName(dom)) || r.company || '';
+        const sc = scMap.get(r.id) || { score: 0, tier: { t: '', c: 'var(--muted)' } };
+        return '<div class="ps-card" data-id="' + esc(r.id) + '">' +
+          '<label class="ps-card-chk" onclick="event.stopPropagation()"><input type="checkbox" class="ps-row-chk" data-id="' + esc(r.id) + '"' + (psSelected.has(String(r.id)) ? ' checked' : '') + ' /></label>' +
+          '<span class="lt-av" style="background:' + avColor(nm) + '">' + esc((nm[0] || '?').toUpperCase()) + '</span>' +
+          '<div class="ps-card-tx">' +
+            '<div class="ps-card-nm">' + esc(nm) + (sc.tier.t === 'Hot' ? ' 🔥' : '') + '</div>' +
+            '<div class="ps-card-co">' + esc(co || r.email || '—') + '</div>' +
+            '<div class="ps-card-bot">' +
+              '<span class="lt-pill" style="color:' + st.color + ';background:color-mix(in srgb,' + st.color + ' 14%,transparent);border-color:color-mix(in srgb,' + st.color + ' 40%,transparent)">' + st.label + '</span>' +
+              (val ? '<b class="ps-card-val">' + fmtChf(val) + '</b>' : '') +
+              '<span class="ps-card-act">' + esc(actLabel(act)) + '</span>' +
+            '</div>' +
+          '</div></div>';
+      }).join('') + '</div>';
+    }
     const TH = (k, l) => '<th data-k="' + k + '" class="lt-sort' + (psSort.k === k ? ' on' : '') + '" title="Ordenar por ' + l.toLowerCase() + '">' + l + (psSort.k === k ? (psSort.dir === 1 ? ' ↑' : ' ↓') : '') + '</th>';
     const allChecked = sorted.length > 0 && sorted.every((r) => psSelected.has(String(r.id)));
     return '<div class="lead-table-wrap lead-table-hs"><table class="lead-table"><thead><tr>' +
@@ -7995,7 +8117,7 @@ const newsCases = [
     psSelected.clear();
     renderLeads();
   });
-  function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr').forEach((tr) => tr.addEventListener('click', () => openLead(tr.dataset.id))); }
+  function bindLeadRows(){ document.querySelectorAll('.lead-table tbody tr, .ps-card').forEach((el) => el.addEventListener('click', () => openLead(el.dataset.id))); }
   // en táctil el drag nativo secuestra el scroll (iOS): ahí la etapa se cambia desde el contacto
   const PIPE_DRAG = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   // pager móvil: navegación por etapas con flechas (funciona aunque el touch-scroll falle)
@@ -17761,7 +17883,13 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       offers: ofs
     };
   }
-  let coSeg = 'all'; // segmento activo del filtro de la lista (all/client/prospect/empty)
+  /* Arranca en "Clientes", no en "Todas". Las empresas se arman solas agrupando por
+     el dominio del email, así que "Todas" son 173 filas de las que la enorme mayoría
+     tiene un solo contacto y ningún dato cargado — y una lista donde casi todo está
+     vacío no invita a abrir nada. Los filtros ya existían; lo que estaba mal era con
+     cuál abre. Se recuerda la última elección. */
+  let coSeg = 'client';
+  try { const g = localStorage.getItem('vv_co_seg'); if (['all', 'client', 'prospect', 'empty'].includes(g)) coSeg = g; } catch (e) { /* modo privado */ }
   function renderCompanies(){
     if (!coBound){ coBound = true;
       $('co-back').addEventListener('click', () => { coCur = null; $('co-detail').hidden = true; $('co-list-view').hidden = false; });
@@ -17805,8 +17933,18 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     const segN = (k) => k === 'all' ? data.length : data.filter((c) => coStatus(c).k === k).length;
     $('co-seg').innerHTML = [['all', 'Todas'], ['client', 'Clientes'], ['prospect', 'Prospectos'], ['empty', 'Sin contactos']]
       .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (coSeg === k ? 'on' : '') + '">' + l + ' ' + segN(k) + '</button>').join('');
-    $('co-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { coSeg = b.dataset.k; renderCompaniesList(); }));
+    $('co-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      coSeg = b.dataset.k;
+      try { localStorage.setItem('vv_co_seg', coSeg); } catch (e) { /* modo privado */ }
+      renderCompaniesList();
+    }));
     if (coSeg !== 'all') data = data.filter((c) => coStatus(c).k === coSeg);
+    /* Las que tienen dos o más contactos arriba: una empresa con varias personas es
+       la que de verdad tiene una relación atrás, no un email suelto que se agrupó
+       por dominio. Dentro de cada grupo manda la plata. */
+    data.sort((a, b) => (Math.min(b.contacts.length, 2) - Math.min(a.contacts.length, 2))
+      || ((b.value || 0) - (a.value || 0))
+      || String(a.name || a.domain).localeCompare(String(b.name || b.domain)));
     $('co-empty').hidden = data.length > 0;
     $('co-list').className = '';
     // tabla estilo Personas (lead-table-hs mantiene todas las columnas en móvil con scroll horizontal)
