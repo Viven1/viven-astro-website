@@ -1188,6 +1188,17 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
     if(marcado) return;
 
     var desde = Date.now();
+    /* EL SCROLL NO ALCANZA SOLO. Medido el 25 ago 2026 sobre las 81 sesiones
+       marcadas: de las 31 que entraron por 'scroll', 20 eran de una sola página y
+       menos de 5 segundos, y 14 tenían idioma zh-CN — un perfil que en el resto de
+       las señales no aparece (de 34 'pointer', 1 sola era zh; de 15 'touch',
+       ninguna). O sea: hay un crawler que scrollea para disparar la carga perezosa
+       de imágenes, y se estaba contando como gente.
+       Pointer, touch y key no tienen ese problema: un bot que renderiza y se va no
+       mueve un mouse ni toca la pantalla. Así que el scroll ahora necesita algo
+       más — dos scrolls separados en el tiempo, que es lo que hace alguien
+       leyendo y no un script que baja la página de una. */
+    var scrollVisto = 0;
     function marcar(kind){
       if(marcado) return;
       /* Los primeros 300ms se ignoran: al volver "atrás" el navegador restaura
@@ -1200,10 +1211,19 @@ window.sbCallFunction = function(name, body){   /* llama funciones públicas (ca
          pasa nada: no hace falta comprobar antes. */
       sbInsert('session_activity', { session_id: sid, kind: kind });
     }
-    function onScroll(){ marcar('scroll'); }
+    function onScroll(e){
+      if(e && e.isTrusted === false) return;
+      var t = Date.now();
+      if(t - desde < 300) return;
+      /* el primer scroll solo deja constancia; hace falta un segundo, al menos
+         1,2 s después, para que cuente como una persona leyendo */
+      if(!scrollVisto){ scrollVisto = t; return; }
+      if(t - scrollVisto < 1200) return;
+      marcar('scroll');
+    }
     function onPointer(e){ if(e && e.isTrusted !== false) marcar('pointer'); }
-    function onTouch(){ marcar('touch'); }
-    function onKey(){ marcar('key'); }
+    function onTouch(e){ if(!e || e.isTrusted !== false) marcar('touch'); }
+    function onKey(e){ if(!e || e.isTrusted !== false) marcar('key'); }
     function quitar(){
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('pointermove', onPointer);

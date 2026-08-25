@@ -9909,6 +9909,12 @@ const newsCases = [
        el mismo criterio. Si no, compararíamos personas contra personas+bots y daría
        un derrumbe que no existe. */
     const compararOk = !soloPersonas || prevWin.start >= HUMAN_DESDE;
+    /* Cuántos días cubre de verdad el tramo medido. Se calcula UNA vez y lo usan
+       todas las etiquetas: antes cada una lo redondeaba a su manera y la pantalla
+       decía "último 1 día" arriba y "últimos 2 días" en el gráfico, con los mismos
+       datos. Dos cuentas para lo mismo es una invitación a desconfiar de las dos. */
+    const diasMed = Math.max(1, Math.ceil((rangeEnd() - Math.max(rangeStart(), HUMAN_DESDE)) / 864e5));
+    const diasMedTxt = diasMed === 1 ? 'último día' : 'últimos ' + diasMed + ' días';
     anaAvisoModo(soloPersonas, parcial, hayMedicion, sinTest.length, real.length);
     const entries = real.filter((r) => r.is_entry);
     const sessions = new Set(real.map((r) => r.session_id));
@@ -9927,9 +9933,7 @@ const newsCases = [
     const tablaLeads = (soloPersonas && parcial)
       ? periodLeadsTramo(periodLeads, Math.max(rangeStart(), HUMAN_DESDE))
       : periodLeads;
-    const tramoTxt = (soloPersonas && parcial)
-      ? ' · últimos ' + Math.max(1, Math.round((rangeEnd() - Math.max(rangeStart(), HUMAN_DESDE)) / 864e5)) + ' d'
-      : '';
+    const tramoTxt = (soloPersonas && parcial) ? ' · ' + diasMedTxt : '';
     const setCount = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
     setCount('perf-ch-c', '(' + (soloPersonas ? 'personas' : 'sesiones') + ' → leads' + tramoTxt + ')');
     setCount('perf-ref-c', '(referrers externos' + tramoTxt + ')');
@@ -9941,9 +9945,7 @@ const newsCases = [
        filtrados de `real` según el interruptor. El texto tiene que decir qué se está
        contando, porque "7.158 sesiones" y "78 visitas de personas" miden cosas
        distintas y sin la etiqueta parecería que la web se cayó. */
-    const medidoDesde = Math.max(rangeStart(), HUMAN_DESDE);
-    const diasMed = Math.max(1, Math.round((rangeEnd() - medidoDesde) / 864e5));
-    const sufijo = parcial ? ' · últimos ' + diasMed + (diasMed === 1 ? ' día' : ' días') : '';
+    const sufijo = parcial ? ' · ' + diasMedTxt : '';
     const humanIds = humIds;
     const setL = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
     setL('ka-views', real.length.toLocaleString('de-CH'));
@@ -9995,27 +9997,28 @@ const newsCases = [
        y SOLO si el período entero está medido — con medio período, el numerador
        (leads de 30 días) y el denominador (personas de 1 día) son de escalas
        distintas y el resultado sería igual de falso, para el otro lado. */
+    /* ===== La tasa se calcula sobre el TRAMO MEDIDO, no se esconde =====
+       Antes mostraba "—" y prometía un número "desde el 22/9", cuando el período
+       entero estuviera medido. Es un mes de pantalla vacía por querer la ventana
+       perfecta: si tengo personas de un día, los leads de ESE día también los
+       tengo. Numerador y denominador del mismo tramo, y el rótulo dice cuál es.
+       Lo que no se hace nunca es dividir leads de 30 días por personas de uno. */
     const rateEl = $('ka-rate'), rateL = $('ka-rate-l');
     if (!soloPersonas){
-      /* En modo "todo el tráfico" la tasa se calcula contra sesiones con bots
-         adentro: es un número bajo y diluido, pero es el que devuelven las
-         herramientas externas, así que sirve para comparar. Se dice qué es. */
+      /* En modo "todo el tráfico" la tasa va contra sesiones con bots adentro: es
+         baja y diluida, pero es la que devuelven las herramientas externas. */
       if (rateEl) rateEl.textContent = sessions.size ? (periodLeads.length / sessions.size * 100).toFixed(1) + '%' : '—';
       if (rateL) rateL.textContent = 'De cada 100 sesiones (bots incluidos)';
-    } else if (hayMedicion && !parcial && humanIds.size){
-      if (rateEl) rateEl.textContent = (periodLeads.length / humanIds.size * 100).toFixed(1) + '%';
-      if (rateL) rateL.textContent = 'De cada 100 personas, cuántas dejan datos';
+    } else if (hayMedicion && sessions.size){
+      const leadsTramo = parcial ? tablaLeads.length : periodLeads.length;
+      const pct = leadsTramo / sessions.size * 100;
+      if (rateEl) rateEl.textContent = (pct < 10 ? pct.toFixed(1) : Math.round(pct)) + '%';
+      if (rateL) rateL.textContent = 'De cada 100 personas, cuántas dejan datos' + (parcial ? ' · ' + diasMedTxt : '');
     } else {
       if (rateEl) rateEl.textContent = '—';
-      /* la fecha se calcula, no se escribe a mano: depende del rango elegido
-         (con 90 días la respuesta es otra que con 30) */
-      const listoEl = new Date(HUMAN_DESDE + (rangeEnd() - rangeStart()));
-      if (rateL) rateL.textContent = parcial || !hayMedicion
-        ? 'se puede calcular desde el ' + listoEl.toLocaleDateString('es-CH', { day: '2-digit', month: '2-digit' }) +
-          ', con el período entero medido'
-        : 'sin personas medidas en el período';
-      const rd = $('ka-rate-d'); if (rd) rd.textContent = '';
+      if (rateL) rateL.textContent = 'las personas se miden desde el 24/08';
     }
+    if (!compararOk){ const rd = $('ka-rate-d'); if (rd) rd.textContent = ''; }
     cvpRender();   // conversión real por mes/trimestre/año (no depende del período de arriba)
 
     /* ▲▼ vs el período anterior de igual longitud (pageviews de prevViews, leads por created_at) */
@@ -10044,11 +10047,17 @@ const newsCases = [
     }
 
     /* tráfico + leads por día (anclado al fin de la ventana) */
-    const span = rangeSpanDays();
+    /* Con el filtro de personas puesto, el gráfico se recorta a los días MEDIDOS.
+       Si no, dibujaba 30 días de los que 29 están vacíos por definición: una línea
+       pegada al piso y un pico al final, que se lee como "el tráfico se derrumbó y
+       volvió ayer". No pasó nada de eso — antes del 24/08 no hay medición. */
+    const span = (soloPersonas && parcial) ? Math.min(rangeSpanDays(), diasMed) : rangeSpanDays();
     const anchor = rangeEnd();
-    // el subtítulo dice QUÉ se está contando y si hay contra qué comparar
+    // el subtítulo dice QUÉ se está contando, de cuándo, y si hay contra qué comparar
     const dl = $('daily-label');
-    if (dl) dl.textContent = '(' + (soloPersonas ? 'personas · ' : '') + rangeLabel().toLowerCase() + (compararOk ? ' vs anterior)' : ')');
+    if (dl) dl.textContent = '(' + (soloPersonas
+      ? 'personas · ' + (parcial ? diasMedTxt : rangeLabel().toLowerCase())
+      : rangeLabel().toLowerCase()) + (compararOk ? ' vs anterior)' : ')');
     const spanMs = span * 864e5; // corrimiento para alinear día a día con la ventana previa
     const days = [];
     for (let i = span - 1; i >= 0; i--) {
@@ -10137,8 +10146,15 @@ const newsCases = [
     const refBySess = new Map();
     entries.forEach((e) => {
       if (!e.referrer || !e.session_id || refBySess.has(e.session_id)) return;
-      let h = '';
-      try { h = new URL(e.referrer).hostname.replace(/^www\./, ''); } catch (err) { return; }
+      /* BUG DE SIEMPRE: site.js guarda el HOSTNAME pelado ("google.com"), no la URL
+         entera. new URL("google.com") tira excepción, el catch hacía return, y como
+         eso pasaba con TODAS las filas, este panel estuvo vacío desde que existe.
+         Encontrado el 25 ago 2026 comparando la pantalla contra la base: había 19
+         sesiones de google.com, 1 de linkedin y 1 de chatgpt, y la tabla no mostraba
+         ninguna. Ahora se aceptan las dos formas. */
+      let h = String(e.referrer || '').trim();
+      try { if (/^https?:\/\//i.test(h)) h = new URL(h).hostname; } catch (err) { /* sigue como texto */ }
+      h = h.replace(/^www\./, '').replace(/[/?#].*$/, '').toLowerCase();
       if (!h || h === 'viven.ch' || h.endsWith('.viven.ch')) return; // navegación interna no cuenta
       refBySess.set(e.session_id, h);
     });
