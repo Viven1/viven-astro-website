@@ -14679,7 +14679,7 @@ const newsCases = [
       const since = new Date(Date.now() - 30 * 864e5).toISOString();
       const PAGE = 1000; let all = [], from = 0;
       for (;;) {
-        const { data, error } = await supabase.from('pageviews').select('created_at,path')
+        const { data, error } = await supabase.from('pageviews').select('created_at,path,session_id,duration')
           .gte('created_at', since).like('path', '%/blog/%')
           .order('created_at', { ascending: true }).range(from, from + PAGE - 1);
         if (error) throw error;
@@ -14694,20 +14694,57 @@ const newsCases = [
     bl2ViewsBusy = false;
   }
   // índice: slug → { total, last7, prev7 } + total del canal /blog/
+  /* ===== QUÉ MIDE ESTA COLUMNA =====
+     "¿Estos también cuentan sin bots o siempre con bots?" — contaban TODO. Medido el
+     25 ago: de 1.441 vistas del blog en 30 días, 25 son de una persona confirmada.
+     El 2% suena catastrófico pero está sesgado: la separación de bots se mide desde
+     el 24/08, así que las vistas viejas no son clasificables. Mirando solo desde esa
+     fecha: 114 vistas, 25 de personas — el 22%.
+     Por eso se muestran las DOS cifras. Las visitas (con bots) sirven para comparar
+     un artículo contra otro, porque el sesgo es parejo; las personas son el número
+     real, y crece cada día que pasa.
+     Y el tiempo: MEDIANA, no promedio. En el blog el promedio da 186 s y la mediana
+     10 s — la diferencia son pestañas olvidadas, una llegó al tope de 7.200 s. */
   function bl2Index(){
     const bySlug = new Map(); let total = 0;
     const wk = Date.now() - 7 * 864e5, wk2 = Date.now() - 14 * 864e5;
+    const hum = new Set((humanAct || []).map((x) => x.session_id));
     (bl2Views || []).forEach((v) => {
       total++;
       const m = /\/blog\/([^\/?#]+)/.exec(v.path || ''); if (!m || !m[1]) return;
-      const e = bySlug.get(m[1]) || { total: 0, last7: 0, prev7: 0 };
+      const e = bySlug.get(m[1]) || { total: 0, last7: 0, prev7: 0, personas: new Set(), durs: [] };
       e.total++;
+      if (v.session_id && hum.has(v.session_id)) e.personas.add(v.session_id);
+      if (Number(v.duration) > 0) e.durs.push(Number(v.duration));
       const t = +new Date(v.created_at);
       if (t >= wk) e.last7++; else if (t >= wk2) e.prev7++;
       bySlug.set(m[1], e);
     });
+    /* Leads por artículo: la pregunta de fondo es "¿el blog sirve de algo?", y esto
+       la contesta. Se cuenta por landing_path (entró por ahí) y por sesión (pasó por
+       ahí antes de dejar los datos) — las dos formas, para no subestimar.
+       OJO CON EL LÍMITE: la atribución es por sesión y no hay cookies a propósito.
+       Alguien que lee un artículo hoy y vuelve por Google en dos semanas cuenta como
+       tráfico directo, no como blog. Ese caso existe y este número no lo ve. */
+    const sesConBlog = new Map();
+    (bl2Views || []).forEach((v) => {
+      const m = /\/blog\/([^\/?#]+)/.exec(v.path || '');
+      if (m && m[1] && v.session_id) sesConBlog.set(v.session_id, m[1]);
+    });
+    (allLeads || []).forEach((l) => {
+      if (esCartera(l)) return;
+      const m = /\/blog\/([^\/?#]+)/.exec(l.landing_path || '');
+      const slug = (m && m[1]) || sesConBlog.get(l.session_id);
+      if (!slug) return;
+      const e = bySlug.get(slug); if (e) e.leads = (e.leads || 0) + 1;
+    });
     return { bySlug, total };
   }
+  const bl2Mediana = (arr) => {
+    if (!arr || !arr.length) return null;
+    const o = arr.slice().sort((a, b) => a - b);
+    return o.length % 2 ? o[(o.length - 1) / 2] : Math.round((o[o.length / 2 - 1] + o[o.length / 2]) / 2);
+  };
   // grupos: el cron escribe 3 variantes (EN/DE/ES) con el mismo group_id
   function bl2Groups(){
     const map = new Map();
@@ -17620,7 +17657,12 @@ const newsCases = [
     const hist = bl2CatFilter === 'all' ? histAll : histAll.filter((g) => g.category === bl2CatFilter);
     box.innerHTML = hist.length ?
       '<div class="lead-table-wrap"><table class="lead-table bl2-table"><thead><tr>' +
-      '<th>Artículo</th><th>Idiomas</th><th style="text-align:right">Visitas 30d</th><th style="text-align:right">Tendencia</th><th>Publicado</th><th style="width:38px"></th>' +
+      '<th>Artículo</th><th>Idiomas</th>' +
+      '<th style="text-align:right" title="Incluye tráfico automático — sirve para comparar un artículo contra otro">Visitas 30d 🤖</th>' +
+      '<th style="text-align:right" title="Visitas de una persona confirmada. Se mide desde el 24/08, así que el número es chico por la fecha y crece cada día">Personas</th>' +
+      '<th style="text-align:right" title="Mediana del tiempo en página. Mediana y no promedio: una pestaña olvidada llegó a 7.200 s y se llevaba el promedio a 186 s">Tiempo</th>' +
+      '<th style="text-align:right" title="Leads que entraron por este artículo o que lo vieron antes de dejar sus datos">Leads</th>' +
+      '<th style="text-align:right">Tendencia</th><th>Publicado</th><th style="width:38px"></th>' +
       '</tr></thead><tbody>' +
       hist.map((g) => {
         const v = idx ? bl2GroupViews(g, idx) : null;
@@ -17630,11 +17672,20 @@ const newsCases = [
           : l7 > p7 ? '<span class="bl2-trend up">▲ ' + bl2Fmt(l7) + ' esta semana</span>'
           : l7 < p7 ? '<span class="bl2-trend dn">▼ ' + bl2Fmt(l7) + ' esta semana</span>'
           : '<span class="bl2-trend dn">· ' + bl2Fmt(l7) + '</span>';
+        /* Personas, tiempo y leads se suman de las tres versiones de idioma: el
+           artículo es uno, aunque tenga tres URLs. */
+        let pers = 0, durs = [], leads = 0;
+        if (idx) g.rows.forEach((r) => { const e = idx.bySlug.get(r.slug); if (e){ pers += (e.personas ? e.personas.size : 0); durs = durs.concat(e.durs || []); leads += (e.leads || 0); } });
+        const med = bl2Mediana(durs);
         const openId = (g.rows.find((r) => r.lang === 'en' && r.status === 'published') || g.pub[0] || g.main).id;
         return '<tr data-open="' + esc(openId) + '">' +
           '<td><div class="bl2-t">' + esc(g.main.title || '(sin título)') + '</div><div class="bl2-sub">' + esc((g.pub[0] || g.main).slug || g.main.topic || '') + '</div></td>' +
           '<td style="white-space:nowrap">' + badges(g) + '</td>' +
           '<td class="bl2-num' + (v && idx && v >= idx.total / Math.max(hist.length, 1) ? ' good' : '') + '">' + (idx ? bl2Fmt(v) : '—') + '</td>' +
+          '<td class="bl2-num' + (pers ? ' good' : '') + '">' + (idx ? (pers || '<span class="mut" style="color:var(--muted-2)">—</span>') : '—') + '</td>' +
+          '<td class="bl2-num" style="color:' + (med == null ? 'var(--muted-2)' : med < 20 ? '#ff8b8b' : med < 60 ? '#f0c060' : '#7ed957') + '">' +
+            (med == null ? '—' : med < 60 ? med + 's' : Math.round(med / 60) + 'm ' + (med % 60) + 's') + '</td>' +
+          '<td class="bl2-num" style="color:' + (leads ? '#7ed957' : 'var(--muted-2)') + ';font-weight:' + (leads ? '700' : '400') + '">' + (leads || '0') + '</td>' +
           '<td style="text-align:right">' + trend + '</td>' +
           '<td class="mut" style="color:var(--muted-2);white-space:nowrap">' + fdate(g.pub.length ? Math.max(...g.pub.map((r) => +new Date(r.published_at || 0))) : g.date) + '</td>' +
           '<td><button class="bl2-dots" data-menu="' + esc(g.key) + '" type="button" title="Acciones">⋯</button></td></tr>';
