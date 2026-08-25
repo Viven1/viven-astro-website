@@ -1825,12 +1825,16 @@ const newsCases = [
   #wq-list .wq-det{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   #wq-list .wq-age{opacity:.75;margin-top:2px}
   #wq-list .hm-item{align-items:flex-start}
-  .hm-alive-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:11px 0;border-top:1px solid var(--line)}
+  .hm-alive-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line)}
   .hm-alive-row:first-child{border-top:0}
-  .hm-alive-q{flex:1;min-width:190px}
-  .hm-alive-q b{display:block;font-size:14.5px;font-weight:600}
-  .hm-alive-q small{color:var(--muted);font-size:12.5px}
-  .hm-alive-b{display:flex;gap:7px;flex-wrap:wrap}
+  .hm-alive-q{flex:1;min-width:150px}
+  .hm-alive-q b{display:block;font-size:14px;font-weight:600;line-height:1.25}
+  .hm-alive-q small{color:var(--muted);font-size:12px}
+  /* botones chicos y sin envolverse: en la columna angosta de Hoy, tres botones con
+     el padding normal saltaban a una segunda línea y cada fila ocupaba el doble
+     (medido: 464 px para tres filas) */
+  .hm-alive-b{display:flex;gap:5px;flex-wrap:nowrap}
+  .hm-alive-b .btn{padding:6px 9px;font-size:11.5px;white-space:nowrap}
   /* oportunidades de la web: mismo peso visual que una fila de Para hoy, con la
      acción abajo porque el texto es lo que se lee primero */
   .hm-op-it{border-top:1px solid var(--line);padding:11px 0}
@@ -6220,7 +6224,10 @@ const newsCases = [
       $('sq-note').textContent = '';
       return;
     }
-    list.innerHTML = sqRows.map((o) => {
+    /* Tres, no todos. Medido el 24/08: este panel ocupaba 726 px de los 2.313 de Hoy
+       — el más grande de la pantalla. Los que no entran siguen a un click. */
+    const SQ_VIS = 3;
+    list.innerHTML = sqRows.slice(0, SQ_VIS).map((o) => {
       const l = leadById(o.lead_id) || {};
       const quien = l.name || l.company || l.email || ('lead ' + o.lead_id);
       const cuerpo = String(o.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -6236,7 +6243,12 @@ const newsCases = [
           '<button class="wq-b" data-sq-ed="' + o.id + '" type="button" title="Editar en la Bandeja">✎</button>' +
           '<button class="wq-b" data-sq-no="' + o.id + '" type="button" title="No enviar">✕</button>' +
         '</span></div>';
-    }).join('');
+    }).join('') +
+      (sqRows.length > SQ_VIS
+        ? '<button class="hm-more" id="sq-more" type="button">ver los otros ' + (sqRows.length - SQ_VIS) + ' →</button>'
+        : '');
+    const sqMore = $('sq-more');
+    if (sqMore) sqMore.addEventListener('click', () => gotoTab('leads'));
     $('sq-note').textContent = 'Al aprobar quedan 10 minutos para deshacerlo antes de que salga.';
     list.querySelectorAll('[data-sq-ok]').forEach((b) => b.addEventListener('click', async () => {
       const o = sqRows.find((x) => String(x.id) === b.dataset.sqOk); if (!o) return;
@@ -6317,15 +6329,23 @@ const newsCases = [
         pipeline_abierto_chf: Math.round(k.openVal) },
     };
   }
-  function hmOpRender(list){
+  function hmOpRenderTodas(list){ hmOpRender(list, true); }
+  function hmOpRender(list, todas){
     const body = $('hm-op'); if (!body) return;
     if (!list || !list.length){ body.innerHTML = '<p class="muted-note">Sin oportunidades nuevas hoy.</p>'; return; }
-    body.innerHTML = list.map((o, i) =>
+    /* Dos. Ocupaba 553 px y son ideas, no urgencias: no compiten con lo que hay que
+       hacer hoy. El resto se despliega si querés leerlas. */
+    const OP_VIS = todas ? list.length : 2;
+    const visibles = list.slice(0, OP_VIS);
+    body.innerHTML = visibles.map((o, i) =>
       '<div class="hm-op-it">' +
         '<div class="hm-op-t">' + esc(o.icon || '💡') + ' ' + esc(o.title || '') + '</div>' +
         '<div class="hm-op-d">' + esc(o.detail || '') + '</div>' +
         '<div class="hm-op-a"><button class="btn btn-primary small" data-op="' + i + '" type="button">Aprobar</button></div>' +
-      '</div>').join('');
+      '</div>').join('') +
+      (list.length > OP_VIS ? '<button class="hm-more" id="hm-op-more" type="button">ver las otras ' + (list.length - OP_VIS) + ' →</button>' : '');
+    const opMore = $('hm-op-more');
+    if (opMore) opMore.addEventListener('click', () => { opMore.remove(); hmOpRenderTodas(list); });
     body.querySelectorAll('[data-op]').forEach((b) => b.addEventListener('click', async () => {
       const o = list[+b.dataset.op]; if (!o) return;
       b.disabled = true;
