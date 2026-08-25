@@ -1039,6 +1039,8 @@ const newsCases = [
   /* ---- rediseño tab Google Ads: veredicto, settings, pacing, search terms ---- */
   .warnbox{background:rgba(255,210,127,.08);border:1px solid rgba(255,210,127,.35);border-radius:12px;padding:12px 16px;font-size:13px;color:#ffd27f;margin-bottom:14px}
   :root[data-theme="light"] .warnbox{color:#8a5a00;background:rgba(255,180,60,.12);border-color:rgba(255,180,60,.5)}
+  .gads-stale{margin:10px 0 0;padding:10px 13px;border-radius:11px;font-size:13px;line-height:1.45;
+    background:color-mix(in srgb,#f0c060 12%,transparent);border:1px solid color-mix(in srgb,#f0c060 40%,transparent);color:#f0c060}
   .gads-verdict{background:linear-gradient(135deg,color-mix(in srgb,var(--acid) 12%,transparent),color-mix(in srgb,var(--acid) 5%,transparent));border:1px solid var(--acid);border-radius:12px;padding:12px 16px;font-size:14px;margin:0}
   .gads-settings-pop{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:12px;padding:14px 16px;margin:10px 0;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
   .gads-settings-pop .bf{margin:0;min-width:220px;flex:1}
@@ -2583,6 +2585,10 @@ const newsCases = [
         </div>
 
         <p id="gads-verdict" class="gads-verdict" hidden></p>
+        <!-- Aviso de datos viejos. Ver el comentario de gadsFrescura en el script:
+             el 11 ago 2026 el sync se rompió y el panel siguió mostrando números
+             como si nada, solo que más chicos. -->
+        <p id="gads-stale" class="gads-stale" hidden></p>
 
         <div class="kpis four" style="margin-top:10px">
           <div class="kpi"><div class="n" id="gads-k-spend">–</div><div class="kdelta" id="gads-k-spend-d"></div><div class="l">Gasto</div></div>
@@ -3441,6 +3447,18 @@ const newsCases = [
       <button class="btn btn-ghost small" id="crons-refresh" type="button">↻ Actualizar</button>
     </div>
     <div class="panel"><div id="crons-list"><p class="muted-note">Cargando…</p></div></div>
+
+    <!-- ============ ¿LAS TABLAS SE ESTÁN LLENANDO? ============
+         El panel de arriba pregunta si la TAREA corrió. Este pregunta si DEJÓ ALGO.
+         No es lo mismo, y la diferencia costó dos semanas de datos: ver el comentario
+         del SQL 0141 y el de frescuraCargar más abajo. -->
+    <div class="of-bar" style="margin:26px 0 12px">
+      <div>
+        <h2 style="margin:0">📥 ¿Las tablas se están llenando?</h2>
+        <p class="muted-note" style="margin:2px 0 0">Cuándo entró el último dato en cada tabla. Un cron puede decir “funcionó” y no haber guardado nada — esto mira el resultado, no el intento.</p>
+      </div>
+    </div>
+    <div class="panel"><div id="frescura-list"><p class="muted-note">Cargando…</p></div></div>
     </div>
 
     <!-- ============ USUARIOS ============
@@ -10739,6 +10757,28 @@ const newsCases = [
           const { data: dd } = await supabase.from('ads_daily').select('date,spend,clicks,impressions').gte('date', fromD).order('date');
           dailyRows = dd || [];
         } catch (e) { /* tabla pendiente (SQL 0066) */ }
+        /* ===== ¿Estos números están vivos? =====
+           El 11 ago 2026 Google apagó la versión v21 de su API y el sync empezó a
+           recibir 404. La función seguía devolviendo ok:true (la parte del Sheet sí
+           andaba), el cron seguía diciendo "succeeded", y este panel siguió mostrando
+           gasto, CPL y ROAS — solo que con dos semanas menos de datos. Nadie tenía
+           forma de notarlo mirando la pantalla.
+           Este chequeo no le pregunta al proceso si funcionó: le pregunta al DATO
+           cuándo fue la última vez que se movió. Si no hay nada de ayer ni de hoy,
+           lo dice arriba de los números en vez de dejar que se lean como buenos. */
+        const gadsFrescura = () => {
+          const el = $('gads-stale'); if (!el) return;
+          const ult = dailyRows.length ? dailyRows[dailyRows.length - 1].date : null;
+          if (!ult){ el.hidden = true; return; }
+          const dias = Math.floor((Date.now() - Date.parse(ult + 'T12:00:00Z')) / 864e5);
+          el.hidden = dias <= 1;
+          if (dias > 1){
+            el.textContent = '⚠️ El último dato de Google Ads es del ' +
+              new Date(ult + 'T12:00:00Z').toLocaleDateString('es-CH', { day: '2-digit', month: 'long' }) +
+              ' — hace ' + dias + ' días. Los números de abajo cubren menos tiempo del que dice el período, así que el gasto y el ROAS están subestimados. Se arregla desde Sistema → Crons.';
+          }
+        };
+        gadsFrescura();
         const todayStr = new Date().toISOString().slice(0, 10);
         const curFromStr = new Date(Date.now() - gadsDays * 864e5).toISOString().slice(0, 10);
         const prevFromStr = new Date(Date.now() - gadsDays * 2 * 864e5).toISOString().slice(0, 10);
@@ -15146,8 +15186,55 @@ const newsCases = [
      primero, porque lo que anda no necesita mirarse. */
   let cronsBuilt = false;
   function cronsInit(){
-    if (!cronsBuilt){ cronsBuilt = true; $('crons-refresh').addEventListener('click', cronsCargar); }
+    if (!cronsBuilt){ cronsBuilt = true; $('crons-refresh').addEventListener('click', () => { cronsCargar(); frescuraCargar(); }); }
     cronsCargar();
+    frescuraCargar();
+  }
+
+  /* ---------- 📥 ¿Las tablas se están llenando? (RPC frescura_de_datos, SQL 0141) ----------
+     El panel de crons pregunta si la tarea corrió. El 11 ago 2026 eso no alcanzó:
+     Google apagó la versión v21 de su API, el sync de Ads empezó a recibir 404, y
+     aun así el cron decía "succeeded" todos los días —porque el POST salía bien— y
+     la función devolvía ok:true, porque su otra mitad (el Sheet) sí funcionaba.
+     ads_daily quedó congelada catorce días y el panel de Ads siguió mostrando gasto
+     y ROAS, solo que con menos datos adentro. Nadie tenía cómo notarlo.
+     Esto pregunta otra cosa: cuándo entró la última fila. Es la diferencia entre
+     "¿mandaste la carta?" y "¿llegó?". */
+  async function frescuraCargar(){
+    const box = $('frescura-list'); if (!box) return;
+    box.innerHTML = '<p class="muted-note">Cargando…</p>';
+    try {
+      const { data, error } = await supabase.rpc('frescura_de_datos');
+      if (error) throw error;
+      const filas = Array.isArray(data) ? data : [];
+      if (!filas.length){ box.innerHTML = '<p class="muted-note">Sin datos todavía.</p>'; return; }
+      // lo que está mal, primero: lo que anda no necesita mirarse
+      const orden = { viejo: 0, sin_datos: 1, ok: 2 };
+      filas.sort((a, b) => (orden[a.estado] - orden[b.estado]) || ((b.horas || 0) - (a.horas || 0)));
+      const cuanto = (h) => h == null ? 'nunca'
+        : h < 1 ? 'hace minutos'
+        : h < 48 ? 'hace ' + Math.round(h) + ' h'
+        : 'hace ' + Math.round(h / 24) + ' días';
+      const malas = filas.filter((f) => f.estado === 'viejo').length;
+      box.innerHTML =
+        '<p class="muted-note" style="margin:0 0 12px">' + (malas
+          ? '⚠️ ' + malas + (malas === 1 ? ' tabla dejó de recibir datos.' : ' tablas dejaron de recibir datos.')
+          : '✅ Todo lo que tiene que llenarse se está llenando.') + '</p>' +
+        '<div style="overflow-x:auto"><table class="perf"><thead><tr>' +
+          '<th>Qué</th><th>Último dato</th><th class="num">Se espera cada</th><th></th>' +
+        '</tr></thead><tbody>' +
+        filas.map((f) => {
+          const color = f.estado === 'viejo' ? '#ff8b8b' : f.estado === 'sin_datos' ? 'var(--muted-2)' : '#7ed957';
+          const sello = f.estado === 'viejo' ? '● atrasado' : f.estado === 'sin_datos' ? '○ sin datos' : '● al día';
+          return '<tr><td>' + esc(f.que_es) + '<div class="muted-note" style="font-size:11px">' + esc(f.tabla) + '</div></td>' +
+            '<td>' + cuanto(f.horas) + (f.ultima ? '<div class="muted-note" style="font-size:11px">' +
+              new Date(f.ultima).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</div>' : '') + '</td>' +
+            '<td class="num">' + (f.horas_tolerancia < 48 ? f.horas_tolerancia + ' h' : Math.round(f.horas_tolerancia / 24) + ' d') + '</td>' +
+            '<td style="color:' + color + ';font-weight:700;white-space:nowrap">' + sello + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    } catch (e) {
+      box.innerHTML = '<p class="muted-note">No se pudo cargar (' + esc(e.message || 'error') + ') — ¿corriste el SQL 0141?</p>';
+    }
   }
   /* Cada cuánto corre, en minutos, leído del schedule de pg_cron. Solo lo que
      usamos de verdad: cada N minutos, horario, diario y semanal. Si no se entiende,

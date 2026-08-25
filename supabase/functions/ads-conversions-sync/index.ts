@@ -57,13 +57,28 @@ async function googleToken(): Promise<string> {
 // veces revisa las métricas de ayer/anteayer un rato después de la medianoche.
 // Best-effort total: cualquier fallo (token pendiente, secrets faltantes, etc.)
 // se traga acá y no rompe el sync del Sheet, que es la responsabilidad principal.
-async function syncDailySnapshot(gToken: string): Promise<{ ok: boolean; days?: number; reason?: string }> {
+/* `dias` es la ventana hacia atrás. Por defecto 3 (hoy + 2), porque Google revisa
+   las métricas de ayer y anteayer un rato después de la medianoche. Se puede pedir
+   más desde el body ({"days": 30}) para tapar un agujero: el 25 ago hubo que
+   recuperar del 12 al 22, once días que se perdieron mientras la v21 devolvía 404. */
+async function syncDailySnapshot(gToken: string, dias = 3): Promise<{ ok: boolean; days?: number; rows?: number; reason?: string }> {
   const devToken = Deno.env.get("GOOGLE_ADS_DEV_TOKEN") || "";
   const cid = (Deno.env.get("GOOGLE_ADS_CUSTOMER_ID") || "").replace(/-/g, "");
   const mgr = (Deno.env.get("GOOGLE_ADS_MANAGER_ID") || "").replace(/-/g, "");
   if (!devToken || !cid) return { ok: false, reason: "faltan secrets GOOGLE_ADS_* (Ads API pendiente)" };
-  const ver = Deno.env.get("GOOGLE_ADS_API_VERSION") || "v21";
-  const to = new Date(), from = new Date(Date.now() - 2 * 864e5);
+  /* OJO CON ESTE NÚMERO. Google retira las versiones viejas de la API de Ads sin
+     avisar a la aplicación: el endpoint deja de existir y contesta 404, igual que si
+     hubiera una URL mal escrita. Pasó de verdad: el 11 ago 2026 la v21 se apagó, este
+     sync empezó a devolver "GoogleAds 404" en el snapshot diario, ads_daily se congeló
+     y NADIE se enteró durante dos semanas — porque la función devuelve ok:true (lo del
+     Sheet sí funcionaba) y el panel de Ads simplemente mostraba menos gasto.
+     Comprobado el 25 ago probando las versiones a mano: v17 a v21 dan 404, v22 y v23
+     dan 401 (existen, solo falta la credencial). Si esto vuelve a fallar con 404, el
+     primer sospechoso es este número. Se puede pisar con el secret GOOGLE_ADS_API_VERSION
+     sin tocar el código. */
+  const ver = Deno.env.get("GOOGLE_ADS_API_VERSION") || "v22";
+  const ventana = Math.max(1, Math.min(90, Math.round(dias)));   // el tope es de Google, no nuestro
+  const to = new Date(), from = new Date(Date.now() - (ventana - 1) * 864e5);
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   const query = `
     SELECT campaign.id, campaign.name, segments.date,
@@ -109,7 +124,7 @@ async function syncDailySnapshot(gToken: string): Promise<{ ok: boolean; days?: 
     const { error } = await service.from("ads_daily").upsert(rows, { onConflict: "date,campaign_id" });
     if (error) return { ok: false, reason: "ads_daily: " + error.message };
   }
-  return { ok: true, days: 3 };
+  return { ok: true, days: ventana, rows: rows.length };
 }
 
 Deno.serve(async (req) => {
@@ -183,7 +198,7 @@ Deno.serve(async (req) => {
     // snapshot diario (ads_daily) + estado del sync — best-effort, nunca tumba el
     // resultado principal (el Sheet, arriba, ya se actualizó bien igual).
     let dailyInfo: { ok: boolean; reason?: string } = { ok: false, reason: "no intentado" };
-    try { dailyInfo = await syncDailySnapshot(token); } catch (e) { dailyInfo = { ok: false, reason: String(e) }; }
+    try { dailyInfo = await syncDailySnapshot(token, +body.days || 3); } catch (e) { dailyInfo = { ok: false, reason: String(e) }; }
     try {
       await service.from("ads_settings").upsert({
         id: 1,
