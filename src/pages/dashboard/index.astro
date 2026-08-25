@@ -5557,7 +5557,13 @@ const newsCases = [
     const lost90 = all.filter((d) => { if (stageOf(d.stage) !== 'perdido') return false; const t = Date.parse(d.lost_at || d.last_stage_at || ''); return t && now - t <= 90 * D; }).length;
     const dec90 = won90 + lost90;
     return { openVal: dealsValue(open), openN: open.length, weighted, won30Val: dealsValue(won30), prev30Val: dealsValue(won3060),
-      winRate: dec90 ? Math.round(won90 / dec90 * 100) : null, won90, dec90 };
+      /* Un win rate necesita perdidos. Si nadie marca deals como perdidos —el caso
+         de esta base: 0 perdidos históricos— la cuenta da 100% siempre y no dice
+         nada. Y con dos o tres casos tampoco: un 100% sobre 1 caso parece un logro
+         y es ruido. Se muestra sólo con al menos 5 decididos Y algún perdido; si no,
+         el KPI dice por qué no hay número. (24 ago 2026, tras archivar el import.) */
+      winRate: (dec90 >= 5 && lost90 > 0) ? Math.round(won90 / dec90 * 100) : null,
+      won90, dec90, lost90 };
   }
 
   /* ======= ROAS de Ads: CÁLCULO CANÓNICO ÚNICO (Home + Analytics·Google Ads) =======
@@ -6360,7 +6366,10 @@ const newsCases = [
     $('hm-won30').textContent = fmtChf(k.won30Val);
     setDelta('hm-won30-d', k.won30Val, k.prev30Val);
     $('hm-wr').textContent = k.winRate === null ? '–' : k.winRate + '%';
-    $('hm-wr-t').textContent = k.dec90 ? 'ganado / decidido: ' + k.won90 + '/' + k.dec90 : 'sin decididos en 90 d';
+    $('hm-wr-t').textContent = k.winRate !== null ? 'ganado / decidido: ' + k.won90 + '/' + k.dec90
+      : !k.dec90 ? 'sin decididos en 90 d'
+      : !k.lost90 ? 'no hay deals marcados como perdidos'
+      : 'muy pocos casos (' + k.dec90 + ') para un porcentaje';
     // visitas 30d: con el rango global en 30d uso lastViews/prevViews (ya en memoria); si no, el cache de 60d
     let visCur = null, visPrev = null;
     // El anaCargada NO es decorativo: desde que la carga se parte en dos, Hoy se
