@@ -2985,7 +2985,11 @@ const newsCases = [
 
         <details class="nw-paso" open>
           <summary><span class="nw-paso-n">②</span>Qué decís<em>asunto y contenido</em></summary>
-          <div class="nw-paso-body"><div class="nw-sec-h">Asunto</div>
+          <div class="nw-paso-body"><!-- Una pestaña por idioma. El ✓ dice cuál ya está escrita, para no mandar con el
+               alemán vacío sin darse cuenta: si falta, esa gente recibe la versión en
+               inglés (ver el fallback en newsletter-send) y el preview lo avisa. -->
+          <div class="nw-langtabs" id="nw-langtabs"></div>
+          <div class="nw-sec-h">Asunto</div>
           <input id="nw-subject" class="nw-inp" placeholder="p. ej. Was kostet ein Imagefilm 2026?" />
 
           <div class="nw-sec-h">Redactar <span class="muted-note" style="font-weight:400;text-transform:none;letter-spacing:0">— texto + bloques listos de tu propio material</span></div>
@@ -3015,7 +3019,11 @@ const newsCases = [
 
         <details class="nw-paso" open>
           <summary><span class="nw-paso-n">③</span>Revisar y mandar<em>prueba, programación y envío</em></summary>
-          <div class="nw-paso-body"><div class="nw-sec-h">Programar</div>
+          <div class="nw-paso-body"><!-- Aviso de idiomas mezclados: aparece cuando el segmento tiene más de un idioma
+               y falta alguna versión. Sin esto, mandar a los 33 con solo el inglés escrito
+               hace que 9 personas reciban "Guten Tag" y después texto en inglés. -->
+          <p class="muted-note" id="nw-aviso-lang" style="margin:0 0 12px;padding:10px 13px;border-radius:11px;background:color-mix(in srgb,#f0c060 12%,transparent);border:1px solid color-mix(in srgb,#f0c060 38%,transparent);color:#f0c060" hidden></p>
+          <div class="nw-sec-h">Programar</div>
           <div class="nw-row">
             <select id="nw-sched-mode" class="nw-sel"><option value="now">Enviar ahora</option><option value="at">Programar fecha/hora</option></select>
             <input id="nw-sched-at" class="nw-inp" type="datetime-local" style="flex:1;min-width:200px" hidden />
