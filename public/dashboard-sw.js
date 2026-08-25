@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v31';   // v31: 25 ago 2026 — funnels y lead magnets sin bots
+var CACHE = 'viven-crm-v32';   // v32: 25 ago 2026 — A/B con aviso de bots, Oportunidades se muda a Contenido, demanda por tema honesta
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));

@@ -2218,7 +2218,6 @@ const newsCases = [
            branding, hagamos un lead magnet, o más blogs... tenemos que cubrir
            todo, no solo el CRM". Cada una se puede aprobar y cae en la misma
            cola de arriba. -->
-      <div class="panel hm-card"><h2 style="justify-content:space-between">🌐 Oportunidades de la web <button class="btn btn-ghost small" id="hm-op-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-op"><p class="muted-note">Mirando qué busca la gente…</p></div></div>
     </div>
   </div>
 
@@ -2920,6 +2919,12 @@ const newsCases = [
 
   </div>
     <div id="contenido-sub-seo" hidden>
+      <!-- 🌐 Oportunidades de la web: vivía en Hoy, pero no es algo que se haga hoy —
+           es qué escribir la semana que viene. Sale de las búsquedas de Search
+           Console, así que su lugar natural es acá, al lado de los datos que la
+           generan. (Sebastián, 25 ago: "Hoy sigue lleno de info que no es muy
+           relevante ahí".) -->
+      <div class="panel hm-card" style="margin-bottom:16px"><h2 style="justify-content:space-between">🌐 Oportunidades de la web <button class="btn btn-ghost small" id="hm-op-btn" type="button" title="Regenerar ahora">↻</button></h2><div id="hm-op"><p class="muted-note">Mirando qué busca la gente…</p></div></div>
       <div class="of-bar" style="margin-bottom:14px">
         <div>
           <h2 style="margin:0">Search Console</h2>
@@ -4617,7 +4622,7 @@ const newsCases = [
     document.querySelectorAll('#contenido-seg button').forEach((b) => b.classList.toggle('on', b.dataset.sub === sub));
     if (sub === 'blog') blogInit();
     if (sub === 'news') newsInit();
-    if (sub === 'seo') seoInit();
+    if (sub === 'seo'){ seoInit(); hmOportunidades(false); }   // 🌐 Oportunidades vive acá desde el 25/08
     if (sub === 'magnets') magnetsInit();
     syncTabUrl();
   }
@@ -6114,28 +6119,39 @@ const newsCases = [
        lindo y falso, que es peor que no tener número. */
     const leads30 = (allLeads || []).filter((l) =>
       Date.now() - Date.parse(l.created_at || '') < 30 * 864e5 && !esCartera(l)).length;
-    const personas = dem.reduce((a, d) => a + (+d.personas || 0), 0);
-    const conv = personas ? (leads30 / personas * 100) : 0;
+    /* ===== Ojo con el denominador =====
+       Acá se calculaba "% de visitantes deja lead" como leads de 30 días dividido
+       por las sesiones de 28 — y desde la 0139 esa columna pasó a ser PERSONAS
+       medidas (que arrancan el 24/08). Dividir 30 días de leads por un día de
+       personas daba 46%: el mismo error que Sebastián ya había cazado una vez.
+       La tasa se saca del mismo período o no se saca. Como acá los dos números
+       vienen de ventanas distintas, se muestra lo que cada uno es y listo. */
+    const personasMed = dem.reduce((a, d) => a + (+d.personas || 0), 0);
     const top = dem.slice(0, 5);
+    const topMax = top[0] ? (+top[0].sesiones_28d || 1) : 1;
     box.innerHTML =
       '<p class="muted-note" style="margin:0 0 10px">Sin inversión en Ads cargada — mientras tanto, lo que sí sabemos:</p>' +
       '<div class="hm-ads-grid" style="margin-bottom:12px">' +
-        '<div><b>' + (visitas ? visitas.toLocaleString('de-CH') : '—') + '</b><span>visitas (30 días)</span></div>' +
+        '<div><b>' + (visitas ? visitas.toLocaleString('de-CH') : '—') + '</b><span>visitas 30 d · incluye bots</span></div>' +
         '<div><b>' + leads30 + '</b><span>leads de la web (30 días)</span></div>' +
-        '<div><b>' + conv.toFixed(1) + '%</b><span>de visitantes deja lead</span></div>' +
+        '<div><b>' + (personasMed || '—') + '</b><span>personas confirmadas · desde el 24/08</span></div>' +
         '<div><b>' + dem.length + '</b><span>temas con tráfico</span></div>' +
       '</div>' +
       '<div class="hm-an-list">' + top.map((d) => {
-        const pct = top[0].personas ? Math.round(d.personas / top[0].personas * 100) : 0;
+        const ses = +d.sesiones_28d || 0, per = +d.personas || 0;
+        const pct = Math.round(ses / topMax * 100);
         const seco = +d.leads === 0;
+        /* Un tema con muchísimas sesiones y casi ninguna persona es un imán de
+           bots, no demanda: se marca para que no se lea como interés real. */
+        const bots = ses >= 100 && per <= 1;
         return '<div class="hm-an-row">' +
-          '<span class="hm-an-t">' + esc(d.tema) + '</span>' +
+          '<span class="hm-an-t">' + esc(d.tema) + (bots ? ' <span title="Casi todo tráfico automático">🤖</span>' : '') + '</span>' +
           '<span class="hm-an-bar"><i style="width:' + pct + '%"></i></span>' +
-          '<span class="hm-an-n">' + d.personas + '</span>' +
-          '<span class="hm-an-l' + (seco ? ' seco' : '') + '">' + d.leads + (seco ? ' leads' : (+d.leads === 1 ? ' lead' : ' leads')) + '</span>' +
+          '<span class="hm-an-n">' + ses.toLocaleString('de-CH') + '</span>' +
+          '<span class="hm-an-l' + (seco ? ' seco' : '') + '">' + d.leads + (+d.leads === 1 ? ' lead' : ' leads') + '</span>' +
         '</div>';
       }).join('') + '</div>' +
-      '<p class="muted-note" style="margin:10px 0 0">Personas distintas por tema, 28 días. En naranja, lo que trae gente y no deja nada.</p>';
+      '<p class="muted-note" style="margin:10px 0 0">Sesiones por tema en 28 días (el orden entre temas sirve; el número incluye tráfico automático). 🤖 marca los temas donde casi no hubo gente. En naranja, lo que trae tráfico y no deja nada.</p>';
   }
 
   function hmRenderAds(){
@@ -6364,8 +6380,13 @@ const newsCases = [
     const k = hmDealKpis();
     const posts = (blogsList || []).filter((b) => b.status === 'published');
     return {
-      contexto: 'Viven, productora de video en Zúrich. Estos son los TEMAS que la gente miró en el sitio en 28 días y cuántos leads dejó cada uno. Devolvé 3 oportunidades CONCRETAS de contenido/web para convertir ese tráfico en leads: lead magnets, artículos, cambios en una página, campañas. Nada de CRM ni de seguimiento a clientes puntuales — eso ya está cubierto en otra pantalla. Cada una tiene que citar el número que la justifica y decir qué archivo/página tocar.',
-      demanda_28d: (dem || []).map((d) => ({ tema: d.tema, personas: d.personas, leads: d.leads })),
+      /* Dos números por tema, y hay que decirle a la IA cuál es cuál: `sesiones_28d`
+         incluye tráfico automático (sirve para el orden relativo entre temas) y
+         `personas` son las confirmadas de gente, que se miden desde el 24/08 y por
+         eso son pocas. Sin esta aclaración la IA leía 771 sesiones de "recursos"
+         como demanda real — y ahí hubo 1 sola persona. */
+      contexto: 'Viven, productora de video en Zúrich. Estos son los TEMAS que se miraron en el sitio en 28 días y cuántos leads dejó cada uno. IMPORTANTE: "sesiones_28d" incluye tráfico automático (bots) — sirve solo para comparar temas entre sí, nunca como cantidad de gente. "personas" son visitas humanas confirmadas y se miden recién desde el 24/08, así que el número es chico por la fecha, no por falta de interés. Un tema con muchas sesiones y casi ninguna persona es tráfico de bots, no demanda. Devolvé 3 oportunidades CONCRETAS de contenido/web para convertir ese tráfico en leads: lead magnets, artículos, cambios en una página, campañas. Nada de CRM ni de seguimiento a clientes puntuales — eso ya está cubierto en otra pantalla. Cada una tiene que citar el número que la justifica y decir qué archivo/página tocar.',
+      demanda_28d: (dem || []).map((d) => ({ tema: d.tema, personas: d.personas, sesiones_28d: d.sesiones_28d, leads: d.leads })),
       lead_magnets_existentes: ['social media formats (PDF, EN/DE/ES) — es el único'],
       posts_publicados: posts.length,
       idiomas_del_sitio: ['en', 'de', 'es'],
@@ -6808,7 +6829,9 @@ const newsCases = [
     ppEnsureForHome();
     sqLoad();
     hmAi(false);
-    hmOportunidades(false);
+    /* hmOportunidades ya no se llama desde Hoy: el panel se mudó a Contenido →
+       Search Console y se carga cuando se abre ese sub-tab. Llamarlo acá gastaba una
+       llamada a la IA en cada carga del dashboard para una tarjeta que no está. */
     // tasks abiertas por lead (mismo cache que el board de Deals) — alimenta (c) y (e) de Para hoy
     dlFetchNextTasks([...new Set((dealsList || []).filter((d) => !d.archived && DL_OPEN.includes(stageOf(d.stage))).map((d) => String(d.lead_id)).filter((x) => x && x !== 'undefined' && x !== 'null'))]);
   }
@@ -10817,21 +10840,36 @@ const newsCases = [
     }
     abLoad();
   }
+  /* Sesiones con persona confirmada, para el panel A/B. Se pide acá y no se reusa
+     humanAct porque el tab de A/B puede abrirse antes de que llegue la analítica. */
+  let abHumanas = null;
+  let abExpH = {};
   async function abLoad(){
-    const [tq, hq, lq] = await Promise.all([
+    const [tq, hq, lq, aq] = await Promise.all([
       supabase.from('ab_tests').select('*').order('created_at', { ascending: false }),
       supabase.from('ab_hits').select('test_id,bucket,session_id').limit(50000),
       // columnas extra para la lista clickeable de leads por variante: identidad,
       // etapa y lo que necesita leadScore (channel/gclid/email/phone/message/fechas)
       supabase.from('leads').select('id,ab,status,name,company,email,channel,gclid,phone,message,created_at,videocall_at,proposal_at').not('ab', 'is', null).limit(5000),
+      supabase.from('session_activity').select('session_id').limit(50000),
     ]);
+    abHumanas = (aq && !aq.error) ? new Set((aq.data || []).map((x) => x.session_id)) : null;
     if (tq.error){ $('ab-list').innerHTML = '<p class="muted-note">⚠️ Falta correr el SQL <b>0030</b> en Supabase para activar los A/B tests.</p>'; return; }
     abTests = tq.data || [];
     const hits = (hq && !hq.error && hq.data) || [];
     const abLeads = (lq && !lq.error && lq.data) || [];
     // exposiciones únicas por test/bucket
-    const exp = {};
-    hits.filter((h) => !/^claude-/.test(h.session_id || '')).forEach((h) => { const k = h.test_id + ':' + h.bucket; (exp[k] = exp[k] || new Set()).add(h.session_id || Math.random()); });
+    const exp = {}, expH = {};
+    hits.filter((h) => !/^claude-/.test(h.session_id || '')).forEach((h) => {
+      const k = h.test_id + ':' + h.bucket;
+      (exp[k] = exp[k] || new Set()).add(h.session_id || Math.random());
+      /* Y aparte, las que sabemos de una persona. Medido el 25 ago: el test 2 tenía
+         1.465 exposiciones y solo 32 confirmadas de gente. Un z-test sobre 1.465
+         declara ganador con diferencias mínimas — con esa n, cualquier ruido pasa
+         por significativo. El panel muestra las dos cifras y avisa. */
+      if (abHumanas && abHumanas.has(h.session_id)) (expH[k] = expH[k] || new Set()).add(h.session_id);
+    });
+    abExpH = expH;
     abExp = exp; abLeadsCache = abLeads;
     renderAbList(exp, abLeads);
   }
@@ -10892,7 +10930,8 @@ const newsCases = [
       const la = abLeads.filter((l) => abTagMatch(l, t.id, 'a')).length;
       const lb = abLeads.filter((l) => abTagMatch(l, t.id, 'b')).length;
       const st = abStats(ea, la, eb, lb);
-      return { t, ea, eb, la, lb, eff: abEffStatus(t), ...st };
+      const ha = (abExpH[t.id + ':a'] || new Set()).size, hb = (abExpH[t.id + ':b'] || new Set()).size;
+      return { t, ea, eb, la, lb, ha, hb, eff: abEffStatus(t), ...st };
     });
     const isActive = (r) => ['running', 'stopped', 'draft'].includes(r.eff);
     // primario = test activo con más sesiones; el resto colapsa
@@ -10946,6 +10985,15 @@ const newsCases = [
         '<div class="txt">' + esc(txt) + '</div>' +
         '<div class="nums"><div><b>' + e2 + '</b><span>sesiones</span></div>' + leadsNum(side, l2) + '<div><b>' + (e2 ? (conv * 100).toFixed(1) : '0') + '%</b><span>conv.</span></div></div></div>';
     const leadList = (abLeadsOpen === t.id + ':a' || abLeadsOpen === t.id + ':b') ? abLeadListHtml(t, abLeadsOpen.slice(-1)) : '';
+    /* Aviso de bots: las exposiciones se cuentan al cargar la página, así que un bot
+       queda "expuesto" igual que una persona. Eso no vuelca el test para un lado
+       (los bots caen en A y B por igual), pero infla la n — y la n es lo que decide
+       la significancia. Con 1.465 exposiciones el z-test declara ganador por ruido.
+       Se dice cuántas están confirmadas de gente; del resto, antes del 24/08, no se
+       puede saber. */
+    const humCard = r.ha + r.hb
+      ? '<div class="muted-note" style="margin:6px 0 0">👥 ' + (r.ha + r.hb) + ' de ' + (r.ea + r.eb) + ' exposiciones están confirmadas de personas · el resto puede ser tráfico automático (se mide desde el 24/08)</div>'
+      : '<div class="muted-note" style="margin:6px 0 0">⚠️ Ninguna exposición confirmada de una persona todavía — la separación de bots se mide desde el 24/08, así que estas cifras incluyen tráfico automático.</div>';
     // sub-línea: path · split · día · auto-stop
     const sub = esc(t.url_path) + ' · split ' + (t.split_pct || 50) + '/' + (100 - (t.split_pct || 50)) +
       (day ? ' · día ' + day : '') + (endTxt ? ' · termina ' + endTxt + ' (auto-stop)' : '') + ' · ' + changes.length + ' cambio(s)';
@@ -10977,7 +11025,7 @@ const newsCases = [
       '<div class="ab-vs">' + cell('a', abVariantTxt(changes, 'a'), r.ea, r.la, r.ca) +
         '<div class="ab-vsmid">VS</div>' + cell('b', abVariantTxt(changes, 'b'), r.eb, r.lb, r.cb) + '</div>' +
       leadList +
-      verdict +
+      verdict + humCard +
       '<div class="ab-actions" style="margin-top:12px">' + acts + '</div></div>';
   }
   // lista desplegable de los leads de UNA variante: quiénes son, en qué etapa están
