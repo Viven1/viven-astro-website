@@ -875,6 +875,9 @@ const newsCases = [
   .bl2-lang{display:inline-grid;place-items:center;min-width:27px;height:19px;border-radius:5px;font-size:9px;font-weight:800;margin-right:3px;letter-spacing:.03em;border:1px solid transparent}
   .bl2-lang.pub{background:rgba(126,217,87,.16);color:#7ed957}
   .bl2-lang.dr{background:rgba(138,180,255,.15);color:#8ab4ff}
+  /* publicado pero con cambios sin subir: el punto ámbar arriba a la derecha */
+  .bl2-lang.chg{position:relative}
+  .bl2-lang.chg::after{content:'';position:absolute;top:1px;right:1px;width:5px;height:5px;border-radius:50%;background:#f0c060}
   .bl2-lang.no{background:transparent;border-color:var(--line-strong);color:var(--muted-2);cursor:pointer}
   .bl2-lang.no:hover{border-color:var(--acid);color:var(--acid)}
   .bl2-pend{border:1px solid color-mix(in srgb,#f0c060 35%,var(--line));border-radius:14px;background:var(--navy-800);padding:14px 16px;margin-bottom:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
@@ -17572,7 +17575,16 @@ const newsCases = [
     const badges = (g) => ['en', 'de', 'es'].map((l) => {
       const r = g.rows.find((x) => x.lang === l);
       if (!r) return '<button class="bl2-lang no" data-loc="' + l + '" data-id="' + esc(g.main.id) + '" type="button" title="Generar versión ' + LANGNAME[l] + ' (nativa)">+' + LANGNAME[l] + '</button>';
-      return '<span class="bl2-lang ' + (r.status === 'published' ? 'pub' : 'dr') + '" title="' + LANGNAME[l] + (r.status === 'published' ? ' publicado' : ' borrador') + '">' + LANGNAME[l] + '</span>';
+      /* Tres estados, no dos: publicado · publicado con cambios sin subir ·
+         borrador. El del medio faltaba y era el confuso: propagar o editar un idioma
+         ya publicado cambia el texto en la base pero la web sigue con el viejo hasta
+         re-publicar, y nada lo decía. El puntito lo dice. */
+      const pubCambiado = r.status === 'published' && r.published_at && r.updated_at
+        && Date.parse(r.updated_at) > Date.parse(r.published_at) + 60000;
+      return '<span class="bl2-lang ' + (r.status === 'published' ? 'pub' : 'dr') + (pubCambiado ? ' chg' : '') + '" title="' +
+        LANGNAME[l] + (r.status !== 'published' ? ' — borrador, sin publicar'
+          : pubCambiado ? ' — publicado, pero tiene cambios sin subir a la web' : ' — publicado y al día') +
+        '">' + LANGNAME[l] + '</span>';
     }).join('');
 
     // 1) borradores esperando aprobación — primero y con acciones prominentes
@@ -17884,7 +17896,20 @@ const newsCases = [
            verdad el 25 ago con los tres posts de "Video SEO".
            Ahora: si el hermano ya tiene lo suyo, se respeta; solo se le pasa la del
            master cuando está vacío. */
-        const row = { lang: l, topic: bgCur.topic, slug: data.slug, title: data.title, description: data.description, eyebrow: data.eyebrow, lead: data.lead, body_html: data.body_html, faq: data.faq || [], status: 'draft', group_id: bgCur.group_id };
+        /* status SOLO para los que nacen acá. Antes iba 'draft' siempre, así que
+           propagar sobre un idioma YA PUBLICADO lo devolvía a borrador en la base
+           aunque siguiera al aire en la web. Efecto: la lista mostraba "falta el
+           alemán" con el alemán publicado hace semanas. Comprobado el 25 ago con
+           curl — cuatro artículos daban 200 y figuraban como borrador. Corregidos.
+           (Sebastián: "¿por qué salen así? como si no tuviera todos los idiomas".)
+           Ojo con lo que esto significa: propagar cambia el TEXTO de un idioma ya
+           publicado, pero la web sigue mostrando el viejo hasta que se re-publique.
+           Por eso la lista ahora marca "cambios sin publicar". */
+        const row = { lang: l, topic: bgCur.topic, slug: data.slug, title: data.title, description: data.description, eyebrow: data.eyebrow, lead: data.lead, body_html: data.body_html, faq: data.faq || [], group_id: bgCur.group_id };
+        if (!sib || sib.status !== 'published') row.status = 'draft';
+        /* Y el slug de un idioma publicado NO se toca: cambiarlo deja el artículo
+           viejo colgado en la web y rompe el link que ya está en Google. */
+        else delete row.slug;
         if (!sib || !sib.hero_image) row.hero_image = bgCur.hero_image || null;
         if (!sib || !sib.video_id) row.video_id = bgCur.video_id || null;
         if (sib) { const { error: e2 } = await supabase.from('blogs').update(row).eq('id', sib.id); if (e2 && /column/.test(e2.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').update(row).eq('id', sib.id); } }
