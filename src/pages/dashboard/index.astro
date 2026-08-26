@@ -1639,12 +1639,21 @@ const newsCases = [
     border-left:2px solid var(--acid);background:var(--panel-2);border-radius:0 8px 8px 0;font-style:italic}
   .pb-frase::before{content:'“'}
   .pb-frase::after{content:'”'}
-  .pb-a{border:1px dashed var(--line-strong);border-radius:8px;padding:7px 10px;cursor:text;
-    font-size:13px;line-height:1.45;white-space:pre-wrap;min-height:20px}
-  .pb-a:hover{background:var(--panel-2)}
-  .pb-vacio{color:var(--muted-2)}
-  .pb-q.ok .pb-a{border-style:solid;border-color:var(--line)}
-  .pb-ta{width:100%;border:0;background:transparent;color:inherit;font:inherit;resize:vertical;outline:none}
+  /* Respuestas para tocar: lo que es clasificación se elige, no se escribe. Los mismos
+     chips que en las calculadoras del sitio, en chico. */
+  .pb-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 7px}
+  .pb-chip{appearance:none;font:inherit;font-size:12.5px;line-height:1.25;cursor:pointer;
+    padding:6px 11px;border-radius:999px;border:1px solid var(--line-strong);
+    background:var(--panel);color:var(--text);transition:border-color .12s,background .12s}
+  .pb-chip:hover{border-color:var(--muted)}
+  .pb-chip.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 16%,transparent);color:var(--acid);font-weight:600}
+  .pb-chip:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
+  /* Y el matiz se escribe: el chip clasifica, el texto es lo que se pierde si no está. */
+  .pb-libre{width:100%;border:1px dashed var(--line-strong);border-radius:8px;padding:7px 10px;
+    background:transparent;color:inherit;font:inherit;font-size:13px;line-height:1.45;resize:vertical;outline:none}
+  .pb-libre:focus{border-style:solid;border-color:var(--acid)}
+  .pb-libre::placeholder{color:var(--muted-2)}
+  .pb-q.ok .pb-libre{border-style:solid;border-color:var(--line)}
   .pb-when{font-size:10.5px;color:var(--muted-2);margin-top:4px}
   .pb-pie{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;
     padding-top:12px;border-top:1px solid var(--line)}
@@ -11057,57 +11066,87 @@ const newsCases = [
      `esencial: true` marca lo que hace falta para que la IA pueda escribir una oferta
      que no sea humo. Sin eso, el botón de crear oferta avisa qué falta en vez de
      inventar. */
+  /* Cada pregunta puede tener `op` (respuestas para tocar) y/o `libre` (texto a mano).
+     Sebastián, 26 ago 2026: "lo que es algo sencillo que se pueda preelegir lo hacemos,
+     lo que requiera más info a mano, o una mezcla".
+     La mezcla es lo que más se usa: el chip clasifica —y eso es lo que después puede
+     leer la IA o filtrarse— y el texto guarda el matiz, que es lo que se pierde si solo
+     hay chips. `multi:true` cuando la realidad admite varias a la vez. */
   const PLAYBOOK = [
     { grupo: 'Qué y para qué', nota: 'De acá sale el tipo de video y el objetivo real', qs: [
       { k: 'tipo_video', scope: 'lead', esencial: true, q: '¿Qué tipo de video quieren producir?',
-        why: 'Employer branding · Producto · Imagefilm · Brand awareness · Aumentar ventas · Estrategia de contenido.',
-        frase: 'Y según cuál sea: ¿cuántos empleados buscan? ¿el producto es global o local? ¿la campaña es regional o nacional? ¿aumentar las ventas cuánto? ¿contenido cada cuánto?' },
+        multi: true,
+        op: ['Employer branding', 'Producto', 'Imagefilm', 'Brand awareness', 'Aumentar ventas', 'Estrategia de contenido', 'Evento'],
+        libre: 'Según cuál sea: ¿cuántos empleados? ¿global o local? ¿regional o nacional? ¿vender cuánto más? ¿cada cuánto?',
+        why: 'El chip clasifica; el detalle de al lado es lo que después hace la diferencia en la oferta.' },
       { k: 'objetivo', scope: 'lead', esencial: true, q: '¿Cuál es el objetivo del video?',
-        why: 'Es LA pregunta si no saben qué tipo de video necesitan. Conseguir empleados, vender más, mostrar un producto nuevo, contar la marca, que los conozcan, publicar más seguido.',
-        frase: '¿Qué tiene que pasar después de que salga el video para que digan "valió la pena"?' },
-      { k: 'herramienta_o_moda', scope: 'lead', q: '¿Es una herramienta de marketing para ellos, o lo quieren porque todos tienen uno?',
-        why: 'Esta no se la preguntás a él: la contestás vos. Es la que decide si es buen cliente. El que entiende que el video es una herramienta paga por el resultado; el que lo quiere porque está de moda, regatea por hora.',
-        frase: '(anotá lo que te hizo pensar una cosa o la otra)' },
+        multi: true,
+        op: ['Conseguir empleados', 'Vender más', 'Mostrar un producto nuevo', 'Contar la marca', 'Que los conozcan', 'Publicar más seguido'],
+        libre: '¿Qué tiene que pasar después de que salga para que digan "valió la pena"?',
+        why: 'Es LA pregunta si no saben qué tipo de video necesitan.' },
+      { k: 'herramienta_o_moda', scope: 'lead', q: '¿Es una herramienta para ellos, o lo quieren porque todos tienen uno?',
+        op: ['Lo ven como herramienta', 'Lo quieren porque está de moda', 'Todavía no sé'],
+        libre: '¿Qué te hizo pensar eso?',
+        why: 'Esta no se la preguntás: la contestás vos. Es la que decide si es buen cliente. El que entiende que el video es una herramienta paga por el resultado; el que lo quiere porque está de moda, regatea por hora.' },
     ] },
 
     { grupo: 'Cuánto vale', nota: 'El corazón de la llamada — NO se pregunta el presupuesto', qs: [
       { k: 'como_lo_resuelven_hoy', scope: 'lead', esencial: true, q: '¿Cómo resuelven esto hoy, y cuánto les cuesta?',
+        op: ['Agencia de reclutamiento', 'Pauta / medios pagos', 'Equipo interno', 'Otra productora', 'No lo resuelven'],
+        libre: 'Los números: cuánto pagan, por qué unidad, cada cuánto.',
         why: 'Es la que permite ponerle número al valor. Con reclutamiento: una agencia cobra 15-25% del sueldo anual. Sobre 100.000 al año son 15-25K POR empleado.',
         frase: '¿Cuánto pagarían normalmente a una agencia de reclutamiento por empleado? ¿Cada cuánto tienen que buscar gente?' },
       { k: 'cuanto_vale', scope: 'lead', esencial: true, q: '¿Cuánto vale este video para ustedes?',
+        op: ['Menos de 10K', '10–25K', '25–50K', '50–100K', 'Más de 100K', 'No lo saben todavía'],
+        libre: 'Con sus palabras: cómo llegaron a ese número.',
         why: 'NO es el presupuesto y no se cambia por el presupuesto. Antes de preguntarla, resumí lo que te dijeron y hacé que te lo confirmen.',
         frase: 'Normalmente pagarían X por empleado, una sola vez. Con el video encuentran más de uno y lo pueden usar cada vez que se abra esa posición, sin costo extra. ¿Cuánto vale eso para ustedes?\n\nSi se enoja y pregunta si estás averiguando el presupuesto: "Si quisiera saber el presupuesto se lo habría preguntado. Le pregunté cuánto vale el video para usted."' },
     ] },
 
     { grupo: 'Cuándo', nota: 'Las tres fechas, no una', qs: [
       { k: 'deadline', scope: 'lead', esencial: true, q: '¿Cuál es la fecha límite?',
-        why: 'Una fecha dura cambia el precio y el equipo. Una blanda, no.', frase: '' },
-      { k: 'rodaje', scope: 'lead', q: '¿Ya saben el día de producción?', why: '', frase: '' },
+        op: ['Este mes', 'Este trimestre', 'Este año', 'Sin fecha todavía'],
+        libre: 'La fecha exacta, y si es dura o se puede mover.',
+        why: 'Una fecha dura cambia el precio y el equipo. Una blanda, no.' },
+      { k: 'rodaje', scope: 'lead', q: '¿Ya saben el día de producción?',
+        op: ['Sí, ya está', 'Hay una ventana', 'Todavía no'],
+        libre: 'Qué día o qué ventana.' },
       { k: 'go_live', scope: 'lead', q: '¿Cuándo sale al aire?',
-        why: 'Es la que manda de verdad: la entrega se calcula para atrás desde acá.', frase: '' },
+        op: ['Atado a un evento', 'Atado a un lanzamiento', 'Cuando esté listo'],
+        libre: 'La fecha, y a qué está atada.',
+        why: 'Es la que manda de verdad: la entrega se calcula para atrás desde acá.' },
     ] },
 
     { grupo: 'Quién decide', nota: 'Sin el que firma en la mesa, no hay cierre', qs: [
       { k: 'decide', scope: 'lead', esencial: true, q: '¿Es usted quien decide?',
-        why: 'Se pregunta así, derecho. Si no lo es, hay que saber quién es ANTES de la reunión de cierre — a esa reunión el que decide tiene que estar sí o sí.',
-        frase: '¿Quién más tiene que estar en la próxima reunión para poder decidir?' },
-      { k: 'como_compran', scope: 'company', q: '¿Cómo compran? ¿Hay compras, licitación, tres presupuestos?',
-        why: 'Cambia el formato de la oferta y cuánto tarda. No el precio.', frase: '' },
+        op: ['Sí, decide', 'Decide con otros', 'No, decide otro'],
+        libre: '¿Quién más tiene que estar en la próxima reunión para poder decidir?',
+        why: 'Se pregunta así, derecho. Si no lo es, hay que saber quién es ANTES de la reunión de cierre.' },
+      { k: 'como_compran', scope: 'company', q: '¿Cómo compran?',
+        op: ['Directo', 'Pasa por compras', 'Licitación', 'Piden tres presupuestos', 'No sé'],
+        libre: 'Cuánto tarda ese proceso, si lo sabés.',
+        why: 'Cambia el formato de la oferta y cuánto tarda. No el precio.' },
     ] },
 
     { grupo: 'La empresa', nota: 'Se contesta una vez y vale para todos sus contactos', qs: [
       { k: 'que_hacen', scope: 'company', q: '¿A qué se dedican y a quién le venden?',
-        why: 'Sin esto el video habla de la empresa en vez de hablarle a su cliente.', frase: '' },
-      { k: 'video_antes', scope: 'company', q: '¿Con quién hicieron video antes? ¿Cómo les fue?',
-        why: 'Lo que salió mal la vez pasada es lo que hay que prometer distinto.', frase: '' },
+        libre: 'En dos líneas, como se lo contarías a alguien del equipo.',
+        why: 'Sin esto el video habla de la empresa en vez de hablarle a su cliente.' },
+      { k: 'video_antes', scope: 'company', q: '¿Con quién hicieron video antes?',
+        op: ['Nunca hicieron', 'Con otra productora', 'Con su equipo interno', 'Con nosotros'],
+        libre: '¿Cómo les fue? Lo que salió mal es lo que hay que prometer distinto.' },
     ] },
 
     { grupo: 'Cómo se cierra', nota: 'Lo que dijiste y lo que sigue', qs: [
-      { k: 'si_pide_precio', scope: 'lead', q: '¿Pidió precio en la llamada? ¿Qué le contestaste?',
-        why: 'En la llamada de descubrimiento NO se da precio. La respuesta es que vos hacés el descubrimiento y el precio lo ve el EP / Key Account Manager, que está ocupado.',
+      { k: 'si_pide_precio', scope: 'lead', q: '¿Pidió precio en la llamada?',
+        op: ['No preguntó', 'Preguntó y lo diferí', 'Preguntó e insistió'],
+        libre: '¿Qué le contestaste?',
+        why: 'En la llamada de descubrimiento NO se da precio.',
         frase: 'Lamentablemente no le puedo dar un precio: yo hago la llamada de descubrimiento para ver si somos un buen match. Del precio se encarga el EP, y ahora mismo está ocupado.' },
       { k: 'proximo_paso', scope: 'lead', q: 'Próximo paso concreto y fecha',
-        why: 'Una llamada que termina sin fecha es una llamada que hay que volver a hacer. Se ofrecen DOS horarios, no una agenda abierta: el EP está ocupado, y eso hace que valoren su tiempo.',
+        op: ['Reunión con quien decide', 'Mandar la oferta', 'Volver a llamar', 'Nada por ahora'],
+        libre: 'Cuándo, con fecha.',
+        why: 'Una llamada que termina sin fecha es una llamada que hay que volver a hacer. Se ofrecen DOS horarios, no una agenda abierta.',
         frase: 'El EP miró el proyecto y le interesa reunirse con quien decide. Puede el lunes de 2 a 3 o el miércoles de 5 a 6, ¿cuál les viene mejor?' },
     ] },
   ];
@@ -11164,8 +11203,7 @@ const newsCases = [
                    las palabras: "¿cuánto vale eso para ustedes?" hay que decirlo así,
                    no parecido. */
                 (q.frase ? '<div class="pb-frase">' + esc(q.frase).replace(/\n/g, '<br />') + '</div>' : '') +
-                '<div class="pb-a" data-k="' + q.k + '" title="Clic para escribir la respuesta">' +
-                  (v ? esc(v) : '<span class="pb-vacio">— sin contestar</span>') + '</div>' +
+                pbCuerpo(q, v) +
                 (meta && meta.updated_at ? '<div class="pb-when">contestada hace ' + timeAgo(meta.updated_at) + (q.scope === 'company' ? ' · vale para toda la empresa' : '') + '</div>' : '') +
               '</div>';
             }).join('') + '</div>').join('') +
@@ -11179,8 +11217,100 @@ const newsCases = [
           '</div>' +
         '</div>';
 
-    box.querySelectorAll('.pb-a').forEach((el) => el.addEventListener('click', () => pbEditar(el)));
+    box.querySelectorAll('.pb-chip').forEach((b) => b.addEventListener('click', () => pbTocarChip(b)));
+    box.querySelectorAll('.pb-libre').forEach((ta) => {
+      /* Se guarda al salir del campo, no en cada tecla: escribir tres renglones no son
+         tres renglones de escrituras a la base. */
+      ta.addEventListener('blur', () => pbGuardarDesdeDom(ta.closest('.pb-q')));
+      ta.addEventListener('keydown', (e) => { if (e.key === 'Escape') ta.blur(); });
+    });
     const bo = $('pb-oferta'); if (bo) bo.addEventListener('click', pbCrearOferta);
+  }
+
+  /* ── La respuesta guardada es UN texto, no un objeto ──
+     Se arma como "Chip · Otro chip — el texto libre". Se guarda así, legible, y no como
+     JSON, porque este mismo texto es el que después lee la IA para armar la oferta y el
+     que lee cualquiera del equipo en la ficha. Al volver a abrirlo se reconstruye qué
+     chips estaban tocados comparando contra las opciones de ESA pregunta, así que un
+     texto libre con guiones no rompe nada. */
+  const PB_SEP = ' — ';
+  function pbPartir(q, v){
+    const sel = [], ops = q.op || [];
+    let resto = String(v || '');
+    if (ops.length){
+      const i = resto.indexOf(PB_SEP);
+      const cabeza = i > -1 ? resto.slice(0, i) : resto;
+      const trozos = cabeza.split(' · ').map((x) => x.trim()).filter(Boolean);
+      if (trozos.length && trozos.every((t) => ops.includes(t))){
+        sel.push(...trozos);
+        resto = i > -1 ? resto.slice(i + PB_SEP.length) : '';
+      }
+    }
+    return { sel, txt: resto };
+  }
+  const pbJuntar = (sel, txt) =>
+    [sel.join(' · '), String(txt || '').trim()].filter(Boolean).join(PB_SEP);
+
+  function pbCuerpo(q, v){
+    const { sel, txt } = pbPartir(q, v);
+    const chips = (q.op || []).map((o) =>
+      '<button type="button" class="pb-chip' + (sel.includes(o) ? ' on' : '') + '" data-o="' + esc(o) + '">' + esc(o) + '</button>').join('');
+    return (q.op ? '<div class="pb-chips"' + (q.multi ? ' data-multi' : '') + '>' + chips + '</div>' : '') +
+      (q.libre || !q.op
+        ? '<textarea class="pb-libre" rows="2" placeholder="' + esc(q.libre || 'Lo que dijo, en sus palabras…') + '">' + esc(txt) + '</textarea>'
+        : '');
+  }
+
+  function pbTocarChip(b){
+    const cont = b.parentElement;
+    if (cont.hasAttribute('data-multi')){
+      b.classList.toggle('on');
+    } else {
+      const yaEstaba = b.classList.contains('on');
+      cont.querySelectorAll('.pb-chip').forEach((x) => x.classList.remove('on'));
+      if (!yaEstaba) b.classList.add('on');   // tocarlo de nuevo lo apaga
+    }
+    pbGuardarDesdeDom(b.closest('.pb-q'));
+  }
+
+  /* Lee la fila entera —chips tocados + texto— y la guarda. Una sola función para las
+     dos formas de contestar: si no, chips y texto se pisarían entre ellos. */
+  async function pbGuardarDesdeDom(fila){
+    if (!fila) return;
+    const q = PB_QS.find((x) => x.k === fila.dataset.k); if (!q) return;
+    const sel = [...fila.querySelectorAll('.pb-chip.on')].map((x) => x.dataset.o);
+    const ta = fila.querySelector('.pb-libre');
+    const v = pbJuntar(sel, ta ? ta.value : '');
+    if (v === pbGet(q)) return;                       // nada cambió: no se escribe
+    await pbGuardar(q, v);
+    /* Se refresca el contador y el pie sin redibujar la fila: un re-render acá te saca
+       el cursor del textarea en el que estás escribiendo. */
+    pbRefrescarEstado();
+  }
+
+  function pbRefrescarEstado(){
+    const hechas = PB_QS.filter((q) => pbGet(q)).length;
+    const faltan = PB_QS.filter((q) => q.esencial && !pbGet(q));
+    const listo = !faltan.length;
+    const nb = $('lm2-pb-n');
+    if (nb){ nb.textContent = hechas ? hechas + '/' + PB_QS.length : ''; nb.className = 'pb-badge' + (listo ? ' listo' : ''); }
+    const qn = $('pb-quien');
+    if (qn) qn.innerHTML = '🧭 Playbook <span class="pb-prog"><span style="width:' + Math.round(hechas / PB_QS.length * 100) + '%"></span></span>' +
+      '<span class="pb-n">' + hechas + '/' + PB_QS.length + '</span>';
+    const pie = $('lm2-pb').querySelector('.pb-pie');
+    if (pie){
+      const p1 = pie.querySelector('p');
+      if (p1){
+        p1.style.color = listo ? '' : '#f0c060';
+        p1.textContent = listo ? 'Con esto alcanza para armar una oferta que no sea humo.'
+          : 'Falta lo esencial: ' + faltan.map((q) => q.q.replace(/\?.*$/, '?')).join(' · ');
+      }
+      const bo = $('pb-oferta'); if (bo) bo.disabled = !listo;
+    }
+    $('lm2-pb').querySelectorAll('.pb-q').forEach((f) => {
+      const q = PB_QS.find((x) => x.k === f.dataset.k);
+      if (q) f.classList.toggle('ok', !!pbGet(q));
+    });
   }
 
   function pbAbrir(){
@@ -11189,8 +11319,8 @@ const newsCases = [
     m.hidden = false;
     /* Si nunca se contestó nada, el foco va directo a la primera pregunta: el playbook
        se abre estando por llamar, no para leerlo. */
-    const primera = $('lm2-pb').querySelector('.pb-q:not(.ok) .pb-a');
-    if (primera && !PB_QS.some((q) => pbGet(q))) primera.click();
+    const primera = $('lm2-pb').querySelector('.pb-q:not(.ok) .pb-libre');
+    if (primera && !PB_QS.some((q) => pbGet(q))) primera.focus();
   }
   const pbCerrar = () => { const m = $('pb-modal'); if (m) m.hidden = true; };
   (function pbBind(){
@@ -11206,29 +11336,6 @@ const newsCases = [
       if (e.key === 'Escape' && m && !m.hidden && !(e.target && e.target.classList.contains('pb-ta'))) pbCerrar();
     });
   })();
-
-  function pbEditar(el){
-    if (el.querySelector('textarea')) return;
-    const q = PB_QS.find((x) => x.k === el.dataset.k); if (!q) return;
-    const cur = pbGet(q);
-    const ta = document.createElement('textarea');
-    ta.value = cur; ta.className = 'pb-ta'; ta.rows = 2;
-    ta.placeholder = 'Lo que dijo, en sus palabras…';
-    el.innerHTML = ''; el.appendChild(ta); ta.focus();
-    let cerrado = false;
-    const cerrar = async (guardar) => {
-      if (cerrado) return; cerrado = true;
-      const v = ta.value.trim();
-      if (guardar && v !== cur) await pbGuardar(q, v);
-      pbRender();
-    };
-    ta.addEventListener('blur', () => cerrar(true));
-    ta.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape'){ e.preventDefault(); cerrar(false); }
-      // Enter guarda; Shift+Enter hace un salto de línea, como en el resto del dashboard
-      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }
-    });
-  }
 
   async function pbGuardar(q, v){
     const r = pbLead; if (!r) return;

@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v105';  // v105: 26 ago 2026 — el botón de Playbook abre de verdad
+var CACHE = 'viven-crm-v106';  // v106: 26 ago 2026 — playbook con respuestas para tocar + texto donde hace falta
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));
@@ -86,4 +86,3 @@ self.addEventListener('notificationclick', function (e) {
   }));
 });
 
-/* v105 — publicado el 26 ago 2026 */
