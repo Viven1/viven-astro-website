@@ -2797,6 +2797,17 @@ const newsCases = [
         <div id="pj-bills"></div>
       </div>
 
+      <!-- ⏱ Horas: la otra mitad del margen real. Un proyecto puede cerrar con buen
+           número y haberse comido tres semanas de alguien — sin esto, eso no se ve. -->
+      <div class="panel pj-blq" id="pj-horas-blq" style="margin-top:12px">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">⏱ Horas puestas
+          <span class="muted-note" id="pj-horas-est" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px"></span>
+          <button class="btn btn-ghost small" id="pj-hora-add" type="button" style="margin-left:auto">➕ Anotar horas</button>
+        </h3>
+        <div id="pj-horas-res"></div>
+        <div class="lead-table-wrap" id="pj-horas"></div>
+      </div>
+
       <details class="panel pj-pos" id="pj-pos-det" style="margin-top:12px">
         <summary id="pj-pos-sum"></summary>
         <div class="lead-table-wrap" id="pj-pos"></div>
@@ -4121,6 +4132,9 @@ const newsCases = [
         <div class="bf"><label>Nombre</label><input id="profile-name" /></div>
         <div class="bf"><label>Rol</label><input id="profile-role" placeholder="p. ej. Producer" /></div>
         <div class="bf"><label>Teléfono</label><input id="profile-phone" placeholder="+41 …" /></div>
+        <!-- Sin esto, las horas que anotás en un proyecto entran valuadas en cero: o sea
+             que tu tiempo sale gratis y el margen del proyecto miente para arriba. -->
+        <div class="bf"><label>Costo por hora (CHF) <span class="muted-note" style="font-weight:400">— lo que le cuesta a la empresa, no lo que se factura</span></label><input id="profile-costo" class="js-chf" inputmode="decimal" placeholder="p. ej. 65" /></div>
       </div>
       <div class="bf"><label>Firma (texto libre)</label><textarea id="profile-signature" rows="3" style="width:100%;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:10px" placeholder="p. ej. Sofia Treviño&#10;Producer, Viven AG&#10;+41 …"></textarea></div>
       <p class="muted-note" style="margin:6px 0 4px">Vista previa de la firma:</p>
@@ -16459,7 +16473,7 @@ const newsCases = [
     pjRenderPortal();
     pjRenderDesglose();
     pjPortalLoad();
-    pjCostosLoad().then(pjBillsLoad);
+    pjCostosLoad().then(() => { pjBillsLoad(); pjHorasLoad(); });
 
     // notas
     $('pj-notes').value = p.notes || '';
@@ -16567,6 +16581,105 @@ const newsCases = [
     toast('Este proyecto no tiene oferta ni propuesta atrás — creá una en Ofertas y desde ahí sale la factura');
   }
 
+
+
+  /* ---------- HORAS PUESTAS (SQL 0159) ----------
+     "Ver costos reales de las personas versus el tiempo invertido para ver si lo
+     mantenemos o no" — la otra mitad del margen. Los costos ya se cargan y las facturas
+     los respaldan; esto es cuánto TIEMPO se puso, valuado con el costo por hora de cada
+     persona: una hora de Sebastián y una de un freelance no valen lo mismo. */
+  let pjHoras = [], pjTarifas = {};
+
+  async function pjHorasLoad(){
+    const p = pjCur; if (!p) return;
+    const [h, t] = await Promise.all([
+      supabase.from('project_hours').select('*').eq('project_id', p.id).order('fecha', { ascending: false }),
+      supabase.from('team_profiles').select('email,name,costo_hora'),
+    ]);
+    pjHoras = h.error ? [] : (h.data || []);
+    pjTarifas = {};
+    (t.error ? [] : (t.data || [])).forEach((x) => { pjTarifas[String(x.email || '').toLowerCase()] = x; });
+    pjHorasRender();
+  }
+
+  const pjTarifa = (persona) => Number((pjTarifas[String(persona || '').toLowerCase()] || {}).costo_hora) || 0;
+
+  function pjHorasRender(){
+    const p = pjCur; if (!p) return;
+    const total = pjHoras.reduce((a, h) => a + Number(h.horas), 0);
+    const costo = pjHoras.reduce((a, h) => a + Number(h.horas) * pjTarifa(h.persona), 0);
+    const sinTarifa = pjHoras.filter((h) => !pjTarifa(h.persona));
+    const hSin = sinTarifa.reduce((a, h) => a + Number(h.horas), 0);
+    const quienes = [...new Set(pjHoras.map((h) => h.persona))];
+
+    const est = $('pj-horas-est');
+    if (est) est.textContent = total
+      ? total.toLocaleString('de-CH') + ' h · ' + quienes.length + (quienes.length === 1 ? ' persona' : ' personas')
+      : 'sin anotar';
+
+    /* El margen "de verdad" = vendido − costos cargados − costo del tiempo. Se muestra
+       solo cuando hay horas: sin horas, es el mismo número de arriba con otro nombre. */
+    const vendido = Number(p.amount_chf) || 0;
+    const costoLineas = pjCostos.reduce((a, c) => a + pjCostoTotal(c), 0);
+    const margen = vendido - costoLineas - costo;
+    $('pj-horas-res').innerHTML = !pjHoras.length
+      ? '<p class="muted-note" style="margin:0 0 12px">Sin horas anotadas. Un proyecto puede cerrar con buen margen y haberse comido tres semanas de alguien — esto es lo que lo muestra.</p>'
+      : '<div class="pj-margen-box">' +
+          '<div><span>Tiempo puesto</span><b>' + total.toLocaleString('de-CH') + ' h</b></div>' +
+          '<div><span>Lo que costó ese tiempo</span><b>' + pjCHF(costo) + '</b></div>' +
+          '<div><span>Margen contando el tiempo</span><b style="color:' +
+            (margen < 0 ? '#ff8b8b' : hSin ? '#f0c060' : 'var(--acid)') + '">' + pjCHF(margen) + '</b></div>' +
+        '</div>' +
+        (hSin
+          ? '<p class="muted-note" style="margin:8px 0 12px;color:#f0c060">⚠️ ' + hSin.toLocaleString('de-CH') +
+            ' h de ' + [...new Set(sinTarifa.map((h) => h.persona))].join(', ') +
+            ' sin costo por hora cargado — esas horas están entrando como gratis. Se pone en 👤 Mi perfil.</p>'
+          : '<p class="muted-note" style="margin:8px 0 12px">Todas las horas tienen su costo — este margen es el real.</p>');
+
+    $('pj-horas').innerHTML = !pjHoras.length ? '' :
+      '<table class="lead-table"><thead><tr><th>Fecha</th><th>Quién</th><th>Qué hizo</th><th>Fase</th>' +
+      '<th style="text-align:right">Horas</th><th style="text-align:right">Costo</th><th></th></tr></thead><tbody>' +
+      pjHoras.map((h) => {
+        const tf = pjTarifa(h.persona);
+        const quien = (pjTarifas[String(h.persona || '').toLowerCase()] || {}).name || h.persona;
+        return '<tr><td>' + fmtDMY(h.fecha) + '</td><td>' + esc(quien) + '</td>' +
+          '<td>' + esc(h.tarea || '—') + '</td><td class="muted-note">' + esc(h.fase || '—') + '</td>' +
+          '<td style="text-align:right">' + Number(h.horas).toLocaleString('de-CH') + '</td>' +
+          '<td style="text-align:right">' + (tf ? Math.round(h.horas * tf).toLocaleString('de-CH') : '<span style="color:#f0c060">sin tarifa</span>') + '</td>' +
+          '<td><button class="pj-crew-x" data-hdel="' + h.id + '" type="button">✕</button></td></tr>';
+      }).join('') + '</tbody></table>';
+
+    $('pj-horas').querySelectorAll('[data-hdel]').forEach((b) => b.addEventListener('click', () => pjHoraBorrar(b.dataset.hdel)));
+  }
+
+  async function pjHoraAdd(){
+    const p = pjCur; if (!p) return;
+    /* Se propone quién sos y el crew que ya está armado: escribir el nombre a mano cada
+       vez es la razón por la que nadie anota horas en ningún lado. */
+    const opciones = [...new Set([meEmail, ...(p.crew || []).map((c) => c.nombre).filter(Boolean)])].filter(Boolean);
+    const quien = prompt('¿Quién puso las horas?\n\n' + opciones.map((o, i) => (i + 1) + ') ' + o).join('\n') +
+      '\n\nEscribí el número, o un nombre nuevo.', '1');
+    if (quien === null) return;
+    const persona = /^\d+$/.test(quien.trim()) ? opciones[+quien.trim() - 1] : quien.trim();
+    if (!persona) return;
+    const horas = numCHF(prompt('¿Cuántas horas?', '8') || '');
+    if (!horas){ toast('Sin horas no hay nada que anotar'); return; }
+    const tarea = prompt('¿Qué hizo? (opcional)') || '';
+    const { data, error } = await supabase.from('project_hours').insert({
+      project_id: p.id, persona, horas, tarea: tarea.trim() || null,
+      fecha: new Date().toISOString().slice(0, 10),
+    }).select().single();
+    if (error){ toast(error.message); return; }
+    pjHoras.unshift(data);
+    pjHorasRender();
+    toast('⏱ ' + horas + ' h · ' + persona);
+  }
+  async function pjHoraBorrar(id){
+    const { error } = await supabase.from('project_hours').delete().eq('id', id);
+    if (error){ toast(error.message); return; }
+    pjHoras = pjHoras.filter((x) => String(x.id) !== String(id));
+    pjHorasRender();
+  }
 
   /* ---------- PORTAL DEL CLIENTE: VERSIONES, COMENTARIOS Y EXPORT (SQL 0157) ----------
      Del lado del equipo: qué versión vio, qué comentó y en qué segundo, y de ahí sacar
@@ -17298,6 +17411,7 @@ const newsCases = [
       pjRenderCrew();
       toast('👥 ' + roles.length + ' roles traídos — poneles nombre y guardá');
     });
+    $('pj-hora-add').addEventListener('click', pjHoraAdd);
     $('pj-ver-add').addEventListener('click', pjVerAdd);
     $('pj-file-add').addEventListener('click', () => $('pj-file-input').click());
     $('pj-file-input').addEventListener('change', (e) => { pjFileSubir([...e.target.files]); e.target.value = ''; });
@@ -17621,6 +17735,7 @@ const newsCases = [
     $('profile-name').value = p.name || '';
     $('profile-role').value = p.role || '';
     $('profile-phone').value = p.phone || '';
+    $('profile-costo').value = p.costo_hora != null ? p.costo_hora : '';
     $('profile-signature').value = p.signature_text || '';
     profileAvatarPendingUrl = p.avatar_url || null;
     profileRenderAvatar(p.avatar_url, p.name);
@@ -17634,6 +17749,7 @@ const newsCases = [
     if (!p.avatar_url) falta.push('<b>la foto</b> — los emails que salen a tu nombre muestran solo la inicial');
     if (!p.signature_text) falta.push('<b>la firma</b> — se firma con tu nombre y rol pelados');
     if (!p.phone) falta.push('<b>el teléfono</b> — no aparece en la firma de los emails');
+    if (!p.costo_hora) falta.push('<b>tu costo por hora</b> — sin eso, las horas que anotes en un proyecto entran como gratis y el margen miente para arriba');
     if (!falta.length){ box.hidden = true; return; }
     const enBook = p.book_visible ? ' Y sos vos quien aparece en <b>/book/</b>, así que es la cara que ve el cliente al reservar.' : '';
     box.innerHTML = 'Te falta ' + falta.join('; ') + '.' + enBook;
@@ -17660,6 +17776,7 @@ const newsCases = [
     const patch = {
       email: meEmail, name: $('profile-name').value.trim() || null, role: $('profile-role').value.trim() || null,
       phone: $('profile-phone').value.trim() || null, signature_text: $('profile-signature').value.trim() || null,
+      costo_hora: $('profile-costo').value.trim() ? numCHF($('profile-costo').value) : null,
       avatar_url: profileAvatarPendingUrl || null, updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from('team_profiles').upsert(patch);
