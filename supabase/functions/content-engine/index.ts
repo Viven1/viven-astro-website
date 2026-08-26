@@ -383,12 +383,27 @@ Respond ONLY with valid minified JSON, no markdown fences:
   text = text.replace(/```json|```/g, "").trim();
   const last = text.lastIndexOf("}");
   if (last > -1) text = text.slice(0, last + 1);
-  let p: { title?: string; slug?: string; description?: string; eyebrow?: string; lead?: string; body_html?: string; faq?: unknown[]; linkedin?: string } | null = null;
+  /* El índice de firma permite recorrer los campos de texto por nombre (el arreglo de
+     abajo), que es lo que hace que la regla del ß se aplique a los cuatro sin repetirla
+     cuatro veces. */
+  type Articulo = { title?: string; slug?: string; description?: string; eyebrow?: string;
+                    lead?: string; body_html?: string; faq?: unknown[]; linkedin?: string;
+                    [k: string]: unknown };
+  let p: Articulo | null = null;
   try { p = JSON.parse(text); } catch { p = null; }
-  if (!p || !p.body_html) throw new Error("artículo inválido (" + lang + ")");
+  /* Sin título tampoco sirve: el borrador entraba igual y quedaba en la cola con el
+     título vacío, que es más trabajo que no tenerlo. */
+  if (!p || !p.body_html) throw new Error("artículo inválido (" + lang + ") — vino sin cuerpo");
+  if (!p.title) throw new Error("artículo inválido (" + lang + ") — vino sin título");
   if (lang === "de") { // Schweizer Hochdeutsch: sin ß, siempre ss (garantizado por código, no solo por prompt)
-      for (const k of ["title", "description", "lead", "body_html"]) if (typeof p[k] === "string") p[k] = p[k].replaceAll("ß", "ss");
-      if (Array.isArray(p.faq)) p.faq = p.faq.map((f: { q?: string; a?: string }) => ({ q: String(f.q ?? "").replaceAll("ß", "ss"), a: String(f.a ?? "").replaceAll("ß", "ss") }));
+      for (const k of ["title", "description", "lead", "body_html"]) {
+        const v = p[k];
+        if (typeof v === "string") p[k] = v.replaceAll("ß", "ss");
+      }
+      if (Array.isArray(p.faq)) p.faq = p.faq.map((f) => {
+        const x = (f ?? {}) as { q?: string; a?: string };
+        return { q: String(x.q ?? "").replaceAll("ß", "ss"), a: String(x.a ?? "").replaceAll("ß", "ss") };
+      });
     }
     p.faq = Array.isArray(p.faq) ? p.faq.slice(0, 5) : [];
   p.slug = String(p.slug || topic).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70);
@@ -457,7 +472,7 @@ Deno.serve(async (req) => {
           ins = await service.from("blogs").insert(row).select("id").single();
         }
         if (ins.error) throw new Error("no pude guardar el borrador (" + lg + "): " + ins.error.message);
-        made.push({ lang: lg.toUpperCase(), id: ins.data?.id, title: a.title, lead: a.lead || "", token: ("approve_token" in row) ? token : null, body: a.body_html || "", faq: (a.faq || []) as { q: string; a: string }[], linkedin: String(a.linkedin || ""), slug: a.slug || "" });
+        made.push({ lang: lg.toUpperCase(), id: ins.data?.id, title: a.title || "", lead: a.lead || "", token: ("approve_token" in row) ? token : null, body: a.body_html || "", faq: (a.faq || []) as { q: string; a: string }[], linkedin: String(a.linkedin || ""), slug: a.slug || "" });
       }
     } catch (e) {
       if (!made.length) { await service.from("content_queue").update({ status: "pending" }).eq("id", item.id); throw e; }

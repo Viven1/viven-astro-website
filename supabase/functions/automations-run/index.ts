@@ -298,7 +298,9 @@ Deno.serve(async (req) => {
       } else if (au.trigger === "stage") {
         const col = STAGE_TS[String(cfg.stage)] || "won_at";
         const q = await service.from("leads").select(`id,email,name,first_name,company,lang,status,unsubscribed,${col}`).gte(col, since).not("email", "is", null);
-        cands = q.data ?? [];
+        /* El select se arma en runtime y supabase-js no lo puede tipar; el error ya se
+           mira más abajo. */
+        cands = (q.data ?? []) as unknown as Record<string, unknown>[];
       } else if (au.trigger === "inactivity") {
         const days = Math.max(2, +cfg.days || 7);
         if (cfg.scope === "dormant") {

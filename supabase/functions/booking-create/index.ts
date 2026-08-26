@@ -122,7 +122,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (await rateLimited("booking-create", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
-    const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang = "en", host: hostSpec = "", hutk, page_uri, page_name, gclid } = await req.json();
+    const { name = "", email = "", phone = "", message = "", start = "", dur = 15, lang: langCrudo = "en", host: hostSpec = "", hutk, page_uri, page_name, gclid } = await req.json();
+    /* El idioma llega del cliente como texto libre. Acotarlo UNA vez acá —en vez de
+       repetir el includes() en cada tabla de textos— es lo que hace que buscar un
+       idioma que no existe sea imposible más abajo, y de paso deja de esconder errores
+       de tipos de verdad entre el ruido. */
+    const lang = (["en", "de", "es"].includes(String(langCrudo)) ? String(langCrudo) : "en") as "en" | "de" | "es";
     if (!name.trim() || !/.+@.+\..+/.test(email) || !start) return json({ error: "missing_fields" }, 400);
     // settings del dashboard (booking_settings, SQL 0024) — con defaults si no existe
     let cfg: Record<string, unknown> = { active: true, notice_hours: 4, horizon_days: 28, buffer_min: 0, durations: [15, 30], msg_en: null, msg_de: null, msg_es: null };
@@ -201,7 +206,7 @@ Deno.serve(async (req) => {
     if (busy.length) return json({ error: "slot_taken" }, 409);
 
     // 2) crear el evento con Meet + invitación al cliente (Google manda el email con calendario)
-    const hostLabel = { en: "Your host", de: "Ihr Gastgeber", es: "Tu anfitrión" }[["en", "de", "es"].includes(lang) ? lang : "en"]!;
+    const hostLabel = { en: "Your host", de: "Ihr Gastgeber", es: "Tu anfitrión" }[lang];
     const hostLine = `${hostLabel}: ${host.name}${host.role ? " — " + host.role : ""}`;
     const T = {
       en: { title: "Viven — Intro call with", desc: hostLine + "\n\nLooking forward to talking about your video project!\n\nTo make the most of the call, you can fill in the short project brief beforehand:\n" + briefUrl },

@@ -198,16 +198,38 @@ ${curTitleRaw}\n${curDescRaw}`;
       return json({ error: "La IA no propuso ningún title — no se generó ningún cambio." });
     }
 
-    // reemplazo determinista: mismas claves de idioma que ya tenía el archivo
-    const comoEstaba = (crudo: string, nuevos: Record<string, string>) => {
+    /* Reemplazo determinista: mismas claves de idioma que ya tenía el archivo.
+       parseMeta() puede devolver TRES cosas —un objeto por idioma, un string suelto o
+       null— y acá se usaba el resultado como si siempre fuera un objeto:
+         · null  → Object.keys(null) revienta y la función se cae con un 500 sin motivo.
+         · string → Object.keys("Mi título") devuelve ["0","1","2"…] y el frontmatter
+                    quedaba reescrito como {"0":"M","1":"i",…}. Nada aguas abajo lo
+                    frenaba: la guarda de seguridad compara el CUERPO del archivo, no el
+                    frontmatter.
+       Hoy las 355 páginas tienen el título como objeto, así que no explotó nunca; la
+       rama existe porque alguien previó el caso, y una que no puede pasar hasta que pasa
+       es peor que una que falla claro. Ahora devuelve null y el reemplazo se saltea. */
+    const comoEstaba = (crudo: string, nuevos: Record<string, string>): string | null => {
       const actual = parseMeta(crudo);
+      if (!actual) return null;                       // no se pudo leer: no se toca
+      if (typeof actual === "string") {
+        // el archivo no tiene versiones por idioma: se pone UN valor, no un objeto
+        const uno = nuevos.en ?? Object.values(nuevos)[0];
+        return uno ? JSON.stringify(uno) : null;
+      }
       const salida: Record<string, string> = {};
       for (const k of Object.keys(actual)) salida[k] = nuevos[k] ?? actual[k];
       return JSON.stringify(salida);
     };
     let updated = original;
-    if (curTitleRaw) updated = updated.replace(curTitleRaw, comoEstaba(curTitleRaw, propTitle));
-    if (curDescRaw && propDesc) updated = updated.replace(curDescRaw, comoEstaba(curDescRaw, propDesc));
+    if (curTitleRaw) {
+      const t2 = comoEstaba(curTitleRaw, propTitle);
+      if (t2) updated = updated.replace(curTitleRaw, t2);
+    }
+    if (curDescRaw && propDesc) {
+      const d2 = comoEstaba(curDescRaw, propDesc);
+      if (d2) updated = updated.replace(curDescRaw, d2);
+    }
     if (updated === original) {
       return json({ error: "El reemplazo no cambió nada — el frontmatter no tiene el formato esperado." });
     }

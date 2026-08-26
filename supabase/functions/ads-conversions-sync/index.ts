@@ -156,8 +156,18 @@ Deno.serve(async (req) => {
 
     // todas las conversiones: lead (form) y lead ganado (con valor) — Google Ads
     // ignora duplicados exactos, así que el snapshot completo diario es seguro.
-    let q = await service.from("leads").select("gclid,email,deal_value,status,created_at,won_at,last_stage_at,ads_exclude").not("gclid", "is", null);
-    if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("gclid,email,deal_value,status,created_at,won_at,last_stage_at").not("gclid", "is", null);
+    /* La consulta de respaldo trae una columna menos, así que las dos no tienen el mismo
+       tipo. Se declara la forma de la fila una vez: la red de seguridad se queda (por si
+       la 0036 no corrió en algún entorno) sin que el tipo de la primera consulta obligue
+       a la segunda a mentir. */
+    /* gclid nunca es null acá: la consulta filtra .not("gclid","is",null). created_at es
+       not null en la tabla. El resto sí puede faltar. */
+    type FilaAds = { gclid: string; email?: string; deal_value?: number | null;
+                     status?: string; created_at: string; won_at?: string | null;
+                     last_stage_at?: string | null; ads_exclude?: boolean | null };
+    type RespAds = { data: FilaAds[] | null; error: { message?: string } | null };
+    let q = await service.from("leads").select("gclid,email,deal_value,status,created_at,won_at,last_stage_at,ads_exclude").not("gclid", "is", null) as unknown as RespAds;
+    if (q.error && /column/.test(q.error.message || "")) q = await service.from("leads").select("gclid,email,deal_value,status,created_at,won_at,last_stage_at").not("gclid", "is", null) as unknown as RespAds;
     const { data, error } = q;
     if (error) return json({ error: error.message }, 500);
     // nunca reportar spam/tests: exclusión manual (ads_exclude), emails de prueba y estados descartados

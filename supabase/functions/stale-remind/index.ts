@@ -57,7 +57,11 @@ Deno.serve(async (req) => {
     const src = async (table: string, fields: string[]) => {
       const { data, error: e } = await service.from(table).select("lead_id," + fields.join(",")).limit(10000);
       if (e) return;
-      for (const r of data ?? []) fields.forEach((f) => bump(r.lead_id, (r as Record<string, string | null>)[f]));
+      /* El select se arma en runtime, así que supabase-js no puede tipar `data` y lo
+         deja como su tipo de error. El error YA está manejado arriba: acá solo hace
+         falta decirle a TypeScript qué son estas filas. */
+      const filas = (data ?? []) as unknown as Array<Record<string, string | null>>;
+      for (const r of filas) fields.forEach((f) => bump(r.lead_id, r[f]));
     };
     await src("lead_notes", ["created_at"]);
     await src("lead_tasks", ["created_at", "done_at"]);

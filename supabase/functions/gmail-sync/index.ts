@@ -13,7 +13,8 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const service = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 // fix (auditoría 2026-07-14): invocable sin auth cada 5 min por cualquiera — quema
@@ -132,7 +133,17 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
       const sb = createClient(SB_URL, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
       const { data: { user } } = await sb.auth.getUser();
       permitido = !!user;
-    } catch (e) { permitido = false; }
+    } catch (e) {
+      /* SB_URL no estaba declarado en este archivo, así que esta línea tiraba un
+         ReferenceError… que este mismo catch se tragaba y convertía en permitido=false.
+         Resultado: el botón "⟳ Buscar emails" de la ficha devolvía 403 SIEMPRE, en
+         silencio. El cron seguía andando porque entra por el cron_secret y nunca llega
+         hasta acá — por eso nadie lo notó.
+         El catch se queda (una sesión vencida tiene que dar 403, no 500), pero ahora
+         deja rastro: un fallo acá vuelve a ser invisible si no se loguea. */
+      console.error("GMAIL_SYNC_AUTH_FALLO", String(e));
+      permitido = false;
+    }
   }
   if (!permitido) return new Response("forbidden", { status: 403, headers: cors });
   try {

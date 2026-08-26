@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
           last_sign_in_at: u.last_sign_in_at ?? null,
           confirmed: !!u.email_confirmed_at,
           // banned_until viene del admin API; el tipo público no lo declara
-          disabled: !!(u as Record<string, unknown>).banned_until,
+          // el tipo User de supabase-js no declara banned_until, pero la API sí lo manda
+          disabled: !!(u as unknown as Record<string, unknown>).banned_until,
         })).sort((a, b) => a.email.localeCompare(b.email));
 
         // Los `role: null` son la señal que importa: si el alta pública estuvo
