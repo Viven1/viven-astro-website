@@ -17869,7 +17869,10 @@ const newsCases = [
     const r = pjNotasArchivos(versionId); if (!r) return;
     const lista = r.notas.map((c) => ({ tc: pjTC(c.tc_ms).slice(0, 8), autor: c.author_name || 'Cliente', texto: String(c.body || '') }));
 
-    const cuerpo = { project_id: p.id, to: mail, version: r.v.n, notas: lista, xml: r.xml, edl: r.edl };
+    /* El link del corte va con el pedido: cada minuto del email abre el video en ese
+       segundo. Es lo que reemplaza a las capturas por nota, que no se pueden sacar. */
+    const cuerpo = { project_id: p.id, to: mail, version: r.v.n, notas: lista,
+                     xml: r.xml, edl: r.edl, video_url: r.v.video_url || p.deliverable_url || null };
     let prev;
     try {
       const { data, error } = await supabase.functions.invoke('notas-al-editor', { body: { ...cuerpo, dry_run: true } });
