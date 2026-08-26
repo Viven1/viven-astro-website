@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v81';   // v81: 26 ago 2026 — el día 30 se puede cargar, y los errores de Postgres dejan de salir crudos
+var CACHE = 'viven-crm-v82';   // v82: 26 ago 2026 — los campos de plata entienden 9'531 y dicen qué entendieron
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));

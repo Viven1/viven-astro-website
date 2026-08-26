@@ -1641,6 +1641,7 @@ const newsCases = [
   .pj-bill-sub{font-size:12px;color:var(--muted);margin-top:3px}
   .pj-bill-duda{font-size:12px;color:#f0c060;margin-top:6px;line-height:1.45}
   .pj-bill-acc{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+  .chf-eco{font-size:11.5px;color:var(--muted-2);margin-top:3px;font-variant-numeric:tabular-nums;min-height:14px}
   .pj-margen-box{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
   @media(max-width:600px){.pj-margen-box{grid-template-columns:1fr}}
   .pj-margen-box > div{background:var(--navy-900);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
@@ -3673,7 +3674,7 @@ const newsCases = [
         <div class="bf"><label>Cliente</label><select id="lic-lead"></select></div>
       </div>
       <div class="pp-grid" style="--cols:repeat(3,1fr);gap:10px">
-        <div class="bf"><label>Monto (CHF)</label><input id="lic-amount" type="number" min="0" step="50" /></div>
+        <div class="bf"><label>Monto (CHF)</label><input id="lic-amount" type="text" inputmode="decimal" class="js-chf"  /></div>
         <div class="bf"><label>Inicio</label><input id="lic-start" type="date" /></div>
         <div class="bf"><label>Renovación</label><input id="lic-renewal" type="date" /></div>
       </div>
@@ -3935,7 +3936,7 @@ const newsCases = [
       <h2>➕ Nueva partida</h2>
       <div class="pp-grid" style="--cols:2fr 1fr 1fr 1fr;gap:10px">
         <div class="bf"><label>Descripción</label><input id="cf-entry-desc" placeholder="p. ej. Pago proveedor edición" /></div>
-        <div class="bf"><label>Monto (CHF)</label><input id="cf-entry-amount" type="number" min="0" step="10" /></div>
+        <div class="bf"><label>Monto (CHF)</label><input id="cf-entry-amount" type="text" inputmode="decimal" class="js-chf"  /></div>
         <div class="bf"><label>Fecha</label><input id="cf-entry-date" type="date" /></div>
         <div class="bf"><label>Tipo</label><select id="cf-entry-kind"><option value="expense">Salida</option><option value="income">Entrada</option></select></div>
       </div>
@@ -3956,7 +3957,7 @@ const newsCases = [
       <p class="muted-note" style="margin:0 0 10px">Los costos que se repiten solos: sueldos, alquiler, seguros, software. Sin esto cargado la proyección solo ve las facturas de bexio y siempre da de más. <button class="btn btn-ghost small" id="cf-rec-add" type="button">➕ Agregar</button></p>
       <div class="pp-grid" id="cf-rec-form" hidden style="--cols:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="bf"><label>Descripción</label><input id="cf-rec-desc" placeholder="p. ej. Alquiler oficina" /></div>
-        <div class="bf"><label>Monto (CHF)/período</label><input id="cf-rec-amount" type="number" min="0" step="10" /></div>
+        <div class="bf"><label>Monto (CHF)/período</label><input id="cf-rec-amount" type="text" inputmode="decimal" class="js-chf"  /></div>
         <div class="bf"><label>Frecuencia</label><select id="cf-rec-freq"><option value="monthly">Mensual</option><option value="quarterly">Trimestral</option><option value="yearly">Anual</option></select></div>
         <div class="bf"><label>Día del mes</label><input id="cf-rec-day" type="number" min="1" max="31" value="1" title="Si ponés 30 o 31, en los meses más cortos cae el último día" /></div>
         <div class="bf"><label>Tipo</label><select id="cf-rec-kind"><option value="expense">Salida</option><option value="income">Entrada</option></select></div>
@@ -3972,8 +3973,8 @@ const newsCases = [
       <p class="muted-note" style="margin:0 0 10px">Cuotas fijas con fecha de fin: leasing de cámara, crédito del banco. <button class="btn btn-ghost small" id="cf-loan-add" type="button">➕ Agregar</button></p>
       <div class="pp-grid" id="cf-loan-form" hidden style="--cols:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="bf"><label>Nombre</label><input id="cf-loan-name" placeholder="p. ej. Leasing cámara" /></div>
-        <div class="bf"><label>Principal (CHF)</label><input id="cf-loan-principal" type="number" min="0" step="100" /></div>
-        <div class="bf"><label>Cuota mensual (CHF)</label><input id="cf-loan-payment" type="number" min="0" step="10" /></div>
+        <div class="bf"><label>Principal (CHF)</label><input id="cf-loan-principal" type="text" inputmode="decimal" class="js-chf"  /></div>
+        <div class="bf"><label>Cuota mensual (CHF)</label><input id="cf-loan-payment" type="text" inputmode="decimal" class="js-chf"  /></div>
         <div class="bf"><label>Inicio</label><input id="cf-loan-start" type="date" /></div>
         <div class="bf"><label>Fin</label><input id="cf-loan-end" type="date" /></div>
         <div class="bf"><label>Notas</label><input id="cf-loan-notes" /></div>
@@ -3991,14 +3992,14 @@ const newsCases = [
       <div class="cf-det-body">
       <div class="pp-grid" style="--cols:1fr 1fr;gap:24px">
         <div>
-          <div class="bf"><label>Nuevo saldo bancario (CHF — puede ser negativo)</label><input id="cf-cfg-balance" type="number" step="10" /></div>
+          <div class="bf"><label>Nuevo saldo bancario (CHF — puede ser negativo)</label><input id="cf-cfg-balance" type="text" inputmode="decimal" class="js-chf"  /></div>
           <button class="btn btn-primary small" id="cf-cfg-balance-save" type="button">💾 Guardar saldo</button>
           <p class="muted-note" id="cf-cfg-balance-cap" style="margin-top:8px"></p>
         </div>
         <div>
-          <div class="bf"><label>Umbral mínimo de alerta (CHF)</label><input id="cf-cfg-threshold" type="number" step="500" /></div>
+          <div class="bf"><label>Umbral mínimo de alerta (CHF)</label><input id="cf-cfg-threshold" type="text" inputmode="decimal" class="js-chf"  /></div>
           <button class="btn btn-primary small" id="cf-cfg-threshold-save" type="button">💾 Guardar umbral</button>
-          <div class="bf" style="margin-top:14px"><label>Límite kontokorrent (CHF)</label><input id="cf-cfg-credit" type="number" min="0" step="1000" placeholder="p. ej. 250000" /></div>
+          <div class="bf" style="margin-top:14px"><label>Límite kontokorrent (CHF)</label><input id="cf-cfg-credit" type="text" inputmode="decimal" class="js-chf" placeholder="p. ej. 250000"  /></div>
           <button class="btn btn-primary small" id="cf-cfg-credit-save" type="button">💾 Guardar límite</button>
           <p class="muted-note" style="margin-top:8px">El piso real de liquidez es −límite: el runway cuenta los meses hasta agotar el crédito, no hasta cero.</p>
           <p class="muted-note" style="margin-top:8px">Se avisa por email a sebastian@viven.ch cuando el saldo proyectado cae bajo este valor (cron diario).</p>
@@ -6042,6 +6043,49 @@ const newsCases = [
     if (/Failed to fetch|NetworkError/i.test(m)) return 'Sin conexión con el servidor — probá de nuevo.';
     return m;
   }
+
+  /* ===== "9.531" NO SON NUEVE FRANCOS =====
+     Sebastián cargó los sueldos como 9.531 —nueve mil quinientos treinta y uno, escrito
+     a la europea— y el campo `type=number` lo leyó como 9,531: nueve francos con medio.
+     No dio error, no se vio, y la proyección de liquidez quedó calculando una empresa
+     con CHF 750 de costos fijos al mes. Un input de plata que se come mil francos en
+     silencio es peor que uno que rechaza.
+     Se acepta como se escribe de verdad: 9'531 · 9.531 · 9 531 · 9531 · 9'531.50.
+     Regla para el punto/coma solo: si lo que sigue son EXACTAMENTE tres dígitos es
+     separador de miles (9.531 → 9531); con uno o dos, es decimal (9.5 → 9.5). */
+  function numCHF(v){
+    let t = String(v ?? '').trim().replace(/[\s\u00a0'’´`]/g, '');
+    if (!t) return 0;
+    const neg = /^-/.test(t);
+    t = t.replace(/[^0-9.,]/g, '');
+    const iP = t.lastIndexOf('.'), iC = t.lastIndexOf(',');
+    if (iP >= 0 && iC >= 0){
+      // los dos: el ÚLTIMO manda como decimal, el otro era de miles
+      const dec = Math.max(iP, iC);
+      t = t.slice(0, dec).replace(/[.,]/g, '') + '.' + t.slice(dec + 1);
+    } else if (iP >= 0 || iC >= 0){
+      const i = Math.max(iP, iC), cola = t.length - i - 1;
+      t = cola === 3 ? t.replace(/[.,]/g, '') : t.slice(0, i) + '.' + t.slice(i + 1).replace(/[.,]/g, '');
+    }
+    const n = parseFloat(t);
+    return Number.isFinite(n) ? (neg ? -n : n) : 0;
+  }
+
+  /* Cada campo de plata dice, debajo, el número que entendió. Es la única forma de que
+     "9.531" no se convierta en nueve francos sin que nadie se entere. */
+  function chfEco(inp){
+    let eco = inp.nextElementSibling;
+    if (!eco || !eco.classList || !eco.classList.contains('chf-eco')){
+      eco = document.createElement('div'); eco.className = 'chf-eco';
+      inp.insertAdjacentElement('afterend', eco);
+    }
+    const v = numCHF(inp.value);
+    eco.textContent = inp.value.trim() ? 'CHF ' + v.toLocaleString('de-CH', { maximumFractionDigits: 2 }) : '';
+    eco.style.color = inp.value.trim() && !v ? '#ff8b8b' : '';
+  }
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('js-chf')) chfEco(e.target);
+  });
 
   function toast(msg){
     let t = document.getElementById('dash-toast');
@@ -12832,7 +12876,7 @@ const newsCases = [
     if (!title || !renewal){ toast('Falta título o fecha de renovación'); return; }
     const row = {
       title, lead_id: $('lic-lead').value || null,
-      amount: $('lic-amount').value ? +$('lic-amount').value : null,
+      amount: $('lic-amount').value ? numCHF($('lic-amount').value) : null,
       start_date: $('lic-start').value || null,
       renewal_date: renewal,
       notes: $('lic-notes').value.trim() || null,
@@ -16867,7 +16911,7 @@ const newsCases = [
           '<input class="pj-inp pj-c pj-num" data-f="qty" type="number" step="0.5" value="' + (Number(c.qty) || 0) + '" />' +
           '<input class="pj-inp pj-c pj-unit" data-f="unit" list="pj-units" value="' + esc(c.unit || '') + '" placeholder="unid." title="Tag = día · Std = hora · Fix = precio cerrado" />' +
         '</span></td>' +
-        '<td data-l="Costo por ' + esc(PJ_UNIT_1[String(c.unit || '').toLowerCase()] || (c.unit || 'unidad')) + '" style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="unit_cost" type="number" step="10" value="' + (Number(c.unit_cost) || 0) + '" /></td>' +
+        '<td data-l="Costo por ' + esc(PJ_UNIT_1[String(c.unit || '').toLowerCase()] || (c.unit || 'unidad')) + '" style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="unit_cost" inputmode="decimal" value="' + (Number(c.unit_cost) || 0) + '" /></td>' +
         '<td data-l="Total" style="text-align:right;white-space:nowrap"><b>' + Math.round(pjCostoTotal(c)).toLocaleString('de-CH') + '</b>' +
           (c.unit ? '<small class="pj-uhint">' + esc((Number(c.qty) || 0) + ' ' + (PJ_UNIT_N[String(c.unit).toLowerCase()] || c.unit)) + '</small>' : '') + '</td>' +
         '<td data-l="Pagado" style="text-align:center"><input type="checkbox" class="pj-c" data-f="paid"' + (c.paid ? ' checked' : '') + ' /></td>' +
@@ -16888,7 +16932,9 @@ const newsCases = [
     const id = tr.dataset.c, f = el.dataset.f;
     const c = pjCostos.find((x) => String(x.id) === String(id)); if (!c) return;
     let v = el.type === 'checkbox' ? el.checked : el.value;
-    if (f === 'qty' || f === 'unit_cost') v = Number(v) || 0;
+    /* El costo de una jornada de DoP se escribe "1'100" o "1.100": el mismo parser que
+       el resto de la plata, o vuelve a pasar lo de los sueldos. */
+    if (f === 'qty' || f === 'unit_cost') v = numCHF(v);
     if (c[f] === v) return;
     const { error } = await supabase.from('project_costs').update({ [f]: v }).eq('id', id);
     if (error){ toast('⚠️ ' + error.message); return; }
@@ -17894,7 +17940,15 @@ const newsCases = [
     partes.push('sale <b>' + pjCHF(sale) + '</b>');
     partes.push('<b>' + ents.length + '</b> ' + (ents.length === 1 ? 'partida' : 'partidas')
       + (ents.length ? ' (' + deBexio + ' de bexio, ' + aMano + ' a mano)' : ''));
-    partes.push('<b>' + recAct + '</b> ' + (recAct === 1 ? 'recurrente' : 'recurrentes'));
+    /* Los recurrentes se muestran CON su total mensual. Con "2 recurrentes" a secas,
+       que sumaran CHF 750 al mes para una empresa con oficina y empleada no se veía;
+       con el número puesto, salta. (Era 9.531 mal leído como 9,531.) */
+    const mensualRec = (recs || []).filter((r) => r.active !== false).reduce((a2, r) => {
+      const n = Number(r.amount_chf) || 0;
+      return a2 + (r.frequency === 'yearly' ? n / 12 : r.frequency === 'quarterly' ? n / 3 : n);
+    }, 0);
+    partes.push('<b>' + recAct + '</b> ' + (recAct === 1 ? 'recurrente' : 'recurrentes')
+      + (mensualRec ? ' (' + pjCHF(mensualRec) + '/mes)' : ''));
 
     /* Redactado como "falta cargar X" y no "faltan X": con un solo ítem quedaba
        "todavía falta las salidas", y hacer concordar el verbo con una lista variable es
@@ -18050,7 +18104,7 @@ const newsCases = [
 
   async function cfSaveEntry(){
     const desc = $('cf-entry-desc').value.trim();
-    const amount = +$('cf-entry-amount').value;
+    const amount = numCHF($('cf-entry-amount').value);
     const date = $('cf-entry-date').value;
     const kind = $('cf-entry-kind').value;
     if (!desc || !amount || !date){ toast('Completá descripción, monto y fecha'); return; }
@@ -18072,7 +18126,7 @@ const newsCases = [
   }
   async function cfSaveRec(){
     const desc = $('cf-rec-desc').value.trim();
-    const amount = +$('cf-rec-amount').value;
+    const amount = numCHF($('cf-rec-amount').value);
     if (!desc || !amount){ toast('Completá descripción y monto'); return; }
     const row = { description: desc, amount_chf: amount, frequency: $('cf-rec-freq').value, day_of_month: +$('cf-rec-day').value || 1, kind: $('cf-rec-kind').value };
     let error;
@@ -18111,10 +18165,10 @@ const newsCases = [
   }
   async function cfSaveLoan(){
     const name = $('cf-loan-name').value.trim();
-    const payment = +$('cf-loan-payment').value;
+    const payment = numCHF($('cf-loan-payment').value);
     const start = $('cf-loan-start').value, end = $('cf-loan-end').value;
     if (!name || !payment || !start || !end){ toast('Completá nombre, cuota mensual, inicio y fin'); return; }
-    const row = { name, principal_chf: +$('cf-loan-principal').value || 0, monthly_payment_chf: payment, start_date: start, end_date: end, notes: $('cf-loan-notes').value.trim() || null };
+    const row = { name, principal_chf: numCHF($('cf-loan-principal').value), monthly_payment_chf: payment, start_date: start, end_date: end, notes: $('cf-loan-notes').value.trim() || null };
     let error;
     if (cfLoanEditing){ ({ error } = await supabase.from('cashflow_loans').update(row).eq('id', cfLoanEditing.id)); }
     else { ({ error } = await supabase.from('cashflow_loans').insert(row)); }
@@ -18153,21 +18207,21 @@ const newsCases = [
   }
 
   async function cfSaveBalance(){
-    const v = $('cf-cfg-balance').value === '' ? NaN : +$('cf-cfg-balance').value;
+    const v = $('cf-cfg-balance').value.trim() === '' ? NaN : numCHF($('cf-cfg-balance').value);
     if (Number.isNaN(v)){ toast('Ingresá un saldo'); return; }
     const { error } = await supabase.from('cashflow_bank_balance').insert({ balance_chf: v, as_of_date: new Date().toISOString().slice(0, 10), created_by: meEmail || null });
     if (error){ toast('⚠️ ' + error.message); return; }
     toast('💾 Saldo actualizado'); $('cf-cfg-balance').value = ''; cfLoad();
   }
   async function cfSaveCredit(){
-    const v = $('cf-cfg-credit').value === '' ? NaN : +$('cf-cfg-credit').value;
+    const v = $('cf-cfg-credit').value.trim() === '' ? NaN : numCHF($('cf-cfg-credit').value);
     if (Number.isNaN(v) || v < 0){ toast('Ingresá el límite del kontokorrent'); return; }
     const { error } = await supabase.from('cashflow_alert_settings').update({ credit_limit_chf: v }).eq('id', 1);
     if (error){ toast('⚠️ ' + error.message); return; }
     toast('💾 Límite kontokorrent actualizado'); cfLoad();
   }
   async function cfSaveThreshold(){
-    const v = $('cf-cfg-threshold').value === '' ? NaN : +$('cf-cfg-threshold').value;
+    const v = $('cf-cfg-threshold').value.trim() === '' ? NaN : numCHF($('cf-cfg-threshold').value);
     if (Number.isNaN(v)){ toast('Ingresá un umbral'); return; }
     const { error } = await supabase.from('cashflow_alert_settings').update({ min_balance_threshold_chf: v }).eq('id', 1);
     if (error){ toast('⚠️ ' + error.message); return; }
