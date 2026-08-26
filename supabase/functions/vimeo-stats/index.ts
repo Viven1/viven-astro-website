@@ -34,6 +34,29 @@ Deno.serve(async (req) => {
     if (!token) return json({ pending: true, reason: "falta el secret VIMEO_ACCESS_TOKEN" });
 
     const body = await req.json().catch(() => ({}));
+
+    /* Sondeo: qué puede hacer este token y cómo están configurados los videos.
+       Sirve para contestar sin adivinar si podemos preparar un video de prueba con la
+       privacidad correcta, o si hace falta que alguien la ponga a mano en Vimeo. */
+    if (body.probe) {
+      const ver = await fetch("https://api.vimeo.com/oauth/verify", {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.vimeo.*+json;version=3.4" },
+      });
+      const scopes = ver.ok ? (await ver.json())?.scope ?? null : `error ${ver.status}`;
+      const lst = await fetch("https://api.vimeo.com/me/videos?per_page=8&sort=date&fields=uri,name,privacy,link,embed.html", {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.vimeo.*+json;version=3.4" },
+      });
+      const vids = lst.ok
+        ? ((await lst.json())?.data ?? []).map((v: Record<string, unknown>) => ({
+            id: String(v.uri ?? "").split("/").pop(),
+            nombre: v.name,
+            link: v.link,
+            privacidad: v.privacy,
+          }))
+        : `error ${lst.status}`;
+      return json({ ok: true, scopes, videos: vids });
+    }
+
     const ids: string[] = Array.isArray(body.video_ids) ? body.video_ids.map(String).filter(Boolean).slice(0, 40) : [];
     if (!ids.length) return json({ stats: {} });
 

@@ -1588,6 +1588,8 @@ const newsCases = [
 
   /* El número de proyecto. Monoespaciado y tabular para que dos referencias una debajo
      de la otra se comparen de un vistazo. */
+  .pj-pdfrow{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:0 0 14px;
+    padding-bottom:14px;border-bottom:1px solid var(--line)}
   .pj-ref{display:inline-block;font-variant-numeric:tabular-nums;font-size:.78em;font-weight:700;
     color:var(--acid);background:color-mix(in srgb,var(--acid) 14%,transparent);
     border-radius:7px;padding:2px 8px;vertical-align:middle;letter-spacing:.02em}
@@ -2813,6 +2815,14 @@ const newsCases = [
            (Sebastián, 26 ago 2026.) -->
       <div class="panel crm-form" id="pj-form" hidden>
         <h2 style="margin-top:0">➕ Nuevo proyecto</h2>
+        <!-- Con el PDF de la oferta encima: un trabajo cerrado por email obligaba a
+             tipear el paquete entero a mano, y las posiciones no son decoración — de
+             ahí salen el crew, los costos y el margen real. -->
+        <div class="pj-pdfrow">
+          <input type="file" id="pjf-pdf" accept="application/pdf,image/*" hidden />
+          <button class="btn btn-ghost small" id="pjf-pdf-btn" type="button">📄 Subir la oferta y que la lea</button>
+          <span class="muted-note" id="pjf-pdf-msg"></span>
+        </div>
         <div class="crm-grid">
           <label>Cliente *<select class="ed-inp" id="pjf-lead"></select></label>
           <label>Nombre del proyecto *<input class="ed-inp" id="pjf-title" placeholder="p. ej. Sonova — New Sound Demo 2026" /></label>
@@ -17506,6 +17516,52 @@ const newsCases = [
      persona: una hora de Sebastián y una de un freelance no valen lo mismo. */
   let pjHoras = [], pjTarifas = {};
 
+  /* Leer el PDF de la oferta y llenar el formulario con lo que dice.
+     NO crea nada: llena los campos para que se revise. Un PDF mal leído que ya creó un
+     proyecto es más trabajo que uno que no se leyó. */
+  let pjOfertaItems = null;
+  async function pjLeerOferta(f){
+    if (!f) return;
+    const msg = $('pjf-pdf-msg');
+    if (f.size > 10 * 1024 * 1024){ msg.textContent = '⚠️ Más de 10 MB — probá con el PDF solo'; return; }
+    msg.textContent = '🤖 Leyendo…';
+    try {
+      const b64 = await new Promise((ok, no) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).split(',')[1]);
+        r.onerror = no; r.readAsDataURL(f);
+      });
+      const { data, error } = await supabase.functions.invoke('ai-oferta-leer', { body: { archivo_b64: b64, mime: f.type } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+
+      if (data.titulo) $('pjf-title').value = data.titulo;
+      if (data.total) $('pjf-monto').value = String(data.total);
+      pjOfertaItems = data.items && data.items.length ? data.items : null;
+
+      /* El cliente se busca entre los que ya existen; no se crea uno nuevo desde un PDF.
+         Si no aparece, se dice cuál buscaba en vez de elegir el que se le parezca. */
+      let elegido = null;
+      const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const busca = [data.email, data.contacto, data.cliente].filter(Boolean);
+      for (const q of busca){
+        elegido = (allLeads || []).find((l) =>
+          (data.email && String(l.email || '').toLowerCase() === String(data.email).toLowerCase()) ||
+          (norm(l.name) && norm(l.name) === norm(q)) ||
+          (norm(l.company) && norm(l.company) === norm(q)));
+        if (elegido) break;
+      }
+      if (elegido) $('pjf-lead').value = String(elegido.id);
+
+      const partes = [];
+      partes.push('✅ ' + (data.items ? data.items.length : 0) + ' posiciones · ' + (data.total ? pjCHF(data.total) : 'sin total'));
+      if (!elegido && data.cliente) partes.push('no encontré a «' + data.cliente + '» en Personas: elegilo vos');
+      if (data.confianza === 'baja') partes.push('⚠️ lo leyó con poca confianza');
+      if (data.dudas && data.dudas.length) partes.push('⚠️ ' + data.dudas.join(' · '));
+      msg.innerHTML = esc(partes.join(' · '));
+    } catch (e){ msg.textContent = '⚠️ ' + (e.message || e); }
+  }
+
   /* ═══ PROYECTO DE PRUEBA ═══
      Sebastián, 26 ago 2026: "quiero hacer uno como test para que podamos testear cosas
      — crear proyecto test x1, x2, etc. Para que no vaya a clientes reales."
@@ -17580,6 +17636,9 @@ const newsCases = [
       const { data: pr, error: e2 } = await supabase.from('projects').insert({
         deal_id: deal.id, lead_id: +lid, title: titulo,
         stage: $('pjf-stage').value, started_at: ahora, amount_chf: monto,
+        /* Las posiciones leídas del PDF entran como el paquete del proyecto: es lo mismo
+           que hereda un proyecto nacido de una propuesta aceptada. */
+        items: pjOfertaItems || null,
       }).select().single();
       if (e2){
         /* Si el proyecto falla, el deal suelto queda dando vueltas en el board como una
@@ -17591,6 +17650,7 @@ const newsCases = [
       dealsList.unshift(deal);
       $('pj-form').hidden = true;
       $('pjf-title').value = ''; $('pjf-monto').value = ''; $('pjf-lead').value = '';
+      $('pjf-pdf-msg').textContent = ''; pjOfertaItems = null;
       toast('🎬 Proyecto ' + (pr.ref ? pr.ref + ' ' : '') + 'creado');
       await pjLoad();
       pjOpen(pr.id);
@@ -18897,6 +18957,8 @@ const newsCases = [
     $('pjf-cancel') && $('pjf-cancel').addEventListener('click', () => { $('pj-form').hidden = true; });
     $('pjf-save') && $('pjf-save').addEventListener('click', pjCrearManual);
     $('pj-test') && $('pj-test').addEventListener('click', pjCrearTest);
+    $('pjf-pdf-btn') && $('pjf-pdf-btn').addEventListener('click', () => $('pjf-pdf').click());
+    $('pjf-pdf') && $('pjf-pdf').addEventListener('change', (e) => { pjLeerOferta(e.target.files[0]); e.target.value = ''; });
     $('pj-save').addEventListener('click', () => pjSave());
     pjAutoBind();
     $('pj-crew-auto').addEventListener('click', () => {
