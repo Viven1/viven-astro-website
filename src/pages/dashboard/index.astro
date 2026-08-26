@@ -5481,11 +5481,31 @@ const newsCases = [
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
   // Nurture…), no solo en el que ya tenías cargado en memoria al abrir el dashboard.
-  async function refreshLeadsList(){
+  /* Trae las 204 personas ENTERAS. Es la consulta más cara del dashboard y se disparaba
+     en cada cambio de pestaña, aunque hubieras cambiado hace tres segundos.
+     Con `cache` no vuelve a pedirlas si son recientes — eso es solo para NAVEGAR. Después
+     de crear o editar un contacto se llama sin caché, porque ahí sí cambió algo y mostrar
+     la lista vieja sería un bug, no una optimización. */
+  let leadsAt = 0;
+  const LEADS_FRESCO_MS = 30000;
+
+  async function refreshLeadsList(op){
+    if (op && op.cache && allLeads.length && Date.now() - leadsAt < LEADS_FRESCO_MS) return;
     try {
       // sin .limit(2000): ese techo dejaba contactos afuera en silencio (ver fetchAllRowsFull)
       const { data, error } = await fetchAllRowsFull('leads', '*', 'created_at');
-      if (!error && data) allLeads = data;
+      /* Se filtran las pruebas ACÁ TAMBIÉN. loadAll() las aparta al arrancar, pero esto
+         asignaba la lista cruda: cada cambio de pestaña volvía a meter los leads de
+         prueba en allLeads y los contadores subían solos. La regla vive en la base
+         (email_es_prueba, migración 0162) y toda entrada a memoria tiene que respetarla,
+         no solo la primera.
+         (Sebastián, 26 ago 2026: "los tests que hago… no pueden contar como leads, o me
+         falsifica todos los datos".) */
+      if (!error && data){
+        leadsPrueba = data.filter((l) => l.es_prueba);
+        allLeads = data.filter((l) => !l.es_prueba);
+        leadsAt = Date.now();
+      }
     } catch (e) { /* si falla, seguimos con lo que ya había en memoria */ }
   }
   async function gotoTab(tab){
@@ -5504,16 +5524,29 @@ const newsCases = [
     const sheet = $('mob-sheet'); if (sheet) sheet.hidden = true;
     TABS.forEach((k) => { const el = $('tab-' + k); if (el) el.hidden = k !== tab; });
     window.scrollTo(0, 0);
-    await refreshLeadsList();
+
+    /* Las pestañas que NO dependen de la lista de personas arrancan su carga ACÁ, antes
+       de esperar nada. Antes entrar a Proyectos esperaba a que se refrescara Personas
+       —204 contactos que ese tab no usa— y recién ahí pedía los proyectos: dos viajes en
+       fila para ver algo que solo necesitaba uno. En una conexión lenta eso pasaba los
+       cinco segundos, y hasta hacía fallar el abrir un proyecto por su número.
+       (Sebastián, 26 ago 2026: "que sea más rápido también".) */
+    if (tab === 'projects') pjLoad();
+    if (tab === 'crew') crewLoad();
+    if (tab === 'offers') { offersInit(); proposalsInit(); }
+
+    /* Los que SÍ la usan la esperan: Hoy, Personas, Pipeline y Empresas cuentan y
+       filtran sobre ella, y renderizarlos con la lista vieja muestra números que
+       cambian solos un segundo después. */
+    if (['hoy', 'leads', 'deals', 'companies'].includes(tab)) await refreshLeadsList({ cache: true });
+    else refreshLeadsList({ cache: true });
+
     // la analítica se trae en segunda fase: si entrás a un tab que la usa y todavía
     // no llegó, se pide acá (ver loadAnalytics)
     if (['hoy', 'analytics', 'leads'].includes(tab)) loadAnalytics();
     if (tab === 'hoy') renderHome(); // KPIs + Para hoy/Señales/Agenda-mini/IA viven en Hoy (portada)
     if (tab === 'agenda'){ hmRenderAgenda(); hmRenderCalls(); }
     if (tab === 'companies') renderCompanies();
-    if (tab === 'offers') { offersInit(); proposalsInit(); }
-    if (tab === 'projects') pjLoad();
-    if (tab === 'crew') crewLoad();
     if (tab === 'analytics') anaSetSub(anaSub); // re-aplica el sub-tab guardado y dispara su carga
     if (tab === 'contenido') contenidoSetSub(contenidoSub);
     if (tab === 'sistema') sistemaSetSub(sistemaSub);
@@ -17627,7 +17660,16 @@ const newsCases = [
     .filter((i) => String(i.lead_id || '') === String(p.lead_id || '') && i.lead_id)
     .reduce((a, i) => a + (Number(i.gross) || 0), 0);
 
-  async function pjLoad(){
+  /* La promesa de la carga en curso. Sin esto, quien quiere abrir un proyecto por su
+     número tenía que adivinar cuánto tarda —reintentar cada 250 ms y rendirse a los 5
+     segundos— y en una conexión lenta se rendía antes de que llegara la lista: "No
+     encontré el proyecto 1202" con el proyecto ahí, cargando.
+     (Sebastián, 26 ago 2026.) */
+  let pjLoadP = null;
+
+  function pjLoad(){ pjLoadP = pjLoadReal(); return pjLoadP; }
+
+  async function pjLoadReal(){
     if (!pjBound){ pjBound = true; pjBind(); }
     const [pq, iq] = await Promise.all([
       supabase.from('projects').select('*').eq('archived', false).order('started_at', { ascending: false }),
@@ -24927,14 +24969,26 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
 
   /* El proyecto puede tardar en cargar: se espera a que la lista esté antes de abrirlo,
      en vez de fallar en silencio si el link se abrió con la pestaña recién montada. */
-  function abrirProyectoPorRef(ref, tries){
-    tries = tries || 0;
+  async function abrirProyectoPorRef(ref, tries){
     const buscar = () => (pjList || []).find((x) =>
       String(x.ref || '') === String(ref) || String(x.id) === String(ref));
-    const p = buscar();
-    if (p) { pjOpen(p.id); return; }
-    if (tries > 20) { toast('No encontré el proyecto ' + ref); return; }
-    setTimeout(() => abrirProyectoPorRef(ref, tries + 1), 250);
+    if (buscar()){ pjOpen(buscar().id); return; }
+
+    /* Se espera a la carga DE VERDAD, no a un reloj. Si todavía no arrancó, se dispara. */
+    try { await (pjLoadP || pjLoad()); } catch (e){ }
+    if (buscar()){ pjOpen(buscar().id); return; }
+
+    /* Llegó la lista y no está: o lo archivaron, o el número no existe. Eso ya no es
+       "todavía no cargó" y decirlo así ahorra recargar tres veces a ver si aparece. */
+    const arch = await supabase.from('projects').select('id,ref,title,archived')
+      .or('ref.eq.' + (Number(ref) || 0) + ',id.eq.' + (Number(ref) || 0)).maybeSingle();
+    if (arch && arch.data){
+      toast(arch.data.archived
+        ? 'El proyecto ' + ref + ' está archivado'
+        : 'El proyecto ' + ref + ' existe pero no está en la lista — recargá');
+      return;
+    }
+    toast('No existe ningún proyecto ' + ref);
   }
 
   /* Copiar el link de lo que estás mirando. Se usa desde varias pantallas, así que vive
