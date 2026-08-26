@@ -304,7 +304,21 @@ Deno.serve(async (req) => {
       : bruto * (1 - descuento / 100);
     if (!totalDoc) return json({ error: "el documento no tiene importe" }, 400);
 
-    const titulo = String(doc.title || (tipo === "propuesta" ? "Propuesta" : "Oferta")) .slice(0, 180);
+    /* La referencia del proyecto adelante del título, si el documento ya tiene proyecto.
+       Es el mismo número que lleva la factura de cada freelance: así una factura al
+       cliente y las de su crew se cruzan buscando cuatro dígitos, sin abrir nada.
+       (Sebastián, 26 ago 2026: "ese número es la referencia de ese proyecto y va también
+       en la factura que enviamos a bexio, para los freelance".) */
+    let refProy: number | null = null;
+    if (doc.lead_id) {
+      const { data: prj } = await service.from("projects")
+        .select("ref").eq("lead_id", doc.lead_id).not("ref", "is", null)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      refProy = (prj as { ref?: number } | null)?.ref ?? null;
+    }
+    const titulo = [refProy ? String(refProy) : null,
+                    String(doc.title || (tipo === "propuesta" ? "Propuesta" : "Oferta"))]
+      .filter(Boolean).join(" · ").slice(0, 180);
     const detalle = items.map((it) => `• ${it.name ?? ""} — ${Number(it.qty) || 0} ${it.unit ?? ""} × CHF ${Number(it.price) || 0}`).join("<br />");
 
     /* ===== UNA FACTURA O DOS =====

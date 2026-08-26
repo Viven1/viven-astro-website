@@ -1586,6 +1586,11 @@ const newsCases = [
   .pj-fechas{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .pj-inp:focus{outline:none;border-color:var(--acid)}
 
+  /* El número de proyecto. Monoespaciado y tabular para que dos referencias una debajo
+     de la otra se comparen de un vistazo. */
+  .pj-ref{display:inline-block;font-variant-numeric:tabular-nums;font-size:.78em;font-weight:700;
+    color:var(--acid);background:color-mix(in srgb,var(--acid) 14%,transparent);
+    border-radius:7px;padding:2px 8px;vertical-align:middle;letter-spacing:.02em}
   .pj-crew{display:grid;gap:6px}
   .pj-crew-row{display:grid;grid-template-columns:minmax(0,105px) minmax(0,1fr) auto;gap:7px;align-items:center}
   @media(max-width:600px){.pj-crew-row{grid-template-columns:minmax(0,1fr) auto}
@@ -4588,6 +4593,10 @@ const newsCases = [
 
   <!-- Navegación inferior estilo app (solo móvil) -->
   <div class="mob-sheet" id="mob-sheet" hidden>
+    <!-- Proyectos faltaba acá: se agregó al sidebar de escritorio y no a este menú, así
+         que desde el iPhone no había forma de llegar. (Sebastián, 26 ago 2026: "el
+         iphone no tiene proyectos en el menú".) Va primero porque es de todos los días. -->
+    <button data-tab="projects" type="button">🎬 Proyectos</button>
     <button data-tab="auto" type="button">📤 Bandeja <span class="pill js-ob-count" hidden></span></button>
     <button data-tab="deals" type="button">🤝 Pipeline</button>
     <button data-tab="companies" type="button">🏢 Empresas</button>
@@ -17228,7 +17237,7 @@ const newsCases = [
       if (p.delivery_due && p.delivery_due < hoy && p.stage !== 'entregado') avisos.push('la entrega venció el ' + fmtDMY(p.delivery_due));
       if (p.stage === 'entregado' && falta > 0) avisos.push('entregado y todavía falta facturar ' + pjCHF(falta));
       return '<button type="button" class="pj-fila" data-pj="' + p.id + '">' +
-        '<span class="tit">' + esc(p.title || 'Proyecto') +
+        '<span class="tit">' + (p.ref ? '<span class="pj-ref">' + esc(String(p.ref)) + '</span> ' : '') + esc(p.title || 'Proyecto') +
           '<small>' + esc([l.company, l.name].filter(Boolean).join(' · ') || (l.email || '')) +
           (p.started_at ? ' · ganado ' + fmtDMY(p.started_at) : '') + '</small></span>' +
         '<span class="pj-chip" style="color:' + e.color + '">' + esc(e.l) + '</span>' +
@@ -17253,7 +17262,11 @@ const newsCases = [
     const l = leadById(p.lead_id) || {};
     const monto = Number(p.amount_chf) || 0, fact = pjFacturado(p), falta = Math.max(0, monto - fact);
 
-    $('pj-title').textContent = p.title || 'Proyecto';
+    /* La referencia adelante del título: es el número que se dice por teléfono, el que
+       va en la factura al cliente y en la de cada freelance. Si vive escondido en una
+       ficha no lo usa nadie. */
+    $('pj-title').innerHTML = (p.ref ? '<span class="pj-ref" title="Referencia del proyecto — va en las facturas">' + esc(String(p.ref)) + '</span> ' : '') +
+      esc(p.title || 'Proyecto');
     $('pj-sub').textContent = [l.company, l.name].filter(Boolean).join(' · ')
       + (p.started_at ? ' · ganado el ' + fmtDMY(p.started_at) + (pjDias(p.started_at) != null ? ', hace ' + pjDias(p.started_at) + ' días' : '') : '');
     $('pj-monto').textContent = monto ? pjCHF(monto) : '—';

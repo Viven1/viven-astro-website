@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     if (!bill_id) return json({ error: "falta bill_id" }, 400);
 
     const admin = createClient(SB_URL, SERVICE);
-    const { data: f } = await admin.from("project_bills").select("*, projects(title)").eq("id", bill_id).maybeSingle();
+    const { data: f } = await admin.from("project_bills").select("*, projects(title,ref)").eq("id", bill_id).maybeSingle();
     if (!f) return json({ error: "factura no encontrada" }, 404);
     if (f.bexio_id) return json({ error: "esta factura ya está en bexio", bexio_no: f.bexio_no }, 409);
     if (!f.gross) return json({ error: "la factura no tiene importe — revisá los datos antes de mandarla" }, 400);
@@ -189,7 +189,11 @@ Deno.serve(async (req) => {
       supplier_id: provId,
       contact_partner_id: provId,
       vendor_ref: f.vendor_ref || null,
-      title: ([f.projects?.title, f.extracted?.concepto].filter(Boolean).join(" — ") || "Factura de proveedor").slice(0, 100) + avisoMoneda,
+      /* La referencia del proyecto ADELANTE del título. Es el número que el freelance
+         pone en su factura y el que se busca en bexio cuando alguien pregunta "¿esto de
+         qué proyecto era?". Escondido en un campo que nadie mira no sirve. */
+      title: ([f.projects?.ref ? String(f.projects.ref) : null, f.projects?.title, f.extracted?.concepto]
+        .filter(Boolean).join(" · ") || "Factura de proveedor").slice(0, 100) + avisoMoneda,
       /* La moneda tiene que EXISTIR en bexio: mandar una que no está dada de alta hace
          que rechace la factura entera con un mensaje que no la nombra. Si no la
          reconoce, se manda en CHF y el aviso queda en el título, para que se corrija a
