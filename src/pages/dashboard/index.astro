@@ -5110,12 +5110,19 @@ const newsCases = [
     supabase.functions.invoke = async function(nombre, opts){
       const r = await orig(nombre, opts);
       const ctx = r && r.error && r.error.context;
-      if (ctx && typeof ctx.json === 'function'){
-        try {
-          const j = await ctx.clone().json();
-          const real = j && (j.error || j.message);
-          if (real) r.error.message = String(real);
-        } catch (e){ /* el cuerpo no era JSON: queda el mensaje genérico */ }
+      if (ctx){
+        /* Tres intentos, porque `context` llega en distintos estados según la versión de
+           supabase-js: a veces es una Response entera, a veces ya consumida (y entonces
+           clone() tira), a veces trae el cuerpo ya parseado. Con uno solo, el error real
+           se perdía y en pantalla quedaba "Edge Function returned a non-2xx status code",
+           que no le dice a nadie qué pasó. */
+        let real = null;
+        try { if (typeof ctx.clone === 'function') real = (await ctx.clone().json()).error; } catch (e){ }
+        if (!real){ try { if (typeof ctx.text === 'function') real = JSON.parse(await ctx.text()).error; } catch (e){ } }
+        if (!real && ctx.body && typeof ctx.body === 'object') real = ctx.body.error || null;
+        if (!real && typeof ctx === 'object' && ctx.error) real = ctx.error;
+        if (real) r.error.message = String(real);
+        else if (ctx.status) r.error.message = 'El servidor contestó ' + ctx.status + ' y no dijo por qué. Mirá los logs de la función.';
       }
       return r;
     };
@@ -18802,7 +18809,12 @@ const newsCases = [
       } });
       if (error) throw new Error(error.message);
       if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
-      nota.textContent = '';
+      /* Con qué material trabajó, a la vista. Un guión escrito solo con el título del
+         proyecto y un guión escrito con el brief del cliente se leen igual de bien y no
+         valen lo mismo; sin decirlo, la única forma de notarlo es leerlo entero. */
+      nota.textContent = (data.fuentes || []).length
+        ? 'Escrito con: ' + data.fuentes.join(' + ') + '.'
+        : '';
       await pjGuionesLoad();
       toast('✍️ ' + (data.guiones || []).length + ' guiones listos — elegí uno');
     } catch (e){
@@ -18885,7 +18897,7 @@ const newsCases = [
         'font:8.5pt Helvetica,Arial,sans-serif;color:#888}' +
       '</style></head><body><header>' +
       '<h1>' + esc(g.titulo || g.angulo || 'Guión') + '</h1>' +
-      '<div class="meta">' + esc([p.ref ? '#' + p.ref : '', p.title || '', p.client || ''].filter(Boolean).join(' · ')) +
+      '<div class="meta">' + esc([p.ref ? '#' + p.ref : '', p.title || '', p.client_contact || ''].filter(Boolean).join(' · ')) +
         ' — ' + (g.duracion_seg ? '~' + g.duracion_seg + ' s · ' : '') +
         (g.formato === 'cine' ? 'guión cinematográfico' : 'guión A/V') + '</div></header>' +
       (g.premisa ? '<p class="prem">' + esc(g.premisa) + '</p>' : '') +

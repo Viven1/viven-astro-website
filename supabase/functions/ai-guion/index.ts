@@ -105,16 +105,65 @@ Deno.serve(async (req) => {
        en los tres idiomas; duplicarlo acá sería tener dos versiones que se separan. */
     const etiquetas: Record<string, string> = body.etiquetas && typeof body.etiquetas === "object" ? body.etiquetas : {};
     if (!projectId) return json({ error: "falta project_id" }, 400);
+    /* Ojo con los códigos: los errores que le piden algo a Sebastián van con 200 y
+       {error}, porque un 4xx llega al navegador como "non-2xx status code" y el mensaje
+       que explica qué falta se pierde por el camino. Los técnicos sí van con 4xx/5xx. */
 
     const admin = createClient(SB_URL, SERVICE);
     const { data: proj } = await admin.from("projects").select("*").eq("id", String(projectId)).maybeSingle();
     if (!proj) return json({ error: "no encontré ese proyecto" }, 404);
 
+    /* De dónde sale el material, en orden de calidad. El brief es lo mejor —son las 12
+       preguntas contestadas por el cliente— pero muchos proyectos entran por otro lado:
+       ganados por email, con una llamada de descubrimiento hecha y nada más. Antes esto
+       exigía el brief y se negaba; en la práctica eso dejaba sin guión justo a los
+       proyectos que ya estaban andando. Ahora usa lo que haya y DICE con qué trabajó.
+       Lo que no hace nunca es inventar la historia: sin ninguna de las tres fuentes, se
+       niega. */
+    const fuentes: string[] = [];
+    const partes: string[] = [];
+
     const { data: brief } = await admin.from("project_briefs")
       .select("key,value").eq("project_id", proj.id);
     const rs = (brief || []).filter((b) => String(b.value || "").trim());
-    if (!rs.length) {
-      return json({ error: "Este proyecto todavía no tiene el brief contestado. El guión sale de ahí: sin brief habría que inventar la historia del cliente." }, 400);
+    if (rs.length) {
+      fuentes.push("el brief del cliente");
+      partes.push("EL BRIEF QUE CONTESTÓ EL CLIENTE:\n" +
+        rs.map((b) => `P: ${etiquetas[b.key] || PREGUNTAS[b.key] || b.key}\nR: ${String(b.value).trim()}`).join("\n\n"));
+    }
+
+    /* El playbook: lo que se habló en la llamada de descubrimiento. Cuelga de la persona,
+       no del proyecto, así que se llega por el deal. */
+    {
+      let leadId = proj.lead_id ?? null;
+      if (!leadId && proj.deal_id) {
+        const { data: d } = await admin.from("deals").select("lead_id").eq("id", proj.deal_id).maybeSingle();
+        leadId = (d as { lead_id?: number } | null)?.lead_id ?? null;
+      }
+      if (leadId) {
+        const { data: pb } = await admin.from("playbook_answers")
+          .select("key,value").eq("scope", "lead").eq("ref", String(leadId));
+        const pbs = (pb || []).filter((x) => String(x.value || "").trim());
+        if (pbs.length) {
+          fuentes.push("la llamada de descubrimiento");
+          partes.push("LO QUE DIJERON EN LA LLAMADA:\n" +
+            pbs.map((x) => `${x.key}: ${String(x.value).trim()}`).join("\n"));
+        }
+      }
+    }
+
+    if (String(proj.notes || "").trim()) {
+      fuentes.push("las notas internas del proyecto");
+      partes.push("NOTAS INTERNAS DEL PROYECTO:\n" + String(proj.notes).trim().slice(0, 3000));
+    }
+
+    /* Lo que Sebastián escribe en "algo que quieras pedirle" cuenta como material: es
+       información suya, no inventada. Sirve sobre todo al principio, cuando el brief
+       todavía no volvió y él ya sabe de qué va el video. */
+    if (pedido) fuentes.push("lo que escribiste acá");
+
+    if (!partes.length && !pedido) {
+      return json({ error: "Este proyecto no tiene brief, ni playbook, ni notas. El guión sale de ahí: sin nada de eso habría que inventar la historia del cliente. Mandá el Project Brief, escribí en las notas de qué se trata, o contámelo acá abajo en «algo que quieras pedirle»." });
     }
 
     /* Contexto extra que ya existe y no cuesta nada traer: qué le vendimos. Una oferta
@@ -126,15 +175,12 @@ Deno.serve(async (req) => {
       ? (oferta.items as Array<Record<string, unknown>>).map((it) => `· ${it.name}`).join("\n").slice(0, 1200)
       : "";
 
-    const material = rs.map((b) => `P: ${etiquetas[b.key] || PREGUNTAS[b.key] || b.key}\nR: ${String(b.value).trim()}`).join("\n\n");
-
     const prompt = `Sos guionista de VIVEN AG, una productora de video B2B en Zúrich. Trabajás para clientes
 industriales, médicos y técnicos: gente que sabe muchísimo de lo suyo y desconfía del marketing vacío.
 
-PROYECTO: ${proj.ref ? "#" + proj.ref + " · " : ""}${proj.title || ""}${proj.client ? " — " + proj.client : ""}
+PROYECTO: ${proj.ref ? "#" + proj.ref + " · " : ""}${proj.title || ""}${proj.client_contact ? " — " + proj.client_contact : ""}
 
-EL BRIEF QUE CONTESTÓ EL CLIENTE:
-${material}
+${partes.join("\n\n")}
 ${entregables ? `\nLO QUE LES VENDIMOS:\n${entregables}` : ""}
 ${pedido ? `\nINDICACIONES DE SEBASTIÁN PARA ESTA TANDA:\n${pedido}` : ""}
 
@@ -217,7 +263,7 @@ ${formato === "cine" ? FORMA_CINE : FORMA_AV}`;
     const { data: ins, error: errIns } = await admin.from("project_scripts").insert(nuevos).select();
     if (errIns) return json({ error: "no se pudieron guardar: " + errIns.message }, 500);
 
-    return json({ ok: true, tanda, guiones: ins });
+    return json({ ok: true, tanda, guiones: ins, fuentes });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);
