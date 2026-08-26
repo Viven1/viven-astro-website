@@ -23,6 +23,7 @@
 //           GOOGLE_ADS_MANAGER_ID, GOOGLE_ADS_API_VERSION (los mismos secrets de gads-stats)
 // Cron:     SQL 0035 (diario 06:50 UTC, antes de que Google Ads importe)
 
+import { TEST as ADS_TEST } from "../_shared/prueba.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -174,8 +175,7 @@ Deno.serve(async (req) => {
     // "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
     // y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
     // protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
-    const ADS_TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
-    const clean = (data ?? []).filter((r) => !(r as { ads_exclude?: boolean }).ads_exclude && !ADS_TEST.test((r as { email?: string }).email || "") && !/spam|descartado|perdido-spam/i.test(r.status || ""));
+        const clean = (data ?? []).filter((r) => !(r as { ads_exclude?: boolean }).ads_exclude && !ADS_TEST.test((r as { email?: string }).email || "") && !/spam|descartado|perdido-spam/i.test(r.status || ""));
     const isWon = (r: { status?: string }) => /ganado|won|cerrado/i.test(r.status || "");
     // hora LOCAL de Zúrich con offset explícito (+01:00/+02:00 según DST) — el Data
     // Manager de Google Ads lee la fila 1 como encabezados, así que la vieja línea

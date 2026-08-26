@@ -17,6 +17,7 @@
 // Probar: -d '{"dry_run":true}'  → lista candidatos + distribución de estados,
 //          sin escribir nada.
 
+import { TEST } from "../_shared/prueba.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -29,8 +30,6 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 // "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
 // y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
 // protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
-const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
-
 async function bexioGet(path: string): Promise<unknown[]> {
   const out: unknown[] = [];
   for (let offset = 0; offset < 5000; offset += 500) {

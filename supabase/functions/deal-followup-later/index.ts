@@ -12,6 +12,7 @@
 // Cron: diario (SQL 0119). Deploy: supabase functions deploy deal-followup-later --no-verify-jwt
 // Probar: curl -X POST .../functions/v1/deal-followup-later -H "Authorization: Bearer $CRON_SECRET" -d '{"dry_run":true}'
 
+import { TEST } from "../_shared/prueba.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -33,7 +34,6 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 // "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
 // y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
 // protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
-const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
 const BILLING = /invoic|accounts?@|billing|rechnung|payable|ekonomi|brokering|buchhalt|kreditor|accounting|finance@|ap@/i;
 const MAX_PER_RUN = 5;
 

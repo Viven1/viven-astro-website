@@ -207,6 +207,20 @@ Deno.serve(async (req) => {
        r.gclid ? "Google Ads" : (r.utm_source || r.channel || null)].filter(Boolean).join(" · "),
       r.id ? "/dashboard/?lead=" + r.id : "/dashboard/");
 
+    /* Y que el borrador para aprobar exista YA, no en la próxima corrida del cron.
+       Antes había hasta 35 minutos de espera —15 de gracia más un cron cada 20— y el
+       borrador aparecía casi cuando tocaba mandarlo, sin tiempo real de revisarlo.
+       (Sebastián, 26 ago 2026: "entran, me pide aprobar y done".)
+       Es best-effort: si falla, el cron lo agarra igual en su próxima corrida. Y no se
+       hace para las pruebas: un test no tiene que generarle un borrador a nadie. */
+    if (!esTest && r.id) {
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/automations-run`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${CRON_SECRET}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: String(r.id) }),
+      }).catch((e) => console.error("AUTOMATIONS_INMEDIATO_FALLO", String(e)));
+    }
+
     if (!res.ok) return new Response(await res.text(), { status: 502 });
     return new Response(JSON.stringify({ ok: true, to, test: esTest, ficha: fi.ok, recorrido: !!rec }), { headers: { "Content-Type": "application/json" } });
   } catch (e) {

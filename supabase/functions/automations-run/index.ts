@@ -17,6 +17,7 @@
 //
 // Deploy: supabase functions deploy automations-run --no-verify-jwt
 
+import { TEST } from "../_shared/prueba.ts";
 import { autolink } from "../_shared/autolink.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -36,7 +37,6 @@ const ANTHROPIC = Deno.env.get("ANTHROPIC_API_KEY")!;
 // "test" acotado (12 ago 2026): antes era la palabra suelta en cualquier posición
 // y dejaba afuera EN SILENCIO direcciones reales — testimonios@empresa.ch,
 // protest@, contest@. Ahora solo la casilla test@ o un dominio @test.*
-const TEST = /@viven\.ch$|@entropia|@example\.|^test@|@test\./i;
 /* Regla de Sebastián, 14 ago 2026: "nunca digas vi que miraste la propuesta o la
  * página web, eso es creepy. Pero si mira algo de eso nos avisás y mandamos un
  * follow-up — más de casualidad que de stalker."
@@ -272,6 +272,11 @@ Deno.serve(async (req) => {
     const out: Record<string, number> = { enrolled: 0, steps: 0, emails: 0, done: 0, skipped: 0 };
 
     // ============ 1) INSCRIPCIÓN ============
+    /* Modo "un lead recién entrado": lo dispara el webhook de alta (lead-notify) para
+       que el borrador exista YA y haya tiempo de revisarlo, en vez de aparecer en la
+       corrida del cron que toque. Sin lead_id, todo funciona igual que siempre. */
+    const soloLead = body.lead_id ? String(body.lead_id) : null;
+
     for (const au of autos ?? []) {
       const cfg = au.trigger_config || {};
       let cands: Record<string, unknown>[] = [];
@@ -285,7 +290,9 @@ Deno.serve(async (req) => {
         // que CUALQUIER automation con trigger "Nuevo Lead" jamás inscribiera a nadie,
         // en silencio. El heurístico real (mensaje de la calculadora) no dependía de
         // esa columna, así que queda solo esa señal.
-        const q = await service.from("leads").select("id,email,name,first_name,company,lang,status,channel,message,created_at,unsubscribed").gte("created_at", since).not("email", "is", null);
+        let qb = service.from("leads").select("id,email,name,first_name,company,lang,status,channel,message,created_at,unsubscribed").not("email", "is", null);
+        qb = soloLead ? qb.eq("id", soloLead) : qb.gte("created_at", since);
+        const q = await qb;
         cands = (q.data ?? []).filter((r) => {
           if (cfg.source === "calculator" && !String(r.message || "").includes("CALCULADORA")) return false;
           if (cfg.source === "form" && String(r.message || "").includes("CALCULADORA")) return false;
@@ -293,7 +300,15 @@ Deno.serve(async (req) => {
           if (cfg.lang && cfg.lang !== "any" && (r.lang || "en") !== cfg.lang) return false;
           if (cfg.channel === "paid" && !r.channel?.toString().includes("paid")) return false;
           if (cfg.channel === "organic" && !/organic|search/.test(String(r.channel || ""))) return false;
-          return new Date(String(r.created_at)).getTime() < Date.now() - 15 * 60e3;   // 15 min de gracia
+          /* 15 minutos de gracia para el cron: si alguien manda el formulario dos veces
+             seguidas, o corrige su email, no queremos inscribirlo con los datos a medias.
+             PERO cuando el aviso viene disparado por la propia alta del lead (lead_id),
+             la gracia sobra: ya sabemos que ESE lead está completo, y esperar convierte
+             "entran y me pide aprobar" en "me entero media hora después".
+             (Sebastián, 26 ago 2026: "eso tiene que ser inmediato así tengo tiempo
+             suficiente para hacerlo, no recién cuando están por salir".) */
+          if (soloLead) return true;
+          return new Date(String(r.created_at)).getTime() < Date.now() - 15 * 60e3;
         });
       } else if (au.trigger === "stage") {
         const col = STAGE_TS[String(cfg.stage)] || "won_at";
