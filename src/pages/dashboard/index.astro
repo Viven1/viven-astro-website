@@ -1706,6 +1706,47 @@ const newsCases = [
   .pj-blq > summary.pj-sum > span{font-size:10.5px}
   .pj-blq > summary.pj-sum em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:400;color:var(--muted)}
   .pj-guion-body{padding-top:14px}
+  /* La ficha de proyecto por pasos */
+  .pj-steps{display:flex;overflow-x:auto;border:1px solid var(--line);border-radius:13px;
+    background:var(--navy-900);margin:0 0 12px;scrollbar-width:none}
+  .pj-steps::-webkit-scrollbar{display:none}
+  .pj-step{flex:1 0 auto;min-width:118px;border:0;background:none;color:var(--muted-2);font:inherit;
+    text-align:left;padding:11px 14px 10px;cursor:pointer;border-bottom:2px solid transparent;
+    border-right:1px solid var(--line)}
+  .pj-step:last-child{border-right:0}
+  .pj-step .n{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted)}
+  .pj-step .e{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;
+    font-size:9.5px;border:1.5px solid var(--line-strong);flex:none}
+  .pj-step .d{font-size:10.5px;color:var(--muted-2);margin-top:2px;line-height:1.35;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pj-step.hecho .e{background:#7ed957;border-color:#7ed957;color:#0b1220;font-weight:800}
+  .pj-step.on{background:var(--navy-800);border-bottom-color:var(--acid)}
+  .pj-step.on .n{color:var(--text)}
+  .pj-step.on .e{border-color:var(--acid);background:var(--acid);color:#1c2508;font-weight:800}
+  .pj-step.on .d{color:var(--acid)}
+  .pj-step:hover:not(.on){background:rgba(255,255,255,.02)}
+  .pj-next{display:flex;gap:13px;align-items:center;flex-wrap:wrap;margin:0 0 14px;
+    padding:12px 16px;background:rgba(190,242,100,.055);border:1px solid rgba(190,242,100,.22);border-radius:13px}
+  .pj-next .txt{flex:1;min-width:220px;font-size:13.5px}
+  .pj-next .txt b{color:var(--acid)}
+  .pj-next .txt span{color:var(--muted);display:block;font-size:12px;margin-top:1px}
+  /* Contactos del proyecto */
+  .pj-gente{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:9px}
+  .pj-per{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;gap:9px;
+    align-items:flex-start;cursor:pointer}
+  .pj-per.on{border-color:var(--acid);background:rgba(190,242,100,.045)}
+  .pj-per .av{width:29px;height:29px;border-radius:50%;background:var(--navy-800);display:grid;
+    place-items:center;font-size:11.5px;font-weight:700;color:var(--muted);flex:none}
+  .pj-per .nm{font-size:13px;font-weight:600;line-height:1.3}
+  .pj-per .rol{font-size:11px;color:var(--muted-2)}
+  .pj-per .ml{font-size:11px;color:var(--muted);word-break:break-all}
+  .pj-per .ck{margin-left:auto;width:17px;height:17px;border-radius:5px;border:1.5px solid var(--line-strong);
+    flex:none;display:grid;place-items:center;font-size:9.5px}
+  .pj-per.on .ck{background:var(--acid);border-color:var(--acid);color:#1c2508;font-weight:800}
+  .pj-per select{background:none;border:0;color:var(--muted-2);font:inherit;font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:2px 0;margin-top:3px;cursor:pointer}
+  .pj-per .x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:12px;padding:0 2px;line-height:1}
+  .pj-per .x:hover{color:#ff8080}
   /* Project Brief adentro del panel */
   #pb-modal{z-index:435}
   .pb-tabs{display:flex;gap:6px;margin:2px 0 16px;border-bottom:1px solid var(--line)}
@@ -2952,10 +2993,56 @@ const newsCases = [
       </div>
 
       <div class="pj-pasos" id="pj-pasos"></div>
+
+      <!-- ═══ La ficha por pasos ═══
+           Once bloques abiertos a la vez y 25 botones sin decir cuál toca. Ahora: una
+           barra con el camino real del trabajo, UN panel por vez, y arriba de todo una
+           frase que dice qué hacer ahora.
+           Los bloques NO se movieron de lugar en el HTML: cada uno declara a qué paso
+           pertenece (data-paso) y la barra muestra los del paso elegido. Mover markup de
+           este tamaño rompe listeners y estilos por lugares que no se ven.
+           (Sebastián, 26 ago 2026: "mirá proyecto y simplificá todo… empezá paso por
+           paso: project brief, guion, crew, plan de rodaje, rodaje, post-producción".) -->
+      <div class="pj-steps" id="pj-steps"></div>
+      <div class="pj-next" id="pj-next" hidden></div>
+
+      <!-- Paso 1 · Cliente. La gente a la que este proyecto le manda cosas, y NO a todos
+           lo mismo: el que aprueba el corte no es el que recibe la factura. -->
+      <div data-paso="cliente" class="panel pj-blq" id="pj-cli-blq">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">👤 El cliente
+          <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px" id="pj-cli-est"></span>
+          <button class="btn btn-ghost small" id="pj-cli-add" type="button" style="margin-left:auto">➕ Agregar a alguien</button>
+        </h3>
+        <div id="pj-cli"></div>
+        <div class="ab-urlrow" style="margin-top:12px">
+          <button class="btn btn-primary small" id="pj-cli-mandar" type="button">📤 Mandarles algo</button>
+          <span class="muted-note" id="pj-cli-nota"></span>
+        </div>
+      </div>
+
+      <!-- Paso 2 · Brief. El botón vivía escondido adentro del portal del cliente. -->
+      <div data-paso="brief" class="panel pj-blq" id="pj-brief-blq">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">📋 Project Brief
+          <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px" id="pj-brief-est"></span>
+        </h3>
+        <div id="pj-brief-res"></div>
+        <div class="ab-urlrow" style="margin-top:12px">
+          <button class="btn btn-primary small" id="pj-brief2" type="button">📋 Abrir el brief</button>
+          <span class="muted-note">Se llena acá o se lo mandás al cliente. Lo que contesten se junta con lo que anotes.</span>
+        </div>
+      </div>
+
+      <!-- Paso 7 · Entrega. Es una fase, no un final: el cliente PAGA la entrega. -->
+      <div data-paso="entrega" class="panel pj-blq" id="pj-entrega-blq">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">📦 Entrega
+          <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px" id="pj-entrega-est"></span>
+        </h3>
+        <div id="pj-entrega"></div>
+      </div>
       <p class="muted-note" id="pj-pasos-nota" style="margin:-6px 0 16px"></p>
 
       <div class="pj-cols">
-        <div class="panel pj-blq">
+        <div data-paso="plan rodaje" class="panel pj-blq">
           <h3>📅 Cuándo</h3>
           <div class="pj-kv"><span class="k">Rodaje</span><span class="v"><span class="pj-fechas"><input class="pj-inp" id="pj-shoot-start" type="date" title="Primer día" /><input class="pj-inp" id="pj-shoot-end" type="date" title="Último día" /></span></span></div>
           <div class="pj-kv"><span class="k">Entrega comprometida</span><span class="v"><input class="pj-inp" id="pj-delivery" type="date" /></span></div>
@@ -2963,7 +3050,7 @@ const newsCases = [
           <div class="pj-kv"><span class="k">Entregado</span><span class="v" id="pj-delivered">—</span></div>
         </div>
 
-        <div class="panel pj-blq">
+        <div data-paso="crew rodaje" class="panel pj-blq">
           <h3>👥 Quién</h3>
           <div class="pj-kv"><span class="k">Contacto del cliente</span><span class="v" id="pj-cliente"></span></div>
 
@@ -2975,7 +3062,7 @@ const newsCases = [
           <div class="pj-kv pj-kv-col"><span class="k">Crew <button class="btn btn-ghost small" id="pj-crew-auto" type="button" title="Traer los roles que ya están vendidos en el presupuesto">✨ Traer del presupuesto</button></span><div class="v" id="pj-crew"></div></div>
         </div>
 
-        <div class="panel pj-blq">
+        <div data-paso="crew otros" class="panel pj-blq">
           <h3>🎥 Con qué</h3>
           <div class="pj-kv"><span class="k">Guión</span><span class="v"><input class="pj-inp" id="pj-script" placeholder="link a Drive / Frame.io" /></span></div>
           <div class="pj-kv"><span class="k">Storyboard</span><span class="v"><input class="pj-inp" id="pj-storyboard" placeholder="link (si hay)" /></span></div>
@@ -2983,7 +3070,7 @@ const newsCases = [
           <div class="pj-kv pj-kv-col"><span class="k">Equipo técnico</span><div class="v" id="pj-gear"></div></div>
         </div>
 
-        <div class="panel pj-blq">
+        <div data-paso="plata" class="panel pj-blq">
           <h3>💰 Plata</h3>
           <div id="pj-fact"></div>
           <div class="pj-kv" style="margin-top:12px"><span class="k">Lo que falta gastar</span><span class="v" id="pj-porfase"></span></div>
@@ -2997,7 +3084,7 @@ const newsCases = [
         </div>
       </div>
 
-      <div class="panel pj-blq" style="margin-top:12px">
+      <div data-paso="otros" class="panel pj-blq" style="margin-top:12px">
         <h3>📝 Notas</h3>
         <div class="pj-kv pj-kv-col"><span class="k">Internas — no las ve el cliente</span><div class="v"><textarea class="pj-inp" id="pj-notes" rows="3"></textarea></div></div>
         <div class="pj-kv pj-kv-col"><span class="k">Lo que el cliente lee en su portal</span><div class="v"><textarea class="pj-inp" id="pj-portal-note" rows="2" placeholder="p. ej. Estamos armando el plan de rodaje — te escribimos el jueves."></textarea></div></div>
@@ -3007,7 +3094,7 @@ const newsCases = [
            conseguir, la lista de planos y una propuesta de jornadas. El guión va como
            TEXTO porque es lo que la IA puede leer — un PDF en Drive no. El link al
            original sigue arriba, en "Con qué". -->
-      <details class="panel pj-blq" id="pj-guion-blq" style="margin-top:12px">
+      <details data-paso="guion" class="panel pj-blq" id="pj-guion-blq" style="margin-top:12px">
         <summary class="pj-sum"><span>🎬 Guión y desglose</span><em id="pj-guion-est"></em></summary>
         <div class="pj-guion-body">
           <!-- Escribir tres guiones. Uno solo no se puede juzgar —se lee y parece bien, o
@@ -3052,7 +3139,7 @@ const newsCases = [
            (Sebastián, 26 ago 2026: "tiene que poder regenerarse el plan de rodaje por si no
            funciona o está mal hecho; puede ser cambiado a mano también. Mirá cómo lo hice
            con Maestro.") -->
-      <details class="panel pj-blq" id="pj-plan-blq" style="margin-top:12px">
+      <details data-paso="plan" class="panel pj-blq" id="pj-plan-blq" style="margin-top:12px">
         <summary class="pj-sum"><span>📅 Plan de rodaje</span><em id="pj-plan-est"></em></summary>
         <div class="pj-guion-body">
           <div class="pj-gia">
@@ -3067,7 +3154,7 @@ const newsCases = [
         </div>
       </details>
 
-      <div class="panel pj-blq" id="pj-costos-blq" style="margin-top:12px">
+      <div data-paso="plata" class="panel pj-blq" id="pj-costos-blq" style="margin-top:12px">
         <h3 style="display:flex;align-items:center;gap:10px">💸 Costo real
           <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px">lo que sale de la caja en ESTE proyecto</span>
           <button class="btn btn-ghost small" id="pj-costos-sembrar" type="button" style="margin-left:auto">✨ Traer del presupuesto</button>
@@ -3083,7 +3170,7 @@ const newsCases = [
            de ahí sale a bexio como factura de proveedor, siempre en borrador. -->
       <!-- 🎞 Portal del cliente: versiones del corte, lo que comentó con su timecode, y
            los archivos que puede bajar. Las notas se exportan para Premiere. -->
-      <div class="panel pj-blq" id="pj-portal-blq" style="margin-top:12px">
+      <div data-paso="post entrega" class="panel pj-blq" id="pj-portal-blq" style="margin-top:12px">
         <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">🎞 Portal del cliente
           <span class="muted-note" id="pj-portal-est" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px"></span>
           <span style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
@@ -3100,7 +3187,7 @@ const newsCases = [
         <div id="pj-files"></div>
       </div>
 
-      <div class="panel pj-blq" id="pj-fact-blq" style="margin-top:12px">
+      <div data-paso="plata rodaje" class="panel pj-blq" id="pj-fact-blq" style="margin-top:12px">
         <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">📄 Facturas del crew
           <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px">el papel atrás de cada costo</span>
           <span style="margin-left:auto;display:flex;gap:7px">
@@ -3116,7 +3203,7 @@ const newsCases = [
 
       <!-- ⏱ Horas: la otra mitad del margen real. Un proyecto puede cerrar con buen
            número y haberse comido tres semanas de alguien — sin esto, eso no se ve. -->
-      <div class="panel pj-blq" id="pj-horas-blq" style="margin-top:12px">
+      <div data-paso="rodaje" class="panel pj-blq" id="pj-horas-blq" style="margin-top:12px">
         <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">⏱ Horas puestas
           <span class="muted-note" id="pj-horas-est" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px"></span>
           <button class="btn btn-ghost small" id="pj-hora-add" type="button" style="margin-left:auto">➕ Anotar horas</button>
@@ -3125,7 +3212,7 @@ const newsCases = [
         <div class="lead-table-wrap" id="pj-horas"></div>
       </div>
 
-      <details class="panel pj-pos" id="pj-pos-det" style="margin-top:12px">
+      <details data-paso="plata" class="panel pj-pos" id="pj-pos-det" style="margin-top:12px">
         <summary id="pj-pos-sum"></summary>
         <!-- Importar la oferta también DESDE ADENTRO del proyecto: al principio esto
              vivía solo en el formulario de crear, así que un proyecto ya abierto no
@@ -17578,7 +17665,10 @@ const newsCases = [
        (Sebastián, 26 ago 2026: "en el iPhone, cuando hago refresh vuelve a proyectos, no
        al que estaba trabajando".) */
     pjUrl(p);
+    pjPaso = null;              // cada proyecto arranca en donde está parado, no donde quedó el anterior
     pjRenderDetail();
+    pjContactosLoad();
+    pjBriefRespLoad();
   }
 
   function pjUrl(p){
@@ -17586,6 +17676,341 @@ const newsCases = [
       history.replaceState({}, '', location.pathname +
         (p ? '?proyecto=' + encodeURIComponent(p.ref || p.id) : '?tab=projects'));
     } catch (e){ /* si el navegador no deja, no pasa nada: se pierde solo el volver al mismo lugar */ }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     LA FICHA POR PASOS
+     ═══════════════════════════════════════════════════════════════════════════
+     El orden es el del trabajo real, no el de las tablas. Tres reglas que hacen que
+     esto se use en vez de esquivarse:
+
+     1. UN PASO NO BLOQUEA AL SIGUIENTE. Si el brief nunca volvió, "Guion" se abre igual
+        —avisando que va con menos material. Un asistente que te obliga a completar el 2
+        para ver el 3 se usa dos veces y después se saltea.
+     2. EL ✓ SE CALCULA, Y SE PUEDE FORZAR. Se rodó y no se cargó nada: la app no puede
+        discutir eso. `pasos_forzados` guarda lo único que no se puede deducir.
+     3. UN ✓ NO ES UN REPROCHE. Lo que falta se dice en neutro. Un proyecto sin plan
+        todavía es normal, no un atraso.
+
+     "Plata" y "Todo lo demás" están en la barra pero no son pasos: no se terminan, se
+     miran cuando hace falta.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  const PJ_PASOS = [
+    { k: 'cliente', l: 'Cliente' },
+    { k: 'brief',   l: 'Brief' },
+    { k: 'guion',   l: 'Guion' },
+    { k: 'crew',    l: 'Crew' },
+    { k: 'plan',    l: 'Plan' },
+    { k: 'rodaje',  l: 'Rodaje' },
+    { k: 'post',    l: 'Post' },
+    { k: 'entrega', l: 'Entrega' },
+    { k: 'plata',   l: '💰 Plata', suelto: true },
+    { k: 'otros',   l: '⋯ Lo demás', suelto: true },
+  ];
+  let pjPaso = null, pjContactos = [];
+
+  /* El estado de cada paso: hecho o no, y una línea de qué hay. La línea importa tanto
+     como el ✓ — "7 personas" contesta sin abrir el panel. */
+  function pjEstadoPasos(){
+    const p = pjCur; if (!p) return {};
+    const forz = Array.isArray(p.pasos_forzados) ? p.pasos_forzados : [];
+    const hoy = new Date().toISOString().slice(0, 10);
+    const crew = Array.isArray(p.crew) ? p.crew.filter((c) => c && (c.nombre || c.rol)) : [];
+    const briefN = Object.keys(pbrResp || {}).filter((k) => String(pbrResp[k] || '').trim()).length;
+    const guion = (pjGuiones || []).find((g) => g.elegido);
+    const planN = (pjPlan && Array.isArray(pjPlan.cuerpo)) ? pjPlan.cuerpo.length : 0;
+    const horas = (pjHoras || []).reduce((a, h) => a + (Number(h.horas) || 0), 0);
+    const ultima = (pjVers || [])[0];
+    const sinResolver = (pjComs || []).filter((c) => !c.resolved && c.from_client).length;
+    const fact = pjFacturado(p), monto = Number(p.amount_chf) || 0;
+
+    const e = {
+      cliente: { ok: pjContactos.length > 0,
+        d: pjContactos.length ? (pjContactos[0].name || pjContactos[0].email) + (pjContactos.length > 1 ? ' +' + (pjContactos.length - 1) : '') : 'sin contactos' },
+      brief: { ok: !!p.brief_done_at || briefN >= 8,
+        d: briefN ? briefN + ' de 12' : (p.brief_sent_at ? 'enviado, sin contestar' : 'sin empezar') },
+      guion: { ok: !!guion || String(p.script_text || '').trim().length > 80,
+        d: guion ? guion.angulo : (String(p.script_text || '').trim() ? 'cargado a mano' : ((pjGuiones || []).length ? (pjGuiones.length + ' sin elegir') : 'sin guion')) },
+      crew: { ok: crew.length > 0,
+        d: crew.length ? crew.length + (crew.length === 1 ? ' persona' : ' personas') : 'sin cargar' },
+      plan: { ok: planN > 0,
+        d: planN ? planN + ' bloques' : (p.shoot_start ? 'fechas puestas, sin plan' : 'sin fechas') },
+      rodaje: { ok: !!(p.shoot_start && p.shoot_start <= hoy),
+        d: p.shoot_start ? (fmtDMY(p.shoot_start) + (p.shoot_end && p.shoot_end !== p.shoot_start ? '–' + fmtDMY(p.shoot_end) : '')) : 'sin fecha' },
+      post: { ok: !!(ultima && ultima.approved_at),
+        d: !(pjVers || []).length ? 'sin versiones'
+           : ultima.approved_at ? 'v' + ultima.n + ' aprobada'
+           : sinResolver ? 'v' + ultima.n + ' · ' + sinResolver + ' sin resolver'
+           : 'v' + ultima.n + ' esperando' },
+      entrega: { ok: !!p.delivered_at,
+        d: p.delivered_at ? fmtDMY(p.delivered_at) : (p.delivery_due ? 'para el ' + fmtDMY(p.delivery_due) : 'sin fecha') },
+      plata: { ok: monto > 0 && fact >= monto,
+        d: monto ? pjCHF(fact) + ' de ' + pjCHF(monto) : 'sin monto' },
+      otros: { ok: true, d: horas ? horas + ' h puestas' : 'notas, equipo, horas' },
+    };
+    forz.forEach((k) => { if (e[k]) { e[k].ok = true; e[k].forzado = true; } });
+    return e;
+  }
+
+  function pjRenderSteps(){
+    const p = pjCur; if (!p) return;
+    const e = pjEstadoPasos();
+    if (!pjPaso) pjPaso = pjPasoSugerido(e);
+    $('pj-steps').innerHTML = PJ_PASOS.map((s, i) => {
+      const st = e[s.k] || {};
+      return '<button type="button" class="pj-step' + (st.ok && !s.suelto ? ' hecho' : '') +
+        (pjPaso === s.k ? ' on' : '') + '" data-step="' + s.k + '">' +
+        '<span class="n">' + (s.suelto ? '' : '<span class="e">' + (st.ok ? '✓' : (i + 1)) + '</span>') +
+          esc(s.l) + '</span>' +
+        '<span class="d">' + esc(st.d || '') + '</span></button>';
+    }).join('');
+    $('pj-steps').querySelectorAll('[data-step]').forEach((b) =>
+      b.addEventListener('click', () => { pjPaso = b.dataset.step; pjRenderSteps(); }));
+
+    // un panel por vez
+    /* Un bloque puede vivir en más de un paso: "Cuándo" hace falta al planificar y al
+       rodar, y el portal se mira en post y en la entrega. Duplicar el markup sería peor. */
+    document.querySelectorAll('#pj-detail [data-paso]').forEach((el) => {
+      el.hidden = !String(el.dataset.paso || '').split(' ').includes(pjPaso);
+    });
+    pjRenderNext(e);
+    if (pjPaso === 'cliente') pjRenderContactos();
+    if (pjPaso === 'entrega') pjRenderEntrega();
+    if (pjPaso === 'brief') pjRenderBriefRes();
+  }
+
+  /* El primer paso sin terminar. No es "el que sigue en la lista": es donde de verdad
+     está parado el proyecto. */
+  function pjPasoSugerido(e){
+    const orden = PJ_PASOS.filter((s) => !s.suelto).map((s) => s.k);
+    return orden.find((k) => !(e[k] || {}).ok) || 'post';
+  }
+
+  /* "Lo que sigue": una sola frase y como mucho una acción. Nunca hace nada solo —
+     abre lo que corresponde y ahí adentro confirmás. */
+  function pjRenderNext(e){
+    const p = pjCur; if (!p) return;
+    const caja = $('pj-next');
+    const ultima = (pjVers || [])[0];
+    const sinResolver = (pjComs || []).filter((c) => !c.resolved && c.from_client).length;
+    let n = null;
+
+    if (!pjContactos.length)
+      n = { t: 'Falta el contacto del cliente.', s: 'Sin eso no se le puede mandar nada — ni el brief, ni el portal.', b: '👤 Agregar a alguien', paso: 'cliente', go: () => $('pj-cli-add').click() };
+    else if (!e.brief.ok && !p.brief_sent_at)
+      n = { t: 'Mandarle el Project Brief a ' + esc(pjContactos[0].name || pjContactos[0].email) + '.', s: 'De ahí sale el guion. También lo podés llenar vos con lo que ya sepas.', b: '📋 Abrir el brief', paso: 'brief', go: () => pjBriefVer() };
+    else if (!e.guion.ok)
+      n = { t: 'Escribir el guion.', s: 'Tres ángulos del mismo material, y elegís uno.', b: '✍️ Escribir 3 guiones', paso: 'guion', go: () => { $('pj-guion-blq').open = true; $('pj-gia-go').scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
+    else if (!e.crew.ok)
+      n = { t: 'Armar el crew.', s: 'Los roles ya vendidos salen del presupuesto de un toque.', b: '✨ Traer del presupuesto', paso: 'crew', go: () => $('pj-crew-auto').click() };
+    else if (!e.plan.ok)
+      n = { t: 'Armar el plan de rodaje.', s: 'La IA lo propone entero y vos lo corregís. No guarda nada sin que lo toques.', b: '📅 Proponer un plan', paso: 'plan', go: () => { $('pj-plan-blq').open = true; $('pj-plan-ia').click(); } };
+    else if (!(pjVers || []).length)
+      n = { t: 'Subir el primer corte.', s: 'El cliente lo ve en su portal y comenta con el minuto exacto.', b: '⬆ Nueva versión', paso: 'post', go: () => $('pj-ver-add').click() };
+    else if (ultima && !ultima.approved_at && !sinResolver && !ultima.notes_done_at)
+      n = { t: 'Avisarle que la v' + ultima.n + ' está lista.', s: 'Está subida y el portal pide código. Todavía no la vio nadie.', b: '📤 Avisarle', paso: 'post', go: () => $('pj-portal-prev').click() };
+    else if (sinResolver)
+      n = { t: sinResolver + (sinResolver === 1 ? ' nota sin resolver' : ' notas sin resolver') + '.', s: 'Mandáselas al que monta con el .xml adentro, o resolvelas acá.', b: '📤 Al editor', paso: 'post', go: () => { const b = $('pj-vers').querySelector('[data-noted]'); if (b) b.click(); } };
+    else if (e.post.ok && !p.delivered_at)
+      n = { t: 'El corte está aprobado: entregá los archivos finales.', s: 'Y ahí se factura lo que falta.', b: '📦 Ir a la entrega', paso: 'entrega', go: () => { pjPaso = 'entrega'; pjRenderSteps(); } };
+    else if (Number(p.amount_chf) > pjFacturado(p) && p.delivered_at)
+      n = { t: 'Falta facturar ' + pjCHF(Number(p.amount_chf) - pjFacturado(p)) + '.', s: 'El proyecto ya se entregó.', b: '🧾 Facturar al cliente', paso: 'plata', go: () => $('pj-invoice').click() };
+
+    if (!n){ caja.hidden = true; return; }
+    caja.hidden = false;
+    caja.innerHTML = '<div class="txt"><b>' + n.t + '</b><span>' + esc(n.s) + '</span></div>' +
+      '<button class="btn btn-primary small" id="pj-next-go" type="button">' + esc(n.b) + '</button>' +
+      '<button class="btn btn-ghost small" id="pj-next-ok" type="button" title="Darlo por hecho igual">✓ Ya está</button>';
+    $('pj-next-go').addEventListener('click', () => {
+      if (n.paso && pjPaso !== n.paso){ pjPaso = n.paso; pjRenderSteps(); }
+      setTimeout(n.go, 60);
+    });
+    /* Darlo por hecho a mano. Existe porque la app se equivoca: se rodó sin cargar nada,
+       el brief llegó por WhatsApp, el guion está en un Drive. */
+    $('pj-next-ok').addEventListener('click', () => pjForzarPaso(n.paso));
+  }
+
+  async function pjForzarPaso(k){
+    const p = pjCur; if (!p || !k) return;
+    const forz = Array.isArray(p.pasos_forzados) ? p.pasos_forzados.slice() : [];
+    if (forz.includes(k)) return;
+    forz.push(k);
+    const { error } = await supabase.from('projects').update({ pasos_forzados: forz }).eq('id', p.id);
+    if (error){ toast(error.message); return; }
+    p.pasos_forzados = forz;
+    pjPaso = null;
+    pjRenderSteps();
+    toast('✓ Dado por hecho — se puede volver atrás desde el paso');
+  }
+
+  /* ── Paso 1 · Los contactos del proyecto ──
+     No a todos se les manda lo mismo: el que aprueba el corte no es el que recibe la
+     factura, y legal solo quiere la entrega final. Por eso cada uno tiene un tipo y el
+     tilde de cada envío arranca de ahí. */
+  const PJ_RECIBE = [['principal', 'Principal'], ['copia', 'En copia'], ['entregas', 'Solo entregas'], ['facturas', 'Facturas']];
+
+  async function pjContactosLoad(){
+    const p = pjCur; if (!p) return;
+    const { data, error } = await supabase.from('project_contacts')
+      .select('*').eq('project_id', p.id).order('id');
+    pjContactos = error ? [] : (data || []);
+    /* Si no hay ninguno pero el proyecto tiene su persona ganada, se ofrece de una: es
+       el caso normal y hacerlo a mano es trabajo que ya está hecho en otro lado. */
+    if (!pjContactos.length){
+      const l = leadById(p.lead_id);
+      if (l && l.email){
+        const { data: c } = await supabase.from('project_contacts').insert({
+          project_id: p.id, lead_id: l.id, name: l.name || null, email: String(l.email).toLowerCase(),
+          role: l.job_title || null, recibe: 'principal' }).select().single();
+        if (c) pjContactos = [c];
+      }
+    }
+    if (pjPaso === 'cliente') pjRenderContactos();
+    pjRenderSteps();
+  }
+
+  function pjRenderContactos(){
+    const box = $('pj-cli'); if (!box) return;
+    $('pj-cli-est').textContent = pjContactos.length
+      ? pjContactos.length + (pjContactos.length === 1 ? ' persona' : ' personas')
+      : 'todavía nadie';
+    box.innerHTML = !pjContactos.length
+      ? '<p class="muted-note" style="margin:0">Sin contactos no se le puede mandar nada. Agregá al menos a la persona con la que hablás.</p>'
+      : '<div class="pj-gente">' + pjContactos.map((c) => {
+          const ini = String(c.name || c.email || '?').trim().split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
+          return '<div class="pj-per' + (c._on !== false ? ' on' : '') + '" data-c="' + c.id + '">' +
+            '<span class="av">' + esc(ini) + '</span>' +
+            '<div style="min-width:0">' +
+              '<div class="nm">' + esc(c.name || '(sin nombre)') + '</div>' +
+              (c.role ? '<div class="rol">' + esc(c.role) + '</div>' : '') +
+              '<div class="ml">' + esc(c.email || '') + '</div>' +
+              '<select data-r="' + c.id + '">' + PJ_RECIBE.map(([k, l]) =>
+                '<option value="' + k + '"' + (c.recibe === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+            '</div>' +
+            '<button class="x" data-cdel="' + c.id + '" type="button" title="Sacarlo del proyecto">✕</button>' +
+            '<span class="ck">' + (c._on !== false ? '✓' : '') + '</span></div>';
+        }).join('') + '</div>';
+
+    box.querySelectorAll('.pj-per').forEach((el) => el.addEventListener('click', (ev) => {
+      if (ev.target.closest('select, .x')) return;
+      const c = pjContactos.find((x) => String(x.id) === el.dataset.c); if (!c) return;
+      c._on = c._on === false;
+      pjRenderContactos();
+    }));
+    box.querySelectorAll('[data-r]').forEach((sel) => sel.addEventListener('change', async () => {
+      const c = pjContactos.find((x) => String(x.id) === sel.dataset.r); if (!c) return;
+      /* Un solo principal: la base lo exige, así que primero se baja al que estaba. */
+      if (sel.value === 'principal'){
+        const otro = pjContactos.find((x) => x.recibe === 'principal' && String(x.id) !== String(c.id));
+        if (otro){ await supabase.from('project_contacts').update({ recibe: 'copia' }).eq('id', otro.id); otro.recibe = 'copia'; }
+      }
+      const { error } = await supabase.from('project_contacts').update({ recibe: sel.value }).eq('id', c.id);
+      if (error){ toast(error.message); return; }
+      c.recibe = sel.value;
+      pjRenderContactos();
+    }));
+    box.querySelectorAll('[data-cdel]').forEach((b) => b.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const c = pjContactos.find((x) => String(x.id) === b.dataset.cdel); if (!c) return;
+      if (!confirm('¿Sacar a ' + (c.name || c.email) + ' de este proyecto?\n\nSigue en Personas: solo deja de recibir lo de acá.')) return;
+      const { error } = await supabase.from('project_contacts').delete().eq('id', c.id);
+      if (error){ toast(error.message); return; }
+      pjContactos = pjContactos.filter((x) => String(x.id) !== String(c.id));
+      pjRenderContactos(); pjRenderSteps();
+    }));
+
+    const n = pjContactos.filter((c) => c._on !== false).length;
+    $('pj-cli-nota').textContent = n
+      ? 'a ' + n + (n === 1 ? ' persona' : ' personas') + ' — el brief, el portal, una versión o la factura'
+      : 'tildá al menos a uno';
+  }
+
+  async function pjContactoNuevo(){
+    const p = pjCur; if (!p) return;
+    const mail = String(prompt('Email de la persona:') || '').trim().toLowerCase();
+    if (!mail) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){ toast('Ese email no parece válido'); return; }
+    /* Si ya existe en Personas se engancha con su ficha: así lo que se le mande queda en
+       su historial y no en un contacto suelto que no es nadie. */
+    const ya = (allLeads || []).find((l) => String(l.email || '').toLowerCase() === mail);
+    const nombre = String(prompt('Nombre:', ya ? (ya.name || '') : '') || '').trim();
+    const rol = String(prompt('Rol (opcional): p. ej. Marketing, Legal', ya ? (ya.job_title || '') : '') || '').trim();
+    const { data, error } = await supabase.from('project_contacts').insert({
+      project_id: p.id, lead_id: ya ? ya.id : null, name: nombre || (ya && ya.name) || null,
+      email: mail, role: rol || null, recibe: pjContactos.length ? 'copia' : 'principal' }).select().single();
+    if (error){ toast(error.message.includes('duplicate') ? 'Esa persona ya está en el proyecto' : error.message); return; }
+    pjContactos.push(data);
+    pjRenderContactos(); pjRenderSteps();
+    toast('👤 ' + (nombre || mail) + ' agregado' + (ya ? ' (enganchado con su ficha)' : ''));
+  }
+
+  /* Mandarles algo: cada opción lleva al flujo que YA tiene su preview. Esto no manda
+     nada por su cuenta — elige el camino y el destinatario. */
+  function pjContactosMandar(){
+    const elegidos = pjContactos.filter((c) => c._on !== false);
+    if (!elegidos.length){ toast('Tildá al menos a una persona'); return; }
+    const q = 'Mandarles a ' + elegidos.map((c) => c.name || c.email).join(', ') + ':\n\n' +
+      '1 · El Project Brief\n2 · El link del portal\n3 · Avisar que hay versión nueva\n\n' +
+      'Escribí el número:';
+    const op = String(prompt(q) || '').trim();
+    if (op === '1'){ pjPaso = 'brief'; pjRenderSteps(); pjBriefVer(); }
+    else if (op === '2'){ pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-link').click(), 60); }
+    else if (op === '3'){ pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-prev').click(), 60); }
+  }
+
+  /* Las respuestas del brief se leen al abrir el proyecto, no solo al abrir el modal:
+     el ✓ del paso y el contador salen de acá. */
+  async function pjBriefRespLoad(){
+    const p = pjCur; if (!p) return;
+    const { data } = await supabase.from('project_briefs').select('key,value').eq('project_id', p.id);
+    pbrResp = {};
+    (data || []).forEach((r) => { pbrResp[r.key] = r.value || ''; });
+    if (pjCur === p) pjRenderSteps();
+  }
+
+  function pjRenderBriefRes(){
+    const p = pjCur; if (!p) return;
+    const n = Object.keys(pbrResp || {}).filter((k) => String(pbrResp[k] || '').trim()).length;
+    $('pj-brief-est').textContent = p.brief_done_at ? '✓ el cliente lo dio por terminado'
+      : p.brief_sent_at ? 'enviado el ' + fmtDMY(p.brief_sent_at) : 'no se mandó todavía';
+    $('pj-brief-res').innerHTML = n
+      ? '<p class="muted-note" style="margin:0">' + n + ' de 12 contestadas. De acá salen los guiones y el plan de rodaje.</p>'
+      : '<p class="muted-note" style="margin:0">Sin contestar. Los guiones se pueden escribir igual, pero con menos material — y se nota.</p>';
+  }
+
+  function pjRenderEntrega(){
+    const p = pjCur; if (!p) return;
+    const monto = Number(p.amount_chf) || 0, fact = pjFacturado(p), falta = Math.max(0, monto - fact);
+    const aprobada = (pjVers || []).find((v) => v.approved_at);
+    const arch = (pjFiles || []).filter((f) => f.visible_cliente);
+    $('pj-entrega-est').textContent = p.delivered_at ? 'entregado el ' + fmtDMY(p.delivered_at)
+      : p.delivery_due ? 'para el ' + fmtDMY(p.delivery_due) : 'sin fecha de entrega';
+    $('pj-entrega').innerHTML =
+      '<div class="pj-kv"><span class="k">El corte</span><span class="v">' +
+        (aprobada ? '<span style="color:#7ed957">✓ v' + aprobada.n + ' aprobada el ' + fmtDMY(aprobada.approved_at) + '</span>'
+                  : '<span style="color:#f0c060">todavía no hay ninguna versión aprobada</span>') + '</span></div>' +
+      '<div class="pj-kv"><span class="k">Archivos para el cliente</span><span class="v">' +
+        (arch.length ? arch.length + (arch.length === 1 ? ' archivo en su portal' : ' archivos en su portal')
+                     : '<span class="muted-note">ninguno todavía</span>') + '</span></div>' +
+      '<div class="pj-kv"><span class="k">Facturado</span><span class="v">' + pjCHF(fact) + ' de ' + pjCHF(monto) +
+        (falta ? ' · <b style="color:#f0c060">faltan ' + pjCHF(falta) + '</b>' : '') + '</span></div>' +
+      '<p class="muted-note" style="margin:12px 0 0">La entrega es una fase que se cobra: los masters por idioma y por formato, los subtítulos y los cortes para redes son trabajo de entrega, no de montaje.</p>' +
+      '<div class="ab-urlrow" style="margin-top:12px">' +
+        '<button class="btn btn-ghost small" id="pj-ent-file" type="button">📎 Subir un archivo final</button>' +
+        '<button class="btn btn-ghost small" id="pj-ent-fact" type="button">🧾 Facturar al cliente</button>' +
+        '<button class="btn ' + (p.delivered_at ? 'btn-ghost' : 'btn-primary') + ' small" id="pj-ent-ok" type="button">' +
+          (p.delivered_at ? '↩︎ No estaba entregado' : '✅ Marcar como entregado') + '</button>' +
+      '</div>';
+    $('pj-ent-file').addEventListener('click', () => $('pj-file-add').click());
+    $('pj-ent-fact').addEventListener('click', () => $('pj-invoice').click());
+    $('pj-ent-ok').addEventListener('click', async () => {
+      const nuevo = p.delivered_at ? null : new Date().toISOString();
+      const { error } = await supabase.from('projects')
+        .update({ delivered_at: nuevo, stage: nuevo ? 'entregado' : 'post' }).eq('id', p.id);
+      if (error){ toast(error.message); return; }
+      p.delivered_at = nuevo; p.stage = nuevo ? 'entregado' : 'post';
+      pjRenderEntrega(); pjRenderSteps(); pjRenderDetail();
+    });
   }
 
   function pjRenderDetail(){
@@ -17653,10 +18078,18 @@ const newsCases = [
        "Post-Production"). El primer intento las traducía borrando la palabra
        "production", así que "Production" quedaba en cadena vacía y la línea decía
        "— 14'808". Se mapean de verdad, y lo que no reconozca queda con su nombre. */
+    /* Entrega es una fase, no un final. El cliente PAGA la entrega —los 60 outputs de
+       Sonova, por idioma y por formato, son trabajo de entrega y no de montaje— y una
+       fase que no existe no se cotiza ni se factura: cae adentro de post o se olvida.
+       (Sebastián, 26 ago 2026: "la fase de delivery también tiene que existir, sobre todo
+       en las ofertas dentro del proyecto, porque toca que el cliente pague el delivery".)
+       'Development' cae en Pre: es la misma plata antes de rodar. */
     const FASE_LBL = { 'pre-production': 'Pre', 'preproduction': 'Pre', 'pre': 'Pre',
+      'development': 'Pre', 'desarrollo': 'Pre',
       'production': 'Rodaje', 'produktion': 'Rodaje',
-      'post-production': 'Post', 'postproduction': 'Post', 'post': 'Post' };
-    const ORDEN = ['Pre', 'Rodaje', 'Post'];
+      'post-production': 'Post', 'postproduction': 'Post', 'post': 'Post',
+      'delivery': 'Entrega', 'auslieferung': 'Entrega', 'entrega': 'Entrega' };
+    const ORDEN = ['Pre', 'Rodaje', 'Post', 'Entrega'];
     const fases = {};
     (p.items || []).forEach((it) => {
       const crudo = String(it.phase || '').trim().toLowerCase();
@@ -17670,6 +18103,7 @@ const newsCases = [
 
     pjRenderPortal();
     pjRenderDesglose();
+    pjRenderSteps();
     pjGuionesLoad();
     pjPlanLoad();
     pjPortalLoad();
@@ -18192,6 +18626,7 @@ const newsCases = [
     pjComs = c.error ? [] : (c.data || []);
     pjFiles = f.error ? [] : (f.data || []);
     pjPortalRender();
+    pjRenderSteps();
   }
 
   function pjPortalRender(){
@@ -18873,6 +19308,7 @@ const newsCases = [
       .order('created_at', { ascending: false }).order('id');
     pjGuiones = error ? [] : (data || []);
     pjGuionesRender();
+    pjRenderSteps();
   }
 
   /* El cuerpo como tabla: un A/V script es dos columnas —lo que se ve y lo que se
@@ -19083,6 +19519,7 @@ const newsCases = [
       .order('updated_at', { ascending: false }).limit(1);
     pjPlan = (error || !data || !data.length) ? null : data[0];
     pjPlanRender();
+    pjRenderSteps();
   }
 
   function pjPlanFilas(){ return (pjPlan && Array.isArray(pjPlan.cuerpo)) ? pjPlan.cuerpo : []; }
@@ -20022,6 +20459,9 @@ const newsCases = [
     $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });
     $('pj-gia-go').addEventListener('click', pjGuionGenerar);
     $('pj-plan-ia').addEventListener('click', pjPlanPedir);
+    $('pj-cli-add').addEventListener('click', pjContactoNuevo);
+    $('pj-cli-mandar').addEventListener('click', pjContactosMandar);
+    $('pj-brief2').addEventListener('click', pjBriefVer);
     $('pj-plan-fila').addEventListener('click', pjPlanFilaNueva);
     $('pj-desglosar').addEventListener('click', pjDesglosar);
     $('pj-plan-gen').addEventListener('click', pjPlanDesdeJornadas);

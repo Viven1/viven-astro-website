@@ -31,7 +31,8 @@ const ESQUEMA = `{
   "items": [
     {"phase":"Pre-producción","name":"Concepto y guión","qty":1,"unit":"pauschal","price":1800,"cost":0},
     {"phase":"Producción","name":"Jornada de rodaje con equipo","qty":2,"unit":"Tag","price":3800,"cost":2400},
-    {"phase":"Post-producción","name":"Montaje y color, versión principal","qty":1,"unit":"pauschal","price":2600,"cost":900}
+    {"phase":"Post-producción","name":"Montaje y color, versión principal","qty":1,"unit":"pauschal","price":2600,"cost":900},
+    {"phase":"Entrega","name":"Masters por idioma y formato, subtítulos","qty":3,"unit":"Sprache","price":180,"cost":0}
   ],
   "notes": "Supuestos y lo que NO está incluido, en frases cortas.",
   "avisos": ["lo que hubo que suponer porque el playbook no lo decía"]
@@ -108,7 +109,12 @@ con las ofertas ganadas y avisá que falta la conversación de valor.
 
 REGLAS:
 - Moneda CHF. Precios sin IVA.
-- Agrupá en fases: Pre-producción, Producción, Post-producción. Si la llamada nombró otras fases, usá las de ellos.
+- Agrupá en fases: Pre-producción, Producción, Post-producción y Entrega. Si la llamada nombró otras fases, usá las de ellos.
+- ENTREGA es una fase propia y se cobra. Ahí van los masters por idioma y por formato, los
+  subtítulos, los cortes para redes y el archivo. NO son parte del montaje: un video que
+  sale en tres idiomas y dos formatos es el mismo montaje y seis entregas distintas, y
+  meterlo adentro de post hace que se regale. Si el cliente pidió más de un idioma, más de
+  un formato o subtítulos, tiene que haber línea de Entrega.
 - Una línea por entregable real, no por tarea interna. Entre 4 y 12 líneas.
 - 'price' es lo que se le cobra al cliente. 'cost' es lo que nos cuesta a nosotros (freelance, alquiler); si no lo sabés, poné 0.
 - El título de la oferta en español, para uso interno. Los nombres de las líneas en ${idioma}, que es el idioma del cliente.
