@@ -321,23 +321,71 @@ Deno.serve(async (req) => {
     }
 
     // ---------- APROBAR (necesita código) ----------
-    if (accion === "aprobar") {
-      const acc = await verificado(body.token);
-      if (!acc) return json({ error: "necesita_codigo" }, 401);
-      const vId = body.version_id;
-      if (!vId) return json({ error: "sin_version" }, 400);
-      const { error } = await service.from("project_versions").update({
-        approved_at: new Date().toISOString(), approved_by: acc.email, approved_ip: ip,
-      }).eq("id", vId).eq("project_id", proj.id);
-      if (error) return json({ error: error.message }, 500);
-      await service.from("projects").update({ stage: "entregado", delivered_at: new Date().toISOString() }).eq("id", proj.id);
+    /* Avisar al equipo: push Y email. La push sola no alcanza —si el teléfono está en
+       silencio nadie se entera— y esto es de las pocas cosas del portal donde el cliente
+       nos está esperando a nosotros. */
+    const avisar = async (titulo: string, detalle: string, quien: string) => {
       fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
-        body: JSON.stringify({ title: "✅ Aprobado por el cliente",
-          body: `${proj.client_contact || acc.email} aprobó ${proj.title || ""}`, url: "/dashboard/?tab=projects" }),
+        body: JSON.stringify({ title: titulo, body: detalle, url: "/dashboard/?tab=projects" }),
       }).catch(() => {});
-      return json({ ok: true });
+      if (!RESEND) return;
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Viven Portal <leads@viven.ch>", to: ["info@viven.ch"],
+          reply_to: emailCliente || undefined,
+          subject: `${titulo} — ${proj.ref ? proj.ref + " · " : ""}${esc(proj.title || deal.title || "")}`,
+          html: `<div style="font-family:Helvetica,Arial,sans-serif;max-width:600px;color:#1a2230">
+            <p style="font-size:16px;font-weight:700;margin:0 0 8px">${titulo}</p>
+            <p style="font-size:14.5px;line-height:1.6;margin:0 0 6px">${esc(detalle)}</p>
+            <p style="font-size:12.5px;color:#8a94a8;margin:14px 0 0">${esc(quien)}</p></div>`,
+        }),
+      }).catch(() => {});
+    };
+
+    if (accion === "aprobar") {
+      const acc = esEquipo ? { equipo: true, email: "VIVEN" } : await verificado(body.token);
+      if (!acc) return json({ error: "necesita_codigo" }, 401);
+      const vId = body.version_id;
+      if (!vId) return json({ error: "no hay ninguna versión del corte para aprobar" }, 400);
+      const quien = String((acc as { email?: string }).email || "").replace(/^(equipo|editor):/, "");
+      const { data: vUpd, error } = await service.from("project_versions").update({
+        approved_at: new Date().toISOString(), approved_by: quien, approved_ip: ip,
+      }).eq("id", vId).eq("project_id", proj.id).select("n").maybeSingle();
+      if (error) return json({ error: error.message }, 500);
+      if (!vUpd) return json({ error: "esa versión no es de este proyecto" }, 404);
+      /* NO se marca el proyecto como entregado acá. Aprobar el corte y entregar los
+         archivos son dos momentos distintos —el portal mismo dice "aprobalo y ahí
+         entregamos los archivos finales"— y darlo por entregado antes de entregarlo hace
+         que el proyecto desaparezca de lo pendiente teniendo trabajo por delante. */
+      await avisar("✅ Aprobado por el cliente",
+        `${proj.client_contact || quien} aprobó la versión ${vUpd.n} de ${proj.title || ""}. Ya se pueden entregar los archivos finales.`,
+        quien);
+      return json({ ok: true, version: vUpd.n });
+    }
+
+    /* "Ya di mis notas": el estado del medio que faltaba. Si el cliente dejó comentarios,
+       no aprobó — está esperando el corte siguiente, y eso nos espera a NOSOTROS. */
+    if (accion === "notas_listas") {
+      const acc = esEquipo ? { equipo: true, email: "VIVEN" } : await verificado(body.token);
+      if (!acc) return json({ error: "necesita_codigo" }, 401);
+      const vId = body.version_id;
+      if (!vId) return json({ error: "no hay ninguna versión del corte" }, 400);
+      const quien = String((acc as { email?: string }).email || "").replace(/^(equipo|editor):/, "");
+      const { data: vUpd, error } = await service.from("project_versions").update({
+        notes_done_at: new Date().toISOString(), notes_done_by: quien,
+      }).eq("id", vId).eq("project_id", proj.id).select("n").maybeSingle();
+      if (error) return json({ error: error.message }, 500);
+      if (!vUpd) return json({ error: "esa versión no es de este proyecto" }, 404);
+      const { count } = await service.from("project_comments")
+        .select("id", { count: "exact", head: true }).eq("project_id", proj.id).eq("version_id", vId);
+      await avisar("📝 El cliente terminó sus notas",
+        `${proj.client_contact || quien} dejó ${count ?? 0} nota${count === 1 ? "" : "s"} sobre la versión ${vUpd.n} de ${proj.title || ""} y espera la siguiente.`,
+        quien);
+      return json({ ok: true, version: vUpd.n, notas: count ?? 0 });
     }
 
     // ---------- ESTADO (lo que se ve al entrar) ----------
