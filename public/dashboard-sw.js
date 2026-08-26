@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v127';  // v127: 26 ago 2026 — plan de rodaje editable y regenerable, y el refresh vuelve al proyecto
+var CACHE = 'viven-crm-v128';  // v128: 26 ago 2026 — el Project Brief se llena desde el panel, y recargar vuelve al proyecto
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));

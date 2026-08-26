@@ -57,6 +57,12 @@ const newsVideos = videos
   .filter((v) => v && v.id && v.thumb && (v.access ? v.access === 'public' : true))
   .map((v) => ({ id: String(v.id), title: v.title || v.name || v.client || 'Video', thumb: v.thumb, client: v.client || '' }));
 
+/* Las 12 preguntas del Project Brief, para poder llenarlo desde el dashboard.
+   Se importan en el build y viajan como JSON en la página: son las MISMAS que ve el
+   cliente en su portal, así que no hay dos versiones que se separen.
+   (Sebastián, 26 ago 2026: "tengo que poder tenerlo dentro del panel y llenarlo ahí".) */
+import { BRIEF, BRIEF_SECCIONES, BRIEF_T } from '../../data/project-brief-i18n.js';
+
 // case studies para las cards de case study del newsletter (páginas ya publicadas)
 const newsCases = [
   { slug: 'siemens', title: 'Siemens — Employer Branding', url: 'https://www.viven.ch/en/case-study-how-viven-helped-siemens-switzerland-amplify-their-employer-branding',
@@ -1700,6 +1706,30 @@ const newsCases = [
   .pj-blq > summary.pj-sum > span{font-size:10.5px}
   .pj-blq > summary.pj-sum em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:400;color:var(--muted)}
   .pj-guion-body{padding-top:14px}
+  /* Project Brief adentro del panel */
+  #pb-modal{z-index:435}
+  .pb-tabs{display:flex;gap:6px;margin:2px 0 16px;border-bottom:1px solid var(--line)}
+  .pb-tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted-2);
+    font:inherit;font-size:13px;font-weight:600;padding:8px 13px;cursor:pointer;margin-bottom:-1px}
+  .pb-tabs button.on{color:var(--text);border-bottom-color:var(--acid)}
+  .pb-pane{max-height:min(66vh,640px);overflow:auto;padding-right:4px}
+  .pb-sec{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);
+    font-weight:700;margin:20px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+  .pb-sec:first-child{margin-top:0;padding-top:0;border-top:0}
+  .pb-q{margin:0 0 18px}
+  .pb-q .qq{font-size:14px;font-weight:600;line-height:1.4;margin:0 0 3px}
+  .pb-q .hh{font-size:12.5px;color:var(--muted-2);line-height:1.5;margin:0 0 8px}
+  .pb-q textarea{width:100%;background:var(--navy-900);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);font:inherit;font-size:13.5px;padding:9px 11px;resize:vertical}
+  .pb-q textarea:focus{border-color:var(--acid);outline:none}
+  .pb-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .pb-chip{background:none;border:1px solid var(--line);border-radius:100px;color:var(--muted);
+    font:inherit;font-size:12px;padding:5px 12px;cursor:pointer}
+  .pb-chip:hover{border-color:var(--muted-2);color:var(--text)}
+  .pb-chip.on{background:rgba(190,242,100,.12);border-color:var(--acid);color:var(--acid)}
+  .pb-prog{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted-2);margin:0 0 14px}
+  .pb-prog .bar{flex:1;height:5px;background:var(--navy-800);border-radius:100px;overflow:hidden}
+  .pb-prog .bar i{display:block;height:100%;background:var(--acid);border-radius:100px}
   /* Plan de rodaje: una tabla que se edita adentro */
   .pj-pl{width:100%;border-collapse:collapse;font-size:12.5px}
   .pj-pl th{text-align:left;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);
@@ -5064,6 +5094,8 @@ const newsCases = [
      tocar nada. Acá se ve lo que va a salir, se edita, y el .xml está a la vista.
      (Sebastián, 26 ago 2026: "que salga directo desde el dashboard con un popup propio
      donde me muestre qué se le envía y le pueda hacer cambios, agregar cosas, etc.") -->
+<script type="application/json" id="brief-json" set:html={JSON.stringify({ BRIEF, BRIEF_SECCIONES, BRIEF_T })}></script>
+
 <div class="fu-modal" id="ned-modal" hidden role="dialog" aria-modal="true" aria-label="Notas al editor">
   <div class="fu-back" id="ned-back"></div>
   <div class="fu-card" style="width:min(820px,100%)">
@@ -5088,6 +5120,27 @@ const newsCases = [
       <button class="btn btn-primary" id="ned-go" type="button">📤 Enviar</button>
       <span class="muted-note" id="ned-msgout">Nada sale hasta que toques Enviar.</span>
     </div>
+  </div>
+</div>
+
+<!-- 📋 Project Brief. Antes se abría con window.open(..., 'noopener'), que devuelve null:
+     salía un popup en blanco. Y además hacía falta poder llenarlo desde acá — muchas veces
+     las respuestas llegan por teléfono o en la llamada, no por el formulario.
+     (Sebastián, 26 ago 2026: "tocar el project brief abre un popup vacío" / "tengo que
+     poder tenerlo dentro del panel y llenarlo ahí".) -->
+<div class="fu-modal" id="pb-modal" hidden role="dialog" aria-modal="true" aria-label="Project Brief">
+  <div class="fu-back" id="pb-back"></div>
+  <div class="fu-card" style="width:min(900px,100%)">
+    <div class="fu-hd">
+      <div><b>📋 Project Brief</b><span id="pb-sub"></span></div>
+      <button class="fu-x" id="pb-x" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pb-tabs">
+      <button type="button" class="on" data-pbt="llenar">✍️ Llenarlo acá</button>
+      <button type="button" data-pbt="mandar">📤 Mandárselo al cliente</button>
+    </div>
+    <div id="pb-llenar" class="pb-pane"></div>
+    <div id="pb-mandar" class="pb-pane" hidden></div>
   </div>
 </div>
 
@@ -17430,13 +17483,23 @@ const newsCases = [
     }
     pjList = pq.data || [];
     pjInvoices = (iq && !iq.error) ? (iq.data || []) : [];
+    /* El proyecto abierto apunta a un objeto de la lista vieja: se lo reemplaza por el
+       fresco para que lo que estás mirando no quede congelado en lo que había al entrar. */
+    if (pjCur){
+      const vivo = pjList.find((x) => String(x.id) === String(pjCur.id));
+      if (vivo) pjCur = vivo; else pjCur = null;   // lo archivaron o lo borraron desde otra ventana
+    }
     const pill = $('tab-pj-count');
     if (pill){ pill.textContent = pjList.length || ''; pill.hidden = !pjList.length; }
     pjRenderList();
   }
 
   function pjRenderList(){
-    $('pj-detail').hidden = true; $('pj-list-view').hidden = false;
+    /* Con un proyecto abierto, la lista se dibuja pero NO se muestra. pjLoad() termina
+       llamando acá, y al recargar la página el proyecto que abrió la URL quedaba abierto
+       medio segundo y después la lista lo tapaba: parecía que el link no funcionaba.
+       (Sebastián, 26 ago 2026: "en el browser tampoco me lleva al proyecto".) */
+    if (!pjCur){ $('pj-detail').hidden = true; $('pj-list-view').hidden = false; }
 
     // etapas con conteo y plata
     $('pj-etapas').innerHTML = PJ_ETAPAS.map((e) => {
@@ -19616,12 +19679,13 @@ const newsCases = [
           p: 'Antes de escribir nada, doce preguntas deciden qué es realmente el video. Están en tu portal — a tu ritmo, se guardan solas, y podés invitar a quien sepa las respuestas.' },
   };
 
-  function pjBriefDatos(){
+  function pjBriefDatos(op){
+    const callado = op && op.callado;
     const p = pjCur; if (!p) return null;
     const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
-    if (!d || !d.portal_token){ toast('Generá primero el link del portal'); return null; }
+    if (!d || !d.portal_token){ if (!callado) toast('Generá primero el link del portal'); return null; }
     const l = leadById(p.lead_id) || {};
-    if (!l.email){ toast('El contacto del proyecto no tiene email'); return null; }
+    if (!l.email){ if (!callado) toast('El contacto del proyecto no tiene email'); return null; }
     const lang = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
     /* La variante se sortea UNA vez y se guarda: si cambiara entre visitas, la medición
        de cuál se termina más no valdría nada. */
@@ -19632,48 +19696,179 @@ const newsCases = [
       cuerpo: PJ_BRIEF_MAIL[lang].p };
   }
 
-  function pjBriefVer(){
-    const x = pjBriefDatos(); if (!x) return;
-    const w = window.open('', '_blank', 'noopener,width=860,height=900');
-    if (!w){ toast('El navegador bloqueó la ventana'); return; }
-    const T = { largo: 'las 12 de corrido, en cuatro secciones', pasos: 'una sección por vez, con Atrás y Siguiente' }[x.variante];
-    w.document.write(
-      '<!doctype html><meta charset="utf-8"><title>Project Brief — antes de mandarlo</title>' +
-      '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#f4f6fb;margin:0;padding:26px 28px 60px">' +
-      '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 8px">' +
-        '⚠️ Todavía no se mandó nada. El botón para mandarlo está abajo del todo.</p>' +
-      '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 22px">Para <b style="color:#f4f6fb">' + esc(x.l.name || x.l.email) + '</b> · ' +
-        esc(x.l.email) + ' · idioma <b style="color:#f4f6fb">' + x.lang.toUpperCase() + '</b> · ' +
-        'le toca la presentación <b style="color:#ddf98f">' + esc(x.variante) + '</b> (' + T + ')</p>' +
+  /* ═══ Project Brief adentro del panel ═══
+     Dos cosas en la misma ventana, porque son la misma conversación:
+     · Llenarlo acá. Muchas respuestas llegan por teléfono o en la llamada; obligarlas a
+       pasar por el formulario del cliente hacía que se perdieran en una libreta.
+     · Mandárselo, con la vista previa de lo que recibe.
+     Lo que se escribe acá y lo que contesta el cliente van a la MISMA tabla: quien
+     conteste último manda, que es lo correcto —el cliente corrige lo que yo anoté mal, y
+     yo completo lo que él dejó en blanco.
+     (Sebastián, 26 ago 2026: "tocar el project brief abre un popup vacío" / "tengo que
+     poder tenerlo dentro del panel y llenarlo ahí".) */
+  const PBRIEF = (() => { try { return JSON.parse($('brief-json').textContent); } catch (e){ return { BRIEF: [], BRIEF_SECCIONES: [], BRIEF_T: {} }; } })();
+  let pbrResp = {}, pbrT = null, pbrLang = 'es';
 
-      '<h2 style="font-size:14px;margin:0 0 8px">1 · El email que recibe</h2>' +
+  async function pjBriefVer(){
+    const p = pjCur; if (!p) return;
+    $('pb-modal').hidden = false;
+    $('pb-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '');
+    pbrTab('llenar');
+    $('pb-llenar').innerHTML = '<p class="muted-note" style="margin:0">Cargando…</p>';
+    $('pb-mandar').innerHTML = '';
+
+    const l = leadById(p.lead_id) || {};
+    pbrLang = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
+
+    const { data } = await supabase.from('project_briefs').select('key,value').eq('project_id', p.id);
+    pbrResp = {};
+    (data || []).forEach((r) => { pbrResp[r.key] = r.value || ''; });
+    pbrRender();
+    pbrRenderMandar();
+  }
+
+  function pbrTab(cual){
+    document.querySelectorAll('[data-pbt]').forEach((b) => b.classList.toggle('on', b.dataset.pbt === cual));
+    $('pb-llenar').hidden = cual !== 'llenar';
+    $('pb-mandar').hidden = cual !== 'mandar';
+  }
+
+  /* Las respuestas se guardan como "Chip · Otro chip — texto libre", igual que el
+     playbook: un solo campo que se lee entero sin tener que cruzar dos tablas. */
+  function pbrPartir(v){
+    const t = String(v || '');
+    const i = t.indexOf(' — ');
+    if (i < 0) return { chips: t.trim() && !t.includes(' · ') && false ? [] : (t.includes(' · ') ? t.split(' · ').map((x) => x.trim()) : []), libre: t.includes(' · ') ? '' : t };
+    return { chips: t.slice(0, i).split(' · ').map((x) => x.trim()).filter(Boolean), libre: t.slice(i + 3) };
+  }
+  function pbrJuntar(chips, libre){
+    return [chips.join(' · '), String(libre || '').trim()].filter(Boolean).join(' — ');
+  }
+
+  function pbrRender(){
+    const p = pjCur; if (!p) return;
+    const L = pbrLang;
+    const T = PBRIEF.BRIEF_T && PBRIEF.BRIEF_T[L] ? PBRIEF.BRIEF_T[L] : {};
+    const contestadas = PBRIEF.BRIEF.filter((q) => String(pbrResp[q.k] || '').trim()).length;
+    const total = PBRIEF.BRIEF.length;
+
+    let html = '<div class="pb-prog"><span>' + contestadas + ' de ' + total + '</span>' +
+      '<span class="bar"><i style="width:' + Math.round(contestadas / total * 100) + '%"></i></span>' +
+      '<span>' + (p.brief_done_at ? '✓ el cliente lo dio por terminado' :
+                  p.brief_sent_at ? 'enviado, sin terminar' : 'no se mandó todavía') + '</span></div>';
+
+    let secActual = null;
+    PBRIEF.BRIEF.forEach((q) => {
+      if (q.sec !== secActual){
+        secActual = q.sec;
+        html += '<div class="pb-sec">' + esc((T.sec && T.sec[q.sec]) || q.sec) + '</div>';
+      }
+      const { chips, libre } = pbrPartir(pbrResp[q.k]);
+      html += '<div class="pb-q" data-q="' + q.k + '">' +
+        '<p class="qq">' + esc(q.q[L] || q.q.en) + (q.esencial ? '' : ' <span class="muted-note" style="font-weight:400">· opcional</span>') + '</p>' +
+        (q.h ? '<p class="hh">' + esc(q.h[L] || q.h.en) + '</p>' : '') +
+        ((q.op && (q.op[L] || q.op.en))
+          ? '<div class="pb-chips">' + (q.op[L] || q.op.en).map((o) =>
+              '<button type="button" class="pb-chip' + (chips.includes(o) ? ' on' : '') + '" data-o="' + esc(o) + '">' + esc(o) + '</button>').join('') + '</div>'
+          : '') +
+        '<textarea rows="2" data-k="' + q.k + '" placeholder="' + esc((q.libre && (q.libre[L] || q.libre.en)) || '') + '">' + esc(libre) + '</textarea>' +
+      '</div>';
+    });
+    $('pb-llenar').innerHTML = html;
+
+    $('pb-llenar').querySelectorAll('textarea').forEach((ta) => ta.addEventListener('input', () => pbrGuardarDebounce()));
+    $('pb-llenar').querySelectorAll('.pb-chip').forEach((b) => b.addEventListener('click', () => {
+      const q = PBRIEF.BRIEF.find((x) => x.k === b.closest('.pb-q').dataset.q);
+      /* Las de una sola respuesta se comportan como radio: elegir otra apaga la anterior.
+         Si no, quedan dos respuestas contradictorias en el mismo campo. */
+      if (q && !q.multi) b.closest('.pb-chips').querySelectorAll('.pb-chip').forEach((o) => { if (o !== b) o.classList.remove('on'); });
+      b.classList.toggle('on');
+      pbrGuardarDebounce();
+    }));
+  }
+
+  function pbrLeerDom(){
+    const out = {};
+    $('pb-llenar').querySelectorAll('.pb-q').forEach((caja) => {
+      const chips = [...caja.querySelectorAll('.pb-chip.on')].map((c) => c.dataset.o);
+      const libre = (caja.querySelector('textarea') || {}).value || '';
+      out[caja.dataset.q] = pbrJuntar(chips, libre);
+    });
+    return out;
+  }
+
+  function pbrGuardarDebounce(){ clearTimeout(pbrT); pbrT = setTimeout(pbrGuardar, 700); }
+
+  async function pbrGuardar(){
+    const p = pjCur; if (!p) return;
+    const nuevo = pbrLeerDom();
+    const cambios = Object.keys(nuevo).filter((k) => String(nuevo[k] || '') !== String(pbrResp[k] || ''));
+    if (!cambios.length) return;
+    /* Solo lo que cambió, y sin borrar lo que el cliente escribió: una respuesta que se
+       vacía acá se BORRA de la tabla, no se guarda como cadena vacía, para que el portal
+       la muestre en blanco y no como "contestada". */
+    const filas = cambios.filter((k) => String(nuevo[k]).trim())
+      .map((k) => ({ project_id: p.id, key: k, value: nuevo[k], answered_by: 'VIVEN' }));
+    const vacias = cambios.filter((k) => !String(nuevo[k]).trim());
+    if (filas.length){
+      const { error } = await supabase.from('project_briefs').upsert(filas, { onConflict: 'project_id,key' });
+      if (error){ toast(error.message); return; }
+    }
+    if (vacias.length){
+      await supabase.from('project_briefs').delete().eq('project_id', p.id).in('key', vacias);
+    }
+    cambios.forEach((k) => { pbrResp[k] = nuevo[k]; });
+    /* Solo el contador se repinta: redibujar todo mientras escribís te saca el cursor. */
+    const n = PBRIEF.BRIEF.filter((q) => String(pbrResp[q.k] || '').trim()).length;
+    const pr = $('pb-llenar').querySelector('.pb-prog');
+    if (pr){
+      pr.firstChild.textContent = n + ' de ' + PBRIEF.BRIEF.length;
+      pr.querySelector('.bar i').style.width = Math.round(n / PBRIEF.BRIEF.length * 100) + '%';
+    }
+  }
+
+  function pbrRenderMandar(){
+    const x = pjBriefDatos({ callado: true });
+    if (!x){
+      $('pb-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente», acá abajo.</p>';
+      return;
+    }
+    const T = { largo: 'las 12 de corrido, en cuatro secciones', pasos: 'una sección por vez, con Atrás y Siguiente' }[x.variante];
+    $('pb-mandar').innerHTML =
+      '<p class="muted-note" style="margin:0 0 14px">Para <b>' + esc(x.l.name || x.l.email) + '</b> · ' + esc(x.l.email) +
+        ' · idioma <b>' + x.lang.toUpperCase() + '</b> · le toca la presentación <b style="color:var(--acid)">' + esc(x.variante) + '</b> (' + T + ')</p>' +
       '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:20px">' +
         '<p style="font-size:12px;color:#8a94a8;margin:0 0 12px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
           '<b>Para:</b> ' + esc(x.l.email) + '<br /><b>Asunto:</b> ' + esc(x.asunto) + '</p>' +
         '<div style="font-size:15px;line-height:1.7;white-space:pre-wrap">' + esc(x.cuerpo) + '</div>' +
-        '<p style="margin:16px 0 0"><a href="#" style="color:#2b6cff">' + esc(x.url) + '</a></p>' +
+        '<p style="margin:16px 0 0"><span style="color:#2b6cff">' + esc(x.url) + '</span></p>' +
       '</div>' +
-
-      '<h2 style="font-size:14px;margin:26px 0 8px">2 · El formulario, en su portal</h2>' +
-      '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 10px">Así, en ' + x.lang.toUpperCase() + '. Se guarda mientras escribe y puede invitar a un colega.</p>' +
-      '<iframe src="' + esc(location.origin + '/portal/brief-preview/' + x.lang + '/' + x.variante + '/') + '" ' +
-        'style="width:100%;height:560px;border:1px solid #223049;border-radius:12px;background:#0f1826"></iframe>' +
-
-      '<div style="margin:26px 0 0;padding-top:18px;border-top:1px solid #223049;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
-        '<button id="go" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:15px;border:0;' +
-          'border-radius:100px;padding:13px 26px;cursor:pointer">📤 Mandárselo a ' + esc(x.l.email) + '</button>' +
-        '<span id="msg" style="color:#9aa6bd;font-size:13px"></span></div>' +
-      '</body>');
-    w.document.close();
-    w.document.getElementById('go').addEventListener('click', async () => {
-      const b = w.document.getElementById('go'), m = w.document.getElementById('msg');
+      '<div class="fu-actions" style="margin-top:16px">' +
+        '<button class="btn btn-primary" id="pb-go" type="button">📤 Mandárselo a ' + esc(x.l.email) + '</button>' +
+        '<span class="muted-note" id="pb-msg">Nada sale hasta que toques el botón.</span>' +
+      '</div>';
+    $('pb-go').addEventListener('click', async () => {
+      const b = $('pb-go'), m = $('pb-msg');
       b.disabled = true; m.textContent = 'Enviando…';
       const r = await pjBriefMandar(x);
-      m.textContent = r.ok ? '✅ Enviado. Ya podés cerrar esta ventana.' : '⚠️ ' + r.error;
+      m.textContent = r.ok ? '✅ Enviado.' : '⚠️ ' + r.error;
       b.disabled = !r.ok;
       if (r.ok) b.style.display = 'none';
     });
   }
+
+  (function pbrBind(){
+    const cerrar = () => { clearTimeout(pbrT); pbrGuardar(); $('pb-modal').hidden = true; pjRenderPortal(); };
+    document.addEventListener('click', (e) => {
+      if (!e.target) return;
+      if (e.target.id === 'pb-x' || e.target.id === 'pb-back' || e.target.id === 'pb-modal') cerrar();
+      if (e.target.dataset && e.target.dataset.pbt) pbrTab(e.target.dataset.pbt);
+    });
+    document.addEventListener('keydown', (e) => {
+      const m = $('pb-modal');
+      if (e.key === 'Escape' && m && !m.hidden && !/TEXTAREA|INPUT/.test((e.target || {}).tagName || '')) cerrar();
+    });
+  })();
 
   async function pjBriefMandar(x){
     try {
