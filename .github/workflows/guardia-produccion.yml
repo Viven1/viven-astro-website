@@ -1,0 +1,56 @@
+# ¿Lo que está en el aire es lo que está en `main`?
+#
+# El 26 de agosto de 2026 producción amaneció sirviendo un build de la rama `dev`
+# (service worker viven-crm-v29, del día anterior), pisando ocho deploys de `main` que
+# habían salido bien y verificado 200. Nadie se enteró durante siete horas: el Action
+# decía verde, el sitio respondía 200, y todo el trabajo de la noche no estaba en vivo.
+#
+# Un deploy "exitoso" no prueba que lo tuyo sea lo que se sirve. Esto lo prueba, cada
+# media hora, comparando el marcador de versión del service worker.
+#
+# Si falla, GitHub manda el mail de "workflow failed" — sin secrets nuevos.
+
+name: Guardia de producción
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: La versión en el aire tiene que ser la de main
+        run: |
+          set -u
+          ESPERADA=$(grep -o "viven-crm-v[0-9]*" public/dashboard-sw.js | head -1)
+          VIVA=$(curl -s -m 25 "https://www.viven.ch/dashboard-sw.js?guardia=$RANDOM" | grep -o "viven-crm-v[0-9]*" | head -1)
+          echo "main sirve:      $ESPERADA"
+          echo "producción sirve: ${VIVA:-(nada)}"
+          if [ "$ESPERADA" != "$VIVA" ]; then
+            echo ""
+            echo "::error::Producción NO está sirviendo main. Esperado $ESPERADA, en el aire ${VIVA:-nada}."
+            echo "Casi siempre es otra vía de deploy publicando una rama vieja (Cloudflare"
+            echo "Workers Builds apuntando a algo que no es main). Ver DEPLOY.md."
+            echo ""
+            echo "De qué rama es lo que está en el aire:"
+            git fetch -q origin '+refs/heads/*:refs/remotes/origin/*' || true
+            for b in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sed 's|origin/||'); do
+              V=$(git show "origin/$b:public/dashboard-sw.js" 2>/dev/null | grep -o "viven-crm-v[0-9]*" | head -1)
+              [ "$V" = "$VIVA" ] && echo "  → $b"
+            done
+            exit 1
+          fi
+          echo "OK: producción es main."
+
+      # Que las páginas respondan no alcanza, pero que NO respondan es peor.
+      - name: Y que las páginas sigan de pie
+        run: |
+          for u in https://www.viven.ch/en/ https://www.viven.ch/dashboard/ https://www.viven.ch/portal/; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 25 "$u")
+            echo "$code  $u"
+            [ "$code" = "200" ] || { echo "::error::$u devolvió $code"; exit 1; }
+          done

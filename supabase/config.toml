@@ -34,6 +34,16 @@ verify_jwt = false
 [functions.ai-enrich]
 verify_jwt = false
 
+# verify_jwt = false NO significa "sin auth": la función valida el JWT del dashboard
+# adentro (sb.auth.getUser). Lo que cambia es QUIÉN contesta el preflight CORS. Con
+# verify_jwt = true lo contesta el gateway de Supabase, que permite authorization,
+# x-client-info y apikey pero NO content-type — y el navegador manda content-type en
+# el POST, así que el preflight falla y supabase-js dice "Failed to send a request to
+# the Edge Function", que suena a que la función no existe cuando existe y arranca.
+# Todas las funciones de IA de este proyecto están así por la misma razón.
+[functions.ai-newsletter-translate]
+verify_jwt = false
+
 [functions.ai-insights]
 verify_jwt = false
 
@@ -197,4 +207,35 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.vimeo-stats]
+verify_jwt = false
+
+[functions.ai-breakdown]
+verify_jwt = false
+
+[functions.bexio-bill]
+verify_jwt = false
+
+[functions.ai-bill-read]
+verify_jwt = false
+
+# ==========================================================================
+#  Tres que faltaban. `verify_jwt` NO decide si hay que estar logueado —eso lo
+#  chequea cada función por su cuenta con supabase.auth.getUser()— sino QUIÉN
+#  contesta el preflight de CORS. Con true contesta el gateway de Supabase, que
+#  permite `authorization, x-client-info, apikey` y NO `content-type`: el navegador
+#  bloquea el POST y en pantalla se lee "Failed to send a request to the Edge
+#  Function", que no se parece en nada a la causa.
+#
+#  Sin entrada acá el default es true, así que estas tres funcionaban solo mientras
+#  nadie las redesplegara. El 26 ago 2026 se redesplegó bexio-invoice por otro
+#  arreglo y quedó rota la creación de facturas — sin que nada lo avisara.
+# ==========================================================================
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.bexio-invoice]
+verify_jwt = false
+
+[functions.bing-stats]
 verify_jwt = false

@@ -345,7 +345,12 @@ Deno.serve(async (req) => {
     // Authorization — eso es lo único que no se puede forjar sin tener el secret.
     const auth = req.headers.get("Authorization") ?? "";
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const isInternal = !!SERVICE_ROLE_KEY && auth === `Bearer ${SERVICE_ROLE_KEY}`;
+    /* El cron_secret vale igual que la service role para las llamadas internas: la
+       service role legacy dejó de entrar a las functions (pasó con varias este mes) y
+       sin esto no hay forma de verificar el render desde fuera del navegador. */
+    const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
+    const isInternal = (!!SERVICE_ROLE_KEY && auth === `Bearer ${SERVICE_ROLE_KEY}`)
+      || (!!CRON_SECRET && auth === `Bearer ${CRON_SECRET}`);
     let user: { id: string; email?: string } | null = null;
     if (!isInternal) {
       const supabase = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: auth } } });
@@ -545,15 +550,60 @@ Deno.serve(async (req) => {
 
     const useBlocks = Array.isArray(nl.blocks) && nl.blocks.length > 0;
 
+    /* ===== TRES IDIOMAS EN EL NEWSLETTER MANUAL (SQL 0145) =====
+       La edición mensual automática ya mandaba asunto y cuerpo en el idioma de cada
+       persona; el manual no, así que un contacto alemán recibía "Guten Tag" y después
+       texto en inglés. De los 33 destinatarios reales, 9 son DE — más de uno de cada
+       cuatro.
+       El orden de búsqueda es siempre el mismo y nunca deja a nadie sin email:
+         1. la versión en SU idioma
+         2. la versión en inglés
+         3. el contenido plano de siempre (campañas viejas, que no tienen i18n)
+       Se resuelve por destinatario, no una vez por campaña: en un mismo envío cada
+       uno recibe lo suyo. */
+    const bI18n = (nl as { blocks_i18n?: Record<string, Block[]> }).blocks_i18n || null;
+    const sI18n = (nl as { subject_i18n?: Record<string, string> }).subject_i18n || null;
+    const hayI18n = !!bI18n && Object.values(bI18n).some((v) => Array.isArray(v) && v.length);
+    const bloquesDe = (lang: string): Block[] | null => {
+      if (!bI18n) return null;
+      const propio = bI18n[lang];
+      if (Array.isArray(propio) && propio.length) return propio;
+      const en = bI18n.en;
+      return (Array.isArray(en) && en.length) ? en : null;
+    };
+    const asuntoDe = (lang: string): string =>
+      (sI18n && (sI18n[lang] || sI18n.en)) || nl.subject || "VIVEN";
+
     // construye el HTML completo para un destinatario
     const buildFull = async (r: { id?: number; email: string; name?: string; lang?: string }) => {
-      const lang = r.lang || "en";
-      const inner = useBlocks ? blocksHtml(nl.blocks as Block[], lang, id) : bodyHtml(nl.body, id);
+      const lang = ["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en";
+      const propios = bloquesDe(lang);
+      const inner = propios ? blocksHtml(propios, lang, id)
+        : useBlocks ? blocksHtml(nl.blocks as Block[], lang, id) : bodyHtml(nl.body, id);
       const tok = r.id != null ? await unsubToken(r.id) : "";
       const unsub = r.id != null ? `${SB_URL}/functions/v1/newsletter-unsub?l=${r.id}&t=${tok}` : "https://www.viven.ch";
       // saludo vía greeting(): en DE siempre "Guten Tag" formal, sin nombre de pila
       return wrapEmail(greeting(lang, r.name || "") + inner, unsub, lang);
     };
+
+    /* ===== PREVIEW DEL EMAIL FINAL =====
+       "Siempre antes de mandar tengo que poder ver como preview y corregir si
+       necesario". El preview tiene que salir de ACÁ, del mismo buildFull() que arma
+       lo que se envía — si lo dibuja el dashboard por su cuenta, un día el preview y
+       el email se separan y nadie se entera hasta que sale mal.
+       Devuelve el HTML completo (saludo, bloques, firma, link de baja) y el asunto,
+       en el idioma pedido. No manda nada ni toca la base. */
+    if (bodyReq.render_preview) {
+      const lang = ["en", "de", "es"].includes(bodyReq.lang) ? bodyReq.lang : "en";
+      const falso = { id: undefined as number | undefined, email: "preview@viven.ch", name: bodyReq.name || "", lang };
+      return json({
+        ok: true, lang,
+        subject: asuntoDe(lang),
+        html: await buildFull(falso),
+        tiene_version_propia: !!(bI18n && Array.isArray(bI18n[lang]) && bI18n[lang].length),
+        idiomas_cargados: bI18n ? Object.keys(bI18n).filter((k) => Array.isArray(bI18n[k]) && bI18n[k].length) : [],
+      });
+    }
 
     let sent = 0, failed = 0;
     const failedEmails: string[] = [];
@@ -564,7 +614,8 @@ Deno.serve(async (req) => {
       const full = await buildFull(r);
       const res = await resendPost("/emails", {
         from: "VIVEN <info@viven.ch>", reply_to: "info@viven.ch", to: [r.email],
-        subject: nl.subject, html: full, tags: [{ name: "nl_id", value: String(id) }],
+        subject: asuntoDe(["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en"),
+        html: full, tags: [{ name: "nl_id", value: String(id) }],
       });
       if (res.ok) {
         sent++;
@@ -587,7 +638,8 @@ Deno.serve(async (req) => {
         const chunk = recips.slice(i, i + BATCH);
         const payload = await Promise.all(chunk.map(async (r) => ({
           from: "VIVEN <info@viven.ch>", reply_to: "info@viven.ch", to: [r.email],
-          subject: nl.subject, html: await buildFull(r), tags: [{ name: "nl_id", value: String(id) }],
+          subject: asuntoDe(["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en"),
+          html: await buildFull(r), tags: [{ name: "nl_id", value: String(id) }],
         })));
         const res = await resendPost("/emails/batch", payload);
         if (res.ok) {

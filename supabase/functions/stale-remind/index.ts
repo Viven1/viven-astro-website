@@ -89,10 +89,17 @@ Deno.serve(async (req) => {
       const who = l.name || l.email || "Contacto";
       const lastStr = new Date(at).toLocaleDateString("de-CH", { day: "2-digit", month: "short", timeZone: "Europe/Zurich" });
       // task en el contacto (campanita + Necesita atención); reminded=true → task-remind no re-pushea
-      await service.from("lead_tasks").insert({
+      /* El índice único parcial (SQL 0148) es el que de verdad impide el duplicado: la
+         lista `already` se lee una sola vez antes del loop, así que dos corridas que se
+         pisan leen las dos "no hay ninguna". Pasó el 20 ago 2026 — la misma tarea dos
+         veces, con 3 segundos de diferencia. Si la base rechaza, no es un error: es que
+         ya estaba, y entonces tampoco se pushea (el push duplicado era la otra mitad
+         de la molestia). */
+      const { error: tErr } = await service.from("lead_tasks").insert({
         lead_id: l.id, title: `${TASK_PREFIX} hace ${weeks} semanas — retomar`,
         due_date: today, done: false, reminded: true,
       });
+      if (tErr) { if (tErr.code !== "23505") console.error("stale-remind:", tErr.message); continue; }
       await pushAll(`👋 ${who} — ${weeks} semanas sin contacto`,
         `Última actividad: ${lastStr}. Tocá para abrir y mandar un follow-up.`,
         `/dashboard/?lead=${l.id}`);

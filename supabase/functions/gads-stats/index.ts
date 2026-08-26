@@ -97,7 +97,17 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const token = await googleToken();
-    const ver = Deno.env.get("GOOGLE_ADS_API_VERSION") || "v21";
+  /* OJO CON ESTE NÚMERO. Google retira las versiones viejas de la API de Ads sin
+     avisar a la aplicación: el endpoint deja de existir y contesta 404, igual que si
+     hubiera una URL mal escrita. Pasó de verdad: el 11 ago 2026 la v21 se apagó, este
+     sync empezó a devolver "GoogleAds 404" en el snapshot diario, ads_daily se congeló
+     y NADIE se enteró durante dos semanas — porque la función devuelve ok:true (lo del
+     Sheet sí funcionaba) y el panel de Ads simplemente mostraba menos gasto.
+     Comprobado el 25 ago probando las versiones a mano: v17 a v21 dan 404, v22 y v23
+     dan 401 (existen, solo falta la credencial). Si esto vuelve a fallar con 404, el
+     primer sospechoso es este número. Se puede pisar con el secret GOOGLE_ADS_API_VERSION
+     sin tocar el código. */
+    const ver = Deno.env.get("GOOGLE_ADS_API_VERSION") || "v22";
     const ctx = { ver, cid, mgr, devToken, token };
     const days = Math.min(365, Math.max(7, +body.days || 30));
     const from = iso(new Date(Date.now() - days * 864e5)), to = iso(new Date());

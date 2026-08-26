@@ -106,7 +106,12 @@ Deno.serve(async (req) => {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 700, system: sys, messages: [{ role: "user", content: `${task}\n\n${ctx}` }] }),
+      /* max_tokens 700 era el techo, no el objetivo: un email de 180 palabras entra
+         cómodo, pero el JSON se corta si el modelo se pasa un poco — y un JSON
+         cortado no parsea, así que el error que veía Sebastián ("formato inesperado")
+         era casi siempre una respuesta truncada, no una respuesta rara. Con 1400 hay
+         margen de sobra y el costo por borrador sigue siendo despreciable. */
+      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1400, system: sys, messages: [{ role: "user", content: `${task}\n\n${ctx}` }] }),
     });
     if (!res.ok) {
       const errText = await res.text();
@@ -120,9 +125,24 @@ Deno.serve(async (req) => {
       .filter((c) => c.type === "text").map((c) => c.text ?? "").join(" ").trim().replace(/```json|```/g, "");
     const m = t.match(/\{[\s\S]*\}/); if (m) t = m[0];
     let parsed: { subject?: string; body?: string } = {};
-    try { parsed = JSON.parse(t); } catch { /* cae al error de abajo */ }
+    try { parsed = JSON.parse(t); } catch { /* se intenta rescatar abajo */ }
+    /* RESCATE. Antes, cualquier respuesta que no parseara se tiraba y Sebastián se
+       quedaba con el cuadro vacío y un cartel. Pero el email suele estar ahí entero,
+       solo que envuelto raro o con el JSON cortado al final. Vale más un borrador
+       imperfecto para editar que una pantalla en blanco: se sacan asunto y cuerpo a
+       mano antes de dar por perdida la corrida. */
     if (!parsed.subject || !parsed.body) {
-      return new Response(JSON.stringify({ error: "La IA devolvió un formato inesperado — probá de nuevo" }), { headers: { ...cors, "Content-Type": "application/json" } });
+      const subj = t.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      const bodyM = t.match(/"body"\s*:\s*"((?:[^"\\]|\\.)*)/);   // sin cerrar: puede venir cortado
+      const desescapar = (x: string) => x.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+      if (subj && bodyM) parsed = { subject: desescapar(subj[1]), body: desescapar(bodyM[1]).trim() };
+    }
+    if (!parsed.subject || !parsed.body) {
+      console.error("DRAFT_PARSE_FAIL", JSON.stringify({ stop: data.stop_reason, len: t.length, muestra: t.slice(0, 300) }));
+      const porLargo = data.stop_reason === "max_tokens";
+      return new Response(JSON.stringify({ error: porLargo
+        ? "La respuesta se cortó por lo larga — tocá Reescribir"
+        : "La IA devolvió un formato inesperado — probá de nuevo" }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify({ subject: parsed.subject, body: parsed.body }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {

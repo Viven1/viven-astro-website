@@ -55,7 +55,7 @@ async function pushAll(title: string, body: string, url: string) {
 type FunnelStep = { step: number; label: string; sessions: number; drop_pct: number | null };
 
 async function funnelSnapshot(funnel: string, days: number): Promise<FunnelStep[]> {
-  const { data, error } = await service.rpc("rpc_funnel_steps", { p_funnel: funnel, p_days: days });
+  const { data, error } = await service.rpc("rpc_funnel_steps", { p_funnel: funnel, p_days: days, p_solo_personas: true });
   if (error || !Array.isArray(data)) return [];
   let prev: number | null = null;
   return (data as { step: number; label: string; sessions: number }[]).map((r) => {
@@ -85,8 +85,12 @@ async function buildSnapshot() {
   } catch (_) { snapshot.ux_signals_28d = []; }
 
   // 3) top 10 páginas de entrada 28d con % de rebote
+  //    SOLO PERSONAS (SQL 0137): con bots adentro el rebote daba 91% y la IA
+  //    escribía ideas para arreglar una fuga que era tráfico automático. Con el
+  //    filtro puesto la ventana se recorta al 24/08 en adelante — menos sesiones,
+  //    pero de gente. Preferimos poco dato verdadero a mucho dato inventado.
   try {
-    const { data } = await service.rpc("rpc_entry_pages", { p_days: 28 });
+    const { data } = await service.rpc("rpc_entry_pages", { p_days: 28, p_solo_personas: true });
     snapshot.entry_pages_28d = (Array.isArray(data) ? data : []).slice(0, 10).map((r: { landing: string; sessions: number; bounces: number; avg_pages: number }) => {
       const s = Number(r.sessions) || 0, b = Number(r.bounces) || 0;
       return { landing: r.landing, sessions: s, bounce_pct: s ? Math.round((b / s) * 100) : 0, avg_pages: Number(r.avg_pages) || 0 };
