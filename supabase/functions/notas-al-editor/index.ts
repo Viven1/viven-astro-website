@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: "unauthorized" }, 401);
     if (!RESEND) return json({ error: "Falta RESEND_API_KEY" }, 500);
 
-    const { project_id, to, version, notas, xml, edl, video_url, dry_run } = await req.json().catch(() => ({}));
+    const { project_id, to, version, notas, xml, edl, video_url, portal_url, dry_run } = await req.json().catch(() => ({}));
     if (!project_id) return json({ error: "falta project_id" }, 400);
     const dest = String(to || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest)) return json({ error: "el editor no tiene un email válido" }, 400);
@@ -96,11 +96,15 @@ Deno.serve(async (req) => {
        adivinar si la captura es del cuadro correcto.
        Vimeo entiende #t=94s en la URL. */
     const linkTC = (tc: string) => {
+      const [h, m2, sg] = tc.split(":").map((x) => parseInt(x, 10) || 0);
+      const ms = (h * 3600 + m2 * 60 + sg) * 1000;
+      /* Al PORTAL, no a vimeo.com. El corte está privado —solo se reproduce embebido en
+         viven.ch— así que un link a vimeo.com no muestra nada. El portal lo abre en el
+         segundo pedido y con las notas al lado. */
+      if (portal_url) return String(portal_url) + "&tc=" + ms;
       const base = String(video_url || pr.deliverable_url || "").trim();
       if (!base) return null;
-      const [h, m2, sg] = tc.split(":").map((x) => parseInt(x, 10) || 0);
-      const seg = h * 3600 + m2 * 60 + sg;
-      return base.replace(/#.*$/, "") + "#t=" + seg + "s";
+      return base.replace(/#.*$/, "") + "#t=" + Math.round(ms / 1000) + "s";
     };
 
     const filas = lista.map((n) => `
@@ -120,12 +124,12 @@ Deno.serve(async (req) => {
         cada nota entra como marcador en el timeline, en su posición.</p>
       <table style="border-collapse:collapse;margin:0 0 22px;background:#f6f8fb;border-radius:10px;padding:4px">
         ${ficha}
-      </table>${pr.deliverable_url ? `
-      <p style="font-size:13.5px;margin:-12px 0 20px"><a href="${esc(pr.deliverable_url)}" style="color:#2b6cff">Ver el corte ↗</a></p>` : ""}
+      </table>${(portal_url || pr.deliverable_url) ? `
+      <p style="font-size:13.5px;margin:-12px 0 20px"><a href="${esc(portal_url || pr.deliverable_url)}" style="color:#2b6cff">Ver el corte ↗</a></p>` : ""}
       <table style="width:100%;border-collapse:collapse;margin:0 0 22px">${filas}</table>
       <p style="font-size:13px;color:#6b7896;line-height:1.6;margin:0">
         El <b>.xml</b> se importa desde Archivo → Importar. El <b>.edl</b> va por si tu programa
-        no lee el xml.${video_url || pr.deliverable_url ? " Cada minuto de arriba abre el corte en ese segundo." : ""}</p>
+        no lee el xml.${(portal_url || video_url || pr.deliverable_url) ? " Cada minuto de arriba abre el corte en ese segundo." : ""}</p>
       <p style="font-size:12px;color:#9aa6bd;margin:22px 0 0;border-top:1px solid #e9ecf1;padding-top:14px">
         VIVEN AG · Zúrich — respondiendo a este email le escribís al equipo.</p>
     </div>`;

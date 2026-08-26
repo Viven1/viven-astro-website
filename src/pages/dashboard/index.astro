@@ -17871,8 +17871,25 @@ const newsCases = [
 
     /* El link del corte va con el pedido: cada minuto del email abre el video en ese
        segundo. Es lo que reemplaza a las capturas por nota, que no se pueden sacar. */
+    /* Un pase propio para el montajista, de 30 días. Los minutos del email tienen que
+       abrir el corte, y el corte está privado en Vimeo: solo reproduce embebido en
+       viven.ch. Así que llevan al portal, no a vimeo.com. */
+    let portalUrl = null;
+    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    if (d && d.portal_token){
+      try {
+        const { data: pe } = await supabase.functions.invoke('get-portal', {
+          body: { id: d.id, t: d.portal_token, accion: 'pase_editor', email: mail } });
+        if (pe && pe.pase){
+          portalUrl = location.origin + '/portal/?id=' + encodeURIComponent(d.id) +
+            '&t=' + encodeURIComponent(d.portal_token) + '&pase=' + encodeURIComponent(pe.pase) +
+            '&ver=' + encodeURIComponent(r.v.id);
+        }
+      } catch (e){ /* sin pase, los minutos caen al link de Vimeo */ }
+    }
     const cuerpo = { project_id: p.id, to: mail, version: r.v.n, notas: lista,
-                     xml: r.xml, edl: r.edl, video_url: r.v.video_url || p.deliverable_url || null };
+                     xml: r.xml, edl: r.edl, portal_url: portalUrl,
+                     video_url: r.v.video_url || p.deliverable_url || null };
     let prev;
     try {
       const { data, error } = await supabase.functions.invoke('notas-al-editor', { body: { ...cuerpo, dry_run: true } });

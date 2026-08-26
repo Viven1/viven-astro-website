@@ -159,6 +159,10 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   /* Pase de equipo: viene en el link que abre el dashboard con "👁 Abrir". Se usa como
      token igual que el del cliente, y el servidor lo reconoce como del equipo. */
   var PASE = qs.get('pase');
+  /* Entrar directo a una nota: ?ver=<id>&tc=<ms>. Es lo que hace que el minuto del email
+     al montajista abra el corte en ese segundo — y adentro del portal, no en vimeo.com,
+     que con el video privado no reproduce. */
+  var VER_Q = qs.get('ver'), TC_Q = parseInt(qs.get('tc') || '', 10);
   var $ = function(i){ return document.getElementById(i); };
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
     return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
@@ -238,10 +242,17 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
      "en el 0:34" y no "en algún momento del principio". Se carga su API solo si el
      video es de Vimeo; con YouTube o sin video, el comentario va sin timecode. */
   var player = null, TC = 0;
+  /* Un video de Vimeo que NO es público lleva un hash de privacidad en la URL
+     (vimeo.com/123456789/a1b2c3d4e5) y el reproductor lo necesita como ?h=…. Esto lo
+     tiraba, así que el corte se veía solo si el video estaba público — justo lo que no
+     puede pasar: el cliente lo tiene que ver antes de que sea público.
+     (Sebastián, 26 ago 2026: "en vimeo el video va a estar como privado… tiene que
+     poder ser leído igualmente, si no lo ven todos antes de que sea real".) */
   function montarVimeo(url){
-    var m = String(url||'').match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    var m = String(url||'').match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([0-9a-z]+))?/i);
     if (!m) return null;
-    return 'https://player.vimeo.com/video/' + m[1];
+    var h = m[2] || (String(url||'').match(/[?&]h=([0-9a-z]+)/i) || [])[1];
+    return 'https://player.vimeo.com/video/' + m[1] + (h ? '?h=' + h : '');
   }
   function embed(url){
     var v = montarVimeo(url); if (v) return v;
@@ -263,6 +274,15 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
         player.on('seeked', poner);
         player.on('pause', poner);
         player.on('play', poner);
+        /* Saltar al minuto pedido, una sola vez. Se hace con `loaded` y no al toque: si
+           se pide el salto antes de que el reproductor tenga el video, no pasa nada y el
+           link parece roto. */
+        if (TC_Q > 0 && !engancharVimeo.saltado){
+          engancharVimeo.saltado = true;
+          player.on('loaded', function(){
+            player.setCurrentTime(TC_Q / 1000).catch(function(){});
+          });
+        }
       } catch(e){}
     };
     if (window.Vimeo) return arranca();
@@ -285,6 +305,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   function render(){
     var d = DATA;
     var vers = d.versiones || [];
+    if (!VER && VER_Q) VER = vers.filter(function(v){ return String(v.id) === String(VER_Q); })[0] || null;
     if (!VER && vers.length) VER = vers[0];
     var url = (VER && VER.video_url) || d.deliverable_url;
     var src = embed(url);

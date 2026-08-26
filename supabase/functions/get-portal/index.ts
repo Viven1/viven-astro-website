@@ -353,6 +353,38 @@ Deno.serve(async (req) => {
        el portal se abre en Chrome, y son dos almacenamientos distintos. Así que el
        dashboard —que sí está logueado— pide un pase corto y lo pega en el link.
        Dura 2 horas y sirve para UN proyecto: es para mirar y corregir, no una llave. */
+    /* Pase para el que MONTA. Igual que el del equipo pero largo: el montajista trabaja
+       con las notas durante días, y un pase de 2 horas lo obliga a pedirlo de nuevo cada
+       vez que abre el email. 30 días y solo para este proyecto.
+       Existe porque el corte está privado en Vimeo: los minutos del email no pueden
+       llevar a vimeo.com —ahí no reproduce— así que llevan acá adentro. */
+    if (accion === "pase_editor") {
+      const auth1 = req.headers.get("Authorization") ?? "";
+      const tok1 = auth1.replace(/^Bearer\s+/i, "").trim();
+      if (!tok1 || tok1 === SB_ANON) return json({ error: "unauthorized" }, 401);
+      const u1 = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: `Bearer ${tok1}` } } });
+      const { data: { user: user1 } } = await u1.auth.getUser();
+      if (!user1) return json({ error: "unauthorized" }, 401);
+      const { data: esM1 } = await u1.rpc("is_member");
+      if (esM1 !== true) return json({ error: "unauthorized" }, 401);
+      const mail1 = String(body.email || "").trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail1)) return json({ error: "email_invalido" }, 400);
+      /* Uno por editor y proyecto: si se le manda dos veces, el link viejo sigue
+         andando en vez de morirse a mitad de un montaje. */
+      const { data: ya } = await service.from("portal_access")
+        .select("token,token_expires").eq("project_id", proj.id).eq("email", `editor:${mail1}`).maybeSingle();
+      const vigente = ya && (ya as { token_expires?: string }).token_expires &&
+        new Date((ya as { token_expires: string }).token_expires) > new Date(Date.now() + 3 * 864e5);
+      if (vigente) return json({ ok: true, pase: (ya as { token: string }).token });
+      const pase1 = rnd(24);
+      await service.from("portal_access").delete().eq("project_id", proj.id).eq("email", `editor:${mail1}`);
+      await service.from("portal_access").insert({
+        project_id: proj.id, email: `editor:${mail1}`, token: pase1,
+        token_expires: new Date(Date.now() + 30 * 864e5).toISOString(), last_ip: ip,
+      });
+      return json({ ok: true, pase: pase1 });
+    }
+
     if (accion === "pase_equipo") {
       const auth0 = req.headers.get("Authorization") ?? "";
       const tok0 = auth0.replace(/^Bearer\s+/i, "").trim();
@@ -374,7 +406,8 @@ Deno.serve(async (req) => {
     /* Un token que se guardó con email "equipo:…" es un pase del equipo, no el acceso
        del cliente: entra igual pero la pantalla tiene que poder decirlo. */
     const accTok = await verificado(body.token);
-    const porPase = !!(accTok && String((accTok as { email?: string }).email || "").startsWith("equipo:"));
+    const emailAcc = String((accTok as { email?: string } | null)?.email || "");
+    const porPase = emailAcc.startsWith("equipo:") || emailAcc.startsWith("editor:");
     const acc = esEquipo ? { equipo: true } : accTok;
 
     /* El brief y, si es la primera vez, lo que contestaron en un proyecto ANTERIOR.
