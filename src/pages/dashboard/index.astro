@@ -2666,7 +2666,7 @@ const newsCases = [
       <div class="crm-grid">
         <label>Persona *<select class="ed-inp" id="dlf-lead"></select></label>
         <label>Nombre del proyecto *<input class="ed-inp" id="dlf-title" placeholder="p. ej. Employer branding 2026" /></label>
-        <label>Etapa<select class="ed-inp" id="dlf-stage"><option value="nuevo">Nuevo</option><option value="contactado">Contactado</option><option value="videocall">Video Call</option><option value="propuesta">Propuesta enviada</option></select></label>
+        <label>Etapa<select class="ed-inp" id="dlf-stage"><option value="nuevo">Nuevo</option><option value="contactado">Contactado</option><option value="videocall">Video Call</option><option value="propuesta">Oferta/propuesta enviada</option></select></label>
         <label>Valor estimado (CHF)<input class="ed-inp" id="dlf-value" type="number" min="0" step="100" placeholder="opcional" /></label>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
@@ -2840,6 +2840,7 @@ const newsCases = [
             <input type="file" id="pj-file-input" multiple hidden />
             <button class="btn btn-ghost small" id="pj-ver-add" type="button">⬆ Nueva versión</button>
             <button class="btn btn-ghost small" id="pj-file-add" type="button">📎 Archivo</button>
+            <button class="btn btn-ghost small" id="pj-portal-prev" type="button" title="Ver el portal y el email del código como los ve el cliente, sin mandar nada">👁 Vista previa</button>
             <button class="btn btn-ghost small" id="pj-portal-link" type="button">🔗 Link</button>
           </span>
         </h3>
@@ -8092,7 +8093,12 @@ const newsCases = [
     { key: 'nuevo',      label: 'Nuevo',        color: '#8ab4ff', prob: 0.2,  match: ['new', 'nuevo', '', 'pending'] },
     { key: 'contactado', label: 'Contactado',   color: '#f0c060', prob: 0.4,  match: ['contacted', 'contactado'] },
     { key: 'videocall',  label: 'Video Call',   color: '#c58af9', prob: 0.6,  match: ['videocall', 'video call booked', 'call', 'agendada', 'booked'] },
-    { key: 'propuesta',  label: 'Propuesta enviada', color: '#f0904e', prob: 0.8,  match: ['proposal', 'propuesta', 'qualified'] },
+    /* Se llamaba solo "Propuesta enviada", pero el motor manda acá también las OFERTAS
+       enviadas (ver el mapa {won:'ganado', sent:'propuesta'}): un deal con una oferta
+       afuera aparecía en una columna que decía que le habían mandado una propuesta.
+       (Sebastián, 26 ago 2026: "dice propuesta enviada, pero eso tmb tiene que ser
+       oferta enviada".) La etapa es "les mandamos un documento con precio y esperamos". */
+    { key: 'propuesta',  label: 'Oferta/propuesta enviada', color: '#f0904e', prob: 0.8,  match: ['proposal', 'propuesta', 'qualified'] },
     { key: 'ganado',     label: 'Ganado',       color: '#7ed957', prob: 1,    match: ['won', 'cerrado', 'ganado'] },
     { key: 'perdido',    label: 'Perdido',      color: '#ff6b6b', prob: 0,    match: ['lost', 'perdido'] },
     // "no por ahora, pero sí más adelante" — no cuenta en el pipeline abierto (como ganado/perdido),
@@ -17462,13 +17468,78 @@ const newsCases = [
     window.open(data.signedUrl, '_blank', 'noopener');
   }
 
+  /* ¿La factura es el papel de un costo que YA está presupuestado, o es un costo nuevo?
+     Esta era la trampa: antes siempre insertaba una línea nueva, así que subir la factura
+     de alguien que ya estaba en el paquete firmado contaba su costo DOS VECES y el margen
+     se hundía sin motivo. (Sebastián, 26 ago 2026: "¿la sincroniza con la persona en el
+     proyecto o cuenta el costo doble?".)
+     Ahora busca a quién podría corresponder y pregunta. Solo se crea una línea nueva si
+     él dice que es un costo nuevo. */
+  function pjCostosCandidatos(b){
+    const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const prov = norm(b.supplier);
+    const palabras = prov.split(' ').filter((w) => w.length > 3);
+    const imp = Number(b.net ?? b.gross) || 0;
+    const conFactura = new Set(pjBills.filter((x) => x.cost_id && String(x.id) !== String(b.id)).map((x) => String(x.cost_id)));
+    return pjCostos
+      .filter((c) => !conFactura.has(String(c.id)))
+      .map((c) => {
+        const txt = norm(c.person) + ' ' + norm(c.concept);
+        // el nombre del proveedor pesa más que el importe: dos líneas pueden costar igual
+        let pts = 0;
+        if (prov && (txt.includes(prov) || palabras.some((w) => txt.includes(w)))) pts += 10;
+        const tot = pjCostoTotal(c);
+        if (imp && tot && Math.abs(tot - imp) / Math.max(tot, imp) < 0.02) pts += 6;
+        else if (imp && tot && Math.abs(tot - imp) / Math.max(tot, imp) < 0.15) pts += 2;
+        return { c, pts, tot };
+      })
+      .filter((x) => x.pts > 0)
+      .sort((a2, b2) => b2.pts - a2.pts)
+      .slice(0, 6);
+  }
+
   async function pjBillACosto(id){
     const b = pjBills.find((x) => String(x.id) === String(id)); if (!b) return;
     const p = pjCur;
+    const imp = Number(b.net ?? b.gross) || 0;
+    const cands = pjCostosCandidatos(b);
+
+    if (cands.length){
+      const lista = cands.map((x, i) => (i + 1) + ') ' + (x.c.person ? x.c.person + ' — ' : '') +
+        (x.c.concept || 'línea') + ' · presupuestado ' + pjCHF(x.tot)).join('\n');
+      const r = prompt('Esta factura de ' + (b.supplier || '—') + ' por ' + pjCHF(imp) +
+        '\n\n¿Es el papel de una línea que ya está en el proyecto? Si lo es, elegila y NO se suma de nuevo:\n\n' + lista +
+        '\n\nEscribí el número, o "nueva" si es un costo que todavía no estaba.', '1');
+      if (r === null) return;
+      if (!/^nueva$/i.test(r.trim())){
+        const el = cands[+r.trim() - 1];
+        if (!el){ toast('No entendí cuál'); return; }
+        /* Enganchar la factura a la línea. Y si el importe real difiere del
+           presupuestado, ofrecer corregirlo: para eso existe el "margen real". */
+        const patch = { cost_id: el.c.id, estado: 'revisada' };
+        const dif = imp - el.tot;
+        if (imp && Math.abs(dif) >= 1 &&
+            confirm('La línea está presupuestada en ' + pjCHF(el.tot) + ' y la factura dice ' + pjCHF(imp) +
+              ' (' + (dif > 0 ? '+' : '') + pjCHF(dif) + ').\n\n¿Actualizo la línea al importe real de la factura?')){
+          const { data: cu, error: eu } = await supabase.from('project_costs')
+            .update({ qty: 1, unit_cost: imp }).eq('id', el.c.id).select().single();
+          if (eu){ toast('⚠️ ' + eu.message); return; }
+          const ix = pjCostos.findIndex((c) => String(c.id) === String(el.c.id));
+          if (ix >= 0) pjCostos[ix] = cu;
+        }
+        const { error: e3 } = await supabase.from('project_bills').update(patch).eq('id', b.id);
+        if (e3){ toast('⚠️ ' + e3.message); return; }
+        b.cost_id = el.c.id; b.estado = 'revisada';
+        toast('📎 Factura enganchada a "' + (el.c.concept || 'la línea') + '" — no se sumó de nuevo');
+        pjCostosRender(); pjBillsRender();
+        return;
+      }
+    }
+
     const concepto = (b.extracted && b.extracted.concepto) || b.supplier || 'Factura';
     const { data: c, error } = await supabase.from('project_costs').insert({
       project_id: p.id, concept: String(concepto).slice(0, 120), person: b.supplier || null,
-      kind: 'crew', qty: 1, unit_cost: Number(b.net ?? b.gross) || 0, sort: pjCostos.length + 100,
+      kind: 'crew', qty: 1, unit_cost: imp, sort: pjCostos.length + 100,
       notes: b.vendor_ref ? 'Factura ' + b.vendor_ref : null,
     }).select().single();
     if (error){ toast('⚠️ ' + error.message); return; }
@@ -17476,7 +17547,7 @@ const newsCases = [
     if (e2){ toast('⚠️ ' + e2.message); return; }
     b.cost_id = c.id; b.estado = 'revisada';
     pjCostos.push(c);
-    toast('💸 Línea de costo creada — ' + pjCHF(c.unit_cost));
+    toast('💸 Línea de costo NUEVA — ' + pjCHF(c.unit_cost) + ' que no estaba presupuestado');
     pjCostosRender(); pjBillsRender();
   }
 
@@ -17789,6 +17860,44 @@ const newsCases = [
       navigator.clipboard.writeText(url).then(() => toast('🔗 Link del portal copiado'), () => toast('No se pudo copiar'));
     });
   }
+  /* Vista previa del portal SIN mandar nada. Sebastián, 26 ago 2026: "necesito siempre
+     preview antes de mandar". El email del código lo dispara el cliente, así que la única
+     forma de revisarlo era pedírselo desde su portal — y ese mail le llega a él, en un
+     proyecto en curso. Esto muestra el email exacto (con un código de ejemplo) y abre el
+     portal en una pestaña para ver la puerta de entrada tal cual la ve. */
+  async function pjPortalPreview(){
+    const p = pjCur; if (!p) return;
+    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    if (!d || !d.portal_token){ toast('Generá primero el link del portal'); return; }
+    const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
+    try {
+      const res = await fetch('https://lumoevaotokgqnpybkyf.supabase.co/functions/v1/get-portal', {
+        method: 'POST',
+        headers: { 'apikey': 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: d.id, t: d.portal_token, accion: 'preview_codigo' }),
+      });
+      const r = await res.json();
+      if (!r || r.error) throw new Error((r && r.error) || 'no se pudo');
+      const w = window.open('', '_blank', 'noopener,width=760,height=760');
+      if (!w){ toast('El navegador bloqueó la ventana de vista previa'); return; }
+      w.document.write(
+        '<!doctype html><meta charset="utf-8"><title>Vista previa — portal del cliente</title>' +
+        '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1826;color:#f4f6fb;margin:0;padding:26px">' +
+        '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 20px">' +
+          '⚠️ Vista previa. <b>No se mandó nada</b> y el código es de ejemplo.</p>' +
+        '<h2 style="font-size:15px;margin:0 0 4px">El email que recibe el cliente</h2>' +
+        '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 10px">Para: <b>' + esc(r.para || '—') + '</b> · Idioma: ' + esc((r.idioma || '').toUpperCase()) + '</p>' +
+        '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:20px">' +
+          '<p style="font-size:12px;color:#8a94a8;margin:0 0 12px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
+            '<b>Asunto:</b> ' + esc(r.asunto || '') + '</p>' + (r.html || '') + '</div>' +
+        '<h2 style="font-size:15px;margin:26px 0 8px">El portal</h2>' +
+        '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 10px">Así lo ve al abrir el link: primero la puerta, y recién con el código lo de adentro.</p>' +
+        '<iframe src="' + esc(url) + '" style="width:100%;height:420px;border:1px solid #223049;border-radius:12px;background:#0f1826"></iframe>' +
+        '</body>');
+      w.document.close();
+    } catch (e){ toast('⚠️ ' + (e.message || e)); }
+  }
+
   async function pjGenPortal(){
     const p = pjCur; if (!p) return;
     const tok = ([...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join(''));
@@ -17854,6 +17963,7 @@ const newsCases = [
     $('pj-file-add').addEventListener('click', () => $('pj-file-input').click());
     $('pj-file-input').addEventListener('change', (e) => { pjFileSubir([...e.target.files]); e.target.value = ''; });
     $('pj-portal-link').addEventListener('click', () => { const b = $('pj-portal-copy') || $('pj-portal-gen'); if (b) b.click(); });
+    $('pj-portal-prev') && $('pj-portal-prev').addEventListener('click', pjPortalPreview);
     $('pj-bill-up').addEventListener('click', () => $('pj-bill-file').click());
     $('pj-bill-bx') && $('pj-bill-bx').addEventListener('click', pjBillsBexioLista);
     $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });

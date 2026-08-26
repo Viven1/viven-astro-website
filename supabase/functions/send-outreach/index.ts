@@ -5,6 +5,7 @@
 // Deploy:  supabase functions deploy send-outreach --no-verify-jwt
 // Secret:  RESEND_API_KEY (ya seteado)
 
+import { autolink } from "../_shared/autolink.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
@@ -22,11 +23,11 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const esc = (t: string) => t.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
-// texto plano → HTML simple: escapa, autolinkea URLs, saltos de línea → <br>
-const toHtml = (text: string) =>
-  esc(text)
-    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#2b6cff">$1</a>')
-    .replace(/\n/g, "<br>");
+/* texto plano → HTML simple: escapa, enlaza y saltos de línea → <br>.
+   Enlazaba SOLO "https://…", así que un "viven.ch/book/" escrito a mano salía como texto
+   muerto. Y este es justo el camino de los emails que Sebastián escribe él mismo desde la
+   ficha del contacto, o sea el que más importa. Ahora usa el autolink compartido. */
+const toHtml = (text: string) => autolink(esc(text), "#2b6cff").replace(/\n/g, "<br>");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });

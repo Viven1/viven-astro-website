@@ -82,6 +82,27 @@ Deno.serve(async (req) => {
       return data;
     };
 
+    /* ---------- VISTA PREVIA (no manda nada) ----------
+       Sebastián, 26 ago 2026: "necesito siempre preview antes de mandar". Devuelve el
+       HTML EXACTO del email del código, con un código de mentira, sin tocar Resend ni
+       la tabla de accesos. Es la única forma de revisar este email sin escribirle al
+       cliente real de un proyecto en curso. */
+    if (accion === "preview_codigo") {
+      const L = T[lang];
+      const code = "482913";
+      return json({
+        ok: true,
+        para: emailCliente || null,
+        asunto: `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`,
+        html: `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
+              <p>${L.intro}</p>
+              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
+              <p style="color:#8a94a8;font-size:13px">${L.vale}</p></div>`,
+        idioma: lang,
+        aviso: "Vista previa: no se mandó nada y el código es de ejemplo.",
+      });
+    }
+
     // ---------- PEDIR CÓDIGO ----------
     if (accion === "pedir_codigo") {
       if (!emailCliente) return json({ error: "sin_email" }, 400);

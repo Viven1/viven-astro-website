@@ -17,6 +17,7 @@
 //
 // Deploy: supabase functions deploy automations-run --no-verify-jwt
 
+import { autolink } from "../_shared/autolink.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -28,30 +29,6 @@ const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
 
-/* ===== LOS LINKS TIENEN QUE SER CLICKEABLES =====
-   La IA escribe "viven.ch/book/" a secas, y el autolink de antes solo agarraba
-   "https://…", así que el link llegaba como texto plano. Sebastián, 26 ago 2026:
-   "siempre que uses links, que sean clickeables, si no nadie lo hace". Tenía razón:
-   un link que hay que copiar y pegar no lo usa nadie, y el botón de reservar era
-   justamente la acción que pedía el email.
-   Agarra dominios pelados (viven.ch/book/), www., https:// y direcciones de email
-   (que van a mailto:). Deja en paz "8.1%" y "CHF 1.234,50" — probado. */
-const TLD_LINK = "ch|com|org|net|io|de|es|fr|it|at|li|co|ai|app|dev|me|swiss|eu";
-const RE_LINK = new RegExp(
-  "([a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}" +
-  "|https?:\\/\\/[^\\s<>()]+" +
-  "|www\\.[^\\s<>()]+" +
-  "|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD_LINK + ")(?:\\/[^\\s<>()]*)?)", "gi");
-function autolink(txt: string, color = "#5b7cfa"): string {
-  return txt.replace(RE_LINK, (m: string) => {
-    let cola = "";
-    const fin = m.match(/[.,;:!?]+$/);
-    if (fin) { cola = fin[0]; m = m.slice(0, -cola.length); }
-    const href = /^[a-z0-9._%+-]+@/i.test(m) ? "mailto:" + m
-      : (/^https?:\/\//i.test(m) ? m : "https://" + m);
-    return `<a href="${href}" style="color:${color}">${m}</a>` + cola;
-  });
-}
 
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
