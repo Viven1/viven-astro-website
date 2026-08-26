@@ -1,0 +1,52 @@
+---
+/* Banner del planificador de video de evento, para los posts que hablan de eventos.
+ *
+ * Mismo formato que CalcBanner —que ya está en 177 posts y funciona— porque el que lee
+ * un post sobre eventos no necesita otro diseño, necesita otra pregunta: ahí lo que
+ * sigue no es "cuánto sale" sino "qué tengo que decidir antes del día".
+ * (Sebastián, 26 ago 2026: "pega en la página de eventos, y blogs o resources que
+ * hablen de eso, como con los otros".)
+ */
+import { PLANNER_URLS } from '../data/event-planner-i18n.js';
+const { lang = 'en' } = Astro.props;
+const href = PLANNER_URLS[lang] || PLANNER_URLS.en;
+const T = {
+  eyebrow: { en: 'Free tool', de: 'Kostenloses Tool', es: 'Herramienta gratis' },
+  h2: {
+    en: 'Planning the video for your event?',
+    de: 'Planen Sie das Video für Ihren Event?',
+    es: '¿Estás planeando el video de tu evento?',
+  },
+  lead: {
+    en: 'Nine questions decide whether an event film works — and they all get decided before the day, not on it. Two minutes, and we email you the brief, ready to forward to your team.',
+    de: 'Neun Fragen entscheiden, ob ein Eventfilm funktioniert — und alle werden vor dem Tag entschieden, nicht an ihm. Zwei Minuten, und das Briefing kommt per Mail, bereit zum Weiterleiten.',
+    es: 'Nueve preguntas deciden si el video de un evento funciona — y se deciden antes del día, no en el día. Dos minutos, y el brief te llega por email listo para reenviar.',
+  },
+  cta: { en: 'Plan your event film', de: 'Eventfilm planen', es: 'Planear el video del evento' },
+};
+const t = (o) => o[lang] || o.en;
+---
+<section class="sec">
+  <div class="wrap">
+    <div class="calc-hero reveal">
+      <div class="calc-hero-copy">
+        <span class="eyebrow">{t(T.eyebrow)}</span>
+        <h2>{t(T.h2)}</h2>
+        <p class="lead">{t(T.lead)}</p>
+        <a href={href} class="btn btn-primary">{t(T.cta)} →</a>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+  .calc-hero{border:1px solid var(--line-strong);border-radius:26px;background:
+      radial-gradient(100% 120% at 100% 0%,rgba(221,249,143,.12),transparent 55%),
+      radial-gradient(100% 120% at 0% 100%,rgba(52,110,255,.14),transparent 55%),
+      var(--navy-800);
+    padding:clamp(32px,5vw,56px);text-align:center}
+  .calc-hero-copy{max-width:620px;margin:0 auto}
+  .calc-hero-copy .eyebrow{margin-bottom:14px;display:block}
+  .calc-hero-copy h2{font-size:clamp(24px,3vw,36px);font-weight:700;line-height:1.15}
+  .calc-hero-copy .lead{color:var(--muted);font-size:16.5px;margin-top:16px}
+  .calc-hero-copy .btn{margin-top:28px}
+</style>
