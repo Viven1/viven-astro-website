@@ -39,6 +39,17 @@ const b64 = (s: string) => {
 
 type Nota = { tc: string; autor: string; texto: string };
 
+/* De quién sale el email. No es cosmético: el montajista contesta a este email, y una
+   respuesta que cae en la casilla equivocada se pierde justo el día que hace falta.
+   El `from` sigue siendo un dominio verificado en Resend —mandar desde otro lo tira a
+   spam—; lo que cambia es el nombre que se ve y, sobre todo, el reply-to.
+   (Sebastián, 26 ago 2026: "nota al editor, ¿de quién se envía? Poné para escoger la
+   persona.") */
+const DE: Record<string, { nombre: string; email: string }> = {
+  sofia:     { nombre: "Sofia Treviño",    email: "sofia@viven.ch" },
+  sebastian: { nombre: "Sebastian Cepeda", email: "sebastian@viven.ch" },
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -49,7 +60,7 @@ Deno.serve(async (req) => {
     if (!RESEND) return json({ error: "Falta RESEND_API_KEY" }, 500);
 
     const { project_id, to, version, notas, xml, edl, video_url, portal_url, dry_run,
-            asunto_manual, mensaje } = await req.json().catch(() => ({}));
+            asunto_manual, mensaje, de } = await req.json().catch(() => ({}));
     if (!project_id) return json({ error: "falta project_id" }, 400);
     const dest = String(to || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest)) return json({ error: "el editor no tiene un email válido" }, 400);
@@ -90,6 +101,8 @@ Deno.serve(async (req) => {
     /* El asunto y el mensaje se pueden cambiar desde el dashboard antes de mandar: cada
        montajista tiene su forma, y a veces hay que agregar algo que las notas no dicen
        ("esto es urgente", "la v3 va el viernes"). */
+    const remitente = DE[String(de || "").toLowerCase()] || DE.sofia;
+
     const asunto = String(asunto_manual || "").trim() ||
       `${ref ? ref + " · " : ""}${titulo} — ${lista.length} nota${lista.length === 1 ? "" : "s"} del cliente${version ? " (v" + version + ")" : ""}`;
     const nota = String(mensaje || "").trim();
@@ -138,10 +151,11 @@ Deno.serve(async (req) => {
         El <b>.xml</b> se importa desde Archivo → Importar. El <b>.edl</b> va por si tu programa
         no lee el xml.${(portal_url || video_url || pr.deliverable_url) ? " Cada minuto de arriba abre el corte en ese segundo." : ""}</p>
       <p style="font-size:12px;color:#9aa6bd;margin:22px 0 0;border-top:1px solid #e9ecf1;padding-top:14px">
-        VIVEN AG · Zúrich — respondiendo a este email le escribís al equipo.</p>
+        ${esc(remitente.nombre)} · VIVEN AG, Zúrich — respondiendo a este email le escribís directo.</p>
     </div>`;
 
-    if (dry_run) return json({ ok: true, dry_run: true, para: dest, asunto, html, notas: lista.length });
+    if (dry_run) return json({ ok: true, dry_run: true, para: dest, asunto, html, notas: lista.length,
+                               de: remitente.nombre, responde_a: remitente.email });
 
     /* El nombre del archivo también dice de qué proyecto es: en la carpeta de descargas
        del montajista, "1201_Sonova_New_Sound_v2_notas.xml" se distingue de otro; un
@@ -156,7 +170,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "VIVEN AG <info@viven.ch>", to: [dest], reply_to: "info@viven.ch",
+        from: `${remitente.nombre} (VIVEN) <info@viven.ch>`, to: [dest], reply_to: remitente.email,
         subject: asunto, html, attachments: adj,
       }),
     });
@@ -172,7 +186,7 @@ Deno.serve(async (req) => {
     await registrarEmail({
       service, to: dest, subject: asunto,
       body: lista.map((n) => `${n.tc} — ${n.texto}`).join("\n"),
-      source: "notas-al-editor", senderLabel: "VIVEN",
+      source: "notas-al-editor", senderLabel: remitente.nombre,
     });
 
     return json({ ok: true, para: dest, notas: lista.length, adjuntos: adj.length });

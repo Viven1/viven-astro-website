@@ -5017,7 +5017,12 @@ const newsCases = [
     </div>
     <div class="ned-grid">
       <label>Para<input class="ed-inp" id="ned-to" type="email" /></label>
-      <label>Asunto<input class="ed-inp" id="ned-asunto" type="text" /></label>
+      <!-- De quién sale. No es cosmético: el montajista contesta a este email, y una
+           respuesta que cae en la casilla equivocada se pierde el día que hace falta.
+           (Sebastián, 26 ago 2026: "nota al editor, ¿de quién se envía? Poné para escoger
+           la persona.") -->
+      <label>De<select class="ed-inp" id="ned-de"></select></label>
+      <label style="grid-column:1/-1">Asunto<input class="ed-inp" id="ned-asunto" type="text" /></label>
     </div>
     <label class="ned-lbl">Algo que quieras agregarle <em>— va arriba de las notas</em>
       <textarea class="ed-inp" id="ned-msg" rows="3" placeholder="Opcional. P. ej.: «la v3 va el viernes, priorizá las notas de audio»."></textarea></label>
@@ -18322,6 +18327,15 @@ const newsCases = [
     $('ned-modal').hidden = false;
     $('ned-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '') + ' · v' + r.v.n + ' · ' + lista.length + ' notas';
     $('ned-to').value = mail;
+    /* Arranca con el remitente que ya venías usando en el dashboard: es casi siempre el
+       mismo, y elegirlo de nuevo cada vez es una decisión que no aporta nada. */
+    const deSel = $('ned-de');
+    if (!deSel.options.length){
+      deSel.innerHTML = Object.keys(SENDERS).map((k) =>
+        '<option value="' + k + '">' + esc(SENDERS[k].name) + ' — ' + esc(SENDERS[k].email) + '</option>').join('');
+    }
+    deSel.value = (localStorage.getItem('viven_ned_de') || sender || 'sofia');
+    if (!deSel.value) deSel.value = Object.keys(SENDERS)[0];
     $('ned-msg').value = '';
     $('ned-adj').innerHTML =
       '<p class="muted-note" style="margin:8px 0 4px">Van dos archivos con el número del proyecto en el nombre. El <b>.xml</b> deja cada nota como marcador en el timeline de Premiere; el <b>.edl</b> es la red por si su programa no lee el xml.</p>' +
@@ -18341,12 +18355,16 @@ const newsCases = [
       try {
         const { data, error } = await supabase.functions.invoke('notas-al-editor', {
           body: { ...nedCuerpo, to: $('ned-to').value.trim() || nedCuerpo.to,
+                  de: $('ned-de').value,
                   asunto_manual: $('ned-asunto').value.trim() || undefined,
                   mensaje: $('ned-msg').value, dry_run: true } });
         if (error) throw new Error(error.message);
         if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
         if (!$('ned-asunto').value.trim()) $('ned-asunto').value = data.asunto;
         prev.innerHTML = data.html;
+        $('ned-msgout').textContent = data.responde_a
+          ? 'Si contesta, le llega a ' + data.responde_a + '. Nada sale hasta que toques Enviar.'
+          : 'Nada sale hasta que toques Enviar.';
       } catch (e){
         prev.innerHTML = '<p style="color:#b00;margin:0">⚠️ ' + esc(e.message || String(e)) + '</p>';
       }
@@ -18365,6 +18383,12 @@ const newsCases = [
     document.addEventListener('input', (e) => {
       if (e.target && ['ned-to', 'ned-asunto', 'ned-msg'].includes(e.target.id)) nedPreview();
     });
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.id === 'ned-de'){
+        localStorage.setItem('viven_ned_de', e.target.value);
+        nedPreview();
+      }
+    });
     document.addEventListener('click', async (e) => {
       if (!e.target || e.target.id !== 'ned-go' || !nedCuerpo) return;
       const b = e.target, out = $('ned-msgout');
@@ -18373,7 +18397,8 @@ const newsCases = [
       b.disabled = true; out.textContent = 'Enviando…';
       try {
         const { data, error } = await supabase.functions.invoke('notas-al-editor', {
-          body: { ...nedCuerpo, to, asunto_manual: $('ned-asunto').value.trim() || undefined, mensaje: $('ned-msg').value } });
+          body: { ...nedCuerpo, to, de: $('ned-de').value,
+                  asunto_manual: $('ned-asunto').value.trim() || undefined, mensaje: $('ned-msg').value } });
         if (error) throw new Error(error.message);
         if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
         out.textContent = '✅ Enviado con ' + data.adjuntos + ' adjuntos';
