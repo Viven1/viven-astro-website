@@ -2778,7 +2778,7 @@ const newsCases = [
 
       <div class="ab-urlrow" style="margin-top:14px">
         <button class="btn btn-primary small" id="pj-save" type="button">💾 Guardar</button>
-        <button class="btn btn-ghost small" id="pj-invoice" type="button">🧾 Crear factura en bexio</button>
+        <button class="btn btn-ghost small" id="pj-invoice" type="button" title="Factura al CLIENTE, desde la propuesta que firmó">🧾 Facturar al cliente</button>
         <button class="btn btn-ghost small" id="pj-lead" type="button">👤 Abrir el contacto</button>
         <span class="muted-note" id="pj-save-note"></span>
       </div>
@@ -7881,7 +7881,24 @@ const newsCases = [
   }
   const actLabel = (a) => a ? a.label + ' · ' + timeAgo(new Date(a.t).toISOString()) : '—';
   const OF_COLOR = { draft: '#8ab4ff', sent: '#f0c060', won: '#7ed957', lost: '#ff6b6b' };
-  const fmtDMY = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  /* ===== UNA FECHA SIN HORA NO TIENE ZONA HORARIA =====
+     `new Date('2026-08-24')` se interpreta como medianoche UTC, y al mostrarla en la
+     zona del navegador se corre. Sebastián mira el tablero desde Jujuy (UTC−3), así
+     que TODAS las fechas guardadas como `date` —rodaje, entrega, renovación de
+     licencias, fecha de una factura— le salían UN DÍA ANTES. La factura de Tobias
+     Brunner decía 24.08 en el papel y el tablero mostraba 23/08.
+     Un `date` de Postgres es un día del calendario, no un instante: se arma a mano
+     como fecha LOCAL para que el día que se muestra sea el día que dice el dato.
+     Las marcas con hora (timestamptz) sí llevan zona y se dejan como están. */
+  const fechaLocal = (d) => {
+    if (!d) return null;
+    if (typeof d === 'string'){
+      const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    }
+    return new Date(d);
+  };
+  const fmtDMY = (d) => d ? fechaLocal(d).toLocaleDateString('es-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   // sin persona ligada, una oferta/propuesta NO aparece en el pipeline y los números no cuadran.
   // Este guard crea la persona (con la etapa acorde) y la liga en un click.
   async function ensureLeadFor(clientName, email, status){
@@ -10479,7 +10496,7 @@ const newsCases = [
   function lm2RenderLeft(r){
     const box = $('lm2-l'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
     const ldom = leadDomain(r);
-    const fmtD2 = (d) => d ? new Date(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
+    const fmtD2 = (d) => d ? fechaLocal(d).toLocaleDateString('es-CH', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
     const FIELDS = [
       ['name', 'Nombre'], ['email', 'Email'], ['phone', 'Teléfono'],
       ['company', 'Empresa'], ['job_title', 'Cargo'], ['lang', 'Idioma'],
@@ -16424,6 +16441,22 @@ const newsCases = [
 
 
 
+  /* Facturar al cliente desde el proyecto: encuentra el documento del que salió este
+     proyecto —la propuesta aceptada o la oferta ganada— y abre el flujo de bexio que ya
+     existe. Si no hay ninguno, lo dice con lo que se puede hacer, en vez de fallar. */
+  function pjFacturar(){
+    const p = pjCur; if (!p) return;
+    const prop = (ppList || []).find((x) => !x.archived && !x.is_template && x.status === 'accepted'
+      && (String(x.deal_id || '') === String(p.deal_id) || String(x.lead_id || '') === String(p.lead_id)));
+    if (prop) return bxAbrir('propuesta', prop.id);
+    const of = (offersList || []).filter((o) => !o.archived && o.status !== 'tier'
+      && String(o.lead_id || '') === String(p.lead_id))
+      .sort((a, b) => ((b.status === 'won') - (a.status === 'won'))
+        || (Date.parse(b.updated_at || 0) - Date.parse(a.updated_at || 0)))[0];
+    if (of) return bxAbrir('oferta', of.id);
+    toast('Este proyecto no tiene oferta ni propuesta atrás — creá una en Ofertas y desde ahí sale la factura');
+  }
+
   /* ---------- FACTURAS DEL CREW (SQL 0156) ----------
      "Ideal sería poder subir facturas de la crew al dashboard para enviar a bexio y
      saber el margen real de cada proyecto" (Sebastián, 26 ago 2026).
@@ -16935,14 +16968,13 @@ const newsCases = [
     $('pj-costos-sembrar').addEventListener('click', pjCostosSembrar);
     $('pj-costo-add').addEventListener('click', pjCostoAdd);
     $('pj-lead').addEventListener('click', () => { if (pjCur && pjCur.lead_id){ gotoTab('leads'); openLead(pjCur.lead_id); } });
-    $('pj-invoice').addEventListener('click', () => {
-      if (!pjCur) return;
-      /* La factura se arma desde la oferta/propuesta, que es donde están las posiciones
-         con su IVA y su cliente. Acá se lleva al lugar donde ese botón ya existe y
-         funciona, en vez de duplicar el flujo. */
-      gotoTab('offers');
-      toast('🧾 Buscá el documento de ' + (leadById(pjCur.lead_id) || {}).name + ' y usá "🧾 Factura"');
-    });
+    /* Facturar al cliente DESDE el proyecto. La primera versión mandaba al tab de
+       Ofertas con un toast — Sebastián: "¿cómo envío deal won to bexio? no veo ningún
+       botón". Tenía razón: mandarlo a buscar el documento a otra pantalla no es un
+       botón, es una instrucción. Ahora abre el mismo modal de bexio (con el porcentaje,
+       los candidatos de contacto y el IVA) sin salir del proyecto — el documento se
+       busca solo, que es lo que la pantalla ya sabe hacer. */
+    $('pj-invoice').addEventListener('click', pjFacturar);
   }
 
   /* Puntería de cada motor: de todo lo que ya decidiste, cuánto salió y cuánto tiraste.
