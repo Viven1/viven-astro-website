@@ -85,3 +85,5 @@ self.addEventListener('notificationclick', function (e) {
     return self.clients.openWindow(url);
   }));
 });
+
+/* v105 — publicado el 26 ago 2026 */
