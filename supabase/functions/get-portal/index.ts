@@ -369,7 +369,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           title: `💬 ${proj.client_contact || "El cliente"} comentó`,
           body: (c.tc_ms != null ? `[${Math.floor(c.tc_ms / 60000)}:${String(Math.floor(c.tc_ms / 1000) % 60).padStart(2, "0")}] ` : "") + texto.slice(0, 120),
-          url: `/dashboard/?tab=projects`,
+          url: proj.ref ? `/dashboard/?proyecto=${proj.ref}` : `/dashboard/?tab=projects`,
         }),
       }).catch(() => {});
       return json({ ok: true, comentario: c });
@@ -439,14 +439,23 @@ Deno.serve(async (req) => {
     /* Avisar al equipo: push Y email. La push sola no alcanza —si el teléfono está en
        silencio nadie se entera— y esto es de las pocas cosas del portal donde el cliente
        nos está esperando a nosotros. */
-    const avisar = async (titulo: string, detalle: string, quien: string) => {
+    /* NO se espera: el cliente toca "terminé mis notas" y se queda mirando un botón
+       deshabilitado mientras Resend contesta. El aviso tiene que salir igual, pero la
+       pantalla no le debe nada al servidor de email.
+       (Sebastián, 26 ago 2026: "tarda mucho en avisar".) */
+    const avisar = (titulo: string, detalle: string, quien: string) => {
       fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
-        body: JSON.stringify({ title: titulo, body: detalle, url: "/dashboard/?tab=projects" }),
+        /* Al PROYECTO, no a la lista de gente. Un aviso que te deja en Personas te obliga
+           a buscar a mano justo lo que el aviso ya sabía.
+           (Sebastián, 26 ago 2026: "tocar esa notificación me lleva a personas, no donde
+           tengo que ir".) */
+        body: JSON.stringify({ title: titulo, body: detalle,
+          url: proj.ref ? `/dashboard/?proyecto=${proj.ref}` : "/dashboard/?tab=projects" }),
       }).catch(() => {});
       if (!RESEND) return;
-      await fetch("https://api.resend.com/emails", {
+      fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -476,7 +485,7 @@ Deno.serve(async (req) => {
          archivos son dos momentos distintos —el portal mismo dice "aprobalo y ahí
          entregamos los archivos finales"— y darlo por entregado antes de entregarlo hace
          que el proyecto desaparezca de lo pendiente teniendo trabajo por delante. */
-      await avisar("✅ Aprobado por el cliente",
+      avisar("✅ Aprobado por el cliente",
         `${proj.client_contact || quien} aprobó la versión ${vUpd.n} de ${proj.title || ""}. Ya se pueden entregar los archivos finales.`,
         quien);
       return json({ ok: true, version: vUpd.n });
@@ -498,7 +507,7 @@ Deno.serve(async (req) => {
       }).eq("id", vId).eq("project_id", proj.id).select("n").maybeSingle();
       if (error) return json({ error: error.message }, 500);
       if (!vUpd) return json({ error: "esa versión no es de este proyecto" }, 404);
-      await avisar("↩︎ Aprobación deshecha",
+      avisar("↩︎ Aprobación deshecha",
         `${proj.client_contact || quien} sacó la aprobación de la versión ${vUpd.n} de ${proj.title || ""}. Ojo: no entreguen los archivos finales todavía.`,
         quien);
       return json({ ok: true, version: vUpd.n });
@@ -519,7 +528,7 @@ Deno.serve(async (req) => {
       if (!vUpd) return json({ error: "esa versión no es de este proyecto" }, 404);
       const { count } = await service.from("project_comments")
         .select("id", { count: "exact", head: true }).eq("project_id", proj.id).eq("version_id", vId);
-      await avisar("📝 El cliente terminó sus notas",
+      avisar("📝 El cliente terminó sus notas",
         `${proj.client_contact || quien} dejó ${count ?? 0} nota${count === 1 ? "" : "s"} sobre la versión ${vUpd.n} de ${proj.title || ""} y espera la siguiente.`,
         quien);
       return json({ ok: true, version: vUpd.n, notas: count ?? 0 });

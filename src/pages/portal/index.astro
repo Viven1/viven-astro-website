@@ -370,6 +370,42 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       '</div>';
   }
 
+  /* Los tres estados del corte, en una sola función y no dentro del render de la
+     pantalla: así aprobar, deshacer o decir "terminé mis notas" repintan ESTE bloque
+     solo. Antes cada una llamaba a cargar(), que redibuja todo —incluido el <iframe>—
+     y el video arrancaba de cero mientras se esperaba al servidor de email.
+     (Sebastián, 26 ago 2026: "terminé mis notas no hace nada" / "tarda mucho en avisar".
+     Hacía las dos cosas: tardaba, y lo que hacía no se veía.) */
+  function accHTML(){
+    if (!VER) return '';
+    if (VER.approved_at)
+      return '<div class="pt-ok"><div class="pt-aprobado">✓ ' + L.approved + ' · ' +
+        esc(String(VER.approved_at).slice(0,10).split('-').reverse().join('.')) + '</div>' +
+        '<button class="btn btn-ghost small" id="pt-desapr" type="button">' + L.desapr + '</button></div>';
+    if (VER.notes_done_at)
+      return '<div class="pt-ok" style="border-color:#f0c060;background:rgba(240,192,96,.07)">' +
+        '<div style="color:#f0c060">' + L.notasOk + '</div>' +
+        '<button class="btn btn-ghost small" id="pt-ok" type="button" style="border-color:#7ed957;color:#7ed957">✓ ' + L.approve + '</button></div>';
+    return '<div class="pt-ok"><div>' + L.approveHint + '<br /><span style="color:var(--muted-2)">' + L.notasH + '</span></div>' +
+      '<button class="btn btn-ghost small" id="pt-notas" type="button" style="border-color:#f0c060;color:#f0c060">' + L.notas + '</button> ' +
+      '<button class="btn btn-ghost small" id="pt-ok" type="button" style="border-color:#7ed957;color:#7ed957">✓ ' + L.approve + '</button></div>';
+  }
+
+  function accPintar(){
+    var box = $('pt-acc'); if (!box) return;
+    box.innerHTML = accHTML();
+    engancharAcc();
+  }
+
+  function engancharAcc(){
+    var ok = $('pt-ok'); if (ok) ok.addEventListener('click', function(){ conCodigo(aprobar); });
+    var nt = $('pt-notas'); if (nt) nt.addEventListener('click', function(){ conCodigo(notasListas); });
+    var da = $('pt-desapr'); if (da) da.addEventListener('click', function(){
+      if (!confirm(L.desaprQ)) return;
+      conCodigo(desaprobar);
+    });
+  }
+
   /* Los botones de una tarjeta, en un solo lugar. Se llama al dibujarla por primera vez
      y cada vez que se redibuja sola —marcar hecha la cambia entera— porque un innerHTML
      nuevo se lleva puestos los listeners del anterior. */
@@ -503,18 +539,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
            dio notas NO aprobó — está esperando el corte siguiente, y eso nos espera a
            nosotros. Antes solo existía "aprobar", así que el caso normal no tenía botón.
            (Sebastián, 26 ago 2026: "si dan notas no está aprobado todavía".) */
-        (VER
-          ? (aprobada
-              ? '<div class="pt-ok"><div class="pt-aprobado">✓ ' + L.approved + ' · ' + esc(String(VER.approved_at).slice(0,10).split('-').reverse().join('.')) + '</div>' +
-                  '<button class="btn btn-ghost small" id="pt-desapr" type="button">' + L.desapr + '</button></div>'
-              : VER.notes_done_at
-              ? '<div class="pt-ok" style="border-color:#f0c060;background:rgba(240,192,96,.07)">' +
-                  '<div style="color:#f0c060">' + L.notasOk + '</div>' +
-                  '<button class="btn btn-ghost small" id="pt-ok" type="button" style="border-color:#7ed957;color:#7ed957">✓ ' + L.approve + '</button></div>'
-              : '<div class="pt-ok"><div>' + L.approveHint + '<br /><span style="color:var(--muted-2)">' + L.notasH + '</span></div>' +
-                '<button class="btn btn-ghost small" id="pt-notas" type="button" style="border-color:#f0c060;color:#f0c060">' + L.notas + '</button> ' +
-                '<button class="btn btn-ghost small" id="pt-ok" type="button" style="border-color:#7ed957;color:#7ed957">✓ ' + L.approve + '</button></div>')
-          : '') +
+        (VER ? '<div id="pt-acc">' + accHTML() + '</div>' : '') +
         '<div id="pt-code"></div>' +
       '</div>';
 
@@ -558,12 +583,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       b.addEventListener('click', function(){ comHecho(b.dataset.cdone); }); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-dl]'), function(b){
       b.addEventListener('click', function(){ conCodigo(function(){ bajar(b.dataset.dl); }); }); });
-    var ok = $('pt-ok'); if (ok) ok.addEventListener('click', function(){ conCodigo(aprobar); });
-    var nt = $('pt-notas'); if (nt) nt.addEventListener('click', function(){ conCodigo(notasListas); });
-    var da = $('pt-desapr'); if (da) da.addEventListener('click', function(){
-      if (!confirm(L.desaprQ)) return;
-      conCodigo(desaprobar);
-    });
+    engancharAcc();
     briefBind();
   }
 
@@ -880,18 +900,36 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
      nada tampoco".) */
   function avisoAccion(txt){ var e = $('pt-sent'); if (e) e.textContent = txt; }
 
+  /* El estado nuevo se pinta ANTES de que conteste el servidor. No es un adorno: entre
+     el toque y la respuesta pasaban varios segundos —el aviso al equipo iba por email— y
+     en ese hueco la pantalla no cambiaba nada, así que parecía que el botón estaba roto.
+     Si el servidor dice que no, se vuelve atrás y se muestra el error. */
   function accionVersion(accion, idBoton, reintento){
     if (!VER){ avisoAccion('⚠️'); return; }
     var b = $(idBoton); if (b) b.disabled = true;
+    var antes = { approved_at: VER.approved_at, notes_done_at: VER.notes_done_at };
+    var ahora = new Date().toISOString();
+    if (accion === 'aprobar') VER.approved_at = ahora;
+    else if (accion === 'desaprobar') VER.approved_at = null;
+    else if (accion === 'notas_listas') VER.notes_done_at = ahora;
+    accPintar();
+
     api(accion, { version_id: VER.id }).then(function(r){
-      if (b) b.disabled = false;
       if (r && r.error){
+        VER.approved_at = antes.approved_at; VER.notes_done_at = antes.notes_done_at;
+        accPintar();
         if (r.error === 'necesita_codigo'){ TOKEN = null; conCodigo(reintento); return; }
         avisoAccion('⚠️ ' + r.error);
         return;
       }
-      cargar();
-    }).catch(function(e){ if (b) b.disabled = false; avisoAccion('⚠️ ' + e); });
+      /* La lista de versiones de arriba también muestra el estado: se actualiza en el
+         objeto, no con un render() que recrearía el reproductor. */
+      var v = (DATA.versiones || []).find(function(x){ return String(x.id) === String(VER.id); });
+      if (v){ v.approved_at = VER.approved_at; v.notes_done_at = VER.notes_done_at; }
+    }).catch(function(e){
+      VER.approved_at = antes.approved_at; VER.notes_done_at = antes.notes_done_at;
+      accPintar(); avisoAccion('⚠️ ' + e);
+    });
   }
   function aprobar(){ accionVersion('aprobar', 'pt-ok', aprobar); }
   function notasListas(){ accionVersion('notas_listas', 'pt-notas', notasListas); }

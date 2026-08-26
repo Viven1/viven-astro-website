@@ -68,6 +68,25 @@ const FORMA_CINE = `{
   ]
 }`;
 
+/* Las claves del Project Brief con su pregunta. El dashboard puede mandar `etiquetas` y
+   entonces manda eso; esto es el respaldo, para que un brief traído directo de la base no
+   llegue como "tema: …" sin contexto. Están en español a propósito: la pregunta es para
+   que la IA entienda qué contestó el cliente, no para mostrársela a nadie. */
+const PREGUNTAS: Record<string, string> = {
+  tema: "¿Cuál es el tema principal del video?",
+  audiencia: "¿A quién le habla el video?",
+  idioma: "¿En qué idioma va el video?",
+  terminos: "¿Hay términos o conceptos que el público tiene que entender?",
+  accion: "Después de verlo, ¿qué querés que haga?",
+  mito: "¿Qué creencia equivocada te encontrás seguido sobre lo tuyo?",
+  joya: "¿Hay algo único o poco conocido que valga la pena contar?",
+  desafio: "¿Qué parte de lo que hacen es especialmente difícil?",
+  locaciones: "¿Qué locaciones no pueden faltar?",
+  otros_espacios: "¿Hay otros espacios que podamos usar?",
+  gente: "¿A quién querés ver en el video?",
+  restricciones: "¿Hay restricciones o normas que tengamos que saber?",
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -107,7 +126,7 @@ Deno.serve(async (req) => {
       ? (oferta.items as Array<Record<string, unknown>>).map((it) => `· ${it.name}`).join("\n").slice(0, 1200)
       : "";
 
-    const material = rs.map((b) => `P: ${etiquetas[b.key] || b.key}\nR: ${String(b.value).trim()}`).join("\n\n");
+    const material = rs.map((b) => `P: ${etiquetas[b.key] || PREGUNTAS[b.key] || b.key}\nR: ${String(b.value).trim()}`).join("\n\n");
 
     const prompt = `Sos guionista de VIVEN AG, una productora de video B2B en Zúrich. Trabajás para clientes
 industriales, médicos y técnicos: gente que sabe muchísimo de lo suyo y desconfía del marketing vacío.

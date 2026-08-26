@@ -17524,6 +17524,7 @@ const newsCases = [
 
     pjRenderPortal();
     pjRenderDesglose();
+    pjGuionesLoad();
     pjPortalLoad();
     pjCostosLoad().then(() => { pjBillsLoad(); pjHorasLoad(); });
 
@@ -18681,6 +18682,195 @@ const newsCases = [
     sonido: '🎙 Sonido', equipo_especial: '🎥 Equipo especial', post: '✂️ Post', permisos: '📋 Permisos',
   };
 
+  /* ═══ Escribir guiones con IA ═══
+     De a TRES, y las tres se guardan. Un guión solo no se puede juzgar —se lee y parece
+     bien, o parece mal, y no hay con qué comparar. Tres ángulos distintos del mismo brief
+     convierten "¿está bien?" en "¿cuál?", que es una pregunta que sí se contesta.
+     El elegido cae en el guión del proyecto, y de ahí sigue el desglose que ya existe:
+     escenas, todo lo que hay que conseguir y las jornadas. Por eso no hay un segundo
+     generador de planes de rodaje.
+     (Sebastián, 26 ago 2026: "¿cómo hago para generar guiones?" y "solo yo, y puedo
+     decidir cuál mandar, o mandar los tres si quiero".) */
+  let pjGuiones = [];
+
+  async function pjGuionesLoad(){
+    const p = pjCur; if (!p) return;
+    const { data, error } = await supabase.from('project_scripts')
+      .select('*').eq('project_id', p.id).eq('tipo', 'guion')
+      .order('created_at', { ascending: false }).order('id');
+    pjGuiones = error ? [] : (data || []);
+    pjGuionesRender();
+  }
+
+  /* El cuerpo como tabla: un A/V script es dos columnas —lo que se ve y lo que se
+     escucha— y aplanarlo a párrafo le saca justamente lo que lo hace legible. */
+  function pjGuionTabla(g){
+    const filas = Array.isArray(g.cuerpo) ? g.cuerpo : [];
+    if (!filas.length) return '';
+    return '<div class="pj-gtxt"><table>' + filas.map((f) => g.formato === 'cine'
+      ? '<tr><td colspan="2"><div class="enc">' + esc(f.encabezado || '') + '</div>' +
+          (f.accion ? '<div>' + esc(f.accion) + '</div>' : '') +
+          (f.dialogo ? '<div class="dlg">' + esc(f.dialogo) + '</div>' : '') + '</td></tr>'
+      : '<tr><td class="tc">' + esc(f.tc || '') + '</td><td>' + esc(f.video || '') +
+          (f.audio ? '<div class="au">🔊 ' + esc(f.audio) + '</div>' : '') + '</td></tr>'
+    ).join('') + '</table></div>';
+  }
+
+  /* Texto plano: es lo que entiende el desglose, lo que se pega en un email y lo que se
+     puede leer sin la app. */
+  function pjGuionTexto(g){
+    const filas = Array.isArray(g.cuerpo) ? g.cuerpo : [];
+    const cab = [(g.titulo || g.angulo || 'Guión'),
+                 g.premisa ? '(' + g.premisa + ')' : '',
+                 g.duracion_seg ? '~' + g.duracion_seg + ' s' : ''].filter(Boolean).join('\n');
+    const cuerpo = filas.map((f) => g.formato === 'cine'
+      ? [f.encabezado || '', f.accion || '', f.dialogo ? '\n' + f.dialogo : ''].filter(Boolean).join('\n')
+      : (f.tc ? '[' + f.tc + '] ' : '') + 'IMAGEN: ' + (f.video || '') + (f.audio ? '\nAUDIO: ' + f.audio : '')
+    ).join('\n\n');
+    return cab + '\n\n' + cuerpo;
+  }
+
+  function pjGuionesRender(){
+    const box = $('pj-guiones'); if (!box) return;
+    if (!pjGuiones.length){ box.innerHTML = ''; return; }
+    /* Solo la última tanda: las viejas ya cumplieron y tres tarjetas se comparan, nueve no. */
+    const tanda = pjGuiones[0].tanda;
+    const g3 = pjGuiones.filter((g) => String(g.tanda) === String(tanda));
+    const viejas = pjGuiones.length - g3.length;
+    box.innerHTML = '<div class="pj-g3">' + g3.map((g) =>
+      '<div class="pj-g' + (g.elegido ? ' elegido' : '') + '">' +
+        '<div class="ang">' + (g.elegido ? '★ ' : '') + esc(g.angulo || 'Sin nombre') + '</div>' +
+        (g.premisa ? '<p class="pre">' + esc(g.premisa) + '</p>' : '') +
+        '<div class="met">' + esc(g.titulo || '') + (g.duracion_seg ? ' · ~' + g.duracion_seg + ' s' : '') +
+          ' · ' + (g.formato === 'cine' ? 'cinematográfico' : 'A/V') +
+          (g.sent_at ? ' · 📤 enviado ' + fmtDMY(g.sent_at) : '') + '</div>' +
+        pjGuionTabla(g) +
+        '<div class="acc">' +
+          '<button class="btn btn-ghost small" data-gusar="' + g.id + '">' + (g.elegido ? '★ Es el elegido' : 'Usar este') + '</button>' +
+          '<button class="btn btn-ghost small" data-gpdf="' + g.id + '" title="Se abre listo para imprimir o guardar como PDF">📄 PDF</button>' +
+          '<button class="btn btn-ghost small" data-gcopy="' + g.id + '">📋 Copiar</button>' +
+          '<button class="pj-crew-x" data-gdel="' + g.id + '" type="button">✕</button>' +
+        '</div>' +
+      '</div>').join('') + '</div>' +
+      (viejas ? '<p class="muted-note" style="margin:-6px 0 14px">Hay ' + viejas + ' guiones de tandas anteriores. Se guardan, pero no se muestran: tres se comparan, nueve no.</p>' : '');
+
+    box.querySelectorAll('[data-gusar]').forEach((b) => b.addEventListener('click', () => pjGuionElegir(b.dataset.gusar)));
+    box.querySelectorAll('[data-gpdf]').forEach((b) => b.addEventListener('click', () => pjGuionPDF(b.dataset.gpdf)));
+    box.querySelectorAll('[data-gcopy]').forEach((b) => b.addEventListener('click', () => {
+      const g = pjGuiones.find((x) => String(x.id) === String(b.dataset.gcopy)); if (!g) return;
+      navigator.clipboard.writeText(pjGuionTexto(g)).then(() => toast('📋 Copiado'));
+    }));
+    box.querySelectorAll('[data-gdel]').forEach((b) => b.addEventListener('click', () => pjGuionBorrar(b.dataset.gdel)));
+  }
+
+  async function pjGuionGenerar(){
+    const p = pjCur; if (!p) return;
+    const btn = $('pj-gia-go'), prev = btn.textContent, nota = $('pj-gia-note');
+    btn.disabled = true; btn.textContent = '✍️ Escribiendo…';
+    nota.textContent = 'Tres ángulos distintos del mismo brief. Tarda entre 30 y 60 segundos.';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-guion', { body: {
+        project_id: p.id,
+        formato: $('pj-gia-fmt').value,
+        duracion_seg: Number($('pj-gia-dur').value),
+        indicaciones: $('pj-gia-ind').value.trim() || undefined,
+      } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      nota.textContent = '';
+      await pjGuionesLoad();
+      toast('✍️ ' + (data.guiones || []).length + ' guiones listos — elegí uno');
+    } catch (e){
+      nota.textContent = '⚠️ ' + (e.message || e);
+    } finally { btn.disabled = false; btn.textContent = prev; }
+  }
+
+  /* Elegir es una decisión interna: con cuál seguimos. Vuelca el texto al guión del
+     proyecto —de ahí sale el desglose— sin pisar nada a ciegas si ya había otro escrito. */
+  async function pjGuionElegir(id){
+    const p = pjCur; if (!p) return;
+    const g = pjGuiones.find((x) => String(x.id) === String(id)); if (!g) return;
+    const ta = $('pj-script-text');
+    const habia = (ta.value || '').trim();
+    const texto = pjGuionTexto(g);
+    if (habia && habia !== texto &&
+        !confirm('El proyecto ya tiene un guión escrito.\n\n¿Reemplazarlo por «' + (g.angulo || '') + '»?')) return;
+
+    /* Uno solo elegido: el índice único de la base lo exige, y con dos elegidos el
+       desglose no sabría de cuál sale. */
+    await supabase.from('project_scripts').update({ elegido: false })
+      .eq('project_id', p.id).eq('tipo', 'guion').eq('elegido', true);
+    const { error } = await supabase.from('project_scripts').update({ elegido: true }).eq('id', id);
+    if (error){ toast(error.message); return; }
+    pjGuiones.forEach((x) => { x.elegido = String(x.id) === String(id); });
+
+    ta.value = texto;
+    const { error: e2 } = await supabase.from('projects').update({ script_text: texto }).eq('id', p.id);
+    if (e2){ toast(e2.message); return; }
+    p.script_text = texto;
+    pjGuionesRender();
+    pjRenderDesglose();
+    $('pj-guion-blq').open = true;
+    toast('★ Listo — ahora tocá «Desglosar con IA» para sacar escenas y jornadas');
+  }
+
+  async function pjGuionBorrar(id){
+    const g = pjGuiones.find((x) => String(x.id) === String(id)); if (!g) return;
+    if (!confirm('¿Borrar «' + (g.angulo || 'este guión') + '»?')) return;
+    const { error } = await supabase.from('project_scripts').delete().eq('id', id);
+    if (error){ toast(error.message); return; }
+    pjGuiones = pjGuiones.filter((x) => String(x.id) !== String(id));
+    pjGuionesRender();
+  }
+
+  /* PDF sin librería: una ventana con el guión maquetado y el diálogo de imprimir del
+     navegador, que ya sabe guardar como PDF. Fondo blanco y negro sobre blanco a
+     propósito — esto se imprime y se lleva al set. */
+  function pjGuionPDF(id){
+    const p = pjCur; const g = pjGuiones.find((x) => String(x.id) === String(id));
+    if (!p || !g) return;
+    const filas = Array.isArray(g.cuerpo) ? g.cuerpo : [];
+    const cuerpo = g.formato === 'cine'
+      ? filas.map((f) => '<div class="esc"><h3>' + esc(f.encabezado || '') + '</h3>' +
+          (f.accion ? '<p>' + esc(f.accion) + '</p>' : '') +
+          (f.dialogo ? '<pre class="dlg">' + esc(f.dialogo) + '</pre>' : '') + '</div>').join('')
+      : '<table><thead><tr><th class="tc">TC</th><th>IMAGEN</th><th>AUDIO</th></tr></thead><tbody>' +
+        filas.map((f) => '<tr><td class="tc">' + esc(f.tc || '') + '</td><td>' + esc(f.video || '') +
+          '</td><td>' + esc(f.audio || '') + '</td></tr>').join('') + '</tbody></table>';
+    const w = window.open('', '_blank');
+    if (!w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
+    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
+      '<title>' + esc((p.ref ? p.ref + ' ' : '') + (g.titulo || g.angulo || 'Guión')) + '</title><style>' +
+      '@page{margin:18mm 16mm}' +
+      'body{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#111;background:#fff;margin:0}' +
+      'header{border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:20px}' +
+      'h1{font-size:19pt;margin:0 0 4px;line-height:1.25}' +
+      '.meta{font:9.5pt/1.5 Helvetica,Arial,sans-serif;color:#555;letter-spacing:.03em;text-transform:uppercase}' +
+      '.prem{font-style:italic;color:#444;margin:14px 0 22px}' +
+      'table{width:100%;border-collapse:collapse;font:11pt/1.5 Helvetica,Arial,sans-serif}' +
+      'th{text-align:left;font-size:8.5pt;letter-spacing:.1em;color:#666;border-bottom:1.5px solid #111;padding:0 10px 6px 0}' +
+      'td{vertical-align:top;padding:9px 10px 9px 0;border-bottom:1px solid #ddd}' +
+      'td.tc,th.tc{width:52px;white-space:nowrap;color:#666;font-variant-numeric:tabular-nums}' +
+      'tr{break-inside:avoid}' +
+      '.esc{break-inside:avoid;margin:0 0 18px}' +
+      '.esc h3{font:bold 11pt Helvetica,Arial,sans-serif;letter-spacing:.06em;margin:0 0 6px}' +
+      '.esc p{margin:0 0 8px}' +
+      '.dlg{font:12pt/1.5 Georgia,serif;white-space:pre-wrap;margin:0 0 8px 22mm}' +
+      'footer{margin-top:26px;border-top:1px solid #ccc;padding-top:8px;' +
+        'font:8.5pt Helvetica,Arial,sans-serif;color:#888}' +
+      '</style></head><body><header>' +
+      '<h1>' + esc(g.titulo || g.angulo || 'Guión') + '</h1>' +
+      '<div class="meta">' + esc([p.ref ? '#' + p.ref : '', p.title || '', p.client || ''].filter(Boolean).join(' · ')) +
+        ' — ' + (g.duracion_seg ? '~' + g.duracion_seg + ' s · ' : '') +
+        (g.formato === 'cine' ? 'guión cinematográfico' : 'guión A/V') + '</div></header>' +
+      (g.premisa ? '<p class="prem">' + esc(g.premisa) + '</p>' : '') +
+      cuerpo +
+      '<footer>VIVEN AG · Zürich — borrador, no es la versión final</footer>' +
+      '</body></html>');
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e){ } }, 350);
+  }
+
   function pjRenderDesglose(){
     const p = pjCur; if (!p) return;
     $('pj-script-text').value = p.script_text || '';
@@ -19276,6 +19466,7 @@ const newsCases = [
     $('pj-bill-up').addEventListener('click', () => $('pj-bill-file').click());
     $('pj-bill-bx') && $('pj-bill-bx').addEventListener('click', pjBillsBexioLista);
     $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });
+    $('pj-gia-go').addEventListener('click', pjGuionGenerar);
     $('pj-desglosar').addEventListener('click', pjDesglosar);
     $('pj-plan-gen').addEventListener('click', pjPlanDesdeJornadas);
     $('pj-costos-sembrar').addEventListener('click', pjCostosSembrar);
