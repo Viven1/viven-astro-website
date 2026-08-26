@@ -20319,33 +20319,64 @@ const newsCases = [
     }
   }
 
-  function pbrRenderMandar(){
+  /* La vista previa la arma el SERVIDOR, con el mismo código que manda de verdad. Antes
+     era una copia escrita acá: se veía el texto plano y salía otra cosa. Y peor —lo que
+     se veía era un párrafo con la URL cruda pegada abajo, que parece phishing.
+     (Sebastián, 26 ago 2026: "el texto está malo, parece spam de vuelta… siempre con
+     botón y abajo el link por si el botón no funciona. El branding tiene que ser
+     consistente".) */
+  async function pbrRenderMandar(){
     const x = pjBriefDatos({ callado: true });
     if (!x){
-      $('pbf-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente», acá abajo.</p>';
+      $('pbf-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente».</p>';
       return;
     }
     const T = { largo: 'las 12 de corrido, en cuatro secciones', pasos: 'una sección por vez, con Atrás y Siguiente' }[x.variante];
     $('pbf-mandar').innerHTML =
-      '<p class="muted-note" style="margin:0 0 14px">Para <b>' + esc(x.l.name || x.l.email) + '</b> · ' + esc(x.l.email) +
+      '<p class="muted-note" style="margin:0 0 12px">Para <b>' + esc(x.l.name || x.l.email) + '</b> · ' + esc(x.l.email) +
         ' · idioma <b>' + x.lang.toUpperCase() + '</b> · le toca la presentación <b style="color:var(--acid)">' + esc(x.variante) + '</b> (' + T + ')</p>' +
-      '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:20px">' +
-        '<p style="font-size:12px;color:#8a94a8;margin:0 0 12px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
-          '<b>Para:</b> ' + esc(x.l.email) + '<br /><b>Asunto:</b> ' + esc(x.asunto) + '</p>' +
-        '<div style="font-size:15px;line-height:1.7;white-space:pre-wrap">' + esc(x.cuerpo) + '</div>' +
-        '<p style="margin:16px 0 0"><span style="color:#2b6cff">' + esc(x.url) + '</span></p>' +
-      '</div>' +
+      '<div id="pbf-prev" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#f4f5f7">' +
+        '<p style="color:#8a94a8;margin:0;padding:22px;font-size:13px">Armando el email…</p></div>' +
       '<div class="fu-actions" style="margin-top:16px">' +
         '<button class="btn btn-primary" id="pbf-go" type="button">📤 Mandárselo a ' + esc(x.l.email) + '</button>' +
         '<span class="muted-note" id="pbf-msg">Nada sale hasta que toques el botón.</span>' +
       '</div>';
+
+    let asuntoReal = x.asunto;
+    try {
+      const { data, error } = await supabase.functions.invoke('get-portal', { body: {
+        id: x.d.id, t: x.d.portal_token, accion: 'brief_preview', to: x.l.email } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      asuntoReal = data.asunto;
+      /* En un iframe con srcdoc: el email trae su propio <body> y sus estilos, y meterlo
+         con innerHTML lo dejaría heredar los del dashboard — se vería distinto de como
+         llega. Es la misma trampa del CSS scopeado de Astro. */
+      $('pbf-prev').innerHTML =
+        '<div style="background:#fff;border-bottom:1px solid #e6e9ef;padding:12px 16px;font-size:12px;color:#8a94a8">' +
+          '<b style="color:#1a2230">Para:</b> ' + esc(data.para) + '<br /><b style="color:#1a2230">Asunto:</b> ' + esc(data.asunto) + '</div>' +
+        '<iframe style="width:100%;height:560px;border:0;display:block;background:#f4f5f7"></iframe>';
+      $('pbf-prev').querySelector('iframe').srcdoc = data.html;
+    } catch (e){
+      $('pbf-prev').innerHTML = '<p style="color:#b00;margin:0;padding:18px;font-size:13px">⚠️ ' + esc(e.message || e) + '</p>';
+    }
+
     $('pbf-go').addEventListener('click', async () => {
       const b = $('pbf-go'), m = $('pbf-msg');
       b.disabled = true; m.textContent = 'Enviando…';
-      const r = await pjBriefMandar(x);
-      m.textContent = r.ok ? '✅ Enviado.' : '⚠️ ' + r.error;
-      b.disabled = !r.ok;
-      if (r.ok) b.style.display = 'none';
+      try {
+        const { data, error } = await supabase.functions.invoke('get-portal', { body: {
+          id: x.d.id, t: x.d.portal_token, accion: 'brief_mandar',
+          to: x.l.email, asunto: asuntoReal, variante: x.variante } });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        x.p.brief_sent_at = new Date().toISOString();
+        x.p.brief_variante = x.variante;
+        m.textContent = '✅ Enviado a ' + data.para;
+        b.style.display = 'none';
+        toast('📋 Brief enviado · presentación: ' + x.variante);
+        pjRenderSteps();
+      } catch (e){ m.textContent = '⚠️ ' + (e.message || e); b.disabled = false; }
     });
   }
 

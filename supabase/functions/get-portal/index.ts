@@ -17,6 +17,7 @@
 
 import { registrarEmail } from "../_shared/email.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { emailViven } from "../_shared/email-viven.ts";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 /* Para verificar la sesión de un miembro del equipo hace falta un cliente con la clave
@@ -184,35 +185,28 @@ Deno.serve(async (req) => {
         const asunto = `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`;
         const quien = String(lead?.name || proj.client_contact || "").trim().split(/\s+/)[0] || "";
         const portalLink = `https://www.viven.ch/portal/?id=${encodeURIComponent(String(deal.id))}&t=${encodeURIComponent(String(deal.portal_token))}`;
-        const html = `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-  <div style="max-width:560px;margin:0 auto;padding:28px 16px">
-    <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:20px 28px">
-      <img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" />
-    </div>
-    <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 28px">
-      <p style="margin:0 0 14px;font-size:15px;color:#1a2230">${L.hola}${quien ? " " + esc(quien) : ""},</p>
-      <p style="margin:0 0 8px;font-size:19px;font-weight:700;color:#1a2230;line-height:1.3">${esc(proj.title || deal.title || "")}</p>
-      <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#3d4757">${L.intro}</p>
-      <div style="background:#f6f8fb;border:1px solid #e6e9ef;border-radius:12px;padding:20px 22px;text-align:center">
+        /* Este email usa la MISMA plantilla que todos los demás (_shared/email-viven).
+           Antes cada función tenía su layout y el del brief salía como texto pelado con
+           una URL de noventa caracteres: mismo remitente, misma semana, dos marcas
+           distintas. El cliente no ve dos funciones, ve a VIVEN mandando algo que parece
+           phishing.
+           (Sebastián, 26 ago 2026: "importante la presencia que damos, el branding tiene
+           que ser consistente".) */
+        const html = emailViven({
+          lang: lang as "en" | "de" | "es",
+          saludo: `${L.hola}${quien ? " " + esc(quien) : ""},`,
+          titulo: esc(proj.title || deal.title || ""),
+          intro: L.intro,
+          cuerpo: `<div style="background:#f6f8fb;border:1px solid #e6e9ef;border-radius:12px;padding:20px 22px;text-align:center">
         <p style="margin:0 0 6px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#8a94a8;font-weight:700">${L.codeLbl}</p>
         <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:.22em;color:#1a2230;font-family:ui-monospace,Menlo,monospace">${code}</p>
       </div>
       <p style="margin:16px 0 22px;font-size:13px;color:#8a94a8;line-height:1.6">${L.vale}</p>
-      <!-- EL LINK. Faltaba: el cliente recibía seis dígitos y ningún lugar donde usarlos.
-           El código se pide DESDE el portal, así que quien lo pidió ya estaba ahí — pero
-           el email se lee más tarde, en el teléfono, o se lo reenvía a un colega, y ahí
-           el código solo no sirve para nada.
-           (Sebastián, 26 ago 2026: "no da link al portal… nosotros mandamos eso, él no
-           sabe dónde va".) -->
-      <p style="margin:0 0 10px;font-size:14.5px;color:#3d4757">${L.pasos}</p>
-      <p style="margin:0 0 18px"><a href="${portalLink}" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:15px;padding:13px 26px;border-radius:100px;display:inline-block">${L.cta} →</a></p>
-      <p style="margin:0;font-size:12px;color:#9aa6bd;line-height:1.6;word-break:break-all">${L.link}<br /><a href="${portalLink}" style="color:#8a94a8">${portalLink}</a></p>
-      <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid #e9ecf1;font-size:13px;color:#8a94a8;line-height:1.6">🔒 ${L.seguro}</p>
-    </div>
-    <p style="text-align:center;font-size:11.5px;color:#9aa;margin:16px 0 0;line-height:1.6">
-      VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a><br />${L.porque}
-    </p>
-  </div></body>`;
+      <p style="margin:0 0 10px;font-size:14.5px;color:#3d4757">${L.pasos}</p>`,
+          cta: { texto: L.cta, url: portalLink },
+          pie: `🔒 ${L.seguro}`,
+          porque: L.porque,
+        });
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
@@ -373,6 +367,89 @@ Deno.serve(async (req) => {
         }),
       }).catch(() => {});
       return json({ ok: true, comentario: c });
+    }
+
+    /* ── Mandar el Project Brief ──
+       Salía por send-outreach como texto plano con la URL cruda pegada abajo: noventa
+       caracteres de token en azul y nada más. Parecía phishing, que es lo peor que puede
+       parecer el primer email de un proyecto.
+       Con `dry_run` devuelve el HTML sin mandar nada: el preview del dashboard muestra el
+       email EXACTO que sale, no una copia que se desactualiza. */
+    if (accion === "brief_mandar" || accion === "brief_preview") {
+      const auth2 = req.headers.get("Authorization") ?? "";
+      const tok2 = auth2.replace(/^Bearer\s+/i, "").trim();
+      if (!tok2 || tok2 === SB_ANON) return json({ error: "unauthorized" }, 401);
+      const u2 = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: `Bearer ${tok2}` } } });
+      const { data: { user: user2 } } = await u2.auth.getUser();
+      if (!user2) return json({ error: "unauthorized" }, 401);
+      const { data: esM2 } = await u2.rpc("is_member");
+      if (esM2 !== true) return json({ error: "unauthorized" }, 401);
+
+      const dest2 = String(body.to || emailCliente || "").trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest2)) return json({ error: "Falta un email válido al que mandárselo" });
+
+      const BT = {
+        en: { asunto: "A few questions before we start", hola: "Hi",
+              intro: "Before we write anything, twelve questions decide what the film actually is.",
+              q: ["What the film is about and who it is for", "What has to be seen, and where", "Who appears on camera"],
+              qLbl: "What we ask", cta: "Open the questions",
+              nota: "Answer at your own pace — it saves as you go, and you can invite whoever knows the answers.",
+              pie: "No answer is wrong: what you do not know yet, we work out together." },
+        de: { asunto: "Ein paar Fragen, bevor wir starten", hola: "Guten Tag",
+              intro: "Bevor wir etwas schreiben, entscheiden zwölf Fragen, was der Film wirklich wird.",
+              q: ["Worum es geht und für wen", "Was zu sehen sein muss, und wo", "Wer vor der Kamera steht"],
+              qLbl: "Worum es geht", cta: "Fragen öffnen",
+              nota: "In Ihrem Tempo — wird laufend gespeichert, und Sie können einladen, wer die Antworten kennt.",
+              pie: "Keine Antwort ist falsch: Was noch offen ist, klären wir gemeinsam." },
+        es: { asunto: "Unas preguntas antes de empezar", hola: "Hola",
+              intro: "Antes de escribir nada, doce preguntas deciden qué es realmente el video.",
+              q: ["De qué se trata y para quién", "Qué tiene que verse, y dónde", "Quién aparece en cámara"],
+              qLbl: "Qué te preguntamos", cta: "Abrir las preguntas",
+              nota: "A tu ritmo — se guardan solas, y podés invitar a quien sepa las respuestas.",
+              pie: "Ninguna respuesta está mal: lo que todavía no sepas, lo resolvemos juntos." },
+      }[lang] ?? null;
+      if (!BT) return json({ error: "idioma raro" }, 400);
+
+      const linkBrief = `https://www.viven.ch/portal/?id=${encodeURIComponent(String(deal.id))}&t=${encodeURIComponent(String(deal.portal_token))}`;
+      const quienB = lead?.name || proj.client_contact || "";
+      const asuntoB = String(body.asunto || "").trim() ||
+        `${proj.ref ? proj.ref + " · " : ""}${proj.title || deal.title || ""} — ${BT.asunto}`;
+
+      const htmlB = emailViven({
+        lang: lang as "en" | "de" | "es",
+        saludo: `${BT.hola}${quienB ? " " + esc(String(quienB).split(" ")[0]) : ""},`,
+        titulo: esc(proj.title || deal.title || ""),
+        intro: BT.intro,
+        /* Se dice QUÉ se pregunta antes de mandar a nadie a ningún lado. "Doce preguntas"
+           sin decir de qué son es un link a ciegas, y a un link a ciegas no se entra. */
+        cuerpo: `<div style="background:#f6f8fb;border:1px solid #e6e9ef;border-radius:12px;padding:18px 22px">
+        <p style="margin:0 0 10px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#8a94a8;font-weight:700">${BT.qLbl}</p>
+        ${BT.q.map((x) => `<p style="margin:0 0 7px;font-size:14.5px;color:#1a2230">· ${esc(x)}</p>`).join("")}
+      </div>
+      <p style="margin:16px 0 0;font-size:13.5px;color:#8a94a8;line-height:1.6">${BT.nota}</p>`,
+        cta: { texto: BT.cta, url: linkBrief },
+        pie: BT.pie,
+      });
+
+      if (accion === "brief_preview" || body.dry_run) {
+        return json({ ok: true, dry_run: true, para: dest2, asunto: asuntoB, html: htmlB });
+      }
+      if (!RESEND) return json({ error: "Falta RESEND_API_KEY" }, 500);
+      const rB = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: "VIVEN AG <info@viven.ch>", to: [dest2], reply_to: "info@viven.ch",
+                               subject: asuntoB, html: htmlB }),
+      });
+      if (!rB.ok) {
+        const t = await rB.text();
+        console.error("RESEND_FAIL_BRIEF", rB.status, t);
+        return json({ error: `no salió (${rB.status}): ${t.slice(0, 200)}` }, 502);
+      }
+      await service.from("projects")
+        .update({ brief_sent_at: new Date().toISOString(),
+                  brief_variante: body.variante || proj.brief_variante || "largo" }).eq("id", proj.id);
+      return json({ ok: true, para: dest2, asunto: asuntoB });
     }
 
     /* ── Corregir, borrar y marcar hecha una nota ──
