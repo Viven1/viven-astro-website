@@ -4995,7 +4995,7 @@ const newsCases = [
   };
   const STATUSES = ['new', 'nuevo', 'contacted', 'contactado', 'qualified', 'won', 'cerrado', 'lost', 'perdido'];
   const THANKS = /^\/(thank-you|danke|gracias)\/?$/;
-  let allLeads = [], statusFilter = 'all', searchTerm = '', channelFilter = null, landingFilter = null, insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
+  let allLeads = [], leadsPrueba = [], statusFilter = 'all', searchTerm = '', channelFilter = null, landingFilter = null, insightsData = null, lastViews = [], leadsView = 'board', coMeta = {}, coCur = null, coBound = false, meEmail = '';
   // última actividad por lead (notas/tasks/propuestas/web) — se llena en loadAll
   let actNotes = {}, actTasks = {}, actProps = {}, actWeb = {};
 
@@ -6079,7 +6079,15 @@ const newsCases = [
     // corta la carga, se avisa en su tab y se sigue con lo que haya
     if (leadsQ.error) avisoCarga('tab-leads', '⚠️ No se pudieron cargar los contactos: ' + leadsQ.error.message + '. Probá 🔄 Actualizar.');
     else avisoCarga('tab-leads', '');
-    allLeads = leadsQ.data || allLeads || [];
+    /* Los tests salen de allLeads, no se borran. allLeads es de donde cuelga TODO —
+       listas, pipeline, contadores, conversión— así que filtrar acá una sola vez es lo
+       que hace imposible olvidarse en la próxima pantalla. Quedan aparte, a un clic.
+       (Sebastián, 26 ago 2026: "los tests que hago con sebastian@viven.ch y
+       cepeda.sebastian@gmail.com no pueden contar como leads, o me falsifica todos los
+       datos".) */
+    const _todos = leadsQ.data || allLeads || [];
+    leadsPrueba = _todos.filter((l) => l.es_prueba);
+    allLeads = _todos.filter((l) => !l.es_prueba);
     window.__vvLoadedAt = Date.now();
     // ofertas: best-effort (si no corrió el SQL 0003 todavía, seguimos sin romper el dashboard)
     if (offersQ && !offersQ.error) offersList = offersQ.data || [];
@@ -6607,6 +6615,7 @@ const newsCases = [
   const PS_EN_JUEGO = ['nuevo', 'contactado', 'videocall', 'propuesta'];
   let psSeg = 'juego';
   function psSegMatch(r){
+    if (psSeg === 'pruebas') return true;   // esa lista ya viene filtrada aparte
     if (psSeg === 'todas') return true;
     const et = stageOf(r.status);
     return psSeg === 'juego' ? PS_EN_JUEGO.includes(et) : et === 'ganado';
@@ -6615,9 +6624,11 @@ const newsCases = [
     const el = $('ps-seg'); if (!el) return;
     // los contadores salen de la misma lista filtrada, sin el segmentador aplicado
     const base = allLeads.filter((r) => !/^spam$/i.test(r.status || ''));
-    const n = (k) => k === 'todas' ? base.length
+    const n = (k) => k === 'pruebas' ? leadsPrueba.length
+      : k === 'todas' ? base.length
       : base.filter((r) => k === 'juego' ? PS_EN_JUEGO.includes(stageOf(r.status)) : stageOf(r.status) === 'ganado').length;
     el.innerHTML = [['juego', 'En juego'], ['clientes', 'Clientes'], ['todas', 'Todas']]
+      .concat(leadsPrueba.length ? [['pruebas', '🧪 Pruebas']] : [])
       .map(([k, l]) => '<button type="button" data-seg="' + k + '"' + (psSeg === k ? ' class="on"' : '') + '>' + l + ' ' + n(k) + '</button>').join('');
     el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       psSeg = b.dataset.seg;
@@ -6691,7 +6702,10 @@ const newsCases = [
   // Personas: tabla de gente (lista) con filtro de etapa + orden por columna
   function renderPeopleList(){
     const cont = $('leads-list'); if (!cont) return;
-    let rows = filteredLeads();
+    /* El segmento 🧪 Pruebas lee de la lista apartada: son las que NO están en allLeads,
+       así que filteredLeads() nunca las va a devolver. Verlas sirve para comprobar que
+       un formulario funciona; contarlas sería mentirse. */
+    let rows = psSeg === 'pruebas' ? leadsPrueba.slice() : filteredLeads();
     // 'spam' no es una etapa del pipeline (stageOf nunca la devuelve) — filteredLeads()
     // ya separó spam/no-spam por r.status directo, acá no hay que filtrar de nuevo
     if (psStage !== 'all' && psStage !== 'spam') rows = rows.filter((r) => stageOf(r.status) === psStage);
@@ -8644,8 +8658,12 @@ const newsCases = [
   }
   // deals visibles del tab: TODOS los no archivados (ya no depende de los filtros de Personas) + su búsqueda propia
   function dlDeals(){
+    /* Y sus deals tampoco: si el lead salió del board pero su deal se queda, el pipeline
+       muestra una tarjeta sin nombre que no se puede abrir. */
+    const idsPrueba = new Set((leadsPrueba || []).map((l) => String(l.id)));
     return (dealsList || []).filter((d) => {
       if (d.archived) return false;
+      if (idsPrueba.has(String(d.lead_id))) return false;
       if (dlSearch){
         const r = leadById(d.lead_id) || {};
         const hay = ((d.title || '') + ' ' + (r.name || '') + ' ' + (r.first_name || '') + ' ' + (r.email || '') + ' ' + (r.company || '') + ' ' + (companyName(leadDomain(r)) || '')).toLowerCase();
