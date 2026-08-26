@@ -1594,15 +1594,67 @@ const newsCases = [
   .pj-crew-x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:0 4px}
   .pj-crew-x:hover{color:#ff8b8b}
 
+  /* ---- guión y desglose ---- */
+  .pj-blq > summary.pj-sum{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700}
+  .pj-blq > summary.pj-sum::-webkit-details-marker{display:none}
+  .pj-blq > summary.pj-sum::after{content:'▸';margin-left:auto;color:var(--muted-2);font-size:13px}
+  .pj-blq[open] > summary.pj-sum::after{transform:rotate(90deg)}
+  .pj-blq > summary.pj-sum > span{font-size:10.5px}
+  .pj-blq > summary.pj-sum em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:400;color:var(--muted)}
+  .pj-guion-body{padding-top:14px}
+  .pj-sec-h{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:20px 0 9px}
+  .pj-chipn{display:inline-block;background:var(--navy-900);border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;font-size:12px;color:var(--text);margin:0 5px 5px 0}
+  .pj-nec{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .pj-nec .k{display:block;font-size:11px;color:var(--muted-2);margin-bottom:6px}
+  /* Los avisos van arriba y en color: son lo único del desglose que cambia una decisión
+     hoy. El de "no está presupuestado" es plata que se escapa, así que va aparte. */
+  .pj-avisos{border:1px solid var(--line);border-left:3px solid #f0c060;border-radius:12px;
+    background:var(--navy-900);padding:12px 15px;margin:14px 0 0}
+  .pj-avisos.plata{border-left-color:#ff8b8b}
+  .pj-avisos b{display:block;font-size:12.5px;margin-bottom:6px;color:var(--text)}
+  .pj-avisos ul{margin:0;padding-left:18px}
+  .pj-avisos li{font-size:13px;color:var(--muted);margin-bottom:4px}
+  .pj-jor{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+  .pj-jor-d{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .pj-jor-d b{font-size:13.5px}
+  .pj-jor-d .loc{font-size:12.5px;color:var(--acid);margin-top:3px}
+  .pj-jor-d .esc{font-size:12px;color:var(--muted);margin-top:4px}
+  .pj-jor-d .notas{font-size:11.5px;color:var(--muted-2);margin-top:6px;line-height:1.45}
+  .pj-esc{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:11px 14px;margin-bottom:7px}
+  .pj-esc > summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;font-size:13.5px}
+  .pj-esc > summary::-webkit-details-marker{display:none}
+  .pj-esc > summary::after{content:'▸';margin-left:auto;color:var(--muted-2)}
+  .pj-esc[open] > summary::after{transform:rotate(90deg)}
+  .pj-esc > summary em{font-style:normal;font-size:11.5px;color:var(--muted-2)}
+  .pj-esc-kv{display:flex;gap:10px;align-items:baseline;margin-top:7px;flex-wrap:wrap}
+  .pj-esc-kv > span{flex:none;width:130px;font-size:11px;color:var(--muted-2)}
+  @media(max-width:560px){.pj-esc-kv > span{width:auto}}
+
   .pj-margen-box{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
   @media(max-width:600px){.pj-margen-box{grid-template-columns:1fr}}
   .pj-margen-box > div{background:var(--navy-900);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
   .pj-margen-box span{display:block;font-size:11px;color:var(--muted-2);margin-bottom:3px}
   .pj-margen-box b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-  #pj-costos table{font-size:13px}
+  #pj-costos table{font-size:13px;min-width:0}
   #pj-costos .pj-inp{padding:5px 8px;font-size:12.5px}
-  #pj-costos .pj-num{max-width:82px;text-align:right}
+  #pj-costos .pj-num{max-width:70px;text-align:right}
+  #pj-costos select.pj-inp{padding:5px 4px;font-size:12px}
   #pj-costos td{vertical-align:middle}
+  /* En el teléfono —que es donde Sebastián mira el tablero estando en el set— una tabla
+     de ocho columnas no se lee: cada línea de costo pasa a ser una tarjeta con su
+     etiqueta al lado del campo. */
+  @media(max-width:760px){
+    #pj-costos thead{display:none}
+    #pj-costos table,#pj-costos tbody,#pj-costos tr,#pj-costos td{display:block;width:100%}
+    #pj-costos tr{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;position:relative}
+    #pj-costos td{border:0;padding:3px 0;display:flex;align-items:center;gap:10px}
+    #pj-costos td::before{content:attr(data-l);flex:none;width:88px;font-size:11px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.06em}
+    #pj-costos .pj-num{max-width:100%}
+    #pj-costos td:last-child{position:absolute;top:8px;right:8px;padding:0;width:auto}
+    #pj-costos td:last-child::before{content:''}
+  }
   .pj-track{height:9px;border-radius:99px;background:var(--navy-900);overflow:hidden;display:flex;margin:8px 0}
   .pj-track i{display:block;height:100%}
   .pj-leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted-2)}
@@ -2662,6 +2714,23 @@ const newsCases = [
         <div class="pj-kv pj-kv-col"><span class="k">Internas — no las ve el cliente</span><div class="v"><textarea class="pj-inp" id="pj-notes" rows="3"></textarea></div></div>
         <div class="pj-kv pj-kv-col"><span class="k">Lo que el cliente lee en su portal</span><div class="v"><textarea class="pj-inp" id="pj-portal-note" rows="2" placeholder="p. ej. Estamos armando el plan de rodaje — te escribimos el jueves."></textarea></div></div>
       </div>
+
+      <!-- 🎬 Guión y desglose: del texto del guión salen escenas, todo lo que hay que
+           conseguir, la lista de planos y una propuesta de jornadas. El guión va como
+           TEXTO porque es lo que la IA puede leer — un PDF en Drive no. El link al
+           original sigue arriba, en "Con qué". -->
+      <details class="panel pj-blq" id="pj-guion-blq" style="margin-top:12px">
+        <summary class="pj-sum"><span>🎬 Guión y desglose</span><em id="pj-guion-est"></em></summary>
+        <div class="pj-guion-body">
+          <textarea class="pj-inp" id="pj-script-text" rows="7" placeholder="Pegá el guión acá — con encabezados de escena si los tiene (INT./EXT., día/noche, locación). De esto sale todo lo de abajo."></textarea>
+          <div class="ab-urlrow" style="margin-top:10px">
+            <button class="btn btn-primary small" id="pj-desglosar" type="button">✨ Desglosar con IA</button>
+            <button class="btn btn-ghost small" id="pj-plan-gen" type="button" hidden>📅 Pasar las jornadas al plan de rodaje</button>
+            <span class="muted-note" id="pj-desglose-note"></span>
+          </div>
+          <div id="pj-desglose"></div>
+        </div>
+      </details>
 
       <div class="panel pj-blq" id="pj-costos-blq" style="margin-top:12px">
         <h3 style="display:flex;align-items:center;gap:10px">💸 Costo real
@@ -16233,6 +16302,7 @@ const newsCases = [
     $('pj-porfase').textContent = txt || '—';
 
     pjRenderPortal();
+    pjRenderDesglose();
     pjCostosLoad();
 
     // notas
@@ -16323,6 +16393,127 @@ const newsCases = [
   }
 
 
+
+  /* ---------- DESGLOSE DE GUIÓN (ai-breakdown, SQL 0155) ----------
+     Del texto del guión salen escenas, todo lo que hay que conseguir, la lista de
+     planos y una propuesta de jornadas — como en Maestro. Lo más valioso no son las
+     escenas: son los AVISOS, que es donde aparece lo que el guión pide y el
+     presupuesto no tiene. En la prueba con el guión de Sonova encontró que el drone y
+     el lente macro no estaban presupuestados, y que si la nieta es menor hace falta
+     permiso de trabajo infantil. */
+  const PJ_NEC_LBL = {
+    personajes: '🎭 Personajes', locaciones: '📍 Locaciones', props: '🎬 Props',
+    vestuario: '👔 Vestuario', arte: '🖼 Arte', maquillaje: '💄 Maquillaje',
+    sonido: '🎙 Sonido', equipo_especial: '🎥 Equipo especial', post: '✂️ Post', permisos: '📋 Permisos',
+  };
+
+  function pjRenderDesglose(){
+    const p = pjCur; if (!p) return;
+    $('pj-script-text').value = p.script_text || '';
+    const b = p.breakdown;
+    const est = $('pj-guion-est');
+    if (est) est.textContent = b
+      ? (b.escenas || []).length + ' escenas · desglosado el ' + fmtDMY(p.breakdown_at)
+      : (p.script_text ? 'guión cargado, sin desglosar' : 'sin guión');
+    $('pj-plan-gen').hidden = !(b && (b.jornadas || []).length);
+    const box = $('pj-desglose');
+    if (!b){ box.innerHTML = ''; return; }
+
+    const chips = (arr) => (arr || []).map((x) => '<span class="pj-chipn">' + esc(x) + '</span>').join('');
+    const necesita = Object.keys(PJ_NEC_LBL).filter((k) => (b.necesidades || {})[k] && b.necesidades[k].length);
+
+    /* Los avisos van PRIMERO. Son lo único del desglose que cambia una decisión hoy:
+       lo que falta definir y —sobre todo— lo que el guión pide y no está presupuestado. */
+    const sinPresu = (b.avisos || []).filter((a) => /no est[áa] presupuestad/i.test(a));
+    const otros = (b.avisos || []).filter((a) => !/no est[áa] presupuestad/i.test(a));
+
+    box.innerHTML =
+      (b.sinopsis ? '<p class="muted-note" style="margin:14px 0 0;font-size:13.5px">' + esc(b.sinopsis) + '</p>' : '') +
+      (sinPresu.length
+        ? '<div class="pj-avisos plata"><b>💸 El guión pide cosas que no están presupuestadas</b><ul>' +
+          sinPresu.map((a) => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
+      (otros.length
+        ? '<div class="pj-avisos"><b>❓ Falta definir</b><ul>' +
+          otros.map((a) => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
+
+      (necesita.length ? '<div class="pj-sec-h">Todo lo que hay que conseguir</div>' +
+        '<div class="pj-nec">' + necesita.map((k) =>
+          '<div><span class="k">' + PJ_NEC_LBL[k] + '</span><div>' + chips(b.necesidades[k]) + '</div></div>').join('') +
+        '</div>' : '') +
+
+      ((b.jornadas || []).length ? '<div class="pj-sec-h">Jornadas sugeridas</div>' +
+        '<div class="pj-jor">' + b.jornadas.map((j) =>
+          '<div class="pj-jor-d"><b>Día ' + j.dia + (j.horas_estimadas ? ' · ' + j.horas_estimadas + ' h' : '') + '</b>' +
+          '<div class="loc">' + esc(j.locacion || 'Locación sin definir') + '</div>' +
+          '<div class="esc">Escenas ' + (j.escenas || []).join(', ') + '</div>' +
+          (j.notas ? '<div class="notas">' + esc(j.notas) + '</div>' : '') + '</div>').join('') +
+        '</div>' : '') +
+
+      ((b.escenas || []).length ? '<div class="pj-sec-h">Escena por escena</div>' +
+        b.escenas.map((e) => '<details class="pj-esc"><summary>' +
+          '<b>#' + e.n + '</b> ' + esc(e.titulo) +
+          '<em>' + [e.int_ext, e.dia_noche, e.locacion].filter(Boolean).map(esc).join(' · ') +
+          (e.duracion_s ? ' · ' + e.duracion_s + 's' : '') + '</em></summary>' +
+          (e.resumen ? '<p class="muted-note" style="margin:8px 0">' + esc(e.resumen) + '</p>' : '') +
+          ['personajes', 'props', 'vestuario', 'arte', 'maquillaje', 'sonido', 'equipo_especial', 'post']
+            .filter((k) => (e[k] || []).length)
+            .map((k) => '<div class="pj-esc-kv"><span>' + PJ_NEC_LBL[k] + '</span><div>' + chips(e[k]) + '</div></div>').join('') +
+          ((e.planos || []).length ? '<div class="lead-table-wrap" style="margin-top:10px"><table class="lead-table">' +
+            '<thead><tr><th>Plano</th><th>Tipo</th><th>Movimiento</th><th>Qué pasa</th><th style="text-align:right">seg</th></tr></thead><tbody>' +
+            e.planos.map((s2) => '<tr><td><b>' + esc(s2.n) + '</b></td><td>' + esc(s2.tipo) + '</td><td>' + esc(s2.movimiento) +
+              '</td><td>' + esc(s2.descripcion) + '</td><td style="text-align:right">' + (s2.duracion_s || '') + '</td></tr>').join('') +
+            '</tbody></table></div>' : '') +
+        '</details>').join('') : '');
+  }
+
+  async function pjDesglosar(){
+    const p = pjCur; if (!p) return;
+    const guion = $('pj-script-text').value.trim();
+    if (guion.length < 80){ toast('Pegá el guión primero — con menos de 80 caracteres no hay nada que desglosar'); return; }
+    const btn = $('pj-desglosar'), prev = btn.textContent;
+    btn.disabled = true; btn.textContent = '✨ Desglosando…';
+    /* Tarda cerca de un minuto: decirlo evita que se toque el botón cuatro veces. */
+    $('pj-desglose-note').textContent = 'Leyendo el guión escena por escena — tarda alrededor de un minuto.';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-breakdown', {
+        body: { project_id: p.id, script: guion, lang: 'es' },
+      });
+      if (error || !data || data.error) throw new Error((data && data.error) || error.message || 'sin respuesta');
+      p.script_text = guion;
+      p.breakdown = data.breakdown;
+      p.breakdown_at = new Date().toISOString();
+      $('pj-desglose-note').textContent = data.aviso_guardado
+        ? '⚠️ Desglosado, pero no se pudo guardar: ' + data.aviso_guardado
+        : '✅ Desglosado';
+      pjRenderDesglose();
+    } catch (e){
+      $('pj-desglose-note').textContent = '⚠️ ' + (e.message || e);
+    } finally {
+      btn.disabled = false; btn.textContent = prev;
+    }
+  }
+
+  /* Las jornadas se pasan al plan de rodaje como TEXTO editable, no como otra tabla:
+     el plan es lo que se imprime y se manda, y siempre termina con cosas a mano
+     (horarios de catering, quién trae qué, el teléfono del contacto en la locación). */
+  function pjPlanDesdeJornadas(){
+    const p = pjCur, b = p && p.breakdown; if (!b || !(b.jornadas || []).length) return;
+    const lineas = b.jornadas.map((j) => {
+      const escs = (j.escenas || []).map((n) => {
+        const e = (b.escenas || []).find((x) => x.n === n);
+        return e ? '   · Esc ' + e.n + ' — ' + e.titulo + (e.int_ext ? ' (' + e.int_ext + '/' + e.dia_noche + ')' : '') : '   · Esc ' + n;
+      }).join('\n');
+      return 'DÍA ' + j.dia + (j.horas_estimadas ? ' · ' + j.horas_estimadas + ' h' : '') + '\n' +
+        '   Locación: ' + (j.locacion || 'por definir') + '\n' + escs +
+        (j.notas ? '\n   Nota: ' + j.notas : '');
+    }).join('\n\n');
+    const actual = $('pj-plan').value.trim();
+    if (actual && !confirm('Ya hay algo escrito en el plan de rodaje.\n\n¿Reemplazarlo por las jornadas del desglose?')) return;
+    $('pj-plan').value = lineas;
+    toast('📅 Jornadas pasadas al plan — revisalo y guardá');
+    $('pj-plan').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   /* ---------- COSTO REAL DEL PROYECTO (SQL 0154) ----------
      El catálogo de servicios tiene un costo de referencia y encima solo 8 de 25 lo
      tienen cargado. Lo que costó un proyecto depende de a quién contrataste ESA vez:
@@ -16372,14 +16563,14 @@ const newsCases = [
       '<th style="text-align:right">Costo unit.</th><th style="text-align:right">Total</th><th>Pagado</th><th></th>' +
       '</tr></thead><tbody>' +
       pjCostos.map((c) => '<tr data-c="' + c.id + '">' +
-        '<td><input class="pj-inp pj-c" data-f="concept" value="' + esc(c.concept || '') + '" /></td>' +
-        '<td><input class="pj-inp pj-c" data-f="person" value="' + esc(c.person || '') + '" placeholder="quién" /></td>' +
-        '<td><select class="pj-inp pj-c" data-f="kind">' + PJ_KINDS.map(([k, l]) =>
+        '<td data-l="Concepto"><input class="pj-inp pj-c" data-f="concept" value="' + esc(c.concept || '') + '" /></td>' +
+        '<td data-l="Quién"><input class="pj-inp pj-c" data-f="person" value="' + esc(c.person || '') + '" placeholder="quién" /></td>' +
+        '<td data-l="Tipo"><select class="pj-inp pj-c" data-f="kind">' + PJ_KINDS.map(([k, l]) =>
             '<option value="' + k + '"' + (c.kind === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></td>' +
-        '<td style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="qty" type="number" step="0.5" value="' + (Number(c.qty) || 0) + '" /></td>' +
-        '<td style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="unit_cost" type="number" step="10" value="' + (Number(c.unit_cost) || 0) + '" /></td>' +
-        '<td style="text-align:right;white-space:nowrap"><b>' + Math.round(pjCostoTotal(c)).toLocaleString('de-CH') + '</b></td>' +
-        '<td style="text-align:center"><input type="checkbox" class="pj-c" data-f="paid"' + (c.paid ? ' checked' : '') + ' /></td>' +
+        '<td data-l="Cantidad" style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="qty" type="number" step="0.5" value="' + (Number(c.qty) || 0) + '" /></td>' +
+        '<td data-l="Costo unit." style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="unit_cost" type="number" step="10" value="' + (Number(c.unit_cost) || 0) + '" /></td>' +
+        '<td data-l="Total" style="text-align:right;white-space:nowrap"><b>' + Math.round(pjCostoTotal(c)).toLocaleString('de-CH') + '</b></td>' +
+        '<td data-l="Pagado" style="text-align:center"><input type="checkbox" class="pj-c" data-f="paid"' + (c.paid ? ' checked' : '') + ' /></td>' +
         '<td><button class="pj-crew-x" data-del="' + c.id + '" type="button" title="Borrar la línea">✕</button></td>' +
       '</tr>').join('') + '</tbody></table>';
 
@@ -16486,6 +16677,7 @@ const newsCases = [
       storyboard_url: $('pj-storyboard').value.trim() || null,
       deliverable_url: $('pj-deliverable').value.trim() || null,
       notes: $('pj-notes').value.trim() || null,
+      script_text: $('pj-script-text').value.trim() || null,
       portal_note: $('pj-portal-note').value.trim() || null,
       crew: Array.isArray(p.crew) && p.crew.length ? p.crew : null,
     };
@@ -16509,6 +16701,8 @@ const newsCases = [
       pjRenderCrew();
       toast('👥 ' + roles.length + ' roles traídos — poneles nombre y guardá');
     });
+    $('pj-desglosar').addEventListener('click', pjDesglosar);
+    $('pj-plan-gen').addEventListener('click', pjPlanDesdeJornadas);
     $('pj-costos-sembrar').addEventListener('click', pjCostosSembrar);
     $('pj-costo-add').addEventListener('click', pjCostoAdd);
     $('pj-lead').addEventListener('click', () => { if (pjCur && pjCur.lead_id){ gotoTab('leads'); openLead(pjCur.lead_id); } });
