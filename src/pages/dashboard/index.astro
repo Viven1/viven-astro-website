@@ -2832,7 +2832,10 @@ const newsCases = [
         <div class="panel pj-blq">
           <h3>👥 Quién</h3>
           <div class="pj-kv"><span class="k">Contacto del cliente</span><span class="v" id="pj-cliente"></span></div>
+          <!-- El email va acá y no en otro lado: quien pone el nombre del que monta es
+               el que sabe su email, y es el momento en que lo tiene a mano. -->
           <div class="pj-kv"><span class="k">Quién edita</span><span class="v"><input class="pj-inp" id="pj-editor" placeholder="nombre" /></span></div>
+          <div class="pj-kv"><span class="k">Su email</span><span class="v"><input class="pj-inp" id="pj-editor-email" type="email" placeholder="para mandarle las notas del cliente" /></span></div>
           <div class="pj-kv"><span class="k">Locación</span><span class="v"><input class="pj-inp" id="pj-location" placeholder="dónde se filma" /></span></div>
           <div class="pj-kv pj-kv-col"><span class="k">Crew <button class="btn btn-ghost small" id="pj-crew-auto" type="button" title="Traer los roles que ya están vendidos en el presupuesto">✨ Traer del presupuesto</button></span><div class="v" id="pj-crew"></div></div>
         </div>
@@ -17312,6 +17315,7 @@ const newsCases = [
       ? esc(p.client_contact) + (p.client_contact_email ? '<br><span class="muted-note">' + esc(p.client_contact_email) + '</span>' : '')
       : '<span class="falta">sin contacto</span>';
     $('pj-editor').value = p.editor || '';
+    $('pj-editor-email').value = p.editor_email || '';
     $('pj-location').value = p.location || '';
     pjRenderCrew();
 
@@ -17657,7 +17661,8 @@ const newsCases = [
                 ? '<span style="color:#7ed957">✓ aprobada ' + fmtDMY(v.approved_at) + '</span>'
                 : '<span style="color:#f0c060">esperando</span>') + '</td>' +
             '<td style="white-space:nowrap">' +
-              (cs.length ? '<button class="btn btn-ghost small" data-edl="' + v.id + '" title="Notas con timecode para Premiere">📥 Notas</button> ' : '') +
+              (cs.length ? '<button class="btn btn-ghost small" data-edl="' + v.id + '" title="Bajar el .xml y el .edl">📥 Notas</button> ' +
+                '<button class="btn btn-ghost small" data-noted="' + v.id + '" title="Mandarle las notas al que monta, con el .xml adjunto">📤 Al editor</button> ' : '') +
               '<button class="pj-crew-x" data-vdel="' + v.id + '" type="button">✕</button></td></tr>';
         }).join('') + '</tbody></table></div>';
 
@@ -17690,6 +17695,7 @@ const newsCases = [
         '<button class="pj-crew-x" data-fdel="' + f.id + '" type="button">✕</button></div>').join('');
 
     $('pj-vers').querySelectorAll('[data-edl]').forEach((b) => b.addEventListener('click', () => pjExportNotas(b.dataset.edl)));
+    $('pj-vers').querySelectorAll('[data-noted]').forEach((b) => b.addEventListener('click', () => pjNotasAlEditor(b.dataset.noted)));
     $('pj-vers').querySelectorAll('[data-vdel]').forEach((b) => b.addEventListener('click', () => pjVerBorrar(b.dataset.vdel)));
     $('pj-coms').querySelectorAll('[data-cres]').forEach((b) => b.addEventListener('click', () => pjComResolver(b.dataset.cres)));
     $('pj-coms').querySelectorAll('[data-ctask]').forEach((b) => b.addEventListener('click', () => pjComATarea(b.dataset.ctask)));
@@ -17801,11 +17807,15 @@ const newsCases = [
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
-  function pjExportNotas(versionId){
-    const v = pjVers.find((x) => String(x.id) === String(versionId)); if (!v) return;
+  /* Arma el .edl y el .xml y los DEVUELVE. Antes bajaba los archivos y listo; ahora el
+     mismo generador —el único probado— sirve para el botón de descargar y para el email
+     al montajista. Dos generadores del mismo XML serían dos formatos distintos a la
+     tercera corrección. */
+  function pjNotasArchivos(versionId){
+    const v = pjVers.find((x) => String(x.id) === String(versionId)); if (!v) return null;
     const notas = pjComs.filter((c) => String(c.version_id) === String(v.id) && c.tc_ms != null)
       .sort((a, b) => a.tc_ms - b.tc_ms);
-    if (!notas.length){ toast('Esa versión no tiene comentarios con minuto'); return; }
+    if (!notas.length){ toast('Esa versión no tiene comentarios con minuto'); return null; }
     const base = ((pjCur.title || 'proyecto') + '_v' + v.n).replace(/[^\w.\-]+/g, '_');
     const limpiar = (s2) => String(s2 || '').replace(/[\r\n]+/g, ' ').trim();
 
@@ -17818,7 +17828,7 @@ const newsCases = [
         '* FROM CLIP NAME: ' + limpiar(c.author_name || 'Cliente') + '\n' +
         '* COMMENT: ' + limpiar(c.body).slice(0, 200) + '\n\n';
     });
-    pjBajar(base + '_notas.edl', edl, 'text/plain');
+
 
     // --- XML de Premiere (FCP7) con los comentarios como marcadores ---
     const esc2 = (s2) => String(s2 || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -17835,9 +17845,68 @@ const newsCases = [
           '      <comment>' + esc2(limpiar(c.author_name || 'Cliente') + ': ' + limpiar(c.body)) + '</comment>\n' +
           '      <in>' + fr + '</in>\n      <out>-1</out>\n    </marker>';
       }).join('\n') + '\n  </sequence>\n</xmeml>\n';
-    pjBajar(base + '_notas.xml', xml, 'application/xml');
+    return { v, base, notas, edl, xml };
+  }
 
-    toast('📥 ' + notas.length + ' notas · el .xml deja los marcadores en el timeline, el .edl es el estándar');
+  function pjExportNotas(versionId){
+    const r = pjNotasArchivos(versionId); if (!r) return;
+    pjBajar(r.base + '_notas.edl', r.edl, 'text/plain');
+    pjBajar(r.base + '_notas.xml', r.xml, 'application/xml');
+    toast('📥 ' + r.notas.length + ' notas · el .xml deja los marcadores en el timeline, el .edl es el estándar');
+  }
+
+  /* ═══ Mandarle las notas al que monta ═══
+     Primero se ve, después se manda — como todo lo que sale de acá. La ventana muestra
+     el email exacto con las notas ya listadas, y el botón de enviar está adentro.
+     (Sebastián, 26 ago 2026: "un botón para nosotros enviar al editor. Le envía el xml
+     más todos los comentarios con timestamps para que lo vea en el email".) */
+  async function pjNotasAlEditor(versionId){
+    const p = pjCur; if (!p) return;
+    const mail = ($('pj-editor-email').value || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){
+      toast('Poné el email del editor arriba, en 👥 Quién'); return;
+    }
+    const r = pjNotasArchivos(versionId); if (!r) return;
+    const lista = r.notas.map((c) => ({ tc: pjTC(c.tc_ms).slice(0, 8), autor: c.author_name || 'Cliente', texto: String(c.body || '') }));
+
+    const cuerpo = { project_id: p.id, to: mail, version: r.v.n, notas: lista, xml: r.xml, edl: r.edl };
+    let prev;
+    try {
+      const { data, error } = await supabase.functions.invoke('notas-al-editor', { body: { ...cuerpo, dry_run: true } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      prev = data;
+    } catch (e){ toast('⚠️ ' + (e.message || e)); return; }
+
+    const w = window.open('', '_blank', 'noopener,width=780,height=880');
+    if (!w){ toast('El navegador bloqueó la ventana'); return; }
+    w.document.write(
+      '<!doctype html><meta charset="utf-8"><title>Notas al editor — antes de mandar</title>' +
+      '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#f4f6fb;margin:0;padding:26px 28px 60px">' +
+      '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 8px">' +
+        '⚠️ Todavía no se mandó nada.</p>' +
+      '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 20px">Para <b style="color:#f4f6fb">' + esc(prev.para) + '</b> · ' +
+        prev.notas + ' notas · adjunta el <b style="color:#f4f6fb">.xml</b> y el <b style="color:#f4f6fb">.edl</b></p>' +
+      '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:22px">' +
+        '<p style="font-size:12px;color:#8a94a8;margin:0 0 14px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
+          '<b>Asunto:</b> ' + esc(prev.asunto) + '</p>' + prev.html + '</div>' +
+      '<div style="margin:24px 0 0;padding-top:18px;border-top:1px solid #223049;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<button id="go" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:15px;border:0;' +
+          'border-radius:100px;padding:13px 26px;cursor:pointer">📤 Mandárselo a ' + esc(prev.para) + '</button>' +
+        '<span id="msg" style="color:#9aa6bd;font-size:13px"></span></div></body>');
+    w.document.close();
+    w.document.getElementById('go').addEventListener('click', async () => {
+      const b = w.document.getElementById('go'), m = w.document.getElementById('msg');
+      b.disabled = true; m.textContent = 'Enviando…';
+      try {
+        const { data, error } = await supabase.functions.invoke('notas-al-editor', { body: cuerpo });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        m.textContent = '✅ Enviado con ' + data.adjuntos + ' adjuntos. Ya podés cerrar.';
+        b.style.display = 'none';
+        toast('📤 ' + data.notas + ' notas enviadas a ' + data.para);
+      } catch (e){ m.textContent = '⚠️ ' + (e.message || e); b.disabled = false; }
+    });
   }
 
   /* ---------- FACTURAS DEL CREW (SQL 0156) ----------
@@ -18611,7 +18680,7 @@ const newsCases = [
      que se pierde por no bajar hasta ahí es un dato perdido. Ahora cualquier cambio se
      guarda solo un segundo después de que dejás de escribir, y al salir de la pantalla.
      El botón queda, pero como red: ya no es la única forma. */
-  const PJ_CAMPOS = ['pj-shoot-start', 'pj-shoot-end', 'pj-delivery', 'pj-plan', 'pj-editor',
+  const PJ_CAMPOS = ['pj-shoot-start', 'pj-shoot-end', 'pj-delivery', 'pj-plan', 'pj-editor', 'pj-editor-email',
     'pj-location', 'pj-script', 'pj-storyboard', 'pj-deliverable', 'pj-notes',
     'pj-script-text', 'pj-portal-note'];
   let pjAutoT = null, pjAutoOn = false;
@@ -18650,6 +18719,7 @@ const newsCases = [
       delivery_due: $('pj-delivery').value || null,
       shooting_plan: $('pj-plan').value.trim() || null,
       editor: $('pj-editor').value.trim() || null,
+      editor_email: $('pj-editor-email').value.trim().toLowerCase() || null,
       location: $('pj-location').value.trim() || null,
       script_url: $('pj-script').value.trim() || null,
       storyboard_url: $('pj-storyboard').value.trim() || null,
