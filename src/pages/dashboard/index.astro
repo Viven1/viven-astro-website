@@ -2802,6 +2802,7 @@ const newsCases = [
           <p class="muted-note" style="margin:2px 0 0">Lo que ganamos y todavía no entregamos. Nace solo al ganar un deal y hereda el paquete aceptado — o lo creás vos, para lo que se cerró por email.</p>
         </div>
         <button class="btn btn-primary small" id="pj-nuevo" type="button">➕ Nuevo proyecto</button>
+        <button class="btn btn-ghost small" id="pj-test" type="button" title="Un proyecto de mentira para probar cosas sin tocar un cliente">🧪 Proyecto de prueba</button>
         <button class="btn btn-ghost small" id="pj-reload" type="button">↻ Actualizar</button>
       </div>
 
@@ -17505,6 +17506,61 @@ const newsCases = [
      persona: una hora de Sebastián y una de un freelance no valen lo mismo. */
   let pjHoras = [], pjTarifas = {};
 
+  /* ═══ PROYECTO DE PRUEBA ═══
+     Sebastián, 26 ago 2026: "quiero hacer uno como test para que podamos testear cosas
+     — crear proyecto test x1, x2, etc. Para que no vaya a clientes reales."
+
+     El truco está en el CONTACTO, no en el proyecto: se crea con un email
+     prueba+N@viven.ch, que la base marca como es_prueba sola. Con eso, todo lo que sale
+     del proyecto le llega a él y a nadie más — el brief, el portal, las notas al editor,
+     los avisos. Y no ensucia ningún número, porque los leads de prueba ya están fuera de
+     listas, contadores y conversión.
+
+     No hace falta acordarse de nada: la regla vive en la base y vale para lo que venga. */
+  async function pjCrearTest(){
+    const b = $('pj-test'); b.disabled = true;
+    try {
+      /* El número sale de los que ya existen, no de un contador aparte: si se borra el
+         test 2, el próximo es 3 igual y no hay dos con el mismo nombre. */
+      const previos = (pjList || []).filter((x) => /^Proyecto de prueba/i.test(x.title || ''));
+      const n = previos.reduce((mx, x) => Math.max(mx, +(String(x.title).match(/x(\d+)/i) || [])[1] || 0), 0) + 1;
+      const titulo = 'Proyecto de prueba x' + n;
+      const mail = 'prueba+' + n + '@viven.ch';
+
+      let lead = (allLeads || []).concat(leadsPrueba || []).find((l) => String(l.email || '').toLowerCase() === mail);
+      if (!lead){
+        const { data: nl, error: e0 } = await supabase.from('leads').insert({
+          name: 'Cliente de prueba ' + n, first_name: 'Cliente', email: mail,
+          company: 'PRUEBA — no es un cliente', lang: 'es', status: 'ganado',
+          channel: 'prueba', message: 'Contacto creado para probar el flujo. No es real.',
+        }).select().single();
+        if (e0) throw new Error(e0.message);
+        lead = nl; leadsPrueba.push(nl);
+      }
+
+      const ahora = new Date().toISOString();
+      const { data: deal, error: e1 } = await supabase.from('deals').insert({
+        lead_id: lead.id, title: titulo, stage: 'ganado', deal_value: 12000,
+        won_at: ahora, last_stage_at: ahora,
+      }).select().single();
+      if (e1) throw new Error(e1.message);
+
+      const { data: pr, error: e2 } = await supabase.from('projects').insert({
+        deal_id: deal.id, lead_id: lead.id, title: titulo, stage: 'post',
+        started_at: ahora, amount_chf: 12000,
+        editor_email: 'prueba+editor@viven.ch', editor: 'Editor de prueba',
+        portal_note: 'Esto es un proyecto de prueba. No es un cliente.',
+      }).select().single();
+      if (e2){ await supabase.from('deals').delete().eq('id', deal.id); throw new Error(e2.message); }
+
+      dealsList.unshift(deal);
+      toast('🧪 ' + titulo + ' — todo lo que salga de acá va a ' + mail);
+      await pjLoad();
+      pjOpen(pr.id);
+    } catch (e){ toast('⚠️ ' + (e.message || e)); }
+    finally { b.disabled = false; }
+  }
+
   /* Crear un proyecto a mano, con su deal ganado por atrás. */
   async function pjCrearManual(){
     const lid = $('pjf-lead').value;
@@ -18840,6 +18896,7 @@ const newsCases = [
     });
     $('pjf-cancel') && $('pjf-cancel').addEventListener('click', () => { $('pj-form').hidden = true; });
     $('pjf-save') && $('pjf-save').addEventListener('click', pjCrearManual);
+    $('pj-test') && $('pj-test').addEventListener('click', pjCrearTest);
     $('pj-save').addEventListener('click', () => pjSave());
     pjAutoBind();
     $('pj-crew-auto').addEventListener('click', () => {
