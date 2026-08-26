@@ -3958,7 +3958,7 @@ const newsCases = [
         <div class="bf"><label>Descripción</label><input id="cf-rec-desc" placeholder="p. ej. Alquiler oficina" /></div>
         <div class="bf"><label>Monto (CHF)/período</label><input id="cf-rec-amount" type="number" min="0" step="10" /></div>
         <div class="bf"><label>Frecuencia</label><select id="cf-rec-freq"><option value="monthly">Mensual</option><option value="quarterly">Trimestral</option><option value="yearly">Anual</option></select></div>
-        <div class="bf"><label>Día del mes</label><input id="cf-rec-day" type="number" min="1" max="28" value="1" /></div>
+        <div class="bf"><label>Día del mes</label><input id="cf-rec-day" type="number" min="1" max="31" value="1" title="Si ponés 30 o 31, en los meses más cortos cae el último día" /></div>
         <div class="bf"><label>Tipo</label><select id="cf-rec-kind"><option value="expense">Salida</option><option value="income">Entrada</option></select></div>
         <div class="bf" style="align-self:end"><button class="btn btn-primary small" id="cf-rec-save" type="button">💾 Guardar</button> <button class="btn btn-ghost small" id="cf-rec-cancel" type="button">Cancelar</button></div>
       </div>
@@ -6003,6 +6003,46 @@ const newsCases = [
   }
   const tieneImpresion = () => !esWKWebView() || !!(window.webkit.messageHandlers && window.webkit.messageHandlers.imprimir);
 
+  /* ===== LOS ERRORES DE POSTGRES NO SON PARA EL QUE USA LA APP =====
+     Al cargar un pago recurrente el día 30, la pantalla mostró literalmente:
+     'new row for relation "cashflow_recurring_templates" violates check constraint
+     "cashflow_recurring_templates_day_of_month_check"'. Eso no dice qué hacer, y hay
+     ~80 lugares que muestran error.message tal cual. En vez de parchear los 80, se
+     traduce en el único lugar por donde pasan todos: el toast.
+     Lo que no se reconoce se muestra igual — es preferible un mensaje feo a esconder
+     un error que nadie va a poder describir después. */
+  const CAMPOS_LINDOS = {
+    day_of_month: 'el día del mes', amount_chf: 'el monto', unit_cost: 'el costo',
+    due_date: 'la fecha de vencimiento', renewal_date: 'la fecha de renovación',
+    email: 'el email', name: 'el nombre', title: 'el título', slug: 'la dirección web',
+    stage: 'la etapa', status: 'el estado', kind: 'el tipo', frequency: 'la frecuencia',
+    lead_id: 'el contacto', project_id: 'el proyecto', qty: 'la cantidad',
+  };
+  function humanizarError(msg){
+    const m = String(msg || '');
+    let x;
+    if ((x = m.match(/violates check constraint "([a-z0-9_]+)_check"/i))){
+      /* El nombre viene como <tabla>_<columna>_check y la tabla también tiene guiones
+         bajos, así que una captura suelta se lleva todo ("cashflow recurring templates
+         day of month"). Se busca cuál de los campos conocidos TERMINA el nombre. */
+      const nom = x[1];
+      const campo = Object.keys(CAMPOS_LINDOS).find((k) => nom === k || nom.endsWith('_' + k));
+      return campo
+        ? 'Ese valor no se puede guardar en ' + CAMPOS_LINDOS[campo] + '.'
+        : 'Ese valor no es válido para este campo.';
+    }
+    if (/duplicate key value violates unique constraint/i.test(m)) return 'Ya existe uno igual — no se creó otro.';
+    if ((x = m.match(/null value in column "([a-z_]+)"/i))){
+      return 'Falta completar ' + (CAMPOS_LINDOS[x[1]] || x[1].replace(/_/g, ' ')) + '.';
+    }
+    if (/violates foreign key constraint/i.test(m)) return 'Está ligado a algo que ya no existe (o algo lo está usando).';
+    if (/row-level security|permission denied/i.test(m)) return 'No tenés permiso para hacer eso.';
+    if (/JWT expired|token is expired/i.test(m)) return 'Se venció la sesión — recargá la página.';
+    if (/Failed to send a request to the Edge Function/i.test(m)) return 'No se pudo llamar al servidor (CORS). Avisá que hay que revisar la función.';
+    if (/Failed to fetch|NetworkError/i.test(m)) return 'Sin conexión con el servidor — probá de nuevo.';
+    return m;
+  }
+
   function toast(msg){
     let t = document.getElementById('dash-toast');
     if (!t) {
@@ -6010,7 +6050,7 @@ const newsCases = [
       t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--acid);color:#142033;font-weight:700;font-family:Space Grotesk;padding:14px 20px;border-radius:12px;box-shadow:0 12px 40px -10px rgba(0,0,0,.6);transition:.3s;opacity:0;transform:translateY(10px)';
       document.body.appendChild(t);
     }
-    t.textContent = msg;
+    t.textContent = humanizarError(msg);
     requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'none'; });
     clearTimeout(t._h);
     t._h = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; }, 6000);
@@ -17759,7 +17799,12 @@ const newsCases = [
           || (t.frequency === 'quarterly' && ((monthCursor.getFullYear() * 12 + monthCursor.getMonth()) - (s.getFullYear() * 12 + s.getMonth())) % 3 === 0)
           || (t.frequency === 'yearly' && monthCursor.getMonth() === s.getMonth());
         if (!occurs) continue;
-        const occDate = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), t.day_of_month);
+        /* Un vencimiento el 30 o el 31 cae el ÚLTIMO día del mes cuando ese mes no
+           llega: febrero 30 no existe y `new Date(2027,1,30)` se va sola al 2 de marzo,
+           corriendo el pago de mes. Se acota al último día real. */
+        const ultimoDia = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0).getDate();
+        const diaReal = Math.min(Number(t.day_of_month) || 1, ultimoDia);
+        const occDate = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), diaReal);
         if (occDate < today || occDate < s || occDate > horizon) continue;
         if (endT && occDate > endT) continue;
         events.push({ date: occDate, delta: t.kind === 'income' ? Number(t.amount_chf) : -Number(t.amount_chf), label: t.description, tag: 'rec' });
