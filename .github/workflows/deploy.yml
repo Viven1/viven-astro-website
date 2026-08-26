@@ -23,10 +23,19 @@ on:
   # permite publicar a mano desde la pestaña Actions sin tener que commitear
   workflow_dispatch:
 
-# si entran dos pushes seguidos, que gane el último y no se pisen dos deploys
+# Dos deploys no se pisan: se hacen la cola.
+#
+# Estaba en cancel-in-progress: true, que suena bien —"que gane el último"— y falla
+# feo. El 26 ago 2026 salieron siete pushes seguidos, cada uno canceló al anterior, y
+# producción quedó cuatro commits atrás: dos páginas nuevas daban 404 estando en main y
+# el dashboard servía la versión anterior. Nadie se entera, porque cancelado no es
+# fallado y en Actions no se ve rojo.
+#
+# En cola es más lento y es correcto: cada push se publica, en orden, y el último en
+# terminar es siempre el más nuevo. Publicar de más no rompe nada; publicar de menos sí.
 concurrency:
   group: deploy-produccion
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publicar:

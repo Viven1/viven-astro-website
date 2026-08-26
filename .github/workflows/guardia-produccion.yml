@@ -17,6 +17,11 @@ on:
     - cron: "*/30 * * * *"
   workflow_dispatch:
 
+# Para poder disparar el deploy solo cuando encuentra que producción quedó atrás.
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   comprobar:
     runs-on: ubuntu-latest
@@ -24,6 +29,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: La versión en el aire tiene que ser la de main
+        id: comparar
         run: |
           set -u
           ESPERADA=$(grep -o "viven-crm-v[0-9]*" public/dashboard-sw.js | head -1)
@@ -42,6 +48,7 @@ jobs:
               V=$(git show "origin/$b:public/dashboard-sw.js" 2>/dev/null | grep -o "viven-crm-v[0-9]*" | head -1)
               [ "$V" = "$VIVA" ] && echo "  → $b"
             done
+            echo "atrasada=si" >> "$GITHUB_OUTPUT"
             exit 1
           fi
           echo "OK: producción es main."
@@ -54,3 +61,16 @@ jobs:
             echo "$code  $u"
             [ "$code" = "200" ] || { echo "::error::$u devolvió $code"; exit 1; }
           done
+
+      # Encontrar el problema y no arreglarlo es medio trabajo. Si producción quedó
+      # atrás, se republica sola: el deploy es idempotente —compila main y lo sube— así
+      # que dispararlo de más no rompe nada, y de menos deja el sitio viejo.
+      # Corre aunque el paso anterior haya fallado, que es justo cuando hace falta.
+      - name: Republicar si producción quedó atrás
+        if: failure() && steps.comparar.outputs.atrasada == 'si'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Producción está atrás: disparando 'Publicar viven.ch' sobre main."
+          gh workflow run "Publicar viven.ch" --ref main --repo "$GITHUB_REPOSITORY"
+          echo "Disparado. La próxima corrida de la guardia lo verifica."
