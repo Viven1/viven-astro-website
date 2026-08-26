@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
         await service.from("automation_runs").update({ status: "stopped" }).eq("id", run.id);
         out.exited = (out.exited || 0) + 1; continue;
       }
-      const step = steps[run.step_idx];
+      let step = steps[run.step_idx];
       // THROTTLE global: máx 1 email automático / 5 días por contacto (los waits del camino mandan igual)
       if ((step.type === "email" || step.type === "ai_email" || step.type === "content_step") && lead.last_automated_email_at &&
           Date.now() - new Date(lead.last_automated_email_at).getTime() < 5 * 864e5 && !(run.step_idx === 0 && au.trigger === "lead_new")) {
@@ -370,6 +370,30 @@ Deno.serve(async (req) => {
       let nextAt = new Date();
       if (body.dry_run) { out.steps++; continue; }
       let stepsSkippedToEnd = false;
+
+      /* ── LOS BORRADORES NO ESPERAN A LA ESPERA ──
+         Los seis workflows de la calculadora arrancan con `esperar 2 días`, y el bloque
+         de content_step —que arma los TRES borradores de una, cada uno con su fecha real
+         de envío— estaba DETRÁS de esa espera. Resultado: alguien entraba hoy y el
+         borrador para aprobar aparecía dentro de dos días, casi cuando tocaba mandarlo.
+         (Sebastián, 26 ago 2026: "eso tiene que ser inmediato así tengo tiempo
+         suficiente para hacerlo, no recién cuando están por salir. Entran, me pide
+         aprobar y done.")
+         Medido ese día: los leads 302 y 303 entraron a la mañana y sus borradores
+         estaban programados para el 28.
+
+         Las FECHAS DE ENVÍO no cambian: scheduled_at se calcula desde que el lead entró
+         más los días de espera acumulados, así que sale exactamente cuando salía antes.
+         Lo único que se adelanta es cuándo se puede revisar. */
+      const hayContenidoAdelante = steps.slice(run.step_idx).some((x: { type?: string }) => x?.type === "content_step");
+      const adelantarBorradores = step.type === "wait" && hayContenidoAdelante;
+      if (adelantarBorradores) {
+        const { count: yaHay } = await service.from("outbox")
+          .select("id", { count: "exact", head: true }).eq("run_id", run.id);
+        if (yaHay) { /* ya se armaron en una corrida anterior: no duplicar */ }
+        else step = { ...step, type: "content_step" };
+      }
+
       try {
         if (step.type === "wait") {
           nextAt = new Date(Date.now() + (Math.max(0, +step.days || 1)) * 864e5);
