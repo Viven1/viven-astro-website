@@ -1,0 +1,44 @@
+---
+// CTA contextual a mitad de artículo, en /en/blog/. Ítem #39 de la cola:
+// hoy el único lead capture del post es el form al final de la página y el
+// CalcBanner justo antes — pero para llegar ahí hay que leer el artículo
+// entero, y la medición dice que casi nadie lo hace. Esto va insertado a la
+// altura del h2 del medio, con el link que más tiene que ver con el tema del
+// post (calculadora con el tipo pre-cargado, o la guía descargable para los
+// posts de how-to/explainer).
+const { type = null, magnet = null } = Astro.props;
+
+const CALC = '/en/video-cost-calculator/';
+const href = magnet === 'explainer-guide'
+  ? '/en/explainer-video-guide/#download'
+  : (type ? CALC + '?type=' + type : CALC);
+
+const COPY = {
+  brand:    { t: 'Wondering what a brand video like this costs?', s: 'Get an instant CHF range from our free calculator →' },
+  product:  { t: 'Wondering what a product video like this costs?', s: 'Get an instant CHF range from our free calculator →' },
+  eb:       { t: 'Planning an employer branding video?', s: 'Get an instant CHF range from our free calculator →' },
+  social:   { t: 'Wondering what a social video package costs?', s: 'Get an instant CHF range from our free calculator →' },
+  corporate:{ t: 'Wondering what a corporate video costs?', s: 'Get an instant CHF range from our free calculator →' },
+};
+const MAGNET_COPY = {
+  t: 'Want the full method, not just this article?',
+  s: 'Free 6-page PDF: script template, specs and a 30-point checklist →',
+};
+const c = magnet === 'explainer-guide'
+  ? MAGNET_COPY
+  : (COPY[type] || { t: 'Wondering what your video would cost?', s: 'Get an instant CHF range from our free calculator →' });
+---
+<a class="blog-inline-cta" href={href}>
+  <span class="bic-ic">{magnet === 'explainer-guide' ? '📄' : '💰'}</span>
+  <span class="bic-tx"><b>{c.t}</b><small>{c.s}</small></span>
+</a>
+<style>
+  .blog-inline-cta{display:flex;align-items:center;gap:12px;margin:30px 0;padding:14px 16px;
+    border:1px solid rgba(221,249,143,.35);border-radius:12px;background:rgba(221,249,143,.06);
+    text-decoration:none;color:inherit}
+  .blog-inline-cta:hover{border-color:var(--acid,#ddf98f)}
+  .bic-ic{font-size:22px;flex:none}
+  .bic-tx{min-width:0}
+  .bic-tx b{display:block;font-size:15px;line-height:1.3;color:var(--text)}
+  .bic-tx small{display:block;font-size:13px;color:var(--muted);margin-top:3px}
+</style>
