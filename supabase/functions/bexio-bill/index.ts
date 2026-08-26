@@ -69,6 +69,18 @@ Deno.serve(async (req) => {
     /* Ver una factura de proveedor REAL entera: la forma que hay que mandar se copia de
        una que bexio ya aceptó, no de la documentación. Mismo método que se usó para las
        facturas a clientes (se copió la RE-01121). */
+    /* Limpieza puntual: borrar un contacto que se creó por error. Se usa a mano y pide
+       el nombre exacto para no borrar el que no es. */
+    if (body.borrar_contacto) {
+      const id = Number(body.borrar_contacto);
+      const c = await bx(`contact/${id}`);
+      if (!c.ok) return json({ error: "no existe ese contacto", detalle: c.body }, 404);
+      const nom = [(c.body as any).name_2, (c.body as any).name_1].filter(Boolean).join(" ");
+      if (body.confirmar_nombre !== nom) return json({ error: "el nombre no coincide", es: nom });
+      const d = await bx(`contact/${id}`, { method: "DELETE" });
+      return json({ ok: d.ok, status: d.status, borrado: nom, detalle: d.body });
+    }
+
     if (body.muestra) {
       const lista = await bx("4.0/purchase/bills?limit=3");
       const arr = (lista.body as any)?.data ?? [];
@@ -95,6 +107,8 @@ Deno.serve(async (req) => {
        devuelven para que elija una persona. */
     let provId = supplier_id ?? null;
     let creado = false;
+    /* Antes de buscar nada: un ensayo sobre una factura sin proveedor elegido no debe
+       tocar bexio ni para consultar de más. */
     if (!provId) {
       const nombre = String(f.supplier || "").trim();
       if (!nombre) return json({ error: "la factura no tiene proveedor — completalo antes de mandarla" }, 400);
@@ -109,6 +123,12 @@ Deno.serve(async (req) => {
           candidatos: cands.slice(0, 8).map((c) => ({ id: c.id, nombre: [c.name_1, c.name_2].filter(Boolean).join(" "), mail: c.mail })) });
       } else if (!cands.length) {
         if (!crear_proveedor) return json({ necesita_eleccion: true, candidatos: [], sugerencia: nombre });
+        /* Un ENSAYO no puede crear nada. La primera versión resolvía el proveedor antes
+           de mirar dry_run y el ensayo dio de alta un contacto de verdad en bexio —
+           justo lo que un ensayo existe para evitar. Ahora avisa qué haría y se detiene. */
+        if (dry_run) return json({ ok: true, dry_run: true, proveedor_id: null,
+          proveedor_a_crear: nombre,
+          aviso: "En el ensayo no se crea el proveedor. Al mandarla de verdad se da de alta este contacto." });
         /* Persona o empresa: si el nombre tiene dos palabras y ninguna suele ser razón
            social, se crea como persona (contact_type_id 2). */
         const esEmpresa = /\b(ag|gmbh|sa|sarl|ltd|inc|studio|film|production|media)\b/i.test(nombre);
