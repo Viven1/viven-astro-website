@@ -186,7 +186,9 @@ const description = {"en":"Nine questions that decide whether your event film wo
   .calc-result :global(li){display:flex;gap:10px;font-size:15px;color:var(--text);border-bottom:1px solid var(--line);padding-bottom:9px}
   .calc-result :global(li span){color:var(--muted);flex:0 0 46%}
   .calc-result :global(li b){font-weight:600}
-  .ev-cta{display:flex;gap:10px;flex-wrap:wrap}
+  .ev-cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .ev-cta :global(.ev-done){display:inline-flex;align-items:center;font-size:14.5px;line-height:1.5;
+    color:var(--acid);border:1px solid var(--acid);border-radius:999px;padding:11px 18px}
 </style>
 
 <script is:inline>
@@ -269,10 +271,37 @@ const description = {"en":"Nine questions that decide whether your event film wo
     /* El cierre cambia según lo que contestó en la 9: al que ya pidió oferta no se le
        vuelve a ofrecer, se le dice qué sigue. */
     var esperaOferta = pick.offer && (pick.offer.v === 'yes' || pick.offer.v === 'budget');
+    /* "Mandenmé una oferta" NO va al formulario de contacto: toda la data ya está en
+       esta pantalla y hacerlo escribirla de nuevo es perder al que ya dijo que sí.
+       El botón manda el pedido al equipo y se convierte en la confirmación.
+       (Sebastián, 26 ago 2026: "tendría que enviar eso directamente a nosotros, ya que
+       tenemos toda la data en esa página".) */
     document.getElementById('ev-cta').innerHTML = esperaOferta
       ? '<a class="btn btn-primary" href="/book/" target="_blank" rel="noopener">📅 Book 15 min and we go through it</a>'
       : '<a class="btn btn-primary" href="/book/" target="_blank" rel="noopener">📅 Book a 15-min call</a>' +
-        '<a class="btn btn-ghost" href="/en/contact/">Actually, send me an offer →</a>';
+        '<button class="btn btn-ghost" type="button" id="ev-ask">Actually, send me an offer →</button>';
+    var ask = document.getElementById('ev-ask');
+    if (ask) ask.addEventListener('click', function(){
+      ask.disabled = true; ask.textContent = 'Sending…';
+      fetch('https://lumoevaotokgqnpybkyf.supabase.co/functions/v1/brief-email', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'apikey':'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca' },
+        body: JSON.stringify({
+          to: email, name: name, lang: 'en', pairs: pares, pedir_oferta: true,
+          extra: co ? 'Company: ' + co : '',
+          page_uri: location.href, page_name: 'Event Video Planner'
+        })
+      }).then(function(r){ return r.json(); }).then(function(r){
+        if (r && r.ok){
+          ask.outerHTML = '<span class="ev-done">✅ Sent to our team — they will come back with an offer or questions.</span>';
+        } else {
+          ask.disabled = false; ask.textContent = 'Actually, send me an offer →';
+          document.getElementById('ev-sent').textContent = 'That did not go through. Write to info@viven.ch and we pick it up from there.';
+        }
+      }).catch(function(){
+        ask.disabled = false; ask.textContent = 'Actually, send me an offer →';
+      });
+    });
     document.getElementById('ev-sent').textContent = esperaOferta
       ? 'We are on it — you get the offer within one business day.'
       : '';

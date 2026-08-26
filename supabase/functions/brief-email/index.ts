@@ -81,7 +81,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (await rateLimited("brief-email", clientIp(req))) return json({ error: "too_many_requests" }, 429);
   try {
-    const { to, name, lang: rawLang, pairs, references, extra, hutk, page_uri, page_name, gclid } = await req.json();
+    const { to, name, lang: rawLang, pairs, references, extra, hutk, page_uri, page_name, gclid,
+            /* pedir_oferta: en vez de mandarle el brief a la persona, se lo manda al
+               EQUIPO con el pedido de oferta. Nace del planificador de eventos: el que
+               contestó todo y toca "mandenmé una oferta" no puede tener que volver a
+               escribir sus datos en el formulario de contacto — la data ya está en esa
+               pantalla. (Sebastián, 26 ago 2026: "tendría que enviar eso directamente a
+               nosotros, ya que tenemos toda la data en esa página".)
+               El destino es fijo, info@viven.ch: nunca sale de un parámetro, o esto
+               sería un relay abierto. */
+            pedir_oferta } = await req.json();
     if (!to || !Array.isArray(pairs) || !pairs.length) return json({ error: "faltan datos (to/pairs)" }, 400);
     const lang = ["en", "de", "es"].includes(rawLang) ? rawLang : "en";
     const t = T[lang];
@@ -106,6 +115,33 @@ Deno.serve(async (req) => {
   </div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a><br>${t.foot}</p>
 </div></body>`;
+
+    if (pedir_oferta) {
+      /* Al equipo. El aviso normal de lead nuevo (lead-notify) NO sirve acá: solo se
+         dispara cuando la persona no existía, y a esta altura ya la creamos al mandarle
+         el brief. Sin esto, el pedido de oferta no le llegaba a nadie. */
+      const asuntoEq = `🟢 PIDE OFERTA — ${String(name || to).trim()}${extra ? " · " + String(extra).replace(/^Company:\s*/i, "") : ""}`;
+      const htmlEq = `<div style="font-family:Helvetica,Arial,sans-serif;max-width:620px;color:#222">
+  <p style="font-size:16px;font-weight:700;margin:0 0 4px">Pidió una oferta desde ${esc(String(page_name || "la web"))}</p>
+  <p style="margin:0 0 16px;font-size:14px;color:#555">${esc(String(name || ""))} · <a href="mailto:${esc(to)}">${esc(to)}</a>${extra ? " · " + esc(String(extra).replace(/^Company:\s*/i, "")) : ""}</p>
+  <table style="width:100%;border-collapse:collapse">${rows}</table>
+  <p style="margin:18px 0 0;font-size:13px;color:#777">Respondiendo a este email le contestás a la persona directamente.</p>
+</div>`;
+      const resEq = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: "Viven Leads <leads@viven.ch>", to: ["info@viven.ch"], reply_to: to, subject: asuntoEq, html: htmlEq }),
+      });
+      if (!resEq.ok) { console.error("RESEND_FAIL_TEAM", await resEq.text()); return json({ error: "send_failed" }, 502); }
+      /* Queda en la ficha de la persona aunque el email haya ido al equipo: lo que
+         importa en su timeline es que pidió una oferta y con qué datos. */
+      await registrarEmail({
+        service, to, subject: asuntoEq,
+        body: "Pidió una oferta. El pedido, con el brief entero, salió a info@viven.ch.",
+        source: "brief-email/pide-oferta", senderLabel: "VIVEN",
+      });
+      return json({ ok: true, pedido: true });
+    }
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
