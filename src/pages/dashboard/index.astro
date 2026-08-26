@@ -18018,7 +18018,8 @@ const newsCases = [
             '<td>' + (v.video_url ? '<a href="' + esc(v.video_url) + '" target="_blank" rel="noopener" style="color:var(--acid)">ver ↗</a>' : '<span class="muted-note">sin link</span>') + '</td>' +
             '<td>' + (cs.length ? cs.length + (ab ? ' · <b style="color:#f0c060">' + ab + ' sin resolver</b>' : ' · todos resueltos') : '—') + '</td>' +
             '<td>' + (v.approved_at
-                ? '<span style="color:#7ed957">✓ aprobada ' + fmtDMY(v.approved_at) + '</span>'
+                ? '<span style="color:#7ed957">✓ aprobada ' + fmtDMY(v.approved_at) + '</span>' +
+                  '<br><button class="btn btn-ghost small" data-vunapr="' + v.id + '" title="Volver a dejarla esperando" style="margin-top:4px">↩︎ Desaprobar</button>'
                 : '<span style="color:#f0c060">esperando</span>') + '</td>' +
             '<td style="white-space:nowrap">' +
               (cs.length ? '<button class="btn btn-ghost small" data-edl="' + v.id + '" title="Bajar el .xml y el .edl">📥 Notas</button> ' +
@@ -18057,6 +18058,7 @@ const newsCases = [
     $('pj-vers').querySelectorAll('[data-edl]').forEach((b) => b.addEventListener('click', () => pjExportNotas(b.dataset.edl)));
     $('pj-vers').querySelectorAll('[data-noted]').forEach((b) => b.addEventListener('click', () => pjNotasAlEditor(b.dataset.noted)));
     $('pj-vers').querySelectorAll('[data-vdel]').forEach((b) => b.addEventListener('click', () => pjVerBorrar(b.dataset.vdel)));
+    $('pj-vers').querySelectorAll('[data-vunapr]').forEach((b) => b.addEventListener('click', () => pjVerDesaprobar(b.dataset.vunapr)));
     $('pj-coms').querySelectorAll('[data-cres]').forEach((b) => b.addEventListener('click', () => pjComResolver(b.dataset.cres)));
     $('pj-coms').querySelectorAll('[data-ctask]').forEach((b) => b.addEventListener('click', () => pjComATarea(b.dataset.ctask)));
     $('pj-files').querySelectorAll('[data-fvis]').forEach((b) => b.addEventListener('click', () => pjFileVis(b.dataset.fvis)));
@@ -18076,6 +18078,19 @@ const newsCases = [
     pjVers.unshift(data);
     toast('🎞 v' + n + ' subida — el cliente ya la ve en su portal');
     pjPortalRender();
+  }
+  /* Aprobar es una decisión, no un botón sin vuelta: si el cliente —o yo— toca por error,
+     esto la devuelve a "esperando" y limpia la fecha. No borra nada más.
+     (Sebastián, 26 ago 2026: "tengo que poder deshacer ese cambio tmb… por si fue un error.") */
+  async function pjVerDesaprobar(id){
+    const v = pjVers.find((x) => String(x.id) === String(id)); if (!v) return;
+    if (!confirm('¿Sacarle la aprobación a la v' + v.n + '?\n\nVuelve a quedar esperando. Los comentarios no se tocan.')) return;
+    const { error } = await supabase.from('project_versions')
+      .update({ approved_at: null, approved_by: null }).eq('id', id);
+    if (error){ toast(error.message); return; }
+    v.approved_at = null; v.approved_by = null;
+    pjPortalRender();
+    toast('↩︎ v' + v.n + ' vuelve a esperando');
   }
   async function pjVerBorrar(id){
     const v = pjVers.find((x) => String(x.id) === String(id)); if (!v) return;
@@ -18220,23 +18235,27 @@ const newsCases = [
      el email exacto con las notas ya listadas, y el botón de enviar está adentro.
      (Sebastián, 26 ago 2026: "un botón para nosotros enviar al editor. Le envía el xml
      más todos los comentarios con timestamps para que lo vea en el email".) */
+  /* ═══ Notas al editor: modal propio, editable ═══
+     Estaba en un window.open y salía en blanco —con `noopener` la referencia a la ventana
+     viene nula— y aunque hubiera abierto, ahí no se podía tocar nada. Ahora vive adentro
+     del dashboard: se ve el email exacto, se cambia el destinatario, el asunto y se puede
+     agregar un mensaje propio, con el .xml a la vista.
+     (Sebastián, 26 ago 2026: "que salga directo desde el dashboard con un popup propio
+     donde me muestre qué se le envía y le pueda hacer cambios, agregar cosas, etc.") */
+  let nedCuerpo = null;
+
   async function pjNotasAlEditor(versionId){
     const p = pjCur; if (!p) return;
     const mail = ($('pj-editor-email').value || '').trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){
-      toast('Poné el email del editor arriba, en 👥 Quién'); return;
-    }
     const r = pjNotasArchivos(versionId); if (!r) return;
     const lista = r.notas.map((c) => ({ tc: pjTC(c.tc_ms).slice(0, 8), autor: c.author_name || 'Cliente', texto: String(c.body || '') }));
 
-    /* El link del corte va con el pedido: cada minuto del email abre el video en ese
-       segundo. Es lo que reemplaza a las capturas por nota, que no se pueden sacar. */
     /* Un pase propio para el montajista, de 30 días. Los minutos del email tienen que
        abrir el corte, y el corte está privado en Vimeo: solo reproduce embebido en
        viven.ch. Así que llevan al portal, no a vimeo.com. */
     let portalUrl = null;
     const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
-    if (d && d.portal_token){
+    if (d && d.portal_token && mail){
       try {
         const { data: pe } = await supabase.functions.invoke('get-portal', {
           body: { id: d.id, t: d.portal_token, accion: 'pase_editor', email: mail } });
@@ -18247,47 +18266,76 @@ const newsCases = [
         }
       } catch (e){ /* sin pase, los minutos caen al link de Vimeo */ }
     }
-    const cuerpo = { project_id: p.id, to: mail, version: r.v.n, notas: lista,
-                     xml: r.xml, edl: r.edl, portal_url: portalUrl,
-                     video_url: r.v.video_url || p.deliverable_url || null };
-    let prev;
-    try {
-      const { data, error } = await supabase.functions.invoke('notas-al-editor', { body: { ...cuerpo, dry_run: true } });
-      if (error) throw new Error(error.message);
-      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
-      prev = data;
-    } catch (e){ toast('⚠️ ' + (e.message || e)); return; }
 
-    const w = window.open('', '_blank', 'noopener,width=780,height=880');
-    if (!w){ toast('El navegador bloqueó la ventana'); return; }
-    w.document.write(
-      '<!doctype html><meta charset="utf-8"><title>Notas al editor — antes de mandar</title>' +
-      '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#f4f6fb;margin:0;padding:26px 28px 60px">' +
-      '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 8px">' +
-        '⚠️ Todavía no se mandó nada.</p>' +
-      '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 20px">Para <b style="color:#f4f6fb">' + esc(prev.para) + '</b> · ' +
-        prev.notas + ' notas · adjunta el <b style="color:#f4f6fb">.xml</b> y el <b style="color:#f4f6fb">.edl</b></p>' +
-      '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:22px">' +
-        '<p style="font-size:12px;color:#8a94a8;margin:0 0 14px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
-          '<b>Asunto:</b> ' + esc(prev.asunto) + '</p>' + prev.html + '</div>' +
-      '<div style="margin:24px 0 0;padding-top:18px;border-top:1px solid #223049;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
-        '<button id="go" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:15px;border:0;' +
-          'border-radius:100px;padding:13px 26px;cursor:pointer">📤 Mandárselo a ' + esc(prev.para) + '</button>' +
-        '<span id="msg" style="color:#9aa6bd;font-size:13px"></span></div></body>');
-    w.document.close();
-    w.document.getElementById('go').addEventListener('click', async () => {
-      const b = w.document.getElementById('go'), m = w.document.getElementById('msg');
-      b.disabled = true; m.textContent = 'Enviando…';
+    nedCuerpo = { project_id: p.id, to: mail, version: r.v.n, notas: lista,
+                  xml: r.xml, edl: r.edl, portal_url: portalUrl,
+                  video_url: r.v.video_url || p.deliverable_url || null };
+
+    $('ned-modal').hidden = false;
+    $('ned-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '') + ' · v' + r.v.n + ' · ' + lista.length + ' notas';
+    $('ned-to').value = mail;
+    $('ned-msg').value = '';
+    $('ned-adj').innerHTML =
+      '<p class="muted-note" style="margin:8px 0 4px">Van dos archivos con el número del proyecto en el nombre. El <b>.xml</b> deja cada nota como marcador en el timeline de Premiere; el <b>.edl</b> es la red por si su programa no lee el xml.</p>' +
+      '<pre>' + esc(r.xml.slice(0, 1400)) + (r.xml.length > 1400 ? '\n… (' + r.xml.length + ' caracteres en total)' : '') + '</pre>';
+    nedPreview();
+  }
+
+  /* La vista previa se pide al servidor —el mismo código que arma el email de verdad—
+     así lo que ves es lo que sale, y no una copia que se desactualiza. */
+  let nedT = null;
+  function nedPreview(){
+    clearTimeout(nedT);
+    nedT = setTimeout(async () => {
+      if (!nedCuerpo) return;
+      const prev = $('ned-prev');
+      prev.innerHTML = '<p style="color:#8a94a8;margin:0">Armando…</p>';
       try {
-        const { data, error } = await supabase.functions.invoke('notas-al-editor', { body: cuerpo });
+        const { data, error } = await supabase.functions.invoke('notas-al-editor', {
+          body: { ...nedCuerpo, to: $('ned-to').value.trim() || nedCuerpo.to,
+                  asunto_manual: $('ned-asunto').value.trim() || undefined,
+                  mensaje: $('ned-msg').value, dry_run: true } });
         if (error) throw new Error(error.message);
         if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
-        m.textContent = '✅ Enviado con ' + data.adjuntos + ' adjuntos. Ya podés cerrar.';
-        b.style.display = 'none';
-        toast('📤 ' + data.notas + ' notas enviadas a ' + data.para);
-      } catch (e){ m.textContent = '⚠️ ' + (e.message || e); b.disabled = false; }
-    });
+        if (!$('ned-asunto').value.trim()) $('ned-asunto').value = data.asunto;
+        prev.innerHTML = data.html;
+      } catch (e){
+        prev.innerHTML = '<p style="color:#b00;margin:0">⚠️ ' + esc(e.message || String(e)) + '</p>';
+      }
+    }, 350);
   }
+
+  (function nedBind(){
+    const cerrar = () => { $('ned-modal').hidden = true; nedCuerpo = null; };
+    document.addEventListener('click', (e) => {
+      if (e.target && (e.target.id === 'ned-x' || e.target.id === 'ned-back' || e.target.id === 'ned-modal')) cerrar();
+    });
+    document.addEventListener('keydown', (e) => {
+      const m = $('ned-modal');
+      if (e.key === 'Escape' && m && !m.hidden && !/TEXTAREA|INPUT/.test((e.target || {}).tagName || '')) cerrar();
+    });
+    document.addEventListener('input', (e) => {
+      if (e.target && ['ned-to', 'ned-asunto', 'ned-msg'].includes(e.target.id)) nedPreview();
+    });
+    document.addEventListener('click', async (e) => {
+      if (!e.target || e.target.id !== 'ned-go' || !nedCuerpo) return;
+      const b = e.target, out = $('ned-msgout');
+      const to = $('ned-to').value.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)){ out.textContent = '⚠️ Falta un email válido'; return; }
+      b.disabled = true; out.textContent = 'Enviando…';
+      try {
+        const { data, error } = await supabase.functions.invoke('notas-al-editor', {
+          body: { ...nedCuerpo, to, asunto_manual: $('ned-asunto').value.trim() || undefined, mensaje: $('ned-msg').value } });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        out.textContent = '✅ Enviado con ' + data.adjuntos + ' adjuntos';
+        toast('📤 ' + data.notas + ' notas enviadas a ' + data.para);
+        setTimeout(cerrar, 900);
+      } catch (e2){ out.textContent = '⚠️ ' + (e2.message || e2); }
+      finally { b.disabled = false; }
+    });
+  })();
+
 
   /* ---------- FACTURAS DEL CREW (SQL 0156) ----------
      "Ideal sería poder subir facturas de la crew al dashboard para enviar a bexio y

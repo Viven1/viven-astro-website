@@ -10,7 +10,7 @@
 //   cualquiera con el link se lo manda a sí mismo y aprueba en nombre del cliente.
 //   Verificado una vez, el navegador guarda el token 30 días.
 //
-// Acciones: {accion:"estado"|"pedir_codigo"|"verificar"|"comentar"|"descargar"|"aprobar"}
+// Acciones: {accion:"estado"|"pedir_codigo"|"verificar"|"comentar"|"descargar"|"aprobar"|"desaprobar"}
 //
 // Deploy: supabase functions deploy get-portal --no-verify-jwt
 // Secret: RESEND_API_KEY
@@ -46,10 +46,50 @@ async function sha256(s: string){
 }
 const rnd = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
+/* El email del código. Era un texto pelado —"Tu código para descargar y aprobar" y seis
+   dígitos— y parecía spam. Es el PRIMER email que el cliente recibe del portal: si ese
+   parece falso, no entra, y todo lo que sigue no existe.
+   (Sebastián, 26 ago 2026: "esto se ve súper mal, parece spam… VIVEN te invita a tu
+   portal personal para ver todo el material, dar feedback".)
+   Dice qué es el portal antes de pedir nada, va con el logo, y nombra el proyecto: un
+   código suelto sin contexto es exactamente lo que mandan los que estafan. */
 const T = {
-  en: { asunto: "Your access code", intro: "Your code to download and approve:", vale: "Valid for 15 minutes." },
-  de: { asunto: "Ihr Zugangscode", intro: "Ihr Code zum Herunterladen und Freigeben:", vale: "15 Minuten gültig." },
-  es: { asunto: "Tu código de acceso", intro: "Tu código para descargar y aprobar:", vale: "Vale por 15 minutos." },
+  en: {
+    asunto: "Your project portal",
+    hola: "Hi",
+    intro: "We opened a private portal for your project. In it you can watch the cut, leave your notes at the exact second, download the files and approve the final version.",
+    codeLbl: "Your access code",
+    vale: "Valid for 15 minutes. If it expires, just ask for a new one from the portal.",
+    cta: "Open my portal",
+    pasos: "Open the portal and enter the code above.",
+    link: "If the button does not work, copy this address:",
+    porque: "You are receiving this because we are working together on this project.",
+    seguro: "We ask for a code so that only you can see the material before it goes public.",
+  },
+  de: {
+    asunto: "Ihr Projekt-Portal",
+    hola: "Guten Tag",
+    intro: "Wir haben ein privates Portal für Ihr Projekt eingerichtet. Dort sehen Sie den Schnitt, hinterlassen Ihre Anmerkungen auf die Sekunde genau, laden die Dateien herunter und geben die finale Version frei.",
+    codeLbl: "Ihr Zugangscode",
+    vale: "15 Minuten gültig. Falls er abläuft, fordern Sie im Portal einfach einen neuen an.",
+    cta: "Portal öffnen",
+    pasos: "Portal öffnen und den Code oben eingeben.",
+    link: "Falls der Button nicht funktioniert, kopieren Sie diese Adresse:",
+    porque: "Sie erhalten diese E-Mail, weil wir gemeinsam an diesem Projekt arbeiten.",
+    seguro: "Wir fragen nach einem Code, damit nur Sie das Material sehen, bevor es öffentlich wird.",
+  },
+  es: {
+    asunto: "Tu portal del proyecto",
+    hola: "Hola",
+    intro: "Te abrimos un portal privado para tu proyecto. Ahí podés ver el corte, dejar tus notas en el segundo exacto, bajar los archivos y aprobar la versión final.",
+    codeLbl: "Tu código de acceso",
+    vale: "Vale por 15 minutos. Si se vence, pedí uno nuevo desde el portal.",
+    cta: "Abrir mi portal",
+    pasos: "Abrí el portal y poné el código de arriba.",
+    link: "Si el botón no anda, copiá esta dirección:",
+    porque: "Recibís este email porque estamos trabajando juntos en este proyecto.",
+    seguro: "Pedimos un código para que solo vos puedas ver el material antes de que sea público.",
+  },
 };
 
 Deno.serve(async (req) => {
@@ -142,10 +182,37 @@ Deno.serve(async (req) => {
       if (RESEND) {
         const L = T[lang];
         const asunto = `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`;
-        const html = `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
-              <p>${L.intro}</p>
-              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
-              <p style="color:#8a94a8;font-size:13px">${L.vale}</p></div>`;
+        const quien = String(lead?.name || proj.client_contact || "").trim().split(/\s+/)[0] || "";
+        const portalLink = `https://www.viven.ch/portal/?id=${encodeURIComponent(String(deal.id))}&t=${encodeURIComponent(String(deal.portal_token))}`;
+        const html = `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <div style="max-width:560px;margin:0 auto;padding:28px 16px">
+    <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:20px 28px">
+      <img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" />
+    </div>
+    <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 28px">
+      <p style="margin:0 0 14px;font-size:15px;color:#1a2230">${L.hola}${quien ? " " + esc(quien) : ""},</p>
+      <p style="margin:0 0 8px;font-size:19px;font-weight:700;color:#1a2230;line-height:1.3">${esc(proj.title || deal.title || "")}</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#3d4757">${L.intro}</p>
+      <div style="background:#f6f8fb;border:1px solid #e6e9ef;border-radius:12px;padding:20px 22px;text-align:center">
+        <p style="margin:0 0 6px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#8a94a8;font-weight:700">${L.codeLbl}</p>
+        <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:.22em;color:#1a2230;font-family:ui-monospace,Menlo,monospace">${code}</p>
+      </div>
+      <p style="margin:16px 0 22px;font-size:13px;color:#8a94a8;line-height:1.6">${L.vale}</p>
+      <!-- EL LINK. Faltaba: el cliente recibía seis dígitos y ningún lugar donde usarlos.
+           El código se pide DESDE el portal, así que quien lo pidió ya estaba ahí — pero
+           el email se lee más tarde, en el teléfono, o se lo reenvía a un colega, y ahí
+           el código solo no sirve para nada.
+           (Sebastián, 26 ago 2026: "no da link al portal… nosotros mandamos eso, él no
+           sabe dónde va".) -->
+      <p style="margin:0 0 10px;font-size:14.5px;color:#3d4757">${L.pasos}</p>
+      <p style="margin:0 0 18px"><a href="${portalLink}" style="background:#0f1826;color:#ddf98f;text-decoration:none;font-weight:700;font-size:15px;padding:13px 26px;border-radius:100px;display:inline-block">${L.cta} →</a></p>
+      <p style="margin:0;font-size:12px;color:#9aa6bd;line-height:1.6;word-break:break-all">${L.link}<br /><a href="${portalLink}" style="color:#8a94a8">${portalLink}</a></p>
+      <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid #e9ecf1;font-size:13px;color:#8a94a8;line-height:1.6">🔒 ${L.seguro}</p>
+    </div>
+    <p style="text-align:center;font-size:11.5px;color:#9aa;margin:16px 0 0;line-height:1.6">
+      VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a><br />${L.porque}
+    </p>
+  </div></body>`;
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
@@ -363,6 +430,28 @@ Deno.serve(async (req) => {
          que el proyecto desaparezca de lo pendiente teniendo trabajo por delante. */
       await avisar("✅ Aprobado por el cliente",
         `${proj.client_contact || quien} aprobó la versión ${vUpd.n} de ${proj.title || ""}. Ya se pueden entregar los archivos finales.`,
+        quien);
+      return json({ ok: true, version: vUpd.n });
+    }
+
+    /* Deshacer la aprobación. Aprobar es un botón grande y verde en una pantalla que se
+       abre desde el teléfono: se toca por error. Sin esta salida, el único camino era
+       escribirnos. Vuelve a "esperando" y avisa, para que nadie entregue los finales
+       creyendo que sigue aprobado.
+       (Sebastián, 26 ago 2026: "por si fue un error.") */
+    if (accion === "desaprobar") {
+      const acc = esEquipo ? { equipo: true, email: "VIVEN" } : await verificado(body.token);
+      if (!acc) return json({ error: "necesita_codigo" }, 401);
+      const vId = body.version_id;
+      if (!vId) return json({ error: "no hay ninguna versión del corte" }, 400);
+      const quien = String((acc as { email?: string }).email || "").replace(/^(equipo|editor):/, "");
+      const { data: vUpd, error } = await service.from("project_versions").update({
+        approved_at: null, approved_by: null, approved_ip: null,
+      }).eq("id", vId).eq("project_id", proj.id).select("n").maybeSingle();
+      if (error) return json({ error: error.message }, 500);
+      if (!vUpd) return json({ error: "esa versión no es de este proyecto" }, 404);
+      await avisar("↩︎ Aprobación deshecha",
+        `${proj.client_contact || quien} sacó la aprobación de la versión ${vUpd.n} de ${proj.title || ""}. Ojo: no entreguen los archivos finales todavía.`,
         quien);
       return json({ ok: true, version: vUpd.n });
     }

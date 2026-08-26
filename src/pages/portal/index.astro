@@ -214,7 +214,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ph:'What should change?', send:'Send comment', sent:'✅ Sent — we get it right away, with the timestamp.',
       here:'here', versions:'Versions', files:'Files', download:'Download', comments:'Comments',
       approve:'Approve this version', approveHint:'If everything looks good, approve — then we deliver the final files.',
-      approved:'Approved', notas:'📝 I am done with my notes', notasH:'Sent your notes? Tell us — we get to work on the next cut.', notasOk:'Notes received. We are working on the next version.', codeAsk:'We send a 6-digit code to', codeSend:'Send me the code',
+      approved:'Approved', desapr:'↩︎ Undo approval', desaprQ:'Undo the approval of this version?', notas:'📝 I am done with my notes', notasH:'Sent your notes? Tell us — we get to work on the next cut.', notasOk:'Notes received. We are working on the next version.', codeAsk:'We send a 6-digit code to', codeSend:'Send me the code',
       gateT:'Your project', gateP:'To open your project we send a 6-digit code to your email. It stays valid on this device for 30 days.',
       gateNoMail:'This project has no contact email yet — write to info@viven.ch and we open it for you.',
       codePh:'000000', codeGo:'Confirm', codeSent:'Code sent to', codeBad:'Wrong code', codeOld:'The code expired — ask for a new one',
@@ -223,7 +223,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ph:'Was soll geändert werden?', send:'Kommentar senden', sent:'✅ Gesendet — wir bekommen es sofort, mit dem Zeitpunkt.',
       here:'hier', versions:'Versionen', files:'Dateien', download:'Herunterladen', comments:'Kommentare',
       approve:'Diese Version freigeben', approveHint:'Wenn alles passt, freigeben — dann liefern wir die finalen Dateien.',
-      approved:'Freigegeben', notas:'📝 Meine Anmerkungen sind fertig', notasH:'Anmerkungen abgeschickt? Sagen Sie uns Bescheid — wir machen den nächsten Schnitt.', notasOk:'Anmerkungen erhalten. Wir arbeiten an der nächsten Version.', codeAsk:'Wir senden einen 6-stelligen Code an', codeSend:'Code senden',
+      approved:'Freigegeben', desapr:'↩︎ Freigabe zurücknehmen', desaprQ:'Freigabe dieser Version zurücknehmen?', notas:'📝 Meine Anmerkungen sind fertig', notasH:'Anmerkungen abgeschickt? Sagen Sie uns Bescheid — wir machen den nächsten Schnitt.', notasOk:'Anmerkungen erhalten. Wir arbeiten an der nächsten Version.', codeAsk:'Wir senden einen 6-stelligen Code an', codeSend:'Code senden',
       gateT:'Ihr Projekt', gateP:'Um Ihr Projekt zu öffnen, senden wir einen 6-stelligen Code an Ihre E-Mail. Er bleibt auf diesem Gerät 30 Tage gültig.',
       gateNoMail:'Für dieses Projekt ist noch keine Kontakt-E-Mail hinterlegt — schreiben Sie an info@viven.ch, wir schalten es frei.',
       codePh:'000000', codeGo:'Bestätigen', codeSent:'Code gesendet an', codeBad:'Falscher Code', codeOld:'Der Code ist abgelaufen — bitte neuen anfordern',
@@ -232,7 +232,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ph:'¿Qué habría que cambiar?', send:'Enviar comentario', sent:'✅ Enviado — nos llega al instante, con el minuto.',
       here:'acá', versions:'Versiones', files:'Archivos', download:'Descargar', comments:'Comentarios',
       approve:'Aprobar esta versión', approveHint:'Si está todo bien, aprobalo — y entregamos los archivos finales.',
-      approved:'Aprobado', notas:'📝 Terminé mis notas', notasH:'¿Ya dejaste tus notas? Avisanos y arrancamos con el corte siguiente.', notasOk:'Notas recibidas. Estamos con la próxima versión.', codeAsk:'Te mandamos un código de 6 dígitos a', codeSend:'Mandame el código',
+      approved:'Aprobado', desapr:'↩︎ Deshacer la aprobación', desaprQ:'¿Sacarle la aprobación a esta versión?', notas:'📝 Terminé mis notas', notasH:'¿Ya dejaste tus notas? Avisanos y arrancamos con el corte siguiente.', notasOk:'Notas recibidas. Estamos con la próxima versión.', codeAsk:'Te mandamos un código de 6 dígitos a', codeSend:'Mandame el código',
       gateT:'Tu proyecto', gateP:'Para abrir tu proyecto te mandamos un código de 6 dígitos a tu email. Queda válido en este dispositivo por 30 días.',
       gateNoMail:'Este proyecto todavía no tiene email de contacto — escribinos a info@viven.ch y te lo abrimos.',
       codePh:'000000', codeGo:'Confirmar', codeSent:'Código enviado a', codeBad:'Código incorrecto', codeOld:'El código venció — pedí uno nuevo',
@@ -401,7 +401,8 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
            (Sebastián, 26 ago 2026: "si dan notas no está aprobado todavía".) */
         (VER
           ? (aprobada
-              ? '<div class="pt-ok"><div class="pt-aprobado">✓ ' + L.approved + ' · ' + esc(String(VER.approved_at).slice(0,10).split('-').reverse().join('.')) + '</div></div>'
+              ? '<div class="pt-ok"><div class="pt-aprobado">✓ ' + L.approved + ' · ' + esc(String(VER.approved_at).slice(0,10).split('-').reverse().join('.')) + '</div>' +
+                  '<button class="btn btn-ghost small" id="pt-desapr" type="button">' + L.desapr + '</button></div>'
               : VER.notes_done_at
               ? '<div class="pt-ok" style="border-color:#f0c060;background:rgba(240,192,96,.07)">' +
                   '<div style="color:#f0c060">' + L.notasOk + '</div>' +
@@ -449,6 +450,10 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       b.addEventListener('click', function(){ conCodigo(function(){ bajar(b.dataset.dl); }); }); });
     var ok = $('pt-ok'); if (ok) ok.addEventListener('click', function(){ conCodigo(aprobar); });
     var nt = $('pt-notas'); if (nt) nt.addEventListener('click', function(){ conCodigo(notasListas); });
+    var da = $('pt-desapr'); if (da) da.addEventListener('click', function(){
+      if (!confirm(L.desaprQ)) return;
+      conCodigo(desaprobar);
+    });
     briefBind();
   }
 
@@ -774,6 +779,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   }
   function aprobar(){ accionVersion('aprobar', 'pt-ok', aprobar); }
   function notasListas(){ accionVersion('notas_listas', 'pt-notas', notasListas); }
+  function desaprobar(){ accionVersion('desaprobar', 'pt-desapr', desaprobar); }
 
   function cargar(){
     api('estado').then(function(d){
