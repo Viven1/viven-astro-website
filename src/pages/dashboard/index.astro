@@ -1593,6 +1593,11 @@ const newsCases = [
   .pj-crew-rol{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* 🧭 Playbook. Se lee mientras se habla por teléfono: la pregunta grande y legible,
      el porqué chiquito debajo, y la respuesta como un renglón que se toca y se escribe. */
+  .pb-badge{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;
+    color:var(--muted);background:var(--panel-2);border-radius:99px;padding:1px 6px}
+  .pb-badge:empty{display:none}
+  .pb-badge.listo{color:#1c2508;background:var(--acid)}
+  #pb-quien{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .lm2-pb{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:12px;overflow:hidden}
   .lm2-pb>summary{cursor:pointer;padding:11px 14px;font-weight:700;font-size:13px;
     display:flex;align-items:center;gap:10px;list-style:none;user-select:none}
@@ -1601,7 +1606,10 @@ const newsCases = [
   .lm2-pb .pb-prog{flex:1;max-width:180px;height:5px;border-radius:99px;background:var(--line);overflow:hidden}
   .lm2-pb .pb-prog>span{display:block;height:100%;background:var(--acid);transition:width .25s}
   .lm2-pb .pb-n{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;font-size:12px}
-  .pb-body{padding:2px 14px 14px}
+  .pb-body{padding:2px 0 4px;max-height:min(70vh,660px);overflow:auto}
+  #pb-quien .pb-prog{width:120px;height:5px;border-radius:99px;background:var(--line);overflow:hidden;display:inline-block}
+  #pb-quien .pb-prog>span{display:block;height:100%;background:var(--acid);transition:width .25s}
+  #pb-quien .pb-n{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;font-size:12px}
   .pb-gh{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
     margin:14px 0 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .pb-gn,.pb-aviso{letter-spacing:0;text-transform:none;font-size:11px;color:var(--muted-2)}
@@ -1610,6 +1618,12 @@ const newsCases = [
   .pb-qt{font-size:13.5px;font-weight:600;line-height:1.35}
   .pb-req{color:var(--acid);margin-left:5px;font-weight:900}
   .pb-why{font-size:11.5px;color:var(--muted-2);margin:2px 0 6px;line-height:1.4}
+  /* La frase para decir en voz alta, entre comillas y en cursiva: se lee de un vistazo
+     mientras hablás, que es cuando hace falta. */
+  .pb-frase{font-size:12.5px;color:var(--text);line-height:1.55;margin:0 0 7px;padding:7px 11px;
+    border-left:2px solid var(--acid);background:var(--panel-2);border-radius:0 8px 8px 0;font-style:italic}
+  .pb-frase::before{content:'“'}
+  .pb-frase::after{content:'”'}
   .pb-a{border:1px dashed var(--line-strong);border-radius:8px;padding:7px 10px;cursor:text;
     font-size:13px;line-height:1.45;white-space:pre-wrap;min-height:20px}
   .pb-a:hover{background:var(--panel-2)}
@@ -2690,6 +2704,20 @@ const newsCases = [
     <div class="pipe-drops" id="pipe-drops"></div>
     <!-- vista Lista (toggle Board/Lista) -->
     <div id="deals-list" hidden></div>
+    <!-- 🧭 Playbook: vive en un modal y se abre a pedido. Estaba siempre desplegado
+         arriba de la timeline y no hace falta: se usa cuando estás por llamar, no cada
+         vez que abrís una ficha. (Sebastián, 26 ago 2026: "tiene que estar como botón a
+         un costado y recién ahí abrir al tocarlo, no hace falta siempre".) -->
+    <div class="fu-modal" id="pb-modal" hidden role="dialog" aria-modal="true" aria-label="Playbook">
+      <div class="fu-back" id="pb-back"></div>
+      <div class="fu-card" style="width:min(720px,100%)">
+        <div class="fu-hd">
+          <div><b id="pb-quien">🧭 Playbook</b><span>Las preguntas de la llamada — las respuestas quedan para siempre</span></div>
+          <button class="fu-x" id="pb-x" type="button" aria-label="Cerrar">✕</button>
+        </div>
+        <div id="lm2-pb"></div>
+      </div>
+    </div>
     <!-- 🧹 Limpiar: la evidencia de cada deal a la vista, y él tilda. Nada se borra. -->
     <div class="fu-modal" id="limp-modal" hidden role="dialog" aria-modal="true" aria-label="Limpiar el pipeline">
       <div class="fu-back" id="limp-back"></div>
@@ -4820,10 +4848,6 @@ const newsCases = [
     <div class="lm2-grid">
       <aside class="lm2-l" id="lm2-l"></aside>
       <main class="lm2-c">
-        <!-- 🧭 Playbook: las preguntas de la llamada y sus respuestas, guardadas para
-             siempre. Va ARRIBA de la timeline porque se usa DURANTE la llamada, no
-             después de leer lo que pasó. -->
-        <div id="lm2-pb"></div>
         <div class="lm2-composer" id="lm2-composer"></div>
         <div class="lm2-chips" id="lm2-chips"></div>
         <div class="lm2-tl" id="lm2-tl"><p class="muted-note">Cargando actividad…</p></div>
@@ -10890,6 +10914,7 @@ const newsCases = [
         '<a class="btn btn-primary small" href="mailto:' + esc(r.email) + '" style="text-decoration:none">✉️ Email</a>' +
         (r.phone ? '<a class="btn btn-ghost small" href="tel:' + esc((r.phone || '').replace(/[^\d+]/g, '')) + '" style="text-decoration:none">📞</a>' : '') +
         (() => { const w = webDeLaEmpresa(r); return w ? '<a class="btn btn-ghost small" href="' + esc(w.url) + '" target="_blank" rel="noopener" title="Abrir ' + esc(w.label) + '" style="text-decoration:none">🌐<span class="lbl"> Web</span></a>' : ''; })() +
+        '<button class="btn btn-ghost small" id="lm2-pb-btn" type="button" title="Las preguntas de la llamada y sus respuestas">🧭<span class="lbl"> Playbook</span><span class="pb-badge" id="lm2-pb-n"></span></button>' +
         '<button class="btn btn-ghost small" id="lm2-crear" type="button">➕<span class="lbl"> Crear</span> ▾</button>' +
         '<button class="btn btn-ghost small" id="lm2-dots" type="button" title="Más acciones">⋯</button>' +
         '<div class="lm2-menu" id="lm2-menu" hidden></div>' +
@@ -11014,39 +11039,60 @@ const newsCases = [
      que no sea humo. Sin eso, el botón de crear oferta avisa qué falta en vez de
      inventar. */
   const PLAYBOOK = [
-    { grupo: 'La empresa', nota: 'Se contesta una vez y vale para todos sus contactos', qs: [
-      { k: 'que_hacen',   scope: 'company', q: '¿A qué se dedican y a quién le venden?',
-        why: 'Sin esto el video habla de la empresa en vez de hablarle a su cliente.' },
-      { k: 'quien_decide', scope: 'company', q: '¿Quién decide y quién firma?',
-        why: 'La propuesta se pierde cuando la aprueba alguien que nunca estuvo en la llamada.' },
-      { k: 'como_compran', scope: 'company', q: '¿Cómo compran? ¿Hay compras, licitación, tres presupuestos?',
-        why: 'Define el formato de la oferta y cuánto tarda, no el precio.' },
-      { k: 'video_antes',  scope: 'company', q: '¿Con quién hicieron video antes? ¿Cómo les fue?',
-        why: 'Lo que salió mal la vez pasada es lo que hay que prometer distinto.' },
+    { grupo: 'Qué y para qué', nota: 'De acá sale el tipo de video y el objetivo real', qs: [
+      { k: 'tipo_video', scope: 'lead', esencial: true, q: '¿Qué tipo de video quieren producir?',
+        why: 'Employer branding · Producto · Imagefilm · Brand awareness · Aumentar ventas · Estrategia de contenido.',
+        frase: 'Y según cuál sea: ¿cuántos empleados buscan? ¿el producto es global o local? ¿la campaña es regional o nacional? ¿aumentar las ventas cuánto? ¿contenido cada cuánto?' },
+      { k: 'objetivo', scope: 'lead', esencial: true, q: '¿Cuál es el objetivo del video?',
+        why: 'Es LA pregunta si no saben qué tipo de video necesitan. Conseguir empleados, vender más, mostrar un producto nuevo, contar la marca, que los conozcan, publicar más seguido.',
+        frase: '¿Qué tiene que pasar después de que salga el video para que digan "valió la pena"?' },
+      { k: 'herramienta_o_moda', scope: 'lead', q: '¿Es una herramienta de marketing para ellos, o lo quieren porque todos tienen uno?',
+        why: 'Esta no se la preguntás a él: la contestás vos. Es la que decide si es buen cliente. El que entiende que el video es una herramienta paga por el resultado; el que lo quiere porque está de moda, regatea por hora.',
+        frase: '(anotá lo que te hizo pensar una cosa o la otra)' },
     ] },
-    { grupo: 'El proyecto', nota: 'Esto es de esta oportunidad', qs: [
-      { k: 'que_necesitan', scope: 'lead', esencial: true, q: '¿Qué necesitan exactamente? ¿Cuántas piezas, de qué duración?',
-        why: 'Es la primera línea de la oferta.' },
-      { k: 'para_que',      scope: 'lead', esencial: true, q: '¿Para qué lo van a usar y dónde se publica?',
-        why: 'Feria, web, LinkedIn y sala de ventas no se producen igual.' },
-      { k: 'exito',         scope: 'lead', esencial: true, q: '¿Qué tiene que pasar para que esto sea un éxito?',
-        why: 'Es contra lo que van a juzgar el resultado. Si no lo decís vos, lo deciden ellos después.' },
-      { k: 'cuando',        scope: 'lead', esencial: true, q: '¿Para cuándo? ¿Hay una fecha que no se mueve?',
-        why: 'Una fecha dura cambia el precio y el equipo. Una blanda, no.' },
-      { k: 'presupuesto',   scope: 'lead', esencial: true, q: '¿Con qué presupuesto están trabajando?',
-        why: 'Preguntarlo no espanta a nadie: mandar una oferta al doble de lo que tenían, sí.' },
-      { k: 'idiomas',       scope: 'lead', q: '¿En qué idiomas y para qué mercados?',
-        why: 'Cada idioma es locución, subtítulos y una versión más.' },
-      { k: 'material',      scope: 'lead', q: '¿Qué ya tienen? (marca, guía, footage, producto)',
-        why: 'Lo que ya existe se descuenta del presupuesto o se rehace: hay que saber cuál de las dos.' },
-      { k: 'quien_mas',     scope: 'lead', q: '¿Están hablando con alguien más?',
-        why: 'Cambia contra qué se compara el precio.' },
-      { k: 'si_no',         scope: 'lead', q: '¿Qué pasa si no lo hacen este año?',
-        why: 'Si la respuesta es "nada", no hay proyecto todavía y conviene saberlo hoy.' },
-      { k: 'proximo_paso',  scope: 'lead', q: 'Próximo paso concreto y fecha',
-        why: 'Una llamada que termina sin fecha es una llamada que hay que volver a hacer.' },
+
+    { grupo: 'Cuánto vale', nota: 'El corazón de la llamada — NO se pregunta el presupuesto', qs: [
+      { k: 'como_lo_resuelven_hoy', scope: 'lead', esencial: true, q: '¿Cómo resuelven esto hoy, y cuánto les cuesta?',
+        why: 'Es la que permite ponerle número al valor. Con reclutamiento: una agencia cobra 15-25% del sueldo anual. Sobre 100.000 al año son 15-25K POR empleado.',
+        frase: '¿Cuánto pagarían normalmente a una agencia de reclutamiento por empleado? ¿Cada cuánto tienen que buscar gente?' },
+      { k: 'cuanto_vale', scope: 'lead', esencial: true, q: '¿Cuánto vale este video para ustedes?',
+        why: 'NO es el presupuesto y no se cambia por el presupuesto. Antes de preguntarla, resumí lo que te dijeron y hacé que te lo confirmen.',
+        frase: 'Normalmente pagarían X por empleado, una sola vez. Con el video encuentran más de uno y lo pueden usar cada vez que se abra esa posición, sin costo extra. ¿Cuánto vale eso para ustedes?\n\nSi se enoja y pregunta si estás averiguando el presupuesto: "Si quisiera saber el presupuesto se lo habría preguntado. Le pregunté cuánto vale el video para usted."' },
+    ] },
+
+    { grupo: 'Cuándo', nota: 'Las tres fechas, no una', qs: [
+      { k: 'deadline', scope: 'lead', esencial: true, q: '¿Cuál es la fecha límite?',
+        why: 'Una fecha dura cambia el precio y el equipo. Una blanda, no.', frase: '' },
+      { k: 'rodaje', scope: 'lead', q: '¿Ya saben el día de producción?', why: '', frase: '' },
+      { k: 'go_live', scope: 'lead', q: '¿Cuándo sale al aire?',
+        why: 'Es la que manda de verdad: la entrega se calcula para atrás desde acá.', frase: '' },
+    ] },
+
+    { grupo: 'Quién decide', nota: 'Sin el que firma en la mesa, no hay cierre', qs: [
+      { k: 'decide', scope: 'lead', esencial: true, q: '¿Es usted quien decide?',
+        why: 'Se pregunta así, derecho. Si no lo es, hay que saber quién es ANTES de la reunión de cierre — a esa reunión el que decide tiene que estar sí o sí.',
+        frase: '¿Quién más tiene que estar en la próxima reunión para poder decidir?' },
+      { k: 'como_compran', scope: 'company', q: '¿Cómo compran? ¿Hay compras, licitación, tres presupuestos?',
+        why: 'Cambia el formato de la oferta y cuánto tarda. No el precio.', frase: '' },
+    ] },
+
+    { grupo: 'La empresa', nota: 'Se contesta una vez y vale para todos sus contactos', qs: [
+      { k: 'que_hacen', scope: 'company', q: '¿A qué se dedican y a quién le venden?',
+        why: 'Sin esto el video habla de la empresa en vez de hablarle a su cliente.', frase: '' },
+      { k: 'video_antes', scope: 'company', q: '¿Con quién hicieron video antes? ¿Cómo les fue?',
+        why: 'Lo que salió mal la vez pasada es lo que hay que prometer distinto.', frase: '' },
+    ] },
+
+    { grupo: 'Cómo se cierra', nota: 'Lo que dijiste y lo que sigue', qs: [
+      { k: 'si_pide_precio', scope: 'lead', q: '¿Pidió precio en la llamada? ¿Qué le contestaste?',
+        why: 'En la llamada de descubrimiento NO se da precio. La respuesta es que vos hacés el descubrimiento y el precio lo ve el EP / Key Account Manager, que está ocupado.',
+        frase: 'Lamentablemente no le puedo dar un precio: yo hago la llamada de descubrimiento para ver si somos un buen match. Del precio se encarga el EP, y ahora mismo está ocupado.' },
+      { k: 'proximo_paso', scope: 'lead', q: 'Próximo paso concreto y fecha',
+        why: 'Una llamada que termina sin fecha es una llamada que hay que volver a hacer. Se ofrecen DOS horarios, no una agenda abierta: el EP está ocupado, y eso hace que valoren su tiempo.',
+        frase: 'El EP miró el proyecto y le interesa reunirse con quien decide. Puede el lunes de 2 a 3 o el miércoles de 5 a 6, ¿cuál les viene mejor?' },
     ] },
   ];
+
   const PB_QS = PLAYBOOK.flatMap((g) => g.qs);
 
   let pbResp = {};      // key → {value, scope, updated_at}
@@ -11075,12 +11121,15 @@ const newsCases = [
     const faltan = PB_QS.filter((q) => q.esencial && !pbGet(q));
     const listo = !faltan.length;
 
+    /* El contador vive en el botón de la botonera: es lo único del playbook que se ve
+       sin abrirlo, y alcanza para saber si esta persona ya está contestada. */
+    const nb = $('lm2-pb-n');
+    if (nb){ nb.textContent = hechas ? hechas + '/' + PB_QS.length : ''; nb.className = 'pb-badge' + (listo ? ' listo' : ''); }
+    const qn = $('pb-quien');
+    if (qn) qn.innerHTML = '🧭 Playbook <span class="pb-prog"><span style="width:' + Math.round(hechas / PB_QS.length * 100) + '%"></span></span>' +
+      '<span class="pb-n">' + hechas + '/' + PB_QS.length + '</span>';
+
     box.innerHTML =
-      '<details class="lm2-pb"' + (hechas ? '' : ' open') + '>' +
-        '<summary>🧭 Playbook ' +
-          '<span class="pb-prog"><span style="width:' + Math.round(hechas / PB_QS.length * 100) + '%"></span></span>' +
-          '<span class="pb-n">' + hechas + '/' + PB_QS.length + '</span>' +
-        '</summary>' +
         '<div class="pb-body">' +
           PLAYBOOK.map((g) =>
             '<div class="pb-grupo"><div class="pb-gh">' + esc(g.grupo) +
@@ -11091,7 +11140,11 @@ const newsCases = [
               const meta = pbResp[q.scope + '|' + q.k];
               return '<div class="pb-q' + (v ? ' ok' : '') + (q.esencial ? ' esc' : '') + '" data-k="' + q.k + '">' +
                 '<div class="pb-qt">' + esc(q.q) + (q.esencial ? '<span class="pb-req" title="Hace falta para poder armar la oferta">·</span>' : '') + '</div>' +
-                '<div class="pb-why">' + esc(q.why) + '</div>' +
+                (q.why ? '<div class="pb-why">' + esc(q.why) + '</div>' : '') +
+                /* La frase textual para decir en voz alta. Un playbook sirve si te da
+                   las palabras: "¿cuánto vale eso para ustedes?" hay que decirlo así,
+                   no parecido. */
+                (q.frase ? '<div class="pb-frase">' + esc(q.frase).replace(/\n/g, '<br />') + '</div>' : '') +
                 '<div class="pb-a" data-k="' + q.k + '" title="Clic para escribir la respuesta">' +
                   (v ? esc(v) : '<span class="pb-vacio">— sin contestar</span>') + '</div>' +
                 (meta && meta.updated_at ? '<div class="pb-when">contestada hace ' + timeAgo(meta.updated_at) + (q.scope === 'company' ? ' · vale para toda la empresa' : '') + '</div>' : '') +
@@ -11105,12 +11158,35 @@ const newsCases = [
             '<span class="sp"></span>' +
             '<button class="btn btn-primary small" id="pb-oferta" type="button"' + (listo ? '' : ' disabled') + '>✨ Crear oferta con esto</button>' +
           '</div>' +
-        '</div>' +
-      '</details>';
+        '</div>';
 
     box.querySelectorAll('.pb-a').forEach((el) => el.addEventListener('click', () => pbEditar(el)));
     const bo = $('pb-oferta'); if (bo) bo.addEventListener('click', pbCrearOferta);
   }
+
+  function pbAbrir(){
+    if (!pbLead){ toast('Abrí primero un contacto'); return; }
+    const m = $('pb-modal'); if (!m) return;
+    m.hidden = false;
+    /* Si nunca se contestó nada, el foco va directo a la primera pregunta: el playbook
+       se abre estando por llamar, no para leerlo. */
+    const primera = $('lm2-pb').querySelector('.pb-q:not(.ok) .pb-a');
+    if (primera && !PB_QS.some((q) => pbGet(q))) primera.click();
+  }
+  const pbCerrar = () => { const m = $('pb-modal'); if (m) m.hidden = true; };
+  (function pbBind(){
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest && e.target.closest('#lm2-pb-btn');
+      if (b){ e.preventDefault(); pbAbrir(); return; }
+      if (e.target.id === 'pb-x' || e.target.id === 'pb-back' || e.target.id === 'pb-modal') pbCerrar();
+    });
+    document.addEventListener('keydown', (e) => {
+      const m = $('pb-modal');
+      /* Escape cierra el modal, pero NO si estás escribiendo una respuesta: ahí Escape
+         cancela la edición de esa pregunta y nada más. */
+      if (e.key === 'Escape' && m && !m.hidden && !(e.target && e.target.classList.contains('pb-ta'))) pbCerrar();
+    });
+  })();
 
   function pbEditar(el){
     if (el.querySelector('textarea')) return;

@@ -96,13 +96,24 @@ ${sinReferencia
 NO inventes precios nuevos si acá hay una línea equivalente:
 ${tarifario}`}
 
+CÓMO COBRA VIVEN (esto manda sobre todo lo demás):
+VIVEN no cobra por hora ni por jornada: cobra por lo que el video VALE para el cliente.
+En la llamada no se pregunta el presupuesto, se pregunta cuánto vale el video — y esa
+respuesta, más lo que hoy les cuesta resolver el problema de otra forma (una agencia de
+reclutamiento, pauta, etc.), es la referencia del precio. Un video que reemplaza 75.000
+en comisiones de reclutamiento no se cotiza como tres jornadas de rodaje.
+Si en las respuestas hay un valor declarado o un costo alternativo, USALO para ubicar el
+precio, y decí en 'avisos' de dónde salió. Si no hay ninguno de los dos, ubicá el precio
+con las ofertas ganadas y avisá que falta la conversación de valor.
+
 REGLAS:
 - Moneda CHF. Precios sin IVA.
 - Agrupá en fases: Pre-producción, Producción, Post-producción. Si la llamada nombró otras fases, usá las de ellos.
 - Una línea por entregable real, no por tarea interna. Entre 4 y 12 líneas.
 - 'price' es lo que se le cobra al cliente. 'cost' es lo que nos cuesta a nosotros (freelance, alquiler); si no lo sabés, poné 0.
 - El título de la oferta en español, para uso interno. Los nombres de las líneas en ${idioma}, que es el idioma del cliente.
-- Si el presupuesto que dijo el cliente no alcanza para lo que pidió, armá la oferta por lo que SÍ entra y decilo en 'avisos'. No recortes en silencio.
+- Si lo que el cliente valúa no alcanza para lo que pidió, armá la oferta por lo que SÍ entra y decilo en 'avisos'. No recortes en silencio.
+- Nunca pongas 'por hora' ni 'por día' como unidad de una línea de venta al cliente. Las jornadas se usan para calcular el costo interno, no para justificar el precio.
 - Todo lo que tuviste que suponer va en 'avisos'. Un supuesto a la vista se corrige; uno escondido se factura mal.
 
 Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
