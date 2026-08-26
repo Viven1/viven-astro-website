@@ -117,7 +117,11 @@ Deno.serve(async (req) => {
      Authorization y devolvía 403, así que cualquier llamada desde el navegador moría
      antes de empezar. Hasta hoy no molestaba porque solo la llamaba el cron (que no
      hace preflight), pero el botón de rescate de la ficha sí la llama desde ahí. */
-  const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type" };
+  /* La lista TIENE que incluir x-client-info y apikey: son los que manda el cliente de
+   supabase-js en cada invoke(). Con solo "authorization, content-type" el navegador
+   bloquea el POST y en pantalla se lee "Failed to send a request to the Edge Function",
+   que no menciona CORS por ningún lado. Pasó el 26 ago 2026 con las facturas de bexio. */
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   /* Y vale el JWT del dashboard además del cron_secret: rescatar los emails de una
      persona es una acción de la pantalla, no del cron. */

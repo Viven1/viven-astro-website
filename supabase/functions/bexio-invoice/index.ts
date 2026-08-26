@@ -20,7 +20,11 @@
 // Auth: Bearer CRON_SECRET o JWT del dashboard. Secrets: BEXIO_API_TOKEN.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type" };
+/* La lista TIENE que incluir x-client-info y apikey: son los que manda el cliente de
+   supabase-js en cada invoke(). Con solo "authorization, content-type" el navegador
+   bloquea el POST y en pantalla se lee "Failed to send a request to the Edge Function",
+   que no menciona CORS por ningún lado. Pasó el 26 ago 2026 con las facturas de bexio. */
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
