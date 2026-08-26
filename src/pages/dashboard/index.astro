@@ -2924,7 +2924,10 @@ const newsCases = [
       </details>
 
       <div class="ab-urlrow" style="margin-top:14px">
-        <button class="btn btn-primary small" id="pj-save" type="button">💾 Guardar</button>
+        <!-- Se guarda solo. El botón queda como red y para forzarlo, no como el único
+             camino: vivía al final de una pantalla larga y lo que no llegaba hasta acá
+             se perdía. -->
+        <button class="btn btn-ghost small" id="pj-save" type="button" title="Se guarda solo mientras escribís — esto es por si querés forzarlo">💾 Guardar ahora</button>
         <button class="btn btn-ghost small" id="pj-invoice" type="button" title="Factura al CLIENTE, desde la propuesta que firmó">🧾 Facturar al cliente</button>
         <button class="btn btn-ghost small" id="pj-lead" type="button">👤 Abrir el contacto</button>
         <span class="muted-note" id="pj-save-note"></span>
@@ -17216,14 +17219,18 @@ const newsCases = [
         '<input class="pj-inp pj-crew-nm" value="' + esc(c.nombre || '') + '" placeholder="quién lo hace" />' +
         '<button class="pj-crew-x" type="button" title="Sacar del crew">✕</button>' +
       '</div>').join('') + '</div>';
+    /* El crew también se guarda solo: sacar a alguien y volver al listado sin tocar
+       Guardar lo devolvía a la lista como si nada hubiera pasado. */
     box.querySelectorAll('.pj-crew-x').forEach((b) => b.addEventListener('click', () => {
       const i = +b.closest('[data-i]').dataset.i;
       pjCur.crew = (pjCur.crew || []).filter((_, j) => j !== i);
       pjRenderCrew();
+      pjAutoGuardar();
     }));
     box.querySelectorAll('.pj-crew-nm').forEach((inp) => inp.addEventListener('input', () => {
       const i = +inp.closest('[data-i]').dataset.i;
       if (pjCur.crew && pjCur.crew[i]) pjCur.crew[i].nombre = inp.value;
+      pjAutoGuardar();
     }));
   }
   /* El equipo técnico también sale del presupuesto: los kits y alquileres son
@@ -18302,8 +18309,46 @@ const newsCases = [
     pjRenderDetail();
   }
 
-  async function pjSave(){
+  /* ═══ GUARDA SOLO ═══
+     Sebastián, 26 ago 2026: "si cambio, borro o hago algo pero no toco guardar, guardalo
+     igual. Ahora el botón está súper escondido… una caca".
+     Tenía razón en las dos: el botón vive al final de una pantalla larguísima, y un dato
+     que se pierde por no bajar hasta ahí es un dato perdido. Ahora cualquier cambio se
+     guarda solo un segundo después de que dejás de escribir, y al salir de la pantalla.
+     El botón queda, pero como red: ya no es la única forma. */
+  const PJ_CAMPOS = ['pj-shoot-start', 'pj-shoot-end', 'pj-delivery', 'pj-plan', 'pj-editor',
+    'pj-location', 'pj-script', 'pj-storyboard', 'pj-deliverable', 'pj-notes',
+    'pj-script-text', 'pj-portal-note'];
+  let pjAutoT = null, pjAutoOn = false;
+
+  function pjAutoGuardar(){
+    if (!pjCur) return;
+    clearTimeout(pjAutoT);
+    const n = $('pj-save-note'); if (n) n.textContent = '✏️ sin guardar…';
+    /* Un segundo después de la última tecla: guardar en cada letra son cien escrituras
+       por párrafo, y no guardar hasta el final es lo que rompía. */
+    pjAutoT = setTimeout(() => pjSave({ auto: true }), 1000);
+  }
+
+  function pjAutoBind(){
+    if (pjAutoOn) return; pjAutoOn = true;
+    PJ_CAMPOS.forEach((id) => {
+      const el = $(id); if (!el) return;
+      el.addEventListener('input', pjAutoGuardar);
+      el.addEventListener('change', pjAutoGuardar);
+    });
+    /* Al salir de la ficha o cerrar la pestaña, lo pendiente se guarda YA: el timer de
+       un segundo no llega si te vas antes. */
+    const yaMismo = () => { if (pjAutoT){ clearTimeout(pjAutoT); pjAutoT = null; pjSave({ auto: true }); } };
+    window.addEventListener('pagehide', yaMismo);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) yaMismo(); });
+    pjAutoBind.yaMismo = yaMismo;
+  }
+
+  async function pjSave(opts){
     const p = pjCur; if (!p) return;
+    const auto = !!(opts && opts.auto);
+    clearTimeout(pjAutoT); pjAutoT = null;
     const patch = {
       shoot_start: $('pj-shoot-start').value || null,
       shoot_end: $('pj-shoot-end').value || null,
@@ -18324,20 +18369,27 @@ const newsCases = [
     Object.assign(p, patch);
     $('pj-save-note').textContent = '💾 Guardado';
     setTimeout(() => { const n = $('pj-save-note'); if (n) n.textContent = ''; }, 2500);
-    pjRenderDetail();
+    /* Un re-render en medio de la escritura te saca el cursor del campo. Al guardar solo
+       no se redibuja: los datos ya están donde tienen que estar. */
+    if (!auto) pjRenderDetail();
   }
 
   function pjBind(){
-    $('pj-back').addEventListener('click', () => { pjCur = null; pjRenderList(); });
+    $('pj-back').addEventListener('click', () => {
+      if (pjAutoBind.yaMismo) pjAutoBind.yaMismo();   // lo pendiente no se pierde al volver
+      pjCur = null; pjRenderList();
+    });
     $('pj-reload').addEventListener('click', pjLoad);
-    $('pj-save').addEventListener('click', pjSave);
+    $('pj-save').addEventListener('click', () => pjSave());
+    pjAutoBind();
     $('pj-crew-auto').addEventListener('click', () => {
       const roles = pjRolesDelPresupuesto();
       if (!roles.length){ toast('El presupuesto no tiene roles de gente'); return; }
       const ya = new Set((pjCur.crew || []).map((c) => String(c.rol || '').toLowerCase()));
       pjCur.crew = (pjCur.crew || []).concat(roles.filter((r) => !ya.has(r.toLowerCase())).map((r) => ({ rol: r, nombre: '' })));
       pjRenderCrew();
-      toast('👥 ' + roles.length + ' roles traídos — poneles nombre y guardá');
+      pjAutoGuardar();
+      toast('👥 ' + roles.length + ' roles traídos — poneles nombre, se guarda solo');
     });
     $('pj-hora-add').addEventListener('click', pjHoraAdd);
     $('pj-ver-add').addEventListener('click', pjVerAdd);
