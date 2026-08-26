@@ -2899,7 +2899,7 @@ const newsCases = [
             <input type="file" id="pj-file-input" multiple hidden />
             <button class="btn btn-ghost small" id="pj-ver-add" type="button">⬆ Nueva versión</button>
             <button class="btn btn-ghost small" id="pj-file-add" type="button">📎 Archivo</button>
-            <button class="btn btn-ghost small" id="pj-brief" type="button" title="Mandarle las 12 preguntas que definen el video">📋 Project Brief</button>
+            <button class="btn btn-ghost small" id="pj-brief" type="button" title="Ver el email y el formulario antes de mandarlo">📋 Project Brief</button>
             <button class="btn btn-ghost small" id="pj-portal-prev" type="button" title="Ver el portal y el email del código como los ve el cliente, sin mandar nada">👁 Vista previa</button>
             <button class="btn btn-ghost small" id="pj-portal-link" type="button">🔗 Link</button>
           </span>
@@ -18488,42 +18488,96 @@ const newsCases = [
     } catch (e){ toast('⚠️ ' + (e.message || e)); }
   }
 
-  /* ═══ Mandar el Project Brief ═══
-     Marca el proyecto como "brief enviado" y le avisa al cliente. Las preguntas no se
-     mandan por email: viven en su portal, donde se guardan solas y puede volver mañana.
-     Un cuestionario de 12 preguntas dentro de un email se contesta una vez o ninguna.
+  /* ═══ El Project Brief: PRIMERO se ve, después se manda ═══
+     La primera versión de este botón mandaba el email directo. Es exactamente la regla
+     que Sebastián ya me había dado —"necesito siempre preview antes de mandar"— y que ya
+     me había costado un email a un cliente real. Ahora abre una ventana con las dos
+     cosas: el email exacto que va a salir, y el formulario tal cual lo va a ver, con la
+     variante que le tocó. El envío es un botón DENTRO de esa ventana.
+     (26 ago 2026: "no es solo mandar link, quiero ver siempre que se manda. y cómo se ve
+     en el portal.") */
+  const PJ_BRIEF_MAIL = {
+    en: { s: 'A few questions before we start',
+          p: 'Before we write anything, twelve questions decide what the film actually is. They live in your project portal — answer them at your own pace, they save as you go, and you can invite whoever knows the answers.' },
+    de: { s: 'Ein paar Fragen, bevor wir starten',
+          p: 'Bevor wir etwas schreiben, entscheiden zwölf Fragen, was der Film wirklich wird. Sie liegen in Ihrem Projekt-Portal — in Ihrem Tempo, wird laufend gespeichert, und Sie können einladen, wer die Antworten kennt.' },
+    es: { s: 'Unas preguntas antes de empezar',
+          p: 'Antes de escribir nada, doce preguntas deciden qué es realmente el video. Están en tu portal — a tu ritmo, se guardan solas, y podés invitar a quien sepa las respuestas.' },
+  };
 
-     La VARIANTE se sortea acá y se guarda: "toca testear qué es mejor para que no sea
-     overwhelming". Si se recalculara en cada visita, la medición no valdría nada. */
-  async function pjBriefEnviar(){
-    const p = pjCur; if (!p) return;
+  function pjBriefDatos(){
+    const p = pjCur; if (!p) return null;
     const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
-    if (!d || !d.portal_token){ toast('Generá primero el link del portal'); return; }
+    if (!d || !d.portal_token){ toast('Generá primero el link del portal'); return null; }
     const l = leadById(p.lead_id) || {};
-    if (!l.email){ toast('El contacto del proyecto no tiene email'); return; }
-    if (p.brief_sent_at && !confirm('El brief ya se le mandó el ' + fmtDMY(String(p.brief_sent_at).slice(0, 10)) + '.\n\n¿Volver a avisarle?')) return;
+    if (!l.email){ toast('El contacto del proyecto no tiene email'); return null; }
+    const lang = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
+    /* La variante se sortea UNA vez y se guarda: si cambiara entre visitas, la medición
+       de cuál se termina más no valdría nada. */
+    const variante = p.brief_variante || (Math.random() < 0.5 ? 'largo' : 'pasos');
+    return { p, d, l, lang, variante,
+      url: location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token),
+      asunto: (p.ref ? p.ref + ' · ' : '') + (p.title || '') + ' — ' + PJ_BRIEF_MAIL[lang].s,
+      cuerpo: PJ_BRIEF_MAIL[lang].p };
+  }
 
-    const b = $('pj-brief'); b.disabled = true;
+  function pjBriefVer(){
+    const x = pjBriefDatos(); if (!x) return;
+    const w = window.open('', '_blank', 'noopener,width=860,height=900');
+    if (!w){ toast('El navegador bloqueó la ventana'); return; }
+    const T = { largo: 'las 12 de corrido, en cuatro secciones', pasos: 'una sección por vez, con Atrás y Siguiente' }[x.variante];
+    w.document.write(
+      '<!doctype html><meta charset="utf-8"><title>Project Brief — antes de mandarlo</title>' +
+      '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#f4f6fb;margin:0;padding:26px 28px 60px">' +
+      '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 8px">' +
+        '⚠️ Todavía no se mandó nada. El botón para mandarlo está abajo del todo.</p>' +
+      '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 22px">Para <b style="color:#f4f6fb">' + esc(x.l.name || x.l.email) + '</b> · ' +
+        esc(x.l.email) + ' · idioma <b style="color:#f4f6fb">' + x.lang.toUpperCase() + '</b> · ' +
+        'le toca la presentación <b style="color:#ddf98f">' + esc(x.variante) + '</b> (' + T + ')</p>' +
+
+      '<h2 style="font-size:14px;margin:0 0 8px">1 · El email que recibe</h2>' +
+      '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:20px">' +
+        '<p style="font-size:12px;color:#8a94a8;margin:0 0 12px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
+          '<b>Para:</b> ' + esc(x.l.email) + '<br /><b>Asunto:</b> ' + esc(x.asunto) + '</p>' +
+        '<div style="font-size:15px;line-height:1.7;white-space:pre-wrap">' + esc(x.cuerpo) + '</div>' +
+        '<p style="margin:16px 0 0"><a href="#" style="color:#2b6cff">' + esc(x.url) + '</a></p>' +
+      '</div>' +
+
+      '<h2 style="font-size:14px;margin:26px 0 8px">2 · El formulario, en su portal</h2>' +
+      '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 10px">Así, en ' + x.lang.toUpperCase() + '. Se guarda mientras escribe y puede invitar a un colega.</p>' +
+      '<iframe src="' + esc(location.origin + '/portal/brief-preview/' + x.lang + '/' + x.variante + '/') + '" ' +
+        'style="width:100%;height:560px;border:1px solid #223049;border-radius:12px;background:#0f1826"></iframe>' +
+
+      '<div style="margin:26px 0 0;padding-top:18px;border-top:1px solid #223049;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<button id="go" style="background:#ddf98f;color:#1c2508;font-weight:700;font-size:15px;border:0;' +
+          'border-radius:100px;padding:13px 26px;cursor:pointer">📤 Mandárselo a ' + esc(x.l.email) + '</button>' +
+        '<span id="msg" style="color:#9aa6bd;font-size:13px"></span></div>' +
+      '</body>');
+    w.document.close();
+    w.document.getElementById('go').addEventListener('click', async () => {
+      const b = w.document.getElementById('go'), m = w.document.getElementById('msg');
+      b.disabled = true; m.textContent = 'Enviando…';
+      const r = await pjBriefMandar(x);
+      m.textContent = r.ok ? '✅ Enviado. Ya podés cerrar esta ventana.' : '⚠️ ' + r.error;
+      b.disabled = !r.ok;
+      if (r.ok) b.style.display = 'none';
+    });
+  }
+
+  async function pjBriefMandar(x){
     try {
-      const variante = p.brief_variante || (Math.random() < 0.5 ? 'largo' : 'pasos');
       const { error } = await supabase.from('projects')
-        .update({ brief_variante: variante, brief_sent_at: new Date().toISOString() }).eq('id', p.id);
+        .update({ brief_variante: x.variante, brief_sent_at: new Date().toISOString() }).eq('id', x.p.id);
       if (error) throw new Error(error.message);
-      p.brief_variante = variante; p.brief_sent_at = new Date().toISOString();
-
-      const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
-      const T = { en: { s: 'A few questions before we start', p: 'Before we write anything, twelve questions decide what the film actually is. They live in your project portal — answer them at your own pace, they save as you go, and you can invite whoever knows the answers.' },
-                  de: { s: 'Ein paar Fragen, bevor wir starten', p: 'Bevor wir etwas schreiben, entscheiden zwölf Fragen, was der Film wirklich wird. Sie liegen in Ihrem Projekt-Portal — in Ihrem Tempo, wird laufend gespeichert, und Sie können einladen, wer die Antworten kennt.' },
-                  es: { s: 'Unas preguntas antes de empezar', p: 'Antes de escribir nada, doce preguntas deciden qué es realmente el video. Están en tu portal — a tu ritmo, se guardan solas, y podés invitar a quien sepa las respuestas.' } }[['en','de','es'].includes(l.lang) ? l.lang : 'en'];
-
+      x.p.brief_variante = x.variante; x.p.brief_sent_at = new Date().toISOString();
       const { error: e2 } = await supabase.functions.invoke('send-outreach', {
-        body: { to: l.email, subject: (p.ref ? p.ref + ' · ' : '') + (p.title || '') + ' — ' + T.s,
-                body: T.p + '\n\n' + url, lead_id: p.lead_id, fromName: 'Sofia' } });
+        body: { to: x.l.email, subject: x.asunto, body: x.cuerpo + '\n\n' + x.url,
+                lead_id: x.p.lead_id, fromName: 'Sofia' } });
       if (e2) throw new Error(e2.message);
-      toast('📋 Brief enviado a ' + l.email + ' · presentación: ' + variante);
+      toast('📋 Brief enviado a ' + x.l.email + ' · presentación: ' + x.variante);
       pjRenderPortal();
-    } catch (e){ toast('⚠️ ' + (e.message || e)); }
-    finally { b.disabled = false; }
+      return { ok: true };
+    } catch (e){ return { ok: false, error: e.message || String(e) }; }
   }
 
   async function pjGenPortal(){
@@ -18637,7 +18691,7 @@ const newsCases = [
     $('pj-file-input').addEventListener('change', (e) => { pjFileSubir([...e.target.files]); e.target.value = ''; });
     $('pj-portal-link').addEventListener('click', () => { const b = $('pj-portal-copy') || $('pj-portal-gen'); if (b) b.click(); });
     $('pj-portal-prev') && $('pj-portal-prev').addEventListener('click', pjPortalPreview);
-    $('pj-brief') && $('pj-brief').addEventListener('click', pjBriefEnviar);
+    $('pj-brief') && $('pj-brief').addEventListener('click', pjBriefVer);
     $('pj-bill-up').addEventListener('click', () => $('pj-bill-file').click());
     $('pj-bill-bx') && $('pj-bill-bx').addEventListener('click', pjBillsBexioLista);
     $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });

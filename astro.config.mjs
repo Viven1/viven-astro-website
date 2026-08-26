@@ -8,6 +8,7 @@ import sitemap from '@astrojs/sitemap';
 const SITEMAP_EXCLUDE = [
   '/dashboard/', '/proposal/', '/portal/', '/lp/',
   '/book/', '/brief/', '/thank-you/', '/danke/', '/gracias/',
+  '/portal/brief-preview/',  // vista previa interna del brief, no es una página del sitio
   '/abrir/',                 // puente del email a la app: interna, no es una página del sitio
 ];
 

@@ -1,0 +1,203 @@
+---
+/* El formulario del brief, tal cual lo ve el cliente — pero MUERTO.
+ *
+ * Existe para que Sebastián pueda mirarlo antes de mandárselo a nadie: el botón
+ * "📋 Project Brief" del proyecto lo muestra en un iframe. Ningún control de acá
+ * escribe en ninguna parte y no hay una sola llamada al servidor.
+ *
+ * Por qué una página y no un dibujo aparte: usa las MISMAS 12 preguntas y el MISMO CSS
+ * que el portal. Un mockup que se parece envejece mal — a la tercera pregunta nueva ya
+ * está mintiendo. (Sebastián, 26 ago 2026: "quiero ver siempre qué se manda, y cómo se
+ * ve en el portal".)
+ *
+ * noindex: no es una página del sitio.
+ */
+import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../../../../data/project-brief-i18n.js';
+
+/* Rutas y no query params: el sitio es estático, así que ?lang=de no cambiaría nada —
+   la página se prerenderiza una vez y siempre saldría en inglés. Seis rutas, una por
+   idioma y variante. */
+export function getStaticPaths(){
+  const out = [];
+  for (const lang of ['en', 'de', 'es'])
+    for (const variante of ['largo', 'pasos'])
+      out.push({ params: { lang, variante } });
+  return out;
+}
+const { lang, variante } = Astro.params;
+const T = BRIEF_T[lang];
+const tx = (o) => (o && (o[lang] || o.en)) || '';
+const secs = variante === 'pasos' ? [BRIEF_SECCIONES[0]] : BRIEF_SECCIONES;
+---
+<!DOCTYPE html>
+<html lang={lang}>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project brief — vista previa</title>
+<meta name="robots" content="noindex,nofollow" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style is:global>
+  body{background:#0f1826}
+  .pt-wrap{max-width:760px;margin:0 auto;padding:40px 20px 90px}
+  /* ── Project brief ── mismo lenguaje visual que el resto del portal, pero se lee
+     como un formulario y no como un panel: el que entra a contestarlo viene a escribir. */
+  .pt-brief{border:1px solid var(--line-strong,#2c3d5c);border-radius:14px;background:rgba(255,255,255,.02);
+    padding:18px 20px;margin:0 0 22px}
+  .pt-brief.hecho{padding:14px 20px}
+  .pt-brief .bh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:15px}
+  .pt-brief .bprog{flex:1;min-width:90px;max-width:220px;height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+  .pt-brief .bprog>span{display:block;height:100%;background:var(--acid,#ddf98f);transition:width .25s}
+  .pt-brief .bn{font-size:12.5px;color:var(--muted,#9aa6bd);font-variant-numeric:tabular-nums}
+  .pt-brief .bok{color:var(--acid,#ddf98f);font-size:13.5px}
+  .pt-brief .bsub{color:var(--muted,#9aa6bd);font-size:13px;margin:8px 0 4px;line-height:1.5}
+  .binv{background:none;border:1px solid var(--line-strong,#2c3d5c);color:var(--muted,#9aa6bd);
+    border-radius:99px;font:600 12px inherit;padding:6px 13px;cursor:pointer;margin-left:auto}
+  .binv:hover{color:#fff;border-color:#fff}
+  .binv-box{border:1px solid var(--line-strong,#2c3d5c);border-radius:11px;padding:14px 16px;margin:12px 0 0}
+  .binv-box b{font-size:14px}
+  .binv-box p{color:var(--muted,#9aa6bd);font-size:12.5px;margin:4px 0 10px;line-height:1.5}
+  .binv-box input{width:min(320px,100%);padding:9px 12px;border-radius:9px;border:1px solid var(--line-strong,#2c3d5c);
+    background:rgba(0,0,0,.25);color:inherit;font:inherit;font-size:14px;margin-right:8px}
+  .binv-msg{font-size:12.5px;color:var(--acid,#ddf98f);margin-top:8px}
+  .bsec{margin:20px 0 0}
+  .bsec-h{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted,#9aa6bd);
+    margin:0 0 4px;padding-bottom:7px;border-bottom:1px solid var(--line,#223049)}
+  .bq{padding:15px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .bq:last-child{border-bottom:0}
+  .bqt{font-size:15px;font-weight:600;line-height:1.4}
+  .breq{color:var(--acid,#ddf98f);font-style:normal;font-weight:900;margin-left:5px}
+  .bqh{font-size:12.5px;color:var(--muted-2,#6b7896);margin:3px 0 9px;line-height:1.5}
+  .bchips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 9px}
+  .bchip{appearance:none;font:inherit;font-size:13px;cursor:pointer;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line-strong,#2c3d5c);background:transparent;color:var(--muted,#9aa6bd);min-height:38px}
+  .bchip:hover{border-color:#fff;color:#fff}
+  .bchip.on{border-color:var(--acid,#ddf98f);background:rgba(221,249,143,.14);color:var(--acid,#ddf98f);font-weight:600}
+  .blibre{width:100%;border:1px dashed var(--line-strong,#2c3d5c);border-radius:9px;padding:10px 12px;
+    background:rgba(0,0,0,.2);color:inherit;font:inherit;font-size:14.5px;line-height:1.55;resize:vertical}
+  .blibre:focus{outline:none;border-style:solid;border-color:var(--acid,#ddf98f)}
+  .bq.ok .blibre{border-style:solid;border-color:var(--line,#223049)}
+  .bsug{font-size:12.5px;color:var(--muted-2,#6b7896);margin-top:7px;line-height:1.5}
+  .bsug span{color:var(--muted,#9aa6bd)}
+  .busar{background:none;border:0;color:var(--acid,#ddf98f);font:600 12.5px inherit;cursor:pointer;text-decoration:underline;padding:0 2px}
+  .bnav{display:flex;align-items:center;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line,#223049)}
+  .bnav .sp{flex:1}
+  .bbtn{background:var(--acid,#ddf98f);color:#1c2508;border:0;border-radius:99px;font:700 14px inherit;
+    padding:11px 22px;cursor:pointer}
+  .bbtn.g{background:transparent;color:var(--muted,#9aa6bd);border:1px solid var(--line-strong,#2c3d5c)}
+  .bbtn:disabled{opacity:.5;cursor:default}
+  .bdots{display:flex;gap:6px;flex:1;justify-content:center}
+  .bdots i{width:7px;height:7px;border-radius:99px;background:rgba(255,255,255,.18)}
+  .bdots i.on{background:var(--acid,#ddf98f);width:20px}
+  @media(max-width:560px){ .bnav{flex-wrap:wrap} .bbtn{flex:1} }
+  .pt-equipo{background:#f0c06018;border:1px solid #f0c060;border-radius:10px;padding:10px 13px;
+    font-size:13px;color:#f0c060;margin:0 0 18px;line-height:1.5}
+  .pt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}
+  .pt-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:28px}
+  .pt-card h1{font-size:clamp(20px,4vw,26px);line-height:1.2;margin:0 0 4px}
+  .pt-sub{font-size:13.5px;color:var(--muted);margin:0 0 22px}
+
+  .pt-steps{display:flex;align-items:flex-start;gap:0;margin-bottom:24px;flex-wrap:wrap}
+  .pt-step{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted-2)}
+  .pt-step .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line-strong);display:flex;
+    align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none}
+  .pt-step.done .dot{background:var(--acid);border-color:var(--acid);color:#142033}
+  .pt-step.done{color:var(--muted)}
+  .pt-step.current .dot{border-color:var(--acid);color:var(--acid)}
+  .pt-step.current{color:var(--acid);font-weight:700}
+  .pt-sep{flex:1;height:2px;background:var(--line);margin:0 7px;min-width:10px}
+
+  .pt-note{border:1px solid var(--line);border-left:3px solid var(--acid);border-radius:12px;
+    background:var(--navy-900);padding:12px 15px;font-size:14px;color:var(--muted);margin-bottom:20px}
+
+  .pt-vid{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9}
+  .pt-vid iframe{width:100%;height:100%;border:0;display:block}
+  .pt-vers{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0}
+  .pt-vers button{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:999px;
+    color:var(--muted);font:600 12px inherit;padding:6px 13px;cursor:pointer}
+  .pt-vers button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
+  .pt-vers button small{font-weight:400;opacity:.7}
+
+  .pt-cbox{background:var(--navy-900);border:1px solid var(--line);border-radius:13px;padding:13px 15px;margin-top:18px}
+  .pt-tc{display:inline-flex;align-items:center;gap:6px;background:var(--navy-800);border:1px solid var(--line);
+    border-radius:7px;padding:3px 10px;font-size:11.5px;color:#f0c060;font-variant-numeric:tabular-nums;margin-bottom:9px}
+  .pt-cbox textarea{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:10px;
+    color:var(--text);font:inherit;font-size:14px;padding:10px 12px;min-height:62px;resize:vertical}
+  .pt-row{display:flex;gap:9px;align-items:center;margin-top:9px;flex-wrap:wrap}
+
+  .pt-coms{margin-top:16px;display:grid;gap:8px}
+  .pt-com{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+  .pt-com.mio{border-left:3px solid var(--acid)}
+  .pt-com.hecho{opacity:.5}
+  .pt-com .hd{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;font-size:11.5px;color:var(--muted-2)}
+  .pt-com .hd b{color:var(--text);font-size:13px}
+  .pt-com .hd .t{background:var(--navy-800);border-radius:6px;padding:1px 7px;color:#f0c060;
+    font-variant-numeric:tabular-nums;font-weight:700;cursor:pointer}
+  .pt-com p{margin:6px 0 0;font-size:13.5px;color:var(--muted);line-height:1.55;white-space:pre-wrap}
+
+  .pt-files{display:grid;gap:7px;margin-top:16px}
+  .pt-file{display:flex;align-items:center;gap:11px;background:var(--navy-900);border:1px solid var(--line);
+    border-radius:11px;padding:10px 14px;font-size:13.5px}
+  .pt-file .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+  .pt-file .nm small{display:block;font-size:11.5px;color:var(--muted-2)}
+
+  .pt-ok{border:1px solid #7ed957;border-radius:13px;background:rgba(126,217,87,.07);padding:14px 16px;
+    margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .pt-ok div{flex:1;min-width:190px;font-size:13.5px;color:var(--muted)}
+  .pt-aprobado{border-color:#7ed957;color:#7ed957;font-weight:700}
+
+  .pt-code{background:var(--navy-900);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-top:14px}
+  .pt-code input{background:var(--navy-800);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);
+    font:700 20px/1 inherit;letter-spacing:.3em;padding:11px 14px;width:170px;text-align:center}
+  .pt-err{color:#ff8b8b;font-size:13px;margin-top:8px}
+  .pt-sec-h{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:24px 0 8px}
+
+  body{background:#0f1826;margin:0}
+  .pt-wrap{padding:18px 20px 40px}
+  /* Muerto a propósito: es una vista previa, no el formulario. */
+  .pt-brief button, .pt-brief textarea, .pt-brief input{pointer-events:none}
+</style>
+</head>
+<body>
+<div class="pt-wrap">
+  <div class="pt-brief">
+    <div class="bh"><b>📋 {T.titulo}</b>
+      <span class="bprog"><span style="width:8%"></span></span>
+      <span class="bn">1 {T.de} {BRIEF.length} {T.contestadas}</span>
+      <button type="button" class="binv">{T.invitar}</button>
+    </div>
+    <p class="bsub">{T.sub} · <i>{T.guardado}</i></p>
+
+    {secs.map((sc) => (
+      <div class="bsec">
+        <div class="bsec-h">{T.secciones[sc]}</div>
+        {BRIEF.filter((q) => q.sec === sc).map((q) => (
+          <div class={'bq' + (q.k === 'tema' ? ' ok' : '')}>
+            <div class="bqt">{tx(q.q)}{q.esencial && <i class="breq">·</i>}</div>
+            {tx(q.h) && <div class="bqh">{tx(q.h)}</div>}
+            {q.op && (
+              <div class="bchips">
+                {tx(q.op).map((o, i) => <button type="button" class={'bchip' + (q.k === 'audiencia' && i < 3 ? ' on' : '')}>{o}</button>)}
+              </div>
+            )}
+            <textarea class="blibre" rows="3" placeholder={tx(q.libre) || ''}>{q.k === 'tema'
+              ? 'The terminal should help a pharma or food production site to:\n• become more efficient and get familiar with the terminal fast\n• pass audits much easier, increase traceability'
+              : ''}</textarea>
+            {q.k === 'mito' && (
+              <div class="bsug"><span>{T.sug}:</span> Mettler Toledo is often seen as very expensive… <button type="button" class="busar">{T.sugUsar}</button></div>
+            )}
+          </div>
+        ))}
+      </div>
+    ))}
+
+    <div class="bnav">
+      {variante === 'pasos'
+        ? <span class="bdots">{BRIEF_SECCIONES.map((_, i) => <i class={i === 0 ? 'on' : ''}></i>)}</span>
+        : <span class="sp"></span>}
+      <button type="button" class="bbtn">{variante === 'pasos' ? T.siguiente + ' ›' : T.enviar}</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
