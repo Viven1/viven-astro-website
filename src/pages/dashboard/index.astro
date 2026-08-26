@@ -20137,7 +20137,7 @@ const newsCases = [
           (f.accion ? '<p>' + falta(f.accion) + '</p>' : '') +
           (f.dialogo ? '<pre class="dlg">' + falta(f.dialogo) + '</pre>' : '') + '</div>').join('')
       : '<table><thead><tr><th class="tc">TC</th><th>Imagen</th><th>Audio</th></tr></thead><tbody>' +
-        filas.map((f) => '<tr><td class="tc">' + esc(f.tc || '') + '</td><td>' + falta(f.video) +
+        filas.map((f) => '<tr><td class="tc">' + (f.tc ? '<span>' + esc(f.tc) + '</span>' : '') + '</td><td>' + falta(f.video) +
           '</td><td class="au">' + falta(f.audio) + '</td></tr>').join('') + '</tbody></table>';
     const w = window.open('', '_blank');
     if (!w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
@@ -20145,40 +20145,77 @@ const newsCases = [
     const pieTxt = [(p.ref ? '#' + p.ref : ''), esc(p.title || ''), 'VIVEN AG · Zürich'].filter(Boolean).join('  ·  ');
     w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
       '<title>' + esc((p.ref ? p.ref + ' ' : '') + (g.titulo || g.angulo || 'Guion')) + '</title><style>' +
-      /* El pie se repite en TODAS las hojas: un guion se desarma sobre la mesa y una
-         hoja suelta sin número de proyecto no vuelve nunca a su carpeta. */
-      '@page{margin:20mm 16mm 22mm;@bottom-left{content:"' + pieTxt.replace(/"/g, "'") + '";' +
+      /* Los colores de VIVEN, no un documento genérico. En papel el acid (#ddf98f) no
+         sirve para texto —es un verde limón sobre blanco— pero sí como FONDO con el navy
+         encima: así la marca está en las cabeceras y los minutos, que es donde el ojo
+         vuelve, y el guion sigue siendo legible fotocopiado.
+         (Sebastián, 26 ago 2026: "sale cortado, le faltan nuestros colores".) */
+      ':root{--navy:#1b2c46;--acid:#ddf98f;--tinta:#1a2230;--gris:#6b7896;--linea:#e3e7ee}' +
+      /* En PANTALLA se ve como una hoja: fondo gris, papel centrado con sombra. Antes el
+         contenido arrancaba pegado al borde de la ventana y llegaba hasta el otro lado
+         —"sale cortado"— porque los márgenes solo existían en @page, que es cosa de la
+         impresión. */
+      'body{font:11.5pt/1.6 Georgia,"Times New Roman",serif;color:var(--tinta);' +
+        'background:#e6e9ef;margin:0;padding:26px 16px 60px}' +
+      '.hoja{max-width:186mm;margin:0 auto;background:#fff;padding:22mm 18mm;' +
+        'box-shadow:0 10px 40px -12px rgba(0,0,0,.35);border-radius:2px}' +
+      '@page{margin:18mm 16mm 20mm;' +
+        '@bottom-left{content:"' + pieTxt.replace(/"/g, "'") + '";' +
         'font:8pt Helvetica,Arial,sans-serif;color:#8a94a8}' +
         '@bottom-right{content:counter(page) " / " counter(pages);font:8pt Helvetica,Arial,sans-serif;color:#8a94a8}}' +
-      'body{font:11.5pt/1.6 Georgia,"Times New Roman",serif;color:#1a2230;background:#fff;margin:0}' +
-      'header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;' +
-        'border-bottom:2.5px solid #1b2c46;padding-bottom:12px;margin-bottom:22px}' +
-      'header img{height:22px;width:auto;display:block}' +
-      '.hd-r{text-align:right;font:8.5pt/1.5 Helvetica,Arial,sans-serif;color:#6b7896;' +
-        'letter-spacing:.06em;text-transform:uppercase}' +
-      'h1{font:700 20pt/1.2 Helvetica,Arial,sans-serif;margin:0 0 6px;letter-spacing:-.01em}' +
-      '.meta{font:9pt/1.5 Helvetica,Arial,sans-serif;color:#6b7896;letter-spacing:.04em;' +
-        'text-transform:uppercase;margin:0 0 4px}' +
-      '.prem{font-style:italic;color:#3d4757;margin:14px 0 24px;padding-left:14px;border-left:3px solid #ddf98f}' +
+      '@media print{body{background:#fff;padding:0}' +
+        '.hoja{max-width:none;margin:0;padding:0;box-shadow:none;border-radius:0}' +
+        '.noprint{display:none}}' +
+      'header{display:flex;align-items:center;justify-content:space-between;gap:20px;' +
+        'border-bottom:3px solid var(--navy);padding-bottom:11px;margin-bottom:20px}' +
+      /* El logo con ancho fijo y alto automático: con solo `height` el navegador puede
+         estirarlo antes de leer el viewBox del SVG, y sale deformado en el PDF. */
+      'header img{width:96px;height:auto;display:block}' +
+      '.hd-r{text-align:right;font:8.5pt/1.5 Helvetica,Arial,sans-serif;color:var(--gris);' +
+        'letter-spacing:.07em;text-transform:uppercase}' +
+      'h1{font:700 21pt/1.18 Helvetica,Arial,sans-serif;margin:0 0 7px;letter-spacing:-.015em;color:var(--navy)}' +
+      '.meta{font:8.5pt/1.5 Helvetica,Arial,sans-serif;color:var(--gris);letter-spacing:.09em;' +
+        'text-transform:uppercase;margin:0 0 5px}' +
+      '.prem{font-style:italic;color:#3d4757;margin:15px 0 26px;padding:10px 0 10px 15px;' +
+        'border-left:4px solid var(--acid);background:linear-gradient(90deg,rgba(221,249,143,.22),transparent 60%)}' +
       'table{width:100%;border-collapse:collapse;font:10.5pt/1.55 Helvetica,Arial,sans-serif}' +
-      'th{text-align:left;font-size:8pt;letter-spacing:.11em;text-transform:uppercase;color:#6b7896;' +
-        'border-bottom:1.5px solid #1b2c46;padding:0 12px 6px 0}' +
-      'td{vertical-align:top;padding:10px 12px 10px 0;border-bottom:1px solid #e3e7ee}' +
-      'td.tc,th.tc{width:48px;white-space:nowrap;color:#8a94a8;font-variant-numeric:tabular-nums}' +
-      /* El diálogo trae saltos ("TÉCNICO\n— …") y sin esto se aplana a un renglón. */
+      /* La cabecera en la marca: fondo acid, texto navy. Es la fila que dice de qué va
+         cada columna y la que hace que el documento se reconozca de lejos. */
+      'thead th{text-align:left;font-size:8pt;letter-spacing:.12em;text-transform:uppercase;' +
+        'color:var(--navy);background:var(--acid);padding:7px 10px;border:0}' +
+      'thead th:first-child{border-radius:4px 0 0 4px}' +
+      'thead th:last-child{border-radius:0 4px 4px 0}' +
+      'td{vertical-align:top;padding:11px 10px;border-bottom:1px solid var(--linea)}' +
+      /* El minuto, en un chip: es lo que se busca con el dedo cuando se lee en el set. */
+      'td.tc,th.tc{width:56px;white-space:nowrap}' +
+      'td.tc{font:700 9pt Helvetica,Arial,sans-serif;color:var(--navy);font-variant-numeric:tabular-nums}' +
+      'td.tc span{background:rgba(221,249,143,.45);border-radius:4px;padding:2px 6px;display:inline-block}' +
       'td.au{color:#3d4757;width:38%;white-space:pre-line}' +
       '.falta{background:#fff3cd;border-bottom:1.5px solid #b8860b;padding:0 3px;' +
         'font-weight:700;font-size:.92em;letter-spacing:.02em}' +
       'tr{break-inside:avoid}' +
       '.esc{break-inside:avoid;margin:0 0 20px}' +
-      '.esc h3{font:700 10.5pt Helvetica,Arial,sans-serif;letter-spacing:.07em;margin:0 0 7px;' +
-        'padding-bottom:4px;border-bottom:1px solid #e3e7ee}' +
+      '.esc h3{font:700 10.5pt Helvetica,Arial,sans-serif;letter-spacing:.08em;margin:0 0 7px;' +
+        'color:var(--navy);padding:5px 10px;background:rgba(221,249,143,.35);border-radius:4px}' +
       '.esc p{margin:0 0 9px}' +
       '.dlg{font:11.5pt/1.5 Georgia,serif;white-space:pre-wrap;margin:0 0 9px 20mm}' +
-      'footer{margin-top:30px;border-top:1px solid #e3e7ee;padding-top:10px;' +
-        'font:8.5pt/1.6 Helvetica,Arial,sans-serif;color:#8a94a8}' +
-      '@media print{.noprint{display:none}}' +
+      'footer{margin-top:30px;border-top:3px solid var(--acid);padding-top:11px;' +
+        'font:8.5pt/1.6 Helvetica,Arial,sans-serif;color:var(--gris)}' +
+      'footer b{color:var(--navy)}' +
+      /* Chrome no imprime fondos si el usuario no lo tilda; esto lo pide por defecto y
+         sin él la cabecera acid sale en blanco. */
+      'body{-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.barra{position:sticky;top:0;background:var(--navy);color:#fff;padding:9px 14px;' +
+        'border-radius:9px;margin:0 auto 18px;max-width:186mm;font:13px Helvetica,Arial,sans-serif;' +
+        'display:flex;gap:12px;align-items:center;justify-content:space-between}' +
+      '.barra button{background:var(--acid);color:#1c2508;border:0;border-radius:100px;' +
+        'font:700 13px Helvetica,Arial,sans-serif;padding:8px 18px;cursor:pointer}' +
       '</style></head><body>' +
+      /* Un botón propio: el diálogo de imprimir se abre solo, pero si se cierra por error
+         no había forma de volver a abrirlo sin cerrar la ventana y empezar de nuevo. */
+      '<div class="barra noprint"><span>Guardá como PDF desde el diálogo de imprimir.</span>' +
+        '<button onclick="window.print()">Imprimir / Guardar PDF</button></div>' +
+      '<div class="hoja">' +
       '<header><img src="' + location.origin + '/assets/brand/viven-logo-navy.svg" alt="VIVEN" />' +
         '<div class="hd-r">' + (p.ref ? 'Proyecto ' + esc(p.ref) + '<br>' : '') + esc(hoy) + '</div></header>' +
       '<p class="meta">' + esc([p.title || '', p.client_contact || ''].filter(Boolean).join(' · ')) + '</p>' +
@@ -20191,7 +20228,7 @@ const newsCases = [
       '<footer><b>VIVEN AG</b> · Zürich · viven.ch<br>' +
         'Borrador de trabajo — no es la versión final. ' +
         (p.ref ? 'Referencia del proyecto: ' + esc(p.ref) + '.' : '') + '</footer>' +
-      '</body></html>');
+      '</div></body></html>');
     w.document.close();
     /* Se espera a que el logo cargue: si se imprime antes, sale la primera página sin
        marca y no hay forma de saberlo hasta ver el PDF. */
