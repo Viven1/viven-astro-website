@@ -27,19 +27,28 @@ Deno.serve(async (req) => {
   try {
     const { id, t } = await req.json();
     if (!id || !t) return json({ error: "missing_params" }, 400);
-    const { data: deal, error } = await service.from("deals").select("id,title,production_status,portal_note,deliverable_url,portal_token,lead_id,stage").eq("id", id).maybeSingle();
+    /* El estado de producción vive en `projects` desde la SQL 0152 — antes eran
+       columnas de `deals`, que es la tabla de VENTA, y ahí estuvieron en NULL en los
+       197 deals: este portal nunca se encendió una sola vez. El token sigue en el deal
+       porque es el handle público de la URL (/portal/?id=<deal_id>&t=<token>) y mover
+       eso rompería cualquier link ya repartido. */
+    const { data: deal, error } = await service.from("deals").select("id,title,portal_token,lead_id,stage").eq("id", id).maybeSingle();
     if (error) return json({ error: error.message }, 500);
     if (!deal || !deal.portal_token || !timingSafeEqual(String(deal.portal_token), String(t))) return json({ error: "not_found" }, 404);
+
+    const { data: proj } = await service.from("projects")
+      .select("title,stage,portal_note,deliverable_url,delivery_due").eq("deal_id", deal.id).maybeSingle();
 
     let client: { name?: string; lang?: string } | null = null;
     if (deal.lead_id) { const { data } = await service.from("leads").select("name,lang").eq("id", deal.lead_id).maybeSingle(); client = data; }
 
     return json({
       ok: true,
-      title: deal.title,
-      production_status: deal.production_status || "pre_production",
-      portal_note: deal.portal_note || null,
-      deliverable_url: deal.deliverable_url || null,
+      title: proj?.title || deal.title,
+      production_status: proj?.stage || "desarrollo",
+      portal_note: proj?.portal_note || null,
+      deliverable_url: proj?.deliverable_url || null,
+      delivery_due: proj?.delivery_due || null,
       client_name: client?.name || null,
       lang: client?.lang || "en",
     });

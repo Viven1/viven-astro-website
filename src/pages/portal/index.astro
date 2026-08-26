@@ -65,11 +65,16 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   if (!['en','de','es'].includes(lang)) lang = 'en';
   document.documentElement.lang = lang;
 
-  var STEPS = ['pre_production','filming','editing','client_review','delivered'];
+  /* Las cinco etapas que definió Sebastián el 25 ago 2026 — las mismas que ve el
+     equipo en Proyectos, para que el cliente y nosotros hablemos del mismo estado.
+     Las viejas (pre_production/filming/editing/client_review/delivered) se mapean por
+     si queda algún link viejo dando vueltas. */
+  var STEPS = ['desarrollo','preproduccion','rodaje','post','entregado'];
+  var VIEJAS = { pre_production:'preproduccion', filming:'rodaje', editing:'post', client_review:'post', delivered:'entregado' };
   var L = {
-    en: { title: 'Your project status', steps: ['Pre-production','Filming','Editing','Your review','Delivered'], feedback: 'Leave a comment or question', send: 'Send', sent: '✅ Sent — we\'ll get back to you soon.', watch: 'Watch your video', err: 'Could not load — check the link or contact info@viven.ch', errSend: 'Could not send — try again or email info@viven.ch' },
-    de: { title: 'Ihr Projektstatus', steps: ['Vorproduktion','Dreh','Schnitt','Ihre Durchsicht','Geliefert'], feedback: 'Kommentar oder Frage hinterlassen', send: 'Senden', sent: '✅ Gesendet — wir melden uns bald.', watch: 'Ihr Video ansehen', err: 'Konnte nicht geladen werden — Link prüfen oder info@viven.ch kontaktieren', errSend: 'Konnte nicht gesendet werden — bitte erneut versuchen oder info@viven.ch' },
-    es: { title: 'El estado de tu proyecto', steps: ['Preproducción','Rodaje','Edición','Tu revisión','Entregado'], feedback: 'Dejá un comentario o pregunta', send: 'Enviar', sent: '✅ Enviado — te respondemos pronto.', watch: 'Ver tu video', err: 'No se pudo cargar — revisá el link o escribí a info@viven.ch', errSend: 'No se pudo enviar — probá de nuevo o escribí a info@viven.ch' },
+    en: { title: 'Your project status', steps: ['Development','Pre-production','Filming','Post-production','Delivered'], feedback: 'Leave a comment or question', send: 'Send', sent: '✅ Sent — we\'ll get back to you soon.', watch: 'Watch your video', err: 'Could not load — check the link or contact info@viven.ch', errSend: 'Could not send — try again or email info@viven.ch' },
+    de: { title: 'Ihr Projektstatus', steps: ['Entwicklung','Vorproduktion','Dreh','Postproduktion','Geliefert'], feedback: 'Kommentar oder Frage hinterlassen', send: 'Senden', sent: '✅ Gesendet — wir melden uns bald.', watch: 'Ihr Video ansehen', err: 'Konnte nicht geladen werden — Link prüfen oder info@viven.ch kontaktieren', errSend: 'Konnte nicht gesendet werden — bitte erneut versuchen oder info@viven.ch' },
+    es: { title: 'El estado de tu proyecto', steps: ['Desarrollo','Preproducción','Rodaje','Postproducción','Entregado'], feedback: 'Dejá un comentario o pregunta', send: 'Enviar', sent: '✅ Enviado — te respondemos pronto.', watch: 'Ver tu video', err: 'No se pudo cargar — revisá el link o escribí a info@viven.ch', errSend: 'No se pudo enviar — probá de nuevo o escribí a info@viven.ch' },
   }[lang];
 
   function embedUrl(u){
@@ -82,7 +87,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
   }
 
   function render(data){
-    var idx = Math.max(0, STEPS.indexOf(data.production_status || 'pre_production'));
+    var crudo = data.production_status || 'desarrollo';
+    var idx = Math.max(0, STEPS.indexOf(VIEJAS[crudo] || crudo));
     var stepsHtml = STEPS.map(function(s, i){
       var cls = i < idx ? 'done' : (i === idx ? 'current' : '');
       return '<div class="pt-step ' + cls + '"><div class="dot">' + (i < idx ? '✓' : (i+1)) + '</div><div class="line"></div><div class="lbl">' + L.steps[i] + '</div></div>';
