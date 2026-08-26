@@ -6126,6 +6126,25 @@ const newsCases = [
     if (e.target && e.target.classList && e.target.classList.contains('js-chf')) chfEco(e.target);
   });
 
+  /* SIN SEÑAL. En el set no hay internet y los datos viven en Supabase, así que la app
+     puede ABRIR pero no traer nada. Antes eso se veía como paneles vacíos o cargando
+     para siempre — que se lee como "se rompió". Un cartel arriba lo dice. */
+  function vvSinSenal(){
+    let b = document.getElementById('vv-offline');
+    if (!navigator.onLine){
+      if (!b){
+        b = document.createElement('div'); b.id = 'vv-offline';
+        b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9998;background:#f0c060;color:#20160a;' +
+          'font:600 13px Inter,sans-serif;padding:8px 14px;text-align:center';
+        b.textContent = '📵 Sin conexión — se ve lo último que se cargó. Lo que toques no se guarda hasta que vuelva la señal.';
+        document.body.appendChild(b);
+      }
+    } else if (b) b.remove();
+  }
+  window.addEventListener('online', vvSinSenal);
+  window.addEventListener('offline', vvSinSenal);
+  vvSinSenal();
+
   function toast(msg){
     let t = document.getElementById('dash-toast');
     if (!t) {

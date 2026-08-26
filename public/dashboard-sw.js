@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v85';   // v85: 26 ago 2026 — horas por proyecto y el margen contando el tiempo
+var CACHE = 'viven-crm-v86';   // v86: 26 ago 2026 — el bundle se cachea, así la app abre sin señal
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));
@@ -29,6 +29,21 @@ self.addEventListener('fetch', function (e) {
       caches.open(CACHE).then(function (c) { c.put('/dashboard/', copy); });
       return res;
     }).catch(function () { return caches.match('/dashboard/'); }));
+    return;
+  }
+
+  /* EL BUNDLE Y EL CSS. Sin esto el SW guardaba el HTML del dashboard y nada más:
+     offline abría la página y el <script> de 850 KB no estaba, así que quedaba en
+     blanco. Peor que un cartel de "sin conexión", porque parece que la app se rompió.
+     Sebastián mira el tablero EN EL SET, donde no hay señal.
+     Va red-primero: el bundle cambia en cada deploy y servir uno viejo sería el bug de
+     "8 deploys y sigue viendo la versión anterior" que ya pasó el 12 ago. */
+  if (/^\/_astro\/.*\.(js|css)$/.test(url.pathname) || url.pathname === '/assets/site.css') {
+    e.respondWith(fetch(e.request).then(function (res) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+      return res;
+    }).catch(function () { return caches.match(e.request); }));
     return;
   }
 
