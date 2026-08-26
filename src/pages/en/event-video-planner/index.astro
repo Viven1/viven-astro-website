@@ -161,8 +161,15 @@ const description = {"en":"Eight questions that decide whether your event film w
   .calc-tip b{color:var(--text)}
   .calc-tip-always{margin:26px 0 0}
   .calc-result ul{list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column;gap:9px}
-  .calc-result li{display:flex;gap:10px;font-size:15px;color:var(--text);border-bottom:1px solid var(--line);padding-bottom:9px}
-  .calc-result li span{color:var(--muted);flex:0 0 46%}
+  /* :global() en los que el JS crea en runtime. Astro scopea agregando
+     [data-astro-cid-…] a CADA parte del selector, y estos <li> nacen de un innerHTML —
+     no llevan el atributo, así que la regla no les pegaba y el resumen que ve quien
+     contestó las ocho preguntas salía sin estilos. El mismo bug que tenía el portal.
+     El padre .calc-result SÍ está en el markup, así que el scope sigue acotado a esta
+     página: las otras calculadoras definen sus propias .calc-* y no se pisan. */
+  .calc-result :global(li){display:flex;gap:10px;font-size:15px;color:var(--text);border-bottom:1px solid var(--line);padding-bottom:9px}
+  .calc-result :global(li span){color:var(--muted);flex:0 0 46%}
+  .calc-result :global(li b){font-weight:600}
   .ev-cta{display:flex;gap:10px;flex-wrap:wrap}
 </style>
 
