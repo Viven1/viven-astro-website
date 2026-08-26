@@ -1748,7 +1748,7 @@ const newsCases = [
   .pj-per .x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:12px;padding:0 2px;line-height:1}
   .pj-per .x:hover{color:#ff8080}
   /* Project Brief adentro del panel */
-  #pb-modal{z-index:435}
+  #pbf-modal{z-index:435}
   .pb-tabs{display:flex;gap:6px;margin:2px 0 16px;border-bottom:1px solid var(--line)}
   .pb-tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted-2);
     font:inherit;font-size:13px;font-weight:600;padding:8px 13px;cursor:pointer;margin-bottom:-1px}
@@ -5215,19 +5215,23 @@ const newsCases = [
      las respuestas llegan por teléfono o en la llamada, no por el formulario.
      (Sebastián, 26 ago 2026: "tocar el project brief abre un popup vacío" / "tengo que
      poder tenerlo dentro del panel y llenarlo ahí".) -->
-<div class="fu-modal" id="pb-modal" hidden role="dialog" aria-modal="true" aria-label="Project Brief">
-  <div class="fu-back" id="pb-back"></div>
+<!-- Ojo con los ids: el modal del Playbook ya usaba pb-modal / pb-x / pb-back. Dos
+     elementos con el mismo id hacen que getElementById devuelva el PRIMERO, así que
+     "Abrir el brief" abría el Playbook vacío. Todo lo de acá lleva prefijo `pbf-`.
+     (Sebastián, 26 ago 2026: "mandar playbook y solo veo eso sin preview ni nada".) -->
+<div class="fu-modal" id="pbf-modal" hidden role="dialog" aria-modal="true" aria-label="Project Brief">
+  <div class="fu-back" id="pbf-back"></div>
   <div class="fu-card" style="width:min(900px,100%)">
     <div class="fu-hd">
-      <div><b>📋 Project Brief</b><span id="pb-sub"></span></div>
-      <button class="fu-x" id="pb-x" type="button" aria-label="Cerrar">✕</button>
+      <div><b>📋 Project Brief</b><span id="pbf-sub"></span></div>
+      <button class="fu-x" id="pbf-x" type="button" aria-label="Cerrar">✕</button>
     </div>
     <div class="pb-tabs">
       <button type="button" class="on" data-pbt="llenar">✍️ Llenarlo acá</button>
       <button type="button" data-pbt="mandar">📤 Mandárselo al cliente</button>
     </div>
-    <div id="pb-llenar" class="pb-pane"></div>
-    <div id="pb-mandar" class="pb-pane" hidden></div>
+    <div id="pbf-llenar" class="pb-pane"></div>
+    <div id="pbf-mandar" class="pb-pane" hidden></div>
   </div>
 </div>
 
@@ -20199,11 +20203,11 @@ const newsCases = [
 
   async function pjBriefVer(){
     const p = pjCur; if (!p) return;
-    $('pb-modal').hidden = false;
-    $('pb-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '');
+    $('pbf-modal').hidden = false;
+    $('pbf-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '');
     pbrTab('llenar');
-    $('pb-llenar').innerHTML = '<p class="muted-note" style="margin:0">Cargando…</p>';
-    $('pb-mandar').innerHTML = '';
+    $('pbf-llenar').innerHTML = '<p class="muted-note" style="margin:0">Cargando…</p>';
+    $('pbf-mandar').innerHTML = '';
 
     const l = leadById(p.lead_id) || {};
     pbrLang = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
@@ -20217,8 +20221,8 @@ const newsCases = [
 
   function pbrTab(cual){
     document.querySelectorAll('[data-pbt]').forEach((b) => b.classList.toggle('on', b.dataset.pbt === cual));
-    $('pb-llenar').hidden = cual !== 'llenar';
-    $('pb-mandar').hidden = cual !== 'mandar';
+    $('pbf-llenar').hidden = cual !== 'llenar';
+    $('pbf-mandar').hidden = cual !== 'mandar';
   }
 
   /* Las respuestas se guardan como "Chip · Otro chip — texto libre", igual que el
@@ -20262,10 +20266,10 @@ const newsCases = [
         '<textarea rows="2" data-k="' + q.k + '" placeholder="' + esc((q.libre && (q.libre[L] || q.libre.en)) || '') + '">' + esc(libre) + '</textarea>' +
       '</div>';
     });
-    $('pb-llenar').innerHTML = html;
+    $('pbf-llenar').innerHTML = html;
 
-    $('pb-llenar').querySelectorAll('textarea').forEach((ta) => ta.addEventListener('input', () => pbrGuardarDebounce()));
-    $('pb-llenar').querySelectorAll('.pb-chip').forEach((b) => b.addEventListener('click', () => {
+    $('pbf-llenar').querySelectorAll('textarea').forEach((ta) => ta.addEventListener('input', () => pbrGuardarDebounce()));
+    $('pbf-llenar').querySelectorAll('.pb-chip').forEach((b) => b.addEventListener('click', () => {
       const q = PBRIEF.BRIEF.find((x) => x.k === b.closest('.pb-q').dataset.q);
       /* Las de una sola respuesta se comportan como radio: elegir otra apaga la anterior.
          Si no, quedan dos respuestas contradictorias en el mismo campo. */
@@ -20277,7 +20281,7 @@ const newsCases = [
 
   function pbrLeerDom(){
     const out = {};
-    $('pb-llenar').querySelectorAll('.pb-q').forEach((caja) => {
+    $('pbf-llenar').querySelectorAll('.pb-q').forEach((caja) => {
       const chips = [...caja.querySelectorAll('.pb-chip.on')].map((c) => c.dataset.o);
       const libre = (caja.querySelector('textarea') || {}).value || '';
       out[caja.dataset.q] = pbrJuntar(chips, libre);
@@ -20308,7 +20312,7 @@ const newsCases = [
     cambios.forEach((k) => { pbrResp[k] = nuevo[k]; });
     /* Solo el contador se repinta: redibujar todo mientras escribís te saca el cursor. */
     const n = PBRIEF.BRIEF.filter((q) => String(pbrResp[q.k] || '').trim()).length;
-    const pr = $('pb-llenar').querySelector('.pb-prog');
+    const pr = $('pbf-llenar').querySelector('.pb-prog');
     if (pr){
       pr.firstChild.textContent = n + ' de ' + PBRIEF.BRIEF.length;
       pr.querySelector('.bar i').style.width = Math.round(n / PBRIEF.BRIEF.length * 100) + '%';
@@ -20318,11 +20322,11 @@ const newsCases = [
   function pbrRenderMandar(){
     const x = pjBriefDatos({ callado: true });
     if (!x){
-      $('pb-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente», acá abajo.</p>';
+      $('pbf-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente», acá abajo.</p>';
       return;
     }
     const T = { largo: 'las 12 de corrido, en cuatro secciones', pasos: 'una sección por vez, con Atrás y Siguiente' }[x.variante];
-    $('pb-mandar').innerHTML =
+    $('pbf-mandar').innerHTML =
       '<p class="muted-note" style="margin:0 0 14px">Para <b>' + esc(x.l.name || x.l.email) + '</b> · ' + esc(x.l.email) +
         ' · idioma <b>' + x.lang.toUpperCase() + '</b> · le toca la presentación <b style="color:var(--acid)">' + esc(x.variante) + '</b> (' + T + ')</p>' +
       '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:20px">' +
@@ -20332,11 +20336,11 @@ const newsCases = [
         '<p style="margin:16px 0 0"><span style="color:#2b6cff">' + esc(x.url) + '</span></p>' +
       '</div>' +
       '<div class="fu-actions" style="margin-top:16px">' +
-        '<button class="btn btn-primary" id="pb-go" type="button">📤 Mandárselo a ' + esc(x.l.email) + '</button>' +
-        '<span class="muted-note" id="pb-msg">Nada sale hasta que toques el botón.</span>' +
+        '<button class="btn btn-primary" id="pbf-go" type="button">📤 Mandárselo a ' + esc(x.l.email) + '</button>' +
+        '<span class="muted-note" id="pbf-msg">Nada sale hasta que toques el botón.</span>' +
       '</div>';
-    $('pb-go').addEventListener('click', async () => {
-      const b = $('pb-go'), m = $('pb-msg');
+    $('pbf-go').addEventListener('click', async () => {
+      const b = $('pbf-go'), m = $('pbf-msg');
       b.disabled = true; m.textContent = 'Enviando…';
       const r = await pjBriefMandar(x);
       m.textContent = r.ok ? '✅ Enviado.' : '⚠️ ' + r.error;
@@ -20346,14 +20350,14 @@ const newsCases = [
   }
 
   (function pbrBind(){
-    const cerrar = () => { clearTimeout(pbrT); pbrGuardar(); $('pb-modal').hidden = true; pjRenderPortal(); };
+    const cerrar = () => { clearTimeout(pbrT); pbrGuardar(); $('pbf-modal').hidden = true; pjRenderPortal(); };
     document.addEventListener('click', (e) => {
       if (!e.target) return;
-      if (e.target.id === 'pb-x' || e.target.id === 'pb-back' || e.target.id === 'pb-modal') cerrar();
+      if (e.target.id === 'pbf-x' || e.target.id === 'pbf-back' || e.target.id === 'pbf-modal') cerrar();
       if (e.target.dataset && e.target.dataset.pbt) pbrTab(e.target.dataset.pbt);
     });
     document.addEventListener('keydown', (e) => {
-      const m = $('pb-modal');
+      const m = $('pbf-modal');
       if (e.key === 'Escape' && m && !m.hidden && !/TEXTAREA|INPUT/.test((e.target || {}).tagName || '')) cerrar();
     });
   })();
