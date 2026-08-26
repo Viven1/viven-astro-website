@@ -1528,8 +1528,12 @@ const newsCases = [
   .bl2-ltab.dup{border-color:#f0c060;color:#f0c060}
   .bl2-ltab.dup.on{background:rgba(240,192,96,.14)}
   /* ============ PROYECTOS ============ */
-  .pj-etapas{display:flex;gap:7px;flex-wrap:wrap;margin:16px 0 14px}
-  .pj-et{flex:1 1 120px;min-width:108px;background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;text-align:left}
+  /* Las cinco en una sola fila: con flex-wrap la quinta ("Entregado") caía sola abajo
+     ocupando el ancho entero y parecía otra cosa. */
+  .pj-etapas{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:16px 0 14px}
+  @media(max-width:700px){.pj-etapas{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:430px){.pj-etapas{grid-template-columns:repeat(2,1fr)}}
+  .pj-et{background:var(--navy-800);border:1px solid var(--line);border-radius:12px;padding:11px 12px;cursor:pointer;text-align:left;min-width:0}
   .pj-et:hover{border-color:var(--line-strong)}
   .pj-et.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 8%,var(--navy-800))}
   .pj-et .n{font-size:21px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--text)}
@@ -16081,7 +16085,7 @@ const newsCases = [
       .map((p) => ({ p, d: pjDias(p.started_at) || 0 })).sort((a, b) => b.d - a.d);
     const pctFact = enProd > 0 ? Math.round((1 - sinFact / pjList.reduce((a, p) => a + (Number(p.amount_chf) || 0), 0)) * 100) : 0;
     const k = (n, sub, l, alerta) => '<div class="kpi"><div class="n"' + (alerta ? ' style="color:#f0c060"' : '') + '>' + n +
-      (sub ? '<small>' + sub + '</small>' : '') + '</div><div class="l">' + l + '</div></div>';
+      (sub ? '<small class="bajo">' + sub + '</small>' : '') + '</div><div class="l">' + l + '</div></div>';
     $('pj-kpis').innerHTML =
       k(enProd ? pjCHF(enProd) : '—', vivos.length + (vivos.length === 1 ? ' proyecto' : ' proyectos'), 'En producción') +
       k(sinFact ? pjCHF(sinFact) : 'CHF 0', sinFact ? (100 - pctFact) + '% del total' : 'todo facturado', 'Sin facturar', sinFact > 0) +
@@ -16179,14 +16183,23 @@ const newsCases = [
 
     /* Lo que falta gastar por etapa: las posiciones del presupuesto traen su fase, así
        que se puede decir cuánta plata todavía no salió de la caja. */
+    /* Las fases del presupuesto vienen en inglés ("Pre-Production", "Production",
+       "Post-Production"). El primer intento las traducía borrando la palabra
+       "production", así que "Production" quedaba en cadena vacía y la línea decía
+       "— 14'808". Se mapean de verdad, y lo que no reconozca queda con su nombre. */
+    const FASE_LBL = { 'pre-production': 'Pre', 'preproduction': 'Pre', 'pre': 'Pre',
+      'production': 'Rodaje', 'produktion': 'Rodaje',
+      'post-production': 'Post', 'postproduction': 'Post', 'post': 'Post' };
+    const ORDEN = ['Pre', 'Rodaje', 'Post'];
     const fases = {};
     (p.items || []).forEach((it) => {
-      const f = String(it.phase || '—').replace(/-?production/i, '').trim() || '—';
+      const crudo = String(it.phase || '').trim().toLowerCase();
+      const f = FASE_LBL[crudo] || (it.phase ? String(it.phase) : 'Otros');
       fases[f] = (fases[f] || 0) + (Number(it.qty) || 0) * (Number(it.price) || 0);
     });
-    const orden = ['Pre', 'Production', '', 'Post'];
-    const txt = Object.keys(fases).sort((a, b) => orden.indexOf(a) - orden.indexOf(b))
-      .map((f) => (f || '—') + ' ' + Math.round(fases[f]).toLocaleString('de-CH')).join(' · ');
+    const txt = Object.keys(fases)
+      .sort((a, b) => (ORDEN.indexOf(a) + 1 || 99) - (ORDEN.indexOf(b) + 1 || 99))
+      .map((f) => f + ' ' + Math.round(fases[f]).toLocaleString('de-CH')).join(' · ');
     $('pj-porfase').textContent = txt || '—';
 
     pjRenderPortal();
@@ -16210,23 +16223,37 @@ const newsCases = [
       : '';
   }
 
-  /* El crew arranca con los roles que YA se vendieron en el presupuesto: si el cliente
-     pagó un DoP y un Gaffer, esos roles existen. Empezar de una lista vacía obliga a
-     acordarse de todo. */
-  function pjRolesDelPresupuesto(){
-    const p = pjCur; if (!p) return [];
-    const NO_ES_PERSONA = /kit|equipment|equipmemt|discount|permit|per diem|admin|subtitle|suite|licen|insurance|seguro|transport|catering/i;
-    const vistos = new Set(), roles = [];
-    (p.items || []).forEach((it) => {
+  /* Clasificar las posiciones del presupuesto en gente / equipo / ninguna de las dos.
+     El primer intento excluía por palabra prohibida y se comía media lista: "Sound
+     Engineer incl. Equipment" caía por "equipment", "Editor inkl. Suite" por "suite" y
+     "Project Admin" por "admin" — tres personas convertidas en nada, y el descuento del
+     20% listado como si fuera un equipo. Ahora manda lo POSITIVO: si el nombre tiene un
+     rol adentro, es una persona, aunque después diga "incl. Equipment". */
+  const PJ_ROLES = /producer|regie|director|photograph|\bdop\b|gaffer|editor|cutter|engineer|assistant|\bac\b|grip|colorist|operator|admin|animator|motion|script|stylist|make-?up|talent|actor|moderad|host/i;
+  const PJ_EQUIPO = /\bkit\b|equipment|equipmemt|camera|kamera|lens|light|led|dolly|drone|gimbal|monitor|prompter|\bvan\b|tripod|slider|crane/i;
+  /* Ni gente ni equipo: gastos y servicios que igual están en el presupuesto. */
+  const PJ_NI = /discount|rabatt|per\s?diem|permit|bewilligung|subtitle|untertitel|insurance|versicherung|seguro|catering|transport|travel|hotel|parking|licen/i;
+  const pjLimpiarRol = (nm) => String(nm || '')
+    .replace(/\s*\(.*?\)\s*/g, ' ')            // "(logistics, crewing)" no es parte del rol
+    .replace(/\s+(incl\.|inkl\.|including|con)\s.*$/i, '')  // "incl. Suite + Color" tampoco
+    .replace(/\s{2,}/g, ' ').trim();
+  function pjClasificar(){
+    const p = pjCur, gente = [], equipo = [], vistos = new Set(), vistosEq = new Set();
+    (p && p.items || []).forEach((it) => {
       const nm = String(it.name || '').trim();
-      if (!nm || NO_ES_PERSONA.test(nm)) return;
-      const rol = nm.replace(/\s*\(.*?\)\s*/g, '').trim();
-      const k = rol.toLowerCase();
-      if (vistos.has(k)) return;
-      vistos.add(k); roles.push(rol);
+      if (!nm) return;
+      if (PJ_NI.test(nm)) return;
+      if (PJ_ROLES.test(nm)){
+        const rol = pjLimpiarRol(nm), k = rol.toLowerCase();
+        if (!vistos.has(k)){ vistos.add(k); gente.push(rol); }
+      } else if (PJ_EQUIPO.test(nm)){
+        const k = nm.toLowerCase();
+        if (!vistosEq.has(k)){ vistosEq.add(k); equipo.push(nm); }
+      }
     });
-    return roles;
+    return { gente, equipo };
   }
+  const pjRolesDelPresupuesto = () => pjClasificar().gente;
   function pjRenderCrew(){
     const p = pjCur, box = $('pj-crew'); if (!box) return;
     const crew = Array.isArray(p.crew) ? p.crew : [];
@@ -16255,8 +16282,7 @@ const newsCases = [
      posiciones con nombre propio, no hay que volver a escribirlos. */
   function pjRenderGear(){
     const p = pjCur, box = $('pj-gear'); if (!box) return;
-    const ES_EQUIPO = /kit|equipment|equipmemt|camera|lens|light|led|grip|dolly|drone|gimbal|sound|audio|mic/i;
-    const delPres = (p.items || []).map((it) => String(it.name || '')).filter((n) => ES_EQUIPO.test(n));
+    const delPres = pjClasificar().equipo;
     const manual = Array.isArray(p.gear) ? p.gear.map((g) => g.nombre || String(g)) : [];
     const todo = [...new Set([...delPres, ...manual])];
     box.innerHTML = todo.length
