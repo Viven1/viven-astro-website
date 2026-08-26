@@ -105,11 +105,26 @@ Deno.serve(async (req) => {
       if (!user) return json({ error: "unauthorized" }, 401);
     }
 
-    const { to, title, body, url, apnsOnly, debug } = await req.json();
+    const { to, title, body, url, apnsOnly, debug, kind } = await req.json();
     if (!title) return json({ error: "falta title" }, 400);
 
     const service = createClient(SB_URL, SB_SERVICE);
     const finalUrl = url || "/dashboard/";
+
+    /* Y queda en la campana. Este es el único lugar por donde pasan las 25 funciones que
+       avisan algo, así que escribir el aviso ACÁ es lo que hace que la campana esté
+       siempre completa sin tener que acordarse en cada una.
+       (Sebastián, 26 ago 2026: "tienen que aparecer como notificación en la campana
+       también. Todas las notificaciones siempre ahí.")
+       Best-effort: si la tabla falla, la push sale igual — perder el aviso es malo,
+       perder la notificación es peor. */
+    service.from("avisos").insert({
+      kind: String(kind || "").slice(0, 40) || null,
+      title: String(title).slice(0, 200),
+      body: body ? String(body).slice(0, 600) : null,
+      url: finalUrl,
+      para: to ? String(to).toLowerCase() : null,
+    }).then(() => {}, (e: unknown) => console.error("AVISO_NO_GUARDADO", String(e)));
     const payload = JSON.stringify({ title, body: body || "", url: finalUrl });
     let sent = 0, dead = 0, webPushSent = 0, apnsSent = 0;
     const apnsErrors: string[] = [];

@@ -2867,6 +2867,12 @@ const newsCases = [
         <div class="panel pj-blq">
           <h3>👥 Quién</h3>
           <div class="pj-kv"><span class="k">Contacto del cliente</span><span class="v" id="pj-cliente"></span></div>
+          <!-- El email al que va el código del portal y el brief. Sale de la ficha de la
+               persona, pero se puede pisar acá: para probar hace falta poder poner el
+               propio, y en un proyecto real el que aprueba el corte no siempre es el
+               mismo que entró por el formulario. (Sebastián, 26 ago 2026: "dejame cambiar
+               el email para poner el mío".) -->
+          <div class="pj-kv"><span class="k">Su email</span><span class="v"><input class="pj-inp" id="pj-cliente-email" type="email" placeholder="el de su ficha" /></span></div>
           <!-- El email va acá y no en otro lado: quien pone el nombre del que monta es
                el que sabe su email, y es el momento en que lo tiene a mano. -->
           <div class="pj-kv"><span class="k">Quién edita</span><span class="v"><input class="pj-inp" id="pj-editor" placeholder="nombre" /></span></div>
@@ -2993,6 +2999,7 @@ const newsCases = [
         <button class="btn btn-ghost small" id="pj-save" type="button" title="Se guarda solo mientras escribís — esto es por si querés forzarlo">💾 Guardar ahora</button>
         <button class="btn btn-ghost small" id="pj-invoice" type="button" title="Factura al CLIENTE, desde la propuesta que firmó">🧾 Facturar al cliente</button>
         <button class="btn btn-ghost small" id="pj-lead" type="button">👤 Abrir el contacto</button>
+        <button class="btn btn-ghost small" id="pj-link" type="button" title="Copiar el link de este proyecto para mandárselo a alguien del equipo">🔗 Copiar link</button>
         <span class="muted-note" id="pj-save-note"></span>
       </div>
     </div>
@@ -6458,11 +6465,16 @@ const newsCases = [
       refreshPushBtn();
     }
     try {
-      const [tq, nq, bq, dq] = await Promise.all([
+      const hace30 = new Date(Date.now() - 30 * 864e5).toISOString();
+      const [tq, nq, bq, dq, aq] = await Promise.all([
         supabase.from('lead_tasks').select('*').eq('done', false).order('due_date', { ascending: true }).limit(60),
         supabase.from('lead_notes').select('*').not('mention', 'is', null).order('created_at', { ascending: false }).limit(30),
         supabase.from('briefs').select('id,lead_id,email,goal,created_at').order('created_at', { ascending: false }).limit(10),
-        supabase.from('bell_dismissed').select('key').limit(1000)
+        supabase.from('bell_dismissed').select('key').limit(1000),
+        /* El buzón único: cualquier cosa que haya mandado una push dejó su aviso acá.
+           Es lo que hace que la campana esté completa sin que cada función se acuerde. */
+        supabase.from('avisos').select('*').is('archivado_at', null).gte('created_at', hace30)
+          .order('created_at', { ascending: false }).limit(60),
       ]);
       if (dq && !dq.error) (dq.data || []).forEach((d) => bellDismissed.add(d.key));
       const tasks = (tq && !tq.error && tq.data) || [];
@@ -6512,6 +6524,14 @@ const newsCases = [
       (dealsList || []).filter((d) => stageOf(d.stage) === 'ganado' && d.won_at && Date.parse(d.won_at) > evCut && !bellSkip((leadById(d.lead_id) || {}).email)).forEach((d) => {
         const l = leadById(d.lead_id) || {};
         bellItems.push({ kind: 'event', id: 'dw' + d.id, lead_id: d.lead_id, title: '🎉 Deal ganado: ' + (d.title || l.name || l.email || '') + ' · ' + fmtM(dealValue(d)), due: null, bucket: 'event', overdue: false, at: d.won_at });
+      });
+      /* Los avisos del buzón. Van primero porque son lo que acaba de pasar; y los que
+         son para otra persona no se muestran. */
+      ((aq && !aq.error && aq.data) || []).forEach((a) => {
+        if (a.para && meEmail && String(a.para).toLowerCase() !== meEmail) return;
+        bellItems.push({ kind: 'aviso', id: 'av' + a.id, lead_id: null, url: a.url,
+          title: a.title + (a.body ? ' · ' + String(a.body).slice(0, 90) : ''),
+          due: null, bucket: 'event', overdue: false, at: a.created_at });
       });
       bellItems = bellItems.filter((i) => !bellDismissed.has(i.kind + ':' + i.id));
       renderBell();
@@ -17370,6 +17390,9 @@ const newsCases = [
       : '<span class="falta">sin contacto</span>';
     $('pj-editor').value = p.editor || '';
     $('pj-editor-email').value = p.editor_email || '';
+    const _cli = leadById(p.lead_id) || {};
+    $('pj-cliente-email').value = p.client_contact_email || '';
+    $('pj-cliente-email').placeholder = _cli.email || 'el de su ficha';
     $('pj-location').value = p.location || '';
     pjRenderCrew();
 
@@ -17696,7 +17719,11 @@ const newsCases = [
       const previos = (pjList || []).filter((x) => /^Proyecto de prueba/i.test(x.title || ''));
       const n = previos.reduce((mx, x) => Math.max(mx, +(String(x.title).match(/x(\d+)/i) || [])[1] || 0), 0) + 1;
       const titulo = 'Proyecto de prueba x' + n;
-      const mail = 'prueba+' + n + '@viven.ch';
+      /* Con el buzón de Sebastián, no uno inventado: prueba+1@viven.ch no existe como
+         casilla y el código del portal no le llegaba a nadie. Con el signo + delante del
+         buzón real, el correo entra igual y la dirección sigue contando como prueba
+         (verificado contra email_es_prueba). */
+      const mail = 'sebastian+prueba' + n + '@viven.ch';
 
       let lead = (allLeads || []).concat(leadsPrueba || []).find((l) => String(l.email || '').toLowerCase() === mail);
       if (!lead){
@@ -17719,7 +17746,7 @@ const newsCases = [
       const { data: pr, error: e2 } = await supabase.from('projects').insert({
         deal_id: deal.id, lead_id: lead.id, title: titulo, stage: 'post',
         started_at: ahora, amount_chf: 12000,
-        editor_email: 'prueba+editor@viven.ch', editor: 'Editor de prueba',
+        editor_email: 'sebastian+editor@viven.ch', editor: 'Editor de prueba',
         portal_note: 'Esto es un proyecto de prueba. No es un cliente.',
       }).select().single();
       if (e2){ await supabase.from('deals').delete().eq('id', deal.id); throw new Error(e2.message); }
@@ -18771,7 +18798,24 @@ const newsCases = [
        distintas, así que leer la del navegador no alcanzaba.
        (Sebastián, 26 ago 2026: "el portal no lo puedo ver todavía".) */
     box.innerHTML = '<button class="btn btn-ghost small" id="pj-portal-abrir" type="button" title="Abrirlo como equipo, sin código">👁 Abrir</button> ' +
+      '<button class="btn btn-ghost small" id="pj-portal-mio" type="button" title="Copiar el link con tu pase, para abrirlo en el celular">📱 Copiar mi link</button> ' +
       '<button class="btn btn-ghost small" id="pj-portal-copy" type="button" title="Este es el que se le manda al cliente: le pide su código">🔗 Copiar link del cliente</button>';
+    const cp = $('pj-portal-mio');
+    if (cp) cp.addEventListener('click', async () => {
+      /* El mismo link, para abrirlo en el teléfono. El pase no vence, así que sirve
+         siempre — y es el único que entra sin código. */
+      cp.disabled = true;
+      try {
+        const { data, error } = await supabase.functions.invoke('get-portal', {
+          body: { id: d.id, t: d.portal_token, accion: 'pase_equipo' } });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        const mio = url + '&pase=' + encodeURIComponent(data.pase);
+        await navigator.clipboard.writeText(mio);
+        toast('📋 Copiado — pegalo en el celular y entrás sin código');
+      } catch (e){ toast('⚠️ ' + (e.message || e)); }
+      finally { cp.disabled = false; }
+    });
     const ab = $('pj-portal-abrir');
     if (ab) ab.addEventListener('click', async () => {
       ab.disabled = true;
@@ -18992,7 +19036,7 @@ const newsCases = [
      que se pierde por no bajar hasta ahí es un dato perdido. Ahora cualquier cambio se
      guarda solo un segundo después de que dejás de escribir, y al salir de la pantalla.
      El botón queda, pero como red: ya no es la única forma. */
-  const PJ_CAMPOS = ['pj-shoot-start', 'pj-shoot-end', 'pj-delivery', 'pj-plan', 'pj-editor', 'pj-editor-email',
+  const PJ_CAMPOS = ['pj-shoot-start', 'pj-shoot-end', 'pj-delivery', 'pj-plan', 'pj-editor', 'pj-editor-email', 'pj-cliente-email',
     'pj-location', 'pj-script', 'pj-storyboard', 'pj-deliverable', 'pj-notes',
     'pj-script-text', 'pj-portal-note'];
   let pjAutoT = null, pjAutoOn = false;
@@ -19032,6 +19076,7 @@ const newsCases = [
       shooting_plan: $('pj-plan').value.trim() || null,
       editor: $('pj-editor').value.trim() || null,
       editor_email: $('pj-editor-email').value.trim().toLowerCase() || null,
+      client_contact_email: $('pj-cliente-email').value.trim().toLowerCase() || null,
       location: $('pj-location').value.trim() || null,
       script_url: $('pj-script').value.trim() || null,
       storyboard_url: $('pj-storyboard').value.trim() || null,
@@ -19107,6 +19152,10 @@ const newsCases = [
        los candidatos de contacto y el IVA) sin salir del proyecto — el documento se
        busca solo, que es lo que la pantalla ya sabe hacer. */
     $('pj-invoice').addEventListener('click', pjFacturar);
+    $('pj-link') && $('pj-link').addEventListener('click', () => {
+      const p = pjCur; if (!p) return;
+      copiarLink('proyecto', p.ref || p.id, (p.ref ? p.ref + ' · ' : '') + (p.title || 'el proyecto'));
+    });
     $('pj-imp-btn') && $('pj-imp-btn').addEventListener('click', () => $('pj-imp-pdf').click());
     $('pj-imp-pdf') && $('pj-imp-pdf').addEventListener('change', (e) => { pjImportarOferta(e.target.files[0]); e.target.value = ''; });
   }
@@ -23256,18 +23305,51 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
   // si venimos de una notificación push (/dashboard/?lead=12), abrir ese lead directo
   // — o del link "🧾 oferta ↗" de una propuesta (/dashboard/?offer=34), que abre en
   // pestaña nueva para no perder lo que estabas editando en Propuestas
+  /* Links que abren la cosa, no la pantalla.
+     Sebastián, 26 ago 2026: "entre Sofia y yo tenemos que poder enviar links del
+     dashboard que nos llevan al ítem en cuestión". Ya existía para personas, ofertas y
+     borradores; faltaban proyectos, propuestas y empresas — que es justo lo que se
+     manda cuando algo hay que mirarlo entre dos.
+     El de proyecto acepta el NÚMERO (1201) además del id interno: es el que se dice por
+     teléfono y el que aparece en las facturas. */
   function openFromQuery(){
     try {
       const qs = new URLSearchParams(location.search);
       const lid = qs.get('lead');
       const oid = qs.get('offer');
       const obid = qs.get('ob');
-      if (!lid && !oid && !obid) return;
+      const pid = qs.get('proyecto') || qs.get('project');
+      const ppid = qs.get('propuesta') || qs.get('proposal');
+      const cdom = qs.get('empresa') || qs.get('company');
+      if (!lid && !oid && !obid && !pid && !ppid && !cdom) return;
       history.replaceState({}, '', location.pathname);
       if (lid) { gotoTab('leads'); openLead(lid); }
       else if (oid) { gotoTab('offers'); openOffer(oid); }
+      else if (ppid) { gotoTab('offers'); openProp(ppid); }
+      else if (cdom) { gotoTab('companies'); openCompany(cdom); }
+      else if (pid) { gotoTab('projects'); abrirProyectoPorRef(pid); }
       else if (obid) obFocus(obid); // tab/sub (sistema/auto) ya los puso openTabFromQuery()
     } catch (e) {}
+  }
+
+  /* El proyecto puede tardar en cargar: se espera a que la lista esté antes de abrirlo,
+     en vez de fallar en silencio si el link se abrió con la pestaña recién montada. */
+  function abrirProyectoPorRef(ref, tries){
+    tries = tries || 0;
+    const buscar = () => (pjList || []).find((x) =>
+      String(x.ref || '') === String(ref) || String(x.id) === String(ref));
+    const p = buscar();
+    if (p) { pjOpen(p.id); return; }
+    if (tries > 20) { toast('No encontré el proyecto ' + ref); return; }
+    setTimeout(() => abrirProyectoPorRef(ref, tries + 1), 250);
+  }
+
+  /* Copiar el link de lo que estás mirando. Se usa desde varias pantallas, así que vive
+     una sola vez. */
+  async function copiarLink(clave, valor, etiqueta){
+    const u = location.origin + location.pathname + '?' + clave + '=' + encodeURIComponent(valor);
+    try { await navigator.clipboard.writeText(u); toast('🔗 Link copiado — ' + etiqueta); }
+    catch (e){ prompt('Copiá el link:', u); }
   }
   // link de "nuevo borrador" del email: ?tab=sistema&sub=auto&ob=<id> ya deja
   // parado en la bandeja (openTabFromQuery) — esto scrollea + resalta la tarjeta

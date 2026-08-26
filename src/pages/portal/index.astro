@@ -29,7 +29,12 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
      portal estuvo sin estilos desde el día uno y nadie lo notó porque nadie lo abrió. -->
 <style is:global>
   body{background:#0f1826}
-  .pt-wrap{max-width:760px;margin:0 auto;padding:40px 20px 90px}
+  /* Ancho completo y usable en el teléfono. Estaba clavado en 760px: en un monitor el
+     corte se veía chico al pedo, y en el celular los botones y la caja de comentarios
+     quedaban apretados. El cliente mira el corte donde esté — y muchas veces es en el
+     teléfono, arriba de un tren. (Sebastián, 26 ago 2026.) */
+  .pt-wrap{max-width:1180px;margin:0 auto;padding:40px 28px 90px}
+  @media(max-width:820px){ .pt-wrap{padding:22px 16px calc(70px + env(safe-area-inset-bottom))} }
   /* El minuto clavado se ve distinto: es la diferencia entre "va a este cuadro" y "va a
      donde esté el video cuando mandes". */
   .pt-tc.fijo{color:var(--acid,#ddf98f);border-color:var(--acid,#ddf98f)}
@@ -144,6 +149,29 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     font:700 20px/1 inherit;letter-spacing:.3em;padding:11px 14px;width:170px;text-align:center}
   .pt-err{color:#ff8b8b;font-size:13px;margin-top:8px}
   .pt-sec-h{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:24px 0 8px}
+  /* ── El teléfono ── */
+  @media(max-width:820px){
+    .pt-card{padding:18px 16px;border-radius:14px}
+    .pt-card h1{font-size:20px;line-height:1.25}
+    /* Las cinco etapas no entran de frente: se scrollean y se centra la actual. */
+    .pt-steps{overflow-x:auto;scrollbar-width:none;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+    .pt-steps::-webkit-scrollbar{display:none}
+    .pt-steps>*{flex:0 0 auto}
+    /* Escribir un comentario en el celular: campo grande y botón de ancho completo.
+       Y 16px de fuente a propósito: por debajo de eso, iOS hace zoom al enfocar y el
+       video se va de la pantalla justo cuando estás señalando un cuadro. */
+    .pt-cbox textarea{font-size:16px;min-height:96px}
+    .pt-row{flex-wrap:wrap;gap:10px}
+    .pt-row .btn{flex:1 1 100%;min-height:46px}
+    .pt-ok{flex-direction:column;align-items:stretch;gap:10px}
+    .pt-ok .btn{width:100%;min-height:46px}
+    .pt-vers{overflow-x:auto;scrollbar-width:none}
+    .pt-vers>*{flex:0 0 auto}
+    .pt-file{flex-wrap:wrap;gap:8px}
+    .pt-file .btn{flex:1 1 100%}
+    /* Los archivos y los comentarios con nombres largos no empujan la página a lo ancho. */
+    .pt-file .nm,.pt-com p{overflow-wrap:anywhere}
+  }
 </style>
 </head>
 <body>
@@ -599,31 +627,59 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     });
   }
 
+  /* El comentario aparece YA, antes de que conteste el servidor. Tardaba 3-4 segundos en
+     verse y en ese rato parecía que el botón no había hecho nada — así que el cliente
+     lo toca de nuevo y deja la nota dos veces.
+     Se dibuja en gris, y cuando el servidor confirma se apaga el gris. Si falla, la nota
+     queda marcada en rojo con el texto adentro: nunca se pierde lo que escribió.
+     (Sebastián, 26 ago 2026: "¿se puede hacer que el comment aparezca más rápido? Ahora
+     tarda como 3-4 segundos y parece que no funca".) */
   function enviar(){
     var t = $('pt-msg').value.trim(); if (!t) return;
     var b = $('pt-send'); b.disabled = true;
-    api('comentar', { texto:t, tc_ms: TC || null, version_id: VER ? VER.id : null }).then(function(r){
+    var tcAhora = TC || null;
+
+    var provisorio = null;
+    var cont = $('pt-coms'), enc = $('pt-coms-h');
+    if (cont){
+      var d0 = document.createElement('div');
+      d0.innerHTML = comHTML({ body: t, tc_ms: tcAhora, author_name: DATA.client_name || '', from_client: true });
+      provisorio = d0.firstChild;
+      provisorio.style.opacity = '.55';
+      cont.appendChild(provisorio);
+      if (enc) enc.hidden = false;
+      provisorio.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    /* El campo se vacía en el acto: es la señal más fuerte de que se mandó. */
+    $('pt-msg').value = '';
+    TC_FIJO = false;
+
+    api('comentar', { texto:t, tc_ms: tcAhora, version_id: VER ? VER.id : null }).then(function(r){
       b.disabled = false;
-      if (r.error) { $('pt-sent').textContent = '⚠️'; return; }
-      $('pt-msg').value = ''; $('pt-sent').textContent = L.sent;
-      TC_FIJO = false;                    // la próxima nota vuelve a seguir al video
+      if (r.error) {
+        $('pt-sent').textContent = '⚠️ ' + (r.error === 'necesita_codigo' ? '' : r.error);
+        if (provisorio){
+          provisorio.style.opacity = '1';
+          provisorio.style.borderColor = '#ff8b8b';
+          var p0 = provisorio.querySelector('p');
+          if (p0) p0.innerHTML = esc(t) + '<br /><small style="color:#ff8b8b">no se pudo enviar — copiala y probá de nuevo</small>';
+        }
+        return;
+      }
+      if (provisorio) provisorio.style.opacity = '1';
+      $('pt-sent').textContent = L.sent;
       DATA.comentarios = (DATA.comentarios || []).concat([r.comentario]);
-      /* NUNCA render() acá. Redibujar la tarjeta entera recrea el <iframe> y el video
+      /* Ya está dibujado desde antes de mandarlo (arriba): acá solo se le engancha el
+         salto al minuto, que necesita el id real.
+         NUNCA render() acá. Redibujar la tarjeta entera recrea el <iframe> y el video
          arranca de cero — con un corte de cinco minutos, dejar tres notas obligaba a
          volver a buscar el minuto tres veces. Reparentar el iframe tampoco sirve: el
          navegador lo recarga igual. Así que el comentario se agrega al DOM y listo.
          (Sebastián, 26 ago 2026: "cada vez que doy un comentario hace un refresh y tengo
          que empezar el video de cero, eso no puede pasar o es inusable".) */
-      var cont = $('pt-coms'), enc = $('pt-coms-h');
-      if (cont){
-        var div = document.createElement('div');
-        div.innerHTML = comHTML(r.comentario);
-        var nodo = div.firstChild;
-        cont.appendChild(nodo);
-        if (enc) enc.hidden = false;
-        var go = nodo.querySelector('[data-go]');
+      if (provisorio){
+        var go = provisorio.querySelector('[data-go]');
         if (go) go.addEventListener('click', function(){ if (player) player.setCurrentTime(+go.dataset.go / 1000); });
-        nodo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
   }
