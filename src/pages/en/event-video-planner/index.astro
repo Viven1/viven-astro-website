@@ -52,8 +52,10 @@ const description = {"en":"Nine questions that decide whether your event film wo
     </div>
   </div>
 
-  <div class="calc-q"><h2>4. Should the audience take part?</h2>
-    <div class="calc-chips" data-group="audience">
+  <!-- Varias respuestas: un evento puede tener Q&A Y encuestas en pantalla. Forzar una
+       sola obligaba a elegir cuál mentir. (Sebastián, 26 ago 2026.) -->
+  <div class="calc-q"><h2>4. Should the audience take part? <span class="calc-multi">pick as many as apply</span></h2>
+    <div class="calc-chips" data-group="audience" data-multi>
       <button type="button" data-v="qa">🙋 Q&amp;A from the floor</button>
       <button type="button" data-v="poll">📊 Live polls on screen</button>
       <button type="button" data-v="watch">Audience just watches</button>
@@ -69,7 +71,7 @@ const description = {"en":"Nine questions that decide whether your event film wo
     <div class="calc-tip" id="tip-booth" hidden>
       <b>The people who were there give the best testimonials</b> — and they give them on the day, while it is still fresh. A booth captures in one afternoon what takes weeks to chase afterwards.
       <br><br>
-      It only works if it is planned: it needs its own corner, its own light, its own microphone and the questions written in advance. Thirty to sixty seconds per answer, three or four prompts to choose from, and the clip sent to each person the same day so they post it themselves.
+      It only works if it is planned: it needs its own corner, its own light, its own microphone and the questions written in advance. Thirty to sixty seconds per answer, three or four prompts to choose from.
     </div>
   </div>
 
@@ -122,9 +124,10 @@ const description = {"en":"Nine questions that decide whether your event film wo
   <div class="calc-form" id="ev-form-box">
     <h2>Get your brief</h2>
     <form id="ev-form" autocomplete="on">
+      <!-- Tres campos. Cada campo de más es gente que abandona, y la empresa la sacamos
+           igual del dominio del email. -->
       <input type="text" id="ev-name" placeholder="Name" required />
       <input type="email" id="ev-email" placeholder="Work email" required />
-      <input type="text" id="ev-co" placeholder="Company (optional)" />
       <input type="text" id="ev-when" placeholder="Event date, if you have one" />
       <input type="text" id="ev-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
       <button class="btn btn-primary" type="submit">Email me my brief →</button>
@@ -148,6 +151,7 @@ const description = {"en":"Nine questions that decide whether your event film wo
   .calc-wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:38px}
   .calc-q h2{font-size:19px;line-height:1.35;margin:0 0 14px;font-weight:600}
   .calc-chips{display:flex;flex-wrap:wrap;gap:10px}
+  .calc-multi{font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}
   .calc-chips button{appearance:none;font:inherit;font-size:15px;line-height:1.3;cursor:pointer;
     padding:11px 16px;border-radius:999px;border:1px solid var(--line-strong);
     background:var(--navy-800);color:var(--text);transition:border-color .15s,background .15s;
@@ -195,9 +199,25 @@ const description = {"en":"Nine questions that decide whether your event film wo
   box.querySelectorAll('.calc-chips').forEach(function(g){
     g.addEventListener('click', function(e){
       var b = e.target.closest('button'); if(!b) return;
-      g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); });
-      b.classList.add('on');
-      pick[g.dataset.group] = { v: b.dataset.v, label: b.textContent.trim() };
+      if (g.hasAttribute('data-multi')){
+        /* Varias respuestas: se apila y se destila. "Audience just watches" es lo
+           contrario de participar, así que al elegirla se apagan las otras — y al
+           elegir cualquier otra, se apaga ella. Si no, el brief se contradice solo. */
+        b.classList.toggle('on');
+        if (b.dataset.v === 'watch' && b.classList.contains('on')){
+          g.querySelectorAll('button').forEach(function(x){ if(x !== b) x.classList.remove('on'); });
+        } else if (b.classList.contains('on')){
+          var w = g.querySelector('[data-v="watch"]'); if(w) w.classList.remove('on');
+        }
+        var on = [].slice.call(g.querySelectorAll('button.on'));
+        if (on.length) pick[g.dataset.group] = { v: on.map(function(x){ return x.dataset.v; }).join(','),
+                                                 label: on.map(function(x){ return x.textContent.trim(); }).join(' · ') };
+        else delete pick[g.dataset.group];
+      } else {
+        g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); });
+        b.classList.add('on');
+        pick[g.dataset.group] = { v: b.dataset.v, label: b.textContent.trim() };
+      }
       tips();
     });
   });
@@ -227,8 +247,11 @@ const description = {"en":"Nine questions that decide whether your event film wo
     if(hp && hp.value) return;                    /* bot */
     var name  = document.getElementById('ev-name').value.trim();
     var email = document.getElementById('ev-email').value.trim();
-    var co    = document.getElementById('ev-co').value.trim();
     var when  = document.getElementById('ev-when').value.trim();
+    /* La empresa ya no se pregunta: se saca del dominio del email, salvo que sea un
+       correo personal. Un campo menos es más gente que llega al final. */
+    var dom = (email.split('@')[1] || '').toLowerCase();
+    var co  = /gmail|hotmail|outlook|yahoo|icloud|gmx|bluewin|proton|me\.com/.test(dom) ? '' : dom;
     if(!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return;
     var btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
