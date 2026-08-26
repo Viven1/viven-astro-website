@@ -238,6 +238,28 @@ Deno.serve(async (req) => {
       service.from("project_files").select("id,file_name,mime,size_bytes,created_at")
         .eq("project_id", proj.id).eq("visible_cliente", true).order("created_at", { ascending: false }),
     ]);
+    /* ── PASE DE EQUIPO ──
+       Leer la sesión del navegador no alcanza: el dashboard vive en la app Viven CRM y
+       el portal se abre en Chrome, y son dos almacenamientos distintos. Así que el
+       dashboard —que sí está logueado— pide un pase corto y lo pega en el link.
+       Dura 2 horas y sirve para UN proyecto: es para mirar y corregir, no una llave. */
+    if (accion === "pase_equipo") {
+      const auth0 = req.headers.get("Authorization") ?? "";
+      const tok0 = auth0.replace(/^Bearer\s+/i, "").trim();
+      if (!tok0 || tok0 === SB_ANON) return json({ error: "unauthorized" }, 401);
+      const u0 = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: `Bearer ${tok0}` } } });
+      const { data: { user: user0 } } = await u0.auth.getUser();
+      if (!user0) return json({ error: "unauthorized" }, 401);
+      const { data: esM } = await u0.rpc("is_member");
+      if (esM !== true) return json({ error: "unauthorized" }, 401);
+      const pase = rnd(24);
+      await service.from("portal_access").insert({
+        project_id: proj.id, email: `equipo:${user0.email ?? ""}`.slice(0, 200),
+        token: pase, token_expires: new Date(Date.now() + 2 * 3600e3).toISOString(), last_ip: ip,
+      });
+      return json({ ok: true, pase });
+    }
+
     /* ── EL EQUIPO ENTRA SIN CÓDIGO ──
        Al cerrar el portal con código dejé afuera también a Sebastián: no podía abrir el
        portal de su propio proyecto para revisarlo. (26 ago 2026: "yo también tengo que
@@ -259,7 +281,11 @@ Deno.serve(async (req) => {
       } catch { return false; }
     })();
 
-    const acc = esEquipo ? { equipo: true } : await verificado(body.token);
+    /* Un token que se guardó con email "equipo:…" es un pase del equipo, no el acceso
+       del cliente: entra igual pero la pantalla tiene que poder decirlo. */
+    const accTok = await verificado(body.token);
+    const porPase = !!(accTok && String((accTok as { email?: string }).email || "").startsWith("equipo:"));
+    const acc = esEquipo ? { equipo: true } : accTok;
 
     /* SIN CÓDIGO NO SE VE NADA. Antes el link solo bastaba para mirar y comentar, y el
        código se pedía recién al descargar o aprobar. Pero un link reenviado —y estos
@@ -293,8 +319,8 @@ Deno.serve(async (req) => {
       verificado: !!acc,
       /* Para que la pantalla pueda avisar "esto lo estás viendo como equipo": si no, es
          imposible saber si lo que ves es lo que ve el cliente. */
-      modo_equipo: esEquipo,
-      email_cliente: esEquipo ? emailCliente : null,
+      modo_equipo: esEquipo || porPase,
+      email_cliente: (esEquipo || porPase) ? emailCliente : null,
       email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
     });
   } catch (e) {

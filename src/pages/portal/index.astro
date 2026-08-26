@@ -105,6 +105,9 @@ import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
 <script is:inline define:vars={{ SB_URL, SB_KEY }}>
   var qs = new URLSearchParams(location.search);
   var ID = qs.get('id'), TK = qs.get('t');
+  /* Pase de equipo: viene en el link que abre el dashboard con "👁 Abrir". Se usa como
+     token igual que el del cliente, y el servidor lo reconoce como del equipo. */
+  var PASE = qs.get('pase');
   var $ = function(i){ return document.getElementById(i); };
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
     return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
@@ -116,6 +119,9 @@ import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
   var VIEJAS = { pre_production:'preproduccion', filming:'rodaje', editing:'post', client_review:'post', delivered:'entregado' };
   var L, DATA = null, VER = null, TOKEN = null;
   try { TOKEN = localStorage.getItem('vv_portal_' + ID); } catch(e){}
+  /* El pase manda sobre lo que hubiera guardado, y NO se guarda: dura 2 horas y es para
+     mirar, no para dejar el portal abierto en ese navegador. */
+  if (PASE) TOKEN = PASE;
 
   var TX = {
     en: { title:'Your project status', steps:['Development','Pre-production','Filming','Post-production','Delivered'],
@@ -343,6 +349,13 @@ import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
        no vale. Borrarlo acá evita que conCodigo() lo dé por bueno y siga de largo a una
        pantalla que el servidor no va a contestar. */
     TOKEN = null; try { localStorage.removeItem('vv_portal_' + ID); } catch(e){}
+    /* Con pase vencido la puerta del cliente no ayuda: el que está mirando es del
+       equipo y lo que necesita es saber que tiene que pedir otro pase. */
+    if (PASE){
+      $('pt-body').innerHTML = '<div class="pt-card"><h1 style="margin:0 0 10px">Pase vencido</h1>' +
+        '<p class="muted-note" style="margin:0">El pase de equipo dura 2 horas. Volvé al proyecto en el dashboard y tocá <b>👁 Abrir</b> otra vez.</p></div>';
+      return;
+    }
     if (!DATA.tiene_email){
       $('pt-body').innerHTML = '<div class="pt-card"><h1 style="margin:0 0 10px">' + L.gateT + '</h1>' +
         '<p class="muted-note" style="margin:0">' + L.gateNoMail + '</p></div>';

@@ -18174,8 +18174,27 @@ const newsCases = [
       return;
     }
     const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
-    box.innerHTML = '<a href="' + esc(url) + '" target="_blank" rel="noopener" style="color:var(--acid)">Abrir</a> · ' +
-      '<button class="btn btn-ghost small" id="pj-portal-copy" type="button">Copiar link</button>';
+    /* "Abrir" es para VOS, "Copiar link" es para el cliente: son dos links distintos y
+       confundirlos fue el bloqueo. El tuyo lleva un pase de equipo de 2 horas, porque el
+       dashboard vive en la app Viven CRM y el portal se abre en Chrome — dos sesiones
+       distintas, así que leer la del navegador no alcanzaba.
+       (Sebastián, 26 ago 2026: "el portal no lo puedo ver todavía".) */
+    box.innerHTML = '<button class="btn btn-ghost small" id="pj-portal-abrir" type="button" title="Abrirlo como equipo, sin código">👁 Abrir</button> ' +
+      '<button class="btn btn-ghost small" id="pj-portal-copy" type="button" title="Este es el que se le manda al cliente: le pide su código">🔗 Copiar link del cliente</button>';
+    const ab = $('pj-portal-abrir');
+    if (ab) ab.addEventListener('click', async () => {
+      ab.disabled = true;
+      try {
+        const { data, error } = await supabase.functions.invoke('get-portal', {
+          body: { id: d.id, t: d.portal_token, accion: 'pase_equipo' },
+        });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        window.open(url + '&pase=' + encodeURIComponent(data.pase), '_blank', 'noopener');
+      } catch (e){
+        toast('⚠️ ' + (e.message || e));
+      } finally { ab.disabled = false; }
+    });
     const c = $('pj-portal-copy');
     if (c) c.addEventListener('click', () => {
       navigator.clipboard.writeText(url).then(() => toast('🔗 Link del portal copiado'), () => toast('No se pudo copiar'));
