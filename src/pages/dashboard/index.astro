@@ -1893,24 +1893,18 @@ const newsCases = [
     .vv-search .vv-search-t,.vv-search .vv-kbd{display:none}
   }
   /* ===== LA BARRA DE ARRIBA SE SALÍA DE LA PANTALLA =====
-     En un teléfono de 375 px los seis controles de la derecha no entran, y como el
-     contenedor no permitía encoger, la campana, "Actualizar" y "Salir" quedaban FUERA
-     del viewport: no se podían tocar. La campana es donde viven las tareas y los avisos.
-     Medido el 26 ago 2026 en 375 px: tres botones con su borde derecho pasado del ancho.
-     Se permite envolver de verdad (el contenedor puede achicarse) y los botones con
-     texto se acortan a su ícono, que es lo que ya hace la búsqueda. */
+     En un teléfono de 375 px los seis controles de la derecha no entran. `.dash-actions`
+     ya tenía flex-wrap, pero no podía ENCOGER —le faltaba min-width:0— así que en vez de
+     envolver se desbordaba: la campana, "Actualizar" y "Salir" quedaban fuera del
+     viewport y no se podían tocar. La campana es donde viven las tareas y los avisos.
+     El primer intento los achicó a íconos con font-size:0 y salió peor: los botones
+     tienen estilos inline que le ganan a la hoja, así que el texto seguía y el ::before
+     agregaba una campana de más. Se deja que envuelva, que es lo que la fila ya sabía
+     hacer, y se le da lugar. */
   @media(max-width:560px){
-    .dash-head{align-items:flex-start;gap:8px}
-    .dash-actions{min-width:0;flex:1 1 auto;justify-content:flex-end;row-gap:8px}
-    .dash-actions .btn{padding:8px 12px;font-size:12.5px}
-    /* "↻ Actualizar" y "Salir" se quedan con el ícono: el bottom-nav ya es la
-       navegación, y lo que no entra no sirve de nada. */
-    #refresh-btn{font-size:0;padding:0;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center}
-    #refresh-btn::before{content:'↻';font-size:16px}
-    #logout-btn{font-size:0;padding:0;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center}
-    #logout-btn::before{content:'⏻';font-size:15px}
-    #push-warn{font-size:0;padding:0 10px}
-    #push-warn::before{content:'🔕';font-size:15px}
+    .dash-head{flex-wrap:wrap;align-items:flex-start;gap:10px}
+    .dash-actions{min-width:0;flex:1 1 100%;justify-content:flex-start;row-gap:8px}
+    .dash-actions .btn{padding:8px 13px;font-size:12.5px}
   }
   /* ---------- Modo app en móvil: sidebar → barra inferior fija ---------- */
   .mob-nav,.mob-sheet{display:none}
