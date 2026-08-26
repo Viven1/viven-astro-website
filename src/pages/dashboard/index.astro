@@ -8729,10 +8729,36 @@ const newsCases = [
     const ids = [...limpSel];
     if (!confirm('¿Archivar ' + ids.length + ' deal' + (ids.length === 1 ? '' : 's') + '?\n\nSalen del pipeline pero NO se borran: quedan guardados y se pueden volver a traer.')) return;
     const b = $('limp-go'); b.disabled = true; b.textContent = 'Archivando…';
-    const { error } = await supabase.from('deals').update({ archived: true }).in('id', ids);
-    if (error){ toast('⚠️ ' + error.message); b.disabled = false; limpBoton(); return; }
-    (dealsList || []).forEach((d) => { if (ids.includes(String(d.id))) d.archived = true; });
-    toast('🗄 ' + ids.length + ' archivados — el pipeline quedó con lo que es real');
+
+    /* La mitad de las tarjetas del board NO tienen fila en `deals`: son sintéticas, un
+       deal dibujado a partir de la persona, con id 'L274' en vez de un uuid. Mandarlas
+       a un update sobre `deals.id` hacía que Postgres rechazara TODO el lote con
+       "invalid input syntax for type uuid" y no se archivara ni una.
+       Se materializan primero (ensureRealDeal, que ya existía para esto) y recién ahí se
+       archivan: así la persona queda intacta y el deal se puede volver a traer. */
+    const reales = [], sinteticos = [];
+    ids.forEach((id) => {
+      const d = (dealsList || []).find((x) => String(x.id) === String(id));
+      if (!d) return;
+      (d.synthetic ? sinteticos : reales).push(d);
+    });
+
+    let fallaron = 0;
+    for (const d of sinteticos){
+      const real = await ensureRealDeal(d);
+      if (real) reales.push(real); else fallaron++;
+    }
+
+    const uuids = reales.map((d) => String(d.id));
+    if (uuids.length){
+      const { error } = await supabase.from('deals').update({ archived: true }).in('id', uuids);
+      if (error){ toast('⚠️ ' + error.message); b.disabled = false; limpBoton(); return; }
+      (dealsList || []).forEach((d) => { if (uuids.includes(String(d.id))) d.archived = true; });
+    }
+
+    toast(uuids.length
+      ? '🗄 ' + uuids.length + ' archivados' + (fallaron ? ' · ' + fallaron + ' no se pudieron' : '') + ' — el pipeline quedó con lo que es real'
+      : '⚠️ No se pudo archivar ninguno');
     limpSel.clear();
     $('limp-modal').hidden = true;
     renderPipeline();
@@ -18097,21 +18123,61 @@ const newsCases = [
       });
       const r = await res.json();
       if (!r || r.error) throw new Error((r && r.error) || 'no se pudo');
-      const w = window.open('', '_blank', 'noopener,width=760,height=760');
+      const w = window.open('', '_blank', 'noopener,width=780,height=820');
       if (!w){ toast('El navegador bloqueó la ventana de vista previa'); return; }
+      /* NADA acá adentro habla con el servidor. La primera versión metía el portal REAL
+         en un iframe: el botón "Send me the code" de adentro era el de verdad y le mandó
+         un email a un cliente real. Una vista previa que puede mandar algo no es una
+         vista previa. Ahora las dos pantallas se dibujan acá, muertas.
+         (Sebastián, 26 ago 2026: "tiene que ser un preview con el código y todo, no
+         enviarlo para verlo".) */
+      const pant = (t, cuerpo) =>
+        '<h2 style="font-size:14px;margin:26px 0 8px">' + t + '</h2>' +
+        '<div style="background:#0f1826;border:1px solid #223049;border-radius:14px;padding:26px 24px">' + cuerpo + '</div>';
+      const card = (c) =>
+        '<div style="background:#16203288;border:1px solid #223049;border-radius:14px;padding:22px 22px">' + c + '</div>';
+      const boton = (txt) =>
+        '<span style="display:inline-block;background:#ddf98f;color:#1c2508;font-weight:700;font-size:13px;' +
+        'border-radius:100px;padding:10px 20px">' + esc(txt) + '</span>';
+      const T = { en: { t:'Your project', p:'To open your project we send a 6-digit code to your email. It stays valid on this device for 30 days.',
+                        a:'We send a 6-digit code to', b:'Send me the code', s:'Code sent to', c:'Confirm' },
+                  de: { t:'Ihr Projekt', p:'Um Ihr Projekt zu öffnen, senden wir einen 6-stelligen Code an Ihre E-Mail. Er bleibt auf diesem Gerät 30 Tage gültig.',
+                        a:'Wir senden einen 6-stelligen Code an', b:'Code senden', s:'Code gesendet an', c:'Bestätigen' },
+                  es: { t:'Tu proyecto', p:'Para abrir tu proyecto te mandamos un código de 6 dígitos a tu email. Queda válido en este dispositivo por 30 días.',
+                        a:'Te mandamos un código de 6 dígitos a', b:'Mandame el código', s:'Código enviado a', c:'Confirmar' } };
+      const L2 = T[r.idioma] || T.en;
+      const mail = esc(r.para || '—');
       w.document.write(
         '<!doctype html><meta charset="utf-8"><title>Vista previa — portal del cliente</title>' +
-        '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1826;color:#f4f6fb;margin:0;padding:26px">' +
-        '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 20px">' +
-          '⚠️ Vista previa. <b>No se mandó nada</b> y el código es de ejemplo.</p>' +
-        '<h2 style="font-size:15px;margin:0 0 4px">El email que recibe el cliente</h2>' +
-        '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 10px">Para: <b>' + esc(r.para || '—') + '</b> · Idioma: ' + esc((r.idioma || '').toUpperCase()) + '</p>' +
+        '<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#f4f6fb;margin:0;padding:26px 28px 60px">' +
+        '<p style="background:#f0c06022;border:1px solid #f0c060;border-radius:10px;padding:11px 13px;font-size:13.5px;margin:0 0 6px">' +
+          '⚠️ Vista previa. <b>Nada de esto manda nada</b>: los botones están dibujados y el código es de ejemplo.</p>' +
+        '<p style="color:#9aa6bd;font-size:12px;margin:0 0 22px">Proyecto: <b style="color:#f4f6fb">' + esc(p.title || '') + '</b> · ' +
+          'el cliente lo ve en <b style="color:#f4f6fb">' + esc((r.idioma || 'en').toUpperCase()) + '</b>, que es el idioma de su ficha.</p>' +
+
+        '<h2 style="font-size:14px;margin:0 0 8px">1 · El email que recibe</h2>' +
         '<div style="background:#fff;color:#1a2230;border-radius:12px;padding:20px">' +
           '<p style="font-size:12px;color:#8a94a8;margin:0 0 12px;border-bottom:1px solid #e6e9ef;padding-bottom:10px">' +
-            '<b>Asunto:</b> ' + esc(r.asunto || '') + '</p>' + (r.html || '') + '</div>' +
-        '<h2 style="font-size:15px;margin:26px 0 8px">El portal</h2>' +
-        '<p style="color:#9aa6bd;font-size:12.5px;margin:0 0 10px">Así lo ve al abrir el link: primero la puerta, y recién con el código lo de adentro.</p>' +
-        '<iframe src="' + esc(url) + '" style="width:100%;height:420px;border:1px solid #223049;border-radius:12px;background:#0f1826"></iframe>' +
+            '<b>Para:</b> ' + mail + '<br /><b>Asunto:</b> ' + esc(r.asunto || '') + '</p>' + (r.html || '') + '</div>' +
+
+        pant('2 · Lo que ve al abrir el link', card(
+          '<div style="font-size:20px;font-weight:800;margin:0 0 8px">' + esc(L2.t) + '</div>' +
+          '<p style="color:#9aa6bd;font-size:13px;margin:0 0 18px;line-height:1.6">' + esc(L2.p) + '</p>' +
+          '<div style="background:#0f1826;border:1px solid #223049;border-radius:11px;padding:16px 18px">' +
+            '<p style="color:#9aa6bd;font-size:13px;margin:0 0 12px">' + esc(L2.a) + ' <b style="color:#f4f6fb">' + mail + '</b></p>' +
+            boton(L2.b) + '</div>')) +
+
+        pant('3 · Después de pedir el código', card(
+          '<div style="font-size:20px;font-weight:800;margin:0 0 8px">' + esc(L2.t) + '</div>' +
+          '<div style="background:#0f1826;border:1px solid #223049;border-radius:11px;padding:16px 18px">' +
+            '<p style="color:#9aa6bd;font-size:13px;margin:0 0 12px">' + esc(L2.s) + ' <b style="color:#f4f6fb">' + mail + '</b></p>' +
+            '<span style="display:inline-block;background:#0b1220;border:1px solid #2c3d5c;border-radius:10px;' +
+              'padding:11px 16px;letter-spacing:.34em;font-size:16px;font-weight:700;margin-right:10px">482913</span>' +
+            boton(L2.c) + '</div>')) +
+
+        '<p style="color:#9aa6bd;font-size:12.5px;margin:26px 0 0;line-height:1.6">' +
+          'Con el código correcto entra al portal y ve el estado, el corte, los archivos y puede comentar con el minuto exacto. ' +
+          'Sin código no ve <b>nada</b> — ni el nombre del proyecto.</p>' +
         '</body>');
       w.document.close();
     } catch (e){ toast('⚠️ ' + (e.message || e)); }
