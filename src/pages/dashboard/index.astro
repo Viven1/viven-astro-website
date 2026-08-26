@@ -2799,9 +2799,33 @@ const newsCases = [
       <div class="of-bar">
         <div>
           <h2 style="margin:0">🎬 Proyectos</h2>
-          <p class="muted-note" style="margin:2px 0 0">Lo que ganamos y todavía no entregamos. Uno por deal ganado: nace solo al ganar, hereda el paquete aceptado y se cierra cuando está entregado y facturado.</p>
+          <p class="muted-note" style="margin:2px 0 0">Lo que ganamos y todavía no entregamos. Nace solo al ganar un deal y hereda el paquete aceptado — o lo creás vos, para lo que se cerró por email.</p>
         </div>
+        <button class="btn btn-primary small" id="pj-nuevo" type="button">➕ Nuevo proyecto</button>
         <button class="btn btn-ghost small" id="pj-reload" type="button">↻ Actualizar</button>
+      </div>
+
+      <!-- Crear un proyecto sin pasar por el pipeline. "Quizás los ganamos por email":
+           obligarlo a inventar un deal y arrastrarlo a Ganado para poder trabajar es
+           papeleo. Igual se crea el deal por atrás —en Ganado, porque es la verdad— así
+           el proyecto tiene portal, factura y aparece en los números como cualquier otro.
+           (Sebastián, 26 ago 2026.) -->
+      <div class="panel crm-form" id="pj-form" hidden>
+        <h2 style="margin-top:0">➕ Nuevo proyecto</h2>
+        <div class="crm-grid">
+          <label>Cliente *<select class="ed-inp" id="pjf-lead"></select></label>
+          <label>Nombre del proyecto *<input class="ed-inp" id="pjf-title" placeholder="p. ej. Sonova — New Sound Demo 2026" /></label>
+          <label>Monto acordado (CHF)<input class="ed-inp" id="pjf-monto" type="text" inputmode="decimal" placeholder="opcional" /></label>
+          <label>Etapa<select class="ed-inp" id="pjf-stage">
+            <option value="desarrollo">Desarrollo</option><option value="preproduccion">Preproducción</option>
+            <option value="rodaje">Rodaje</option><option value="post">Post</option><option value="entregado">Entregado</option>
+          </select></label>
+        </div>
+        <p class="muted-note" style="margin:10px 0 0">Se crea también el deal, en <b>Ganado</b>: es lo que pasó, aunque se haya cerrado por email. Así el proyecto tiene portal y puede facturarse.</p>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary small" id="pjf-save" type="button">Crear proyecto</button>
+          <button class="btn btn-ghost small" id="pjf-cancel" type="button">Cancelar</button>
+        </div>
       </div>
 
       <div class="pj-etapas" id="pj-etapas"></div>
@@ -17481,6 +17505,43 @@ const newsCases = [
      persona: una hora de Sebastián y una de un freelance no valen lo mismo. */
   let pjHoras = [], pjTarifas = {};
 
+  /* Crear un proyecto a mano, con su deal ganado por atrás. */
+  async function pjCrearManual(){
+    const lid = $('pjf-lead').value;
+    const titulo = $('pjf-title').value.trim();
+    if (!lid){ toast('Elegí de quién es el proyecto'); return; }
+    if (!titulo){ toast('Ponele nombre al proyecto'); return; }
+    const monto = numCHF($('pjf-monto').value) || null;
+    const b = $('pjf-save'); b.disabled = true;
+    const ahora = new Date().toISOString();
+    try {
+      const { data: deal, error: e1 } = await supabase.from('deals').insert({
+        lead_id: +lid, title: titulo, stage: 'ganado',
+        deal_value: monto, won_at: ahora, last_stage_at: ahora,
+      }).select().single();
+      if (e1) throw new Error(e1.message);
+
+      const { data: pr, error: e2 } = await supabase.from('projects').insert({
+        deal_id: deal.id, lead_id: +lid, title: titulo,
+        stage: $('pjf-stage').value, started_at: ahora, amount_chf: monto,
+      }).select().single();
+      if (e2){
+        /* Si el proyecto falla, el deal suelto queda dando vueltas en el board como una
+           venta que nadie hizo. Se deshace. */
+        await supabase.from('deals').delete().eq('id', deal.id);
+        throw new Error(e2.message);
+      }
+
+      dealsList.unshift(deal);
+      $('pj-form').hidden = true;
+      $('pjf-title').value = ''; $('pjf-monto').value = ''; $('pjf-lead').value = '';
+      toast('🎬 Proyecto ' + (pr.ref ? pr.ref + ' ' : '') + 'creado');
+      await pjLoad();
+      pjOpen(pr.id);
+    } catch (e){ toast('⚠️ ' + (e.message || e)); }
+    finally { b.disabled = false; }
+  }
+
   async function pjHorasLoad(){
     const p = pjCur; if (!p) return;
     const [h, t] = await Promise.all([
@@ -18765,6 +18826,20 @@ const newsCases = [
       pjCur = null; pjRenderList();
     });
     $('pj-reload').addEventListener('click', pjLoad);
+    $('pj-nuevo') && $('pj-nuevo').addEventListener('click', () => {
+      const f = $('pj-form'); f.hidden = !f.hidden;
+      if (f.hidden) return;
+      /* La lista de personas se arma al abrir y no al cargar la pantalla: si se arma
+         antes, una persona creada hace un minuto no aparece. */
+      $('pjf-lead').innerHTML = '<option value="">— elegí a quién —</option>' +
+        (allLeads || []).slice()
+          .sort((a, b) => String(a.name || a.email || '').localeCompare(String(b.name || b.email || '')))
+          .map((l) => '<option value="' + esc(String(l.id)) + '">' +
+            esc((l.company ? l.company + ' · ' : '') + (l.name || l.email || '')) + '</option>').join('');
+      $('pjf-title').focus();
+    });
+    $('pjf-cancel') && $('pjf-cancel').addEventListener('click', () => { $('pj-form').hidden = true; });
+    $('pjf-save') && $('pjf-save').addEventListener('click', pjCrearManual);
     $('pj-save').addEventListener('click', () => pjSave());
     pjAutoBind();
     $('pj-crew-auto').addEventListener('click', () => {

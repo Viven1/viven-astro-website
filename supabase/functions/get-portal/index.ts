@@ -351,8 +351,13 @@ Deno.serve(async (req) => {
     /* ── PASE DE EQUIPO ──
        Leer la sesión del navegador no alcanza: el dashboard vive en la app Viven CRM y
        el portal se abre en Chrome, y son dos almacenamientos distintos. Así que el
-       dashboard —que sí está logueado— pide un pase corto y lo pega en el link.
-       Dura 2 horas y sirve para UN proyecto: es para mirar y corregir, no una llave. */
+       dashboard —que sí está logueado— pide un pase y lo pega en el link.
+       NO vence. Lo puse en 2 horas al principio y Sebastián lo corrigió: "yo para
+       siempre abierto". Tiene sentido — es SU proyecto, y un pase que se vence lo manda
+       a pedir otro justo cuando estaba mirando algo. Sigue siendo por proyecto, y sigue
+       exigiendo estar logueado para pedirlo: lo que se guarda en el link es el resultado
+       de haberlo estado.
+       Se reusa el que ya exista: así el link que guardó en un marcador sigue andando. */
     /* Pase para el que MONTA. Igual que el del equipo pero largo: el montajista trabaja
        con las notas durante días, y un pase de 2 horas lo obliga a pedirlo de nuevo cada
        vez que abre el email. 30 días y solo para este proyecto.
@@ -394,10 +399,17 @@ Deno.serve(async (req) => {
       if (!user0) return json({ error: "unauthorized" }, 401);
       const { data: esM } = await u0.rpc("is_member");
       if (esM !== true) return json({ error: "unauthorized" }, 401);
+      const suEmail = `equipo:${user0.email ?? ""}`.slice(0, 200);
+      const { data: yaEq } = await service.from("portal_access")
+        .select("token").eq("project_id", proj.id).eq("email", suEmail).maybeSingle();
+      if (yaEq && (yaEq as { token?: string }).token) return json({ ok: true, pase: (yaEq as { token: string }).token });
       const pase = rnd(24);
       await service.from("portal_access").insert({
-        project_id: proj.id, email: `equipo:${user0.email ?? ""}`.slice(0, 200),
-        token: pase, token_expires: new Date(Date.now() + 2 * 3600e3).toISOString(), last_ip: ip,
+        project_id: proj.id, email: suEmail, token: pase,
+        /* Sin vencimiento real: 100 años. La columna es NOT NULL en la práctica —el
+           comprobador exige token_expires— así que se pone lejos en vez de null, que
+           haría que `new Date(null) < now` lo diera por vencido. */
+        token_expires: new Date(Date.now() + 36500 * 864e5).toISOString(), last_ip: ip,
       });
       return json({ ok: true, pase });
     }
