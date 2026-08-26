@@ -17833,14 +17833,23 @@ const newsCases = [
     const ents = cfEntries || [], recs = cfTemplates || [], loans = cfLoans || [];
     const deBexio = ents.filter((e) => (e.source || '') === 'bexio').length;
     const aMano = ents.length - deBexio;
+    /* Lo que entra, lo que sale, y lo que ya venció. Antes esta pantalla mostraba solo
+       entradas: `kb_bill` devolvía 404 y el error se guardaba en un campo que nadie
+       leía, así que Cash Flow proyectaba una empresa que cobra y nunca paga. */
+    const entra = ents.filter((e) => e.kind === 'income').reduce((a, e) => a + (Number(e.amount_chf) || 0), 0);
+    const sale = ents.filter((e) => e.kind === 'expense').reduce((a, e) => a + (Number(e.amount_chf) || 0), 0);
+    const borradores = ents.filter((e) => /^📝/.test(e.description || ''));
+    const vencidas = ents.filter((e) => /vencida hace/.test(e.description || ''));
+    const vencChf = vencidas.reduce((a, e) => a + (Number(e.amount_chf) || 0), 0);
     const recAct = recs.filter((r) => r.active !== false).length;
     const loanAct = loans.length;
 
     const partes = [];
+    partes.push('entra <b>' + pjCHF(entra) + '</b>');
+    partes.push('sale <b>' + pjCHF(sale) + '</b>');
     partes.push('<b>' + ents.length + '</b> ' + (ents.length === 1 ? 'partida' : 'partidas')
       + (ents.length ? ' (' + deBexio + ' de bexio, ' + aMano + ' a mano)' : ''));
     partes.push('<b>' + recAct + '</b> ' + (recAct === 1 ? 'recurrente' : 'recurrentes'));
-    partes.push('<b>' + loanAct + '</b> ' + (loanAct === 1 ? 'préstamo' : 'préstamos'));
 
     /* Redactado como "falta cargar X" y no "faltan X": con un solo ítem quedaba
        "todavía falta las salidas", y hacer concordar el verbo con una lista variable es
@@ -17860,6 +17869,16 @@ const newsCases = [
     }
 
     let txt = 'La proyección está hecha con ' + partes.join(' · ') + '.';
+    /* Lo vencido va primero: son diez facturas por CHF 19.328 que ya deberían haberse
+       cobrado o pagado, algunas de 2025. Metido dentro de la curva no se ve; dicho
+       aparte, es lo primero que se mira. */
+    if (vencidas.length){
+      txt += ' <span class="cf-falta">' + vencidas.length + ' ya vencidas por ' + pjCHF(vencChf) +
+        '</span> — están proyectadas a hoy porque es plata que ya debería haber entrado o salido.';
+    }
+    if (borradores.length){
+      txt += ' <b>' + borradores.length + '</b> siguen en borrador en bexio (marcadas 📝): cuentan acá, pero hasta que las mandes no son cobrables ni pagables.';
+    }
     if (viejo > 21){
       const dia = new Date(cfBalance.as_of_date + 'T12:00:00')
         .toLocaleDateString('es-CH', { day: 'numeric', month: 'long' });
