@@ -1588,6 +1588,19 @@ const newsCases = [
 
   /* El número de proyecto. Monoespaciado y tabular para que dos referencias una debajo
      de la otra se comparen de un vistazo. */
+  #ned-modal{z-index:430}
+  .ned-grid{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin:0 0 12px}
+  @media(max-width:640px){.ned-grid{grid-template-columns:1fr}}
+  .ned-grid label,.ned-lbl{display:block;font-size:12.5px;font-weight:600;color:var(--muted)}
+  .ned-lbl{margin:0 0 12px}
+  .ned-lbl em{font-weight:400;font-style:normal;color:var(--muted-2)}
+  .ned-grid .ed-inp,.ned-lbl .ed-inp{width:100%;margin-top:5px}
+  /* La vista previa se ve como el email de verdad: fondo claro, porque así lo va a leer. */
+  .ned-prev{background:#fff;color:#1a2230;border-radius:12px;padding:18px 20px;max-height:340px;overflow:auto;margin:0 0 12px}
+  .ned-xml{border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin:0 0 4px}
+  .ned-xml summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
+  .ned-xml pre{margin:10px 0 0;max-height:200px;overflow:auto;font-size:11px;line-height:1.5;
+    color:#cfe3ff;background:var(--navy-900);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all}
   .pj-pdfrow{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:0 0 14px;
     padding-bottom:14px;border-bottom:1px solid var(--line)}
   .pj-ref{display:inline-block;font-variant-numeric:tabular-nums;font-size:.78em;font-weight:700;
@@ -2867,16 +2880,11 @@ const newsCases = [
         <div class="panel pj-blq">
           <h3>👥 Quién</h3>
           <div class="pj-kv"><span class="k">Contacto del cliente</span><span class="v" id="pj-cliente"></span></div>
-          <!-- El email al que va el código del portal y el brief. Sale de la ficha de la
-               persona, pero se puede pisar acá: para probar hace falta poder poner el
-               propio, y en un proyecto real el que aprueba el corte no siempre es el
-               mismo que entró por el formulario. (Sebastián, 26 ago 2026: "dejame cambiar
-               el email para poner el mío".) -->
-          <div class="pj-kv"><span class="k">Su email</span><span class="v"><input class="pj-inp" id="pj-cliente-email" type="email" placeholder="el de su ficha" /></span></div>
+
           <!-- El email va acá y no en otro lado: quien pone el nombre del que monta es
                el que sabe su email, y es el momento en que lo tiene a mano. -->
           <div class="pj-kv"><span class="k">Quién edita</span><span class="v"><input class="pj-inp" id="pj-editor" placeholder="nombre" /></span></div>
-          <div class="pj-kv"><span class="k">Su email</span><span class="v"><input class="pj-inp" id="pj-editor-email" type="email" placeholder="para mandarle las notas del cliente" /></span></div>
+          <div class="pj-kv"><span class="k">Email del editor</span><span class="v"><input class="pj-inp" id="pj-editor-email" type="email" placeholder="para mandarle las notas del cliente" /></span></div>
           <div class="pj-kv"><span class="k">Locación</span><span class="v"><input class="pj-inp" id="pj-location" placeholder="dónde se filma" /></span></div>
           <div class="pj-kv pj-kv-col"><span class="k">Crew <button class="btn btn-ghost small" id="pj-crew-auto" type="button" title="Traer los roles que ya están vendidos en el presupuesto">✨ Traer del presupuesto</button></span><div class="v" id="pj-crew"></div></div>
         </div>
@@ -2894,6 +2902,12 @@ const newsCases = [
           <div id="pj-fact"></div>
           <div class="pj-kv" style="margin-top:12px"><span class="k">Lo que falta gastar</span><span class="v" id="pj-porfase"></span></div>
           <div class="pj-kv"><span class="k">Portal del cliente</span><span class="v" id="pj-portal"></span></div>
+          <!-- Acá y no arriba en "Quién": es la dirección a la que va el CÓDIGO del
+               portal y el brief, así que se entiende al lado del portal y no colgando
+               del nombre del que edita, donde parecía el email del editor.
+               (Sebastián, 26 ago 2026: "no me deja poner email del cliente… y es raro
+               ponerlo ahí arriba también".) -->
+          <div class="pj-kv"><span class="k">El código va a</span><span class="v"><input class="pj-inp" id="pj-cliente-email" type="email" placeholder="el email de su ficha" /></span></div>
         </div>
       </div>
 
@@ -4938,6 +4952,33 @@ const newsCases = [
     <div class="fu-actions">
       <button class="btn btn-primary" id="bx-go" type="button">🧾 Crear borrador en bexio</button>
       <span class="muted-note" id="bx-note">Se crea como borrador. La factura la mandás vos desde bexio.</span>
+    </div>
+  </div>
+</div>
+
+<!-- 📤 Notas al editor. Adentro del dashboard y no en un window.open: el popup salía en
+     blanco —con noopener la referencia a la ventana viene nula— y además ahí no se podía
+     tocar nada. Acá se ve lo que va a salir, se edita, y el .xml está a la vista.
+     (Sebastián, 26 ago 2026: "que salga directo desde el dashboard con un popup propio
+     donde me muestre qué se le envía y le pueda hacer cambios, agregar cosas, etc.") -->
+<div class="fu-modal" id="ned-modal" hidden role="dialog" aria-modal="true" aria-label="Notas al editor">
+  <div class="fu-back" id="ned-back"></div>
+  <div class="fu-card" style="width:min(820px,100%)">
+    <div class="fu-hd">
+      <div><b>📤 Notas al editor</b><span id="ned-sub"></span></div>
+      <button class="fu-x" id="ned-x" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="ned-grid">
+      <label>Para<input class="ed-inp" id="ned-to" type="email" /></label>
+      <label>Asunto<input class="ed-inp" id="ned-asunto" type="text" /></label>
+    </div>
+    <label class="ned-lbl">Algo que quieras agregarle <em>— va arriba de las notas</em>
+      <textarea class="ed-inp" id="ned-msg" rows="3" placeholder="Opcional. P. ej.: «la v3 va el viernes, priorizá las notas de audio»."></textarea></label>
+    <div class="ned-prev" id="ned-prev"></div>
+    <details class="ned-xml"><summary>📎 Lo que va adjunto</summary><div id="ned-adj"></div></details>
+    <div class="fu-actions">
+      <button class="btn btn-primary" id="ned-go" type="button">📤 Enviar</button>
+      <span class="muted-note" id="ned-msgout">Nada sale hasta que toques Enviar.</span>
     </div>
   </div>
 </div>

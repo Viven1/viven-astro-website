@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: "unauthorized" }, 401);
     if (!RESEND) return json({ error: "Falta RESEND_API_KEY" }, 500);
 
-    const { project_id, to, version, notas, xml, edl, video_url, portal_url, dry_run } = await req.json().catch(() => ({}));
+    const { project_id, to, version, notas, xml, edl, video_url, portal_url, dry_run,
+            asunto_manual, mensaje } = await req.json().catch(() => ({}));
     if (!project_id) return json({ error: "falta project_id" }, 400);
     const dest = String(to || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest)) return json({ error: "el editor no tiene un email válido" }, 400);
@@ -86,7 +87,12 @@ Deno.serve(async (req) => {
       <tr><td style="padding:4px 14px 4px 0;color:#8a94a8;font-size:12.5px;white-space:nowrap;vertical-align:top">${k}</td>
           <td style="padding:4px 0;font-size:13.5px;color:#1a2230">${v}</td></tr>`).join("");
 
-    const asunto = `${ref ? ref + " · " : ""}${titulo} — ${lista.length} nota${lista.length === 1 ? "" : "s"} del cliente${version ? " (v" + version + ")" : ""}`;
+    /* El asunto y el mensaje se pueden cambiar desde el dashboard antes de mandar: cada
+       montajista tiene su forma, y a veces hay que agregar algo que las notas no dicen
+       ("esto es urgente", "la v3 va el viernes"). */
+    const asunto = String(asunto_manual || "").trim() ||
+      `${ref ? ref + " · " : ""}${titulo} — ${lista.length} nota${lista.length === 1 ? "" : "s"} del cliente${version ? " (v" + version + ")" : ""}`;
+    const nota = String(mensaje || "").trim();
 
     /* Cada minuto es un LINK que abre el corte en ese segundo exacto.
        Sebastián preguntó si se podían adjuntar capturas de cada nota. No se puede: el
@@ -118,6 +124,7 @@ Deno.serve(async (req) => {
 
     const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:640px;color:#1a2230">
       <p style="font-size:15px;margin:0 0 4px">${quien ? "Hola " + esc(quien.split(/\s+/)[0]) + "," : "Hola,"}</p>
+      ${nota ? `<div style="font-size:15px;line-height:1.65;margin:0 0 18px;white-space:pre-wrap">${esc(nota)}</div>` : ""}
       <p style="font-size:15px;line-height:1.65;margin:0 0 18px">
         El cliente dejó <b>${lista.length} nota${lista.length === 1 ? "" : "s"}</b> sobre el corte.
         Están abajo con su minuto, y adjunto va el <b>.xml</b> para importar en Premiere:
