@@ -3315,6 +3315,16 @@ const newsCases = [
         <div class="kpis four" id="va-kpis" style="margin-bottom:16px"></div>
         <div id="ka-video-table"><p class="muted-note">Sin reproducciones en el período.</p></div>
       </div>
+
+      <!-- El corte que ve el cliente está PRIVADO en Vimeo: tiene que reproducirse
+           dentro del portal y en ningún otro lado. Esto dice si la cuenta está
+           configurada para eso, sin adivinar. -->
+      <div class="panel">
+        <h2>🔒 Privacidad de los cortes <span class="count">para el portal del cliente</span></h2>
+        <p class="muted-note" style="margin:6px 0 12px">El video del cliente no puede verse en vimeo.com antes de tiempo, pero SÍ tiene que reproducirse dentro del portal. Eso se configura en Vimeo, en cada video: <b>Hide this video from Vimeo.com</b> + <b>Specific domains → www.viven.ch</b>. Acá se comprueba cómo están de verdad.</p>
+        <button class="btn btn-ghost small" id="vm-probe" type="button">🔎 Comprobar la cuenta de Vimeo</button>
+        <div id="vm-probe-out" style="margin-top:14px"></div>
+      </div>
     </div>
 
     <!-- ============ SUB: CRO (🧪 motor de CRO semanal — ideas de la IA sobre datos reales) ============
@@ -17515,6 +17525,54 @@ const newsCases = [
      los respaldan; esto es cuánto TIEMPO se puso, valuado con el costo por hora de cada
      persona: una hora de Sebastián y una de un freelance no valen lo mismo. */
   let pjHoras = [], pjTarifas = {};
+
+  /* Qué puede hacer el token de Vimeo y cómo está configurado cada video. Nace de una
+     pregunta concreta de Sebastián: "en vimeo el video va a estar como privado… tiene
+     que poder ser leído igualmente". La respuesta no se puede adivinar desde afuera:
+     hay que preguntarle a Vimeo. */
+  /* Delegado: el botón vive en una sub-pestaña que puede no estar dibujada cuando corre
+     este script. Engancharlo por id acá arriba fallaría en silencio — ya me pasó hoy con
+     el playbook. */
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'vm-probe') vmProbe();
+  });
+
+  async function vmProbe(){
+    const out = $('vm-probe-out'), b = $('vm-probe');
+    b.disabled = true; out.innerHTML = '<p class="muted-note">Preguntándole a Vimeo…</p>';
+    try {
+      const { data, error } = await supabase.functions.invoke('vimeo-stats', { body: { probe: true } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      if (data.pending){ out.innerHTML = '<p class="muted-note" style="color:#f0c060">⚠️ No hay token de Vimeo configurado.</p>'; return; }
+
+      const puedeEditar = /\bedit\b/.test(String(data.scopes || ''));
+      const vids = Array.isArray(data.videos) ? data.videos : [];
+      /* Lo que importa de cada video: si se puede ver en vimeo.com, y si viven.ch está
+         entre los dominios donde se puede embeber. Las dos cosas juntas. */
+      const filas = vids.map((v) => {
+        const pv = v.privacidad || {};
+        const publico = pv.view === 'anybody';
+        const emb = pv.embed;
+        const okDominio = emb === 'whitelist';
+        const bien = !publico && okDominio;
+        return '<tr><td>' + esc(v.nombre || v.id) + '</td>' +
+          '<td class="muted-note">' + esc(String(pv.view || '—')) + '</td>' +
+          '<td class="muted-note">' + esc(String(emb || '—')) + '</td>' +
+          '<td>' + (bien ? '<span style="color:#7ed957">✓ listo para el portal</span>'
+            : publico ? '<span style="color:#f0c060">lo ve cualquiera en vimeo.com</span>'
+            : '<span style="color:#f0c060">falta permitir el dominio</span>') + '</td></tr>';
+      }).join('');
+
+      out.innerHTML =
+        '<p class="muted-note" style="margin:0 0 10px">Permisos del token: <b>' + esc(String(data.scopes || '—')) + '</b> · ' +
+          (puedeEditar ? 'puede cambiar la privacidad desde acá' : 'es de solo lectura: la privacidad se cambia en Vimeo') + '</p>' +
+        (vids.length
+          ? '<table class="lead-table"><thead><tr><th>Video</th><th>Quién lo ve</th><th>Dónde se embebe</th><th>Para el portal</th></tr></thead><tbody>' + filas + '</tbody></table>'
+          : '<p class="muted-note">La cuenta no devolvió videos.</p>');
+    } catch (e){ out.innerHTML = '<p class="muted-note" style="color:#f0c060">⚠️ ' + esc(e.message || String(e)) + '</p>'; }
+    finally { b.disabled = false; }
+  }
 
   /* Leer el PDF de la oferta y llenar el formulario con lo que dice.
      NO crea nada: llena los campos para que se revise. Un PDF mal leído que ya creó un
