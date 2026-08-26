@@ -2621,6 +2621,7 @@ const newsCases = [
         <button class="side-sec" type="button">Operaciones<svg class="side-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
         <div class="side-group-items">
           <button class="side-item" data-tab="projects" type="button"><span class="si-ic">🎬</span>Proyectos <span class="pill" id="tab-pj-count" hidden>0</span></button>
+          <button class="side-item" data-tab="crew" type="button"><span class="si-ic">🎥</span>Técnicos <span class="pill" id="tab-crew-count" hidden>0</span></button>
         </div>
       </div>
       <div class="side-group" data-group="crm">
@@ -2936,6 +2937,69 @@ const newsCases = [
        hereda el paquete que el cliente aceptó. Acá se produce: etapa, fechas, crew,
        equipo, locación, guión, plan de rodaje y lo que falta facturar.
        Dos vistas: la lista (overview) y la ficha de uno. -->
+  <!-- ═══ TÉCNICOS ═══
+       Sebastián, 26 ago 2026: "vamos a generar en operaciones algo como personas pero de
+       técnicos, crew, etc., así los tengo todos dentro y los puedo linkear con cada
+       proyecto… toda una overview completa."
+       Hasta ahora un técnico existía en tres lugares y en ninguno era alguien: un jsonb en
+       el proyecto, una columna de texto en los costos y un `supplier` sacado del PDF de una
+       factura. Medido: "Sofia" y "Sofia Treviño" figuraban como dos personas distintas, y
+       ninguna línea de costo tenía nombre. Con eso no se podía contestar ni "¿cuánto le
+       pagamos a Tobias este año?". -->
+  <div id="tab-crew" hidden>
+    <div class="co2-hd" style="align-items:flex-start">
+      <div>
+        <h2 style="margin:0">Técnicos</h2>
+        <p class="muted-note" style="margin:3px 0 0">La gente con la que rodamos. A diferencia de Personas, a estos les <b>pagamos</b>: acá está con quién trabajamos, en qué proyectos y cuánto le pagamos.</p>
+      </div>
+      <div class="of-bar" style="margin:0">
+        <button class="btn btn-ghost small" id="crew-fusion" type="button" title="Juntar dos fichas que son la misma persona">🔗 Unir repetidos</button>
+        <button class="btn btn-primary small" id="crew-new" type="button">➕ Nuevo técnico</button>
+      </div>
+    </div>
+    <div class="kpis four" id="crew-kpis"></div>
+    <div id="crew-list-view">
+      <div class="panel" style="margin-top:14px">
+        <input class="pj-inp" id="crew-q" placeholder="Buscar por nombre o rol…" style="max-width:420px" />
+        <div id="crew-list" style="margin-top:12px"><p class="muted-note">Cargando…</p></div>
+      </div>
+    </div>
+    <div id="crew-detail" hidden>
+      <button class="lm2-back" id="crew-back" type="button">← Técnicos</button>
+      <div class="pj-hd">
+        <div class="pj-hd-t"><h2 id="crew-name" style="margin:0"></h2><p class="muted-note" id="crew-sub" style="margin:3px 0 0"></p></div>
+        <div class="pj-hd-plata"><b id="crew-total"></b><small id="crew-total-sub"></small></div>
+      </div>
+      <div class="pj-cols">
+        <div class="panel pj-blq">
+          <h3>👤 Quién es</h3>
+          <div id="crew-datos"></div>
+        </div>
+        <div class="panel pj-blq">
+          <h3>💰 Lo que cobra</h3>
+          <div id="crew-tarifas"></div>
+        </div>
+      </div>
+      <div class="panel pj-blq" style="margin-top:12px">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">🎬 Proyectos con VIVEN
+          <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px" id="crew-proy-est"></span></h3>
+        <div id="crew-proyectos"></div>
+      </div>
+      <div class="panel pj-blq" style="margin-top:12px">
+        <h3>📅 Lo que le pagamos, por mes</h3>
+        <div id="crew-meses"></div>
+      </div>
+      <div class="panel pj-blq" style="margin-top:12px">
+        <h3>📝 Notas</h3>
+        <textarea class="pj-inp" id="crew-notas" rows="3" placeholder="Con qué cámara trabaja, si tiene furgoneta, cómo factura, con quién no lo pongas…"></textarea>
+        <div class="ab-urlrow" style="margin-top:12px">
+          <button class="btn btn-ghost small" id="crew-del" type="button">🗑 Borrar</button>
+          <span class="muted-note" id="crew-msg"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-projects" hidden>
     <div id="pj-list-view">
       <div class="of-bar">
@@ -5412,7 +5476,7 @@ const newsCases = [
   // Señales + IA), separada de 'deals'/Pipeline que vuelve a ser un board puro. 'home' es
   // alias viejo de deep links → redirige a 'hoy'. Ver contenidoSetSub/sistemaSetSub más
   // abajo (mismo patrón que anaSetSub, ya probado con Analytics).
-  const TABS = ['hoy', 'deals', 'leads', 'companies', 'agenda', 'offers', 'projects', 'analytics', 'contenido', 'sistema'];
+  const TABS = ['hoy', 'deals', 'leads', 'companies', 'agenda', 'offers', 'projects', 'crew', 'analytics', 'contenido', 'sistema'];
   // recarga Personas fresco desde la base — se llama al cambiar de tab, así un
   // contacto creado en OTRA sesión (vos, Sofia) aparece siempre en todos los
   // selects de "ligar a un contacto" (Ofertas, Propuestas, Licencias, Workflows,
@@ -5449,6 +5513,7 @@ const newsCases = [
     if (tab === 'companies') renderCompanies();
     if (tab === 'offers') { offersInit(); proposalsInit(); }
     if (tab === 'projects') pjLoad();
+    if (tab === 'crew') crewLoad();
     if (tab === 'analytics') anaSetSub(anaSub); // re-aplica el sub-tab guardado y dispara su carga
     if (tab === 'contenido') contenidoSetSub(contenidoSub);
     if (tab === 'sistema') sistemaSetSub(sistemaSub);
@@ -17683,6 +17748,326 @@ const newsCases = [
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
+     TÉCNICOS
+     ═══════════════════════════════════════════════════════════════════════════
+     La gente a la que le PAGAMOS. No son leads —a un lead se le vende— y mezclarlos
+     ensuciaría el pipeline: el mes que contratamos seis freelance parecerían seis
+     clientes nuevos.
+
+     De dónde sale la plata de cada uno, en orden:
+       1. `project_costs.crew_id` — lo nuevo, atado a la persona.
+       2. `project_costs.person` — texto libre de antes, se resuelve por ALIAS.
+       3. `project_bills.supplier` — el nombre que salió del PDF de la factura, también
+          por alias. Es lo único que dice lo que se pagó de verdad.
+     Y `projects.crew` dice en qué proyectos estuvo, aunque no haya plata cargada.
+
+     Lo que NO hace: adivinar que dos nombres parecidos son la misma persona. Hay dos
+     Martin y puede haber dos Sofia; unir a ciegas mezcla la plata de dos personas, que
+     es el error caro. Por eso "Unir repetidos" propone y decide una persona.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  let crewList = [], crewAlias = [], crewCur = null, crewBound = false, crewT = null;
+
+  const crewNorm = (x) => String(x || '').trim().toLowerCase();
+
+  async function crewLoad(){
+    if (!crewBound){ crewBound = true; crewBind(); }
+    const [cq, aq] = await Promise.all([
+      supabase.from('crew').select('*').order('name'),
+      supabase.from('crew_alias').select('*'),
+    ]);
+    if (cq.error){
+      $('crew-list').innerHTML = '<p class="muted-note">⚠️ ' + esc(cq.error.message) + ' (¿corriste la SQL 0169?)</p>';
+      return;
+    }
+    crewList = cq.data || [];
+    crewAlias = aq.error ? [] : (aq.data || []);
+    const pill = $('tab-crew-count');
+    if (pill){ pill.textContent = crewList.length || ''; pill.hidden = !crewList.length; }
+    /* Los proyectos y los costos hacen falta para la plata: si se entró directo a esta
+       pestaña puede que todavía no estén. */
+    if (!pjList.length) await pjLoad();
+    await crewPlataLoad();
+    crewRenderList();
+  }
+
+  /* Los costos y las facturas de TODOS los proyectos, una sola vez. Pedirlos por técnico
+     serían ocho consultas para ocho personas, y treinta cuando el equipo crezca. */
+  let crewCostos = [], crewBills = [];
+  async function crewPlataLoad(){
+    const [cq, bq] = await Promise.all([
+      supabase.from('project_costs').select('project_id,person,crew_id,concept,kind,qty,unit,unit_cost,paid'),
+      supabase.from('project_bills').select('project_id,crew_id,supplier,net,gross,bill_date,estado'),
+    ]);
+    crewCostos = cq.error ? [] : (cq.data || []);
+    crewBills = bq.error ? [] : (bq.data || []);
+  }
+
+  /* Todo lo de una persona: sus alias, sus proyectos y su plata. */
+  function crewDatos(c){
+    const alias = crewAlias.filter((a) => String(a.crew_id) === String(c.id)).map((a) => crewNorm(a.alias));
+    const nombres = new Set([crewNorm(c.name), ...alias]);
+    const esSuyo = (x) => nombres.has(crewNorm(x));
+
+    const costos = crewCostos.filter((k) =>
+      String(k.crew_id || '') === String(c.id) || (k.person && esSuyo(k.person)));
+    const bills = crewBills.filter((b) =>
+      String(b.crew_id || '') === String(c.id) || (b.supplier && esSuyo(b.supplier)));
+
+    /* Los proyectos donde figura en el crew, aunque no haya un franco cargado: haber
+       trabajado y no haberle cargado el costo es normal, no es que no estuvo. */
+    const proyectos = (pjList || []).filter((p) => {
+      const cr = Array.isArray(p.crew) ? p.crew : [];
+      return cr.some((x) => x && esSuyo(x.nombre)) ||
+             costos.some((k) => String(k.project_id) === String(p.id)) ||
+             bills.some((b) => String(b.project_id) === String(p.id));
+    });
+
+    /* Presupuestado ≠ pagado. Un costo cargado es lo que PENSAMOS pagarle; una factura
+       es lo que salió de la caja. Mezclarlos da un número que no es ninguno de los dos.
+       (Es el mismo error que "confirmado no es pagado".) */
+    const presupuestado = costos.reduce((a, k) => a + (Number(k.qty) || 0) * (Number(k.unit_cost) || 0), 0);
+    const facturado = bills.reduce((a, b) => a + (Number(b.net) || Number(b.gross) || 0), 0);
+    const roles = [...new Set([
+      ...(Array.isArray(c.roles) ? c.roles : []),
+      ...proyectos.flatMap((p) => (Array.isArray(p.crew) ? p.crew : []).filter((x) => x && esSuyo(x.nombre)).map((x) => x.rol)),
+    ].filter(Boolean))];
+
+    return { alias, costos, bills, proyectos, presupuestado, facturado, roles };
+  }
+
+  function crewRenderList(){
+    $('crew-detail').hidden = true; $('crew-list-view').hidden = false;
+    const q = crewNorm(($('crew-q') || {}).value);
+    const datos = crewList.map((c) => ({ c, d: crewDatos(c) }));
+
+    const totalPag = datos.reduce((a, x) => a + x.d.facturado, 0);
+    const conProyecto = datos.filter((x) => x.d.proyectos.length).length;
+    $('crew-kpis').innerHTML = [
+      ['Técnicos', crewList.length, 'en la libreta'],
+      ['Con proyecto', conProyecto, 'trabajaron con nosotros'],
+      ['Pagado', pjCHF(totalPag), 'facturas de crew cargadas'],
+      ['Roles', [...new Set(datos.flatMap((x) => x.d.roles))].length, 'distintos'],
+    ].map(([l, n, s2]) => '<div class="kpi"><div class="kpi-l">' + esc(l) + '</div><div class="kpi-n">' + esc(n) +
+      '</div><div class="kpi-s">' + esc(s2) + '</div></div>').join('');
+
+    const filtrados = !q ? datos : datos.filter((x) =>
+      crewNorm(x.c.name).includes(q) || x.d.roles.some((r) => crewNorm(r).includes(q)) ||
+      crewNorm(x.c.empresa).includes(q));
+
+    $('crew-list').innerHTML = !filtrados.length
+      ? '<p class="muted-note" style="margin:0">' + (q ? 'Nadie con eso.' : 'Todavía no hay técnicos. Se cargan solos cuando ponés gente en el crew de un proyecto.') + '</p>'
+      : '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Técnico</th><th>Roles</th><th>Proyectos</th>' +
+        '<th style="text-align:right">Presupuestado</th><th style="text-align:right">Pagado</th></tr></thead><tbody>' +
+        filtrados.map(({ c, d }) =>
+          '<tr style="cursor:pointer" data-crew="' + c.id + '">' +
+            '<td><b>' + esc(c.name) + '</b>' + (c.interno ? ' <span class="muted-note">· interno</span>' : '') +
+              (c.empresa ? '<br><span class="muted-note" style="font-size:11.5px">' + esc(c.empresa) + '</span>' : '') +
+              (c.email ? '<br><span class="muted-note" style="font-size:11.5px">' + esc(c.email) + '</span>' : '') + '</td>' +
+            '<td>' + (d.roles.length ? d.roles.map((r) => '<span class="pj-chipn">' + esc(r) + '</span>').join(' ') : '<span class="muted-note">—</span>') + '</td>' +
+            '<td>' + (d.proyectos.length
+              ? d.proyectos.length + '<br><span class="muted-note" style="font-size:11.5px">' + esc(d.proyectos.map((p) => p.ref).filter(Boolean).join(', ')) + '</span>'
+              : '<span class="muted-note">—</span>') + '</td>' +
+            '<td style="text-align:right">' + (d.presupuestado ? pjCHF(d.presupuestado) : '<span class="muted-note">—</span>') + '</td>' +
+            '<td style="text-align:right">' + (d.facturado ? '<b>' + pjCHF(d.facturado) + '</b>' : '<span class="muted-note">—</span>') + '</td>' +
+          '</tr>').join('') + '</tbody></table></div>';
+
+    $('crew-list').querySelectorAll('[data-crew]').forEach((tr) =>
+      tr.addEventListener('click', () => crewOpen(tr.dataset.crew)));
+  }
+
+  function crewOpen(id){
+    const c = crewList.find((x) => String(x.id) === String(id)); if (!c) return;
+    crewCur = c;
+    $('crew-list-view').hidden = true; $('crew-detail').hidden = false;
+    window.scrollTo(0, 0);
+    crewRenderDetail();
+  }
+
+  function crewRenderDetail(){
+    const c = crewCur; if (!c) return;
+    const d = crewDatos(c);
+    $('crew-name').textContent = c.name;
+    $('crew-sub').textContent = [d.roles.join(' · '), c.empresa, c.ciudad].filter(Boolean).join(' — ') || 'sin rol cargado';
+    $('crew-total').textContent = pjCHF(d.facturado);
+    $('crew-total-sub').textContent = d.presupuestado
+      ? 'pagado · ' + pjCHF(d.presupuestado) + ' presupuestado'
+      : 'pagado';
+
+    const campo = (k, id, v, ph, tipo) =>
+      '<div class="pj-kv"><span class="k">' + k + '</span><span class="v">' +
+      '<input class="pj-inp" id="' + id + '" ' + (tipo ? 'type="' + tipo + '" ' : '') +
+      'value="' + esc(v == null ? '' : v) + '" placeholder="' + esc(ph || '') + '" /></span></div>';
+
+    $('crew-datos').innerHTML =
+      campo('Nombre', 'crew-f-name', c.name, '') +
+      campo('Email', 'crew-f-email', c.email, 'para mandarle el plan y las notas', 'email') +
+      campo('Teléfono', 'crew-f-phone', c.phone, '+41 …') +
+      campo('Ciudad', 'crew-f-ciudad', c.ciudad, 'Zürich') +
+      campo('Factura como', 'crew-f-empresa', c.empresa, 'si factura por una GmbH') +
+      '<div class="pj-kv"><span class="k">Roles</span><span class="v">' +
+        '<input class="pj-inp" id="crew-f-roles" value="' + esc((c.roles || []).join(', ')) + '" placeholder="DoP, Gaffer" /></span></div>' +
+      '<div class="pj-kv"><span class="k">Es de casa</span><span class="v">' +
+        '<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)">' +
+        '<input type="checkbox" id="crew-f-interno"' + (c.interno ? ' checked' : '') + ' /> no nos factura — es parte del equipo</label></span></div>' +
+      (d.alias.length > 1
+        ? '<p class="muted-note" style="margin:10px 0 0">También aparece como: ' + esc(d.alias.filter((a) => a !== crewNorm(c.name)).join(', ')) + '</p>'
+        : '');
+
+    $('crew-tarifas').innerHTML =
+      campo('Por día', 'crew-f-tdia', c.tarifa_dia, 'CHF', 'number') +
+      campo('Por hora', 'crew-f-thora', c.tarifa_hora, 'CHF', 'number') +
+      campo('IBAN', 'crew-f-iban', c.iban, 'CH..') +
+      '<p class="muted-note" style="margin:10px 0 0">La tarifa es el punto de partida para presupuestar. Lo que se le pagó de verdad sale de sus facturas, abajo.</p>';
+
+    $('crew-notas').value = c.notas || '';
+
+    $('crew-proy-est').textContent = d.proyectos.length
+      ? d.proyectos.length + (d.proyectos.length === 1 ? ' proyecto' : ' proyectos')
+      : 'todavía ninguno';
+    $('crew-proyectos').innerHTML = !d.proyectos.length
+      ? '<p class="muted-note" style="margin:0">Todavía no estuvo en ningún proyecto. Se engancha solo cuando lo ponés en el crew de uno.</p>'
+      : '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Proyecto</th><th>Rol</th><th>Cuándo</th>' +
+        '<th style="text-align:right">Presupuestado</th><th style="text-align:right">Pagado</th></tr></thead><tbody>' +
+        d.proyectos.map((p) => {
+          const nombres = new Set([crewNorm(c.name), ...d.alias]);
+          const rol = (Array.isArray(p.crew) ? p.crew : []).filter((x) => x && nombres.has(crewNorm(x.nombre))).map((x) => x.rol).filter(Boolean).join(', ');
+          const pres = d.costos.filter((k) => String(k.project_id) === String(p.id))
+            .reduce((a, k) => a + (Number(k.qty) || 0) * (Number(k.unit_cost) || 0), 0);
+          const pag = d.bills.filter((b) => String(b.project_id) === String(p.id))
+            .reduce((a, b) => a + (Number(b.net) || Number(b.gross) || 0), 0);
+          return '<tr><td><a href="#" data-pj="' + p.ref + '" style="color:var(--acid)">' +
+              (p.ref ? '<b>' + p.ref + '</b> · ' : '') + esc(p.title || '') + '</a></td>' +
+            '<td>' + (rol ? esc(rol) : '<span class="muted-note">—</span>') + '</td>' +
+            '<td>' + (p.shoot_start ? fmtDMY(p.shoot_start) : '<span class="muted-note">sin fecha</span>') + '</td>' +
+            '<td style="text-align:right">' + (pres ? pjCHF(pres) : '—') + '</td>' +
+            '<td style="text-align:right">' + (pag ? '<b>' + pjCHF(pag) + '</b>' : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    $('crew-proyectos').querySelectorAll('[data-pj]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault(); gotoTab('projects'); abrirProyectoPorRef(a.dataset.pj);
+    }));
+
+    /* Por mes: solo de las FACTURAS. Un costo presupuestado no tiene fecha de pago, así
+       que ponerlo en un mes sería inventarle una. */
+    const meses = {};
+    d.bills.forEach((b) => {
+      const m = String(b.bill_date || '').slice(0, 7);
+      if (!m) return;
+      meses[m] = (meses[m] || 0) + (Number(b.net) || Number(b.gross) || 0);
+    });
+    const ks = Object.keys(meses).sort().reverse();
+    const anios = {};
+    ks.forEach((m) => { const a = m.slice(0, 4); anios[a] = (anios[a] || 0) + meses[m]; });
+    $('crew-meses').innerHTML = !ks.length
+      ? '<p class="muted-note" style="margin:0">Sin facturas suyas cargadas. Las facturas del crew se suben en cada proyecto y de ahí sale este número — un costo presupuestado no tiene fecha de pago, así que no cuenta acá.</p>'
+      : Object.keys(anios).sort().reverse().map((a) =>
+          '<div class="pj-sec-h">' + a + ' · <b style="color:var(--text)">' + pjCHF(anios[a]) + '</b></div>' +
+          '<div class="lead-table-wrap"><table class="lead-table"><tbody>' +
+          ks.filter((m) => m.startsWith(a)).map((m) =>
+            '<tr><td>' + esc(new Date(m + '-01T00:00:00').toLocaleDateString('es', { month: 'long' })) + '</td>' +
+            '<td style="text-align:right"><b>' + pjCHF(meses[m]) + '</b></td></tr>').join('') +
+          '</tbody></table></div>').join('');
+
+    /* Se guarda solo, como en proyectos: "si cambio, borro o hago algo pero no toco
+       guardar, guardalo igual". */
+    ['crew-f-name', 'crew-f-email', 'crew-f-phone', 'crew-f-ciudad', 'crew-f-empresa',
+     'crew-f-roles', 'crew-f-tdia', 'crew-f-thora', 'crew-f-iban', 'crew-notas']
+      .forEach((id) => { const el = $(id); if (el) el.addEventListener('input', crewGuardarDebounce); });
+    $('crew-f-interno').addEventListener('change', crewGuardar);
+  }
+
+  function crewGuardarDebounce(){ clearTimeout(crewT); crewT = setTimeout(crewGuardar, 700); }
+
+  async function crewGuardar(){
+    const c = crewCur; if (!c) return;
+    const num = (id) => { const v = String(($(id) || {}).value || '').trim(); return v === '' ? null : (Number(v) || null); };
+    const txt = (id) => { const v = String(($(id) || {}).value || '').trim(); return v === '' ? null : v; };
+    const patch = {
+      name: txt('crew-f-name') || c.name,
+      email: (txt('crew-f-email') || '').toLowerCase() || null,
+      phone: txt('crew-f-phone'), ciudad: txt('crew-f-ciudad'), empresa: txt('crew-f-empresa'),
+      roles: String(($('crew-f-roles') || {}).value || '').split(',').map((x) => x.trim()).filter(Boolean),
+      tarifa_dia: num('crew-f-tdia'), tarifa_hora: num('crew-f-thora'),
+      iban: txt('crew-f-iban'), notas: txt('crew-notas'),
+      interno: !!($('crew-f-interno') || {}).checked,
+    };
+    const { error } = await supabase.from('crew').update(patch).eq('id', c.id);
+    if (error){ $('crew-msg').textContent = '⚠️ ' + error.message; return; }
+    Object.assign(c, patch);
+    $('crew-msg').textContent = 'Guardado.';
+    setTimeout(() => { if ($('crew-msg')) $('crew-msg').textContent = ''; }, 1600);
+    /* Si le cambió el nombre, ese nombre nuevo también es un alias: los costos y las
+       facturas viejas siguen diciendo el anterior. */
+    if (patch.name && crewNorm(patch.name) !== crewNorm(c.name)) await crewAliasAgregar(c.id, patch.name);
+    $('crew-name').textContent = patch.name;
+  }
+
+  async function crewAliasAgregar(crewId, alias){
+    if (!alias) return;
+    const { data } = await supabase.from('crew_alias')
+      .upsert({ crew_id: crewId, alias }, { onConflict: 'alias' }).select();
+    if (data && data.length) crewAlias.push(data[0]);
+  }
+
+  async function crewNuevo(){
+    const nombre = String(prompt('Nombre del técnico:') || '').trim();
+    if (!nombre) return;
+    const { data, error } = await supabase.from('crew').insert({ name: nombre }).select().single();
+    if (error){ toast(error.message); return; }
+    crewList.push(data);
+    await crewAliasAgregar(data.id, nombre);
+    crewOpen(data.id);
+  }
+
+  /* Unir repetidos: propone los pares donde un nombre es prefijo del otro —"Sofia" y
+     "Sofia Treviño"— pero NO une nada solo. Que dos nombres se parezcan no prueba que
+     sean la misma persona: hay dos Martin, y unir a ciegas mezcla la plata de dos
+     personas distintas. */
+  function crewFusionar(){
+    const pares = [];
+    crewList.forEach((a) => crewList.forEach((b) => {
+      if (a.id >= b.id) return;
+      const na = crewNorm(a.name), nb = crewNorm(b.name);
+      const mismo = (a.email && b.email && crewNorm(a.email) === crewNorm(b.email)) ||
+                    na.startsWith(nb + ' ') || nb.startsWith(na + ' ');
+      if (mismo) pares.push([a, b]);
+    }));
+    if (!pares.length){ toast('No encontré fichas que parezcan la misma persona'); return; }
+    const [a, b] = pares[0];
+    /* El que se queda es el del nombre MÁS LARGO: "Sofia Treviño" identifica mejor que
+       "Sofia", y el corto pasa a ser su alias. */
+    const queda = a.name.length >= b.name.length ? a : b, va = queda === a ? b : a;
+    if (!confirm('¿«' + va.name + '» y «' + queda.name + '» son la misma persona?\n\n' +
+                 'Queda «' + queda.name + '», y «' + va.name + '» pasa a ser otro nombre suyo — sus proyectos y su plata se le suman.\n\n' +
+                 (pares.length > 1 ? 'Hay ' + pares.length + ' pares parecidos; los demás se preguntan después.' : ''))) return;
+    (async () => {
+      await crewAliasAgregar(queda.id, va.name);
+      const suyos = crewAlias.filter((x) => String(x.crew_id) === String(va.id));
+      for (const al of suyos) await supabase.from('crew_alias').update({ crew_id: queda.id }).eq('id', al.id);
+      await supabase.from('project_costs').update({ crew_id: queda.id }).eq('crew_id', va.id);
+      await supabase.from('project_bills').update({ crew_id: queda.id }).eq('crew_id', va.id);
+      const { error } = await supabase.from('crew').delete().eq('id', va.id);
+      if (error){ toast(error.message); return; }
+      toast('🔗 Unidos en «' + queda.name + '»');
+      crewLoad();
+    })();
+  }
+
+  function crewBind(){
+    $('crew-new').addEventListener('click', crewNuevo);
+    $('crew-fusion').addEventListener('click', crewFusionar);
+    $('crew-back').addEventListener('click', () => { clearTimeout(crewT); crewGuardar(); crewCur = null; crewRenderList(); });
+    $('crew-q').addEventListener('input', crewRenderList);
+    $('crew-del').addEventListener('click', async () => {
+      const c = crewCur; if (!c) return;
+      if (!confirm('¿Borrar la ficha de ' + c.name + '?\n\nSus proyectos y sus facturas NO se tocan: solo desaparece de esta lista.')) return;
+      const { error } = await supabase.from('crew').delete().eq('id', c.id);
+      if (error){ toast(error.message); return; }
+      crewList = crewList.filter((x) => String(x.id) !== String(c.id));
+      crewCur = null; crewRenderList();
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
      LA FICHA POR PASOS
      ═══════════════════════════════════════════════════════════════════════════
      El orden es el del trabajo real, no el de las tablas. Tres reglas que hacen que
@@ -19492,9 +19877,17 @@ const newsCases = [
     pjGuionesRender();
   }
 
-  /* PDF sin librería: una ventana con el guión maquetado y el diálogo de imprimir del
-     navegador, que ya sabe guardar como PDF. Fondo blanco y negro sobre blanco a
-     propósito — esto se imprime y se lleva al set. */
+  /* ── El PDF del guion ──
+     Sin librería: una ventana con el guion maquetado y el diálogo de imprimir del
+     navegador, que ya sabe guardar como PDF.
+
+     Y CON MARCA. Un guion se imprime, se lleva al set y se lo pasa a gente que no
+     trabaja con nosotros —el técnico, el cliente, un proveedor— así que es un documento
+     de VIVEN que circula solo. El logo va en SVG: acá sí se puede (es un navegador, no
+     un cliente de correo) y en papel se imprime nítido a cualquier tamaño.
+     Fondo blanco y negro sobre blanco a propósito: esto se imprime.
+     (Sebastián, 26 ago 2026: "el PDF que genera el guion no tiene branding nuestro, nada
+     sale nunca sin branding".) */
   function pjGuionPDF(id){
     const p = pjCur; const g = pjGuiones.find((x) => String(x.id) === String(id));
     if (!p || !g) return;
@@ -19503,286 +19896,66 @@ const newsCases = [
       ? filas.map((f) => '<div class="esc"><h3>' + esc(f.encabezado || '') + '</h3>' +
           (f.accion ? '<p>' + esc(f.accion) + '</p>' : '') +
           (f.dialogo ? '<pre class="dlg">' + esc(f.dialogo) + '</pre>' : '') + '</div>').join('')
-      : '<table><thead><tr><th class="tc">TC</th><th>IMAGEN</th><th>AUDIO</th></tr></thead><tbody>' +
+      : '<table><thead><tr><th class="tc">TC</th><th>Imagen</th><th>Audio</th></tr></thead><tbody>' +
         filas.map((f) => '<tr><td class="tc">' + esc(f.tc || '') + '</td><td>' + esc(f.video || '') +
-          '</td><td>' + esc(f.audio || '') + '</td></tr>').join('') + '</tbody></table>';
+          '</td><td class="au">' + esc(f.audio || '') + '</td></tr>').join('') + '</tbody></table>';
     const w = window.open('', '_blank');
     if (!w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
+    const hoy = new Date().toLocaleDateString('de-CH');
+    const pieTxt = [(p.ref ? '#' + p.ref : ''), esc(p.title || ''), 'VIVEN AG · Zürich'].filter(Boolean).join('  ·  ');
     w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
-      '<title>' + esc((p.ref ? p.ref + ' ' : '') + (g.titulo || g.angulo || 'Guión')) + '</title><style>' +
-      '@page{margin:18mm 16mm}' +
-      'body{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#111;background:#fff;margin:0}' +
-      'header{border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:20px}' +
-      'h1{font-size:19pt;margin:0 0 4px;line-height:1.25}' +
-      '.meta{font:9.5pt/1.5 Helvetica,Arial,sans-serif;color:#555;letter-spacing:.03em;text-transform:uppercase}' +
-      '.prem{font-style:italic;color:#444;margin:14px 0 22px}' +
-      'table{width:100%;border-collapse:collapse;font:11pt/1.5 Helvetica,Arial,sans-serif}' +
-      'th{text-align:left;font-size:8.5pt;letter-spacing:.1em;color:#666;border-bottom:1.5px solid #111;padding:0 10px 6px 0}' +
-      'td{vertical-align:top;padding:9px 10px 9px 0;border-bottom:1px solid #ddd}' +
-      'td.tc,th.tc{width:52px;white-space:nowrap;color:#666;font-variant-numeric:tabular-nums}' +
+      '<title>' + esc((p.ref ? p.ref + ' ' : '') + (g.titulo || g.angulo || 'Guion')) + '</title><style>' +
+      /* El pie se repite en TODAS las hojas: un guion se desarma sobre la mesa y una
+         hoja suelta sin número de proyecto no vuelve nunca a su carpeta. */
+      '@page{margin:20mm 16mm 22mm;@bottom-left{content:"' + pieTxt.replace(/"/g, "'") + '";' +
+        'font:8pt Helvetica,Arial,sans-serif;color:#8a94a8}' +
+        '@bottom-right{content:counter(page) " / " counter(pages);font:8pt Helvetica,Arial,sans-serif;color:#8a94a8}}' +
+      'body{font:11.5pt/1.6 Georgia,"Times New Roman",serif;color:#1a2230;background:#fff;margin:0}' +
+      'header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;' +
+        'border-bottom:2.5px solid #1b2c46;padding-bottom:12px;margin-bottom:22px}' +
+      'header img{height:22px;width:auto;display:block}' +
+      '.hd-r{text-align:right;font:8.5pt/1.5 Helvetica,Arial,sans-serif;color:#6b7896;' +
+        'letter-spacing:.06em;text-transform:uppercase}' +
+      'h1{font:700 20pt/1.2 Helvetica,Arial,sans-serif;margin:0 0 6px;letter-spacing:-.01em}' +
+      '.meta{font:9pt/1.5 Helvetica,Arial,sans-serif;color:#6b7896;letter-spacing:.04em;' +
+        'text-transform:uppercase;margin:0 0 4px}' +
+      '.prem{font-style:italic;color:#3d4757;margin:14px 0 24px;padding-left:14px;border-left:3px solid #ddf98f}' +
+      'table{width:100%;border-collapse:collapse;font:10.5pt/1.55 Helvetica,Arial,sans-serif}' +
+      'th{text-align:left;font-size:8pt;letter-spacing:.11em;text-transform:uppercase;color:#6b7896;' +
+        'border-bottom:1.5px solid #1b2c46;padding:0 12px 6px 0}' +
+      'td{vertical-align:top;padding:10px 12px 10px 0;border-bottom:1px solid #e3e7ee}' +
+      'td.tc,th.tc{width:48px;white-space:nowrap;color:#8a94a8;font-variant-numeric:tabular-nums}' +
+      'td.au{color:#3d4757;width:38%}' +
       'tr{break-inside:avoid}' +
-      '.esc{break-inside:avoid;margin:0 0 18px}' +
-      '.esc h3{font:bold 11pt Helvetica,Arial,sans-serif;letter-spacing:.06em;margin:0 0 6px}' +
-      '.esc p{margin:0 0 8px}' +
-      '.dlg{font:12pt/1.5 Georgia,serif;white-space:pre-wrap;margin:0 0 8px 22mm}' +
-      'footer{margin-top:26px;border-top:1px solid #ccc;padding-top:8px;' +
-        'font:8.5pt Helvetica,Arial,sans-serif;color:#888}' +
-      '</style></head><body><header>' +
-      '<h1>' + esc(g.titulo || g.angulo || 'Guión') + '</h1>' +
-      '<div class="meta">' + esc([p.ref ? '#' + p.ref : '', p.title || '', p.client_contact || ''].filter(Boolean).join(' · ')) +
-        ' — ' + (g.duracion_seg ? '~' + g.duracion_seg + ' s · ' : '') +
-        (g.formato === 'cine' ? 'guión cinematográfico' : 'guión A/V') + '</div></header>' +
+      '.esc{break-inside:avoid;margin:0 0 20px}' +
+      '.esc h3{font:700 10.5pt Helvetica,Arial,sans-serif;letter-spacing:.07em;margin:0 0 7px;' +
+        'padding-bottom:4px;border-bottom:1px solid #e3e7ee}' +
+      '.esc p{margin:0 0 9px}' +
+      '.dlg{font:11.5pt/1.5 Georgia,serif;white-space:pre-wrap;margin:0 0 9px 20mm}' +
+      'footer{margin-top:30px;border-top:1px solid #e3e7ee;padding-top:10px;' +
+        'font:8.5pt/1.6 Helvetica,Arial,sans-serif;color:#8a94a8}' +
+      '@media print{.noprint{display:none}}' +
+      '</style></head><body>' +
+      '<header><img src="' + location.origin + '/assets/brand/viven-logo-navy.svg" alt="VIVEN" />' +
+        '<div class="hd-r">' + (p.ref ? 'Proyecto ' + esc(p.ref) + '<br>' : '') + esc(hoy) + '</div></header>' +
+      '<p class="meta">' + esc([p.title || '', p.client_contact || ''].filter(Boolean).join(' · ')) + '</p>' +
+      '<h1>' + esc(g.titulo || g.angulo || 'Guion') + '</h1>' +
+      '<p class="meta">' + (g.duracion_seg ? '~' + g.duracion_seg + ' s · ' : '') +
+        (g.formato === 'cine' ? 'guion cinematográfico' : 'guion A/V') +
+        (g.angulo && g.titulo ? ' · ' + esc(g.angulo) : '') + '</p>' +
       (g.premisa ? '<p class="prem">' + esc(g.premisa) + '</p>' : '') +
       cuerpo +
-      '<footer>VIVEN AG · Zürich — borrador, no es la versión final</footer>' +
+      '<footer><b>VIVEN AG</b> · Zürich · viven.ch<br>' +
+        'Borrador de trabajo — no es la versión final. ' +
+        (p.ref ? 'Referencia del proyecto: ' + esc(p.ref) + '.' : '') + '</footer>' +
       '</body></html>');
     w.document.close();
-    setTimeout(() => { try { w.focus(); w.print(); } catch (e){ } }, 350);
-  }
-
-  /* ═══ Plan de rodaje ═══
-     Tres cosas que Maestro ya tenía resueltas y acá faltaban:
-
-     1. Nada se escribe sin que alguien lo toque. La IA propone el plan ENTERO —se ve
-        exactamente lo que se va a guardar— y recién ahí se confirma. Por eso pedir una
-        propuesta nueva no puede pisar lo que corregiste a mano.
-     2. Todo se edita a mano: cada campo de cada fila, agregar bloques, moverlos, borrarlos.
-        La IA es un punto de partida, no el dueño del plan.
-     3. Vacío no es una alarma. Un proyecto sin plan todavía es normal, no un atraso.
-
-     (Sebastián, 26 ago 2026: "tiene que poder regenerarse por si no funciona o está mal
-     hecho; puede ser cambiado a mano también. Mirá cómo lo hice con Maestro.") */
-  let pjPlan = null;        // la fila guardada de project_scripts (tipo 'plan')
-  let pjPlanProp = null;    // la propuesta de la IA, todavía sin guardar
-  let pjPlanT = null;       // debounce del guardado
-
-  const PJ_PL_COLS = [
-    ['bloque', 'Bloque', 'input', 'Jornada 1 · Mañana'],
-    ['hora', 'Hora', 'input', '08:00'],
-    ['que', 'Qué', 'textarea', 'Entrevista a la directora técnica'],
-    ['donde', 'Dónde', 'input', 'Sala de reuniones'],
-    ['quien', 'Quién', 'input', 'Cámara + sonido'],
-    ['escenas', 'Escenas', 'input', '3, 7'],
-    ['notas', 'Notas', 'textarea', ''],
-  ];
-
-  async function pjPlanLoad(){
-    const p = pjCur; if (!p) return;
-    pjPlanProp = null;
-    const { data, error } = await supabase.from('project_scripts')
-      .select('*').eq('project_id', p.id).eq('tipo', 'plan')
-      .order('updated_at', { ascending: false }).limit(1);
-    pjPlan = (error || !data || !data.length) ? null : data[0];
-    pjPlanRender();
-    pjRenderSteps();
-  }
-
-  function pjPlanFilas(){ return (pjPlan && Array.isArray(pjPlan.cuerpo)) ? pjPlan.cuerpo : []; }
-
-  function pjPlanRender(){
-    const filas = pjPlanFilas();
-    const est = $('pj-plan-est');
-    if (est) est.textContent = filas.length
-      ? filas.length + ' bloques' + (pjPlan && pjPlan.updated_at ? ' · ' + fmtDMY(pjPlan.updated_at) : '')
-      : 'sin plan todavía';
-
-    // La propuesta, arriba y separada de lo guardado: no se confunde una con otra.
-    $('pj-plan-prop').innerHTML = !pjPlanProp ? '' :
-      '<div class="pj-prop"><h4>Propuesta de la IA — todavía no está guardada</h4>' +
-      '<p class="sub">' + esc(pjPlanProp.titulo || '') + ' · ' + (pjPlanProp.filas || []).length + ' bloques' +
-        (pjPlanProp.guion ? ' · del guión «' + esc(pjPlanProp.guion) + '»' : '') + '</p>' +
-      '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Bloque</th><th>Hora</th><th>Qué</th><th>Dónde</th><th>Quién</th></tr></thead><tbody>' +
-      (pjPlanProp.filas || []).map((f) => '<tr><td>' + esc(f.bloque || '') + '</td><td>' + esc(f.hora || '') +
-        '</td><td>' + esc(f.que || '') + (f.notas ? '<br><span class="muted-note">' + esc(f.notas) + '</span>' : '') +
-        '</td><td>' + esc(f.donde || '') + '</td><td>' + esc(f.quien || '') + '</td></tr>').join('') +
-      '</tbody></table></div>' +
-      '<div class="acc">' +
-        '<button class="btn btn-primary small" id="pj-plan-usar" type="button">' +
-          (filas.length ? '📅 Reemplazar el plan por este' : '📅 Usar este plan') + '</button>' +
-        (filas.length ? '<button class="btn btn-ghost small" id="pj-plan-sumar" type="button">➕ Agregarlo abajo del que hay</button>' : '') +
-        '<button class="btn btn-ghost small" id="pj-plan-tirar" type="button">Descartarla</button>' +
-      '</div></div>';
-
-    if (pjPlanProp){
-      $('pj-plan-usar').addEventListener('click', () => pjPlanGuardarProp(true));
-      const sm = $('pj-plan-sumar'); if (sm) sm.addEventListener('click', () => pjPlanGuardarProp(false));
-      $('pj-plan-tirar').addEventListener('click', () => { pjPlanProp = null; pjPlanRender(); });
-    }
-
-    // El plan guardado: editable adentro.
-    $('pj-plan-tabla').innerHTML = !filas.length
-      ? '<p class="muted-note" style="margin:0">Todavía no hay plan. Es normal — se arma cuando hay fechas. Pedí una propuesta, o agregá los bloques a mano.</p>'
-      : '<div class="lead-table-wrap"><table class="pj-pl"><thead><tr>' +
-        PJ_PL_COLS.map((c) => '<th>' + c[1] + '</th>').join('') + '<th></th></tr></thead><tbody>' +
-        filas.map((f, i) => {
-          const nuevoBloque = i === 0 || String(f.bloque || '') !== String(filas[i - 1].bloque || '');
-          return '<tr' + (nuevoBloque ? ' class="blq-ini"' : '') + '>' +
-            PJ_PL_COLS.map((c) => '<td class="c-' + c[0] + '" data-l="' + c[1] + '">' +
-              (c[2] === 'textarea'
-                ? '<textarea rows="2" data-pf="' + i + '" data-pk="' + c[0] + '" placeholder="' + esc(c[3]) + '">' + esc(f[c[0]] || '') + '</textarea>'
-                : '<input data-pf="' + i + '" data-pk="' + c[0] + '" value="' + esc(f[c[0]] || '') + '" placeholder="' + esc(c[3]) + '" />') +
-              '</td>').join('') +
-            '<td data-l=""><div class="mv">' +
-              '<button type="button" data-pup="' + i + '" title="Subir">↑</button>' +
-              '<button type="button" data-pdn="' + i + '" title="Bajar">↓</button>' +
-              '<button type="button" data-pdel="' + i + '" title="Borrar este bloque">✕</button>' +
-            '</div></td></tr>';
-        }).join('') + '</tbody></table></div>';
-
-    const tb = $('pj-plan-tabla');
-    tb.querySelectorAll('[data-pf]').forEach((el) => el.addEventListener('input', () => {
-      const f = pjPlanFilas()[+el.dataset.pf]; if (!f) return;
-      f[el.dataset.pk] = el.value;
-      pjPlanGuardarDebounce();
-    }));
-    tb.querySelectorAll('[data-pup]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pup, -1)));
-    tb.querySelectorAll('[data-pdn]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pdn, 1)));
-    tb.querySelectorAll('[data-pdel]').forEach((b) => b.addEventListener('click', () => pjPlanBorrarFila(+b.dataset.pdel)));
-
-    /* "Hay que conseguir" y "Ojo con" también se editan: la IA los propone y después
-       aparecen cosas que solo sabe el que atendió el teléfono. */
-    $('pj-plan-listas').innerHTML = !pjPlan ? '' :
-      '<div class="pj-listas">' +
-        '<div><h4>Hay que conseguir antes</h4>' +
-          '<textarea id="pj-plan-nec" rows="4" placeholder="Una cosa por línea. Es la lista que le mandamos al cliente.">' +
-          esc(pjPlan.necesita_txt || '') + '</textarea></div>' +
-        '<div><h4>Ojo con</h4>' +
-          '<textarea id="pj-plan-rie" rows="4" placeholder="Una cosa por línea. Lo que puede tirar abajo el día.">' +
-          esc(pjPlan.riesgos_txt || '') + '</textarea></div>' +
-      '</div>';
-    if (pjPlan){
-      ['pj-plan-nec', 'pj-plan-rie'].forEach((id) => $(id).addEventListener('input', () => {
-        pjPlan.necesita_txt = $('pj-plan-nec').value;
-        pjPlan.riesgos_txt = $('pj-plan-rie').value;
-        pjPlanGuardarDebounce();
-      }));
-    }
-  }
-
-  function pjPlanMover(i, d){
-    const f = pjPlanFilas(); const j = i + d;
-    if (j < 0 || j >= f.length) return;
-    const t = f[i]; f[i] = f[j]; f[j] = t;
-    pjPlanRender(); pjPlanGuardar();
-  }
-
-  function pjPlanBorrarFila(i){
-    const f = pjPlanFilas();
-    if (!f[i]) return;
-    /* Sin confirmación: es una fila de una tabla y volver a escribirla cuesta menos que
-       leer un cartel. Lo que sí se confirma es reemplazar el plan entero. */
-    f.splice(i, 1);
-    pjPlanRender(); pjPlanGuardar();
-  }
-
-  async function pjPlanFilaNueva(){
-    const p = pjCur; if (!p) return;
-    const f = pjPlanFilas();
-    /* Hereda el bloque de la última fila: agregar tres cosas a la misma jornada es el
-       caso normal, y volver a tipear "Jornada 1 · Mañana" cada vez es trabajo tonto. */
-    const ult = f[f.length - 1] || {};
-    f.push({ bloque: ult.bloque || 'Jornada 1', hora: '', que: '', donde: ult.donde || '', quien: '', escenas: '', notas: '' });
-    if (!pjPlan){
-      const { data, error } = await supabase.from('project_scripts').insert({
-        project_id: p.id, tipo: 'plan', formato: 'plan', titulo: 'Plan de rodaje', cuerpo: f,
-      }).select().single();
-      if (error){ toast(error.message); return; }
-      pjPlan = data;
-    }
-    pjPlan.cuerpo = f;
-    pjPlanRender(); pjPlanGuardar();
-    const ins = $('pj-plan-tabla').querySelectorAll('.c-que textarea');
-    if (ins.length) ins[ins.length - 1].focus();
-  }
-
-  function pjPlanGuardarDebounce(){ clearTimeout(pjPlanT); pjPlanT = setTimeout(pjPlanGuardar, 700); }
-
-  /* Se guarda solo mientras editás. En proyectos ya pasó lo contrario y Sebastián lo
-     cortó: "si cambio, borro o hago algo pero no toco guardar, guardalo igual". */
-  async function pjPlanGuardar(){
-    const p = pjCur; if (!p || !pjPlan) return;
-    const filas = pjPlanFilas().map((f, i) => ({ ...f, n: i + 1 }));
-    const { error } = await supabase.from('project_scripts').update({
-      cuerpo: filas,
-      premisa: [pjPlan.necesita_txt ? 'Hay que conseguir antes:\n' + pjPlan.necesita_txt : '',
-                pjPlan.riesgos_txt ? '\nOjo con:\n' + pjPlan.riesgos_txt : ''].filter(Boolean).join('\n'),
-    }).eq('id', pjPlan.id);
-    if (error){ toast(error.message); return; }
-    /* El campo viejo de una línea sigue existiendo y hay cosas que lo leen. Se mantiene
-       al día con un resumen en texto para que nada se quede mirando un plan viejo. */
-    const txt = pjPlanTexto();
-    $('pj-plan').value = txt;
-    await supabase.from('projects').update({ shooting_plan: txt || null }).eq('id', p.id);
-    p.shooting_plan = txt;
-  }
-
-  function pjPlanTexto(){
-    const f = pjPlanFilas();
-    if (!f.length) return '';
-    let blq = null;
-    const cuerpo = f.map((r) => {
-      let out = '';
-      if (String(r.bloque || '') !== blq){ blq = String(r.bloque || ''); out += (out ? '' : '') + '\n' + blq + '\n'; }
-      return out + [r.hora, r.que, r.donde && '· ' + r.donde, r.quien && '· ' + r.quien].filter(Boolean).join('  ') +
-        (r.notas ? '\n      (' + r.notas + ')' : '');
-    }).join('\n').trim();
-    const extra = [pjPlan && pjPlan.necesita_txt ? '\n\nHAY QUE CONSEGUIR ANTES:\n' + pjPlan.necesita_txt : '',
-                   pjPlan && pjPlan.riesgos_txt ? '\n\nOJO CON:\n' + pjPlan.riesgos_txt : ''].join('');
-    return cuerpo + extra;
-  }
-
-  /* Pedirla NO guarda nada: vuelve la propuesta entera y se ve antes de decidir. Es la
-     única forma de que "regenerar" sea seguro cuando ya corregiste el plan a mano. */
-  async function pjPlanPedir(){
-    const p = pjCur; if (!p) return;
-    const btn = $('pj-plan-ia'), prev = btn.textContent, nota = $('pj-plan-note');
-    btn.disabled = true; btn.textContent = '📅 Armando…';
-    nota.textContent = 'No se guarda nada: primero la ves.';
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-guion', { body: {
-        project_id: p.id, tipo: 'plan',
-        indicaciones: $('pj-plan-ind').value.trim() || undefined,
-        plan_actual: pjPlanFilas().length ? pjPlanFilas() : undefined,
-      } });
-      if (error) throw new Error(error.message);
-      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
-      pjPlanProp = data.propuesta;
-      nota.textContent = '';
-      pjPlanRender();
-      $('pj-plan-prop').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } catch (e){
-      nota.textContent = '⚠️ ' + (e.message || e);
-    } finally { btn.disabled = false; btn.textContent = prev; }
-  }
-
-  async function pjPlanGuardarProp(reemplazar){
-    const p = pjCur; if (!p || !pjPlanProp) return;
-    const nuevas = (pjPlanProp.filas || []).map((f) => ({ ...f }));
-    const filas = reemplazar ? nuevas : pjPlanFilas().concat(nuevas);
-    if (reemplazar && pjPlanFilas().length &&
-        !confirm('El plan que hay ahora se reemplaza por la propuesta.\n\nLo que corregiste a mano se pierde. ¿Seguimos?')) return;
-
-    const nec = (pjPlanProp.necesita || []).join('\n');
-    const rie = (pjPlanProp.riesgos || []).join('\n');
-    if (!pjPlan){
-      const { data, error } = await supabase.from('project_scripts').insert({
-        project_id: p.id, tipo: 'plan', formato: 'plan',
-        titulo: pjPlanProp.titulo || 'Plan de rodaje', cuerpo: filas,
-      }).select().single();
-      if (error){ toast(error.message); return; }
-      pjPlan = data;
-      pjPlan.necesita_txt = nec; pjPlan.riesgos_txt = rie;
-    } else {
-      pjPlan.cuerpo = filas;
-      /* Al agregar abajo, lo que ya estaba escrito en las listas no se pisa: se suma. */
-      pjPlan.necesita_txt = reemplazar ? nec : [pjPlan.necesita_txt, nec].filter(Boolean).join('\n');
-      pjPlan.riesgos_txt = reemplazar ? rie : [pjPlan.riesgos_txt, rie].filter(Boolean).join('\n');
-    }
-    pjPlanProp = null;
-    pjPlanRender();
-    await pjPlanGuardar();
-    $('pj-plan-blq').open = true;
-    toast('📅 Plan guardado — tocá cualquier campo para corregirlo');
+    /* Se espera a que el logo cargue: si se imprime antes, sale la primera página sin
+       marca y no hay forma de saberlo hasta ver el PDF. */
+    const dale = () => { try { w.focus(); w.print(); } catch (e){ } };
+    const img = w.document.querySelector('header img');
+    if (img && !img.complete){ img.onload = dale; img.onerror = dale; setTimeout(dale, 2500); }
+    else setTimeout(dale, 350);
   }
 
   function pjRenderDesglose(){
