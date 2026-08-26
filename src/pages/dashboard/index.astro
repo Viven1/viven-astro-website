@@ -18680,10 +18680,16 @@ const newsCases = [
      Se sigue guardando el NOMBRE en projects.crew además del id: lo que ya existe lo lee
      así (el plan de rodaje, el email al editor, la factura), y romperlo para ganar
      prolijidad no vale. El id es lo que ata; el nombre es lo que se lee. */
+  /* Se pide UNA vez por sesión, con o sin resultado. `crewPedidos` es lo que corta: sin
+     esa marca, una lista vacía —porque falló la red, o porque todavía no hay técnicos—
+     hacía que se pidiera de nuevo en cada dibujo. */
+  let crewPedidos = false;
   async function pjCrewTecnicos(){
-    if (crewList.length) return crewList;
+    if (crewPedidos || crewList.length) return crewList;
+    crewPedidos = true;
     const { data, error } = await supabase.from('crew').select('*').eq('activo', true).order('name');
-    crewList = error ? [] : (data || []);
+    if (error) crewPedidos = false;              // que se pueda reintentar al abrir otro proyecto
+    else crewList = data || [];
     return crewList;
   }
 
@@ -18696,8 +18702,14 @@ const newsCases = [
       return;
     }
     /* Los técnicos se piden una vez y quedan en memoria; mientras llegan, el select
-       muestra al que ya estaba puesto para que no parpadee vacío. */
-    pjCrewTecnicos().then(() => { if (pjCur === p) pjRenderCrew(); });
+       muestra al que ya estaba puesto para que no parpadee vacío.
+       EL REDIBUJADO SOLO SI ANTES NO ESTABAN. Sin esa condición esto se llamaba a sí
+       mismo para siempre —dibujar pedía, y la respuesta volvía a dibujar— y la pestaña
+       se colgaba al abrir cualquier proyecto que tuviera crew.
+       (Sebastián, 26 ago 2026: "no puedo entrar dentro del proyecto ahora".) */
+    if (!crewList.length){
+      pjCrewTecnicos().then((t) => { if (pjCur === p && t.length) pjRenderCrew(); });
+    }
 
     const opciones = (nombre) => {
       const hay = crewList.some((t) => crewNorm(t.name) === crewNorm(nombre));
