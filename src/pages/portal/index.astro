@@ -166,7 +166,15 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       if (!window.Vimeo) return;
       try {
         player = new window.Vimeo.Player(ifr);
-        player.on('timeupdate', function(d){ TC = Math.round((d.seconds||0)*1000); pintarTC(); });
+        var poner = function(d){ TC = Math.round(((d && d.seconds) || 0) * 1000); pintarTC(); };
+        /* `timeupdate` solo dispara MIENTRAS se reproduce. El caso principal es el
+           contrario: pausás en el cuadro que te molesta y ahí escribís. Sin `seeked` y
+           `pause`, la nota se mandaba con el minuto viejo — probado: buscar al 0:41 con
+           el video pausado dejaba el chip en 0:00. */
+        player.on('timeupdate', poner);
+        player.on('seeked', poner);
+        player.on('pause', poner);
+        player.on('play', poner);
       } catch(e){}
     };
     if (window.Vimeo) return arranca();
@@ -241,6 +249,14 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 
     engancharVimeo();
     var s = $('pt-send'); if (s) s.addEventListener('click', enviar);
+    /* Y por las dudas: al empezar a escribir se le pregunta al reproductor dónde está.
+       Es la última red — si algún evento no llegó, el minuto que se manda igual es el
+       que el cliente está viendo. */
+    var msg = $('pt-msg');
+    if (msg) msg.addEventListener('focus', function(){
+      if (!player) return;
+      player.getCurrentTime().then(function(seg){ TC = Math.round((seg || 0) * 1000); pintarTC(); }).catch(function(){});
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-v]'), function(b){
       b.addEventListener('click', function(){ VER = vers.filter(function(v){ return String(v.id) === b.dataset.v; })[0]; render(); }); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function(b){
