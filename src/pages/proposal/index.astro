@@ -335,7 +335,16 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     const gbRating = gbTxt ? esc(gbTxt.split('·')[0].trim()) : '5.0';
     const gbadge = '<div class="pp-gbadge"><span class="g-stars">★★★★★</span><span class="g-txt"><b>' + (gbTxt ? esc(gbTxt) : '5.0</b> · <b>47 Google Reviews') + '</b></span>' +
       '<a href="https://www.google.com/maps/place/Viven+AG/@47.375414,8.5306427,17z/data=!4m8!3m7!1s0x47900b957351a2a1:0xeaa9cea91f1b0f19!9m1!1b1!8m2!3d47.375414!4d8.5306427!16s%2Fg%2F11gf3ms_pt" target="_blank" rel="noopener">See our reviews ↗</a></div>';
-    const tiers = (c.tiers || []).map((t, i) => {
+    /* De CARO a BARATO. El primero que se lee fija la referencia de precio, y contra esa
+       referencia el del medio parece razonable en vez de caro. Al revés —de barato a
+       caro— el primero fija una referencia baja y todo lo demás parece un recargo.
+       (Sebastián, 26 ago 2026: "hacemos propuestas con tres valores… mejor de caro a
+       barato con uno en el medio".)
+       Se ordena una COPIA con el índice original adentro: `selTier`, lo que se acepta y
+       lo que se manda por email siguen apuntando a la posición real del array. */
+    const tiersOrden = (c.tiers || []).map((t, i) => ({ t, i }))
+      .sort((a, b) => tierPrice(b.t) - tierPrice(a.t));
+    const tiers = tiersOrden.map(({ t, i }) => {
       const inc = (t.includes || []).map((x) => '<li>' + esc(x) + '</li>').join('');
       const off = Number(t.discount_pct) > 0;
       return '<div class="pp-tier' + (i === selTier ? ' sel' : '') + (t.recommended ? ' rec' : '') + '" data-t="' + i + '">' +

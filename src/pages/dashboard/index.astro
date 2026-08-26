@@ -16469,8 +16469,26 @@ const newsCases = [
       return;
     }
     el.className = 'pp-sum';
+
+    /* El cliente los ve de CARO a BARATO —el primero fija la referencia— y con tres
+       paquetes el del medio es el que se elige. Si el recomendado no es ese, o no hay
+       ninguno marcado, se avisa: no es un error, es una decisión que conviene tomar a
+       propósito y no por el orden en que se cargaron.
+       (Sebastián, 26 ago 2026: "mejor de caro a barato con uno en el medio".) */
+    let nota = '';
+    if (ts.length === 3){
+      const porPrecio = ts.slice().sort((a, b) => tierNet(b) - tierNet(a));
+      const medio = porPrecio[1];
+      const rec = ts.find((x) => x.recommended);
+      if (!rec) nota = ' · <span style="color:#f0c060">ninguno marcado como recomendado — el del medio (' +
+        esc(medio.name || chf(tierNet(medio))) + ') es el que se suele elegir</span>';
+      else if (rec !== medio) nota = ' · <span style="color:#f0c060">el recomendado es el ' +
+        (rec === porPrecio[0] ? 'más caro' : 'más barato') + '; el del medio (' +
+        esc(medio.name || chf(tierNet(medio))) + ') convierte mejor</span>';
+    }
+
     el.innerHTML = (t.recommended ? 'Recomendado' : 'Más caro') + ': ' + chf(net) +
-      ' · ganancia <b>' + chf(net - cost) + '</b> · ' + Math.round((net - cost) / net * 100) + '%';
+      ' · ganancia <b>' + chf(net - cost) + '</b> · ' + Math.round((net - cost) / net * 100) + '%' + nota;
   }
   function renderTierRows(){
     // select "usar oferta": alinear un paquete con una oferta ya creada (Lite/Starter/Pro a mano)
