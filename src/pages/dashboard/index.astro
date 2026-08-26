@@ -1607,6 +1607,12 @@ const newsCases = [
   .pb-badge:empty{display:none}
   .pb-badge.listo{color:#1c2508;background:var(--acid)}
   #pb-quien{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  /* Se abre DESDE la ficha de la persona, que también está en z-index 300. Con el mismo
+     nivel y estando antes en el DOM, el playbook quedaba pintado por debajo: el botón
+     "no hacía nada" porque el modal se abría detrás. Y antes de eso vivía adentro de la
+     pestaña Pipeline, que está hidden cuando mirás Personas — dos formas distintas de
+     no verse. (Sebastián, 26 ago 2026: "el botón de playbook no hace nada".) */
+  #pb-modal{z-index:420}
   .lm2-pb{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:12px;overflow:hidden}
   .lm2-pb>summary{cursor:pointer;padding:11px 14px;font-weight:700;font-size:13px;
     display:flex;align-items:center;gap:10px;list-style:none;user-select:none}
@@ -2713,20 +2719,6 @@ const newsCases = [
     <div class="pipe-drops" id="pipe-drops"></div>
     <!-- vista Lista (toggle Board/Lista) -->
     <div id="deals-list" hidden></div>
-    <!-- 🧭 Playbook: vive en un modal y se abre a pedido. Estaba siempre desplegado
-         arriba de la timeline y no hace falta: se usa cuando estás por llamar, no cada
-         vez que abrís una ficha. (Sebastián, 26 ago 2026: "tiene que estar como botón a
-         un costado y recién ahí abrir al tocarlo, no hace falta siempre".) -->
-    <div class="fu-modal" id="pb-modal" hidden role="dialog" aria-modal="true" aria-label="Playbook">
-      <div class="fu-back" id="pb-back"></div>
-      <div class="fu-card" style="width:min(720px,100%)">
-        <div class="fu-hd">
-          <div><b id="pb-quien">🧭 Playbook</b><span>Las preguntas de la llamada — las respuestas quedan para siempre</span></div>
-          <button class="fu-x" id="pb-x" type="button" aria-label="Cerrar">✕</button>
-        </div>
-        <div id="lm2-pb"></div>
-      </div>
-    </div>
     <!-- 🧹 Limpiar: la evidencia de cada deal a la vista, y él tilda. Nada se borra. -->
     <div class="fu-modal" id="limp-modal" hidden role="dialog" aria-modal="true" aria-label="Limpiar el pipeline">
       <div class="fu-back" id="limp-back"></div>
@@ -4851,9 +4843,24 @@ const newsCases = [
   </div>
 </div>
 
+<!-- 🧭 Playbook: vive en un modal y se abre a pedido. Estaba siempre desplegado
+     arriba de la timeline y no hace falta: se usa cuando estás por llamar, no cada
+     vez que abrís una ficha. (Sebastián, 26 ago 2026: "tiene que estar como botón a
+     un costado y recién ahí abrir al tocarlo, no hace falta siempre".) -->
+<div class="fu-modal" id="pb-modal" hidden role="dialog" aria-modal="true" aria-label="Playbook">
+  <div class="fu-back" id="pb-back"></div>
+  <div class="fu-card" style="width:min(720px,100%)">
+    <div class="fu-hd">
+      <div><b id="pb-quien">🧭 Playbook</b><span>Las preguntas de la llamada — las respuestas quedan para siempre</span></div>
+      <button class="fu-x" id="pb-x" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div id="lm2-pb"></div>
+  </div>
+</div>
+
 <!-- FICHA DE CONTACTO — única ficha de persona del dashboard -->
 <div class="lead-modal" id="lead-modal2" aria-hidden="true" role="dialog" aria-modal="true">
-  <div class="backdrop" data-close2></div>
+<div class="backdrop" data-close2></div>
   <div class="lead-card lead-card-wide lm2-card">
     <button class="close" type="button" data-close2 aria-label="Cerrar">&times;</button>
     <div class="lm2-hd" id="lm2-hd"></div>

@@ -1,0 +1,236 @@
+---
+/* Planificador de video de evento — UNA implementación, tres idiomas.
+ *
+ * Estaba escrito entero dentro de la página inglesa. Traducirlo copiando el archivo dos
+ * veces habría dejado tres copias de las mismas nueve preguntas: la próxima que se
+ * agregue entraría en una y faltaría en dos, y nadie lo notaría hasta que un cliente
+ * alemán conteste ocho preguntas donde el inglés tiene nueve.
+ * Los textos viven en src/data/event-planner-i18n.js; acá vive el comportamiento.
+ */
+const { t, lang } = Astro.props;
+const SB = 'https://lumoevaotokgqnpybkyf.supabase.co';
+const KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+---
+
+<section class="page-hero"><div class="wrap"><div class="post-wrap">
+  <span class="eyebrow">{t.eyebrow}</span>
+  <h1>{t.h1}</h1>
+  <p class="lead">{t.lead}</p>
+</div></div></section>
+
+<section class="sec" style="padding-top:24px"><div class="wrap"><div class="calc-wrap reveal">
+
+  {t.q.map((q) => (
+    <div class="calc-q">
+      <h2>{q.n}{q.multi && <span class="calc-multi"> {t.multi}</span>}</h2>
+      <div class="calc-chips" data-group={q.g} data-multi={q.multi ? '' : undefined}>
+        {q.o.map(([v, label]) => <button type="button" data-v={v} set:html={label}></button>)}
+      </div>
+      {q.tip && <div class="calc-tip" id={q.tip} hidden set:html={q.tipHtml}></div>}
+    </div>
+  ))}
+
+  <div class="calc-tip calc-tip-always" set:html={t.always}></div>
+
+  <div class="calc-form" id="ev-form-box">
+    <h2>{t.formH2}</h2>
+    <form id="ev-form" autocomplete="on">
+      <!-- Tres campos. Cada campo de más es gente que abandona, y la empresa la sacamos
+           igual del dominio del email. -->
+      <input type="text" id="ev-name" placeholder={t.phName} required />
+      <input type="email" id="ev-email" placeholder={t.phEmail} required />
+      <input type="text" id="ev-when" placeholder={t.phDate} />
+      <input type="text" id="ev-hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true" />
+      <button class="btn btn-primary" type="submit">{t.submit}</button>
+    </form>
+    <p class="form-note">{t.formNote}</p>
+  </div>
+
+  <div class="calc-result" id="ev-result" hidden>
+    <h2>{t.resultH2}</h2>
+    <ul id="ev-lines"></ul>
+    <p class="form-note" id="ev-mail" style="margin-bottom:18px">{t.sending}</p>
+    <div class="ev-cta" id="ev-cta"></div>
+    <p class="form-note" id="ev-sent"></p>
+  </div>
+
+</div></div></section>
+
+<style>
+  /* Las clases .calc-* no viven en site.css: cada calculadora las define en su
+     propia página. Esta las define para sí misma y no depende de las otras. */
+  .calc-wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:38px}
+  .calc-q h2{font-size:19px;line-height:1.35;margin:0 0 14px;font-weight:600}
+  .calc-chips{display:flex;flex-wrap:wrap;gap:10px}
+  .calc-multi{font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}
+  .calc-chips button{appearance:none;font:inherit;font-size:15px;line-height:1.3;cursor:pointer;
+    padding:11px 16px;border-radius:999px;border:1px solid var(--line-strong);
+    background:var(--navy-800);color:var(--text);transition:border-color .15s,background .15s;
+    min-height:44px}
+  .calc-chips button:hover{border-color:var(--muted)}
+  .calc-chips button.on{border-color:var(--acid);background:color-mix(in srgb,var(--acid) 16%,transparent);color:var(--acid)}
+  .calc-chips button:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
+  .calc-form{border-top:1px solid var(--line);padding-top:30px}
+  .calc-form h2{font-size:20px;margin:0 0 16px;font-weight:600}
+  .calc-form form{display:flex;flex-direction:column;gap:11px;max-width:440px}
+  .calc-form input{width:100%;padding:13px 15px;border-radius:11px;border:1px solid var(--line-strong);
+    background:var(--navy-900);color:var(--text);font:inherit;font-size:16px}
+  .calc-form input:focus{outline:none;border-color:var(--acid)}
+  .calc-form button{margin-top:6px;align-self:flex-start}
+  .calc-result{border-top:1px solid var(--line);padding-top:30px}
+  .calc-result h2{font-size:20px;margin:0 0 18px;font-weight:600}
+  @media(max-width:560px){
+    .calc-wrap{gap:30px}
+    .calc-q h2{font-size:17.5px}
+    .calc-chips button{font-size:14.5px;padding:10px 14px}
+  }
+  .calc-tip{border-left:2px solid var(--acid);background:rgba(221,249,143,.07);padding:14px 16px;margin-top:12px;font-size:14.5px;line-height:1.6;color:var(--muted)}
+  .calc-tip b{color:var(--text)}
+  .calc-tip-always{margin:26px 0 0}
+  .calc-result ul{list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column;gap:9px}
+  /* :global() en los que el JS crea en runtime. Astro scopea agregando
+     [data-astro-cid-…] a CADA parte del selector, y estos <li> nacen de un innerHTML —
+     no llevan el atributo, así que la regla no les pegaba y el resumen que ve quien
+     contestó las ocho preguntas salía sin estilos. El mismo bug que tenía el portal.
+     El padre .calc-result SÍ está en el markup, así que el scope sigue acotado a esta
+     página: las otras calculadoras definen sus propias .calc-* y no se pisan. */
+  .calc-result :global(li){display:flex;gap:10px;font-size:15px;color:var(--text);border-bottom:1px solid var(--line);padding-bottom:9px}
+  .calc-result :global(li span){color:var(--muted);flex:0 0 46%}
+  .calc-result :global(li b){font-weight:600}
+  .ev-cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .ev-cta :global(.ev-done){display:inline-flex;align-items:center;font-size:14.5px;line-height:1.5;
+    color:var(--acid);border:1px solid var(--acid);border-radius:999px;padding:11px 18px}
+</style>
+
+<script is:inline define:vars={{ T: t, LANG: lang, SB, KEY }}>
+(function(){
+  var box = document.querySelector('.calc-wrap');
+  if(!box) return;
+  var pick = {};
+
+  box.querySelectorAll('.calc-chips').forEach(function(g){
+    g.addEventListener('click', function(e){
+      var b = e.target.closest('button'); if(!b) return;
+      if (g.hasAttribute('data-multi')){
+        /* Varias respuestas: se apila y se destila. "El público solo mira" es lo
+           contrario de participar, así que al elegirla se apagan las otras — y al
+           elegir cualquier otra, se apaga ella. Si no, el brief se contradice solo. */
+        b.classList.toggle('on');
+        if (b.dataset.v === 'watch' && b.classList.contains('on')){
+          g.querySelectorAll('button').forEach(function(x){ if(x !== b) x.classList.remove('on'); });
+        } else if (b.classList.contains('on')){
+          var w = g.querySelector('[data-v="watch"]'); if(w) w.classList.remove('on');
+        }
+        var on = [].slice.call(g.querySelectorAll('button.on'));
+        if (on.length) pick[g.dataset.group] = { v: on.map(function(x){ return x.dataset.v; }).join(','),
+                                                 label: on.map(function(x){ return x.textContent.trim(); }).join(' · ') };
+        else delete pick[g.dataset.group];
+      } else {
+        g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); });
+        b.classList.add('on');
+        pick[g.dataset.group] = { v: b.dataset.v, label: b.textContent.trim() };
+      }
+      tips();
+    });
+  });
+
+  /* Los consejos aparecen cuando son relevantes, no todos de entrada:
+     un muro de advertencias no se lee. */
+  function tips(){
+    var m = {
+      'tip-booth':  pick.booth  && (pick.booth.v === 'maybe' || pick.booth.v === 'yes'),
+      'tip-stream': pick.stream && pick.stream.v === 'yes',
+      'tip-audio':  pick.audio  && (pick.audio.v === 'unsure' || pick.audio.v === 'desk')
+    };
+    Object.keys(m).forEach(function(id){
+      var el = document.getElementById(id); if(el) el.hidden = !m[id];
+    });
+  }
+
+  document.getElementById('ev-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var hp = document.getElementById('ev-hp');
+    if(hp && hp.value) return;                    /* bot */
+    var name  = document.getElementById('ev-name').value.trim();
+    var email = document.getElementById('ev-email').value.trim();
+    var when  = document.getElementById('ev-when').value.trim();
+    if(!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return;
+    /* La empresa ya no se pregunta: se saca del dominio del email, salvo que sea un
+       correo personal. Un campo menos es más gente que llega al final. */
+    var dom = (email.split('@')[1] || '').toLowerCase();
+    var co  = /gmail|hotmail|outlook|yahoo|icloud|gmx|bluewin|proton|me\.com/.test(dom) ? '' : dom;
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+
+    var L = T.labels;
+    var lines = Object.keys(L).filter(function(k){ return pick[k]; })
+      .map(function(k){ return { k: L[k], v: pick[k].label }; });
+    if(when) lines.unshift({ k: L.date, v: when });
+
+    /* El resumen se muestra siempre, aunque el guardado falle: el que contestó
+       nueve preguntas no se puede quedar sin nada. */
+    var ul = document.getElementById('ev-lines');
+    ul.innerHTML = lines.map(function(l){
+      return '<li><span>' + l.k + '</span><b>' + l.v + '</b></li>';
+    }).join('') || '<li>' + T.none + '</li>';
+
+    /* El cierre cambia según lo que contestó en la 9: al que ya pidió oferta no se le
+       vuelve a ofrecer, se le dice qué sigue. */
+    var esperaOferta = pick.offer && (pick.offer.v === 'yes' || pick.offer.v === 'budget');
+    var pares = lines.map(function(l){ return [l.k, l.v]; });
+
+    document.getElementById('ev-cta').innerHTML = esperaOferta
+      ? '<a class="btn btn-primary" href="/book/" target="_blank" rel="noopener">' + T.ctaBookGo + '</a>'
+      : '<a class="btn btn-primary" href="/book/" target="_blank" rel="noopener">' + T.ctaBook + '</a>' +
+        '<button class="btn btn-ghost" type="button" id="ev-ask">' + T.ctaAsk + '</button>';
+    document.getElementById('ev-sent').textContent = esperaOferta ? T.onIt : '';
+
+    /* "Mandenmé una oferta" NO va al formulario de contacto: toda la data ya está en
+       esta pantalla y hacerlo escribirla de nuevo es perder al que ya dijo que sí. */
+    var ask = document.getElementById('ev-ask');
+    if (ask) ask.addEventListener('click', function(){
+      ask.disabled = true; ask.textContent = T.asking;
+      fetch(SB + '/functions/v1/brief-email', {
+        method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':KEY },
+        body: JSON.stringify({ to: email, name: name, lang: LANG, pairs: pares, pedir_oferta: true,
+          extra: co ? 'Company: ' + co : '', page_uri: location.href, page_name: 'Event Video Planner' })
+      }).then(function(r){ return r.json(); }).then(function(r){
+        if (r && r.ok) ask.outerHTML = '<span class="ev-done">' + T.asked + '</span>';
+        else { ask.disabled = false; ask.textContent = T.ctaAsk; document.getElementById('ev-sent').textContent = T.askFail; }
+      }).catch(function(){ ask.disabled = false; ask.textContent = T.ctaAsk; });
+    });
+
+    document.getElementById('ev-form-box').hidden = true;
+    document.getElementById('ev-result').hidden = false;
+    document.getElementById('ev-result').scrollIntoView({ behavior:'smooth', block:'start' });
+
+    /* El email con el brief: es el punto de la herramienta. Reusa brief-email, que ya
+       existe para /brief/ — mismo diseño, mismo rate limit, y deja el email en la ficha. */
+    fetch(SB + '/functions/v1/brief-email', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':KEY },
+      body: JSON.stringify({ to: email, name: name, lang: LANG, pairs: pares,
+        extra: co ? 'Company: ' + co : '', page_uri: location.href, page_name: 'Event Video Planner',
+        hutk: (window.vvHutk ? window.vvHutk() : null), gclid: (window.vvGclid ? window.vvGclid() : null) })
+    }).then(function(r){ return r.json(); }).then(function(r){
+      var n = document.getElementById('ev-mail'); if (!n) return;
+      n.textContent = (r && r.ok) ? T.sent.replace('{email}', email) : T.sendFail;
+    }).catch(function(){});
+
+    var resumen = lines.map(function(l){ return l.k + ': ' + l.v; }).join('\n');
+    var extra = window.vivenAttribution ? window.vivenAttribution() : null;
+    var row = { name: name, first_name: name, email: email, company: co || '',
+      message: 'EVENT VIDEO PLANNER (' + LANG.toUpperCase() + ')\n\n' + resumen,
+      form_path: location.pathname };
+    if(extra){
+      row.session_id = extra.session_id; row.lang = extra.lang;
+      if(extra.attrib){ row.channel = extra.attrib.channel; row.utm_source = extra.attrib.utm_source; row.landing_path = extra.attrib.landing_path; }
+    }
+    if(window.hubspotSubmit) window.hubspotSubmit(name, '', email, resumen, co || '-');
+    if(window.sbInsertLead) window.sbInsertLead(row);
+
+    /* generate_lead: este formulario tampoco pasa por /thank-you/ */
+    if(typeof window.gtag === 'function') window.gtag('event','generate_lead',{ method:'event_planner', page: location.pathname });
+    try{ window.dataLayer = window.dataLayer || []; window.dataLayer.push({ event:'generate_lead', method:'event_planner', page: location.pathname }); }catch(_){}
+  });
+})();
+</script>

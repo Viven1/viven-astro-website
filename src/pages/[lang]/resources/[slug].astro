@@ -85,7 +85,7 @@ const isCostTopic = /\b(cost|costs|pricing|budget|kosten|preis|precio|costo|pres
 /* Los recursos de EVENTO mandan al planificador: ahí la pregunta que sigue no es
    "cuánto sale" sino "qué tengo que decidir antes del día". El de costo gana igual
    cuando la pregunta es de plata. Solo en inglés, que es donde existe la herramienta. */
-const isEventTopic = lang === 'en' && /\b(event|events|conference|congress)\b/i.test(entry.question + ' ' + entry.slug);
+const isEventTopic = /\b(event|events|eventvideo|eventvideos|conference|congress|konferenz|kongress|anlass|evento|eventos|congreso)\b/i.test(entry.question + ' ' + entry.slug);
 const linkOut = isCostTopic
   ? { html: {
         en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
@@ -93,7 +93,11 @@ const linkOut = isCostTopic
         es: '¿Te preguntás cuánto costaría? Probá nuestra <a href="/es/calculadora-costos-video/">calculadora de costos de video</a>.',
       }[lang] }
   : isEventTopic
-  ? { html: 'Planning one? Our <a href="/en/event-video-planner/">event video planner</a> walks you through the nine decisions and emails you the brief.' }
+  ? { html: {
+        en: 'Planning one? Our <a href="/en/event-video-planner/">event video planner</a> walks you through the nine decisions and emails you the brief.',
+        de: 'Planen Sie einen? Unser <a href="/de/eventvideo-planer/">Eventvideo-Planer</a> führt Sie durch die neun Entscheidungen und schickt Ihnen das Briefing per Mail.',
+        es: '¿Estás planeando uno? Nuestro <a href="/es/planificador-video-evento/">planificador de video de evento</a> te lleva por las nueve decisiones y te manda el brief por email.',
+      }[lang] }
   : isCostTopic
   ? { html: {
         en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',

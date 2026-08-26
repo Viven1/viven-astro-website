@@ -1,4 +1,5 @@
 ---
+import { PLANNER_URLS } from '../../../data/event-planner-i18n.js';
 import Base from '../../../layouts/Base.astro';
 import ToolCard from '../../../components/ToolCard.astro';
 import { langPaths, localePath } from '../../../i18n.js';
@@ -48,15 +49,14 @@ const briefDesc = {
 const briefCta = { en: 'Start your brief', de: 'Briefing starten', es: 'Empezar el brief' };
 const briefIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>';
 
-/* Planificador de video de evento. Por ahora SOLO en inglés: la página existe en un
-   idioma y prometerla en las otras dos llevaría a una página que no habla el idioma del
-   que la abre. Cuando se traduzca, se le agregan los otros dos hrefs y sale sola. */
-const evTitle = { en: 'Event video planner', de: '', es: '' };
+/* Planificador de video de evento, ya en los tres idiomas. */
+const evTitle = { en: 'Event video planner', de: 'Eventvideo-Planer', es: 'Planificador de video de evento' };
 const evDesc = {
   en: 'Nine questions that decide whether your event film works — pieces, video booth, live stream, audio, light. You get the brief by email, ready to forward to your team.',
-  de: '', es: '',
+  de: 'Neun Fragen, die entscheiden, ob Ihr Eventfilm funktioniert — Formate, Video-Booth, Livestream, Ton, Licht. Das Briefing kommt per Mail, bereit zum Weiterleiten.',
+  es: 'Nueve preguntas que deciden si el video de tu evento funciona — piezas, video booth, streaming, audio, luz. El brief te llega por email, listo para reenviar.',
 };
-const evCta = { en: 'Plan your event film', de: '', es: '' };
+const evCta = { en: 'Plan your event film', de: 'Eventfilm planen', es: 'Planear el video del evento' };
 const evIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 10l5-3v10l-5-3z"/></svg>';
 
 /* ---- Guías y descargas -----------------------------------------------
@@ -139,9 +139,7 @@ const ctaLbl = { en: 'Start a project', de: 'Projekt starten', es: 'Empezar un p
       <div class="tools-grid">
         <ToolCard href={calcHref[lang]} icon={calcIcon} title={calcTitle[lang]} desc={calcDesc[lang]} cta={calcCta[lang]} />
         <ToolCard href={'/brief/?lang=' + lang} icon={briefIcon} title={briefTitle[lang]} desc={briefDesc[lang]} cta={briefCta[lang]} />
-        {lang === 'en' && (
-          <ToolCard href="/en/event-video-planner/" icon={evIcon} title={evTitle.en} desc={evDesc.en} cta={evCta.en} />
-        )}
+        <ToolCard href={PLANNER_URLS[lang]} icon={evIcon} title={evTitle[lang]} desc={evDesc[lang]} cta={evCta[lang]} />
       </div>
       <p class="tools-more">{moreLbl[lang]}</p>
     </div>
