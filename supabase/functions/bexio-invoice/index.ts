@@ -74,6 +74,31 @@ Deno.serve(async (req) => {
           : paises.body });
     }
 
+    /* Borrar por NÚMERO, que es lo único que se ve en pantalla. El id interno de bexio
+       no lo guardamos en la tabla `invoices`, así que sin esto había que ir a buscarlo a
+       mano. Solo borra BORRADORES: una factura ya emitida no se borra, se anula en bexio.
+       (Nació de un error mío: creé la RE-01122 de Mahlab al 100% cuando Sebastián había
+       marcado dos fases.) */
+    if (body.borrar_por_numero) {
+      const nr = String(body.borrar_por_numero).trim();
+      const q = await bx(`kb_invoice/search`, {
+        method: "POST",
+        body: JSON.stringify([{ field: "document_nr", value: nr, criteria: "=" }]),
+      });
+      const arr = Array.isArray(q.body) ? (q.body as any[]) : [];
+      if (!arr.length) return json({ error: `bexio no tiene ninguna factura ${nr}` }, 404);
+      if (arr.length > 1) return json({ error: `hay ${arr.length} facturas con el número ${nr} — resolvelo en bexio` }, 409);
+      const f = arr[0];
+      /* 7 = borrador (DRAFT) en bexio. Cualquier otro estado ya salió: no se toca. */
+      if (Number(f.kb_item_status_id) !== 7) {
+        return json({ error: `la ${nr} ya no es un borrador (estado ${f.kb_item_status_id}) — anulala desde bexio, borrarla dejaría un hueco en la numeración` }, 409);
+      }
+      const d = await bx(`kb_invoice/${f.id}`, { method: "DELETE" });
+      if (!d.ok) return json({ error: `bexio no la borró (${d.status}): ${JSON.stringify(d.body).slice(0, 200)}` }, 502);
+      await service.from("invoices").delete().eq("number", nr);
+      return json({ ok: true, borrada: nr, bexio_id: f.id });
+    }
+
     if (body.borrar_factura) {
       const id = Number(body.borrar_factura);
       const f = await bx(`kb_invoice/${id}`);

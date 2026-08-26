@@ -4314,6 +4314,10 @@ const newsCases = [
           <button class="btn btn-ghost small" id="of-print" type="button">👁 Vista previa PDF</button>
           <button class="btn btn-ghost small" id="of-invoice" type="button" hidden>🧾 Factura</button>
           <button class="btn btn-ghost small" id="of-invoice-paid" type="button" hidden>✅ Marcar pagada</button>
+          <!-- Una factura creada por error se deshace acá. Solo aparece con borradores:
+               una emitida no se borra, se anula en bexio (borrarla dejaría un hueco en
+               la numeración, que es un problema contable). -->
+          <button class="btn btn-ghost small" id="of-invoice-del" type="button" hidden title="Borrar el borrador en bexio (solo si todavía no salió)">🗑</button>
           <button class="btn btn-ghost small" id="of-tpl-save" type="button" title="Guardar esta oferta como template reutilizable">📋 Template</button>
           <button class="btn btn-ghost small" id="of-toprop" type="button" title="Crear una propuesta web con esta oferta como paquete (necesita oferta guardada y ligada a una persona)">🌐 → Propuesta</button>
           <button class="btn btn-ghost small" id="of-delete" type="button">🗑 Borrar</button>
@@ -13865,11 +13869,14 @@ const newsCases = [
     const { data } = await supabase.from('invoices').select('*').eq('offer_id', forOfferId).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (seq !== invoiceReqSeq || ofCur.id !== forOfferId) return;   // se abrió otra oferta mientras esperábamos
     curInvoice = data || null;
+    const delBtn = $('of-invoice-del');
     if (curInvoice) {
       btn.textContent = (curInvoice.status === 'paid' ? '✅ ' : '🧾 ') + curInvoice.number;
       paidBtn.hidden = curInvoice.status === 'paid';
+      if (delBtn) delBtn.hidden = curInvoice.status === 'paid';
     } else {
       btn.textContent = '🧾 Generar factura';
+      if (delBtn) delBtn.hidden = true;
     }
   }
   // banner rojo con el motivo de pérdida (oferta/propuesta) — para aprender a largo plazo
@@ -14675,6 +14682,20 @@ const newsCases = [
     $('of-invoice').addEventListener('click', async () => {
       const inv = await ensureInvoice();
       if (inv) printInvoice(inv);
+    });
+    $('of-invoice-del') && $('of-invoice-del').addEventListener('click', async () => {
+      if (!curInvoice) return;
+      const nr = curInvoice.number;
+      if (!confirm('¿Borrar la factura ' + nr + ' de bexio?\n\nSolo funciona si todavía es un BORRADOR. Si ya salió, bexio la deja y hay que anularla desde ahí.')) return;
+      const b = $('of-invoice-del'); b.disabled = true;
+      try {
+        const { data, error } = await supabase.functions.invoke('bexio-invoice', { body: { borrar_por_numero: nr } });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        toast('🗑 ' + nr + ' borrada de bexio');
+        curInvoice = null; refreshInvoiceBtn();
+      } catch (e){ toast('⚠️ ' + (e.message || e)); }
+      finally { b.disabled = false; }
     });
     $('of-invoice-paid').addEventListener('click', async () => {
       if (!curInvoice) return;
