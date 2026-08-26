@@ -375,6 +375,54 @@ Deno.serve(async (req) => {
       return json({ ok: true, comentario: c });
     }
 
+    /* ── Corregir, borrar y marcar hecha una nota ──
+       Sebastián, 26 ago 2026: "dejá editar y borrar comentarios" / "y marcar como hechos".
+       Una nota se escribe mientras corre el video: sale con un error de tipeo, o se dice
+       algo y dos segundos después se ve que no era. Sin corregir ni borrar, la única
+       salida era escribir otra nota que contradice la anterior — y el que monta se come
+       las dos.
+
+       Quién puede qué: corregir y borrar, SOLO el que la escribió (o nosotros). Marcar
+       hecha la puede marcar cualquiera de los dos lados, porque es el mismo estado que
+       usamos en el dashboard: si el cliente dice "esto ya está", nos ahorra mirarlo. */
+    if (accion === "comentario_editar" || accion === "comentario_borrar" || accion === "comentario_hecho") {
+      const acc = esEquipo ? { equipo: true, email: "VIVEN" } : await verificado(body.token);
+      if (!acc) return json({ error: "necesita_codigo" }, 401);
+      const cId = body.comentario_id;
+      if (!cId) return json({ error: "falta el comentario" }, 400);
+      const quien = String((acc as { email?: string }).email || "").replace(/^(equipo|editor):/, "").toLowerCase();
+
+      const { data: c } = await service.from("project_comments")
+        .select("id,author_email,resolved").eq("id", String(cId)).eq("project_id", proj.id).maybeSingle();
+      if (!c) return json({ error: "esa nota no es de este proyecto" }, 404);
+
+      /* Marcar hecha no necesita ser dueño; corregir y borrar sí. */
+      if (accion !== "comentario_hecho") {
+        const suya = esEquipo || (c.author_email && String(c.author_email).toLowerCase() === quien);
+        if (!suya) return json({ error: "esa nota la escribió otra persona" }, 403);
+      }
+
+      if (accion === "comentario_borrar") {
+        const { error } = await service.from("project_comments").delete().eq("id", c.id);
+        if (error) return json({ error: error.message }, 500);
+        return json({ ok: true, borrado: true });
+      }
+
+      if (accion === "comentario_hecho") {
+        const { data: up, error } = await service.from("project_comments")
+          .update({ resolved: !c.resolved }).eq("id", c.id).select("resolved").maybeSingle();
+        if (error) return json({ error: error.message }, 500);
+        return json({ ok: true, resolved: !!(up && up.resolved) });
+      }
+
+      const texto = String(body.texto || "").trim();
+      if (!texto) return json({ error: "vacio" }, 400);
+      const { data: up, error } = await service.from("project_comments")
+        .update({ body: texto.slice(0, 2000) }).eq("id", c.id).select().single();
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true, comentario: up });
+    }
+
     // ---------- DESCARGAR (necesita código) ----------
     if (accion === "descargar") {
       const acc = await verificado(body.token);
@@ -480,7 +528,7 @@ Deno.serve(async (req) => {
     // ---------- ESTADO (lo que se ve al entrar) ----------
     const [{ data: versiones }, { data: comentarios }, { data: archivos }] = await Promise.all([
       service.from("project_versions").select("*").eq("project_id", proj.id).order("n", { ascending: false }),
-      service.from("project_comments").select("id,version_id,tc_ms,body,author_name,from_client,resolved,created_at")
+      service.from("project_comments").select("id,version_id,tc_ms,body,author_name,author_email,from_client,resolved,created_at")
         .eq("project_id", proj.id).order("tc_ms", { ascending: true, nullsFirst: true }),
       service.from("project_files").select("id,file_name,mime,size_bytes,created_at")
         .eq("project_id", proj.id).eq("visible_cliente", true).order("created_at", { ascending: false }),
@@ -619,6 +667,11 @@ Deno.serve(async (req) => {
       /* Para que la pantalla pueda avisar "esto lo estás viendo como equipo": si no, es
          imposible saber si lo que ves es lo que ve el cliente. */
       modo_equipo: esEquipo || porPase,
+      /* Quién soy, para saber qué notas puedo corregir o borrar. La comprobación de
+         verdad la hace el servidor —esto solo decide qué botones se dibujan— pero sin
+         esto la pantalla tendría que adivinar, y adivinar acá es mostrarle a alguien un
+         botón que después le va a dar 403. */
+      yo: esEquipo || porPase ? "VIVEN" : ((acc as { email?: string }).email || "").replace(/^(equipo|editor):/, ""),
       /* Brief: lo contestado, lo sugerido y cómo mostrarlo. La variante se sortea al
          enviarlo desde el dashboard y NO se recalcula acá: si cambiara entre visitas,
          la medición de cuál se termina más no valdría nada. */

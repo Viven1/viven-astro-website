@@ -132,6 +132,14 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   .pt-com .hd .t{background:var(--navy-800);border-radius:6px;padding:1px 7px;color:#f0c060;
     font-variant-numeric:tabular-nums;font-weight:700;cursor:pointer}
   .pt-com p{margin:6px 0 0;font-size:13.5px;color:var(--muted);line-height:1.55;white-space:pre-wrap}
+  .pt-com-acc{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .pt-com-acc button{background:none;border:1px solid var(--line);border-radius:8px;color:var(--muted-2);
+    font:inherit;font-size:11.5px;padding:4px 10px;cursor:pointer;min-height:30px}
+  .pt-com-acc button:hover{color:var(--text);border-color:var(--muted-2)}
+  .pt-com-acc button.del:hover{color:#ff8080;border-color:#ff8080}
+  .pt-com-ed textarea{width:100%;margin-top:6px;background:var(--navy-800);border:1px solid var(--line);
+    border-radius:9px;color:var(--text);font:inherit;font-size:13.5px;padding:9px 11px;resize:vertical}
+  .pt-com-ed .ok{border-color:var(--acid);color:var(--acid)}
 
   .pt-files{display:grid;gap:7px;margin-top:16px}
   .pt-file{display:flex;align-items:center;gap:11px;background:var(--navy-900);border:1px solid var(--line);
@@ -203,7 +211,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
      dando vueltas. */
   var STEPS = ['desarrollo','preproduccion','rodaje','post','entregado'];
   var VIEJAS = { pre_production:'preproduccion', filming:'rodaje', editing:'post', client_review:'post', delivered:'entregado' };
-  var L, DATA = null, VER = null, TOKEN = null;
+  var L, DATA = null, VER = null, TOKEN = null, YO = null;
   try { TOKEN = localStorage.getItem('vv_portal_' + ID); } catch(e){}
   /* El pase manda sobre lo que hubiera guardado, y NO se guarda: dura 2 horas y es para
      mirar, no para dejar el portal abierto en ese navegador. */
@@ -214,6 +222,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ph:'What should change?', send:'Send comment', sent:'✅ Sent — we get it right away, with the timestamp.',
       here:'here', versions:'Versions', files:'Files', download:'Download', comments:'Comments',
       approve:'Approve this version', approveHint:'If everything looks good, approve — then we deliver the final files.',
+      cEd:'Edit', cDel:'Delete', cDone:'Mark as done', cUndone:'Not done yet', cDelQ:'Delete this note?', cSave:'Save', cCancel:'Cancel',
       approved:'Approved', desapr:'↩︎ Undo approval', desaprQ:'Undo the approval of this version?', notas:'📝 I am done with my notes', notasH:'Sent your notes? Tell us — we get to work on the next cut.', notasOk:'Notes received. We are working on the next version.', codeAsk:'We send a 6-digit code to', codeSend:'Send me the code',
       gateT:'Your project', gateP:'To open your project we send a 6-digit code to your email. It stays valid on this device for 30 days.',
       gateNoMail:'This project has no contact email yet — write to info@viven.ch and we open it for you.',
@@ -223,6 +232,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ph:'Was soll geändert werden?', send:'Kommentar senden', sent:'✅ Gesendet — wir bekommen es sofort, mit dem Zeitpunkt.',
       here:'hier', versions:'Versionen', files:'Dateien', download:'Herunterladen', comments:'Kommentare',
       approve:'Diese Version freigeben', approveHint:'Wenn alles passt, freigeben — dann liefern wir die finalen Dateien.',
+      cEd:'Bearbeiten', cDel:'Löschen', cDone:'Als erledigt markieren', cUndone:'Doch nicht erledigt', cDelQ:'Diese Anmerkung löschen?', cSave:'Speichern', cCancel:'Abbrechen',
       approved:'Freigegeben', desapr:'↩︎ Freigabe zurücknehmen', desaprQ:'Freigabe dieser Version zurücknehmen?', notas:'📝 Meine Anmerkungen sind fertig', notasH:'Anmerkungen abgeschickt? Sagen Sie uns Bescheid — wir machen den nächsten Schnitt.', notasOk:'Anmerkungen erhalten. Wir arbeiten an der nächsten Version.', codeAsk:'Wir senden einen 6-stelligen Code an', codeSend:'Code senden',
       gateT:'Ihr Projekt', gateP:'Um Ihr Projekt zu öffnen, senden wir einen 6-stelligen Code an Ihre E-Mail. Er bleibt auf diesem Gerät 30 Tage gültig.',
       gateNoMail:'Für dieses Projekt ist noch keine Kontakt-E-Mail hinterlegt — schreiben Sie an info@viven.ch, wir schalten es frei.',
@@ -232,6 +242,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ph:'¿Qué habría que cambiar?', send:'Enviar comentario', sent:'✅ Enviado — nos llega al instante, con el minuto.',
       here:'acá', versions:'Versiones', files:'Archivos', download:'Descargar', comments:'Comentarios',
       approve:'Aprobar esta versión', approveHint:'Si está todo bien, aprobalo — y entregamos los archivos finales.',
+      cEd:'Corregir', cDel:'Borrar', cDone:'Marcar como hecha', cUndone:'Volver a pendiente', cDelQ:'¿Borrar esta nota?', cSave:'Guardar', cCancel:'Cancelar',
       approved:'Aprobado', desapr:'↩︎ Deshacer la aprobación', desaprQ:'¿Sacarle la aprobación a esta versión?', notas:'📝 Terminé mis notas', notasH:'¿Ya dejaste tus notas? Avisanos y arrancamos con el corte siguiente.', notasOk:'Notas recibidas. Estamos con la próxima versión.', codeAsk:'Te mandamos un código de 6 dígitos a', codeSend:'Mandame el código',
       gateT:'Tu proyecto', gateP:'Para abrir tu proyecto te mandamos un código de 6 dígitos a tu email. Queda válido en este dispositivo por 30 días.',
       gateNoMail:'Este proyecto todavía no tiene email de contacto — escribinos a info@viven.ch y te lo abrimos.',
@@ -329,12 +340,105 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     s.src = 'https://player.vimeo.com/api/player.js'; s.onload = arranca;
     document.head.appendChild(s);
   }
+  /* Una nota se escribe mientras corre el video: sale con un error de tipeo, o se dice
+     algo y dos segundos después se ve que no era. Sin corregir ni borrar, la única salida
+     era escribir otra nota que contradice la anterior — y el que monta se come las dos.
+     Marcar hecha es el MISMO campo que usamos en el dashboard, así una nota atendida
+     se ve atendida de los dos lados.
+     (Sebastián, 26 ago 2026: "dejá editar y borrar comentarios" / "y marcar como hechos".) */
+  function esMia(c){
+    if (!YO) return false;
+    if (YO === 'VIVEN') return true;                       // el equipo puede con todas
+    return String(c.author_email || '').toLowerCase() === String(YO).toLowerCase();
+  }
+
   function comHTML(c){
-    return '<div class="pt-com ' + (c.from_client ? 'mio' : '') + (c.resolved ? ' hecho' : '') + '">' +
+    var mia = c.id && esMia(c);
+    return '<div class="pt-com ' + (c.from_client ? 'mio' : '') + (c.resolved ? ' hecho' : '') + '"' +
+      (c.id ? ' data-com="' + c.id + '"' : '') + '>' +
       '<div class="hd"><b>' + esc(c.author_name || 'VIVEN') + '</b>' +
       (c.tc_ms != null ? '<span class="t" data-go="' + c.tc_ms + '">' + mmss(c.tc_ms) + '</span>' : '') +
       (c.resolved ? '<span style="color:#7ed957">✓</span>' : '') + '</div>' +
-      '<p>' + esc(c.body) + '</p></div>';
+      '<p>' + esc(c.body) + '</p>' +
+      (c.id
+        ? '<div class="pt-com-acc">' +
+            '<button type="button" data-cdone="' + c.id + '">' + (c.resolved ? L.cUndone : '✓ ' + L.cDone) + '</button>' +
+            (mia ? '<button type="button" data-ced="' + c.id + '">✎ ' + L.cEd + '</button>' +
+                   '<button type="button" data-cdel="' + c.id + '" class="del">✕ ' + L.cDel + '</button>' : '') +
+          '</div>'
+        : '') +
+      '</div>';
+  }
+
+  /* Los botones de una tarjeta, en un solo lugar. Se llama al dibujarla por primera vez
+     y cada vez que se redibuja sola —marcar hecha la cambia entera— porque un innerHTML
+     nuevo se lleva puestos los listeners del anterior. */
+  function engancharCom(el){
+    if (!el || !el.querySelector) return;
+    var go = el.querySelector('[data-go]');
+    if (go) go.addEventListener('click', function(){ if (player) player.setCurrentTime(+go.dataset.go / 1000); });
+    var be = el.querySelector('[data-ced]'); if (be) be.addEventListener('click', function(){ comEditar(be.dataset.ced); });
+    var bb = el.querySelector('[data-cdel]'); if (bb) bb.addEventListener('click', function(){ comBorrar(bb.dataset.cdel); });
+    var bh = el.querySelector('[data-cdone]'); if (bh) bh.addEventListener('click', function(){ comHecho(bh.dataset.cdone); });
+  }
+
+  /* Corregir en la misma tarjeta y no en un modal: el video sigue ahí atrás y la nota se
+     entiende mirándolo. */
+  function comEditar(id){
+    var caja = document.querySelector('[data-com="' + id + '"]'); if (!caja) return;
+    var c = (DATA.comentarios || []).find(function(x){ return String(x.id) === String(id); }); if (!c) return;
+    if (caja.querySelector('textarea')) return;
+    var p = caja.querySelector('p'), acc = caja.querySelector('.pt-com-acc');
+    if (p) p.hidden = true; if (acc) acc.hidden = true;
+    var ed = document.createElement('div');
+    ed.className = 'pt-com-ed';
+    ed.innerHTML = '<textarea rows="3"></textarea><div class="pt-com-acc">' +
+      '<button type="button" class="ok">' + L.cSave + '</button>' +
+      '<button type="button" class="no">' + L.cCancel + '</button></div>';
+    ed.querySelector('textarea').value = c.body || '';
+    caja.appendChild(ed);
+    var ta = ed.querySelector('textarea'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    var salir = function(){ ed.remove(); if (p) p.hidden = false; if (acc) acc.hidden = false; };
+    ed.querySelector('.no').addEventListener('click', salir);
+    ed.querySelector('.ok').addEventListener('click', function(){
+      var t = ta.value.trim(); if (!t) return;
+      var b = this; b.disabled = true;
+      api('comentario_editar', { comentario_id: id, texto: t }).then(function(r){
+        if (r && r.error){ b.disabled = false; avisoAccion('⚠️ ' + r.error); return; }
+        c.body = t;                                  // al toque, sin esperar la recarga
+        if (p) p.textContent = t;
+        salir();
+      }).catch(function(e){ b.disabled = false; avisoAccion('⚠️ ' + e); });
+    });
+  }
+
+  function comBorrar(id){
+    if (!confirm(L.cDelQ)) return;
+    var caja = document.querySelector('[data-com="' + id + '"]');
+    if (caja) caja.style.opacity = '.4';
+    api('comentario_borrar', { comentario_id: id }).then(function(r){
+      if (r && r.error){ if (caja) caja.style.opacity = ''; avisoAccion('⚠️ ' + r.error); return; }
+      DATA.comentarios = (DATA.comentarios || []).filter(function(x){ return String(x.id) !== String(id); });
+      if (caja) caja.remove();
+      var enc = $('pt-coms-h');
+      if (enc && !(DATA.comentarios || []).length) enc.hidden = true;
+    }).catch(function(e){ if (caja) caja.style.opacity = ''; avisoAccion('⚠️ ' + e); });
+  }
+
+  function comHecho(id){
+    var c = (DATA.comentarios || []).find(function(x){ return String(x.id) === String(id); }); if (!c) return;
+    var caja = document.querySelector('[data-com="' + id + '"]');
+    api('comentario_hecho', { comentario_id: id }).then(function(r){
+      if (r && r.error){ avisoAccion('⚠️ ' + r.error); return; }
+      c.resolved = !!r.resolved;
+      if (caja){
+        var d = document.createElement('div');
+        d.innerHTML = comHTML(c);
+        var nuevo = d.firstChild;
+        caja.replaceWith(nuevo);
+        engancharCom(nuevo);
+      }
+    }).catch(function(e){ avisoAccion('⚠️ ' + e); });
   }
 
   function pintarTC(){
@@ -446,6 +550,12 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       b.addEventListener('click', function(){ VER = vers.filter(function(v){ return String(v.id) === b.dataset.v; })[0]; render(); }); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function(b){
       b.addEventListener('click', function(){ if (player) player.setCurrentTime(+b.dataset.go/1000); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-ced]'), function(b){
+      b.addEventListener('click', function(){ comEditar(b.dataset.ced); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-cdel]'), function(b){
+      b.addEventListener('click', function(){ comBorrar(b.dataset.cdel); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-cdone]'), function(b){
+      b.addEventListener('click', function(){ comHecho(b.dataset.cdone); }); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-dl]'), function(b){
       b.addEventListener('click', function(){ conCodigo(function(){ bajar(b.dataset.dl); }); }); });
     var ok = $('pt-ok'); if (ok) ok.addEventListener('click', function(){ conCodigo(aprobar); });
@@ -683,8 +793,14 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
          (Sebastián, 26 ago 2026: "cada vez que doy un comentario hace un refresh y tengo
          que empezar el video de cero, eso no puede pasar o es inusable".) */
       if (provisorio){
-        var go = provisorio.querySelector('[data-go]');
-        if (go) go.addEventListener('click', function(){ if (player) player.setCurrentTime(+go.dataset.go / 1000); });
+        /* Se reemplaza SOLO esta tarjeta —no la pantalla— para que traiga su id y con él
+           los botones de corregir, borrar y marcar hecha. La tarjeta no contiene el
+           reproductor, así que cambiarla no toca el video. */
+        var d1 = document.createElement('div');
+        d1.innerHTML = comHTML(r.comentario);
+        var real = d1.firstChild;
+        provisorio.replaceWith(real);
+        engancharCom(real);
       }
     });
   }
@@ -791,6 +907,8 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       /* El link solo no abre nada: sin código verificado el servidor no manda ni el
          título. Esta es la puerta. */
       if (d.necesita_codigo) { puerta(); return; }
+      /* Antes de render(): es lo que decide qué notas llevan botón de corregir. */
+      YO = d.yo || null;
       render();
       /* Aviso de que lo estás viendo como equipo: si no, es imposible saber si lo que
          ves es lo que ve el cliente o un atajo tuyo. */
