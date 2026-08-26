@@ -87,6 +87,19 @@ const PREGUNTAS: Record<string, string> = {
   restricciones: "¿Hay restricciones o normas que tengamos que saber?",
 };
 
+/* El plan de rodaje. No es el guión partido en pedazos: se ordena por LUGAR y por quién
+   aparece, NO por el orden en que se ve el video. Ese reordenamiento es todo el valor de un
+   plan — filmar en orden de guión es la forma más cara de perder un día. */
+const FORMA_PLAN = `{
+  "titulo": "Plan de rodaje — 1 jornada",
+  "filas": [
+    {"bloque":"Jornada 1 · Mañana","hora":"08:00","que":"Llegada y montaje en el laboratorio","donde":"Laboratorio, planta baja","quien":"Equipo completo","escenas":"—","notas":"Pedir el acceso con 24 h. La ventana pega hasta las 11."},
+    {"bloque":"Jornada 1 · Mañana","hora":"09:00","que":"Entrevista a la directora técnica","donde":"Sala de reuniones","quien":"Directora técnica + cámara + sonido","escenas":"3, 7, 11","notas":"Todas sus escenas juntas, aunque en el video estén separadas."}
+  ],
+  "necesita": ["lo que hay que conseguir o confirmar antes del rodaje, una cosa por línea"],
+  "riesgos": ["lo que puede tirar abajo el día, con qué hacer si pasa"]
+}`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -174,6 +187,109 @@ Deno.serve(async (req) => {
     const entregables = oferta && Array.isArray(oferta.items)
       ? (oferta.items as Array<Record<string, unknown>>).map((it) => `· ${it.name}`).join("\n").slice(0, 1200)
       : "";
+
+    /* ── PLAN DE RODAJE ──
+       Se puede pedir las veces que haga falta: sale mal, o el rodaje cambia, y hay que
+       rehacerlo. Por eso esta rama NO GUARDA NADA. Devuelve la propuesta entera y la
+       guarda el dashboard cuando Sebastián toca "usar este plan" — el plan que ya estaba,
+       con lo que él editó a mano, no se pisa por pedir otra sugerencia.
+       (Es la regla que ya usa Maestro: el servidor prepara la decisión al 100% y no
+       escribe una fila hasta que alguien confirma.) */
+    if (body.tipo === "plan") {
+      const { data: elegidos } = await admin.from("project_scripts")
+        .select("*").eq("project_id", proj.id).eq("tipo", "guion").eq("elegido", true).limit(1);
+      const g = (elegidos || [])[0];
+
+      /* Sin guión elegido igual se puede planificar: hay proyectos que se ruedan con un
+         brief y una llamada, sin guión escrito. Lo que no se hace es inventar escenas. */
+      const escenas = g
+        ? (Array.isArray(g.cuerpo) ? g.cuerpo as Array<Record<string, unknown>> : [])
+            .map((f) => g.formato === "cine"
+              ? `${f.n}. ${f.encabezado || ""} — ${String(f.accion || "").slice(0, 220)}`
+              : `${f.n}. [${f.tc || ""}] ${String(f.video || "").slice(0, 220)}`).join("\n")
+        : "";
+
+      const fechas = [proj.shoot_start ? "Arranca el " + String(proj.shoot_start).slice(0, 10) : "",
+                      proj.shoot_end ? "Termina el " + String(proj.shoot_end).slice(0, 10) : ""]
+                     .filter(Boolean).join(". ");
+
+      /* El plan que ya existe entra en el prompt cuando se pide rehacerlo: si Sebastián
+         corrigió horarios o agregó un bloque, una versión nueva que los ignore le hace
+         perder ese trabajo. */
+      const previo = Array.isArray(body.plan_actual) && body.plan_actual.length
+        ? "EL PLAN QUE YA HAY (corregido a mano — respetá lo que tenga sentido y decí en 'riesgos' qué cambiaste y por qué):\n" +
+          (body.plan_actual as Array<Record<string, unknown>>).slice(0, 80)
+            .map((f) => `${f.bloque || ""} ${f.hora || ""} — ${f.que || ""} · ${f.donde || ""} · ${f.quien || ""}${f.notas ? " (" + f.notas + ")" : ""}`)
+            .join("\n")
+        : "";
+
+      const promptPlan = `Sos director de producción de VIVEN AG, productora de video B2B en Zúrich.
+Armá el plan de rodaje.
+
+PROYECTO: ${proj.ref ? "#" + proj.ref + " · " : ""}${proj.title || ""}${proj.client_contact ? " — " + proj.client_contact : ""}
+${fechas ? "FECHAS DE RODAJE: " + fechas : "FECHAS DE RODAJE: sin definir — planificá jornadas relativas (Jornada 1, 2…), no fechas."}
+${g ? `GUIÓN ELEGIDO: "${g.titulo || g.angulo}" (${g.angulo}) · ~${g.duracion_seg || duracion}s\n\nESCENAS:\n${escenas}` : "NO hay guión escrito todavía: planificá con lo que dice el material de abajo y decí en 'riesgos' qué queda por definir."}
+
+MATERIAL DEL PROYECTO (de acá salen los accesos, los permisos y quién aparece):
+${partes.join("\n\n") || "(poco material — decí en 'riesgos' qué falta saber)"}
+${previo ? "\n" + previo : ""}
+${pedido ? `\nINDICACIONES DE SEBASTIÁN:\n${pedido}` : ""}
+
+REGLAS:
+- Ordená por LUGAR y por quién aparece, NO por el orden del video. Todo lo de una persona
+  junto, todo lo de un espacio junto. Decilo en 'notas' cuando reordenes.
+- Equipo chico: no supongas más de 3 o 4 personas de VIVEN salvo que el material diga otra cosa.
+- Bloques de tiempo realistas: montar una entrevista lleva 30–45 min, no 10.
+- Incluí llegada, montaje, comida y desmontaje. Un plan sin comida se cae a las 14:00.
+- Todo lo que dependa del cliente —accesos, permisos, gente disponible, ropa— va en
+  'necesita', que es la lista que le mandamos antes.
+- Si el guión pide algo que no se puede filmar con ese equipo o ese acceso, decilo en
+  'riesgos' con la alternativa. No lo saques en silencio.
+- Nada de dar por cerrado lo que no sabés: si falta un dato, va en 'riesgos', no inventado
+  adentro de una fila.
+- Todo en español, es para uso interno.
+
+Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
+${FORMA_PLAN}`;
+
+      const rp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 12000, messages: [{ role: "user", content: promptPlan }] }),
+      });
+      if (!rp.ok) {
+        const t = await rp.text();
+        console.error("ANTHROPIC_ERROR", rp.status, t);
+        return json({ error: `Anthropic ${rp.status}: ${t.slice(0, 300)}` }, 502);
+      }
+      const dp = await rp.json();
+      let tp = (Array.isArray(dp.content) ? dp.content : [])
+        .filter((c: { type?: string; text?: string }) => c && c.type === "text" && typeof c.text === "string")
+        .map((c: { text: string }) => c.text).join("\n").trim();
+      tp = tp.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
+      const mp = tp.match(/\{[\s\S]*\}/); if (mp) tp = mp[0];
+      let pp: Record<string, unknown> | null = null;
+      try { pp = JSON.parse(tp); } catch { /* abajo */ }
+      if (!pp || !Array.isArray(pp.filas) || !pp.filas.length) {
+        console.error("PARSE_ERROR_PLAN", dp.stop_reason, tp.slice(0, 400));
+        return json({ error: dp.stop_reason === "max_tokens"
+          ? "El plan salió más largo de lo que entra en una respuesta. Probá con menos escenas."
+          : "La IA no devolvió un plan válido. Probá de nuevo." });
+      }
+      const t2 = (x: unknown, n = 600) => String(x ?? "").slice(0, n);
+      const fp = (pp.filas as Array<Record<string, unknown>>).slice(0, 80).map((f, i) => ({
+        n: i + 1, bloque: t2(f.bloque, 80), hora: t2(f.hora, 12), que: t2(f.que, 300),
+        donde: t2(f.donde, 160), quien: t2(f.quien, 200), escenas: t2(f.escenas, 80), notas: t2(f.notas, 600),
+      })).filter((f) => f.que);
+      const lista = (x: unknown) => (Array.isArray(x) ? x : []).filter(Boolean).map((y) => String(y).slice(0, 400)).slice(0, 20);
+
+      /* Se devuelve, NO se guarda. */
+      return json({ ok: true, propuesta: {
+        titulo: t2(pp.titulo, 200) || "Plan de rodaje",
+        filas: fp, necesita: lista(pp.necesita), riesgos: lista(pp.riesgos),
+        guion: g ? (g.titulo || g.angulo) : null,
+      } });
+    }
 
     const prompt = `Sos guionista de VIVEN AG, una productora de video B2B en Zúrich. Trabajás para clientes
 industriales, médicos y técnicos: gente que sabe muchísimo de lo suyo y desconfía del marketing vacío.
