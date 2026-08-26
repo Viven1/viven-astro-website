@@ -54,6 +54,27 @@ const rnd = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b
    portal personal para ver todo el material, dar feedback".)
    Dice qué es el portal antes de pedir nada, va con el logo, y nombra el proyecto: un
    código suelto sin contexto es exactamente lo que mandan los que estafan. */
+/* La invitación a un colega del cliente. Es el único email de VIVEN que le llega a alguien
+   que nunca oyó hablar de nosotros —se lo reenvía alguien de su empresa— así que dice quién
+   lo invitó y a qué, antes de pedirle nada. */
+const INV = {
+  en: { hola: "Hello", codeLbl: "Your access code", cta: "Open the portal",
+        intro: (q: string) => `${q} invited you to the private portal of this project, so you can see the material and add what you know.`,
+        vale: "The code is valid for 7 days.",
+        pie: "You will see the same as the rest of the team: the cut, the brief and the files.",
+        porque: (q: string) => `You are receiving this because ${q} invited you.` },
+  de: { hola: "Guten Tag", codeLbl: "Ihr Zugangscode", cta: "Portal öffnen",
+        intro: (q: string) => `${q} hat Sie in das private Portal dieses Projekts eingeladen — damit Sie das Material sehen und ergänzen können, was Sie wissen.`,
+        vale: "Der Code ist 7 Tage gültig.",
+        pie: "Sie sehen dasselbe wie das übrige Team: den Schnitt, das Briefing und die Dateien.",
+        porque: (q: string) => `Sie erhalten diese E-Mail, weil ${q} Sie eingeladen hat.` },
+  es: { hola: "Hola", codeLbl: "Tu código de acceso", cta: "Abrir el portal",
+        intro: (q: string) => `${q} te invitó al portal privado de este proyecto, para que veas el material y agregues lo que sepas.`,
+        vale: "El código vale por 7 días.",
+        pie: "Vas a ver lo mismo que el resto del equipo: el corte, el brief y los archivos.",
+        porque: (q: string) => `Recibís este email porque ${q} te invitó.` },
+};
+
 const T = {
   en: {
     asunto: "Your project portal",
@@ -161,10 +182,22 @@ Deno.serve(async (req) => {
         ok: true,
         para: emailCliente || null,
         asunto: `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`,
-        html: `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
-              <p>${L.intro}</p>
-              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
-              <p style="color:#8a94a8;font-size:13px">${L.vale}</p></div>`,
+        /* El preview tiene que ser el email de verdad, no un resumen: es lo único que
+           se mira antes de mandarlo a un cliente. */
+        html: emailViven({
+          lang,
+          saludo: `${L.hola},`,
+          titulo: esc(proj.title || deal.title || ""),
+          intro: L.intro,
+          cuerpo: `<div style="background:#f6f8fb;border:1px solid #e6e9ef;border-radius:12px;padding:20px 22px;text-align:center">
+        <p style="margin:0 0 6px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#8a94a8;font-weight:700">${L.codeLbl}</p>
+        <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:.22em;color:#1a2230;font-family:ui-monospace,Menlo,monospace">${code}</p>
+      </div>
+      <p style="margin:16px 0 22px;font-size:13px;color:#8a94a8;line-height:1.6">${L.vale}</p>
+      <p style="margin:0 0 10px;font-size:14.5px;color:#3d4757">${L.pasos}</p>`,
+          cta: { texto: L.cta, url: `https://www.viven.ch/portal/?id=${encodeURIComponent(String(deal.id))}&t=${encodeURIComponent(String(deal.portal_token))}` },
+          pie: `🔒 ${L.seguro}`,
+        }),
         idioma: lang,
         aviso: "Vista previa: no se mandó nada y el código es de ejemplo.",
       });
@@ -294,9 +327,11 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: "Viven Leads <leads@viven.ch>", to: ["info@viven.ch"], reply_to: emailCliente || undefined,
             subject: `📋 BRIEF COMPLETO — ${proj.ref ? proj.ref + " · " : ""}${esc(proj.title || deal.title || "")}`,
-            html: `<div style="font-family:Helvetica,Arial,sans-serif;max-width:640px;color:#222">
-              <p style="font-size:16px;font-weight:700;margin:0 0 12px">El cliente terminó el brief</p>
-              <table style="width:100%;border-collapse:collapse">${filas}</table></div>`,
+            html: emailViven({ lang: "es", titulo: "El cliente terminó el brief",
+              intro: `${esc(proj.title || deal.title || "")}${proj.ref ? " · " + proj.ref : ""}`,
+              cuerpo: `<table style="width:100%;border-collapse:collapse">${filas}</table>`,
+              cta: proj.ref ? { texto: "Abrir el proyecto", url: `https://www.viven.ch/dashboard/?proyecto=${proj.ref}` } : undefined,
+              porque: "Aviso interno del portal." }),
           }),
         }).catch(() => {});
       }
@@ -326,11 +361,24 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: "VIVEN AG <info@viven.ch>", to: [mail], reply_to: emailCliente || undefined,
             subject: `${esc(proj.title || deal.title || "VIVEN")} — ${L2.asunto}`,
-            html: `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
-              <p>${esc(emailCliente || "")} invited you to the VIVEN project portal.</p>
-              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
-              <p><a href="${link}" style="color:#2b6cff">${link}</a></p>
-              <p style="color:#8a94a8;font-size:13px">The code is valid for 7 days.</p></div>`,
+            /* Este es el único email de VIVEN que le llega a alguien que NUNCA oyó
+               hablar de nosotros: se lo reenvía un colega del cliente. Salía en inglés
+               fijo, sin logo, con el link crudo y seis dígitos sueltos — o sea, idéntico
+               a un phishing. Va en el idioma del proyecto y dice quién lo invitó. */
+            html: emailViven({
+              lang,
+              saludo: `${INV[lang].hola},`,
+              titulo: esc(proj.title || deal.title || ""),
+              intro: INV[lang].intro(esc(emailCliente || "")),
+              cuerpo: `<div style="background:#f6f8fb;border:1px solid #e6e9ef;border-radius:12px;padding:20px 22px;text-align:center">
+        <p style="margin:0 0 6px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#8a94a8;font-weight:700">${INV[lang].codeLbl}</p>
+        <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:.22em;color:#1a2230;font-family:ui-monospace,Menlo,monospace">${code}</p>
+      </div>
+      <p style="margin:16px 0 0;font-size:13px;color:#8a94a8;line-height:1.6">${INV[lang].vale}</p>`,
+              cta: { texto: INV[lang].cta, url: link },
+              pie: INV[lang].pie,
+              porque: INV[lang].porque(esc(emailCliente || "")),
+            }),
           }),
         }).catch(() => {});
       }
@@ -539,10 +587,10 @@ Deno.serve(async (req) => {
           from: "Viven Portal <leads@viven.ch>", to: ["info@viven.ch"],
           reply_to: emailCliente || undefined,
           subject: `${titulo} — ${proj.ref ? proj.ref + " · " : ""}${esc(proj.title || deal.title || "")}`,
-          html: `<div style="font-family:Helvetica,Arial,sans-serif;max-width:600px;color:#1a2230">
-            <p style="font-size:16px;font-weight:700;margin:0 0 8px">${titulo}</p>
-            <p style="font-size:14.5px;line-height:1.6;margin:0 0 6px">${esc(detalle)}</p>
-            <p style="font-size:12.5px;color:#8a94a8;margin:14px 0 0">${esc(quien)}</p></div>`,
+          html: emailViven({ lang: "es", titulo, intro: esc(detalle),
+            cuerpo: `<p style="font-size:12.5px;color:#8a94a8;margin:0">${esc(quien)}</p>`,
+            cta: proj.ref ? { texto: "Abrir el proyecto", url: `https://www.viven.ch/dashboard/?proyecto=${proj.ref}` } : undefined,
+            porque: "Aviso interno del portal." }),
         }),
       }).catch(() => {});
     };

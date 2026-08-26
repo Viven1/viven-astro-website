@@ -5,6 +5,7 @@
 // Deploy:  supabase functions deploy send-outreach --no-verify-jwt
 // Secret:  RESEND_API_KEY (ya seteado)
 
+import { cartaViven } from "../_shared/email-viven.ts";
 import { autolink } from "../_shared/autolink.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -41,7 +42,24 @@ Deno.serve(async (req) => {
     if (!to || !subject || !body) return json({ error: "faltan campos (to, subject, body)" }, 400);
     const FROM = `${(fromName || DEFAULT_FROM_NAME).replace(/[<>"]/g, "")} <info@viven.ch>`;
 
-    const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#1a2230">${toHtml(body)}</div>`;
+    /* Formato CARTA, no el layout de marca completo: esto es un email uno a uno de venta
+       o de seguimiento, y un header oscuro con el logo grande lo convierte en un flyer.
+       Un flyer no se contesta. La marca va en la firma —logo chico, nombre, cargo— que es
+       lo que hace que se reconozca sin gritar.
+       (Sebastián, 26 ago 2026: "importante la presencia que damos, el branding tiene que
+       ser consistente".) */
+    const FIRMAS: Record<string, { nombre: string; cargo: string }> = {
+      sofia: { nombre: "Sofia Treviño", cargo: "Producer, VIVEN AG" },
+      sebastian: { nombre: "Sebastian Cepeda", cargo: "Director, VIVEN AG" },
+    };
+    const clave = String(fromName || DEFAULT_FROM_NAME).toLowerCase().split(/\s+/)[0];
+    const html = cartaViven({
+      texto: toHtml(body),
+      /* Solo si el texto NO trae ya su propia despedida: los borradores de outreach la
+         escriben adentro, y dos firmas seguidas se leen como un error. */
+      firma: /\n\s*(saludos|liebe gr|best regards|kind regards|abrazo|un saludo)/i.test(String(body))
+        ? undefined : (FIRMAS[clave] ?? { nombre: String(fromName || DEFAULT_FROM_NAME), cargo: "VIVEN AG" }),
+    });
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },

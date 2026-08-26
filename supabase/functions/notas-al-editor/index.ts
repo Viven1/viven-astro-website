@@ -15,6 +15,7 @@
 // Secret: RESEND_API_KEY
 
 import { registrarEmail } from "../_shared/email.ts";
+import { emailViven } from "../_shared/email-viven.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
@@ -135,24 +136,26 @@ Deno.serve(async (req) => {
           ${esc(n.texto)}${n.autor ? `<span style="display:block;color:#8a94a8;font-size:12px;margin-top:2px">${esc(n.autor)}</span>` : ""}</td>
       </tr>`).join("");
 
-    const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:640px;color:#1a2230">
-      <p style="font-size:15px;margin:0 0 4px">${quien ? "Hola " + esc(quien.split(/\s+/)[0]) + "," : "Hola,"}</p>
-      ${nota ? `<div style="font-size:15px;line-height:1.65;margin:0 0 18px;white-space:pre-wrap">${esc(nota)}</div>` : ""}
-      <p style="font-size:15px;line-height:1.65;margin:0 0 18px">
-        El cliente dejó <b>${lista.length} nota${lista.length === 1 ? "" : "s"}</b> sobre el corte.
-        Están abajo con su minuto, y adjunto va el <b>.xml</b> para importar en Premiere:
-        cada nota entra como marcador en el timeline, en su posición.</p>
-      <table style="border-collapse:collapse;margin:0 0 22px;background:#f6f8fb;border-radius:10px;padding:4px">
-        ${ficha}
-      </table>${(portal_url || pr.deliverable_url) ? `
-      <p style="font-size:13.5px;margin:-12px 0 20px"><a href="${esc(portal_url || pr.deliverable_url)}" style="color:#2b6cff">Ver el corte ↗</a></p>` : ""}
-      <table style="width:100%;border-collapse:collapse;margin:0 0 22px">${filas}</table>
-      <p style="font-size:13px;color:#6b7896;line-height:1.6;margin:0">
-        El <b>.xml</b> se importa desde Archivo → Importar. El <b>.edl</b> va por si tu programa
-        no lee el xml.${(portal_url || video_url || pr.deliverable_url) ? " Cada minuto de arriba abre el corte en ese segundo." : ""}</p>
-      <p style="font-size:12px;color:#9aa6bd;margin:22px 0 0;border-top:1px solid #e9ecf1;padding-top:14px">
-        ${esc(remitente.nombre)} · VIVEN AG, Zúrich — respondiendo a este email le escribís directo.</p>
-    </div>`;
+    /* La MISMA plantilla que el resto de los emails de VIVEN: logo, botón, y el link en
+       texto abajo por si el botón no llega. El montajista suele abrir esto en el correo
+       de su empresa, que es justo el que reescribe los href.
+       (Sebastián, 26 ago 2026: "importante la presencia que damos, el branding tiene que
+       ser consistente".) */
+    const verCorte = portal_url || pr.deliverable_url || video_url || null;
+    const html = emailViven({
+      lang: "es",
+      saludo: quien ? "Hola " + esc(quien.split(/\s+/)[0]) + "," : "Hola,",
+      titulo: `${ref ? ref + " · " : ""}${esc(titulo)}${version ? " — v" + esc(String(version)) : ""}`,
+      intro: `El cliente dejó <b>${lista.length} nota${lista.length === 1 ? "" : "s"}</b> sobre el corte. Están abajo con su minuto, y adjunto va el <b>.xml</b> para importar en Premiere: cada nota entra como marcador en el timeline, en su posición.`,
+      cuerpo:
+        `${nota ? `<div style="font-size:15px;line-height:1.65;margin:0 0 20px;padding:14px 16px;background:#fffbe9;border:1px solid #f0e2b0;border-radius:10px;white-space:pre-wrap;color:#3d4757">${esc(nota)}</div>` : ""}` +
+        `<table style="border-collapse:collapse;margin:0 0 22px;width:100%;background:#f6f8fb;border-radius:10px">${ficha}</table>` +
+        `<table style="width:100%;border-collapse:collapse;margin:0 0 8px">${filas}</table>` +
+        `<p style="font-size:13px;color:#6b7896;line-height:1.6;margin:14px 0 0">El <b>.xml</b> se importa desde Archivo → Importar. El <b>.edl</b> va por si tu programa no lee el xml.${verCorte ? " Cada minuto de arriba abre el corte en ese segundo." : ""}</p>`,
+      cta: verCorte ? { texto: "Ver el corte", url: String(verCorte) } : undefined,
+      pie: `${esc(remitente.nombre)} · VIVEN AG, Zúrich — respondiendo a este email le escribís directo.`,
+      porque: "Recibís este email porque estás montando este proyecto con VIVEN.",
+    });
 
     if (dry_run) return json({ ok: true, dry_run: true, para: dest, asunto, html, notas: lista.length,
                                de: remitente.nombre, responde_a: remitente.email });

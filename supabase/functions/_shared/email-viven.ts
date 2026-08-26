@@ -82,6 +82,44 @@ export function emailViven(o: EmailViven): string {
   </div></body></html>`;
 }
 
+/* ── La variante CARTA ──
+   Un email de venta uno a uno NO lleva el header oscuro con el logo grande: eso lo
+   convierte en un flyer, y un flyer no se contesta. Lo que sí lleva es una firma con
+   nombre, cargo y el logo chico — que es lo que hace que se vea de VIVEN sin gritar.
+   Misma tipografía, mismo azul de los links, mismo pie. Consistente no quiere decir
+   idéntico: quiere decir que se reconoce.
+
+   `texto` ya viene como HTML (con <br> y links). */
+export function cartaViven(o: {
+  texto: string;
+  firma?: { nombre?: string; cargo?: string; tel?: string };
+  lang?: EmailLang;
+}): string {
+  const f = o.firma ?? {};
+  return `<!doctype html><html lang="${o.lang ?? "es"}"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="light only" /><meta name="supported-color-schemes" content="light only" />
+</head><body style="margin:0;background:#ffffff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <div style="max-width:560px;margin:0 auto;padding:26px 20px 34px;font-size:15px;line-height:1.65;color:#1a2230">
+    ${o.texto}
+    <table style="border-collapse:collapse;margin:26px 0 0;padding-top:18px;border-top:1px solid #e9ecf1;width:100%"><tr>
+      <!-- El logo de correo es blanco (está hecho para el header oscuro) y no hay versión
+           oscura en PNG. El SVG navy existe, pero Gmail no muestra SVG. Así que va sobre
+           su propio fondo: un asset que ya sabemos que llega, en vez de uno nuevo que
+           quizás no se vea. -->
+      <td style="vertical-align:middle;padding:0 14px 0 0">
+        <table style="border-collapse:collapse"><tr><td style="background:#0f1826;border-radius:6px;padding:7px 10px">
+          <img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="15" style="height:15px;width:auto;display:block" />
+        </td></tr></table>
+      </td>
+      <td style="vertical-align:middle;font-size:12.5px;color:#8a94a8;line-height:1.55">
+        ${f.nombre ? `<b style="color:#1a2230">${escE(f.nombre)}</b>${f.cargo ? " · " + escE(f.cargo) : ""}<br />` : ""}
+        VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#8a94a8">viven.ch</a>${f.tel ? " · " + escE(f.tel) : ""}
+      </td>
+    </tr></table>
+  </div></body></html>`;
+}
+
 /** Una ficha de datos (Proyecto, Cliente, Entrega…). Las filas vacías no se dibujan. */
 export function fichaEmail(filas: Array<[string, string | null | undefined]>): string {
   const ok = filas.filter(([, v]) => String(v ?? "").trim());
