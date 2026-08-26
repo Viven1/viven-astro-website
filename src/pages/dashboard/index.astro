@@ -5509,6 +5509,7 @@ const newsCases = [
     } catch (e) { /* si falla, seguimos con lo que ya había en memoria */ }
   }
   async function gotoTab(tab){
+    const _t0 = performance.now();
     // alias para deep links / botones viejos que apuntaban a tabs que ahora son
     // sub-tabs de 'contenido'/'sistema', o que se fusionaron en otro destino.
     if (tab === 'gads'){ anaSetSub('gads'); tab = 'analytics'; }
@@ -5551,6 +5552,10 @@ const newsCases = [
     if (tab === 'contenido') contenidoSetSub(contenidoSub);
     if (tab === 'sistema') sistemaSetSub(sistemaSub);
     syncTabUrl();
+    /* Solo lo que tardó de verdad: por debajo de 400 ms no hay nada que investigar y
+       guardarlo sería llenar la tabla de ruido. */
+    const _ms = Math.round(performance.now() - _t0);
+    if (_ms > 400) perf('tab', { tab, ms: _ms });
   }
   // refleja tab (+ sub-tab si aplica) en la URL, SIN sumar entradas al historial
   // (replaceState, no pushState — así el botón "atrás" no navega tab por tab).
@@ -6679,9 +6684,31 @@ const newsCases = [
   /* Compatibilidad: todo el archivo llama loadAll() (refresh, cambio de rango,
      realtime). Sigue existiendo y ahora significa "traé lo del CRM y después, por
      detrás, la analítica". */
+  /* ── Medir, para no optimizar a ciegas ──
+     La tabla `dash_perf_log` existe y tenía datos ricos hasta el 17 ago; el código que
+     escribía en ella se perdió en algún refactor, y desde entonces nadie sabe qué tarda.
+     Eso es peor que no tener medición: la tabla aparenta tenerla.
+     Se guarda UNA fila por carga y por cambio de pestaña, con los hitos en ms. Sin datos
+     personales — solo el email de quien la usa, que ya está en la sesión.
+     No se espera nunca: medir no puede hacer más lenta la cosa que mide. */
+  function perf(kind, marcas){
+    try {
+      supabase.from('dash_perf_log').insert({
+        email: meEmail || null,
+        phases: { kind, ...marcas },
+        ua: (navigator.userAgent || '').slice(0, 200),
+      }).then(() => {}, () => {});
+    } catch (e){ }
+  }
+
   async function loadAll(){
+    const t0 = performance.now();
     await loadCore();
-    loadAnalytics(true);
+    const core = Math.round(performance.now() - t0);
+    loadAnalytics(true).then(() => {
+      perf('initial_load', { core, total: Math.round(performance.now() - t0),
+                             leads: allLeads.length, pruebas: leadsPrueba.length });
+    }, () => {});
   }
 
   /* ---------- Realtime: leads nuevos aparecen solos (gratis, sin polling) ---------- */
@@ -18641,6 +18668,25 @@ const newsCases = [
     return { gente, equipo };
   }
   const pjRolesDelPresupuesto = () => pjClasificar().gente;
+  /* ── El crew del proyecto ──
+     Era un campo de texto por rol. Escribir el nombre a mano es lo que produjo que
+     "Sofia" y "Sofia Treviño" fueran dos personas distintas, y que ninguna línea de costo
+     supiera a quién pagarle. Ahora se ELIGE de la lista de Técnicos, y si no está se crea
+     ahí mismo — con lo que haga falta para poder pagarle después.
+     (Sebastián, 26 ago 2026: "que los técnicos se puedan elegir por dropdown en el
+     proyecto, y si no está que dé un botón crear uno con toda la info que lo sincronice
+     a Técnicos".)
+
+     Se sigue guardando el NOMBRE en projects.crew además del id: lo que ya existe lo lee
+     así (el plan de rodaje, el email al editor, la factura), y romperlo para ganar
+     prolijidad no vale. El id es lo que ata; el nombre es lo que se lee. */
+  async function pjCrewTecnicos(){
+    if (crewList.length) return crewList;
+    const { data, error } = await supabase.from('crew').select('*').eq('activo', true).order('name');
+    crewList = error ? [] : (data || []);
+    return crewList;
+  }
+
   function pjRenderCrew(){
     const p = pjCur, box = $('pj-crew'); if (!box) return;
     const crew = Array.isArray(p.crew) ? p.crew : [];
@@ -18649,12 +18695,30 @@ const newsCases = [
       box.innerHTML = '<span class="muted-note">Sin armar' + (n ? ' — hay <b>' + n + ' roles</b> vendidos en el presupuesto' : '') + '</span>';
       return;
     }
+    /* Los técnicos se piden una vez y quedan en memoria; mientras llegan, el select
+       muestra al que ya estaba puesto para que no parpadee vacío. */
+    pjCrewTecnicos().then(() => { if (pjCur === p) pjRenderCrew(); });
+
+    const opciones = (nombre) => {
+      const hay = crewList.some((t) => crewNorm(t.name) === crewNorm(nombre));
+      return '<option value="">— elegir —</option>' +
+        /* Si el proyecto trae un nombre que todavía no es un técnico (de antes de esta
+           pantalla), se muestra igual y marcado: esconderlo lo borraría en silencio. */
+        (nombre && !hay ? '<option value="' + esc(nombre) + '" selected>' + esc(nombre) + ' · sin ficha</option>' : '') +
+        crewList.map((t) => '<option value="' + esc(t.name) + '"' +
+          (crewNorm(t.name) === crewNorm(nombre) ? ' selected' : '') + '>' + esc(t.name) +
+          ((t.roles || []).length ? ' · ' + esc((t.roles || [])[0]) : '') + '</option>').join('') +
+        '<option value="__nuevo__">＋ Crear un técnico nuevo…</option>';
+    };
+
     box.innerHTML = '<div class="pj-crew">' + crew.map((c, i) =>
       '<div class="pj-crew-row" data-i="' + i + '">' +
         '<span class="pj-crew-rol" title="' + esc(c.rol || '') + '">' + esc(c.rol || 'Rol') + '</span>' +
-        '<input class="pj-inp pj-crew-nm" value="' + esc(c.nombre || '') + '" placeholder="quién lo hace" />' +
+        '<select class="pj-inp pj-crew-nm">' + opciones(c.nombre) + '</select>' +
         '<button class="pj-crew-x" type="button" title="Sacar del crew">✕</button>' +
-      '</div>').join('') + '</div>';
+      '</div>').join('') + '</div>' +
+      '<p class="muted-note" style="margin:9px 0 0">Salen de <b>Técnicos</b>. Lo que elijas acá es a quien después se le carga el costo y se le manda el plan.</p>';
+
     /* El crew también se guarda solo: sacar a alguien y volver al listado sin tocar
        Guardar lo devolvía a la lista como si nada hubiera pasado. */
     box.querySelectorAll('.pj-crew-x').forEach((b) => b.addEventListener('click', () => {
@@ -18663,12 +18727,97 @@ const newsCases = [
       pjRenderCrew();
       pjAutoGuardar();
     }));
-    box.querySelectorAll('.pj-crew-nm').forEach((inp) => inp.addEventListener('input', () => {
-      const i = +inp.closest('[data-i]').dataset.i;
-      if (pjCur.crew && pjCur.crew[i]) pjCur.crew[i].nombre = inp.value;
+    box.querySelectorAll('.pj-crew-nm').forEach((sel) => sel.addEventListener('change', async () => {
+      const i = +sel.closest('[data-i]').dataset.i;
+      const fila = pjCur.crew && pjCur.crew[i]; if (!fila) return;
+      if (sel.value === '__nuevo__'){
+        sel.value = fila.nombre || '';
+        const nuevo = await pjCrewNuevo(fila.rol);
+        if (!nuevo) return;
+        fila.nombre = nuevo.name; fila.crew_id = nuevo.id;
+      } else {
+        fila.nombre = sel.value;
+        const t = crewList.find((x) => crewNorm(x.name) === crewNorm(sel.value));
+        fila.crew_id = t ? t.id : null;
+        /* El rol del proyecto se suma a los roles del técnico: la próxima vez aparece
+           con "Tobias · Director of Photography" y se elige sin pensar. */
+        if (t && fila.rol && !(t.roles || []).includes(fila.rol)){
+          const roles = [...(t.roles || []), fila.rol];
+          await supabase.from('crew').update({ roles }).eq('id', t.id);
+          t.roles = roles;
+        }
+      }
+      pjRenderCrew();
       pjAutoGuardar();
     }));
   }
+
+  /* Crear un técnico sin salir del proyecto. Pide lo mínimo para poder PAGARLE después:
+     un nombre no alcanza cuando llega la factura y hay que saber a quién es y cuánto se
+     había acordado. Todo lo demás se completa en su ficha. */
+  function pjCrewNuevo(rolSugerido){
+    return new Promise((resolve) => {
+      const box = $('pj-crew');
+      if ($('pjc-form')) $('pjc-form').remove();
+      const caja = document.createElement('div');
+      caja.id = 'pjc-form';
+      caja.style.cssText = 'border:1px solid var(--acid);border-radius:12px;padding:14px 15px;margin-top:11px';
+      caja.innerHTML =
+        '<p class="pj-sec-h" style="margin:0 0 10px;padding:0;border:0">Nuevo técnico</p>' +
+        '<div class="pj-crew-row" style="grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:8px;margin-bottom:8px">' +
+          '<input class="pj-inp" id="pjc-nom" placeholder="Nombre y apellido" />' +
+          '<input class="pj-inp" id="pjc-rol" placeholder="Rol" value="' + esc(rolSugerido || '') + '" />' +
+        '</div>' +
+        '<div class="pj-crew-row" style="grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:8px;margin-bottom:8px">' +
+          '<input class="pj-inp" id="pjc-mail" type="email" placeholder="Email — para mandarle el plan y las notas" />' +
+          '<input class="pj-inp" id="pjc-tel" placeholder="Teléfono" />' +
+        '</div>' +
+        '<div class="pj-crew-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);gap:8px">' +
+          '<input class="pj-inp" id="pjc-dia" type="number" placeholder="CHF por día" />' +
+          '<input class="pj-inp" id="pjc-empresa" placeholder="Factura como (GmbH)" />' +
+          '<input class="pj-inp" id="pjc-iban" placeholder="IBAN" />' +
+        '</div>' +
+        '<div class="ab-urlrow" style="margin-top:11px">' +
+          '<button class="btn btn-primary small" id="pjc-ok" type="button">Crear y usar</button>' +
+          '<button class="btn btn-ghost small" id="pjc-no" type="button">Cancelar</button>' +
+          '<span class="muted-note" id="pjc-hint">Queda en Técnicos, con su ficha y su historial.</span>' +
+        '</div>';
+      box.after(caja);
+      $('pjc-nom').focus();
+
+      const cerrar = (r) => { caja.remove(); resolve(r); };
+      $('pjc-no').addEventListener('click', () => cerrar(null));
+      caja.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter'){ e.preventDefault(); $('pjc-ok').click(); }
+        if (e.key === 'Escape') cerrar(null);
+      });
+      $('pjc-ok').addEventListener('click', async () => {
+        const nom = $('pjc-nom').value.trim();
+        if (!nom){ $('pjc-hint').textContent = '⚠️ Falta el nombre'; $('pjc-nom').focus(); return; }
+        const mail = $('pjc-mail').value.trim().toLowerCase();
+        /* Si ya hay una ficha con ese nombre o ese email, se usa esa en vez de crear otra:
+           duplicar un técnico parte su historial de plata en dos y no se nota hasta que
+           falta la mitad. */
+        const ya = crewList.find((t) => crewNorm(t.name) === crewNorm(nom) ||
+                                        (mail && crewNorm(t.email) === crewNorm(mail)));
+        if (ya){ toast('Ya existe: se usa la ficha de ' + ya.name); cerrar(ya); return; }
+        const dia = Number($('pjc-dia').value) || null;
+        const { data, error } = await supabase.from('crew').insert({
+          name: nom,
+          roles: $('pjc-rol').value.trim() ? [$('pjc-rol').value.trim()] : [],
+          email: mail || null, phone: $('pjc-tel').value.trim() || null,
+          tarifa_dia: dia, empresa: $('pjc-empresa').value.trim() || null,
+          iban: $('pjc-iban').value.trim() || null,
+        }).select().single();
+        if (error){ $('pjc-hint').textContent = '⚠️ ' + error.message; return; }
+        crewList.push(data);
+        await crewAliasAgregar(data.id, nom);
+        toast('🎥 ' + nom + ' agregado a Técnicos');
+        cerrar(data);
+      });
+    });
+  }
+
   /* El equipo técnico también sale del presupuesto: los kits y alquileres son
      posiciones con nombre propio, no hay que volver a escribirlos. */
   function pjRenderGear(){
