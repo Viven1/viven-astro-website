@@ -397,6 +397,14 @@ const newsCases = [
   .lm-noteadd{display:flex;gap:6px;margin-bottom:10px}.lm-noteadd select{flex:1;min-width:0}
   .lm-note{border-bottom:1px solid var(--line);padding:8px 0;font-size:13px}
   .lm-note-b{color:var(--text);white-space:pre-wrap;line-height:1.45}
+  /* Preguntas y respuestas en la ficha de empresa (brief y playbook). Clase propia: las
+     notas usan white-space:pre-wrap y acá el contenido es HTML, no texto suelto. */
+  .co3-qa{border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin:0 0 8px}
+  .co3-qa .tt{font-size:12px;font-weight:700;color:var(--acid);margin:0 0 8px}
+  .co3-qa .qa{margin:0 0 9px}
+  .co3-qa .qa:last-child{margin-bottom:0}
+  .co3-qa .qa b{display:block;font-size:11px;color:var(--muted-2);font-weight:600;line-height:1.4;margin:0 0 2px}
+  .co3-qa .qa span{font-size:13px;color:var(--text);line-height:1.5}
   .lm-note-m{color:var(--muted-2);font-size:11px;margin-top:4px;display:flex;flex-wrap:wrap;gap:2px;align-items:center}
   .lm-note .lm-reply{border-bottom:0;border-left:2px solid var(--line-strong);margin:6px 0 0 8px;padding:6px 0 2px 10px}
   .lm-reply-btn{background:transparent;border:0;color:var(--acid);cursor:pointer;font:inherit;font-size:11px;padding:0;font-weight:600}
@@ -24702,6 +24710,57 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     if (coSeg !== 'all') data = data.filter((c) => coStatus(c).k === coSeg);
     return data.map((c) => c.domain);
   }
+  /* Lo que se produjo para una empresa: proyectos, briefs y playbook de TODOS sus
+     contactos. Se pide al abrir la ficha y no en la carga general — son tres consultas
+     que solo hacen falta cuando estás mirando una empresa. */
+  let co3Extra = { cargando: false, proyectos: [], briefs: [], playbook: [] };
+
+  async function co3ExtraLoad(domain){
+    co3Extra = { cargando: true, proyectos: [], briefs: [], playbook: [] };
+    const data = co3Data(domain);
+    const ids = data.contacts.map((l) => l.id);
+    if (!ids.length){ co3Extra.cargando = false; return; }
+    try {
+      const { data: proys } = await supabase.from('projects')
+        .select('*').in('lead_id', ids).order('started_at', { ascending: false });
+      co3Extra.proyectos = proys || [];
+
+      /* El brief cuelga del PROYECTO; el playbook, de la PERSONA. Por eso son dos
+         consultas y no una: la misma empresa puede tener un brief contestado por alguien
+         que ya no trabaja ahí, y eso sigue siendo información de la empresa. */
+      const pids = co3Extra.proyectos.map((x) => x.id);
+      if (pids.length){
+        const { data: br } = await supabase.from('project_briefs')
+          .select('project_id,key,value').in('project_id', pids);
+        const porProy = {};
+        (br || []).filter((x) => String(x.value || '').trim()).forEach((x) => {
+          (porProy[x.project_id] = porProy[x.project_id] || []).push(x);
+        });
+        co3Extra.briefs = Object.keys(porProy).map((pid) => {
+          const p2 = co3Extra.proyectos.find((x) => String(x.id) === String(pid)) || {};
+          return { proyecto: (p2.ref ? p2.ref + ' · ' : '') + (p2.title || 'Proyecto'),
+                   filas: porProy[pid].map((x) => ({ q: (PBRIEF.BRIEF.find((q) => q.k === x.key) || {}).q?.es || x.key, v: x.value })) };
+        });
+      }
+
+      const { data: pb } = await supabase.from('playbook_answers')
+        .select('ref,key,value').eq('scope', 'lead').in('ref', ids.map(String));
+      const porLead = {};
+      (pb || []).filter((x) => String(x.value || '').trim()).forEach((x) => {
+        (porLead[x.ref] = porLead[x.ref] || []).push(x);
+      });
+      co3Extra.playbook = Object.keys(porLead).map((lid) => {
+        const l = data.contacts.find((c) => String(c.id) === String(lid)) || {};
+        return { quien: l.name || l.email || 'Alguien de la empresa',
+                 /* PLAYBOOK viene agrupado por tema, así que se aplana para poder
+                    buscar la pregunta por su clave. */
+                 filas: porLead[lid].map((x) => ({ q: (PLAYBOOK.flatMap((g) => g.qs || []).find((q) => q.k === x.key) || {}).q || x.key, v: x.value })) };
+      });
+    } catch (e){ /* si algo falla, la ficha se ve igual sin esta parte */ }
+    co3Extra.cargando = false;
+    if (co3Cur === domain) co3RenderRight(domain);
+  }
+
   function co3Data(domain){
     return companiesData().find((c) => c.domain === domain) || { domain, name: companyName(domain), contacts: [], value: 0, won: false };
   }
@@ -24744,6 +24803,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
         '<div class="lm2-menu" id="co3-menu" hidden></div>' +
       '</div>';
     const foot = $('co3-foot'); if (foot) foot.textContent = 'Empresa: ' + domain + (oi > -1 ? ' · ' + (oi + 1) + '/' + order.length : '');
+    co3ExtraLoad(domain);   // producción, briefs y playbook — se piden solo al abrir la empresa
     const delBtn = $('co3-del-btn'); if (delBtn) delBtn.onclick = async () => { await deleteCompany(); if (!coCur) co3Close(); };
     $('co3-back').addEventListener('click', () => { co3Close(); gotoTab('companies'); });
     $('co3-nav-prev') && $('co3-nav-prev').addEventListener('click', () => oi > 0 && co3Open(order[oi - 1]));
@@ -24995,6 +25055,34 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
         (cdeals.length ? cdeals.map((d) => { const v = stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
           return '<div class="lm-dealrow"><div class="lm-dealrow-t">' + esc(d.title || '(proyecto)') + '<b>' + (v ? fmtChf(v) : '—') + '</b></div>' + stgB(d.stage) + '</div>'; }).join('')
           : '<p class="muted-note">Sin proyectos todavía.</p>'), true) +
+      /* ── Lo que hicimos para esta empresa ──
+         Arriba están los deals (la venta). Esto es la PRODUCCIÓN: los proyectos con su
+         número, lo que contestaron en el brief y lo que se habló en las llamadas. Vive
+         acá y no solo en la persona porque la gente cambia de trabajo y la empresa
+         queda: dentro de dos años, "¿qué le hicimos a Sonova?" se contesta acá.
+         (Sebastián, 26 ago 2026: "todo lo de la persona que trabaja en la empresa
+         también a la empresa —briefs, ofertas, proyectos, todo todo todo— para que nos
+         quede a largo plazo. Es donde sabemos qué hicimos para qué empresa".) */
+      blk('🎬 Producción <span class="count">(' + co3Extra.proyectos.length + ')</span>',
+        (co3Extra.cargando ? '<p class="muted-note">Buscando…</p>'
+         : co3Extra.proyectos.length
+          ? co3Extra.proyectos.map((p2) => {
+              const e = PJ_ETAPAS.find((x) => x.k === p2.stage) || PJ_ETAPAS[0];
+              return '<div class="lm-deal-wrap"><button class="lm-deal co3-pj" data-ref="' + esc(String(p2.ref || p2.id)) + '" type="button">' +
+                '<span class="lm-deal-t">' + (p2.ref ? '<b>' + esc(String(p2.ref)) + '</b> · ' : '') + esc(p2.title || '(proyecto)') +
+                  (p2.shoot_start ? '<span style="display:block;font-size:11px;font-weight:400;color:var(--muted)">rodaje ' + fmtDMY(p2.shoot_start) + '</span>' : '') + '</span>' +
+                '<span class="lm-deal-b"><b>' + (Number(p2.amount_chf) ? pjCHF(p2.amount_chf) : '—') + '</b>' +
+                  '<span class="of-badge" style="color:' + e.color + ';border-color:' + e.color + '">' + esc(e.l) + '</span></span></button></div>';
+            }).join('')
+          : '<p class="muted-note">Todavía no produjimos nada para esta empresa.</p>'), true) +
+      (co3Extra.briefs.length ? blk('📋 Lo que nos contaron <span class="count">(' + co3Extra.briefs.length + ')</span>',
+        co3Extra.briefs.map((b2) => '<div class="co3-qa"><div class="tt">' + esc(b2.proyecto) + '</div>' +
+          b2.filas.map((f) => '<div class="qa"><b>' + esc(f.q) + '</b><span>' + esc(f.v) + '</span></div>').join('') +
+          '</div>').join(''), false) : '') +
+      (co3Extra.playbook.length ? blk('🧭 Lo que se habló en las llamadas <span class="count">(' + co3Extra.playbook.length + ')</span>',
+        co3Extra.playbook.map((b2) => '<div class="co3-qa"><div class="tt">' + esc(b2.quien) + '</div>' +
+          b2.filas.map((f) => '<div class="qa"><b>' + esc(f.q) + '</b><span>' + esc(f.v) + '</span></div>').join('') +
+          '</div>').join(''), false) : '') +
       blk('✅ Tasks <span class="count">(' + openTasks.length + ')</span>',
         (hasContacts ?
           '<div class="lm-taskadd"><input id="co3-task-t" placeholder="Nueva task…"/>' +
@@ -25019,6 +25107,9 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     box.querySelectorAll('.co3-ct').forEach((b) => b.addEventListener('click', () => { co3Close(); openLead(b.dataset.id); }));
     box.querySelectorAll('.co3-of').forEach((b) => b.addEventListener('click', () => { co3Close(); gotoTab('offers'); openOffer(b.dataset.oid); }));
     box.querySelectorAll('.co3-pp').forEach((b) => b.addEventListener('click', () => { co3Close(); gotoTab('props'); }));
+    box.querySelectorAll('.co3-pj').forEach((b) => b.addEventListener('click', () => {
+      co3Close(); gotoTab('projects'); abrirProyectoPorRef(b.dataset.ref);
+    }));
     box.querySelectorAll('.co3-tk').forEach((cb) => cb.addEventListener('change', async () => {
       await supabase.from('lead_tasks').update({ done: cb.checked, done_at: cb.checked ? new Date().toISOString() : null }).eq('id', cb.dataset.id);
       loadBell(); if (co3Cur) co3LoadTimeline(co3Cur);
