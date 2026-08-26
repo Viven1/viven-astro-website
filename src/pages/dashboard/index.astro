@@ -1592,6 +1592,14 @@ const newsCases = [
     .pj-crew-row .pj-crew-rol{grid-column:1/-1}}
   .pj-crew-rol{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pj-crew-x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:0 4px}
+  /* El costo de una fila de horas se toca ahí mismo. Cuando falta la tarifa el botón se ve
+     ámbar y dice "sin tarifa": es a la vez el aviso y el lugar donde se arregla. */
+  .pj-tf-set{background:none;border:0;padding:2px 6px;border-radius:6px;cursor:pointer;
+    color:inherit;font:inherit;font-variant-numeric:tabular-nums;border-bottom:1px dashed transparent}
+  .pj-tf-set:hover{background:var(--panel-2);border-bottom-color:var(--line-strong)}
+  .pj-tf-set.falta{color:#f0c060;border-bottom:1px dashed #f0c060aa}
+  .pj-tf-set.falta:hover{background:#f0c06018;border-bottom-color:#f0c060}
+  .pj-tf-set:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
   .pj-crew-x:hover{color:#ff8b8b}
 
   /* ---- guión y desglose ---- */
@@ -6414,8 +6422,12 @@ const newsCases = [
 
   /* En juego = todavía se puede ganar o perder. Ganado y perdido ya se decidieron;
      spam tiene su propio camino. La cartera de bexio cae entera en "Clientes" porque
-     está toda en ganado — no hace falta una regla aparte para ella. */
-  const PS_EN_JUEGO = ['lead', 'contactado', 'videocall', 'propuesta'];
+     está toda en ganado — no hace falta una regla aparte para ella.
+     OJO: la primera etapa se llama 'nuevo' (STAGES), no 'lead'. Esta lista decía 'lead'
+     —una clave que no existe— y por eso TODA persona recién entrada caía fuera de "En juego"
+     y fuera de "Clientes": solo aparecía en "Todas". Linos Hitroff fue el caso que lo destapó
+     (Sebastián, 26 ago 2026: "sino no las encuentro y quedan escondidas"). */
+  const PS_EN_JUEGO = ['nuevo', 'contactado', 'videocall', 'propuesta'];
   let psSeg = 'juego';
   function psSegMatch(r){
     if (psSeg === 'todas') return true;
@@ -7631,7 +7643,7 @@ const newsCases = [
     const sentV = offSentR.reduce((a, o) => a + offerNet(o), 0) + propSentR.reduce((a, p) => a + propVal(p), 0);
     if ($('rm-sent')){
       $('rm-sent').textContent = sentN ? fmtChf(Math.round(sentV)) : 'CHF 0';
-      $('rm-sent-t').textContent = sentN ? sentN + (sentN === 1 ? ' propuesta enviada' : ' propuestas enviadas') : 'nada esperando respuesta';
+      $('rm-sent-t').textContent = sentN ? sentN + (sentN === 1 ? ' enviada' : ' enviadas') + ', entre ofertas y propuestas' : 'nada esperando respuesta';
     }
     if (!goal){
       gapEl.textContent = '–'; gapEl.style.color = ''; gapT.textContent = 'definí el objetivo →';
@@ -7696,10 +7708,20 @@ const newsCases = [
        cobrando eso, no saliendo a buscar gente. Con los números de hoy: faltan
        CHF 21'220 y hay CHF 39'557 en 4 propuestas — decir "necesitás 137 leads"
        en vez de eso es empujar al lado equivocado. */
-    const enviadas = (ppList || []).filter((p) => p.status === 'sent' && !p.archived && !p.is_template);
-    const valEnviadas = enviadas.reduce((a, p) => a + propVal(p), 0);
+    /* ===== UN SOLO "AFUERA, ESPERANDO" =====
+       El titular contaba SOLO propuestas y el KPI de abajo propuestas + ofertas, así que
+       la misma tarjeta decía "CHF 55'606 en 6" arriba y "CHF 61'642 · 7 enviadas" abajo.
+       (Sebastián, 26 ago 2026: "los números no matchean".) Dos números distintos para lo
+       mismo, a diez centímetros uno del otro, hacen dudar de los dos.
+       Ahora los dos salen del MISMO conjunto —offSentR + propSentR, definidos arriba—,
+       porque una oferta enviada está tan afuera esperando como una propuesta. */
+    const enviadas = [
+      ...offSentR.map((o) => ({ v: offerNet(o) })),
+      ...propSentR.map((p) => ({ v: propVal(p) })),
+    ];
+    const valEnviadas = enviadas.reduce((a, x) => a + x.v, 0);
     if (enviadas.length && valEnviadas >= falta){
-      const ord = enviadas.map(propVal).sort((a, b) => b - a);
+      const ord = enviadas.map((x) => x.v).sort((a, b) => b - a);
       let acum = 0, cuantas = 0;
       for (const v of ord){ acum += v; cuantas++; if (acum >= falta) break; }
       /* Titular: el número que duele en naranja, lo que puede salvarlo en verde, y
@@ -7709,7 +7731,7 @@ const newsCases = [
       const quedanD = daysInMonth - dayOfMonth;
       act.innerHTML = 'Faltan <span class="mal">' + fmtChf(Math.round(falta)) + '</span> para el objetivo del mes, ' +
         'y tenés <span class="bien">' + fmtChf(Math.round(valEnviadas)) + '</span> afuera en ' + enviadas.length +
-        (enviadas.length === 1 ? ' propuesta.' : ' propuestas.') +
+        (enviadas.length === 1 ? ' oferta o propuesta.' : ' ofertas y propuestas.') +
         '<small>Con que ' + (cuantas === 1 ? 'entre la más grande' : 'entren las ' + cuantas + ' más grandes') +
         ', el mes está hecho' + (quedanD > 0 ? ' — quedan ' + quedanD + (quedanD === 1 ? ' día' : ' días') : '') + '. ' +
         'Según la etapa de cada una, lo probable es que entren ' + fmtChf(Math.round(weighted)) + ' — eso es una estimación, no plata cerrada.</small>';
@@ -10438,6 +10460,19 @@ const newsCases = [
   // pedido explícito: "eso es clave de tener y mostrar siempre". Reusa lastViews, ya
   // cargado en memoria para Analytics/Señales calientes — sin fetch nuevo. Ventana
   // acotada al rango global (30/60/90d); el historial completo sigue en el filtro Web.
+  /* La web del cliente, para abrirla antes de la llamada. Sale de la ficha de la empresa
+     (campo Web) y si no está, del dominio del email. domainOf() ya descarta gmail y compañía,
+     así que un contacto con correo personal no muestra el botón en vez de mandar a gmail.com.
+     (Sebastián, 26 ago 2026: "no tengo la web para tocar e ir a verla, eso es importante
+     antes de la llamada".) */
+  function webDeLaEmpresa(r){
+    const dom = domainOf(r && r.email) || (r && r.company_domain ? String(r.company_domain).toLowerCase() : '');
+    if (!dom) return null;
+    let w = ((coMeta[dom] || {}).website || '').trim() || dom;
+    if (!/^https?:\/\//i.test(w)) w = 'https://' + w;
+    return { url: w, label: w.replace(/^https?:\/\//i, '').replace(/\/$/, '') };
+  }
+
   function lm2WebBadge(r){
     if (!r.session_id || /^claude-/.test(r.session_id)) return '';
     const hits = (lastViews || []).filter((v) => v.session_id === r.session_id);
@@ -10551,6 +10586,7 @@ const newsCases = [
       '<div class="lm2-actions">' +
         '<a class="btn btn-primary small" href="mailto:' + esc(r.email) + '" style="text-decoration:none">✉️ Email</a>' +
         (r.phone ? '<a class="btn btn-ghost small" href="tel:' + esc((r.phone || '').replace(/[^\d+]/g, '')) + '" style="text-decoration:none">📞</a>' : '') +
+        (() => { const w = webDeLaEmpresa(r); return w ? '<a class="btn btn-ghost small" href="' + esc(w.url) + '" target="_blank" rel="noopener" title="Abrir ' + esc(w.label) + '" style="text-decoration:none">🌐<span class="lbl"> Web</span></a>' : ''; })() +
         '<button class="btn btn-ghost small" id="lm2-crear" type="button">➕<span class="lbl"> Crear</span> ▾</button>' +
         '<button class="btn btn-ghost small" id="lm2-dots" type="button" title="Más acciones">⋯</button>' +
         '<div class="lm2-menu" id="lm2-menu" hidden></div>' +
@@ -16647,6 +16683,38 @@ const newsCases = [
 
   const pjTarifa = (persona) => Number((pjTarifas[String(persona || '').toLowerCase()] || {}).costo_hora) || 0;
 
+  /* Interno vs externo. Solo el interno necesita costo por hora: el freelance ya manda su
+     factura y esa plata entra por "Facturas del crew", así que ponerle también una tarifa
+     contaría su costo dos veces. Interno = está en el equipo (team_profiles) o tiene mail
+     @viven.ch. (Sebastián, 26 ago 2026: "Solo para gente interna, ya que la externa manda
+     factura".) */
+  function pjEsInterno(persona){
+    const k = String(persona || '').toLowerCase();
+    return !!pjTarifas[k] || /@viven\.ch$/.test(k);
+  }
+
+  /* Poner la tarifa desde la misma fila, sin ir a Mi perfil. Guarda en team_profiles, que
+     es de donde salen todas las tarifas, así vale para este proyecto y para los que vengan. */
+  async function pjTarifaPoner(persona){
+    const k = String(persona || '').toLowerCase();
+    if (!pjEsInterno(k)){
+      toast('Es crew externo: su costo entra por la factura que manda, no por una tarifa');
+      return;
+    }
+    const nom = (pjTarifas[k] || {}).name || persona;
+    const act = pjTarifa(k);
+    const v = prompt('Costo por hora de ' + nom + ' (CHF)\n\nEs lo que le cuesta a VIVEN una hora suya — sueldo con cargas dividido las horas del mes, no lo que se le factura al cliente.', act ? String(act) : '');
+    if (v === null) return;
+    const n = numCHF(v);
+    if (!n){ toast('Sin un número no se puede calcular el costo'); return; }
+    const { error } = await supabase.from('team_profiles')
+      .upsert({ email: k, name: (pjTarifas[k] || {}).name || null, costo_hora: n }, { onConflict: 'email' });
+    if (error){ toast(error.message); return; }
+    pjTarifas[k] = { ...(pjTarifas[k] || {}), email: k, costo_hora: n };
+    toast('Tarifa de ' + nom + ': ' + pjCHF(n) + '/h — el margen ya la está contando');
+    pjHorasRender();
+  }
+
   function pjHorasRender(){
     const p = pjCur; if (!p) return;
     const total = pjHoras.reduce((a, h) => a + Number(h.horas), 0);
@@ -16673,11 +16741,22 @@ const newsCases = [
           '<div><span>Margen contando el tiempo</span><b style="color:' +
             (margen < 0 ? '#ff8b8b' : hSin ? '#f0c060' : 'var(--acid)') + '">' + pjCHF(margen) + '</b></div>' +
         '</div>' +
-        (hSin
-          ? '<p class="muted-note" style="margin:8px 0 12px;color:#f0c060">⚠️ ' + hSin.toLocaleString('de-CH') +
-            ' h de ' + [...new Set(sinTarifa.map((h) => h.persona))].join(', ') +
-            ' sin costo por hora cargado — esas horas están entrando como gratis. Se pone en 👤 Mi perfil.</p>'
-          : '<p class="muted-note" style="margin:8px 0 12px">Todas las horas tienen su costo — este margen es el real.</p>');
+        (() => {
+          const int = sinTarifa.filter((h) => pjEsInterno(h.persona));
+          const ext = sinTarifa.filter((h) => !pjEsInterno(h.persona));
+          const hInt = int.reduce((a, h) => a + Number(h.horas), 0);
+          const hExt = ext.reduce((a, h) => a + Number(h.horas), 0);
+          const av = [];
+          if (hInt) av.push('<p class="muted-note" style="margin:8px 0 4px;color:#f0c060">⚠️ ' + hInt.toLocaleString('de-CH') +
+            ' h de ' + esc([...new Set(int.map((h) => h.persona))].join(', ')) +
+            ' sin costo por hora — esas horas entran como gratis y el margen miente para arriba. ' +
+            'Tocá <b>sin tarifa</b> en la fila para ponerlo.</p>');
+          if (hExt) av.push('<p class="muted-note" style="margin:4px 0 4px">' + hExt.toLocaleString('de-CH') +
+            ' h de ' + esc([...new Set(ext.map((h) => h.persona))].join(', ')) +
+            ' son crew externo: su costo entra por la factura que mandan, no por tarifa.</p>');
+          if (!av.length) av.push('<p class="muted-note" style="margin:8px 0 12px">Todas las horas tienen su costo — este margen es el real.</p>');
+          return av.join('') + '<div style="height:8px"></div>';
+        })();
 
     $('pj-horas').innerHTML = !pjHoras.length ? '' :
       '<table class="lead-table"><thead><tr><th>Fecha</th><th>Quién</th><th>Qué hizo</th><th>Fase</th>' +
@@ -16688,11 +16767,16 @@ const newsCases = [
         return '<tr><td>' + fmtDMY(h.fecha) + '</td><td>' + esc(quien) + '</td>' +
           '<td>' + esc(h.tarea || '—') + '</td><td class="muted-note">' + esc(h.fase || '—') + '</td>' +
           '<td style="text-align:right">' + Number(h.horas).toLocaleString('de-CH') + '</td>' +
-          '<td style="text-align:right">' + (tf ? Math.round(h.horas * tf).toLocaleString('de-CH') : '<span style="color:#f0c060">sin tarifa</span>') + '</td>' +
+          '<td style="text-align:right">' + (tf
+            ? '<button type="button" class="pj-tf-set" data-tf="' + esc(String(h.persona || '')) + '" title="' + pjCHF(tf) + '/h — click para cambiarlo">' + Math.round(h.horas * tf).toLocaleString('de-CH') + '</button>'
+            : pjEsInterno(h.persona)
+              ? '<button type="button" class="pj-tf-set falta" data-tf="' + esc(String(h.persona || '')) + '" title="Poner el costo por hora">sin tarifa</button>'
+              : '<span class="muted-note" title="El crew externo factura aparte: su costo ya entra por Facturas del crew">vía factura</span>') + '</td>' +
           '<td><button class="pj-crew-x" data-hdel="' + h.id + '" type="button">✕</button></td></tr>';
       }).join('') + '</tbody></table>';
 
     $('pj-horas').querySelectorAll('[data-hdel]').forEach((b) => b.addEventListener('click', () => pjHoraBorrar(b.dataset.hdel)));
+    $('pj-horas').querySelectorAll('[data-tf]').forEach((b) => b.addEventListener('click', () => pjTarifaPoner(b.dataset.tf)));
   }
 
   async function pjHoraAdd(){

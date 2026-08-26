@@ -40,6 +40,22 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+/* ===== LOS LINKS TIENEN QUE SER CLICKEABLES =====
+   La IA escribe "viven.ch/book/" a secas, y el autolink de antes solo agarraba
+   "https://…", así que el link llegaba como texto plano. Sebastián, 26 ago 2026:
+   "siempre que uses links, que sean clickeables, si no nadie lo hace". Tenía razón:
+   un link que hay que copiar y pegar no lo usa nadie, y el botón de reservar era
+   justamente la acción que pedía el email.
+   Agarra dominios pelados (viven.ch/book/), www., https:// y direcciones de email
+   (que van a mailto:). Deja en paz "8.1%" y "CHF 1.234,50" — probado. */
+const TLD_LINK = "ch|com|org|net|io|de|es|fr|it|at|li|co|ai|app|dev|me|swiss|eu";
+const RE_LINK = new RegExp(
+  "([a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}" +
+  "|https?:\\/\\/[^\\s<>()]+" +
+  "|www\\.[^\\s<>()]+" +
+  "|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD_LINK + ")(?:\\/[^\\s<>()]*)?)", "gi");
+
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 async function unsubToken(id: string | number): Promise<string> {
@@ -62,7 +78,16 @@ function addUtm(url: string, nlId: string | number): string {
 
 function bodyHtml(text: string, nlId: string | number): string {
   return String(text || "").trim().split(/\n{2,}/).map((par) => {
-    const withLinks = esc(par).replace(/(https?:\/\/[^\s<]+)/g, (m) => `<a href="${addUtm(m, nlId)}" style="color:#5b7cfa">${m}</a>`).replace(/\n/g, "<br>");
+    /* Mismo autolink que los otros emails: los dominios pelados también son links.
+       Acá además pasan por addUtm para poder medir qué newsletter trajo la visita. */
+    const withLinks = esc(par).replace(RE_LINK, (m: string) => {
+      let cola = "";
+      const fin = m.match(/[.,;:!?]+$/);
+      if (fin) { cola = fin[0]; m = m.slice(0, -cola.length); }
+      if (/^[a-z0-9._%+-]+@/i.test(m)) return `<a href="mailto:${m}" style="color:#5b7cfa">${m}</a>` + cola;
+      const url = /^https?:\/\//i.test(m) ? m : "https://" + m;
+      return `<a href="${addUtm(url, nlId)}" style="color:#5b7cfa">${m}</a>` + cola;
+    }).replace(/\n/g, "<br>");
     return `<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#222">${withLinks}</p>`;
   }).join("");
 }

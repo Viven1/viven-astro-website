@@ -60,6 +60,31 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
 
+    /* Borrar una factura que se creó por error. Pide el número exacto para no llevarse
+       puesta otra, y solo funciona con borradores — una factura enviada no se borra, se
+       anula desde bexio. */
+    /* Catálogos de bexio que hacen falta para NO inventar datos del contacto. */
+    if (body.catalogos) {
+      const [langs, paises] = await Promise.all([bx("language"), bx("country?limit=300")]);
+      return json({ ok: true,
+        idiomas: langs.body,
+        paises_muestra: Array.isArray(paises.body)
+          ? (paises.body as Record<string, unknown>[]).filter((c) =>
+              ["CH","AU","DE","AT","US","GB","ES","FR","IT","LI"].includes(String(c.iso_3166_alpha2)))
+          : paises.body });
+    }
+
+    if (body.borrar_factura) {
+      const id = Number(body.borrar_factura);
+      const f = await bx(`kb_invoice/${id}`);
+      if (!f.ok) return json({ error: "no existe esa factura", detalle: f.body }, 404);
+      const nr = (f.body as { document_nr?: string }).document_nr;
+      if (body.confirmar_numero !== nr) return json({ error: "el número no coincide", es: nr }, 400);
+      const d = await bx(`kb_invoice/${id}`, { method: "DELETE" });
+      if (d.ok) await service.from("invoices").delete().eq("number", nr);
+      return json({ ok: d.ok, status: d.status, borrada: nr, detalle: d.body });
+    }
+
     // ---------- modo sondeo: qué puede hacer el token, sin escribir ----------
     if (body.probe) {
       const [perfil, impuestos, unaFactura, contactos, usuarios, cuentas] = await Promise.all([
@@ -269,9 +294,40 @@ Deno.serve(async (req) => {
     type Tramo = { etiqueta: string; posiciones: { text: string; amount: number; unit_price: number }[]; header: string; suf: string; importe: number };
     const tramos: Tramo[] = [];
     if (pct >= 100) {
-      const pos = items.filter((it) => (Number(it.qty) || 0) * (Number(it.price) || 0) > 0)
-        .map((it) => ({ text: `<strong>${(it.name ?? "").slice(0, 200)}</strong>${it.phase ? "<br />" + it.phase : ""}`,
-                        amount: Number(it.qty) || 0, unit_price: Number(it.price) || 0 }));
+      /* ===== UNA LÍNEA POR FASE, NO UNA POR ÍTEM =====
+         Sebastián, 26 ago 2026: "que la divida por fase de proyecto —pre, production,
+         post, o las fases denominadas en la oferta— así no es item by item, y es más
+         fácil". Una factura de trece renglones se lee peor que una de tres, y al cliente
+         no le sirve saber cuántas horas de 1st AC hubo: eso es la oferta, no la factura.
+         Las fases salen de la propia oferta (`phase` de cada posición) y se respetan tal
+         como estén escritas; el detalle de cada fase queda ABAJO de su línea, así el que
+         quiera mirarlo lo tiene sin que domine el documento.
+         Los ítems sin fase van juntos al final, en vez de perderse. */
+      const conImporte = items.filter((it) => (Number(it.qty) || 0) * (Number(it.price) || 0) > 0);
+      const orden: string[] = [];
+      const porFase = new Map<string, typeof conImporte>();
+      for (const it of conImporte) {
+        const f = String(it.phase ?? "").trim() || "Otros";
+        if (!porFase.has(f)) { porFase.set(f, []); orden.push(f); }
+        porFase.get(f)!.push(it);
+      }
+      const pos = orden.map((f) => {
+        const lista = porFase.get(f)!;
+        const total = lista.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+        const detalleFase = lista.map((it) =>
+          `${(it.name ?? "").slice(0, 120)} — ${Number(it.qty) || 0} ${it.unit ?? ""}`).join("<br />");
+        return {
+          text: `<strong>${f}</strong><br />${detalleFase}`,
+          amount: 1,
+          unit_price: Math.round(total * 100) / 100,
+        };
+      });
+      /* Un centavo de diferencia en una factura es una llamada del contador. El
+         redondeo por fase puede no dar el total exacto: si sobra o falta, se ajusta en
+         la última línea, que es donde menos se nota y donde es verdad. */
+      const sumaFases = pos.reduce((a, x) => a + x.unit_price, 0);
+      const dif = Math.round((totalDoc - sumaFases) * 100) / 100;
+      if (dif !== 0 && pos.length) pos[pos.length - 1].unit_price = Math.round((pos[pos.length - 1].unit_price + dif) * 100) / 100;
       tramos.push({ etiqueta: "", posiciones: pos, header: titulo, suf: "", importe: totalDoc });
     } else {
       tramos.push({ etiqueta: `Akontozahlung ${pct}%`,
@@ -328,22 +384,81 @@ Deno.serve(async (req) => {
       /* Se crea con lo que tenemos, que es lo que él pidió: "que cree la persona/
          empresa con la data real". Si hay empresa es contacto tipo 1 (empresa) y la
          persona va en el nombre de contacto; si no, tipo 2 (persona). */
-      const nuevoContacto = {
+      /* `address` NO existe al CREAR un contacto: bexio lo devuelve al leer, pero al
+         POST responde 422 "Unexpected extra form field named address" y no se crea nada.
+         Pasó el 26 ago 2026 con Mahlab. La calle va en `remarks` para no perder el dato:
+         mejor guardada donde se lee que descartada por prolijidad. */
+      /* ===== NO INVENTAR DE DÓNDE ES EL CLIENTE =====
+         Antes iba `country_id: 1` fijo — Suiza — para todos. A Mahlab, con teléfono
+         +61 y dirección en Sydney, bexio lo dio de alta como suizo. Un contacto con el
+         país equivocado no es un detalle cosmético: cambia el IVA que corresponde.
+         Ahora se deduce, en este orden, y si no se puede se deja VACÍO en vez de
+         afirmar algo falso: bexio lo pide al facturar y ahí se completa a mano.
+           1. el prefijo del teléfono (+61 → AU)
+           2. el dominio del email o de la web (.ch, .de, .co.uk…)
+         El idioma sale del que ya sabemos de la persona (leads.lang), y la web del
+         dominio de su email. Los ids no se hardcodean: se buscan en los catálogos de
+         bexio por código ISO, porque son de cada cuenta. */
+      const PREFIJO_PAIS: [string, string][] = [
+        ["+41", "CH"], ["+423", "LI"], ["+49", "DE"], ["+43", "AT"], ["+33", "FR"],
+        ["+39", "IT"], ["+34", "ES"], ["+44", "GB"], ["+1", "US"], ["+61", "AU"],
+        ["+31", "NL"], ["+32", "BE"], ["+351", "PT"], ["+353", "IE"], ["+45", "DK"],
+        ["+46", "SE"], ["+47", "NO"], ["+358", "FI"], ["+48", "PL"], ["+420", "CZ"],
+      ];
+      const TLD_PAIS: Record<string, string> = {
+        ch: "CH", li: "LI", de: "DE", at: "AT", fr: "FR", it: "IT", es: "ES",
+        uk: "GB", us: "US", au: "AU", nl: "NL", be: "BE", pt: "PT", ie: "IE",
+        dk: "DK", se: "SE", no: "NO", fi: "FI", pl: "PL", cz: "CZ",
+      };
+      const tel = String(doc.client_phone || lead?.phone || "").replace(/[^\d+]/g, "");
+      const dominio = (email.split("@")[1] || "").toLowerCase();
+      let iso: string | null = null;
+      // el prefijo más largo primero: +423 (Liechtenstein) antes que +4
+      for (const [pre, cc] of [...PREFIJO_PAIS].sort((a, b) => b[0].length - a[0].length)) {
+        if (tel.startsWith(pre)) { iso = cc; break; }
+      }
+      if (!iso && dominio) {
+        const partes = dominio.split(".");
+        const ult = partes[partes.length - 1];
+        const penult = partes.length > 2 ? partes[partes.length - 2] : "";
+        iso = TLD_PAIS[ult] ?? (penult === "co" && TLD_PAIS[ult] ? TLD_PAIS[ult] : null);
+      }
+      let countryId: number | undefined;
+      if (iso) {
+        const cs = await bx("country?limit=300");
+        const lista = Array.isArray(cs.body) ? cs.body as { id: number; iso_3166_alpha2?: string }[] : [];
+        countryId = lista.find((c) => String(c.iso_3166_alpha2).toUpperCase() === iso)?.id;
+      }
+      /* El idioma del contacto es el que ya usamos con esa persona. Un cliente
+         australiano al que bexio le manda la factura en alemán es un problema real. */
+      let languageId: number | undefined;
+      const langLead = String(lead?.lang || "").slice(0, 2).toLowerCase();
+      if (langLead) {
+        const ls = await bx("language");
+        const lista = Array.isArray(ls.body) ? ls.body as { id: number; iso_639_1?: string }[] : [];
+        languageId = lista.find((l) => String(l.iso_639_1).toLowerCase() === langLead)?.id;
+      }
+      const calle = String(doc.client_address || "").trim();
+      const nuevoContacto: Record<string, unknown> = {
         contact_type_id: empresa ? 1 : 2,
         name_1: (empresa || persona || email || "Sin nombre").slice(0, 255),
         name_2: empresa ? persona.slice(0, 255) : "",
         mail: email || undefined,
         phone_fixed: String(doc.client_phone || lead?.phone || "").slice(0, 50) || undefined,
-        address: String(doc.client_address || "").slice(0, 255) || undefined,
         postcode: (String(doc.client_zip_city || "").match(/\b\d{4,5}\b/) || [])[0] || undefined,
         city: String(doc.client_zip_city || "").replace(/\b\d{4,5}\b/, "").trim().slice(0, 255) || undefined,
-        country_id: 1,   // Suiza; bexio lo deja cambiar después
+        country_id: countryId,          // deducido; si no se pudo, va vacío a propósito
+        language_id: languageId,        // el idioma con el que ya le hablamos
+        url: dominio ? "https://" + dominio : undefined,
         user_id: BX.user_id, owner_id: BX.user_id,
+        remarks: calle ? ("Dirección: " + calle).slice(0, 255) : undefined,
       };
+      // bexio rechaza el POST entero si viaja una clave en undefined
+      Object.keys(nuevoContacto).forEach((k) => { if (nuevoContacto[k] === undefined) delete nuevoContacto[k]; });
       if (dry) contactId = -1;
       else {
         const cr = await bx("contact", { method: "POST", body: JSON.stringify(nuevoContacto) });
-        if (!cr.ok) return json({ error: "no se pudo crear el contacto en bexio", status: cr.status, detalle: cr.body }, 502);
+        if (!cr.ok) return json({ error: "no se pudo crear el contacto en bexio", status: cr.status, detalle: cr.body, enviado: nuevoContacto }, 502);
         contactId = (cr.body as { id: number }).id;
         contactoCreado = true;
       }

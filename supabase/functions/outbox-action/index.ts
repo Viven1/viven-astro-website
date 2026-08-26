@@ -67,7 +67,7 @@ function fill(t: string, lead: Record<string, unknown>): string {
 function wrap(bodyText: string, unsub: string, lang: string, sender: string): string {
   const bye = { en: "Unsubscribe", de: "Abmelden", es: "Darse de baja" }[lang] || "Unsubscribe";
   const paras = bodyText.trim().split(/\n{2,}/).map((p) =>
-    `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:#222">${esc(p).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#5b7cfa">$1</a>').replace(/\n/g, "<br>")}</p>`).join("");
+    `<p style="margin:0 0 15px;font-size:15px;line-height:1.65;color:#222">${autolink(esc(p)).replace(/\n/g, "<br>")}</p>`).join("");
   return `<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif">
 <div style="max-width:600px;margin:0 auto;padding:28px 16px">
   <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px;width:auto;display:block" /></div>
@@ -106,6 +106,32 @@ function wrapRaw(bodyHtml: string, unsub: string, lang: string): string {
   <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:30px 26px">${bodyHtml}</div>
   <p style="text-align:center;font-size:11.5px;color:#9aa;margin-top:16px">VIVEN AG · Zürich · <a href="https://www.viven.ch" style="color:#9aa">viven.ch</a> · <a href="${unsub}" style="color:#9aa">${bye}</a></p>
 </div></body>`;
+}
+
+
+/* ===== LOS LINKS TIENEN QUE SER CLICKEABLES =====
+   La IA escribe "viven.ch/book/" a secas, y el autolink de antes solo agarraba
+   "https://…", así que el link llegaba como texto plano. Sebastián, 26 ago 2026:
+   "siempre que uses links, que sean clickeables, si no nadie lo hace". Tenía razón:
+   un link que hay que copiar y pegar no lo usa nadie, y el botón de reservar era
+   justamente la acción que pedía el email.
+   Agarra dominios pelados (viven.ch/book/), www., https:// y direcciones de email
+   (que van a mailto:). Deja en paz "8.1%" y "CHF 1.234,50" — probado. */
+const TLD_LINK = "ch|com|org|net|io|de|es|fr|it|at|li|co|ai|app|dev|me|swiss|eu";
+const RE_LINK = new RegExp(
+  "([a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}" +
+  "|https?:\\/\\/[^\\s<>()]+" +
+  "|www\\.[^\\s<>()]+" +
+  "|(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD_LINK + ")(?:\\/[^\\s<>()]*)?)", "gi");
+function autolink(txt: string, color = "#5b7cfa"): string {
+  return txt.replace(RE_LINK, (m: string) => {
+    let cola = "";
+    const fin = m.match(/[.,;:!?]+$/);
+    if (fin) { cola = fin[0]; m = m.slice(0, -cola.length); }
+    const href = /^[a-z0-9._%+-]+@/i.test(m) ? "mailto:" + m
+      : (/^https?:\/\//i.test(m) ? m : "https://" + m);
+    return `<a href="${href}" style="color:${color}">${m}</a>` + cola;
+  });
 }
 
 Deno.serve(async (req) => {
