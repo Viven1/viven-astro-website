@@ -4835,6 +4835,30 @@ const newsCases = [
     'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca'
   );
 
+  /* ══ "Edge Function returned a non-2xx status code" ══
+     Ese mensaje es de supabase-js y no dice NADA: el motivo real —"bexio rechazó la
+     factura: tax_id inválido", "falta el proveedor"— viaja en el cuerpo de la respuesta,
+     que la librería no lee. Sebastián lo vio tres veces seguidas sin poder hacer nada
+     con él (26 ago 2026: "me sigue diciendo: Edge Function returned a non-2xx").
+     Se parcha UNA vez acá, sobre el cliente, y con eso hablan los 65 lugares que llaman
+     funciones, no solo el que uno se acuerde de arreglar. Se muta el mensaje en vez de
+     reemplazar el error para no romper a quien mire error.context. */
+  (function destaparErroresDeFunciones(){
+    const orig = supabase.functions.invoke.bind(supabase.functions);
+    supabase.functions.invoke = async function(nombre, opts){
+      const r = await orig(nombre, opts);
+      const ctx = r && r.error && r.error.context;
+      if (ctx && typeof ctx.json === 'function'){
+        try {
+          const j = await ctx.clone().json();
+          const real = j && (j.error || j.message);
+          if (real) r.error.message = String(real);
+        } catch (e){ /* el cuerpo no era JSON: queda el mensaje genérico */ }
+      }
+      return r;
+    };
+  })();
+
   // Puente para la app iOS nativa (WKWebView wrapper): Swift tiene el device
   // token de APNs pero no la sesión de Supabase (vive en localStorage, del
   // lado JS) — así que Swift llama esta función vía evaluateJavaScript() con
@@ -13130,7 +13154,7 @@ const newsCases = [
       const ctas = abCands.filter((c) => /^CTA/.test(c.label)).map((c) => c.from);
       const lang2 = (abEditing.url_path.match(/^\/(en|de|es)\//) || [])[1] || 'en';
       const { data, error } = await supabase.functions.invoke('ai-ab-ideas', { body: { url: abEditing.url_path, h1, lead, ctas, lang: lang2 } });
-      if (error && error.context){ try { const j = await error.context.json(); throw new Error(j.error || error.message); } catch (e2) { if (e2.message) throw e2; } }
+      // el motivo real ya viene en error.message: lo destapa el parche de arriba
       if (error || data?.error || !Array.isArray(data?.ideas)) throw new Error(data?.error || error?.message || 'sin ideas');
       const box = $('ab-ideas-box'); box.hidden = false;
       box.innerHTML = data.ideas.map((id2, i) =>

@@ -157,7 +157,13 @@ Deno.serve(async (req) => {
           name_2: esEmpresa ? "" : partes.slice(0, -1).join(" "),
           user_id: 1, owner_id: 1,
         }) });
-        if (!alta.ok) return json({ error: "bexio rechazó crear el proveedor", detalle: alta.body }, 502);
+        if (!alta.ok) {
+          const d: any = alta.body;
+          const motivo = typeof d === "string" ? d
+            : [d?.message, d?.error, d?.errors && JSON.stringify(d.errors)].filter(Boolean).join(" · ")
+              || JSON.stringify(d).slice(0, 300);
+          return json({ error: `bexio rechazó crear el proveedor "${nombre}" (${alta.status}): ${motivo}`, detalle: alta.body }, 502);
+        }
         provId = (alta.body as any).id; creado = true;
       }
     }
@@ -165,12 +171,22 @@ Deno.serve(async (req) => {
     /* 2. La factura. Una sola línea con el importe NETO y su impuesto: partirla en
        posiciones sería inventar un detalle que la factura del freelance no tiene. */
     const neto = Number(f.net ?? f.gross) || 0;
+    const pedida = String(f.currency || "CHF").toUpperCase();
+    const mon = await bx("currencies");
+    const disponibles = Array.isArray(mon.body)
+      ? (mon.body as any[]).map((c) => String(c.name || "").toUpperCase()) : [];
+    const monedaOk = (!disponibles.length || disponibles.includes(pedida)) ? pedida : "CHF";
+    const avisoMoneda = monedaOk !== pedida ? ` [ojo: la factura está en ${pedida}, bexio no la tiene dada de alta]` : "";
     const cuerpo = {
       supplier_id: provId,
       contact_partner_id: provId,
       vendor_ref: f.vendor_ref || null,
-      title: [f.projects?.title, f.extracted?.concepto].filter(Boolean).join(" — ").slice(0, 120) || "Factura de proveedor",
-      currency_code: f.currency || "CHF",
+      title: ([f.projects?.title, f.extracted?.concepto].filter(Boolean).join(" — ") || "Factura de proveedor").slice(0, 100) + avisoMoneda,
+      /* La moneda tiene que EXISTIR en bexio: mandar una que no está dada de alta hace
+         que rechace la factura entera con un mensaje que no la nombra. Si no la
+         reconoce, se manda en CHF y el aviso queda en el título, para que se corrija a
+         mano en el borrador en vez de perder la carga. */
+      currency_code: monedaOk,
       bill_date: f.bill_date || new Date().toISOString().slice(0, 10),
       due_date: f.due_date || null,
       line_items: [{ amount: neto, booking_account_id: BOOKING_ACCOUNT, tax_id: null, position: 0,
@@ -179,7 +195,16 @@ Deno.serve(async (req) => {
     if (dry_run) return json({ ok: true, dry_run: true, proveedor_id: provId, proveedor_creado: creado, cuerpo });
 
     const cr = await bx("4.0/purchase/bills", { method: "POST", body: JSON.stringify(cuerpo) });
-    if (!cr.ok) return json({ error: "bexio rechazó la factura", status: cr.status, detalle: cr.body, cuerpo }, 502);
+    if (!cr.ok) {
+      /* El motivo tiene que entrar en el propio texto del error: es lo único que llega al
+         aviso de la pantalla. Un "bexio rechazó la factura" a secas no se puede accionar,
+         y hasta acá el dashboard solo mostraba "Edge Function returned a non-2xx". */
+      const d: any = cr.body;
+      const motivo = typeof d === "string" ? d
+        : [d?.message, d?.error, d?.errors && JSON.stringify(d.errors)].filter(Boolean).join(" · ")
+          || JSON.stringify(d).slice(0, 300);
+      return json({ error: `bexio rechazó la factura (${cr.status}): ${motivo}`, status: cr.status, detalle: cr.body, cuerpo }, 502);
+    }
     const nueva = cr.body as any;
 
     await admin.from("project_bills")
