@@ -8592,23 +8592,12 @@ const newsCases = [
     const now = Date.now(), D = 864e5;
     /* --- KPIs --- */
     const k = hmDealKpis();
-    // estas tres tarjetas se mudaron al bloque de arriba; las escrituras quedan
-    // protegidas para no tirar el render si el id no está
-    if ($('hm-pipe')){
-      $('hm-pipe').textContent = fmtChf(k.openVal);
-      $('hm-pipe-t').textContent = k.openN + (k.openN === 1 ? ' deal abierto' : ' deals abiertos');
-    }
-    // Enviados, esperando respuesta (pedido explícito: "no veo los enviado y por ende los
-    // abiertos" en el Home) — mismo criterio que el KPI ya existente en Ofertas+Propuestas
-    const offSentH = (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent');
-    const propSentH = (ppList || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent');
-    const sentCount = offSentH.length + propSentH.length;
-    const sentVal = offSentH.reduce((a, o) => a + offerNet(o), 0) + propSentH.reduce((a, p) => a + propVal(p), 0);
-    if ($('hm-sent')){
-      $('hm-sent').textContent = fmtChf(sentVal);
-      $('hm-sent-t').textContent = sentCount ? sentCount + (sentCount === 1 ? ' enviado' : ' enviados') : 'nada pendiente';
-    }
-    if ($('hm-weight')) $('hm-weight').textContent = fmtChf(Math.round(k.weighted));
+    /* Acá había tres escrituras a tarjetas que se mudaron al bloque de arriba hace
+       tiempo: los ids ya no existen en ninguna parte y el `if` nunca era verdadero.
+       Se borran en vez de dejarlas "por las dudas" — código que no puede correr esconde
+       al que sí, y hace que un chequeo de referencias huérfanas se llene de ruido y se
+       ignore. (26 ago 2026, al escribir scripts/check-dashboard.mjs.) */
+
     /* Esta tarjeta decía "Ganado (30 días): CHF 22'358" justo al lado del panel que
        dice "Cerrado este mes: CHF 0". Las dos eran ciertas —los 30 días agarran julio—
        pero puestas una al lado de la otra se contradicen a la vista, y encima la
