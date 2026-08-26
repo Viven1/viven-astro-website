@@ -19892,13 +19892,18 @@ const newsCases = [
     const p = pjCur; const g = pjGuiones.find((x) => String(x.id) === String(id));
     if (!p || !g) return;
     const filas = Array.isArray(g.cuerpo) ? g.cuerpo : [];
+    /* Los [FALTA: …] se marcan. Son los datos que el cliente todavía no dio, y en un
+       guion impreso pasan como texto normal — que es cómo se llega al set con un hueco
+       que nadie vio. En papel salen con fondo, así que también se ven en blanco y negro. */
+    const falta = (t) => esc(t || '').replace(/\[FALTA:([^\]]*)\]/g,
+      (m, x) => '<span class="falta">FALTA:' + x + '</span>');
     const cuerpo = g.formato === 'cine'
       ? filas.map((f) => '<div class="esc"><h3>' + esc(f.encabezado || '') + '</h3>' +
-          (f.accion ? '<p>' + esc(f.accion) + '</p>' : '') +
-          (f.dialogo ? '<pre class="dlg">' + esc(f.dialogo) + '</pre>' : '') + '</div>').join('')
+          (f.accion ? '<p>' + falta(f.accion) + '</p>' : '') +
+          (f.dialogo ? '<pre class="dlg">' + falta(f.dialogo) + '</pre>' : '') + '</div>').join('')
       : '<table><thead><tr><th class="tc">TC</th><th>Imagen</th><th>Audio</th></tr></thead><tbody>' +
-        filas.map((f) => '<tr><td class="tc">' + esc(f.tc || '') + '</td><td>' + esc(f.video || '') +
-          '</td><td class="au">' + esc(f.audio || '') + '</td></tr>').join('') + '</tbody></table>';
+        filas.map((f) => '<tr><td class="tc">' + esc(f.tc || '') + '</td><td>' + falta(f.video) +
+          '</td><td class="au">' + falta(f.audio) + '</td></tr>').join('') + '</tbody></table>';
     const w = window.open('', '_blank');
     if (!w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
     const hoy = new Date().toLocaleDateString('de-CH');
@@ -19925,7 +19930,10 @@ const newsCases = [
         'border-bottom:1.5px solid #1b2c46;padding:0 12px 6px 0}' +
       'td{vertical-align:top;padding:10px 12px 10px 0;border-bottom:1px solid #e3e7ee}' +
       'td.tc,th.tc{width:48px;white-space:nowrap;color:#8a94a8;font-variant-numeric:tabular-nums}' +
-      'td.au{color:#3d4757;width:38%}' +
+      /* El diálogo trae saltos ("TÉCNICO\n— …") y sin esto se aplana a un renglón. */
+      'td.au{color:#3d4757;width:38%;white-space:pre-line}' +
+      '.falta{background:#fff3cd;border-bottom:1.5px solid #b8860b;padding:0 3px;' +
+        'font-weight:700;font-size:.92em;letter-spacing:.02em}' +
       'tr{break-inside:avoid}' +
       '.esc{break-inside:avoid;margin:0 0 20px}' +
       '.esc h3{font:700 10.5pt Helvetica,Arial,sans-serif;letter-spacing:.07em;margin:0 0 7px;' +
