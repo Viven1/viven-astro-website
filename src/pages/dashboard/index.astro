@@ -6701,6 +6701,33 @@ const newsCases = [
     } catch (e){ }
   }
 
+  /* ── Los errores del dashboard quedan registrados ──
+     Tres veces en el día de hoy algo se rompió y me enteré porque Sebastián lo escribió.
+     Un error de JS mata la función donde ocurre y deja la pantalla a medias sin decir
+     nada: "no puedo entrar al proyecto" es lo que se ve desde afuera de una excepción.
+     Se guarda en la misma tabla que los tiempos, con el kind 'error'. Uno por mensaje
+     distinto y como mucho 5 por sesión — si algo falla en bucle, la tabla no se llena.
+     Nunca rompe: si el registro falla, se ignora. */
+  (function registrarErrores(){
+    const vistos = new Set();
+    const anotar = (msg, donde) => {
+      const clave = String(msg).slice(0, 120);
+      if (vistos.has(clave) || vistos.size >= 5) return;
+      vistos.add(clave);
+      try {
+        perf('error', { msg: clave, donde: String(donde || '').slice(0, 160),
+                        tab: (new URLSearchParams(location.search)).get('tab') || location.search.slice(0, 60) });
+      } catch (e){ }
+    };
+    window.addEventListener('error', (e) => anotar(e.message, (e.filename || '') + ':' + e.lineno));
+    /* Una promesa que falla no dispara 'error'. La mitad de lo que se rompe acá es una
+       consulta que se cae adentro de un async. */
+    window.addEventListener('unhandledrejection', (e) => {
+      const r = e.reason;
+      anotar((r && (r.message || r.error_description)) || String(r), 'promesa');
+    });
+  })();
+
   async function loadAll(){
     const t0 = performance.now();
     await loadCore();
