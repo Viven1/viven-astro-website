@@ -11,9 +11,13 @@ import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 
 const GH_TOKEN = Deno.env.get("GITHUB_TOKEN")!;
 const REPO = Deno.env.get("GITHUB_REPO") || "Viven1/viven-astro-website";
-// PRODUCCIÓN deploya desde "dev" en Cloudflare Pages (no "main" como cuando era Netlify)
-// — con main hardcodeado, los posts se commiteaban pero NUNCA salían al aire.
-const BRANCH = Deno.env.get("GITHUB_BRANCH") || "dev";
+// La rama que DEPLOYA. Estuvo en "dev" por defecto desde que producción era Cloudflare
+// Pages, pero hoy el deploy lo hace el Action .github/workflows/deploy.yml y ese escucha
+// SOLO a `main`. Resultado: cada "Publicar" del dashboard commiteaba a dev, dev quedó 3
+// commits adelante y 43 atrás, y los artículos nunca salían al aire — con la base
+// guardando un published_url que respondía 404. Encontrado el 25 ago 2026.
+// El default ahora es main; GITHUB_BRANCH sigue existiendo por si algún día cambia.
+const BRANCH = Deno.env.get("GITHUB_BRANCH") || "main";
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 

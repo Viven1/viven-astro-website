@@ -1523,6 +1523,10 @@ const newsCases = [
   #ob-motores .ob-mot-w{grid-column:2/-1;color:#ff8b8b;font-size:12px;margin:-2px 0 4px}
   @media(max-width:640px){#ob-motores .ob-mot{grid-template-columns:1fr;gap:3px}
     #ob-motores .ob-mot-w{grid-column:1}}
+  /* Tab de idioma cuando hay más de una versión del mismo: ámbar, para que se note que
+     hay que elegir y no es un idioma más. */
+  .bl2-ltab.dup{border-color:#f0c060;color:#f0c060}
+  .bl2-ltab.dup.on{background:rgba(240,192,96,.14)}
   .ana-grupo-det{border-bottom:1px solid var(--line)}
   .ana-grupo-det > summary{cursor:pointer;list-style:none}
   .ana-grupo-det > summary::-webkit-details-marker{display:none}
@@ -18669,10 +18673,26 @@ const newsCases = [
     }
     // tabs de idioma del grupo: cambiar de variante sin salir del editor; + = generar la que falta
     const sibs = blogsList.filter((x) => x.group_id && x.group_id === b.group_id);
+    /* Cuando un idioma tiene DOS versiones (mellizas del motor), acá se muestran las dos
+       y elegís vos. `find` devolvía la primera y por eso abrías siempre la misma —
+       aunque la otra fuera la que editaste. Verificado el 25 ago: abrir DE traía la
+       versión con UN video mientras la que Sebastián había editado tenía TRES.
+       Se ordenan publicada primero y después por última edición, y cada una dice cuál
+       es cuál. (Sebastián: "siempre lo que yo elijo".) */
     $('bg-versions').innerHTML = ['en', 'de', 'es'].map((l) => {
-      const s = (l === b.lang) ? b : sibs.find((x) => x.lang === l);
-      if (!s) return '<button class="bl2-ltab miss" data-loc="' + l + '" data-id="' + esc(b.id) + '" type="button" title="Generar versión ' + LANGNAME[l] + ' (nativa, keywords locales)">+ ' + LANGNAME[l] + '</button>';
-      return '<button class="bl2-ltab' + (String(s.id) === String(b.id) ? ' on' : '') + (s.status === 'published' ? ' pub' : '') + '" data-open="' + esc(s.id) + '" type="button" title="' + LANGNAME[l] + (s.status === 'published' ? ' — publicado' : ' — borrador') + '">' + LANGNAME[l] + (s.status === 'published' ? ' ✓' : '') + '</button>';
+      const mismas = sibs.filter((x) => x.lang === l)
+        .sort((x, y) => ((y.status === 'published') - (x.status === 'published'))
+          || (Date.parse(y.updated_at || y.created_at || 0) - Date.parse(x.updated_at || x.created_at || 0)));
+      if (!mismas.length) return '<button class="bl2-ltab miss" data-loc="' + l + '" data-id="' + esc(b.id) + '" type="button" title="Generar versión ' + LANGNAME[l] + ' (nativa, keywords locales)">+ ' + LANGNAME[l] + '</button>';
+      return mismas.map((s, i) => {
+        const cuando = s.updated_at ? new Date(s.updated_at).toLocaleDateString('es-CH', { day: '2-digit', month: 'short' }) : '';
+        const sufijo = mismas.length > 1 ? ' · ' + (cuando || ('v' + (i + 1))) : '';
+        const tit = LANGNAME[l] + (s.status === 'published' ? ' — publicado' : ' — borrador')
+          + (mismas.length > 1 ? ' · una de ' + mismas.length + ' versiones en ' + LANGNAME[l] + ', editada el ' + (cuando || '?') : '');
+        return '<button class="bl2-ltab' + (String(s.id) === String(b.id) ? ' on' : '') + (s.status === 'published' ? ' pub' : '')
+          + (mismas.length > 1 ? ' dup' : '') + '" data-open="' + esc(s.id) + '" type="button" title="' + esc(tit) + '">'
+          + LANGNAME[l] + sufijo + (s.status === 'published' ? ' ✓' : '') + '</button>';
+      }).join('');
     }).join('');
     /* Cambiar de idioma guarda lo que estabas editando. Antes se perdía sin aviso:
        cambiabas la foto del alemán, tocabas "English" para ver cómo iba, y al volver

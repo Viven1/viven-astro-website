@@ -108,6 +108,56 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: err?.message }), { status: 500 });
     }
 
+    /* ===== EL SALDO VIEJO ES EL PROBLEMA DE ARRIBA DE TODOS =====
+       Todo lo que se calcula abajo —el mes en rojo, el runway, el umbral— arranca de
+       este número. El 25 ago 2026 el último cargado era del 24 de julio: la proyección
+       entera era de hace un mes y la alerta de umbral opinaba sobre un saldo que ya no
+       existía. Sebastián pidió que le avisemos cada dos semanas. El aviso NO se repite a
+       diario: la columna saldo_recordado_at (SQL 0150) espacia el recordatorio. */
+    const DIAS_SALDO = 14;
+    const hoyMs = Date.parse(today + "T00:00:00Z");
+    const saldoDias = balRow?.as_of_date
+      ? Math.floor((hoyMs - Date.parse(balRow.as_of_date + "T00:00:00Z")) / 864e5)
+      : null;
+    const recordado = settings.saldo_recordado_at
+      ? Math.floor((hoyMs - Date.parse(settings.saldo_recordado_at + "T00:00:00Z")) / 864e5)
+      : null;
+    let saldoAvisado = false;
+    if ((saldoDias === null || saldoDias >= DIAS_SALDO) && (recordado === null || recordado >= DIAS_SALDO)) {
+      const cuanto = saldoDias === null
+        ? "Todavía no cargaste ningún saldo"
+        : `El último saldo que cargaste es del ${balRow!.as_of_date} — hace ${saldoDias} días`;
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+        body: JSON.stringify({
+          to: settings.alert_email,
+          title: "🏦 Actualizá el saldo del banco",
+          body: `${cuanto}. El runway y el mes en rojo salen de ahí.`,
+          url: "/dashboard/?tab=sistema&sub=cashflow",
+        }),
+      }).catch(() => {});
+      if (RESEND_API_KEY) {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "Viven Dashboard <leads@viven.ch>", to: [settings.alert_email],
+            subject: "🏦 Cargá el saldo del banco (Cash Flow)",
+            html: `<div style="font-family:sans-serif;font-size:14px;line-height:1.6">
+              <p>${cuanto}.</p>
+              <p>El <b>runway</b>, el <b>próximo mes en rojo</b> y la alerta de umbral se calculan a partir de ese
+              número, así que mientras esté viejo los tres hablan de otro momento.</p>
+              <p><a href="https://www.viven.ch/dashboard/?tab=sistema&amp;sub=cashflow">Cargarlo ahora →</a></p>
+              <p style="color:#888;font-size:12px">Recordatorio cada ${DIAS_SALDO} días, como pediste. Se calla solo en cuanto lo cargues.</p>
+            </div>`,
+          }),
+        }).catch(() => {});
+      }
+      await service.from("cashflow_alert_settings").update({ saldo_recordado_at: today }).eq("id", 1);
+      saldoAvisado = true;
+    }
+
     const months = projectMonthly(startBalance, entriesQ.data ?? [], templatesQ.data ?? [], loansQ.data ?? []);
     const threshold = Number(settings.min_balance_threshold_chf);
     const redMonth = months.find((m) => m.balance < threshold) || null;
@@ -115,7 +165,7 @@ Deno.serve(async (req) => {
     const prevPeriod = settings.last_alerted_period || null;
 
     if (newPeriod === prevPeriod) {
-      return new Response(JSON.stringify({ ok: true, unchanged: true, period: newPeriod }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, unchanged: true, period: newPeriod, saldo_dias: saldoDias, saldo_avisado: saldoAvisado }), { headers: { "Content-Type": "application/json" } });
     }
 
     if (newPeriod) {
@@ -154,7 +204,7 @@ Deno.serve(async (req) => {
       await service.from("cashflow_alert_settings").update({ last_alerted_period: null }).eq("id", 1);
     }
 
-    return new Response(JSON.stringify({ ok: true, period: newPeriod, prevPeriod }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, period: newPeriod, prevPeriod, saldo_dias: saldoDias, saldo_avisado: saldoAvisado }), { headers: { "Content-Type": "application/json" } });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
