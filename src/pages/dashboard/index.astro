@@ -1633,6 +1633,14 @@ const newsCases = [
   @media(max-width:560px){.pj-esc-kv > span{width:auto}}
 
   /* ---- facturas del crew ---- */
+  .pj-com{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:11px 14px;margin-bottom:7px}
+  .pj-com.hecho{opacity:.55}
+  .pj-com .hd{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;font-size:11.5px;color:var(--muted-2)}
+  .pj-com .hd b{color:var(--text);font-size:13px}
+  .pj-com .hd .t{background:var(--navy-800);border-radius:6px;padding:1px 7px;color:#f0c060;font-weight:700;font-variant-numeric:tabular-nums}
+  .pj-com .hd .est{margin-left:auto}
+  .pj-com p{margin:6px 0 0;font-size:13.5px;color:var(--muted);line-height:1.55;white-space:pre-wrap}
+  .pj-com-acc{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
   .pj-bill{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:11px 14px;margin-bottom:8px}
   .pj-bill-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
   .pj-bill-hd b{font-size:14px}
@@ -2760,6 +2768,23 @@ const newsCases = [
       <!-- 📄 Facturas del crew: subís el PDF o la foto, la IA lee proveedor, número e
            importes, queda como línea de costo (y ahí el margen deja de ser estimado) y
            de ahí sale a bexio como factura de proveedor, siempre en borrador. -->
+      <!-- 🎞 Portal del cliente: versiones del corte, lo que comentó con su timecode, y
+           los archivos que puede bajar. Las notas se exportan para Premiere. -->
+      <div class="panel pj-blq" id="pj-portal-blq" style="margin-top:12px">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">🎞 Portal del cliente
+          <span class="muted-note" id="pj-portal-est" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px"></span>
+          <span style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
+            <input type="file" id="pj-file-input" multiple hidden />
+            <button class="btn btn-ghost small" id="pj-ver-add" type="button">⬆ Nueva versión</button>
+            <button class="btn btn-ghost small" id="pj-file-add" type="button">📎 Archivo</button>
+            <button class="btn btn-ghost small" id="pj-portal-link" type="button">🔗 Link</button>
+          </span>
+        </h3>
+        <div id="pj-vers"></div>
+        <div id="pj-coms"></div>
+        <div id="pj-files"></div>
+      </div>
+
       <div class="panel pj-blq" id="pj-fact-blq" style="margin-top:12px">
         <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">📄 Facturas del crew
           <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px">el papel atrás de cada costo</span>
@@ -16433,6 +16458,7 @@ const newsCases = [
 
     pjRenderPortal();
     pjRenderDesglose();
+    pjPortalLoad();
     pjCostosLoad().then(pjBillsLoad);
 
     // notas
@@ -16539,6 +16565,231 @@ const newsCases = [
         || (Date.parse(b.updated_at || 0) - Date.parse(a.updated_at || 0)))[0];
     if (of) return bxAbrir('oferta', of.id);
     toast('Este proyecto no tiene oferta ni propuesta atrás — creá una en Ofertas y desde ahí sale la factura');
+  }
+
+
+  /* ---------- PORTAL DEL CLIENTE: VERSIONES, COMENTARIOS Y EXPORT (SQL 0157) ----------
+     Del lado del equipo: qué versión vio, qué comentó y en qué segundo, y de ahí sacar
+     las notas para Premiere. Del lado del cliente vive en /portal/. */
+  let pjVers = [], pjComs = [], pjFiles = [];
+  const pjMMSS = (ms) => { const s = Math.floor((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+  async function pjPortalLoad(){
+    const p = pjCur; if (!p) return;
+    const [v, c, f] = await Promise.all([
+      supabase.from('project_versions').select('*').eq('project_id', p.id).order('n', { ascending: false }),
+      supabase.from('project_comments').select('*').eq('project_id', p.id).order('tc_ms', { ascending: true, nullsFirst: true }),
+      supabase.from('project_files').select('*').eq('project_id', p.id).order('created_at', { ascending: false }),
+    ]);
+    pjVers = v.error ? [] : (v.data || []);
+    pjComs = c.error ? [] : (c.data || []);
+    pjFiles = f.error ? [] : (f.data || []);
+    pjPortalRender();
+  }
+
+  function pjPortalRender(){
+    const abiertos = pjComs.filter((c) => !c.resolved && c.from_client).length;
+    const est = $('pj-portal-est');
+    if (est) est.textContent = pjVers.length
+      ? pjVers.length + (pjVers.length === 1 ? ' versión' : ' versiones') +
+        (abiertos ? ' · ' + abiertos + (abiertos === 1 ? ' comentario sin resolver' : ' comentarios sin resolver') : ' · nada pendiente')
+      : 'sin versiones todavía';
+
+    $('pj-vers').innerHTML = !pjVers.length
+      ? '<p class="muted-note" style="margin:0 0 12px">Subí la primera versión con el link de Vimeo. El cliente la ve en su portal y comenta ahí, con el minuto exacto.</p>'
+      : '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Versión</th><th>Video</th><th>Comentarios</th><th>Estado</th><th></th></tr></thead><tbody>' +
+        pjVers.map((v) => {
+          const cs = pjComs.filter((c) => String(c.version_id) === String(v.id));
+          const ab = cs.filter((c) => !c.resolved).length;
+          return '<tr><td><b>v' + v.n + '</b>' + (v.title ? ' · ' + esc(v.title) : '') +
+              '<br><span class="muted-note" style="font-size:11.5px">' + fmtDMY(v.created_at) + '</span></td>' +
+            '<td>' + (v.video_url ? '<a href="' + esc(v.video_url) + '" target="_blank" rel="noopener" style="color:var(--acid)">ver ↗</a>' : '<span class="muted-note">sin link</span>') + '</td>' +
+            '<td>' + (cs.length ? cs.length + (ab ? ' · <b style="color:#f0c060">' + ab + ' sin resolver</b>' : ' · todos resueltos') : '—') + '</td>' +
+            '<td>' + (v.approved_at
+                ? '<span style="color:#7ed957">✓ aprobada ' + fmtDMY(v.approved_at) + '</span>'
+                : '<span style="color:#f0c060">esperando</span>') + '</td>' +
+            '<td style="white-space:nowrap">' +
+              (cs.length ? '<button class="btn btn-ghost small" data-edl="' + v.id + '" title="Notas con timecode para Premiere">📥 Notas</button> ' : '') +
+              '<button class="pj-crew-x" data-vdel="' + v.id + '" type="button">✕</button></td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+    const conCom = pjComs.filter((c) => c.from_client);
+    $('pj-coms').innerHTML = !conCom.length ? '' :
+      '<div class="pj-sec-h">Lo que dijo el cliente</div>' +
+      conCom.map((c) => {
+        const v = pjVers.find((x) => String(x.id) === String(c.version_id));
+        return '<div class="pj-com' + (c.resolved ? ' hecho' : '') + '" data-c="' + c.id + '">' +
+          '<div class="hd"><b>' + esc(c.author_name || 'Cliente') + '</b>' +
+          (c.tc_ms != null ? '<span class="t">' + pjMMSS(c.tc_ms) + '</span>' : '') +
+          '<span>' + (v ? 'v' + v.n + ' · ' : '') + fmtDMY(c.created_at) + '</span>' +
+          '<span class="est">' + (c.resolved ? '✓ resuelto' : '● sin resolver') + '</span></div>' +
+          '<p>' + esc(c.body) + '</p>' +
+          '<div class="pj-com-acc">' +
+            '<button class="btn btn-ghost small" data-cres="' + c.id + '">' + (c.resolved ? '↩︎ Reabrir' : '✓ Resuelto') + '</button>' +
+            (c.task_id ? '<span class="muted-note" style="font-size:11.5px">ya es tarea</span>'
+                       : '<button class="btn btn-ghost small" data-ctask="' + c.id + '">📋 Pasar a tarea</button>') +
+          '</div></div>';
+      }).join('');
+
+    $('pj-files').innerHTML = !pjFiles.length ? '' :
+      '<div class="pj-sec-h">Archivos para el cliente</div>' +
+      pjFiles.map((f) => '<div class="pj-bill" data-f="' + f.id + '" style="display:flex;align-items:center;gap:11px">' +
+        '<span style="flex:1;min-width:0;overflow-wrap:anywhere">' + esc(f.file_name) +
+        '<small style="display:block;color:var(--muted-2);font-size:11.5px">' +
+        (f.size_bytes ? Math.round(f.size_bytes / 1048576) + ' MB · ' : '') +
+        (f.visible_cliente ? 'lo ve el cliente' : 'oculto') + '</small></span>' +
+        '<button class="btn btn-ghost small" data-fvis="' + f.id + '">' + (f.visible_cliente ? '🙈 Ocultar' : '👁 Mostrar') + '</button>' +
+        '<button class="pj-crew-x" data-fdel="' + f.id + '" type="button">✕</button></div>').join('');
+
+    $('pj-vers').querySelectorAll('[data-edl]').forEach((b) => b.addEventListener('click', () => pjExportNotas(b.dataset.edl)));
+    $('pj-vers').querySelectorAll('[data-vdel]').forEach((b) => b.addEventListener('click', () => pjVerBorrar(b.dataset.vdel)));
+    $('pj-coms').querySelectorAll('[data-cres]').forEach((b) => b.addEventListener('click', () => pjComResolver(b.dataset.cres)));
+    $('pj-coms').querySelectorAll('[data-ctask]').forEach((b) => b.addEventListener('click', () => pjComATarea(b.dataset.ctask)));
+    $('pj-files').querySelectorAll('[data-fvis]').forEach((b) => b.addEventListener('click', () => pjFileVis(b.dataset.fvis)));
+    $('pj-files').querySelectorAll('[data-fdel]').forEach((b) => b.addEventListener('click', () => pjFileBorrar(b.dataset.fdel)));
+  }
+
+  async function pjVerAdd(){
+    const p = pjCur; if (!p) return;
+    const url = prompt('Link del video (Vimeo o YouTube):\n\nEl video se queda donde ya vive — acá solo guardamos el link.');
+    if (url === null) return;
+    const titulo = prompt('¿Qué es esta versión? (p. ej. "Rohschnitt mit Farbe")') || '';
+    const n = (pjVers[0] ? pjVers[0].n : 0) + 1;
+    const { data, error } = await supabase.from('project_versions').insert({
+      project_id: p.id, n, title: titulo.trim() || null, video_url: url.trim() || null, created_by: meEmail || null,
+    }).select().single();
+    if (error){ toast(error.message); return; }
+    pjVers.unshift(data);
+    toast('🎞 v' + n + ' subida — el cliente ya la ve en su portal');
+    pjPortalRender();
+  }
+  async function pjVerBorrar(id){
+    const v = pjVers.find((x) => String(x.id) === String(id)); if (!v) return;
+    if (!confirm('¿Borrar la v' + v.n + '?\n\nSe borran también sus comentarios.')) return;
+    const { error } = await supabase.from('project_versions').delete().eq('id', id);
+    if (error){ toast(error.message); return; }
+    pjVers = pjVers.filter((x) => String(x.id) !== String(id));
+    pjComs = pjComs.filter((c) => String(c.version_id) !== String(id));
+    pjPortalRender();
+  }
+  async function pjComResolver(id){
+    const c = pjComs.find((x) => String(x.id) === String(id)); if (!c) return;
+    const nuevo = !c.resolved;
+    const { error } = await supabase.from('project_comments')
+      .update({ resolved: nuevo, resolved_at: nuevo ? new Date().toISOString() : null }).eq('id', id);
+    if (error){ toast(error.message); return; }
+    c.resolved = nuevo;
+    pjPortalRender();
+  }
+  /* Un comentario que hay que arreglar tiene que vivir donde vive el resto del trabajo,
+     no solo en el portal. */
+  async function pjComATarea(id){
+    const c = pjComs.find((x) => String(x.id) === String(id)); if (!c) return;
+    const p = pjCur;
+    if (!p.lead_id){ toast('El proyecto no tiene contacto — la tarea necesita uno'); return; }
+    const { data, error } = await supabase.from('lead_tasks').insert({
+      lead_id: String(p.lead_id),
+      title: '🎬 ' + (c.tc_ms != null ? '[' + pjMMSS(c.tc_ms) + '] ' : '') + c.body.slice(0, 140),
+      due_date: new Date().toISOString().slice(0, 10), done: false,
+    }).select().single();
+    if (error){ toast(error.message); return; }
+    await supabase.from('project_comments').update({ task_id: data.id }).eq('id', id);
+    c.task_id = data.id;
+    toast('📋 Es una tarea del contacto');
+    pjPortalRender();
+  }
+  async function pjFileVis(id){
+    const f = pjFiles.find((x) => String(x.id) === String(id)); if (!f) return;
+    const { error } = await supabase.from('project_files').update({ visible_cliente: !f.visible_cliente }).eq('id', id);
+    if (error){ toast(error.message); return; }
+    f.visible_cliente = !f.visible_cliente;
+    pjPortalRender();
+  }
+  async function pjFileBorrar(id){
+    const f = pjFiles.find((x) => String(x.id) === String(id)); if (!f) return;
+    if (!confirm('¿Borrar "' + f.file_name + '"?')) return;
+    await supabase.storage.from('project-files').remove([f.file_path]);
+    await supabase.from('project_files').delete().eq('id', id);
+    pjFiles = pjFiles.filter((x) => String(x.id) !== String(id));
+    pjPortalRender();
+  }
+  async function pjFileSubir(files){
+    const p = pjCur; if (!p || !files.length) return;
+    for (const file of files){
+      const limpio = file.name.replace(/[^\w.\-]+/g, '_').slice(-90);
+      const path = 'p' + p.id + '/' + Date.now() + '_' + limpio;
+      toast('⬆ ' + file.name);
+      const { error } = await supabase.storage.from('project-files').upload(path, file, { contentType: file.type || undefined });
+      if (error){ toast(error.message); continue; }
+      const { data, error: e2 } = await supabase.from('project_files').insert({
+        project_id: p.id, file_path: path, file_name: file.name, mime: file.type || null,
+        size_bytes: file.size, subido_por: meEmail || null,
+      }).select().single();
+      if (e2){ toast(e2.message); continue; }
+      pjFiles.unshift(data);
+      pjPortalRender();
+    }
+    toast('📎 Listo — el cliente los baja con su código');
+  }
+
+  /* ===== LAS NOTAS, PARA PREMIERE =====
+     Se bajan DOS archivos porque hacen cosas distintas:
+     · el .xml (FCP7) es el que de verdad deja los comentarios como MARCADORES en el
+       timeline — se importa en Premiere y cada nota queda en su segundo;
+     · el .edl es el formato que pidió Sebastián por nombre y el que entiende cualquier
+       otra sala de edición, aunque los comentarios ahí son texto del evento.
+     El timecode se arma a 25 fps, que es el estándar de acá. */
+  const PJ_FPS = 25;
+  function pjTC(ms){
+    const t = Math.max(0, Math.round((ms || 0) / 1000 * PJ_FPS));
+    const f = t % PJ_FPS, s = Math.floor(t / PJ_FPS) % 60, m = Math.floor(t / (PJ_FPS * 60)) % 60, h = Math.floor(t / (PJ_FPS * 3600));
+    const dd = (n) => String(n).padStart(2, '0');
+    return dd(h) + ':' + dd(m) + ':' + dd(s) + ':' + dd(f);
+  }
+  function pjBajar(nombre, texto, mime){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([texto], { type: mime }));
+    a.download = nombre;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function pjExportNotas(versionId){
+    const v = pjVers.find((x) => String(x.id) === String(versionId)); if (!v) return;
+    const notas = pjComs.filter((c) => String(c.version_id) === String(v.id) && c.tc_ms != null)
+      .sort((a, b) => a.tc_ms - b.tc_ms);
+    if (!notas.length){ toast('Esa versión no tiene comentarios con minuto'); return; }
+    const base = ((pjCur.title || 'proyecto') + '_v' + v.n).replace(/[^\w.\-]+/g, '_');
+    const limpiar = (s2) => String(s2 || '').replace(/[\r\n]+/g, ' ').trim();
+
+    // --- EDL (CMX3600): una nota por evento, con su comentario ---
+    let edl = 'TITLE: ' + (pjCur.title || 'Proyecto') + ' v' + v.n + '\nFCM: NON-DROP FRAME\n\n';
+    notas.forEach((c, i) => {
+      const ini = pjTC(c.tc_ms), fin = pjTC(c.tc_ms + 1000);
+      edl += String(i + 1).padStart(3, '0') + '  AX       V     C        ' +
+        ini + ' ' + fin + ' ' + ini + ' ' + fin + '\n' +
+        '* FROM CLIP NAME: ' + limpiar(c.author_name || 'Cliente') + '\n' +
+        '* COMMENT: ' + limpiar(c.body).slice(0, 200) + '\n\n';
+    });
+    pjBajar(base + '_notas.edl', edl, 'text/plain');
+
+    // --- XML de Premiere (FCP7) con los comentarios como marcadores ---
+    const esc2 = (s2) => String(s2 || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const dur = Math.max(...notas.map((c) => c.tc_ms)) / 1000 * PJ_FPS + PJ_FPS * 10;
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xmeml>\n<xmeml version="4">\n' +
+      '  <sequence>\n    <name>' + esc2((pjCur.title || 'Proyecto') + ' v' + v.n + ' — notas') + '</name>\n' +
+      '    <duration>' + Math.round(dur) + '</duration>\n' +
+      '    <rate><timebase>' + PJ_FPS + '</timebase><ntsc>FALSE</ntsc></rate>\n' +
+      '    <media><video><format><samplecharacteristics><rate><timebase>' + PJ_FPS + '</timebase></rate>' +
+      '<width>1920</width><height>1080</height></samplecharacteristics></format></video></media>\n' +
+      notas.map((c) => {
+        const fr = Math.round(c.tc_ms / 1000 * PJ_FPS);
+        return '    <marker>\n      <name>' + esc2(limpiar(c.body).slice(0, 80)) + '</name>\n' +
+          '      <comment>' + esc2(limpiar(c.author_name || 'Cliente') + ': ' + limpiar(c.body)) + '</comment>\n' +
+          '      <in>' + fr + '</in>\n      <out>-1</out>\n    </marker>';
+      }).join('\n') + '\n  </sequence>\n</xmeml>\n';
+    pjBajar(base + '_notas.xml', xml, 'application/xml');
+
+    toast('📥 ' + notas.length + ' notas · el .xml deja los marcadores en el timeline, el .edl es el estándar');
   }
 
   /* ---------- FACTURAS DEL CREW (SQL 0156) ----------
@@ -17047,6 +17298,10 @@ const newsCases = [
       pjRenderCrew();
       toast('👥 ' + roles.length + ' roles traídos — poneles nombre y guardá');
     });
+    $('pj-ver-add').addEventListener('click', pjVerAdd);
+    $('pj-file-add').addEventListener('click', () => $('pj-file-input').click());
+    $('pj-file-input').addEventListener('change', (e) => { pjFileSubir([...e.target.files]); e.target.value = ''; });
+    $('pj-portal-link').addEventListener('click', () => { const b = $('pj-portal-copy') || $('pj-portal-gen'); if (b) b.click(); });
     $('pj-bill-up').addEventListener('click', () => $('pj-bill-file').click());
     $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });
     $('pj-desglosar').addEventListener('click', pjDesglosar);

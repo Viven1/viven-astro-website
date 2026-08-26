@@ -1,7 +1,13 @@
 ---
-// Portal del cliente — estado del proyecto sin pelotear por email.
-// Acceso: /portal/?id=<deal_id>&t=<portal_token>. Público (token en la URL,
-// validado server-side en get-portal), noindex.
+// Portal del cliente — estado del proyecto, el corte, comentarios con timecode,
+// descargas y aprobación. Sin pelotear por email.
+//
+// Acceso: /portal/?id=<deal_id>&t=<portal_token>. Mirar y comentar alcanza con el
+// link; DESCARGAR y APROBAR piden un código de 6 dígitos que se manda al email de la
+// ficha del contacto (decisión de Sebastián, 26 ago 2026).
+//
+// Un solo idioma: el de la persona. "No hacen falta tres idiomas, solo el idioma del
+// cliente que tenemos en su persona."
 const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
 const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 ---
@@ -17,129 +23,299 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <link rel="stylesheet" href="/assets/site.css" />
 <style>
   body{background:#0f1826}
-  .pt-wrap{max-width:640px;margin:0 auto;padding:44px 22px 90px}
-  .pt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px}
-  .pt-langs{display:flex;gap:4px}
-  .pt-langs button{background:transparent;border:1px solid var(--line-strong);border-radius:8px;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 9px;cursor:pointer}
-  .pt-langs button.on{border-color:var(--acid);color:var(--acid)}
-  .pt-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:32px}
-  .pt-card h1{font-size:clamp(21px,4vw,27px);line-height:1.2;margin-bottom:22px}
-  .pt-steps{display:flex;flex-direction:column;gap:0;margin-bottom:28px}
-  .pt-step{display:flex;align-items:flex-start;gap:14px;padding:10px 0;position:relative}
-  .pt-step .dot{width:26px;height:26px;border-radius:50%;background:var(--navy-900);border:2px solid var(--line-strong);color:var(--muted-2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;z-index:1}
+  .pt-wrap{max-width:760px;margin:0 auto;padding:40px 20px 90px}
+  .pt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}
+  .pt-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:28px}
+  .pt-card h1{font-size:clamp(20px,4vw,26px);line-height:1.2;margin:0 0 4px}
+  .pt-sub{font-size:13.5px;color:var(--muted);margin:0 0 22px}
+
+  .pt-steps{display:flex;align-items:flex-start;gap:0;margin-bottom:24px;flex-wrap:wrap}
+  .pt-step{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted-2)}
+  .pt-step .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line-strong);display:flex;
+    align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none}
   .pt-step.done .dot{background:var(--acid);border-color:var(--acid);color:#142033}
+  .pt-step.done{color:var(--muted)}
   .pt-step.current .dot{border-color:var(--acid);color:var(--acid)}
-  .pt-step .line{position:absolute;left:12px;top:36px;bottom:-10px;width:2px;background:var(--line-strong)}
-  .pt-step:last-child .line{display:none}
-  .pt-step.done .line{background:var(--acid)}
-  .pt-step .lbl{font-size:14.5px;color:var(--muted);padding-top:3px}
-  .pt-step.current .lbl{color:var(--text);font-weight:700}
-  .pt-step.done .lbl{color:var(--text)}
-  .pt-note{background:var(--navy-900);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px;white-space:pre-wrap}
-  .pt-vid{border-radius:14px;overflow:hidden;margin-bottom:24px;background:#000}
-  .pt-vid iframe{width:100%;aspect-ratio:16/9;display:block;border:0}
-  .pt-fb textarea{width:100%;background:var(--navy-900);border:1.5px solid var(--line-strong);border-radius:12px;color:var(--text);font-family:inherit;font-size:15px;padding:12px 14px;min-height:80px;resize:vertical;margin-bottom:10px}
-  .pt-fb button{width:100%;font-size:15px;padding:13px}
-  .pt-fb .ok{text-align:center;color:var(--acid);font-size:14px;padding:10px 0}
-  .pt-err{color:#ff8b8b;font-size:13px;text-align:center;margin-top:8px}
-  .pt-center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
+  .pt-step.current{color:var(--acid);font-weight:700}
+  .pt-sep{flex:1;height:2px;background:var(--line);margin:0 7px;min-width:10px}
+
+  .pt-note{border:1px solid var(--line);border-left:3px solid var(--acid);border-radius:12px;
+    background:var(--navy-900);padding:12px 15px;font-size:14px;color:var(--muted);margin-bottom:20px}
+
+  .pt-vid{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9}
+  .pt-vid iframe{width:100%;height:100%;border:0;display:block}
+  .pt-vers{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0}
+  .pt-vers button{background:var(--navy-900);border:1px solid var(--line-strong);border-radius:999px;
+    color:var(--muted);font:600 12px inherit;padding:6px 13px;cursor:pointer}
+  .pt-vers button.on{border-color:var(--acid);color:var(--acid);background:rgba(221,249,143,.08)}
+  .pt-vers button small{font-weight:400;opacity:.7}
+
+  .pt-cbox{background:var(--navy-900);border:1px solid var(--line);border-radius:13px;padding:13px 15px;margin-top:18px}
+  .pt-tc{display:inline-flex;align-items:center;gap:6px;background:var(--navy-800);border:1px solid var(--line);
+    border-radius:7px;padding:3px 10px;font-size:11.5px;color:#f0c060;font-variant-numeric:tabular-nums;margin-bottom:9px}
+  .pt-cbox textarea{width:100%;background:var(--navy-800);border:1px solid var(--line-strong);border-radius:10px;
+    color:var(--text);font:inherit;font-size:14px;padding:10px 12px;min-height:62px;resize:vertical}
+  .pt-row{display:flex;gap:9px;align-items:center;margin-top:9px;flex-wrap:wrap}
+
+  .pt-coms{margin-top:16px;display:grid;gap:8px}
+  .pt-com{background:var(--navy-900);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+  .pt-com.mio{border-left:3px solid var(--acid)}
+  .pt-com.hecho{opacity:.5}
+  .pt-com .hd{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;font-size:11.5px;color:var(--muted-2)}
+  .pt-com .hd b{color:var(--text);font-size:13px}
+  .pt-com .hd .t{background:var(--navy-800);border-radius:6px;padding:1px 7px;color:#f0c060;
+    font-variant-numeric:tabular-nums;font-weight:700;cursor:pointer}
+  .pt-com p{margin:6px 0 0;font-size:13.5px;color:var(--muted);line-height:1.55;white-space:pre-wrap}
+
+  .pt-files{display:grid;gap:7px;margin-top:16px}
+  .pt-file{display:flex;align-items:center;gap:11px;background:var(--navy-900);border:1px solid var(--line);
+    border-radius:11px;padding:10px 14px;font-size:13.5px}
+  .pt-file .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+  .pt-file .nm small{display:block;font-size:11.5px;color:var(--muted-2)}
+
+  .pt-ok{border:1px solid #7ed957;border-radius:13px;background:rgba(126,217,87,.07);padding:14px 16px;
+    margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .pt-ok div{flex:1;min-width:190px;font-size:13.5px;color:var(--muted)}
+  .pt-aprobado{border-color:#7ed957;color:#7ed957;font-weight:700}
+
+  .pt-code{background:var(--navy-900);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-top:14px}
+  .pt-code input{background:var(--navy-800);border:1px solid var(--line-strong);border-radius:10px;color:var(--text);
+    font:700 20px/1 inherit;letter-spacing:.3em;padding:11px 14px;width:170px;text-align:center}
+  .pt-err{color:#ff8b8b;font-size:13px;margin-top:8px}
+  .pt-sec-h{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:24px 0 8px}
 </style>
 </head>
 <body>
 <div class="pt-wrap">
   <div class="pt-top">
-    <div class="brief-logo"><img src="/assets/brand/viven-logo-white.svg" alt="VIVEN" style="height:22px;width:auto;display:block" /></div>
-    <div class="pt-langs" id="pt-langs">
-      <button type="button" data-lang="en">EN</button>
-      <button type="button" data-lang="de">DE</button>
-      <button type="button" data-lang="es">ES</button>
-    </div>
+    <a href="/" style="text-decoration:none"><span style="font-size:21px;font-weight:800;letter-spacing:-.02em;color:var(--acid)">viven</span></a>
+    <span class="muted-note" id="pt-est" style="font-size:12px"></span>
   </div>
-  <div id="pt-body"><div class="pt-center">Loading…</div></div>
+  <div id="pt-body"><div class="pt-card"><p class="muted-note">…</p></div></div>
 </div>
 
 <script is:inline define:vars={{ SB_URL, SB_KEY }}>
   var qs = new URLSearchParams(location.search);
-  var id = qs.get('id'), tok = qs.get('t');
-  var lang = ['en','de','es'].includes(qs.get('lang')) ? qs.get('lang') : (navigator.language || 'en').slice(0,2);
-  if (!['en','de','es'].includes(lang)) lang = 'en';
-  document.documentElement.lang = lang;
+  var ID = qs.get('id'), TK = qs.get('t');
+  var $ = function(i){ return document.getElementById(i); };
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 
-  /* Las cinco etapas que definió Sebastián el 25 ago 2026 — las mismas que ve el
-     equipo en Proyectos, para que el cliente y nosotros hablemos del mismo estado.
-     Las viejas (pre_production/filming/editing/client_review/delivered) se mapean por
-     si queda algún link viejo dando vueltas. */
+  /* Las cinco etapas son las mismas que ve el equipo en Proyectos, para que el cliente
+     y nosotros hablemos del mismo estado. Las viejas se mapean por si queda algún link
+     dando vueltas. */
   var STEPS = ['desarrollo','preproduccion','rodaje','post','entregado'];
   var VIEJAS = { pre_production:'preproduccion', filming:'rodaje', editing:'post', client_review:'post', delivered:'entregado' };
-  var L = {
-    en: { title: 'Your project status', steps: ['Development','Pre-production','Filming','Post-production','Delivered'], feedback: 'Leave a comment or question', send: 'Send', sent: '✅ Sent — we\'ll get back to you soon.', watch: 'Watch your video', err: 'Could not load — check the link or contact info@viven.ch', errSend: 'Could not send — try again or email info@viven.ch' },
-    de: { title: 'Ihr Projektstatus', steps: ['Entwicklung','Vorproduktion','Dreh','Postproduktion','Geliefert'], feedback: 'Kommentar oder Frage hinterlassen', send: 'Senden', sent: '✅ Gesendet — wir melden uns bald.', watch: 'Ihr Video ansehen', err: 'Konnte nicht geladen werden — Link prüfen oder info@viven.ch kontaktieren', errSend: 'Konnte nicht gesendet werden — bitte erneut versuchen oder info@viven.ch' },
-    es: { title: 'El estado de tu proyecto', steps: ['Desarrollo','Preproducción','Rodaje','Postproducción','Entregado'], feedback: 'Dejá un comentario o pregunta', send: 'Enviar', sent: '✅ Enviado — te respondemos pronto.', watch: 'Ver tu video', err: 'No se pudo cargar — revisá el link o escribí a info@viven.ch', errSend: 'No se pudo enviar — probá de nuevo o escribí a info@viven.ch' },
-  }[lang];
+  var L, DATA = null, VER = null, TOKEN = null;
+  try { TOKEN = localStorage.getItem('vv_portal_' + ID); } catch(e){}
 
-  function embedUrl(u){
-    if (!u) return '';
-    var v = u.match(/vimeo\.com\/(\d+)/);
-    if (v) return 'https://player.vimeo.com/video/' + v[1];
-    var y = u.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([\w-]+)/);
-    if (y) return 'https://www.youtube.com/embed/' + y[1];
-    return '';
+  var TX = {
+    en: { title:'Your project status', steps:['Development','Pre-production','Filming','Post-production','Delivered'],
+      ph:'What should change?', send:'Send comment', sent:'✅ Sent — we get it right away, with the timestamp.',
+      here:'here', versions:'Versions', files:'Files', download:'Download', comments:'Comments',
+      approve:'Approve this version', approveHint:'If everything looks good, approve — then we deliver the final files.',
+      approved:'Approved', codeAsk:'To download or approve we send a 6-digit code to', codeSend:'Send me the code',
+      codePh:'000000', codeGo:'Confirm', codeSent:'Code sent to', codeBad:'Wrong code', codeOld:'The code expired — ask for a new one',
+      err:'Could not load — check the link or write to info@viven.ch', due:'Delivery by', noVid:'The cut is not ready yet.' },
+    de: { title:'Ihr Projektstatus', steps:['Entwicklung','Vorproduktion','Dreh','Postproduktion','Geliefert'],
+      ph:'Was soll geändert werden?', send:'Kommentar senden', sent:'✅ Gesendet — wir bekommen es sofort, mit dem Zeitpunkt.',
+      here:'hier', versions:'Versionen', files:'Dateien', download:'Herunterladen', comments:'Kommentare',
+      approve:'Diese Version freigeben', approveHint:'Wenn alles passt, freigeben — dann liefern wir die finalen Dateien.',
+      approved:'Freigegeben', codeAsk:'Zum Herunterladen und Freigeben senden wir einen 6-stelligen Code an', codeSend:'Code senden',
+      codePh:'000000', codeGo:'Bestätigen', codeSent:'Code gesendet an', codeBad:'Falscher Code', codeOld:'Der Code ist abgelaufen — bitte neuen anfordern',
+      err:'Konnte nicht geladen werden — Link prüfen oder info@viven.ch', due:'Lieferung bis', noVid:'Der Schnitt ist noch nicht bereit.' },
+    es: { title:'El estado de tu proyecto', steps:['Desarrollo','Preproducción','Rodaje','Postproducción','Entregado'],
+      ph:'¿Qué habría que cambiar?', send:'Enviar comentario', sent:'✅ Enviado — nos llega al instante, con el minuto.',
+      here:'acá', versions:'Versiones', files:'Archivos', download:'Descargar', comments:'Comentarios',
+      approve:'Aprobar esta versión', approveHint:'Si está todo bien, aprobalo — y entregamos los archivos finales.',
+      approved:'Aprobado', codeAsk:'Para descargar o aprobar te mandamos un código de 6 dígitos a', codeSend:'Mandame el código',
+      codePh:'000000', codeGo:'Confirmar', codeSent:'Código enviado a', codeBad:'Código incorrecto', codeOld:'El código venció — pedí uno nuevo',
+      err:'No se pudo cargar — revisá el link o escribí a info@viven.ch', due:'Entrega hasta', noVid:'El corte todavía no está listo.' },
+  };
+
+  function api(accion, extra){
+    return fetch(SB_URL + '/functions/v1/get-portal', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer ' + SB_KEY },
+      body: JSON.stringify(Object.assign({ id:ID, t:TK, accion:accion, token:TOKEN }, extra || {}))
+    }).then(function(r){ return r.json(); });
   }
 
-  function render(data){
-    var crudo = data.production_status || 'desarrollo';
+  var mmss = function(ms){ var s = Math.floor((ms||0)/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); };
+
+  /* El reproductor de Vimeo sabe en qué segundo está: es lo que hace que la nota valga
+     "en el 0:34" y no "en algún momento del principio". Se carga su API solo si el
+     video es de Vimeo; con YouTube o sin video, el comentario va sin timecode. */
+  var player = null, TC = 0;
+  function montarVimeo(url){
+    var m = String(url||'').match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (!m) return null;
+    return 'https://player.vimeo.com/video/' + m[1];
+  }
+  function embed(url){
+    var v = montarVimeo(url); if (v) return v;
+    var y = String(url||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]+)/);
+    return y ? 'https://www.youtube.com/embed/' + y[1] : '';
+  }
+  function engancharVimeo(){
+    var ifr = $('pt-iframe'); if (!ifr || !/player\.vimeo\.com/.test(ifr.src)) return;
+    var arranca = function(){
+      if (!window.Vimeo) return;
+      try {
+        player = new window.Vimeo.Player(ifr);
+        player.on('timeupdate', function(d){ TC = Math.round((d.seconds||0)*1000); pintarTC(); });
+      } catch(e){}
+    };
+    if (window.Vimeo) return arranca();
+    var s = document.createElement('script');
+    s.src = 'https://player.vimeo.com/api/player.js'; s.onload = arranca;
+    document.head.appendChild(s);
+  }
+  function pintarTC(){ var e = $('pt-tc'); if (e) e.textContent = '🕐 ' + mmss(TC) + ' — ' + L.here; }
+
+  function pasos(estado){
+    var crudo = estado || 'desarrollo';
     var idx = Math.max(0, STEPS.indexOf(VIEJAS[crudo] || crudo));
-    var stepsHtml = STEPS.map(function(s, i){
+    return STEPS.map(function(s, i){
       var cls = i < idx ? 'done' : (i === idx ? 'current' : '');
-      return '<div class="pt-step ' + cls + '"><div class="dot">' + (i < idx ? '✓' : (i+1)) + '</div><div class="line"></div><div class="lbl">' + L.steps[i] + '</div></div>';
+      return '<span class="pt-step ' + cls + '"><span class="dot">' + (i < idx ? '✓' : (i+1)) + '</span>' + L.steps[i] + '</span>' +
+        (i < STEPS.length - 1 ? '<span class="pt-sep"></span>' : '');
     }).join('');
-    var vidEmbed = embedUrl(data.deliverable_url);
-    var body = document.getElementById('pt-body');
-    body.innerHTML =
+  }
+
+  function render(){
+    var d = DATA;
+    var vers = d.versiones || [];
+    if (!VER && vers.length) VER = vers[0];
+    var url = (VER && VER.video_url) || d.deliverable_url;
+    var src = embed(url);
+    var coms = (d.comentarios || []).filter(function(c){ return !VER || !c.version_id || String(c.version_id) === String(VER.id); });
+    var aprobada = VER && VER.approved_at;
+
+    $('pt-body').innerHTML =
       '<div class="pt-card">' +
-        '<h1>' + L.title + (data.client_name ? ' — ' + esc(data.client_name.split(' ')[0]) : '') + '</h1>' +
-        '<div class="pt-steps">' + stepsHtml + '</div>' +
-        (data.portal_note ? '<div class="pt-note">' + esc(data.portal_note) + '</div>' : '') +
-        (vidEmbed ? '<div class="pt-vid"><iframe src="' + vidEmbed + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>' : '') +
-        '<div class="pt-fb">' +
-          '<label style="display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">' + L.feedback + '</label>' +
-          '<textarea id="pt-msg"></textarea>' +
-          '<button class="btn btn-primary" id="pt-send" type="button">' + L.send + '</button>' +
-          '<div class="pt-err" id="pt-err" style="display:none"></div>' +
-        '</div>' +
+        '<h1>' + esc(d.title || L.title) + '</h1>' +
+        '<p class="pt-sub">' + esc(d.client_name || '') +
+          (d.delivery_due ? ' · ' + L.due + ' ' + esc(d.delivery_due.split('-').reverse().join('.')) : '') + '</p>' +
+        '<div class="pt-steps">' + pasos(d.production_status) + '</div>' +
+        (d.portal_note ? '<div class="pt-note">' + esc(d.portal_note) + '</div>' : '') +
+        (src
+          ? '<div class="pt-vid"><iframe id="pt-iframe" src="' + esc(src) + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>'
+          : '<div class="pt-note">' + L.noVid + '</div>') +
+        (vers.length > 1
+          ? '<div class="pt-vers">' + vers.map(function(v){
+              return '<button type="button" data-v="' + v.id + '" class="' + (VER && v.id === VER.id ? 'on' : '') + '">v' + v.n +
+                (v.title ? ' <small>· ' + esc(v.title) + '</small>' : '') + '</button>'; }).join('') + '</div>'
+          : '') +
+        (src
+          ? '<div class="pt-cbox"><span class="pt-tc" id="pt-tc">🕐 0:00 — ' + L.here + '</span>' +
+            '<textarea id="pt-msg" placeholder="' + esc(L.ph) + '"></textarea>' +
+            '<div class="pt-row"><button class="btn btn-primary" id="pt-send" type="button">' + L.send + '</button>' +
+            '<span class="muted-note" id="pt-sent" style="font-size:12.5px"></span></div></div>'
+          : '') +
+        (coms.length
+          ? '<div class="pt-sec-h">' + L.comments + '</div><div class="pt-coms">' + coms.map(function(c){
+              return '<div class="pt-com ' + (c.from_client ? 'mio' : '') + (c.resolved ? ' hecho' : '') + '">' +
+                '<div class="hd"><b>' + esc(c.author_name || 'VIVEN') + '</b>' +
+                (c.tc_ms != null ? '<span class="t" data-go="' + c.tc_ms + '">' + mmss(c.tc_ms) + '</span>' : '') +
+                (c.resolved ? '<span style="color:#7ed957">✓</span>' : '') + '</div>' +
+                '<p>' + esc(c.body) + '</p></div>'; }).join('') + '</div>'
+          : '') +
+        ((d.archivos || []).length
+          ? '<div class="pt-sec-h">' + L.files + '</div><div class="pt-files">' + d.archivos.map(function(f){
+              return '<div class="pt-file"><span class="nm">' + esc(f.file_name) +
+                '<small>' + (f.size_bytes ? Math.round(f.size_bytes/1048576) + ' MB' : '') + '</small></span>' +
+                '<button class="btn btn-ghost small" type="button" data-dl="' + f.id + '">' + L.download + '</button></div>'; }).join('') + '</div>'
+          : '') +
+        (VER
+          ? (aprobada
+              ? '<div class="pt-ok"><div class="pt-aprobado">✓ ' + L.approved + ' · ' + esc(String(VER.approved_at).slice(0,10).split('-').reverse().join('.')) + '</div></div>'
+              : '<div class="pt-ok"><div>' + L.approveHint + '</div>' +
+                '<button class="btn btn-ghost small" id="pt-ok" type="button" style="border-color:#7ed957;color:#7ed957">✓ ' + L.approve + '</button></div>')
+          : '') +
+        '<div id="pt-code"></div>' +
       '</div>';
-    document.getElementById('pt-send').addEventListener('click', function(){
-      var msg = document.getElementById('pt-msg').value.trim();
-      var err = document.getElementById('pt-err');
-      if (!msg) return;
-      var btn = document.getElementById('pt-send'); btn.disabled = true;
-      fetch(SB_URL + '/functions/v1/portal-message', {
-        method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id, t: tok, message: msg })
-      }).then(function(r){ return r.json(); }).then(function(d){
-        if (d && d.ok) { document.querySelector('.pt-fb').innerHTML = '<div class="ok">' + L.sent + '</div>'; }
-        else { err.textContent = L.errSend; err.style.display = 'block'; btn.disabled = false; }
-      }).catch(function(){ err.textContent = L.errSend; err.style.display = 'block'; btn.disabled = false; });
+
+    engancharVimeo();
+    var s = $('pt-send'); if (s) s.addEventListener('click', enviar);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-v]'), function(b){
+      b.addEventListener('click', function(){ VER = vers.filter(function(v){ return String(v.id) === b.dataset.v; })[0]; render(); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function(b){
+      b.addEventListener('click', function(){ if (player) player.setCurrentTime(+b.dataset.go/1000); }); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-dl]'), function(b){
+      b.addEventListener('click', function(){ conCodigo(function(){ bajar(b.dataset.dl); }); }); });
+    var ok = $('pt-ok'); if (ok) ok.addEventListener('click', function(){ conCodigo(aprobar); });
+  }
+
+  function enviar(){
+    var t = $('pt-msg').value.trim(); if (!t) return;
+    var b = $('pt-send'); b.disabled = true;
+    api('comentar', { texto:t, tc_ms: TC || null, version_id: VER ? VER.id : null }).then(function(r){
+      b.disabled = false;
+      if (r.error) { $('pt-sent').textContent = '⚠️'; return; }
+      $('pt-msg').value = ''; $('pt-sent').textContent = L.sent;
+      DATA.comentarios = (DATA.comentarios || []).concat([r.comentario]);
+      render();
     });
   }
-  function esc(s){ return String(s || '').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-  document.querySelectorAll('#pt-langs button').forEach(function(b){
-    b.classList.toggle('on', b.getAttribute('data-lang') === lang);
-    b.addEventListener('click', function(){ var u = new URL(location.href); u.searchParams.set('lang', b.getAttribute('data-lang')); location.href = u.toString(); });
-  });
-
-  if (!id || !tok) {
-    document.getElementById('pt-body').innerHTML = '<div class="pt-center">' + L.err + '</div>';
-  } else {
-    fetch(SB_URL + '/functions/v1/get-portal', {
-      method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, t: tok })
-    }).then(function(r){ return r.json(); }).then(function(d){
-      if (d && d.ok) render(d);
-      else document.getElementById('pt-body').innerHTML = '<div class="pt-center">' + L.err + '</div>';
-    }).catch(function(){ document.getElementById('pt-body').innerHTML = '<div class="pt-center">' + L.err + '</div>'; });
+  /* Bajar y aprobar piden el código. Se manda SIEMPRE al email de la ficha, nunca a
+     uno que escriba quien está mirando. */
+  var pendiente = null;
+  function conCodigo(fn){
+    if (DATA.verificado || TOKEN) return fn();
+    pendiente = fn;
+    $('pt-code').innerHTML = '<div class="pt-code"><p class="muted-note" style="margin:0 0 10px;font-size:13.5px">' +
+      L.codeAsk + ' <b>' + esc(DATA.email_tapado || '') + '</b></p>' +
+      '<button class="btn btn-primary small" id="pt-code-send" type="button">' + L.codeSend + '</button>' +
+      '<div id="pt-code-in"></div></div>';
+    $('pt-code-send').addEventListener('click', function(){
+      var b = this; b.disabled = true;
+      api('pedir_codigo').then(function(r){
+        if (r.error) { b.disabled = false; return; }
+        $('pt-code-in').innerHTML = '<p class="muted-note" style="margin:12px 0 8px;font-size:13px">' + L.codeSent + ' ' + esc(r.enviado_a) + '</p>' +
+          '<input id="pt-code-v" inputmode="numeric" maxlength="6" placeholder="' + L.codePh + '" /> ' +
+          '<button class="btn btn-primary small" id="pt-code-go" type="button">' + L.codeGo + '</button><div class="pt-err" id="pt-code-err"></div>';
+        $('pt-code-go').addEventListener('click', verificar);
+        $('pt-code-v').focus();
+      });
+    });
+    $('pt-code').scrollIntoView({ behavior:'smooth', block:'center' });
   }
+  function verificar(){
+    var c = ($('pt-code-v').value || '').replace(/\D/g,'');
+    api('verificar', { codigo:c }).then(function(r){
+      if (r.error) { $('pt-code-err').textContent = r.error === 'codigo_vencido' ? L.codeOld : L.codeBad; return; }
+      TOKEN = r.token; DATA.verificado = true;
+      try { localStorage.setItem('vv_portal_' + ID, TOKEN); } catch(e){}
+      $('pt-code').innerHTML = '';
+      if (pendiente) { var f = pendiente; pendiente = null; f(); }
+    });
+  }
+  function bajar(fileId){
+    api('descargar', { file_id:+fileId }).then(function(r){
+      if (r.error) { if (r.error === 'necesita_codigo') { TOKEN = null; conCodigo(function(){ bajar(fileId); }); } return; }
+      window.location.href = r.url;
+    });
+  }
+  function aprobar(){
+    api('aprobar', { version_id: VER.id }).then(function(r){
+      if (r.error) { if (r.error === 'necesita_codigo') { TOKEN = null; conCodigo(aprobar); } return; }
+      cargar();
+    });
+  }
+
+  function cargar(){
+    api('estado').then(function(d){
+      if (!d || d.error) { L = TX.en; $('pt-body').innerHTML = '<div class="pt-card"><p class="muted-note">' + TX.en.err + '</p></div>'; return; }
+      DATA = d; L = TX[d.lang] || TX.en;
+      document.documentElement.lang = d.lang || 'en';
+      document.title = (d.title || L.title) + ' — Viven';
+      VER = null;
+      render();
+    }).catch(function(){ L = TX.en; $('pt-body').innerHTML = '<div class="pt-card"><p class="muted-note">' + TX.en.err + '</p></div>'; });
+  }
+  if (!ID || !TK) { $('pt-body').innerHTML = '<div class="pt-card"><p class="muted-note">' + TX.en.err + '</p></div>'; }
+  else cargar();
 </script>
 </body>
 </html>
