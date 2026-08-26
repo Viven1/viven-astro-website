@@ -6732,9 +6732,25 @@ const newsCases = [
     const t0 = performance.now();
     await loadCore();
     const core = Math.round(performance.now() - t0);
+
+    /* La analítica son 14.500 pageviews y tarda unos seis segundos. Se pedía SIEMPRE al
+       arrancar, aunque entraras directo a un proyecto por su link —que es como se abren
+       los que se mandan por email— y ahí no la mira nadie: seis segundos de red y de CPU
+       en el teléfono para nada.
+       Ahora sale sola solo si la pestaña de destino la usa; en cualquier otra se pide
+       cuando entrás (gotoTab ya lo hace). Medido: core ~1,2 s, total ~7,5 s. */
+    const qs = new URLSearchParams(location.search);
+    const destino = qs.get('tab') ||
+      (qs.get('proyecto') || qs.get('project') ? 'projects' :
+       qs.get('lead') ? 'leads' : qs.get('offer') || qs.get('propuesta') ? 'offers' :
+       qs.get('empresa') || qs.get('company') ? 'companies' : 'hoy');
+    const laUsa = ['hoy', 'analytics', 'leads'].includes(destino);
+
+    perf('initial_load', { core, leads: allLeads.length, pruebas: leadsPrueba.length,
+                           destino, analitica: laUsa ? 'ya' : 'después' });
+    if (!laUsa) return;
     loadAnalytics(true).then(() => {
-      perf('initial_load', { core, total: Math.round(performance.now() - t0),
-                             leads: allLeads.length, pruebas: leadsPrueba.length });
+      perf('analytics', { ms: Math.round(performance.now() - t0) - core, destino });
     }, () => {});
   }
 
