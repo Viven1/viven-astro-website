@@ -49,3 +49,31 @@ Reglas:
 - Si algo no se puede hacer, no lo dejes ahí: cancelalo y explicá por qué.
 
 Aprobar sin que esto se vacíe es peor que no tener el botón: promete y no cumple.
+
+## Migraciones: `supabase db push`, ya no el SQL Editor
+
+Durante mucho tiempo las migraciones se corrían pegándolas a mano en el SQL Editor, así
+que la tabla de historial de Supabase se quedó en la 0054 mientras el esquema real iba
+por la 0159. Con ese desfase, `supabase db push` intentaba reaplicar cien migraciones
+viejas y moría en la primera policy repetida — por eso nadie lo usaba, y por eso el
+desfase crecía.
+
+El 26 ago 2026 se reparó el historial entero (`supabase migration repair --status
+applied <version>`, una por una: el comando NO acepta varias juntas). Hoy está al día.
+
+**A partir de ahora:**
+
+```bash
+npx supabase db push
+```
+
+Si se queja con `LegacyDbPushMissingRemoteError`, es porque hay una migración local con
+número anterior a la última aplicada; ahí va `--include-all`.
+
+Y escribí las migraciones idempotentes igual (`create table if not exists`,
+`create or replace function`, `add column if not exists`): es la red que permitió
+reparar el historial sin miedo a romper nada.
+
+⚠️ La carpeta está sincronizada y a veces duplica archivos como `0157_algo 2.sql`.
+Son copias byte a byte del original y hay que borrarlas antes de pushear —
+si no, la misma migración entra dos veces en el historial.
