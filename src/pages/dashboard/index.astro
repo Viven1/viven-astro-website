@@ -17925,37 +17925,88 @@ const newsCases = [
       : 'tildá al menos a uno';
   }
 
-  async function pjContactoNuevo(){
+  /* Agregar a alguien: un formulario en la misma tarjeta, no tres prompt() encadenados.
+     Con prompts no se ve lo que ya escribiste, no se puede corregir sin empezar de nuevo, y
+     en el teléfono son tres pantallas del sistema tapando la app.
+     El email va primero porque es la clave: si esa persona ya está en Personas, el resto se
+     completa solo y el contacto queda enganchado con su ficha —así lo que se le mande cae
+     en su historial y no en un contacto suelto que no es nadie. */
+  function pjContactoNuevo(){
     const p = pjCur; if (!p) return;
-    const mail = String(prompt('Email de la persona:') || '').trim().toLowerCase();
-    if (!mail) return;
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){ toast('Ese email no parece válido'); return; }
-    /* Si ya existe en Personas se engancha con su ficha: así lo que se le mande queda en
-       su historial y no en un contacto suelto que no es nadie. */
-    const ya = (allLeads || []).find((l) => String(l.email || '').toLowerCase() === mail);
-    const nombre = String(prompt('Nombre:', ya ? (ya.name || '') : '') || '').trim();
-    const rol = String(prompt('Rol (opcional): p. ej. Marketing, Legal', ya ? (ya.job_title || '') : '') || '').trim();
-    const { data, error } = await supabase.from('project_contacts').insert({
-      project_id: p.id, lead_id: ya ? ya.id : null, name: nombre || (ya && ya.name) || null,
-      email: mail, role: rol || null, recibe: pjContactos.length ? 'copia' : 'principal' }).select().single();
-    if (error){ toast(error.message.includes('duplicate') ? 'Esa persona ya está en el proyecto' : error.message); return; }
-    pjContactos.push(data);
-    pjRenderContactos(); pjRenderSteps();
-    toast('👤 ' + (nombre || mail) + ' agregado' + (ya ? ' (enganchado con su ficha)' : ''));
+    if ($('pj-cli-form')) { $('pj-cli-mail').focus(); return; }
+    const caja = document.createElement('div');
+    caja.id = 'pj-cli-form';
+    caja.style.cssText = 'border:1px solid var(--acid);border-radius:12px;padding:13px 15px;margin-top:10px';
+    caja.innerHTML =
+      '<div class="pj-crew-row" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.9fr) auto">' +
+        '<input class="pj-inp" id="pj-cli-mail" type="email" placeholder="email@empresa.ch" />' +
+        '<input class="pj-inp" id="pj-cli-nom" placeholder="Nombre" />' +
+        '<input class="pj-inp" id="pj-cli-rol" placeholder="Rol (Marketing, Legal…)" />' +
+        '<button class="btn btn-primary small" id="pj-cli-ok" type="button">Agregar</button>' +
+      '</div>' +
+      '<p class="muted-note" style="margin:8px 0 0" id="pj-cli-hint">Si ya está en Personas, se engancha con su ficha.</p>';
+    $('pj-cli').after(caja);
+    const mail = $('pj-cli-mail'); mail.focus();
+
+    /* Al escribir el email se busca en Personas y se completa lo que ya sabemos. */
+    mail.addEventListener('blur', () => {
+      const v = mail.value.trim().toLowerCase(); if (!v) return;
+      const ya = (allLeads || []).find((l) => String(l.email || '').toLowerCase() === v);
+      if (!ya) return;
+      if (!$('pj-cli-nom').value) $('pj-cli-nom').value = ya.name || '';
+      if (!$('pj-cli-rol').value) $('pj-cli-rol').value = ya.job_title || '';
+      $('pj-cli-hint').textContent = '✓ Es ' + (ya.name || v) + ', que ya está en Personas — queda enganchado con su ficha.';
+    });
+    caja.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter'){ e.preventDefault(); $('pj-cli-ok').click(); }
+      if (e.key === 'Escape') caja.remove();
+    });
+    $('pj-cli-ok').addEventListener('click', async () => {
+      const v = mail.value.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ $('pj-cli-hint').textContent = '⚠️ Ese email no parece válido'; mail.focus(); return; }
+      const ya = (allLeads || []).find((l) => String(l.email || '').toLowerCase() === v);
+      const nombre = $('pj-cli-nom').value.trim(), rol = $('pj-cli-rol').value.trim();
+      const { data, error } = await supabase.from('project_contacts').insert({
+        project_id: p.id, lead_id: ya ? ya.id : null, name: nombre || (ya && ya.name) || null,
+        email: v, role: rol || null, recibe: pjContactos.length ? 'copia' : 'principal' }).select().single();
+      if (error){
+        $('pj-cli-hint').textContent = /duplicate|unique/i.test(error.message)
+          ? '⚠️ Esa persona ya está en el proyecto' : '⚠️ ' + error.message;
+        return;
+      }
+      pjContactos.push(data);
+      caja.remove();
+      pjRenderContactos(); pjRenderSteps();
+      toast('👤 ' + (nombre || v) + ' agregado' + (ya ? ' — enganchado con su ficha' : ''));
+    });
   }
 
-  /* Mandarles algo: cada opción lleva al flujo que YA tiene su preview. Esto no manda
-     nada por su cuenta — elige el camino y el destinatario. */
+  /* Mandarles algo: cada opción lleva al flujo que YA tiene su preview. Esto no manda nada
+     por su cuenta — elige el camino y a quién. */
   function pjContactosMandar(){
     const elegidos = pjContactos.filter((c) => c._on !== false);
     if (!elegidos.length){ toast('Tildá al menos a una persona'); return; }
-    const q = 'Mandarles a ' + elegidos.map((c) => c.name || c.email).join(', ') + ':\n\n' +
-      '1 · El Project Brief\n2 · El link del portal\n3 · Avisar que hay versión nueva\n\n' +
-      'Escribí el número:';
-    const op = String(prompt(q) || '').trim();
-    if (op === '1'){ pjPaso = 'brief'; pjRenderSteps(); pjBriefVer(); }
-    else if (op === '2'){ pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-link').click(), 60); }
-    else if (op === '3'){ pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-prev').click(), 60); }
+    if ($('pj-cli-menu')){ $('pj-cli-menu').remove(); return; }
+    const OP = [
+      ['📋 El Project Brief', 'las 12 preguntas de las que sale el guion', () => { pjPaso = 'brief'; pjRenderSteps(); pjBriefVer(); }],
+      ['🔗 El link del portal', 'ahí ve el corte, comenta y baja los archivos', () => { pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-link').click(), 60); }],
+      ['🎞 Que hay una versión nueva', 'con la vista previa de lo que recibe', () => { pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-prev').click(), 60); }],
+      ['🧾 La factura', 'se arma en bexio y sale desde ahí', () => { pjPaso = 'plata'; pjRenderSteps(); setTimeout(() => $('pj-invoice').click(), 60); }],
+    ];
+    const m = document.createElement('div');
+    m.id = 'pj-cli-menu';
+    m.style.cssText = 'border:1px solid var(--line-strong);border-radius:12px;padding:6px;margin-top:10px;background:var(--navy-900)';
+    m.innerHTML = '<p class="muted-note" style="margin:6px 8px 8px">A ' +
+      esc(elegidos.map((c) => c.name || c.email).join(', ')) + ':</p>' +
+      OP.map(([t, d], i) => '<button type="button" data-op="' + i + '" style="display:block;width:100%;text-align:left;' +
+        'background:none;border:0;color:var(--text);font:inherit;font-size:13.5px;padding:9px 10px;border-radius:9px;cursor:pointer">' +
+        esc(t) + '<span style="display:block;font-size:11.5px;color:var(--muted-2)">' + esc(d) + '</span></button>').join('');
+    $('pj-cli-mandar').closest('.ab-urlrow').after(m);
+    m.querySelectorAll('[data-op]').forEach((b) => {
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.04)'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'none'; });
+      b.addEventListener('click', () => { m.remove(); OP[+b.dataset.op][2](); });
+    });
   }
 
   /* Las respuestas del brief se leen al abrir el proyecto, no solo al abrir el modal:
