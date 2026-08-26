@@ -385,14 +385,26 @@ Deno.serve(async (req) => {
          Las FECHAS DE ENVÍO no cambian: scheduled_at se calcula desde que el lead entró
          más los días de espera acumulados, así que sale exactamente cuando salía antes.
          Lo único que se adelanta es cuándo se puede revisar. */
-      const hayContenidoAdelante = steps.slice(run.step_idx).some((x: { type?: string }) => x?.type === "content_step");
-      const adelantarBorradores = step.type === "wait" && hayContenidoAdelante;
-      if (adelantarBorradores) {
+      const ES_EMAIL = (t?: string) => t === "content_step" || t === "email" || t === "ai_email";
+      const proximoEmail = steps.slice(run.step_idx).find((x: { type?: string }) => ES_EMAIL(x?.type));
+      if (step.type === "wait" && proximoEmail) {
         const { count: yaHay } = await service.from("outbox")
           .select("id", { count: "exact", head: true }).eq("run_id", run.id);
-        if (yaHay) { /* ya se armaron en una corrida anterior: no duplicar */ }
-        else step = { ...step, type: "content_step" };
+        /* Si ya hay borradores de esta corrida, no se duplican. Si no, se salta a armar
+           el que venga: content_step arma los tres de una, y email/ai_email arman el suyo
+           con su fecha. */
+        if (!yaHay) step = { ...proximoEmail, __adelantado: true };
       }
+
+      /* Cuándo tiene que SALIR este borrador. Si se armó adelantado, sale cuando la
+         espera termina —las mismas fechas de siempre—; si se armó a su hora, sale ya. */
+      const fechaDeEnvio = () => {
+        if (!step.__adelantado) return null;
+        const idx = steps.indexOf(proximoEmail);
+        let d = 0;
+        for (let i = 0; i < idx; i++) if (steps[i]?.type === "wait") d += Math.max(0, +steps[i].days || 0);
+        return d > 0 ? slotZurich(new Date(new Date(run.created_at).getTime() + d * 864e5)).toISOString() : null;
+      };
 
       try {
         if (step.type === "wait") {
@@ -403,14 +415,14 @@ Deno.serve(async (req) => {
           // (bypaseaba la aprobación humana que sí tenían los pasos ai_email).
           // Se guarda CRUDO (con tokens {{first_name}} etc.) — la sección 3 más
           // abajo hace fill()+wrap() recién al aprobar/enviar, con el lead fresco.
-          const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: step.subject || "", body: step.body || "", status: "pending" }).select("id").maybeSingle();
+          const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: step.subject || "", body: step.body || "", status: "pending", scheduled_at: fechaDeEnvio() }).select("id").maybeSingle();
           if (obIns?.id) notifyOutbox(obIns.id, step.from);
           out.drafts = (out.drafts || 0) + 1;
         } else if (step.type === "ai_email") {
           // borrador IA → BANDEJA DE SALIDA (nunca sale sin aprobación humana)
           const draft = await aiDraft(lead, String(step.prompt || "Short friendly follow-up about their video project."), step.from || "team");
           if (draft) {
-            const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: draft.subject, body: draft.body }).select("id").maybeSingle();
+            const { data: obIns } = await service.from("outbox").insert({ lead_id: lead.id, automation_id: au.id, run_id: run.id, kind: "workflow", sender: step.from || "team", subject: draft.subject, body: draft.body, scheduled_at: fechaDeEnvio() }).select("id").maybeSingle();
             if (obIns?.id) notifyOutbox(obIns.id, step.from);
             out.drafts = (out.drafts || 0) + 1;
           }
@@ -462,6 +474,20 @@ Deno.serve(async (req) => {
           await service.from("leads").update({ status: step.value || "contactado" }).eq("id", lead.id);
         }
       } catch (e) { console.error("STEP_ERROR", run.id, String(e)); }
+      /* Un email adelantado ya está armado: el camino continúa DESPUÉS de él, y con la
+         fecha en que ese email sale — si no, la espera siguiente arrancaría hoy y toda
+         la secuencia se correría hacia adelante. */
+      if (step.__adelantado && step.type !== "content_step") {
+        const idx = steps.indexOf(proximoEmail);
+        const sched = fechaDeEnvio();
+        await service.from("automation_runs").update({
+          step_idx: idx + 1,
+          next_at: sched || new Date().toISOString(),
+          status: idx + 1 >= steps.length ? "done" : "active",
+        }).eq("id", run.id);
+        out.steps++;
+        continue;
+      }
       const nextIdx = stepsSkippedToEnd ? steps.length : run.step_idx + 1;
       await service.from("automation_runs").update({ step_idx: nextIdx, next_at: nextAt.toISOString(), status: nextIdx >= steps.length ? "done" : "active" }).eq("id", run.id);
       out.steps++;
@@ -485,9 +511,30 @@ Deno.serve(async (req) => {
     const { data: appr } = await service.from("outbox").select("*").eq("status", "approved").in("kind", ["workflow", "content_followup", "reactivation", "followup"])
       .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso2}`).limit(50);
     for (const ob of appr ?? []) {
-      const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed").eq("id", ob.lead_id).maybeSingle();
+      const { data: lead } = await service.from("leads").select("id,email,name,first_name,company,lang,unsubscribed,last_reply_at,videocall_at,won_at").eq("id", ob.lead_id).maybeSingle();
       if (!lead || !lead.email || (lead as { unsubscribed?: boolean }).unsubscribed || TEST.test(String(lead.email))) {
         await service.from("outbox").update({ status: "discarded" }).eq("id", ob.id); continue;
+      }
+
+      /* ── LA REGLA DE SALIDA, TAMBIÉN AL MANDAR ──
+         Las reglas de salida (contestó, agendó, avanzó) se miran cuando el camino avanza
+         paso a paso. Pero los borradores de una secuencia se arman TODOS de una y días
+         antes, y entonces el camino ya está 'done': nadie los vuelve a mirar.
+         Con el adelanto de hoy esa ventana se hizo más grande —el borrador puede existir
+         dos días antes de salir— así que hay que revisar en el último momento.
+         Un robot que le escribe a alguien que ya contestó es peor que no escribirle:
+         le dice al cliente que no lo estamos leyendo. */
+      if (ob.run_id) {
+        const { data: run2 } = await service.from("automation_runs")
+          .select("created_at").eq("id", ob.run_id).maybeSingle();
+        const desde = run2 ? new Date((run2 as { created_at: string }).created_at).getTime() : 0;
+        const mas = (v: unknown) => !!v && new Date(String(v)).getTime() > desde;
+        if (desde && (mas(lead.last_reply_at) || mas(lead.videocall_at) || mas(lead.won_at))) {
+          await service.from("outbox").update({ status: "discarded" }).eq("id", ob.id);
+          await service.from("automation_runs").update({ status: "stopped" }).eq("id", ob.run_id);
+          out.exited = (out.exited || 0) + 1;
+          continue;
+        }
       }
       const F = FROMS[ob.sender] || FROMS.team;
       const unsub = `${SB_URL}/functions/v1/newsletter-unsub?l=${lead.id}&t=${await unsubToken(lead.id)}`;
