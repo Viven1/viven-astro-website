@@ -10,6 +10,7 @@
 // open-relay hacia un `to` arbitrario o bombardear una sola bandeja. Rate
 // limit simple por IP vía tabla rl_hits (SQL 0082): máx 5 envíos / 10 min.
 
+import { registrarEmail } from "../_shared/email.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND = Deno.env.get("RESEND_API_KEY")!;
@@ -112,6 +113,11 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ from: "VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: t.subject, html }),
     });
     if (!res.ok) { console.error("RESEND_FAIL", await res.text()); return json({ error: "send_failed" }, 502); }
+    await registrarEmail({
+      service, to, subject: t.subject,
+      body: String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000),
+      source: "brief-email", senderLabel: "Sofia",
+    });
     await hubspotSubmit({ firstname: first, lastname: last, email: to, message: `Brief de proyecto enviado (${pairs.length} respuestas)` , hutk: hutk ?? null, pageUri: page_uri ?? null, pageName: page_name ?? null, gclid: gclid ?? null });
     return json({ ok: true });
   } catch (e) {

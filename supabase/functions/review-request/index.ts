@@ -8,6 +8,7 @@
 // Deploy:   supabase functions deploy review-request --no-verify-jwt
 // Schedule: SQL 0033. Secrets: RESEND_API_KEY. Opcional: REVIEW_LINK (link directo GBP).
 
+import { registrarEmail } from "../_shared/email.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -95,15 +96,23 @@ Deno.serve(async (req) => {
       const lastN = nmParts.slice(1).join(" ") || nmParts[0] || "";
       const sal = lang === "de" ? lastN : first;   // DE: Sie + apellido (regla fija)
       const tmpl = await getTemplate("review_request", lang);
+      const asunto = tmpl ? tokens(tmpl.subject, first, lastN) : MAIL[lang].subject;
+      const cuerpo = tmpl ? htmlDePlantilla(tmpl.body, first, lastN, lang) : MAIL[lang].html(sal);
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from: "Sebastian de Viven <info@viven.ch>", reply_to: "sebastian@viven.ch", to: [lead.email],
-          subject: tmpl ? tokens(tmpl.subject, first, lastN) : MAIL[lang].subject,
-          html: tmpl ? htmlDePlantilla(tmpl.body, first, lastN, lang) : MAIL[lang].html(sal) }),
+          subject: asunto, html: cuerpo }),
       });
       if (!r.ok) return json({ error: "Resend " + r.status }, 500);
       await service.from("lead_notes").insert({ lead_id: String(lead.id), author: "Sistema", body: "⭐ Pedido de reseña ENVIADO a " + lead.email });
+      /* La nota ya existía, pero una nota no es el email: en la timeline aparecía "se
+         pidió reseña" sin el texto que se le mandó. Ahora queda el email entero. */
+      await registrarEmail({
+        service, to: lead.email, subject: asunto,
+        body: String(cuerpo).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000),
+        source: "review-request", senderLabel: "Sebastian", leadId: lead.id,
+      });
       return json({ ok: true, sent_to: lead.email, lang });
     }
 

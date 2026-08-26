@@ -29,6 +29,8 @@ import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
 <style is:global>
   body{background:#0f1826}
   .pt-wrap{max-width:760px;margin:0 auto;padding:40px 20px 90px}
+  .pt-equipo{background:#f0c06018;border:1px solid #f0c060;border-radius:10px;padding:10px 13px;
+    font-size:13px;color:#f0c060;margin:0 0 18px;line-height:1.5}
   .pt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}
   .pt-card{border:1px solid var(--line);border-radius:20px;background:var(--navy-800);padding:28px}
   .pt-card h1{font-size:clamp(20px,4vw,26px);line-height:1.2;margin:0 0 4px}
@@ -145,9 +147,30 @@ import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
       err:'No se pudo cargar — revisá el link o escribí a info@viven.ch', due:'Entrega hasta', noVid:'El corte todavía no está listo.' },
   };
 
+  /* Si quien abre el portal es alguien de VIVEN, va con SU sesión y entra sin código.
+     El token del dashboard vive en localStorage del mismo origen (viven.ch), así que
+     está acá al alcance; se busca por el prefijo que usa supabase-js.
+     (Sebastián, 26 ago 2026: "yo también tengo que ver el portal del cliente… tengo que
+     poder ver qué ve y corregir si necesario".) */
+  function sesionEquipo(){
+    try {
+      for (var i = 0; i < localStorage.length; i++){
+        var k = localStorage.key(i);
+        if (!k || k.indexOf('sb-') !== 0 || k.indexOf('-auth-token') < 0) continue;
+        var v = JSON.parse(localStorage.getItem(k) || 'null');
+        var t = v && (v.access_token || (v.currentSession && v.currentSession.access_token));
+        // vencido no sirve: mandarlo haría que el servidor lo rechace y caiga al código
+        var exp = v && (v.expires_at || (v.currentSession && v.currentSession.expires_at));
+        if (t && (!exp || exp * 1000 > Date.now())) return t;
+      }
+    } catch(e){}
+    return null;
+  }
+
   function api(accion, extra){
+    var jwt = sesionEquipo();
     return fetch(SB_URL + '/functions/v1/get-portal', {
-      method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer ' + SB_KEY },
+      method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer ' + (jwt || SB_KEY) },
       body: JSON.stringify(Object.assign({ id:ID, t:TK, accion:accion, token:TOKEN }, extra || {}))
     }).then(function(r){ return r.json(); });
   }
@@ -365,6 +388,16 @@ import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
          título. Esta es la puerta. */
       if (d.necesita_codigo) { puerta(); return; }
       render();
+      /* Aviso de que lo estás viendo como equipo: si no, es imposible saber si lo que
+         ves es lo que ve el cliente o un atajo tuyo. */
+      if (d.modo_equipo){
+        var av = document.createElement('div');
+        av.className = 'pt-equipo';
+        av.innerHTML = '👁 Lo estás viendo como <b>VIVEN</b>, sin código. El cliente (' +
+          esc(d.email_cliente || d.email_tapado || '—') + ') tiene que pedir el suyo por email.';
+        var w = document.querySelector('.pt-wrap');
+        if (w && !document.querySelector('.pt-equipo')) w.insertBefore(av, w.firstChild.nextSibling);
+      }
     }).catch(function(){ L = TX.en; $('pt-body').innerHTML = '<div class="pt-card"><p class="muted-note">' + TX.en.err + '</p></div>'; });
   }
   if (!ID || !TK) { $('pt-body').innerHTML = '<div class="pt-card"><p class="muted-note">' + TX.en.err + '</p></div>'; }

@@ -5,6 +5,7 @@
 // Deploy:  supabase functions deploy send-offer --no-verify-jwt
 // Secret:  RESEND_API_KEY (ya seteado)
 
+import { registrarEmail } from "../_shared/email.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
@@ -46,6 +47,18 @@ Deno.serve(async (req) => {
         ...(offer_id ? { tags: [{ name: "offer_id", value: String(offer_id) }] } : {}),
       }),
     });
+    /* En la ficha de la persona: esto es lo más importante que le mandamos y hasta hoy
+       no dejaba rastro ahí. (Sebastián, 26 ago 2026: "todos los emails siempre dentro de
+       la persona, si este email salió no se ve".) */
+    if (res.ok) {
+      await registrarEmail({
+        /* Acá no hay cliente de service role: alcanza el del usuario logueado, porque
+           email_log tiene policy `for all to authenticated`. */
+        service: supabase, to, subject,
+        body: text || String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000),
+        source: "send-offer", senderLabel: "VIVEN",
+      });
+    }
     if (!res.ok) { const t = await res.text(); console.error("RESEND_ERROR", res.status, t); return json({ error: `Resend ${res.status}: ${t.slice(0, 200)}` }); }
     // enviada de verdad → status 'sent' + sent_at (el semáforo de "esperando hace" mide
     // desde acá, no desde updated_at que se pisa con cada save). Best-effort: si la

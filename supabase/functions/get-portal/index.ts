@@ -15,9 +15,14 @@
 // Deploy: supabase functions deploy get-portal --no-verify-jwt
 // Secret: RESEND_API_KEY
 
+import { registrarEmail } from "../_shared/email.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+/* Para verificar la sesión de un miembro del equipo hace falta un cliente con la clave
+   pública, no con la de servicio: es el JWT del usuario el que tiene que decidir. */
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const SB_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const RESEND = Deno.env.get("RESEND_API_KEY");
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +69,7 @@ Deno.serve(async (req) => {
     if (!proj) return json({ error: "not_found" }, 404);
 
     const { data: lead } = deal.lead_id
-      ? await service.from("leads").select("name,lang,email").eq("id", deal.lead_id).maybeSingle()
+      ? await service.from("leads").select("id,name,lang,email").eq("id", deal.lead_id).maybeSingle()
       : { data: null };
     /* Un solo idioma: el de la persona. "No hacen falta tres idiomas, solo el idioma
        del cliente que tenemos en su persona." */
@@ -115,18 +120,25 @@ Deno.serve(async (req) => {
       });
       if (RESEND) {
         const L = T[lang];
+        const asunto = `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`;
+        const html = `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
+              <p>${L.intro}</p>
+              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
+              <p style="color:#8a94a8;font-size:13px">${L.vale}</p></div>`;
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from: "VIVEN AG <info@viven.ch>", to: [emailCliente],
-            subject: `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`,
-            html: `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
-              <p>${L.intro}</p>
-              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
-              <p style="color:#8a94a8;font-size:13px">${L.vale}</p></div>`,
-          }),
+          body: JSON.stringify({ from: "VIVEN AG <info@viven.ch>", to: [emailCliente], subject: asunto, html }),
         }).catch(() => {});
+        /* Queda en la ficha de la persona. Este email fue el que destapó el problema:
+           salió a un cliente real y en su ficha no había ni una línea. El código NO se
+           guarda —solo se dice que se mandó uno— porque el registro lo lee cualquiera
+           del equipo y sería una llave escrita en la timeline. */
+        await registrarEmail({
+          service, to: emailCliente, subject: asunto,
+          body: "Código de acceso al portal (6 dígitos, vence en 15 min). El código no se guarda.",
+          source: "get-portal", senderLabel: "VIVEN", leadId: lead?.id ?? null,
+        });
       }
       /* Se devuelve el email TAPADO: sirve para que el cliente sepa a dónde mirar, sin
          revelar la dirección completa a quien tenga el link. */
@@ -226,7 +238,28 @@ Deno.serve(async (req) => {
       service.from("project_files").select("id,file_name,mime,size_bytes,created_at")
         .eq("project_id", proj.id).eq("visible_cliente", true).order("created_at", { ascending: false }),
     ]);
-    const acc = await verificado(body.token);
+    /* ── EL EQUIPO ENTRA SIN CÓDIGO ──
+       Al cerrar el portal con código dejé afuera también a Sebastián: no podía abrir el
+       portal de su propio proyecto para revisarlo. (26 ago 2026: "yo también tengo que
+       ver el portal del cliente, ahora está bloqueada para mí… no puede pasar jamás.
+       Tengo que poder ver qué ve y corregir si necesario".)
+       Si la llamada trae la sesión de un miembro de VIVEN (user_roles, la misma regla
+       que el dashboard), entra directo. No hay atajo: hace falta estar logueado de
+       verdad, un token robado del link no alcanza. */
+    const esEquipo = await (async () => {
+      const auth = req.headers.get("Authorization") ?? "";
+      const tok = auth.replace(/^Bearer\s+/i, "").trim();
+      if (!tok || tok === SB_ANON) return false;
+      try {
+        const u = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: `Bearer ${tok}` } } });
+        const { data: { user } } = await u.auth.getUser();
+        if (!user) return false;
+        const { data } = await u.rpc("is_member");
+        return data === true;
+      } catch { return false; }
+    })();
+
+    const acc = esEquipo ? { equipo: true } : await verificado(body.token);
 
     /* SIN CÓDIGO NO SE VE NADA. Antes el link solo bastaba para mirar y comentar, y el
        código se pedía recién al descargar o aprobar. Pero un link reenviado —y estos
@@ -258,6 +291,10 @@ Deno.serve(async (req) => {
       comentarios: comentarios ?? [],
       archivos: archivos ?? [],
       verificado: !!acc,
+      /* Para que la pantalla pueda avisar "esto lo estás viendo como equipo": si no, es
+         imposible saber si lo que ves es lo que ve el cliente. */
+      modo_equipo: esEquipo,
+      email_cliente: esEquipo ? emailCliente : null,
       email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
     });
   } catch (e) {
