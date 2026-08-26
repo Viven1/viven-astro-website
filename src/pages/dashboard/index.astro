@@ -1632,6 +1632,15 @@ const newsCases = [
   .pj-esc-kv > span{flex:none;width:130px;font-size:11px;color:var(--muted-2)}
   @media(max-width:560px){.pj-esc-kv > span{width:auto}}
 
+  /* ---- facturas del crew ---- */
+  .pj-bill{border:1px solid var(--line);border-radius:12px;background:var(--navy-900);padding:11px 14px;margin-bottom:8px}
+  .pj-bill-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .pj-bill-hd b{font-size:14px}
+  .pj-bill-est{font-size:11px;font-weight:700}
+  .pj-bill-chf{margin-left:auto;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+  .pj-bill-sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .pj-bill-duda{font-size:12px;color:#f0c060;margin-top:6px;line-height:1.45}
+  .pj-bill-acc{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
   .pj-margen-box{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
   @media(max-width:600px){.pj-margen-box{grid-template-columns:1fr}}
   .pj-margen-box > div{background:var(--navy-900);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
@@ -1639,7 +1648,11 @@ const newsCases = [
   .pj-margen-box b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
   #pj-costos table{font-size:13px;min-width:0}
   #pj-costos .pj-inp{padding:5px 8px;font-size:12.5px}
-  #pj-costos .pj-num{max-width:70px;text-align:right}
+  #pj-costos .pj-num{max-width:64px;text-align:right}
+  #pj-costos .pj-qty{display:inline-flex;gap:4px;align-items:center;justify-content:flex-end}
+  #pj-costos .pj-unit{max-width:62px;text-align:left}
+  #pj-costos .pj-uhint{display:block;font-size:10.5px;font-weight:400;color:var(--muted-2);margin-top:1px}
+  @media(max-width:760px){#pj-costos .pj-qty{justify-content:flex-start}#pj-costos .pj-num,#pj-costos .pj-unit{max-width:90px}}
   #pj-costos select.pj-inp{padding:5px 4px;font-size:12px}
   #pj-costos td{vertical-align:middle}
   /* En el teléfono —que es donde Sebastián mira el tablero estando en el set— una tabla
@@ -2738,8 +2751,24 @@ const newsCases = [
           <button class="btn btn-ghost small" id="pj-costos-sembrar" type="button" style="margin-left:auto">✨ Traer del presupuesto</button>
           <button class="btn btn-ghost small" id="pj-costo-add" type="button">➕ Línea</button>
         </h3>
+        <datalist id="pj-units"><option value="Tag">día</option><option value="Std">hora</option><option value="Fix">precio cerrado</option><option value="Stk">unidad</option><option value="Person">persona</option><option value="Pauschal">precio cerrado</option></datalist>
         <div id="pj-margen"></div>
         <div class="lead-table-wrap" id="pj-costos"></div>
+      </div>
+
+      <!-- 📄 Facturas del crew: subís el PDF o la foto, la IA lee proveedor, número e
+           importes, queda como línea de costo (y ahí el margen deja de ser estimado) y
+           de ahí sale a bexio como factura de proveedor, siempre en borrador. -->
+      <div class="panel pj-blq" id="pj-fact-blq" style="margin-top:12px">
+        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">📄 Facturas del crew
+          <span class="muted-note" style="font-weight:400;letter-spacing:0;text-transform:none;font-size:11.5px">el papel atrás de cada costo</span>
+          <span style="margin-left:auto;display:flex;gap:7px">
+            <input type="file" id="pj-bill-file" accept="application/pdf,image/*" multiple hidden />
+            <button class="btn btn-primary small" id="pj-bill-up" type="button">⬆ Subir factura</button>
+          </span>
+        </h3>
+        <div id="pj-bills-resumen"></div>
+        <div id="pj-bills"></div>
       </div>
 
       <details class="panel pj-pos" id="pj-pos-det" style="margin-top:12px">
@@ -16303,7 +16332,7 @@ const newsCases = [
 
     pjRenderPortal();
     pjRenderDesglose();
-    pjCostosLoad();
+    pjCostosLoad().then(pjBillsLoad);
 
     // notas
     $('pj-notes').value = p.notes || '';
@@ -16393,6 +16422,186 @@ const newsCases = [
   }
 
 
+
+
+  /* ---------- FACTURAS DEL CREW (SQL 0156) ----------
+     "Ideal sería poder subir facturas de la crew al dashboard para enviar a bexio y
+     saber el margen real de cada proyecto" (Sebastián, 26 ago 2026).
+     Subís el PDF o la foto → la IA lee proveedor, número, fecha e importes → se ata a
+     una línea de costo (ahí el margen deja de ser una estimación) → y se manda a bexio
+     como factura de proveedor, siempre en borrador. */
+  let pjBills = [];
+  const PJ_BILL_EST = {
+    nueva: ['📥 Subida', 'var(--muted)'], leida: ['🤖 Leída', '#8ab4ff'],
+    revisada: ['✅ Revisada', '#7ed957'], en_bexio: ['🧾 En bexio', 'var(--acid)'],
+    descartada: ['✕ Descartada', 'var(--muted-2)'],
+  };
+
+  async function pjBillsLoad(){
+    const p = pjCur; if (!p) return;
+    const { data, error } = await supabase.from('project_bills').select('*')
+      .eq('project_id', p.id).neq('estado', 'descartada').order('created_at', { ascending: false });
+    pjBills = error ? [] : (data || []);
+    pjBillsRender();
+  }
+
+  function pjBillsRender(){
+    const box = $('pj-bills'), res = $('pj-bills-resumen'); if (!box) return;
+    /* Cuánto del costo tiene papel atrás. Es la diferencia entre "margen" y "margen
+       real", y sin decirlo la palabra "real" no significa nada. */
+    const conFactura = new Set(pjBills.filter((b) => b.cost_id).map((b) => String(b.cost_id)));
+    const costoTotal = pjCostos.reduce((a, c) => a + pjCostoTotal(c), 0);
+    const costoResp = pjCostos.filter((c) => conFactura.has(String(c.id))).reduce((a, c) => a + pjCostoTotal(c), 0);
+    const pct = costoTotal ? Math.round(costoResp / costoTotal * 100) : 0;
+    res.innerHTML = !pjBills.length
+      ? '<p class="muted-note" style="margin:0 0 12px">Todavía no subiste ninguna. Cuando cada costo tenga su factura atrás, el margen deja de ser una estimación.</p>'
+      : '<p class="muted-note" style="margin:0 0 12px">' + pjBills.length +
+        (pjBills.length === 1 ? ' factura' : ' facturas') + ' · respaldan <b>' + pjCHF(costoResp) + '</b> de ' +
+        pjCHF(costoTotal) + ' de costo' + (pct < 100 ? ' <span style="color:#f0c060">(' + pct + '%)</span>' : ' — todo respaldado') + '</p>';
+
+    if (!pjBills.length){ box.innerHTML = ''; return; }
+    box.innerHTML = pjBills.map((b) => {
+      const [lbl, col] = PJ_BILL_EST[b.estado] || PJ_BILL_EST.nueva;
+      const dudas = (b.extracted && b.extracted.dudas) || [];
+      const baja = b.extracted && b.extracted.confianza === 'baja';
+      const costo = pjCostos.find((c) => String(c.id) === String(b.cost_id));
+      return '<div class="pj-bill" data-b="' + b.id + '">' +
+        '<div class="pj-bill-hd">' +
+          '<b>' + esc(b.supplier || b.file_name || 'Sin leer') + '</b>' +
+          '<span class="pj-bill-est" style="color:' + col + '">' + lbl + '</span>' +
+          '<span class="pj-bill-chf">' + (b.gross != null ? pjCHF(b.gross) : '—') + '</span>' +
+        '</div>' +
+        '<div class="pj-bill-sub">' +
+          [b.vendor_ref ? 'Nº ' + esc(b.vendor_ref) : '', b.bill_date ? fmtDMY(b.bill_date) : '',
+           b.vat ? 'IVA ' + pjCHF(b.vat) : 'sin IVA',
+           b.bexio_no ? 'bexio ' + esc(b.bexio_no) : '',
+           costo ? '↳ ' + esc(costo.concept || 'línea de costo') : ''].filter(Boolean).join(' · ') +
+        '</div>' +
+        (baja || dudas.length
+          ? '<div class="pj-bill-duda">⚠️ ' + (baja ? 'La IA la leyó con poca confianza. ' : '') +
+            (dudas.length ? esc(dudas.join(' · ')) : 'Revisá los números contra el papel.') + '</div>' : '') +
+        '<div class="pj-bill-acc">' +
+          '<button class="btn btn-ghost small" data-ver="' + b.id + '" type="button">👁 Ver</button>' +
+          (b.estado === 'nueva' ? '<button class="btn btn-ghost small" data-leer="' + b.id + '" type="button">🤖 Leer con IA</button>' : '') +
+          (!b.cost_id && b.gross != null ? '<button class="btn btn-ghost small" data-costo="' + b.id + '" type="button">💸 Pasar a costo</button>' : '') +
+          (!b.bexio_id && b.gross != null ? '<button class="btn btn-primary small" data-bexio="' + b.id + '" type="button">🧾 Mandar a bexio</button>' : '') +
+          '<button class="pj-crew-x" data-quitar="' + b.id + '" type="button" title="Quitar del proyecto">✕</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    box.querySelectorAll('[data-ver]').forEach((b) => b.addEventListener('click', () => pjBillVer(b.dataset.ver)));
+    box.querySelectorAll('[data-leer]').forEach((b) => b.addEventListener('click', () => pjBillLeer(b.dataset.leer)));
+    box.querySelectorAll('[data-costo]').forEach((b) => b.addEventListener('click', () => pjBillACosto(b.dataset.costo)));
+    box.querySelectorAll('[data-bexio]').forEach((b) => b.addEventListener('click', () => pjBillABexio(b.dataset.bexio)));
+    box.querySelectorAll('[data-quitar]').forEach((b) => b.addEventListener('click', () => pjBillQuitar(b.dataset.quitar)));
+  }
+
+  async function pjBillSubir(files){
+    const p = pjCur; if (!p || !files || !files.length) return;
+    const note = $('pj-bills-resumen');
+    for (const file of files){
+      note.innerHTML = '<p class="muted-note" style="margin:0 0 12px">⬆ Subiendo ' + esc(file.name) + '…</p>';
+      /* El nombre del archivo va normalizado: un "Rechnung Müller (1).pdf" con espacios
+         y paréntesis rompe la URL firmada en algunos clientes. */
+      const limpio = file.name.replace(/[^\w.\-]+/g, '_').slice(-80);
+      const path = 'p' + p.id + '/' + Date.now() + '_' + limpio;
+      const { error: upErr } = await supabase.storage.from('project-bills').upload(path, file, { contentType: file.type || undefined });
+      if (upErr){ toast('⚠️ ' + upErr.message); continue; }
+      const { data: row, error: insErr } = await supabase.from('project_bills').insert({
+        project_id: p.id, file_path: path, file_name: file.name, mime: file.type || null,
+        size_bytes: file.size, subido_por: meEmail || null,
+      }).select().single();
+      if (insErr){ toast('⚠️ ' + insErr.message); continue; }
+      pjBills.unshift(row);
+      pjBillsRender();
+      await pjBillLeer(row.id, true);   // leerla sola: subir y tener que apretar "leer" es un paso de más
+    }
+  }
+
+  async function pjBillLeer(id, silencioso){
+    const b = pjBills.find((x) => String(x.id) === String(id)); if (!b) return;
+    const res = $('pj-bills-resumen');
+    res.innerHTML = '<p class="muted-note" style="margin:0 0 12px">🤖 Leyendo ' + esc(b.file_name || 'la factura') + '… (unos segundos)</p>';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-bill-read', { body: { bill_id: b.id } });
+      if (error || !data || data.error) throw new Error((data && data.error) || error.message);
+      Object.assign(b, data.leido);
+      if (!silencioso) toast('🤖 Leída');
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+    }
+    pjBillsRender();
+  }
+
+  async function pjBillVer(id){
+    const b = pjBills.find((x) => String(x.id) === String(id)); if (!b) return;
+    /* URL firmada de vida corta: el bucket es privado porque son facturas con datos
+       bancarios de gente real. */
+    const { data, error } = await supabase.storage.from('project-bills').createSignedUrl(b.file_path, 300);
+    if (error || !data){ toast('⚠️ ' + (error?.message || 'no se pudo abrir')); return; }
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }
+
+  async function pjBillACosto(id){
+    const b = pjBills.find((x) => String(x.id) === String(id)); if (!b) return;
+    const p = pjCur;
+    const concepto = (b.extracted && b.extracted.concepto) || b.supplier || 'Factura';
+    const { data: c, error } = await supabase.from('project_costs').insert({
+      project_id: p.id, concept: String(concepto).slice(0, 120), person: b.supplier || null,
+      kind: 'crew', qty: 1, unit_cost: Number(b.net ?? b.gross) || 0, sort: pjCostos.length + 100,
+      notes: b.vendor_ref ? 'Factura ' + b.vendor_ref : null,
+    }).select().single();
+    if (error){ toast('⚠️ ' + error.message); return; }
+    const { error: e2 } = await supabase.from('project_bills').update({ cost_id: c.id, estado: 'revisada' }).eq('id', b.id);
+    if (e2){ toast('⚠️ ' + e2.message); return; }
+    b.cost_id = c.id; b.estado = 'revisada';
+    pjCostos.push(c);
+    toast('💸 Línea de costo creada — ' + pjCHF(c.unit_cost));
+    pjCostosRender(); pjBillsRender();
+  }
+
+  async function pjBillABexio(id){
+    const b = pjBills.find((x) => String(x.id) === String(id)); if (!b) return;
+    if (!confirm('¿Mandar esta factura a bexio?\n\n' + (b.supplier || '—') + ' · ' + pjCHF(b.gross) +
+      '\n\nEntra como BORRADOR de factura de proveedor: no se contabiliza sola, la revisás y la aprobás en bexio.')) return;
+    const llamar = (extra) => supabase.functions.invoke('bexio-bill', { body: { bill_id: b.id, ...extra } });
+    try {
+      let { data, error } = await llamar({});
+      if (error) throw new Error(error.message);
+      /* bexio ya tiene cuatro contactos "Sonova" por crear a ciegas: si hay varios
+         candidatos —o ninguno— lo decide una persona, no la función. */
+      if (data && data.necesita_eleccion){
+        const cands = data.candidatos || [];
+        let elegido = null;
+        if (cands.length){
+          const txt = cands.map((c, i) => (i + 1) + ') ' + c.nombre + (c.mail ? ' · ' + c.mail : '')).join('\n');
+          const r = prompt('En bexio hay ' + cands.length + ' contactos parecidos a "' + (b.supplier || '') + '":\n\n' + txt +
+            '\n\nEscribí el número del que corresponde, o "nuevo" para crearlo.');
+          if (r === null) return;
+          if (/^\d+$/.test(r.trim()) && cands[+r.trim() - 1]) elegido = cands[+r.trim() - 1].id;
+          else if (!/^nuevo$/i.test(r.trim())){ toast('No entendí la respuesta'); return; }
+        } else if (!confirm('En bexio no hay ningún contacto que se llame "' + (b.supplier || '') + '".\n\n¿Lo creo?')) return;
+        ({ data, error } = await llamar(elegido ? { supplier_id: elegido } : { crear_proveedor: true }));
+        if (error) throw new Error(error.message);
+      }
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      b.estado = 'en_bexio'; b.bexio_id = String(data.bexio_id); b.bexio_no = data.bexio_no;
+      toast('🧾 En bexio como borrador' + (data.bexio_no ? ' · ' + data.bexio_no : '') +
+        (data.proveedor_creado ? ' · proveedor creado' : ''));
+      pjBillsRender();
+    } catch (e){ toast('⚠️ ' + (e.message || e)); }
+  }
+
+  async function pjBillQuitar(id){
+    const b = pjBills.find((x) => String(x.id) === String(id)); if (!b) return;
+    if (!confirm('¿Quitar "' + (b.supplier || b.file_name) + '" del proyecto?\n\nEl archivo se borra. Si ya está en bexio, allá queda.')) return;
+    await supabase.storage.from('project-bills').remove([b.file_path]);
+    const { error } = await supabase.from('project_bills').delete().eq('id', b.id);
+    if (error){ toast('⚠️ ' + error.message); return; }
+    pjBills = pjBills.filter((x) => String(x.id) !== String(id));
+    pjBillsRender();
+  }
 
   /* ---------- DESGLOSE DE GUIÓN (ai-breakdown, SQL 0155) ----------
      Del texto del guión salen escenas, todo lo que hay que conseguir, la lista de
@@ -16521,10 +16730,21 @@ const newsCases = [
      Acá el costo es un hecho del proyecto, no del catálogo. */
   let pjCostos = [];
   const PJ_KINDS = [['crew', '👥 Crew'], ['equipo', '🎥 Equipo'], ['otros', '📦 Otros']];
+  /* Las unidades del presupuesto están en alemán porque así se factura en Suiza.
+     En singular para el encabezado ("costo por día") y con su traducción a la vista. */
+  const PJ_UNIT_1 = { tag: 'día', std: 'hora', stk: 'unidad', fix: 'total', pauschal: 'total',
+    person: 'persona', sprache: 'idioma', monat: 'mes', woche: 'semana' };
+  const PJ_UNIT_N = { tag: 'días', std: 'horas', stk: 'unidades', fix: 'precio cerrado', pauschal: 'precio cerrado',
+    person: 'personas', sprache: 'idiomas', monat: 'meses', woche: 'semanas' };
+  const pjUnidad = (u, n) => {
+    const k = String(u || '').toLowerCase();
+    const trad = (Number(n) === 1 ? PJ_UNIT_1 : PJ_UNIT_N)[k];
+    return u ? (trad ? u + ' (' + trad + ')' : u) : '';
+  };
   const pjCostoTotal = (c) => (Number(c.qty) || 0) * (Number(c.unit_cost) || 0);
 
   async function pjCostosLoad(){
-    const p = pjCur; if (!p) return;
+    const p = pjCur; if (!p) return;   // devuelve promesa: las facturas se cargan después, para poder cruzarlas con los costos
     const { data, error } = await supabase.from('project_costs').select('*')
       .eq('project_id', p.id).order('sort').order('id');
     pjCostos = (error ? [] : (data || []));
@@ -16559,17 +16779,24 @@ const newsCases = [
 
     if (!pjCostos.length){ $('pj-costos').innerHTML = ''; return; }
     $('pj-costos').innerHTML = '<table class="lead-table"><thead><tr>' +
-      '<th>Concepto</th><th>Quién</th><th>Tipo</th><th style="text-align:right">Cant.</th>' +
-      '<th style="text-align:right">Costo unit.</th><th style="text-align:right">Total</th><th>Pagado</th><th></th>' +
+      '<th>Concepto</th><th>Quién</th><th>Tipo</th><th style="text-align:right">Cantidad</th>' +
+      '<th style="text-align:right">Costo por unidad</th><th style="text-align:right">Total</th><th>Pagado</th><th></th>' +
       '</tr></thead><tbody>' +
       pjCostos.map((c) => '<tr data-c="' + c.id + '">' +
         '<td data-l="Concepto"><input class="pj-inp pj-c" data-f="concept" value="' + esc(c.concept || '') + '" /></td>' +
         '<td data-l="Quién"><input class="pj-inp pj-c" data-f="person" value="' + esc(c.person || '') + '" placeholder="quién" /></td>' +
         '<td data-l="Tipo"><select class="pj-inp pj-c" data-f="kind">' + PJ_KINDS.map(([k, l]) =>
             '<option value="' + k + '"' + (c.kind === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></td>' +
-        '<td data-l="Cantidad" style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="qty" type="number" step="0.5" value="' + (Number(c.qty) || 0) + '" /></td>' +
-        '<td data-l="Costo unit." style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="unit_cost" type="number" step="10" value="' + (Number(c.unit_cost) || 0) + '" /></td>' +
-        '<td data-l="Total" style="text-align:right;white-space:nowrap"><b>' + Math.round(pjCostoTotal(c)).toLocaleString('de-CH') + '</b></td>' +
+        /* La unidad va PEGADA a la cantidad: "3" no dice nada, "3 Tag" sí. Venía del
+           presupuesto y se estaba tirando. (Sebastián, 26 ago: "poné si son horas o
+           días, así entendemos mejor".) */
+        '<td data-l="Cantidad" style="text-align:right"><span class="pj-qty">' +
+          '<input class="pj-inp pj-c pj-num" data-f="qty" type="number" step="0.5" value="' + (Number(c.qty) || 0) + '" />' +
+          '<input class="pj-inp pj-c pj-unit" data-f="unit" list="pj-units" value="' + esc(c.unit || '') + '" placeholder="unid." title="Tag = día · Std = hora · Fix = precio cerrado" />' +
+        '</span></td>' +
+        '<td data-l="Costo por ' + esc(PJ_UNIT_1[String(c.unit || '').toLowerCase()] || (c.unit || 'unidad')) + '" style="text-align:right"><input class="pj-inp pj-c pj-num" data-f="unit_cost" type="number" step="10" value="' + (Number(c.unit_cost) || 0) + '" /></td>' +
+        '<td data-l="Total" style="text-align:right;white-space:nowrap"><b>' + Math.round(pjCostoTotal(c)).toLocaleString('de-CH') + '</b>' +
+          (c.unit ? '<small class="pj-uhint">' + esc((Number(c.qty) || 0) + ' ' + (PJ_UNIT_N[String(c.unit).toLowerCase()] || c.unit)) + '</small>' : '') + '</td>' +
         '<td data-l="Pagado" style="text-align:center"><input type="checkbox" class="pj-c" data-f="paid"' + (c.paid ? ' checked' : '') + ' /></td>' +
         '<td><button class="pj-crew-x" data-del="' + c.id + '" type="button" title="Borrar la línea">✕</button></td>' +
       '</tr>').join('') + '</tbody></table>';
@@ -16701,6 +16928,8 @@ const newsCases = [
       pjRenderCrew();
       toast('👥 ' + roles.length + ' roles traídos — poneles nombre y guardá');
     });
+    $('pj-bill-up').addEventListener('click', () => $('pj-bill-file').click());
+    $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });
     $('pj-desglosar').addEventListener('click', pjDesglosar);
     $('pj-plan-gen').addEventListener('click', pjPlanDesdeJornadas);
     $('pj-costos-sembrar').addEventListener('click', pjCostosSembrar);
