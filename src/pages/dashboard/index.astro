@@ -2651,6 +2651,7 @@ const newsCases = [
     <div class="pipe-bar dl-toolbar">
       <input type="search" id="dl-search" placeholder="Buscar por deal, persona o empresa…" />
       <button class="dl-chip" id="dl-stuck" type="button" title="Solo deals con más de 14 días en la misma etapa">🔥 Estancados +14d (<span id="dl-stuck-n">0</span>)</button>
+      <button class="dl-chip" id="dl-limpiar" type="button" title="Ver cuáles dejaron rastro de verdad y archivar los vacíos">🧹 Limpiar</button>
       <div class="dl-views">
         <button id="dl-view-board" type="button">Board</button>
         <button id="dl-view-list" type="button">Lista</button>
@@ -2689,6 +2690,21 @@ const newsCases = [
     <div class="pipe-drops" id="pipe-drops"></div>
     <!-- vista Lista (toggle Board/Lista) -->
     <div id="deals-list" hidden></div>
+    <!-- 🧹 Limpiar: la evidencia de cada deal a la vista, y él tilda. Nada se borra. -->
+    <div class="fu-modal" id="limp-modal" hidden role="dialog" aria-modal="true" aria-label="Limpiar el pipeline">
+      <div class="fu-back" id="limp-back"></div>
+      <div class="fu-card" style="width:min(760px,100%)">
+        <div class="fu-hd">
+          <div><b>🧹 Limpiar el pipeline</b><span>Lo que no dejó rastro no es una oportunidad, es una fila</span></div>
+          <button class="fu-x" id="limp-x" type="button" aria-label="Cerrar">✕</button>
+        </div>
+        <div id="limp-body"></div>
+        <div class="fu-actions">
+          <button class="btn btn-primary" id="limp-go" type="button" disabled>🗄 Archivar</button>
+          <span class="muted-note">Archivar no borra: salen del board y se pueden volver a traer.</span>
+        </div>
+      </div>
+    </div>
     <!-- popover ⋯ de las tarjetas (mismo patrón que pp-menu: fixed para que el overflow no lo recorte) -->
     <div class="lm2-menu" id="dl-menu" hidden style="position:fixed;top:0;left:0;right:auto"></div>
     <p class="muted-note" id="leads-empty" hidden>No hay deals que coincidan. Envía el formulario del sitio para testear.</p>
@@ -4740,6 +4756,27 @@ const newsCases = [
 .fu-de select{background:var(--navy-900);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:inherit;font-size:12.5px;padding:6px 8px}
 .fu-note{margin-top:10px;font-size:12px}
 @media(max-width:620px){.fu-card{padding:16px 15px;max-height:94vh}}
+/* 🧹 Limpiar: cada fila muestra por qué dudo (rojo) y qué rastro dejó (verde). La
+   decisión es de Sebastián, así que la evidencia tiene que estar a la vista, no el veredicto. */
+.limp-sec{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+.limp-sec span{color:var(--text);font-weight:700}
+.limp-mini{background:none;border:1px solid var(--line-strong);border-radius:99px;color:var(--muted);
+  font:600 10.5px Inter,sans-serif;letter-spacing:.04em;padding:3px 9px;cursor:pointer;text-transform:none}
+.limp-mini:hover{color:var(--text);border-color:var(--text)}
+.limp-sec .limp-mini:first-of-type{margin-left:auto}
+.limp-row{display:flex;gap:11px;align-items:flex-start;padding:9px 11px;border-radius:10px;
+  border:1px solid transparent;cursor:pointer}
+.limp-row:hover{background:var(--panel-2)}
+.limp-row.on{background:#ff6b6b12;border-color:#ff6b6b55}
+.limp-row input{margin-top:3px;flex:0 0 auto}
+.limp-txt{min-width:0;flex:1}
+.limp-t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:13.5px}
+.limp-co{color:var(--muted);font-size:12px}
+.limp-st{margin-left:auto;font-size:11px;white-space:nowrap}
+.limp-mal{color:#ff8b8b;font-size:11.5px;margin-top:2px;line-height:1.4}
+.limp-bien{color:#7ed957;font-size:11.5px;margin-top:2px;line-height:1.4}
+.limp-bien.vacio{color:var(--muted-2)}
 /* Mientras el modal de bexio recalcula contra la API: la selección ya cambió (respuesta
    inmediata) pero los números todavía son los viejos, así que se atenúan en vez de
    mentir. El botón elegido se mantiene nítido para que se vea que el click entró. */
@@ -8556,7 +8593,163 @@ const newsCases = [
       return true;
     });
   }
+  /* ══════════════ 🧹 LIMPIAR EL PIPELINE ══════════════
+     Sebastián, 26 ago 2026: "el pipeline sigue siendo un caos, lleno de cosas vacías…
+     mirá cuáles son reales, el resto vamos eliminando, si no estás seguro preguntá. así
+     no usamos nunca el pipeline".
+
+     No borra nada por su cuenta ni adivina: mide, muestra la EVIDENCIA de cada deal y él
+     tilda. Lo que se archiva se puede volver a traer — un deal borrado no.
+
+     Un deal es REAL si dejó rastro: una oferta o propuesta, un email que contestaron,
+     una nota, una task, una visita a la web, o un valor cargado a mano. Lo que no tiene
+     NADA de eso en semanas no es una oportunidad, es una fila. */
+  let limpCand = [], limpSel = new Set();
+
+  async function limpAbrir(){
+    const m = $('limp-modal'); if (!m) return;
+    m.hidden = false;
+    $('limp-body').innerHTML = '<p class="muted-note">Midiendo la actividad real de cada deal…</p>';
+    $('limp-go').disabled = true;
+
+    const abiertos = (dealsList || []).filter((d) => !d.archived && DL_OPEN.includes(stageOf(d.stage)));
+    const ids = [...new Set(abiertos.map((d) => String(d.lead_id)).filter((x) => x && x !== 'null' && x !== 'undefined'))];
+
+    /* Tres consultas y no una por deal: con 39 abiertos serían 117 viajes. */
+    const q = (t) => t.then((x) => (x && !x.error && x.data) || []).catch(() => []);
+    const [mails, notas, tasks] = ids.length ? await Promise.all([
+      q(supabase.from('email_log').select('lead_id,direction').in('lead_id', ids)),
+      q(supabase.from('lead_notes').select('lead_id').in('lead_id', ids)),
+      q(supabase.from('lead_tasks').select('lead_id').in('lead_id', ids)),
+    ]) : [[], [], []];
+    const cuenta = (arr, f) => arr.reduce((a, x) => { if (!f || f(x)) a[String(x.lead_id)] = (a[String(x.lead_id)] || 0) + 1; return a; }, {});
+    const nMailOut = cuenta(mails, (x) => x.direction !== 'in');
+    const nMailIn = cuenta(mails, (x) => x.direction === 'in');
+    const nNotas = cuenta(notas), nTasks = cuenta(tasks);
+
+    limpCand = abiertos.map((d) => {
+      const r = leadById(d.lead_id) || {};
+      const lid = String(d.lead_id);
+      const dom = leadDomain(r);
+      const co = (dom && companyName(dom)) || r.company || '';
+      const nombre = d.title || r.name || r.first_name || '';
+      const ofs = offersForDeal(d);
+      const props = (propsAll || []).filter((p) => !p.archived && !p.is_template && p.lead_id && String(p.lead_id) === lid);
+      const visitas = (lastViews || []).filter((v) => r.session_id && v.session_id === r.session_id).length;
+      const val = dealValue(d);
+      const dias = dealStageDays(d);
+
+      /* Señales de que ES real. Cualquiera alcanza. */
+      const señales = [];
+      if (ofs.length) señales.push(ofs.length + (ofs.length === 1 ? ' oferta' : ' ofertas'));
+      if (props.length) señales.push(props.length + (props.length === 1 ? ' propuesta' : ' propuestas'));
+      if (nMailIn[lid]) señales.push(nMailIn[lid] + ' email' + (nMailIn[lid] === 1 ? '' : 's') + ' que ELLOS mandaron');
+      if (nNotas[lid]) señales.push(nNotas[lid] + ' nota' + (nNotas[lid] === 1 ? '' : 's'));
+      if (nTasks[lid]) señales.push(nTasks[lid] + ' task' + (nTasks[lid] === 1 ? '' : 's'));
+      if (visitas) señales.push(visitas + ' página' + (visitas === 1 ? '' : 's') + ' vistas');
+      if (val) señales.push('valor ' + fmtChf(val));
+
+      /* Motivos para dudar. Se ordenan de más grave a menos. */
+      const motivos = [];
+      if (/\btest\b|prueba|asdf|qwerty/i.test(nombre + ' ' + (r.email || ''))) motivos.push('parece una prueba');
+      if (!nombre.trim()) motivos.push('sin nombre');
+      if (!r.email) motivos.push('la persona no tiene email');
+      if (String(r.message || '') === 'Newsletter signup') motivos.push('solo se suscribió al newsletter, nunca pidió nada');
+      if (!co && !r.company) motivos.push('sin empresa');
+      if (!señales.length) motivos.push('nunca pasó nada: sin documento, sin emails suyos, sin notas, sin tasks, sin visitas');
+      else if (!ofs.length && !props.length && !nMailIn[lid] && dias > 30) motivos.push(dias + ' días quieto y nunca contestaron');
+
+      return { d, r, nombre: nombre || '(sin nombre)', co, señales, motivos, val, dias,
+               mailsOut: nMailOut[lid] || 0, etapa: stageOf(d.stage) };
+    });
+
+    /* Lo dudoso arriba, y dentro de eso lo más viejo primero. */
+    const dudosos = limpCand.filter((c) => c.motivos.length).sort((a, b) => b.dias - a.dias);
+    const reales = limpCand.filter((c) => !c.motivos.length);
+
+    /* Preseleccionado SOLO lo que no admite discusión: pruebas, sin nombre, o cero rastro
+       de cualquier tipo. Lo demás llega en gris y lo decide él. */
+    limpSel = new Set(dudosos.filter((c) =>
+      c.motivos.some((m) => /prueba|sin nombre|nunca pasó nada/.test(m))).map((c) => String(c.d.id)));
+
+    const fila = (c) => {
+      const st = STAGES.find((s) => s.key === c.etapa) || {};
+      return '<label class="limp-row' + (limpSel.has(String(c.d.id)) ? ' on' : '') + '" data-id="' + esc(String(c.d.id)) + '">' +
+        '<input type="checkbox" data-chk="' + esc(String(c.d.id)) + '"' + (limpSel.has(String(c.d.id)) ? ' checked' : '') + ' />' +
+        '<div class="limp-txt">' +
+          '<div class="limp-t"><b>' + esc(c.nombre) + '</b>' +
+            (c.co ? ' <span class="limp-co">' + esc(c.co) + '</span>' : '') +
+            '<span class="limp-st" style="color:' + (st.color || 'var(--muted)') + '">' + esc(st.label || '') + ' · ' + c.dias + 'd</span></div>' +
+          (c.motivos.length ? '<div class="limp-mal">✕ ' + esc(c.motivos.join(' · ')) + '</div>' : '') +
+          (c.señales.length ? '<div class="limp-bien">✓ ' + esc(c.señales.join(' · ')) + '</div>'
+            : '<div class="limp-bien vacio">' + (c.mailsOut ? 'le mandamos ' + c.mailsOut + ' email' + (c.mailsOut === 1 ? '' : 's') + ' y nunca contestó' : 'ni siquiera le escribimos') + '</div>') +
+        '</div></label>';
+    };
+
+    $('limp-body').innerHTML =
+      '<p class="muted-note" style="margin:0 0 14px">' + limpCand.length + ' deals abiertos. ' +
+        '<b>' + dudosos.length + '</b> no parecen reales y <b>' + reales.length + '</b> sí dejaron rastro. ' +
+        'Se <b>archivan</b>, no se borran: se pueden volver a traer.</p>' +
+      (dudosos.length
+        ? '<div class="limp-sec">Para archivar <span>' + dudosos.length + '</span>' +
+            '<button type="button" id="limp-todos" class="limp-mini">Marcar todos</button>' +
+            '<button type="button" id="limp-ninguno" class="limp-mini">Ninguno</button></div>' +
+          dudosos.map(fila).join('')
+        : '<p class="muted-note">No encontré ninguno vacío. El pipeline está limpio.</p>') +
+      (reales.length
+        ? '<div class="limp-sec">Estos SÍ son reales — no los toco <span>' + reales.length + '</span></div>' +
+          reales.sort((a, b) => b.val - a.val).map(fila).join('')
+        : '');
+
+    $('limp-body').querySelectorAll('[data-chk]').forEach((cb) => cb.addEventListener('change', () => {
+      const id = cb.dataset.chk;
+      if (cb.checked) limpSel.add(id); else limpSel.delete(id);
+      cb.closest('.limp-row').classList.toggle('on', cb.checked);
+      limpBoton();
+    }));
+    const marcar = (v) => {
+      $('limp-body').querySelectorAll('[data-chk]').forEach((cb) => {
+        if (!cb.closest('.limp-row').querySelector('.limp-mal')) return;   // los reales no se tocan en bloque
+        cb.checked = v; cb.dispatchEvent(new Event('change'));
+      });
+    };
+    $('limp-todos') && $('limp-todos').addEventListener('click', () => marcar(true));
+    $('limp-ninguno') && $('limp-ninguno').addEventListener('click', () => marcar(false));
+    limpBoton();
+  }
+
+  function limpBoton(){
+    const b = $('limp-go'); if (!b) return;
+    b.disabled = !limpSel.size;
+    b.textContent = limpSel.size ? '🗄 Archivar ' + limpSel.size : '🗄 Archivar';
+  }
+
+  async function limpArchivar(){
+    if (!limpSel.size) return;
+    const ids = [...limpSel];
+    if (!confirm('¿Archivar ' + ids.length + ' deal' + (ids.length === 1 ? '' : 's') + '?\n\nSalen del pipeline pero NO se borran: quedan guardados y se pueden volver a traer.')) return;
+    const b = $('limp-go'); b.disabled = true; b.textContent = 'Archivando…';
+    const { error } = await supabase.from('deals').update({ archived: true }).in('id', ids);
+    if (error){ toast('⚠️ ' + error.message); b.disabled = false; limpBoton(); return; }
+    (dealsList || []).forEach((d) => { if (ids.includes(String(d.id))) d.archived = true; });
+    toast('🗄 ' + ids.length + ' archivados — el pipeline quedó con lo que es real');
+    limpSel.clear();
+    $('limp-modal').hidden = true;
+    renderPipeline();
+  }
+
+  function limpBind(){
+    if (limpBind.hecho) return; limpBind.hecho = true;
+    $('dl-limpiar') && $('dl-limpiar').addEventListener('click', limpAbrir);
+    $('limp-x') && $('limp-x').addEventListener('click', () => $('limp-modal').hidden = true);
+    $('limp-back') && $('limp-back').addEventListener('click', () => $('limp-modal').hidden = true);
+    $('limp-modal') && $('limp-modal').addEventListener('click', (e) => { if (e.target === $('limp-modal')) $('limp-modal').hidden = true; });
+    $('limp-go') && $('limp-go').addEventListener('click', limpArchivar);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('limp-modal').hidden) $('limp-modal').hidden = true; });
+  }
+
   function renderPipeline(){
+    limpBind();
     // el refresh automático re-dibuja todo: cerrar el ⋯ para que no quede flotando sobre cards viejas
     const menu = $('dl-menu'); if (menu) menu.hidden = true;
     const rows = dlDeals();
