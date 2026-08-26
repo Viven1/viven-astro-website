@@ -2899,6 +2899,7 @@ const newsCases = [
             <input type="file" id="pj-file-input" multiple hidden />
             <button class="btn btn-ghost small" id="pj-ver-add" type="button">⬆ Nueva versión</button>
             <button class="btn btn-ghost small" id="pj-file-add" type="button">📎 Archivo</button>
+            <button class="btn btn-ghost small" id="pj-brief" type="button" title="Mandarle las 12 preguntas que definen el video">📋 Project Brief</button>
             <button class="btn btn-ghost small" id="pj-portal-prev" type="button" title="Ver el portal y el email del código como los ve el cliente, sin mandar nada">👁 Vista previa</button>
             <button class="btn btn-ghost small" id="pj-portal-link" type="button">🔗 Link</button>
           </span>
@@ -18487,6 +18488,44 @@ const newsCases = [
     } catch (e){ toast('⚠️ ' + (e.message || e)); }
   }
 
+  /* ═══ Mandar el Project Brief ═══
+     Marca el proyecto como "brief enviado" y le avisa al cliente. Las preguntas no se
+     mandan por email: viven en su portal, donde se guardan solas y puede volver mañana.
+     Un cuestionario de 12 preguntas dentro de un email se contesta una vez o ninguna.
+
+     La VARIANTE se sortea acá y se guarda: "toca testear qué es mejor para que no sea
+     overwhelming". Si se recalculara en cada visita, la medición no valdría nada. */
+  async function pjBriefEnviar(){
+    const p = pjCur; if (!p) return;
+    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    if (!d || !d.portal_token){ toast('Generá primero el link del portal'); return; }
+    const l = leadById(p.lead_id) || {};
+    if (!l.email){ toast('El contacto del proyecto no tiene email'); return; }
+    if (p.brief_sent_at && !confirm('El brief ya se le mandó el ' + fmtDMY(String(p.brief_sent_at).slice(0, 10)) + '.\n\n¿Volver a avisarle?')) return;
+
+    const b = $('pj-brief'); b.disabled = true;
+    try {
+      const variante = p.brief_variante || (Math.random() < 0.5 ? 'largo' : 'pasos');
+      const { error } = await supabase.from('projects')
+        .update({ brief_variante: variante, brief_sent_at: new Date().toISOString() }).eq('id', p.id);
+      if (error) throw new Error(error.message);
+      p.brief_variante = variante; p.brief_sent_at = new Date().toISOString();
+
+      const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
+      const T = { en: { s: 'A few questions before we start', p: 'Before we write anything, twelve questions decide what the film actually is. They live in your project portal — answer them at your own pace, they save as you go, and you can invite whoever knows the answers.' },
+                  de: { s: 'Ein paar Fragen, bevor wir starten', p: 'Bevor wir etwas schreiben, entscheiden zwölf Fragen, was der Film wirklich wird. Sie liegen in Ihrem Projekt-Portal — in Ihrem Tempo, wird laufend gespeichert, und Sie können einladen, wer die Antworten kennt.' },
+                  es: { s: 'Unas preguntas antes de empezar', p: 'Antes de escribir nada, doce preguntas deciden qué es realmente el video. Están en tu portal — a tu ritmo, se guardan solas, y podés invitar a quien sepa las respuestas.' } }[['en','de','es'].includes(l.lang) ? l.lang : 'en'];
+
+      const { error: e2 } = await supabase.functions.invoke('send-outreach', {
+        body: { to: l.email, subject: (p.ref ? p.ref + ' · ' : '') + (p.title || '') + ' — ' + T.s,
+                body: T.p + '\n\n' + url, lead_id: p.lead_id, fromName: 'Sofia' } });
+      if (e2) throw new Error(e2.message);
+      toast('📋 Brief enviado a ' + l.email + ' · presentación: ' + variante);
+      pjRenderPortal();
+    } catch (e){ toast('⚠️ ' + (e.message || e)); }
+    finally { b.disabled = false; }
+  }
+
   async function pjGenPortal(){
     const p = pjCur; if (!p) return;
     const tok = ([...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join(''));
@@ -18598,6 +18637,7 @@ const newsCases = [
     $('pj-file-input').addEventListener('change', (e) => { pjFileSubir([...e.target.files]); e.target.value = ''; });
     $('pj-portal-link').addEventListener('click', () => { const b = $('pj-portal-copy') || $('pj-portal-gen'); if (b) b.click(); });
     $('pj-portal-prev') && $('pj-portal-prev').addEventListener('click', pjPortalPreview);
+    $('pj-brief') && $('pj-brief').addEventListener('click', pjBriefEnviar);
     $('pj-bill-up').addEventListener('click', () => $('pj-bill-file').click());
     $('pj-bill-bx') && $('pj-bill-bx').addEventListener('click', pjBillsBexioLista);
     $('pj-bill-file').addEventListener('change', (e) => { pjBillSubir([...e.target.files]); e.target.value = ''; });

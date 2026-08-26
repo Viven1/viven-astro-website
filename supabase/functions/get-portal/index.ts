@@ -87,6 +87,27 @@ Deno.serve(async (req) => {
       return data;
     };
 
+    /* ── EL EQUIPO ENTRA SIN CÓDIGO ──
+       Al cerrar el portal con código dejé afuera también a Sebastián: no podía abrir el
+       portal de su propio proyecto para revisarlo. (26 ago 2026: "yo también tengo que
+       ver el portal del cliente, ahora está bloqueada para mí… no puede pasar jamás.
+       Tengo que poder ver qué ve y corregir si necesario".)
+       Si la llamada trae la sesión de un miembro de VIVEN (user_roles, la misma regla
+       que el dashboard), entra directo. No hay atajo: hace falta estar logueado de
+       verdad, un token robado del link no alcanza. */
+    const esEquipo = await (async () => {
+      const auth = req.headers.get("Authorization") ?? "";
+      const tok = auth.replace(/^Bearer\s+/i, "").trim();
+      if (!tok || tok === SB_ANON) return false;
+      try {
+        const u = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: `Bearer ${tok}` } } });
+        const { data: { user } } = await u.auth.getUser();
+        if (!user) return false;
+        const { data } = await u.rpc("is_member");
+        return data === true;
+      } catch { return false; }
+    })();
+
     /* ---------- VISTA PREVIA (no manda nada) ----------
        Sebastián, 26 ago 2026: "necesito siempre preview antes de mandar". Devuelve el
        HTML EXACTO del email del código, con un código de mentira, sin tocar Resend ni
@@ -167,6 +188,95 @@ Deno.serve(async (req) => {
         code_hash: null, code_expires: null, intentos: 0, last_ip: ip,
       }).eq("id", acc.id);
       return json({ ok: true, token: tok });
+    }
+
+    /* ═══════════ PROJECT BRIEF ═══════════
+       Las 12 preguntas que definen de qué se trata el video. Todo pide código, igual
+       que el resto del portal.
+
+       Lo que se guarda vive en project_briefs (una fila por pregunta y proyecto), y el
+       cliente NUNCA escribe en esa tabla directo: escribe por acá, que es donde se
+       comprueba su acceso. */
+    if (accion === "brief_guardar") {
+      const acc2 = esEquipo ? { equipo: true } : await verificado(body.token);
+      if (!acc2) return json({ error: "necesita_codigo" }, 401);
+      const clave = String(body.key || "").slice(0, 60);
+      if (!clave) return json({ error: "falta la pregunta" }, 400);
+      const valor = String(body.value ?? "").slice(0, 6000);
+      const quien = esEquipo ? "VIVEN" : String((acc2 as { email?: string }).email || "");
+      if (!valor.trim()) {
+        await service.from("project_briefs").delete().eq("project_id", proj.id).eq("key", clave);
+        return json({ ok: true, borrada: true });
+      }
+      const { error } = await service.from("project_briefs")
+        .upsert({ project_id: proj.id, key: clave, value: valor, answered_by: quien },
+                { onConflict: "project_id,key" });
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    /* El cliente avisa que terminó. No se valida que estén las 12: un brief con diez
+       respuestas buenas sirve, y trabarlo por dos que no sabe lo deja sin mandar nada. */
+    if (accion === "brief_listo") {
+      const acc3 = esEquipo ? { equipo: true } : await verificado(body.token);
+      if (!acc3) return json({ error: "necesita_codigo" }, 401);
+      await service.from("projects").update({ brief_done_at: new Date().toISOString() }).eq("id", proj.id);
+      if (RESEND) {
+        const { data: br } = await service.from("project_briefs")
+          .select("key,value,answered_by").eq("project_id", proj.id);
+        const filas = (br ?? []).map((x: { key: string; value: string; answered_by: string }) =>
+          `<tr><td style="padding:7px 6px;border-bottom:1px solid #eee;color:#888;font-size:12.5px;width:34%">${esc(x.key)}</td>` +
+          `<td style="padding:7px 6px;border-bottom:1px solid #eee;font-size:13.5px;white-space:pre-wrap">${esc(String(x.value || ""))}</td></tr>`).join("");
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "Viven Leads <leads@viven.ch>", to: ["info@viven.ch"], reply_to: emailCliente || undefined,
+            subject: `📋 BRIEF COMPLETO — ${proj.ref ? proj.ref + " · " : ""}${esc(proj.title || deal.title || "")}`,
+            html: `<div style="font-family:Helvetica,Arial,sans-serif;max-width:640px;color:#222">
+              <p style="font-size:16px;font-weight:700;margin:0 0 12px">El cliente terminó el brief</p>
+              <table style="width:100%;border-collapse:collapse">${filas}</table></div>`,
+          }),
+        }).catch(() => {});
+      }
+      return json({ ok: true });
+    }
+
+    /* Invitar a un colega. Decisión de Sebastián: ve TODO el portal, no solo el brief —
+       "si da info también va a querer dar feedback". Así que se le crea un acceso normal
+       y recibe su propio código; no hay una tabla de invitados aparte. */
+    if (accion === "brief_invitar") {
+      const acc4 = esEquipo ? { equipo: true } : await verificado(body.token);
+      if (!acc4) return json({ error: "necesita_codigo" }, 401);
+      const mail = String(body.email || "").trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return json({ error: "email_invalido" }, 400);
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await service.from("portal_access").delete().eq("project_id", proj.id).eq("email", mail);
+      await service.from("portal_access").insert({
+        project_id: proj.id, email: mail, code_hash: await sha256(code),
+        code_expires: new Date(Date.now() + 7 * 864e5).toISOString(), last_ip: ip,
+      });
+      if (RESEND) {
+        const L2 = T[lang];
+        const link = `https://www.viven.ch/portal/?id=${encodeURIComponent(String(deal.id))}&t=${encodeURIComponent(String(deal.portal_token))}`;
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "VIVEN AG <info@viven.ch>", to: [mail], reply_to: emailCliente || undefined,
+            subject: `${esc(proj.title || deal.title || "VIVEN")} — ${L2.asunto}`,
+            html: `<div style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1a2230">
+              <p>${esc(emailCliente || "")} invited you to the VIVEN project portal.</p>
+              <p style="font-size:34px;font-weight:800;letter-spacing:.18em;margin:18px 0">${code}</p>
+              <p><a href="${link}" style="color:#2b6cff">${link}</a></p>
+              <p style="color:#8a94a8;font-size:13px">The code is valid for 7 days.</p></div>`,
+          }),
+        }).catch(() => {});
+      }
+      /* El código de la invitación dura 7 días y no 15 minutos: quien lo recibe puede
+         estar de vacaciones, y un código muerto convierte una invitación en un email de
+         soporte. */
+      return json({ ok: true, invitado: mail });
     }
 
     // ---------- COMENTAR (pide código, igual que todo lo demás) ----------
@@ -260,32 +370,39 @@ Deno.serve(async (req) => {
       return json({ ok: true, pase });
     }
 
-    /* ── EL EQUIPO ENTRA SIN CÓDIGO ──
-       Al cerrar el portal con código dejé afuera también a Sebastián: no podía abrir el
-       portal de su propio proyecto para revisarlo. (26 ago 2026: "yo también tengo que
-       ver el portal del cliente, ahora está bloqueada para mí… no puede pasar jamás.
-       Tengo que poder ver qué ve y corregir si necesario".)
-       Si la llamada trae la sesión de un miembro de VIVEN (user_roles, la misma regla
-       que el dashboard), entra directo. No hay atajo: hace falta estar logueado de
-       verdad, un token robado del link no alcanza. */
-    const esEquipo = await (async () => {
-      const auth = req.headers.get("Authorization") ?? "";
-      const tok = auth.replace(/^Bearer\s+/i, "").trim();
-      if (!tok || tok === SB_ANON) return false;
-      try {
-        const u = createClient(SB_URL, SB_ANON, { global: { headers: { Authorization: `Bearer ${tok}` } } });
-        const { data: { user } } = await u.auth.getUser();
-        if (!user) return false;
-        const { data } = await u.rpc("is_member");
-        return data === true;
-      } catch { return false; }
-    })();
 
     /* Un token que se guardó con email "equipo:…" es un pase del equipo, no el acceso
        del cliente: entra igual pero la pantalla tiene que poder decirlo. */
     const accTok = await verificado(body.token);
     const porPase = !!(accTok && String((accTok as { email?: string }).email || "").startsWith("equipo:"));
     const acc = esEquipo ? { equipo: true } : accTok;
+
+    /* El brief y, si es la primera vez, lo que contestaron en un proyecto ANTERIOR.
+       Sebastián corrigió mi diseño acá: yo repartía las respuestas entre empresa y
+       proyecto, y él dijo "no sí o sí, ya que en la empresa hay varias secciones y unos
+       hacen algo y otros otra cosa, pero lo dejamos en todos lados como base de lo que
+       ya hicimos". O sea: se OFRECEN, no se heredan. Una respuesta puesta a ciegas de
+       otro proyecto es peor que un campo vacío, porque nadie la revisa. */
+    const { data: briefRows } = await service.from("project_briefs")
+      .select("key,value,answered_by,updated_at").eq("project_id", proj.id);
+    const brief: Record<string, string> = {};
+    for (const b2 of briefRows ?? []) brief[(b2 as { key: string }).key] = (b2 as { value: string }).value ?? "";
+
+    let sugerencias: Record<string, string> = {};
+    if (!Object.keys(brief).length && deal.lead_id) {
+      const { data: otros } = await service.from("projects")
+        .select("id").eq("lead_id", deal.lead_id).neq("id", proj.id)
+        .order("created_at", { ascending: false }).limit(3);
+      const ids = (otros ?? []).map((x: { id: number }) => x.id);
+      if (ids.length) {
+        const { data: prev } = await service.from("project_briefs")
+          .select("key,value,project_id").in("project_id", ids).order("updated_at", { ascending: false });
+        for (const b3 of prev ?? []) {
+          const k = (b3 as { key: string }).key;
+          if (!sugerencias[k]) sugerencias[k] = (b3 as { value: string }).value ?? "";
+        }
+      }
+    }
 
     /* SIN CÓDIGO NO SE VE NADA. Antes el link solo bastaba para mirar y comentar, y el
        código se pedía recién al descargar o aprobar. Pero un link reenviado —y estos
@@ -320,6 +437,15 @@ Deno.serve(async (req) => {
       /* Para que la pantalla pueda avisar "esto lo estás viendo como equipo": si no, es
          imposible saber si lo que ves es lo que ve el cliente. */
       modo_equipo: esEquipo || porPase,
+      /* Brief: lo contestado, lo sugerido y cómo mostrarlo. La variante se sortea al
+         enviarlo desde el dashboard y NO se recalcula acá: si cambiara entre visitas,
+         la medición de cuál se termina más no valdría nada. */
+      brief,
+      brief_sugerencias: sugerencias,
+      brief_variante: proj.brief_variante || "largo",
+      brief_enviado: !!proj.brief_sent_at,
+      brief_listo: !!proj.brief_done_at,
+      ref: proj.ref ?? null,
       email_cliente: (esEquipo || porPase) ? emailCliente : null,
       email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
     });
