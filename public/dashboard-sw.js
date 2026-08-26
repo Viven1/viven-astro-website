@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v90';   // v90: 26 ago 2026 — Hoy: un solo "afuera esperando"; En juego incluye a los nuevos; web del cliente en la persona; tarifa desde la fila de horas
+var CACHE = 'viven-crm-v91';   // v91: 26 ago 2026 — dónde quedó la factura de proveedor en bexio + "Ver en bexio"
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));

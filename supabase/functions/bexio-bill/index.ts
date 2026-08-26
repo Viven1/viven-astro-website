@@ -81,6 +81,24 @@ Deno.serve(async (req) => {
       return json({ ok: d.ok, status: d.status, borrado: nom, detalle: d.body });
     }
 
+    /* "Mandé una y no la encuentro". Devuelve lo que bexio TIENE de verdad en compras,
+       para poder comparar contra lo que el dashboard cree que mandó, sin depender de
+       encontrar la pantalla correcta en bexio. (Sebastián, 26 ago 2026.) */
+    if (body.listar) {
+      const r = await bx("4.0/purchase/bills?limit=25&order_by=-bill_date");
+      if (!r.ok) return json({ error: "bexio no contestó la lista de compras", status: r.status, detalle: r.body }, 502);
+      const arr = (r.body as any)?.data ?? (Array.isArray(r.body) ? r.body : []);
+      return json({ ok: true, total: arr.length, facturas: arr.map((b2: any) => ({
+        id: b2.id,
+        nro: b2.document_no ?? null,
+        proveedor: b2.lastname_company ?? b2.supplier_name ?? null,
+        fecha: b2.bill_date ?? null,
+        total: b2.amount_total ?? b2.total ?? null,
+        moneda: b2.currency_code ?? null,
+        estado: b2.status ?? null,
+      })) });
+    }
+
     if (body.muestra) {
       const lista = await bx("4.0/purchase/bills?limit=3");
       const arr = (lista.body as any)?.data ?? [];
