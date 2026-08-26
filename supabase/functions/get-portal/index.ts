@@ -3,11 +3,12 @@
 // con timecode, archivos para bajar y aprobación.
 //
 // Acceso en dos niveles (decisión de Sebastián, 26 ago 2026):
-//   · MIRAR y COMENTAR    → alcanza con el link (id + token del deal)
-//   · BAJAR y APROBAR     → hace falta un código de 6 dígitos que se manda al email
-//                           de la ficha del contacto. Nunca a uno que escriba el
-//                           visitante: si no, cualquiera con el link se manda el código
-//                           a sí mismo y aprueba en nombre del cliente.
+// Acceso (decisión de Sebastián, 26 ago 2026 — "tampoco pide login"):
+//   El link NO abre nada por sí solo: solo dice a qué email mandar el código de 6
+//   dígitos. Ver, comentar, bajar y aprobar, todo pide el código. El código va SIEMPRE
+//   al email de la ficha del contacto, nunca a uno que escriba el visitante: si no,
+//   cualquiera con el link se lo manda a sí mismo y aprueba en nombre del cliente.
+//   Verificado una vez, el navegador guarda el token 30 días.
 //
 // Acciones: {accion:"estado"|"pedir_codigo"|"verificar"|"comentar"|"descargar"|"aprobar"}
 //
@@ -135,8 +136,12 @@ Deno.serve(async (req) => {
       return json({ ok: true, token: tok });
     }
 
-    // ---------- COMENTAR (alcanza el link) ----------
+    // ---------- COMENTAR (pide código, igual que todo lo demás) ----------
     if (accion === "comentar") {
+      /* Antes bastaba el link. Un comentario del cliente dispara trabajo de nuestro lado
+         y queda firmado con su nombre: quien no probó que tiene su email no puede
+         escribir en su nombre. */
+      if (!(await verificado(body.token))) return json({ error: "necesita_codigo" }, 401);
       const texto = String(body.texto || "").trim();
       if (!texto) return json({ error: "vacio" }, 400);
       const { data: c, error } = await service.from("project_comments").insert({
@@ -201,6 +206,25 @@ Deno.serve(async (req) => {
         .eq("project_id", proj.id).eq("visible_cliente", true).order("created_at", { ascending: false }),
     ]);
     const acc = await verificado(body.token);
+
+    /* SIN CÓDIGO NO SE VE NADA. Antes el link solo bastaba para mirar y comentar, y el
+       código se pedía recién al descargar o aprobar. Pero un link reenviado —y estos
+       links se reenvían: el cliente se lo pasa a su jefe, a su agencia, a su proveedor—
+       dejaba ver el estado del proyecto, la fecha de entrega y TODOS los comentarios
+       internos a cualquiera que lo tuviera. (Sebastián, 26 ago 2026: "tampoco pide
+       login".) Ahora el link solo dice a qué mail se manda el código; lo demás llega
+       después de verificarse. El token verificado dura 30 días en el navegador, así que
+       el cliente no lo tipea en cada visita. */
+    if (!acc) {
+      return json({
+        ok: true, lang,
+        necesita_codigo: true,
+        verificado: false,
+        email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
+        tiene_email: !!emailCliente,
+      });
+    }
+
     return json({
       ok: true, lang,
       title: proj.title || deal.title,

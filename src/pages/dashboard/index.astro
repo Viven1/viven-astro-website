@@ -1591,6 +1591,37 @@ const newsCases = [
   @media(max-width:600px){.pj-crew-row{grid-template-columns:minmax(0,1fr) auto}
     .pj-crew-row .pj-crew-rol{grid-column:1/-1}}
   .pj-crew-rol{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* 🧭 Playbook. Se lee mientras se habla por teléfono: la pregunta grande y legible,
+     el porqué chiquito debajo, y la respuesta como un renglón que se toca y se escribe. */
+  .lm2-pb{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:12px;overflow:hidden}
+  .lm2-pb>summary{cursor:pointer;padding:11px 14px;font-weight:700;font-size:13px;
+    display:flex;align-items:center;gap:10px;list-style:none;user-select:none}
+  .lm2-pb>summary::-webkit-details-marker{display:none}
+  .lm2-pb>summary:hover{background:var(--panel-2)}
+  .lm2-pb .pb-prog{flex:1;max-width:180px;height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+  .lm2-pb .pb-prog>span{display:block;height:100%;background:var(--acid);transition:width .25s}
+  .lm2-pb .pb-n{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;font-size:12px}
+  .pb-body{padding:2px 14px 14px}
+  .pb-gh{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+    margin:14px 0 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .pb-gn,.pb-aviso{letter-spacing:0;text-transform:none;font-size:11px;color:var(--muted-2)}
+  .pb-aviso{color:#f0c060}
+  .pb-q{padding:9px 0;border-top:1px solid var(--line)}
+  .pb-qt{font-size:13.5px;font-weight:600;line-height:1.35}
+  .pb-req{color:var(--acid);margin-left:5px;font-weight:900}
+  .pb-why{font-size:11.5px;color:var(--muted-2);margin:2px 0 6px;line-height:1.4}
+  .pb-a{border:1px dashed var(--line-strong);border-radius:8px;padding:7px 10px;cursor:text;
+    font-size:13px;line-height:1.45;white-space:pre-wrap;min-height:20px}
+  .pb-a:hover{background:var(--panel-2)}
+  .pb-vacio{color:var(--muted-2)}
+  .pb-q.ok .pb-a{border-style:solid;border-color:var(--line)}
+  .pb-ta{width:100%;border:0;background:transparent;color:inherit;font:inherit;resize:vertical;outline:none}
+  .pb-when{font-size:10.5px;color:var(--muted-2);margin-top:4px}
+  .pb-pie{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;
+    padding-top:12px;border-top:1px solid var(--line)}
+  .pb-pie .sp{flex:1}
+  @media(max-width:700px){ .pb-pie{flex-direction:column;align-items:stretch} .pb-pie .sp{display:none} }
+
   .pj-crew-x{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:15px;padding:0 4px}
   /* El costo de una fila de horas se toca ahí mismo. Cuando falta la tarifa el botón se ve
      ámbar y dice "sin tarifa": es a la vez el aviso y el lugar donde se arregla. */
@@ -4734,6 +4765,10 @@ const newsCases = [
     <div class="lm2-grid">
       <aside class="lm2-l" id="lm2-l"></aside>
       <main class="lm2-c">
+        <!-- 🧭 Playbook: las preguntas de la llamada y sus respuestas, guardadas para
+             siempre. Va ARRIBA de la timeline porque se usa DURANTE la llamada, no
+             después de leer lo que pasó. -->
+        <div id="lm2-pb"></div>
         <div class="lm2-composer" id="lm2-composer"></div>
         <div class="lm2-chips" id="lm2-chips"></div>
         <div class="lm2-tl" id="lm2-tl"><p class="muted-note">Cargando actividad…</p></div>
@@ -10682,6 +10717,7 @@ const newsCases = [
     });
 
     lm2RenderLeft(r);
+    pbLoad(r);
 
     lm2CompCollapsed = lm2Mobile(); // en móvil arranca plegado; en desktop siempre abierto
     lm2RenderComposer();
@@ -10697,6 +10733,184 @@ const newsCases = [
   /* --- izquierda: campos SIEMPRE visibles (— si están vacíos) y editables inline,
      como HubSpot — clic en el valor → input → Enter guarda, Esc cancela. Sin esto,
      a un contacto nuevo no se le podía cargar empresa/teléfono/idioma desde la V2 --- */
+  /* ════════════════════ 🧭 PLAYBOOK ════════════════════
+     Las preguntas que hacemos en una llamada de descubrimiento, y sus respuestas
+     guardadas para siempre. Sebastián, 26 ago 2026: "necesitamos nuestro propio
+     playbook como el de HubSpot, con preguntas a hacer y que las respuestas se queden
+     grabadas en la persona y empresa. y con eso podemos hacer la oferta también".
+
+     Dos alcances y la diferencia es la que hace que esto sirva a largo plazo:
+       scope 'company' → vale para toda la empresa. Se contesta una vez y sigue ahí
+                         aunque cambie el interlocutor (que en cuentas grandes pasa).
+       scope 'lead'    → es de ESTE proyecto: qué necesitan ahora, para cuándo, con cuánto.
+
+     `esencial: true` marca lo que hace falta para que la IA pueda escribir una oferta
+     que no sea humo. Sin eso, el botón de crear oferta avisa qué falta en vez de
+     inventar. */
+  const PLAYBOOK = [
+    { grupo: 'La empresa', nota: 'Se contesta una vez y vale para todos sus contactos', qs: [
+      { k: 'que_hacen',   scope: 'company', q: '¿A qué se dedican y a quién le venden?',
+        why: 'Sin esto el video habla de la empresa en vez de hablarle a su cliente.' },
+      { k: 'quien_decide', scope: 'company', q: '¿Quién decide y quién firma?',
+        why: 'La propuesta se pierde cuando la aprueba alguien que nunca estuvo en la llamada.' },
+      { k: 'como_compran', scope: 'company', q: '¿Cómo compran? ¿Hay compras, licitación, tres presupuestos?',
+        why: 'Define el formato de la oferta y cuánto tarda, no el precio.' },
+      { k: 'video_antes',  scope: 'company', q: '¿Con quién hicieron video antes? ¿Cómo les fue?',
+        why: 'Lo que salió mal la vez pasada es lo que hay que prometer distinto.' },
+    ] },
+    { grupo: 'El proyecto', nota: 'Esto es de esta oportunidad', qs: [
+      { k: 'que_necesitan', scope: 'lead', esencial: true, q: '¿Qué necesitan exactamente? ¿Cuántas piezas, de qué duración?',
+        why: 'Es la primera línea de la oferta.' },
+      { k: 'para_que',      scope: 'lead', esencial: true, q: '¿Para qué lo van a usar y dónde se publica?',
+        why: 'Feria, web, LinkedIn y sala de ventas no se producen igual.' },
+      { k: 'exito',         scope: 'lead', esencial: true, q: '¿Qué tiene que pasar para que esto sea un éxito?',
+        why: 'Es contra lo que van a juzgar el resultado. Si no lo decís vos, lo deciden ellos después.' },
+      { k: 'cuando',        scope: 'lead', esencial: true, q: '¿Para cuándo? ¿Hay una fecha que no se mueve?',
+        why: 'Una fecha dura cambia el precio y el equipo. Una blanda, no.' },
+      { k: 'presupuesto',   scope: 'lead', esencial: true, q: '¿Con qué presupuesto están trabajando?',
+        why: 'Preguntarlo no espanta a nadie: mandar una oferta al doble de lo que tenían, sí.' },
+      { k: 'idiomas',       scope: 'lead', q: '¿En qué idiomas y para qué mercados?',
+        why: 'Cada idioma es locución, subtítulos y una versión más.' },
+      { k: 'material',      scope: 'lead', q: '¿Qué ya tienen? (marca, guía, footage, producto)',
+        why: 'Lo que ya existe se descuenta del presupuesto o se rehace: hay que saber cuál de las dos.' },
+      { k: 'quien_mas',     scope: 'lead', q: '¿Están hablando con alguien más?',
+        why: 'Cambia contra qué se compara el precio.' },
+      { k: 'si_no',         scope: 'lead', q: '¿Qué pasa si no lo hacen este año?',
+        why: 'Si la respuesta es "nada", no hay proyecto todavía y conviene saberlo hoy.' },
+      { k: 'proximo_paso',  scope: 'lead', q: 'Próximo paso concreto y fecha',
+        why: 'Una llamada que termina sin fecha es una llamada que hay que volver a hacer.' },
+    ] },
+  ];
+  const PB_QS = PLAYBOOK.flatMap((g) => g.qs);
+
+  let pbResp = {};      // key → {value, scope, updated_at}
+  let pbLead = null;    // el lead cuyo playbook está cargado
+
+  const pbRef = (q, r) => q.scope === 'company' ? (leadDomain(r) || '') : String(r.id);
+
+  async function pbLoad(r){
+    pbLead = r; pbResp = {};
+    const dom = leadDomain(r);
+    const ors = [];
+    ors.push(supabase.from('playbook_answers').select('*').eq('scope', 'lead').eq('ref', String(r.id)));
+    if (dom) ors.push(supabase.from('playbook_answers').select('*').eq('scope', 'company').eq('ref', dom));
+    const res = await Promise.all(ors);
+    res.forEach((x) => (x.error ? [] : (x.data || [])).forEach((a) => { pbResp[a.scope + '|' + a.key] = a; }));
+    if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;   // cambió de contacto mientras cargaba
+    pbRender();
+  }
+
+  const pbGet = (q) => (pbResp[q.scope + '|' + q.k] || {}).value || '';
+
+  function pbRender(){
+    const box = $('lm2-pb'), r = pbLead; if (!box || !r) return;
+    const dom = leadDomain(r);
+    const hechas = PB_QS.filter((q) => pbGet(q)).length;
+    const faltan = PB_QS.filter((q) => q.esencial && !pbGet(q));
+    const listo = !faltan.length;
+
+    box.innerHTML =
+      '<details class="lm2-pb"' + (hechas ? '' : ' open') + '>' +
+        '<summary>🧭 Playbook ' +
+          '<span class="pb-prog"><span style="width:' + Math.round(hechas / PB_QS.length * 100) + '%"></span></span>' +
+          '<span class="pb-n">' + hechas + '/' + PB_QS.length + '</span>' +
+        '</summary>' +
+        '<div class="pb-body">' +
+          PLAYBOOK.map((g) =>
+            '<div class="pb-grupo"><div class="pb-gh">' + esc(g.grupo) +
+              (g.qs[0].scope === 'company' && !dom ? ' <span class="pb-aviso">sin empresa: se guarda igual, pero en esta persona</span>'
+                : '<span class="pb-gn">' + esc(g.nota) + '</span>') + '</div>' +
+            g.qs.map((q) => {
+              const v = pbGet(q);
+              const meta = pbResp[q.scope + '|' + q.k];
+              return '<div class="pb-q' + (v ? ' ok' : '') + (q.esencial ? ' esc' : '') + '" data-k="' + q.k + '">' +
+                '<div class="pb-qt">' + esc(q.q) + (q.esencial ? '<span class="pb-req" title="Hace falta para poder armar la oferta">·</span>' : '') + '</div>' +
+                '<div class="pb-why">' + esc(q.why) + '</div>' +
+                '<div class="pb-a" data-k="' + q.k + '" title="Clic para escribir la respuesta">' +
+                  (v ? esc(v) : '<span class="pb-vacio">— sin contestar</span>') + '</div>' +
+                (meta && meta.updated_at ? '<div class="pb-when">contestada hace ' + timeAgo(meta.updated_at) + (q.scope === 'company' ? ' · vale para toda la empresa' : '') + '</div>' : '') +
+              '</div>';
+            }).join('') + '</div>').join('') +
+          '<div class="pb-pie">' +
+            (listo
+              ? '<p class="muted-note" style="margin:0">Con esto alcanza para armar una oferta que no sea humo.</p>'
+              : '<p class="muted-note" style="margin:0;color:#f0c060">Falta lo esencial: ' +
+                 esc(faltan.map((q) => q.q.replace(/\?.*$/, '?')).join(' · ')) + '</p>') +
+            '<span class="sp"></span>' +
+            '<button class="btn btn-primary small" id="pb-oferta" type="button"' + (listo ? '' : ' disabled') + '>✨ Crear oferta con esto</button>' +
+          '</div>' +
+        '</div>' +
+      '</details>';
+
+    box.querySelectorAll('.pb-a').forEach((el) => el.addEventListener('click', () => pbEditar(el)));
+    const bo = $('pb-oferta'); if (bo) bo.addEventListener('click', pbCrearOferta);
+  }
+
+  function pbEditar(el){
+    if (el.querySelector('textarea')) return;
+    const q = PB_QS.find((x) => x.k === el.dataset.k); if (!q) return;
+    const cur = pbGet(q);
+    const ta = document.createElement('textarea');
+    ta.value = cur; ta.className = 'pb-ta'; ta.rows = 2;
+    ta.placeholder = 'Lo que dijo, en sus palabras…';
+    el.innerHTML = ''; el.appendChild(ta); ta.focus();
+    let cerrado = false;
+    const cerrar = async (guardar) => {
+      if (cerrado) return; cerrado = true;
+      const v = ta.value.trim();
+      if (guardar && v !== cur) await pbGuardar(q, v);
+      pbRender();
+    };
+    ta.addEventListener('blur', () => cerrar(true));
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape'){ e.preventDefault(); cerrar(false); }
+      // Enter guarda; Shift+Enter hace un salto de línea, como en el resto del dashboard
+      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }
+    });
+  }
+
+  async function pbGuardar(q, v){
+    const r = pbLead; if (!r) return;
+    const ref = pbRef(q, r);
+    /* Una pregunta de empresa en un contacto sin empresa (correo personal) no tiene
+       dónde guardarse a nivel empresa: cae en la persona para no perder la respuesta. */
+    const scope = q.scope === 'company' && !ref ? 'lead' : q.scope;
+    const ref2 = scope === 'lead' ? String(r.id) : ref;
+    if (!v){
+      await supabase.from('playbook_answers').delete().eq('scope', scope).eq('ref', ref2).eq('key', q.k);
+      delete pbResp[q.scope + '|' + q.k];
+      return;
+    }
+    const { data, error } = await supabase.from('playbook_answers')
+      .upsert({ scope, ref: ref2, key: q.k, value: v, updated_by: meEmail || null }, { onConflict: 'scope,ref,key' })
+      .select().single();
+    if (error){ toast(error.message); return; }
+    pbResp[q.scope + '|' + q.k] = data;
+  }
+
+  /* De las respuestas a una oferta de verdad. La IA no inventa el precio de la nada:
+     recibe las ofertas GANADAS anteriores como referencia de cómo cobramos. */
+  async function pbCrearOferta(){
+    const r = pbLead; if (!r) return;
+    const b = $('pb-oferta'); if (b){ b.disabled = true; b.textContent = '✨ Armando…'; }
+    try {
+      const respuestas = PB_QS.filter((q) => pbGet(q)).map((q) => ({ pregunta: q.q, respuesta: pbGet(q) }));
+      const { data, error } = await supabase.functions.invoke('ai-oferta', {
+        body: { lead_id: String(r.id), respuestas },
+      });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      toast('✨ Oferta creada: ' + (data.title || '') + ' — revisala antes de mandarla');
+      closeLead2(); gotoTab('offers');
+      await offersLoad();
+      if (data.offer_id) openOffer(data.offer_id);
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+    } finally {
+      const b2 = $('pb-oferta'); if (b2){ b2.disabled = false; b2.textContent = '✨ Crear oferta con esto'; }
+    }
+  }
+
   function lm2RenderLeft(r){
     const box = $('lm2-l'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
     const ldom = leadDomain(r);

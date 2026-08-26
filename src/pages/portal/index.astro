@@ -10,6 +10,7 @@
 // cliente que tenemos en su persona."
 const SB_URL = 'https://lumoevaotokgqnpybkyf.supabase.co';
 const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
+import VivenLogoSymbol from '../../components/VivenLogoSymbol.astro';
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -92,7 +93,8 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
 <body>
 <div class="pt-wrap">
   <div class="pt-top">
-    <a href="/" style="text-decoration:none"><span style="font-size:21px;font-weight:800;letter-spacing:-.02em;color:var(--acid)">viven</span></a>
+    <VivenLogoSymbol />
+    <a href="/" class="logo" aria-label="Viven"><svg class="logo-mark"><use href="#viven-logo"/></svg></a>
     <span class="muted-note" id="pt-est" style="font-size:12px"></span>
   </div>
   <div id="pt-body"><div class="pt-card"><p class="muted-note">…</p></div></div>
@@ -118,21 +120,27 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       ph:'What should change?', send:'Send comment', sent:'✅ Sent — we get it right away, with the timestamp.',
       here:'here', versions:'Versions', files:'Files', download:'Download', comments:'Comments',
       approve:'Approve this version', approveHint:'If everything looks good, approve — then we deliver the final files.',
-      approved:'Approved', codeAsk:'To download or approve we send a 6-digit code to', codeSend:'Send me the code',
+      approved:'Approved', codeAsk:'We send a 6-digit code to', codeSend:'Send me the code',
+      gateT:'Your project', gateP:'To open your project we send a 6-digit code to your email. It stays valid on this device for 30 days.',
+      gateNoMail:'This project has no contact email yet — write to info@viven.ch and we open it for you.',
       codePh:'000000', codeGo:'Confirm', codeSent:'Code sent to', codeBad:'Wrong code', codeOld:'The code expired — ask for a new one',
       err:'Could not load — check the link or write to info@viven.ch', due:'Delivery by', noVid:'The cut is not ready yet.' },
     de: { title:'Ihr Projektstatus', steps:['Entwicklung','Vorproduktion','Dreh','Postproduktion','Geliefert'],
       ph:'Was soll geändert werden?', send:'Kommentar senden', sent:'✅ Gesendet — wir bekommen es sofort, mit dem Zeitpunkt.',
       here:'hier', versions:'Versionen', files:'Dateien', download:'Herunterladen', comments:'Kommentare',
       approve:'Diese Version freigeben', approveHint:'Wenn alles passt, freigeben — dann liefern wir die finalen Dateien.',
-      approved:'Freigegeben', codeAsk:'Zum Herunterladen und Freigeben senden wir einen 6-stelligen Code an', codeSend:'Code senden',
+      approved:'Freigegeben', codeAsk:'Wir senden einen 6-stelligen Code an', codeSend:'Code senden',
+      gateT:'Ihr Projekt', gateP:'Um Ihr Projekt zu öffnen, senden wir einen 6-stelligen Code an Ihre E-Mail. Er bleibt auf diesem Gerät 30 Tage gültig.',
+      gateNoMail:'Für dieses Projekt ist noch keine Kontakt-E-Mail hinterlegt — schreiben Sie an info@viven.ch, wir schalten es frei.',
       codePh:'000000', codeGo:'Bestätigen', codeSent:'Code gesendet an', codeBad:'Falscher Code', codeOld:'Der Code ist abgelaufen — bitte neuen anfordern',
       err:'Konnte nicht geladen werden — Link prüfen oder info@viven.ch', due:'Lieferung bis', noVid:'Der Schnitt ist noch nicht bereit.' },
     es: { title:'El estado de tu proyecto', steps:['Desarrollo','Preproducción','Rodaje','Postproducción','Entregado'],
       ph:'¿Qué habría que cambiar?', send:'Enviar comentario', sent:'✅ Enviado — nos llega al instante, con el minuto.',
       here:'acá', versions:'Versiones', files:'Archivos', download:'Descargar', comments:'Comentarios',
       approve:'Aprobar esta versión', approveHint:'Si está todo bien, aprobalo — y entregamos los archivos finales.',
-      approved:'Aprobado', codeAsk:'Para descargar o aprobar te mandamos un código de 6 dígitos a', codeSend:'Mandame el código',
+      approved:'Aprobado', codeAsk:'Te mandamos un código de 6 dígitos a', codeSend:'Mandame el código',
+      gateT:'Tu proyecto', gateP:'Para abrir tu proyecto te mandamos un código de 6 dígitos a tu email. Queda válido en este dispositivo por 30 días.',
+      gateNoMail:'Este proyecto todavía no tiene email de contacto — escribinos a info@viven.ch y te lo abrimos.',
       codePh:'000000', codeGo:'Confirmar', codeSent:'Código enviado a', codeBad:'Código incorrecto', codeOld:'El código venció — pedí uno nuevo',
       err:'No se pudo cargar — revisá el link o escribí a info@viven.ch', due:'Entrega hasta', noVid:'El corte todavía no está listo.' },
   };
@@ -282,6 +290,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
      uno que escriba quien está mirando. */
   var pendiente = null;
   function conCodigo(fn){
+    /* Ojo: `TOKEN` puede existir en el navegador y estar vencido del lado del servidor.
+       Por eso quien llama a esto maneja el error 'necesita_codigo' volviendo a pedirlo,
+       en vez de confiar en lo que dice localStorage. */
     if (DATA.verificado || TOKEN) return fn();
     pendiente = fn;
     $('pt-code').innerHTML = '<div class="pt-code"><p class="muted-note" style="margin:0 0 10px;font-size:13.5px">' +
@@ -301,6 +312,25 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
     });
     $('pt-code').scrollIntoView({ behavior:'smooth', block:'center' });
   }
+  /* Puerta de entrada: lo único que se ve sin código. No dice el nombre del proyecto ni
+     del cliente — solo a qué email va el código, tapado. */
+  function puerta(){
+    $('pt-est').textContent = '';
+    /* Si el servidor pide código, el token guardado en este navegador está vencido o ya
+       no vale. Borrarlo acá evita que conCodigo() lo dé por bueno y siga de largo a una
+       pantalla que el servidor no va a contestar. */
+    TOKEN = null; try { localStorage.removeItem('vv_portal_' + ID); } catch(e){}
+    if (!DATA.tiene_email){
+      $('pt-body').innerHTML = '<div class="pt-card"><h1 style="margin:0 0 10px">' + L.gateT + '</h1>' +
+        '<p class="muted-note" style="margin:0">' + L.gateNoMail + '</p></div>';
+      return;
+    }
+    $('pt-body').innerHTML = '<div class="pt-card"><h1 style="margin:0 0 10px">' + L.gateT + '</h1>' +
+      '<p class="muted-note" style="margin:0 0 16px;font-size:13.5px">' + L.gateP + '</p>' +
+      '<div id="pt-code"></div></div>';
+    conCodigo(function(){ cargar(); });
+  }
+
   function verificar(){
     var c = ($('pt-code-v').value || '').replace(/\D/g,'');
     api('verificar', { codigo:c }).then(function(r){
@@ -331,6 +361,9 @@ const SB_KEY = 'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca';
       document.documentElement.lang = d.lang || 'en';
       document.title = (d.title || L.title) + ' — Viven';
       VER = null;
+      /* El link solo no abre nada: sin código verificado el servidor no manda ni el
+         título. Esta es la puerta. */
+      if (d.necesita_codigo) { puerta(); return; }
       render();
     }).catch(function(){ L = TX.en; $('pt-body').innerHTML = '<div class="pt-card"><p class="muted-note">' + TX.en.err + '</p></div>'; });
   }
