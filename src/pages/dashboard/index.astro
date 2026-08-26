@@ -20196,6 +20196,251 @@ const newsCases = [
     else setTimeout(dale, 350);
   }
 
+  /* ═══ Plan de rodaje ═══
+     Tres cosas que Maestro ya tenía resueltas y acá faltaban:
+
+     1. Nada se escribe sin que alguien lo toque. La IA propone el plan ENTERO —se ve
+        exactamente lo que se va a guardar— y recién ahí se confirma. Por eso pedir una
+        propuesta nueva no puede pisar lo que corregiste a mano.
+     2. Todo se edita a mano: cada campo de cada fila, agregar bloques, moverlos, borrarlos.
+        La IA es un punto de partida, no el dueño del plan.
+     3. Vacío no es una alarma. Un proyecto sin plan todavía es normal, no un atraso.
+
+     (Sebastián, 26 ago 2026: "tiene que poder regenerarse por si no funciona o está mal
+     hecho; puede ser cambiado a mano también. Mirá cómo lo hice con Maestro.") */
+  let pjPlan = null;        // la fila guardada de project_scripts (tipo 'plan')
+  let pjPlanProp = null;    // la propuesta de la IA, todavía sin guardar
+  let pjPlanT = null;       // debounce del guardado
+
+  const PJ_PL_COLS = [
+    ['bloque', 'Bloque', 'input', 'Jornada 1 · Mañana'],
+    ['hora', 'Hora', 'input', '08:00'],
+    ['que', 'Qué', 'textarea', 'Entrevista a la directora técnica'],
+    ['donde', 'Dónde', 'input', 'Sala de reuniones'],
+    ['quien', 'Quién', 'input', 'Cámara + sonido'],
+    ['escenas', 'Escenas', 'input', '3, 7'],
+    ['notas', 'Notas', 'textarea', ''],
+  ];
+
+  async function pjPlanLoad(){
+    const p = pjCur; if (!p) return;
+    pjPlanProp = null;
+    const { data, error } = await supabase.from('project_scripts')
+      .select('*').eq('project_id', p.id).eq('tipo', 'plan')
+      .order('updated_at', { ascending: false }).limit(1);
+    pjPlan = (error || !data || !data.length) ? null : data[0];
+    pjPlanRender();
+    pjRenderSteps();
+  }
+
+  function pjPlanFilas(){ return (pjPlan && Array.isArray(pjPlan.cuerpo)) ? pjPlan.cuerpo : []; }
+
+  function pjPlanRender(){
+    const filas = pjPlanFilas();
+    const est = $('pj-plan-est');
+    if (est) est.textContent = filas.length
+      ? filas.length + ' bloques' + (pjPlan && pjPlan.updated_at ? ' · ' + fmtDMY(pjPlan.updated_at) : '')
+      : 'sin plan todavía';
+
+    // La propuesta, arriba y separada de lo guardado: no se confunde una con otra.
+    $('pj-plan-prop').innerHTML = !pjPlanProp ? '' :
+      '<div class="pj-prop"><h4>Propuesta de la IA — todavía no está guardada</h4>' +
+      '<p class="sub">' + esc(pjPlanProp.titulo || '') + ' · ' + (pjPlanProp.filas || []).length + ' bloques' +
+        (pjPlanProp.guion ? ' · del guión «' + esc(pjPlanProp.guion) + '»' : '') + '</p>' +
+      '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Bloque</th><th>Hora</th><th>Qué</th><th>Dónde</th><th>Quién</th></tr></thead><tbody>' +
+      (pjPlanProp.filas || []).map((f) => '<tr><td>' + esc(f.bloque || '') + '</td><td>' + esc(f.hora || '') +
+        '</td><td>' + esc(f.que || '') + (f.notas ? '<br><span class="muted-note">' + esc(f.notas) + '</span>' : '') +
+        '</td><td>' + esc(f.donde || '') + '</td><td>' + esc(f.quien || '') + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+      '<div class="acc">' +
+        '<button class="btn btn-primary small" id="pj-plan-usar" type="button">' +
+          (filas.length ? '📅 Reemplazar el plan por este' : '📅 Usar este plan') + '</button>' +
+        (filas.length ? '<button class="btn btn-ghost small" id="pj-plan-sumar" type="button">➕ Agregarlo abajo del que hay</button>' : '') +
+        '<button class="btn btn-ghost small" id="pj-plan-tirar" type="button">Descartarla</button>' +
+      '</div></div>';
+
+    if (pjPlanProp){
+      $('pj-plan-usar').addEventListener('click', () => pjPlanGuardarProp(true));
+      const sm = $('pj-plan-sumar'); if (sm) sm.addEventListener('click', () => pjPlanGuardarProp(false));
+      $('pj-plan-tirar').addEventListener('click', () => { pjPlanProp = null; pjPlanRender(); });
+    }
+
+    // El plan guardado: editable adentro.
+    $('pj-plan-tabla').innerHTML = !filas.length
+      ? '<p class="muted-note" style="margin:0">Todavía no hay plan. Es normal — se arma cuando hay fechas. Pedí una propuesta, o agregá los bloques a mano.</p>'
+      : '<div class="lead-table-wrap"><table class="pj-pl"><thead><tr>' +
+        PJ_PL_COLS.map((c) => '<th>' + c[1] + '</th>').join('') + '<th></th></tr></thead><tbody>' +
+        filas.map((f, i) => {
+          const nuevoBloque = i === 0 || String(f.bloque || '') !== String(filas[i - 1].bloque || '');
+          return '<tr' + (nuevoBloque ? ' class="blq-ini"' : '') + '>' +
+            PJ_PL_COLS.map((c) => '<td class="c-' + c[0] + '" data-l="' + c[1] + '">' +
+              (c[2] === 'textarea'
+                ? '<textarea rows="2" data-pf="' + i + '" data-pk="' + c[0] + '" placeholder="' + esc(c[3]) + '">' + esc(f[c[0]] || '') + '</textarea>'
+                : '<input data-pf="' + i + '" data-pk="' + c[0] + '" value="' + esc(f[c[0]] || '') + '" placeholder="' + esc(c[3]) + '" />') +
+              '</td>').join('') +
+            '<td data-l=""><div class="mv">' +
+              '<button type="button" data-pup="' + i + '" title="Subir">↑</button>' +
+              '<button type="button" data-pdn="' + i + '" title="Bajar">↓</button>' +
+              '<button type="button" data-pdel="' + i + '" title="Borrar este bloque">✕</button>' +
+            '</div></td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+    const tb = $('pj-plan-tabla');
+    tb.querySelectorAll('[data-pf]').forEach((el) => el.addEventListener('input', () => {
+      const f = pjPlanFilas()[+el.dataset.pf]; if (!f) return;
+      f[el.dataset.pk] = el.value;
+      pjPlanGuardarDebounce();
+    }));
+    tb.querySelectorAll('[data-pup]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pup, -1)));
+    tb.querySelectorAll('[data-pdn]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pdn, 1)));
+    tb.querySelectorAll('[data-pdel]').forEach((b) => b.addEventListener('click', () => pjPlanBorrarFila(+b.dataset.pdel)));
+
+    /* "Hay que conseguir" y "Ojo con" también se editan: la IA los propone y después
+       aparecen cosas que solo sabe el que atendió el teléfono. */
+    $('pj-plan-listas').innerHTML = !pjPlan ? '' :
+      '<div class="pj-listas">' +
+        '<div><h4>Hay que conseguir antes</h4>' +
+          '<textarea id="pj-plan-nec" rows="4" placeholder="Una cosa por línea. Es la lista que le mandamos al cliente.">' +
+          esc(pjPlan.necesita_txt || '') + '</textarea></div>' +
+        '<div><h4>Ojo con</h4>' +
+          '<textarea id="pj-plan-rie" rows="4" placeholder="Una cosa por línea. Lo que puede tirar abajo el día.">' +
+          esc(pjPlan.riesgos_txt || '') + '</textarea></div>' +
+      '</div>';
+    if (pjPlan){
+      ['pj-plan-nec', 'pj-plan-rie'].forEach((id) => $(id).addEventListener('input', () => {
+        pjPlan.necesita_txt = $('pj-plan-nec').value;
+        pjPlan.riesgos_txt = $('pj-plan-rie').value;
+        pjPlanGuardarDebounce();
+      }));
+    }
+  }
+
+  function pjPlanMover(i, d){
+    const f = pjPlanFilas(); const j = i + d;
+    if (j < 0 || j >= f.length) return;
+    const t = f[i]; f[i] = f[j]; f[j] = t;
+    pjPlanRender(); pjPlanGuardar();
+  }
+
+  function pjPlanBorrarFila(i){
+    const f = pjPlanFilas();
+    if (!f[i]) return;
+    /* Sin confirmación: es una fila de una tabla y volver a escribirla cuesta menos que
+       leer un cartel. Lo que sí se confirma es reemplazar el plan entero. */
+    f.splice(i, 1);
+    pjPlanRender(); pjPlanGuardar();
+  }
+
+  async function pjPlanFilaNueva(){
+    const p = pjCur; if (!p) return;
+    const f = pjPlanFilas();
+    /* Hereda el bloque de la última fila: agregar tres cosas a la misma jornada es el
+       caso normal, y volver a tipear "Jornada 1 · Mañana" cada vez es trabajo tonto. */
+    const ult = f[f.length - 1] || {};
+    f.push({ bloque: ult.bloque || 'Jornada 1', hora: '', que: '', donde: ult.donde || '', quien: '', escenas: '', notas: '' });
+    if (!pjPlan){
+      const { data, error } = await supabase.from('project_scripts').insert({
+        project_id: p.id, tipo: 'plan', formato: 'plan', titulo: 'Plan de rodaje', cuerpo: f,
+      }).select().single();
+      if (error){ toast(error.message); return; }
+      pjPlan = data;
+    }
+    pjPlan.cuerpo = f;
+    pjPlanRender(); pjPlanGuardar();
+    const ins = $('pj-plan-tabla').querySelectorAll('.c-que textarea');
+    if (ins.length) ins[ins.length - 1].focus();
+  }
+
+  function pjPlanGuardarDebounce(){ clearTimeout(pjPlanT); pjPlanT = setTimeout(pjPlanGuardar, 700); }
+
+  /* Se guarda solo mientras editás. En proyectos ya pasó lo contrario y Sebastián lo
+     cortó: "si cambio, borro o hago algo pero no toco guardar, guardalo igual". */
+  async function pjPlanGuardar(){
+    const p = pjCur; if (!p || !pjPlan) return;
+    const filas = pjPlanFilas().map((f, i) => ({ ...f, n: i + 1 }));
+    const { error } = await supabase.from('project_scripts').update({
+      cuerpo: filas,
+      premisa: [pjPlan.necesita_txt ? 'Hay que conseguir antes:\n' + pjPlan.necesita_txt : '',
+                pjPlan.riesgos_txt ? '\nOjo con:\n' + pjPlan.riesgos_txt : ''].filter(Boolean).join('\n'),
+    }).eq('id', pjPlan.id);
+    if (error){ toast(error.message); return; }
+    /* El campo viejo de una línea sigue existiendo y hay cosas que lo leen. Se mantiene
+       al día con un resumen en texto para que nada se quede mirando un plan viejo. */
+    const txt = pjPlanTexto();
+    $('pj-plan').value = txt;
+    await supabase.from('projects').update({ shooting_plan: txt || null }).eq('id', p.id);
+    p.shooting_plan = txt;
+  }
+
+  function pjPlanTexto(){
+    const f = pjPlanFilas();
+    if (!f.length) return '';
+    let blq = null;
+    const cuerpo = f.map((r) => {
+      let out = '';
+      if (String(r.bloque || '') !== blq){ blq = String(r.bloque || ''); out += (out ? '' : '') + '\n' + blq + '\n'; }
+      return out + [r.hora, r.que, r.donde && '· ' + r.donde, r.quien && '· ' + r.quien].filter(Boolean).join('  ') +
+        (r.notas ? '\n      (' + r.notas + ')' : '');
+    }).join('\n').trim();
+    const extra = [pjPlan && pjPlan.necesita_txt ? '\n\nHAY QUE CONSEGUIR ANTES:\n' + pjPlan.necesita_txt : '',
+                   pjPlan && pjPlan.riesgos_txt ? '\n\nOJO CON:\n' + pjPlan.riesgos_txt : ''].join('');
+    return cuerpo + extra;
+  }
+
+  /* Pedirla NO guarda nada: vuelve la propuesta entera y se ve antes de decidir. Es la
+     única forma de que "regenerar" sea seguro cuando ya corregiste el plan a mano. */
+  async function pjPlanPedir(){
+    const p = pjCur; if (!p) return;
+    const btn = $('pj-plan-ia'), prev = btn.textContent, nota = $('pj-plan-note');
+    btn.disabled = true; btn.textContent = '📅 Armando…';
+    nota.textContent = 'No se guarda nada: primero la ves.';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-guion', { body: {
+        project_id: p.id, tipo: 'plan',
+        indicaciones: $('pj-plan-ind').value.trim() || undefined,
+        plan_actual: pjPlanFilas().length ? pjPlanFilas() : undefined,
+      } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      pjPlanProp = data.propuesta;
+      nota.textContent = '';
+      pjPlanRender();
+      $('pj-plan-prop').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e){
+      nota.textContent = '⚠️ ' + (e.message || e);
+    } finally { btn.disabled = false; btn.textContent = prev; }
+  }
+
+  async function pjPlanGuardarProp(reemplazar){
+    const p = pjCur; if (!p || !pjPlanProp) return;
+    const nuevas = (pjPlanProp.filas || []).map((f) => ({ ...f }));
+    const filas = reemplazar ? nuevas : pjPlanFilas().concat(nuevas);
+    if (reemplazar && pjPlanFilas().length &&
+        !confirm('El plan que hay ahora se reemplaza por la propuesta.\n\nLo que corregiste a mano se pierde. ¿Seguimos?')) return;
+
+    const nec = (pjPlanProp.necesita || []).join('\n');
+    const rie = (pjPlanProp.riesgos || []).join('\n');
+    if (!pjPlan){
+      const { data, error } = await supabase.from('project_scripts').insert({
+        project_id: p.id, tipo: 'plan', formato: 'plan',
+        titulo: pjPlanProp.titulo || 'Plan de rodaje', cuerpo: filas,
+      }).select().single();
+      if (error){ toast(error.message); return; }
+      pjPlan = data;
+      pjPlan.necesita_txt = nec; pjPlan.riesgos_txt = rie;
+    } else {
+      pjPlan.cuerpo = filas;
+      /* Al agregar abajo, lo que ya estaba escrito en las listas no se pisa: se suma. */
+      pjPlan.necesita_txt = reemplazar ? nec : [pjPlan.necesita_txt, nec].filter(Boolean).join('\n');
+      pjPlan.riesgos_txt = reemplazar ? rie : [pjPlan.riesgos_txt, rie].filter(Boolean).join('\n');
+    }
+    pjPlanProp = null;
+    pjPlanRender();
+    await pjPlanGuardar();
+    $('pj-plan-blq').open = true;
+    toast('📅 Plan guardado — tocá cualquier campo para corregirlo');
+  }
+
   function pjRenderDesglose(){
     const p = pjCur; if (!p) return;
     $('pj-script-text').value = p.script_text || '';
