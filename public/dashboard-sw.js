@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v117';  // v117: 26 ago 2026 — comprobar la privacidad de los videos de Vimeo
+var CACHE = 'viven-crm-v118';  // v118: 26 ago 2026 — el minuto del comentario se clava al escribir; importar la oferta a un proyecto abierto
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));

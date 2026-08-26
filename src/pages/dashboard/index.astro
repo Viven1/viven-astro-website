@@ -2974,6 +2974,15 @@ const newsCases = [
 
       <details class="panel pj-pos" id="pj-pos-det" style="margin-top:12px">
         <summary id="pj-pos-sum"></summary>
+        <!-- Importar la oferta también DESDE ADENTRO del proyecto: al principio esto
+             vivía solo en el formulario de crear, así que un proyecto ya abierto no
+             tenía dónde subir el PDF. (Sebastián, 26 ago 2026: "no puedo subir en
+             ningún lado la factura para que la importe al sistema con su crew".) -->
+        <div class="pj-pdfrow" style="margin:0 0 12px">
+          <input type="file" id="pj-imp-pdf" accept="application/pdf,image/*" hidden />
+          <button class="btn btn-ghost small" id="pj-imp-btn" type="button">📄 Importar la oferta (PDF)</button>
+          <span class="muted-note" id="pj-imp-msg">Trae las posiciones, el monto y arma el crew.</span>
+        </div>
         <div class="lead-table-wrap" id="pj-pos"></div>
       </details>
 
@@ -17620,6 +17629,54 @@ const newsCases = [
     } catch (e){ msg.textContent = '⚠️ ' + (e.message || e); }
   }
 
+  /* Importar la oferta a un proyecto que YA existe: trae las posiciones, el monto y —lo
+     que él pedía— arma el crew a partir de los roles vendidos. Pide confirmación porque
+     pisa el paquete que el proyecto ya tenía. */
+  async function pjImportarOferta(f){
+    const p = pjCur; if (!p || !f) return;
+    const msg = $('pj-imp-msg');
+    if (f.size > 10 * 1024 * 1024){ msg.textContent = '⚠️ Más de 10 MB — probá con el PDF solo'; return; }
+    msg.textContent = '🤖 Leyendo…';
+    try {
+      const b64 = await new Promise((ok, no) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).split(',')[1]);
+        r.onerror = no; r.readAsDataURL(f);
+      });
+      const { data, error } = await supabase.functions.invoke('ai-oferta-leer', { body: { archivo_b64: b64, mime: f.type } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      if (!data.items || !data.items.length){ msg.textContent = '⚠️ No encontré posiciones en ese PDF'; return; }
+
+      const tenia = Array.isArray(p.items) ? p.items.length : 0;
+      const aviso = 'Leí ' + data.items.length + ' posiciones' + (data.total ? ' · ' + pjCHF(data.total) : '') +
+        (tenia ? '\n\n⚠️ Este proyecto ya tiene ' + tenia + ' posiciones y se van a REEMPLAZAR.' : '') +
+        ((data.dudas && data.dudas.length) ? '\n\n⚠️ ' + data.dudas.join('\n⚠️ ') : '') +
+        '\n\n¿Lo importo?';
+      if (!confirm(aviso)) { msg.textContent = 'Cancelado.'; return; }
+
+      const patch = { items: data.items };
+      if (data.total) patch.amount_chf = data.total;
+      const { error: e2 } = await supabase.from('projects').update(patch).eq('id', p.id);
+      if (e2) throw new Error(e2.message);
+      Object.assign(p, patch);
+
+      /* Y el crew: los roles de gente que están vendidos pasan a la lista, sin pisar a
+         los que ya tienen nombre puesto. */
+      const roles = pjRolesDelPresupuesto();
+      const ya = new Set((p.crew || []).map((c) => String(c.rol || '').toLowerCase()));
+      const nuevos = roles.filter((r) => !ya.has(r.toLowerCase()));
+      if (nuevos.length){
+        p.crew = (p.crew || []).concat(nuevos.map((r) => ({ rol: r, nombre: '' })));
+        await supabase.from('projects').update({ crew: p.crew }).eq('id', p.id);
+      }
+
+      msg.textContent = '✅ ' + data.items.length + ' posiciones' + (nuevos.length ? ' · ' + nuevos.length + ' roles al crew' : '');
+      pjRenderDetail();
+      toast('📄 Oferta importada' + (nuevos.length ? ' · ponele nombre al crew' : ''));
+    } catch (e){ msg.textContent = '⚠️ ' + (e.message || e); }
+  }
+
   /* ═══ PROYECTO DE PRUEBA ═══
      Sebastián, 26 ago 2026: "quiero hacer uno como test para que podamos testear cosas
      — crear proyecto test x1, x2, etc. Para que no vaya a clientes reales."
@@ -19050,6 +19107,8 @@ const newsCases = [
        los candidatos de contacto y el IVA) sin salir del proyecto — el documento se
        busca solo, que es lo que la pantalla ya sabe hacer. */
     $('pj-invoice').addEventListener('click', pjFacturar);
+    $('pj-imp-btn') && $('pj-imp-btn').addEventListener('click', () => $('pj-imp-pdf').click());
+    $('pj-imp-pdf') && $('pj-imp-pdf').addEventListener('change', (e) => { pjImportarOferta(e.target.files[0]); e.target.value = ''; });
   }
 
   /* Puntería de cada motor: de todo lo que ya decidiste, cuánto salió y cuánto tiraste.

@@ -30,6 +30,9 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
 <style is:global>
   body{background:#0f1826}
   .pt-wrap{max-width:760px;margin:0 auto;padding:40px 20px 90px}
+  /* El minuto clavado se ve distinto: es la diferencia entre "va a este cuadro" y "va a
+     donde esté el video cuando mandes". */
+  .pt-tc.fijo{color:var(--acid,#ddf98f);border-color:var(--acid,#ddf98f)}
   /* ── Project brief ── mismo lenguaje visual que el resto del portal, pero se lee
      como un formulario y no como un panel: el que entra a contestarlo viene a escribir. */
   .pt-brief{border:1px solid var(--line-strong,#2c3d5c);border-radius:14px;background:rgba(255,255,255,.02);
@@ -241,7 +244,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   /* El reproductor de Vimeo sabe en qué segundo está: es lo que hace que la nota valga
      "en el 0:34" y no "en algún momento del principio". Se carga su API solo si el
      video es de Vimeo; con YouTube o sin video, el comentario va sin timecode. */
-  var player = null, TC = 0;
+  var player = null, TC = 0, TC_FIJO = false;
   /* Un video de Vimeo que NO es público lleva un hash de privacidad en la URL
      (vimeo.com/123456789/a1b2c3d4e5) y el reproductor lo necesita como ?h=…. Esto lo
      tiraba, así que el corte se veía solo si el video estaba público — justo lo que no
@@ -265,7 +268,15 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       if (!window.Vimeo) return;
       try {
         player = new window.Vimeo.Player(ifr);
-        var poner = function(d){ TC = Math.round(((d && d.seconds) || 0) * 1000); pintarTC(); };
+        /* Mientras se está escribiendo, el minuto NO se mueve. Ese era el bug de fondo:
+           el cliente tocaba para escribir en 0:41, tardaba veinte segundos en escribir, y
+           como el video seguía andando el comentario salía marcado en 1:01. El minuto que
+           vale es el que estaba viendo cuando decidió escribir, no el que quedó cuando
+           terminó de tipear. */
+        var poner = function(d){
+          if (TC_FIJO) return;
+          TC = Math.round(((d && d.seconds) || 0) * 1000); pintarTC();
+        };
         /* `timeupdate` solo dispara MIENTRAS se reproduce. El caso principal es el
            contrario: pausás en el cuadro que te molesta y ahí escribís. Sin `seeked` y
            `pause`, la nota se mandaba con el minuto viejo — probado: buscar al 0:41 con
@@ -290,7 +301,13 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     s.src = 'https://player.vimeo.com/api/player.js'; s.onload = arranca;
     document.head.appendChild(s);
   }
-  function pintarTC(){ var e = $('pt-tc'); if (e) e.textContent = '🕐 ' + mmss(TC) + ' — ' + L.here; }
+  function pintarTC(){
+    var e = $('pt-tc'); if (!e) return;
+    e.textContent = '🕐 ' + mmss(TC) + ' — ' + L.here;
+    /* Se marca cuando el minuto quedó fijo: así el que escribe ve que la nota va a ese
+       cuadro y no al que esté corriendo cuando toque enviar. */
+    e.className = 'pt-tc' + (TC_FIJO ? ' fijo' : '');
+  }
 
   function pasos(estado){
     var crudo = estado || 'desarrollo';
@@ -362,11 +379,29 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     /* Y por las dudas: al empezar a escribir se le pregunta al reproductor dónde está.
        Es la última red — si algún evento no llegó, el minuto que se manda igual es el
        que el cliente está viendo. */
+    /* Al tocar para escribir: se PAUSA y se clava el segundo exacto.
+       (Sebastián, 26 ago 2026: "ni bien toco para escribir se para y me cuenta ese
+       segundo/frame donde empecé a escribir, si no está off".)
+       Pausar no es un extra: el que está por escribir una nota quiere mirar ese cuadro
+       mientras la escribe, y si el video sigue andando pierde de vista justo lo que
+       estaba señalando. */
     var msg = $('pt-msg');
-    if (msg) msg.addEventListener('focus', function(){
-      if (!player) return;
-      player.getCurrentTime().then(function(seg){ TC = Math.round((seg || 0) * 1000); pintarTC(); }).catch(function(){});
-    });
+    if (msg){
+      msg.addEventListener('focus', function(){
+        if (!player) return;
+        player.pause().catch(function(){});
+        player.getCurrentTime().then(function(seg){
+          TC = Math.round((seg || 0) * 1000);
+          TC_FIJO = true;                 // de acá en más no se mueve solo
+          pintarTC();
+        }).catch(function(){ TC_FIJO = true; });
+      });
+      /* Si se va del campo sin escribir nada, el minuto vuelve a seguir al video: dejarlo
+         clavado haría que la próxima nota saliera con un minuto viejo. */
+      msg.addEventListener('blur', function(){
+        if (!msg.value.trim()) TC_FIJO = false;
+      });
+    }
     Array.prototype.forEach.call(document.querySelectorAll('[data-v]'), function(b){
       b.addEventListener('click', function(){ VER = vers.filter(function(v){ return String(v.id) === b.dataset.v; })[0]; render(); }); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function(b){
@@ -559,6 +594,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       b.disabled = false;
       if (r.error) { $('pt-sent').textContent = '⚠️'; return; }
       $('pt-msg').value = ''; $('pt-sent').textContent = L.sent;
+      TC_FIJO = false;                    // la próxima nota vuelve a seguir al video
       DATA.comentarios = (DATA.comentarios || []).concat([r.comentario]);
       render();
     });
