@@ -180,7 +180,28 @@ Deno.serve(async (req) => {
         ? (tx.body as { id: number; name?: string; value: string; is_active: boolean; type?: string }[]).filter((t) => t.is_active)
         : [];
       const al81 = act.filter((t) => Math.abs(Number(t.value) - IVA_ESPERADO) < 0.01);
-      taxConIva = (al81.find((t) => /umsatz/i.test(t.name ?? "")) || al81.find((t) => t.id === BX.tax_id) || al81[0])?.id ?? null;
+
+      /* ===== EL tax_id SALE DE UNA FACTURA REAL, NO DEL CATÁLOGO =====
+         El catálogo tiene NUEVE tasas activas al 8,1% ("Umsatz (NS)", "Bezugsteuer
+         Mat/DL", "Mat/DL (NS)", varias sin nombre...). Elegir por nombre daba la 54,
+         "Umsatz (NS)", que parece la correcta y bexio RECHAZA en las posiciones de una
+         factura: 422 "Diese Eingabe ist nicht korrekt" en las doce líneas. La que sí
+         acepta es la 66, que es la que usa RE-01121 — una factura que ellos emitieron
+         de verdad. Mismo criterio que ya se usó para los parámetros de cabecera:
+         copiarlos de una factura que bexio aceptó, no deducirlos del catálogo. */
+      const ult = await bx("kb_invoice?order_by=id_desc&limit=1");
+      const ultId = Array.isArray(ult.body) ? (ult.body as { id: number }[])[0]?.id : null;
+      if (ultId) {
+        const det = await bx(`kb_invoice/${ultId}`);
+        const pos = (det.body as { positions?: { tax_id?: number }[] } | undefined)?.positions ?? [];
+        const idUsado = pos.map((x) => x.tax_id).find((x) => x != null);
+        /* Solo se acepta si esa tasa sigue activa y sigue siendo del 8,1%: si el año que
+           viene cambia la tasa suiza, esto NO debe arrastrar la vieja en silencio. */
+        if (idUsado != null && al81.some((t) => t.id === idUsado)) taxConIva = idUsado;
+      }
+      if (taxConIva == null) {
+        taxConIva = (al81.find((t) => /umsatz/i.test(t.name ?? "")) || al81.find((t) => t.id === BX.tax_id) || al81[0])?.id ?? null;
+      }
       taxSinIva = act.find((t) => Number(t.value) === 0 && t.type === "not_taxable_turnover")?.id ?? null;
       if (tx.ok && !taxConIva) return json({ error: `no encontré una tasa de venta activa al ${IVA_ESPERADO}% en bexio — no facturo con otra` }, 502);
       if (!taxConIva) taxConIva = BX.tax_id;   // la consulta falló: respaldo
