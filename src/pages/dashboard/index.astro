@@ -4259,10 +4259,17 @@ const newsCases = [
            desde bexio, no sale nada solo. Y antes de crear un contacto nuevo muestra
            los parecidos que ya existen: buscando solo por email hubiera creado un
            quinto "Sonova" en su contabilidad, porque ya hay cuatro. -->
-      <div class="fu-back" id="bx-modal" hidden>
+      <!-- Iba con class="fu-back", que es la clase del FONDO oscuro (position:absolute
+           dentro del panel de ofertas). Sin el envoltorio .fu-modal —fixed y centrado—
+           la tarjeta se dibujaba en el tope del panel, fuera de la pantalla y cortada.
+           (Sebastián, 26 ago 2026: "arriba del todo y cortado, tiene que estar centrado
+           para verlo bien o no sirve".) Y el header usaba .fu-head, que no existe en el
+           CSS: la clase es .fu-hd. -->
+      <div class="fu-modal" id="bx-modal" hidden role="dialog" aria-modal="true" aria-label="Crear factura en bexio">
+        <div class="fu-back" id="bx-back"></div>
         <div class="fu-card">
-          <div class="fu-head">
-            <div><b id="bx-quien">—</b><small id="bx-donde"></small></div>
+          <div class="fu-hd">
+            <div><b id="bx-quien">—</b><span id="bx-donde"></span></div>
             <button class="fu-x" id="bx-x" type="button" aria-label="Cerrar">✕</button>
           </div>
           <div class="fu-ctx" id="bx-ctx"></div>
@@ -4728,6 +4735,12 @@ const newsCases = [
 .fu-de select{background:var(--navy-900);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:inherit;font-size:12.5px;padding:6px 8px}
 .fu-note{margin-top:10px;font-size:12px}
 @media(max-width:620px){.fu-card{padding:16px 15px;max-height:94vh}}
+/* Mientras el modal de bexio recalcula contra la API: la selección ya cambió (respuesta
+   inmediata) pero los números todavía son los viejos, así que se atenúan en vez de
+   mentir. El botón elegido se mantiene nítido para que se vea que el click entró. */
+#bx-modal.calculando .bx-pcts button small,
+#bx-modal.calculando .fu-ctx{opacity:.45;transition:opacity .12s}
+#bx-modal.calculando .bx-pcts button.on{opacity:1}
 /* composer colapsado en móvil: una sola barra finita hasta que lo tocás */
 .lm2-cbar{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--muted);font:600 12.5px Inter,sans-serif;padding:12px 14px;cursor:pointer}
 </style>
@@ -14976,17 +14989,31 @@ const newsCases = [
         if (!n || n < 1 || n > 100) return;
         bxPct = n;
       } else bxPct = +b.dataset.pct;
+      /* El botón se marca YA. Antes la marca la pintaba bxEnsayo() recién con la
+         respuesta, y bxEnsayo() habla con bexio (busca el contacto, lee las tasas):
+         uno o dos segundos en los que la pantalla no acusaba recibo del click.
+         Eso era el "lag inmenso" — el cálculo tarda, pero la pantalla no tiene por qué. */
+      $('bx-pcts').querySelectorAll('button').forEach((x) =>
+        x.classList.toggle('on', x.dataset.pct !== 'otro' && +x.dataset.pct === bxPct));
       bxEnsayo();
     }));
   }
+  /* Cada click recalcula contra bexio. Si tocás 50% y enseguida 25%, la respuesta del
+     50% puede llegar DESPUÉS y pisar la pantalla con el número que ya no elegiste. El
+     contador deja pasar solo a la última. */
+  let bxTurno = 0;
   async function bxEnsayo(){
     if (!bxDoc) return;
+    const mio = ++bxTurno;
     const go = $('bx-go'); go.disabled = true;
+    $('bx-modal').classList.add('calculando');
+    $('bx-note').textContent = 'Calculando con bexio…';
     try {
       const { data, error } = await supabase.functions.invoke('bexio-invoice', {
         body: { tipo: bxDoc.tipo, id: bxDoc.id, pct: bxPct, dry_run: true,
                 contact_id: (bxCand && bxCand !== 'nuevo') ? bxCand : undefined,
                 crear_contacto: bxCand === 'nuevo', iva: bxIva || undefined } });
+      if (mio !== bxTurno) return;                 // llegó tarde: ya elegiste otra cosa
       if (error) throw error;
       if (data && data.error) throw new Error(data.error);
       const total = Number(data.total_documento) || 0;
@@ -15037,7 +15064,9 @@ const newsCases = [
          decisión. */
       $('bx-ctx').querySelectorAll('[data-iva]').forEach((b) => b.addEventListener('click', () => {
         if (b.disabled) return;
-        bxIva = b.dataset.iva; bxEnsayo();
+        bxIva = b.dataset.iva;
+        $('bx-ctx').querySelectorAll('[data-iva]').forEach((x) => x.classList.toggle('on', x === b));
+        bxEnsayo();
       }));
       $('bx-go').textContent = facturas.length > 1 ? '🧾 Crear los 2 borradores en bexio' : '🧾 Crear borrador en bexio';
       $('bx-note').textContent = facturas.length > 1
@@ -15045,8 +15074,11 @@ const newsCases = [
         : 'Se crea como borrador. La factura la mandás vos desde bexio.';
       go.disabled = false;
     } catch (e) {
+      if (mio !== bxTurno) return;
       $('bx-ctx').innerHTML = '<div><i>⚠️</i><span>' + esc(e.message || String(e)) + '</span></div>';
       go.disabled = true;
+    } finally {
+      if (mio === bxTurno) $('bx-modal').classList.remove('calculando');
     }
   }
   async function bxCrear(){
@@ -15073,7 +15105,11 @@ const newsCases = [
   }
   $('bx-x') && $('bx-x').addEventListener('click', bxCerrar);
   $('bx-go') && $('bx-go').addEventListener('click', bxCrear);
-  $('bx-modal') && $('bx-modal').addEventListener('click', (e) => { if (e.target === $('bx-modal')) bxCerrar(); });
+  /* Cerrar tocando afuera: ahora hay DOS afueras — el relleno del envoltorio fijo y el
+     fondo oscuro que está adentro. */
+  $('bx-modal') && $('bx-modal').addEventListener('click', (e) => {
+    if (e.target === $('bx-modal') || e.target === $('bx-back')) bxCerrar();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('bx-modal').hidden) bxCerrar(); });
 
   // popover ⋯ por fila (mismo patrón que lm2Menu; fixed porque dentro del wrap con overflow lo recortaría)
