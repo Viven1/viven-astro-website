@@ -82,7 +82,19 @@ const svcName = svcSlug && SVC_NAME[svcSlug][lang];
 // importa el servicio pone link al cost calculator" — el tema costo/precio pisa
 // el link de servicio por categoría, sea cual sea esa categoría.
 const isCostTopic = /\b(cost|costs|pricing|budget|kosten|preis|precio|costo|presupuesto)\b/i.test(entry.question + ' ' + entry.slug);
+/* Los recursos de EVENTO mandan al planificador: ahí la pregunta que sigue no es
+   "cuánto sale" sino "qué tengo que decidir antes del día". El de costo gana igual
+   cuando la pregunta es de plata. Solo en inglés, que es donde existe la herramienta. */
+const isEventTopic = lang === 'en' && /\b(event|events|conference|congress)\b/i.test(entry.question + ' ' + entry.slug);
 const linkOut = isCostTopic
+  ? { html: {
+        en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
+        de: 'Fragen Sie sich, was das kosten würde? Unser <a href="/de/videoproduktion-kosten-rechner/">Kostenrechner für Videos</a>.',
+        es: '¿Te preguntás cuánto costaría? Probá nuestra <a href="/es/calculadora-costos-video/">calculadora de costos de video</a>.',
+      }[lang] }
+  : isEventTopic
+  ? { html: 'Planning one? Our <a href="/en/event-video-planner/">event video planner</a> walks you through the nine decisions and emails you the brief.' }
+  : isCostTopic
   ? { html: {
         en: 'Wondering what this would cost? Try our <a href="/en/video-cost-calculator/">video cost calculator</a>.',
         de: 'Fragen Sie sich, was das kosten würde? Unser <a href="/de/videoproduktion-kosten-rechner/">Kostenrechner für Videos</a>.',

@@ -8,7 +8,6 @@ import sitemap from '@astrojs/sitemap';
 const SITEMAP_EXCLUDE = [
   '/dashboard/', '/proposal/', '/portal/', '/lp/',
   '/book/', '/brief/', '/thank-you/', '/danke/', '/gracias/',
-  '/event-video-planner/',   // noindex mientras se revisa: no puede estar en el sitemap
   '/abrir/',                 // puente del email a la app: interna, no es una página del sitio
 ];
 
