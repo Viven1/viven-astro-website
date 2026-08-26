@@ -85,9 +85,17 @@ Deno.serve(async (req) => {
        para poder comparar contra lo que el dashboard cree que mandó, sin depender de
        encontrar la pantalla correcta en bexio. (Sebastián, 26 ago 2026.) */
     if (body.listar) {
-      const r = await bx("4.0/purchase/bills?limit=25&order_by=-bill_date");
-      if (!r.ok) return json({ error: "bexio no contestó la lista de compras", status: r.status, detalle: r.body }, 502);
-      const arr = (r.body as any)?.data ?? (Array.isArray(r.body) ? r.body : []);
+      /* Sin order_by: la API v4 de compras rechaza parámetros que no conoce con un 400,
+         y perder la lista entera por el orden sería absurdo. Se ordena acá. */
+      let r = await bx("4.0/purchase/bills?limit=25");
+      if (!r.ok) r = await bx("4.0/purchase/bills");
+      if (!r.ok) {
+        const d: any = r.body;
+        const motivo = typeof d === "string" ? d : JSON.stringify(d).slice(0, 250);
+        return json({ error: `bexio no contestó la lista de compras (${r.status}): ${motivo}`, status: r.status, detalle: r.body }, 502);
+      }
+      const arr0 = (r.body as any)?.data ?? (Array.isArray(r.body) ? r.body : []);
+      const arr = [...arr0].sort((x: any, y: any) => String(y.bill_date || "").localeCompare(String(x.bill_date || "")));
       return json({ ok: true, total: arr.length, facturas: arr.map((b2: any) => ({
         id: b2.id,
         nro: b2.document_no ?? null,

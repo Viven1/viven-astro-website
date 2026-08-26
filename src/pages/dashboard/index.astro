@@ -17646,7 +17646,12 @@ const newsCases = [
   async function pjBillsBexioLista(){
     const box = $('pj-bills-bx'); if (!box) return;
     box.innerHTML = '<p class="muted-note" style="margin:0 0 12px">Preguntándole a bexio…</p>';
-    const { data, error } = await supabase.functions.invoke('bexio-bill', { body: { listar: true } });
+    /* Con try: si la llamada se cae (red, sesión vencida) sin esto la promesa quedaba
+       rechazada y el panel se congelaba en "Preguntándole a bexio…" para siempre —
+       que desde afuera es exactamente "no muestra nada". */
+    let data, error;
+    try { ({ data, error } = await supabase.functions.invoke('bexio-bill', { body: { listar: true } })); }
+    catch (e){ error = e; }
     if (error || !data || data.error){
       box.innerHTML = '<p class="muted-note" style="margin:0 0 12px;color:#f0c060">⚠️ ' +
         esc((data && data.error) || (error && error.message) || 'bexio no contestó') + '</p>';
