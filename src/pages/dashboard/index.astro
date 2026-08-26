@@ -1593,6 +1593,15 @@ const newsCases = [
   .pj-crew-rol{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* 🧭 Playbook. Se lee mientras se habla por teléfono: la pregunta grande y legible,
      el porqué chiquito debajo, y la respuesta como un renglón que se toca y se escribe. */
+  /* La barra de "Enviado · Deshacer" ocupa exactamente el lugar del botón Enviar: es
+     donde estás mirando cuando acabás de tocarlo. */
+  .und{display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:10px;padding:9px 13px}
+  .und-t{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .und-x{margin-left:auto;background:none;border:1px solid var(--acid);color:var(--acid);
+    border-radius:99px;font:700 12.5px Inter,sans-serif;padding:6px 14px;cursor:pointer;white-space:nowrap}
+  .und-x:hover{background:var(--acid);color:#1c2508}
+  #lm2-undo-n{font-variant-numeric:tabular-nums}
   .pb-badge{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;
     color:var(--muted);background:var(--panel-2);border-radius:99px;padding:1px 6px}
   .pb-badge:empty{display:none}
@@ -11416,22 +11425,69 @@ const newsCases = [
         ab.disabled = false; ab.textContent = prev;
       }
     });
-    const mb = $('lm2-mail-send'); if (mb) mb.addEventListener('click', async () => {
+    /* ═══ ENVIAR CON 20 SEGUNDOS PARA DESHACER ═══
+       Como Gmail: se manda, y durante 20 segundos la barra de abajo se convierte en
+       "Enviado · Deshacer", en el MISMO lugar del botón. Si lo tocás, el email no salió
+       y el texto vuelve tal cual para corregirlo.
+       (Sebastián, 26 ago 2026: "dame botón rápido de deshacer después de enviar con 20
+       segundos… en el mismo lugar, enviar, y que se vea por si quiero corregir rápido
+       como con gmail".)
+       El truco es que en esos 20 segundos NO se llamó a nadie: el email sale recién al
+       final. Por eso "deshacer" es de verdad y no un pedido de cancelación que puede
+       llegar tarde. Y si te vas de la pantalla antes, sale igual: lo que escribiste y
+       mandaste no se pierde por cerrar una ventana. */
+    const mb = $('lm2-mail-send'); if (mb) mb.addEventListener('click', () => {
       const bodyTxt = $('lm2-mail-b').value.trim(); if (!bodyTxt) return;
       const subjTxt = ($('lm2-mail-subj') && $('lm2-mail-subj').value.trim()) || SUBJECTS[['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en'];
       const de = $('lm2-mail-de').value;
-      if (!confirm('¿Enviar este email a ' + r.email + '? Sale desde info@viven.ch.')) return;
-      mb.disabled = true; mb.textContent = '📨 Enviando…';
-      try {
-        const { data, error } = await supabase.functions.invoke('send-outreach', {
-          body: { to: r.email, subject: subjTxt, body: bodyTxt, lead_id: r.id, mark_contacted: true, fromName: (SENDERS[de] || SENDERS.sofia).name }
-        });
-        if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
-        r.status = 'contactado'; renderLeads();
-        toast('✓ Enviado — el lead pasó a Contactado');
-        lm2Tab = 'nota'; lm2RenderComposer(); lm2LoadTimeline(r); openLeadV2(r.id);
-      } catch (e) { toast('No se pudo enviar: ' + e.message); }
-      finally { mb.disabled = false; mb.textContent = '📨 Enviar al lead'; }
+
+      const fila = mb.closest('.lm2-crow'); if (!fila) return;
+      const original = fila.innerHTML;
+      let quedan = 20, timer = null, tick = null, cancelado = false, yaSalio = false;
+
+      const salir = async () => {
+        if (cancelado || yaSalio) return; yaSalio = true;
+        clearInterval(tick); clearTimeout(timer);
+        window.removeEventListener('pagehide', ahora);
+        const nota = fila.querySelector('.und-t');
+        if (nota) nota.textContent = 'Enviando…';
+        try {
+          const { data, error } = await supabase.functions.invoke('send-outreach', {
+            body: { to: r.email, subject: subjTxt, body: bodyTxt, lead_id: r.id, mark_contacted: true, fromName: (SENDERS[de] || SENDERS.sofia).name }
+          });
+          if (error || !data || !data.ok) throw new Error(data?.error || error?.message || 'sin respuesta');
+          r.status = 'contactado'; renderLeads();
+          toast('✓ Enviado a ' + r.email + ' — el lead pasó a Contactado');
+          lm2Tab = 'nota'; lm2RenderComposer(); lm2LoadTimeline(r); openLeadV2(r.id);
+        } catch (e) {
+          toast('No se pudo enviar: ' + e.message);
+          fila.innerHTML = original; lm2RenderComposer();
+        }
+      };
+      const ahora = () => salir();
+
+      const deshacer = () => {
+        cancelado = true;
+        clearInterval(tick); clearTimeout(timer);
+        window.removeEventListener('pagehide', ahora);
+        fila.innerHTML = original;
+        /* El texto sigue donde estaba: el composer no se tocó. Solo hay que volver a
+           enganchar los botones, que son nodos nuevos. */
+        lm2RenderComposer();
+        const b2 = $('lm2-mail-b'); if (b2){ b2.value = bodyTxt; b2.focus(); }
+        const s2 = $('lm2-mail-subj'); if (s2) s2.value = subjTxt;
+        toast('↩️ Cancelado — no salió nada, corregilo y mandalo de nuevo');
+      };
+
+      fila.innerHTML = '<span class="und"><b class="und-t">📨 Enviado a ' + esc(r.email) + '</b>' +
+        '<button type="button" class="und-x" id="lm2-undo">Deshacer <span id="lm2-undo-n">20</span>s</button></span>';
+      $('lm2-undo').addEventListener('click', deshacer);
+      tick = setInterval(() => {
+        quedan--;
+        const n = $('lm2-undo-n'); if (n) n.textContent = String(Math.max(0, quedan));
+      }, 1000);
+      timer = setTimeout(salir, 20000);
+      window.addEventListener('pagehide', ahora);
     });
   }
 
