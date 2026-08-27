@@ -18,6 +18,7 @@
 import { registrarEmail } from "../_shared/email.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { emailViven } from "../_shared/email-viven.ts";
+import { preguntaDe, enOrden } from "../_shared/brief-preguntas.ts";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 /* Para verificar la sesión de un miembro del equipo hace falta un cliente con la clave
@@ -315,12 +316,35 @@ Deno.serve(async (req) => {
       const acc3 = esEquipo ? { equipo: true } : await verificado(body.token);
       if (!acc3) return json({ error: "necesita_codigo" }, 401);
       await service.from("projects").update({ brief_done_at: new Date().toISOString() }).eq("id", proj.id);
+
+      const { data: br } = await service.from("project_briefs")
+        .select("key,value,answered_by").eq("project_id", proj.id);
+      const contestadas = enOrden((br ?? []).filter((x: { value?: string }) => String(x.value || "").trim()));
+
+      /* El aviso a la app. Faltaba: el brief terminado mandaba email y nada más, así que
+         si no estabas mirando el correo no te enterabas.
+         (Sebastián, 26 ago 2026: "no llego notificacion del app".) */
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+        body: JSON.stringify({
+          title: `📋 ${proj.client_contact || "El cliente"} terminó el brief`,
+          body: `${proj.title || deal.title || ""} — ${contestadas.length} de 12 contestadas. Ya se puede escribir el guion.`,
+          url: proj.ref ? `/dashboard/?proyecto=${proj.ref}` : `/dashboard/?tab=projects`,
+        }),
+      }).catch(() => {});
+
       if (RESEND) {
-        const { data: br } = await service.from("project_briefs")
-          .select("key,value,answered_by").eq("project_id", proj.id);
-        const filas = (br ?? []).map((x: { key: string; value: string; answered_by: string }) =>
-          `<tr><td style="padding:7px 6px;border-bottom:1px solid #eee;color:#888;font-size:12.5px;width:34%">${esc(x.key)}</td>` +
-          `<td style="padding:7px 6px;border-bottom:1px solid #eee;font-size:13.5px;white-space:pre-wrap">${esc(String(x.value || ""))}</td></tr>`).join("");
+        /* Con la PREGUNTA, no con la clave. Salía "tema / eso lo decidís vos": una tabla de
+           doce respuestas sin su pregunta no se puede leer, y era lo único que teníamos del
+           cliente. La pregunta va en el idioma en que él contestó.
+           (Sebastián, 26 ago 2026: "faltan las preguntas no sirve de mucho asi".) */
+        const filas = contestadas.map((x: { key: string; value: string; answered_by?: string }) =>
+          `<tr><td style="padding:14px 0 4px;font-size:13px;font-weight:700;color:#1a2230;line-height:1.45">${esc(preguntaDe(x.key, lang))}</td></tr>` +
+          `<tr><td style="padding:0 0 14px;border-bottom:1px solid #eef0f4;font-size:14px;color:#3d4757;line-height:1.6;white-space:pre-wrap">${esc(String(x.value || ""))}` +
+          (x.answered_by ? `<div style="margin-top:6px;font-size:11.5px;color:#9aa6bd">— ${esc(String(x.answered_by))}</div>` : "") +
+          `</td></tr>`).join("");
+        const faltan = 12 - contestadas.length;
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
@@ -328,7 +352,8 @@ Deno.serve(async (req) => {
             from: "Viven Leads <leads@viven.ch>", to: ["info@viven.ch"], reply_to: emailCliente || undefined,
             subject: `📋 BRIEF COMPLETO — ${proj.ref ? proj.ref + " · " : ""}${esc(proj.title || deal.title || "")}`,
             html: emailViven({ lang: "es", titulo: "El cliente terminó el brief",
-              intro: `${esc(proj.title || deal.title || "")}${proj.ref ? " · " + proj.ref : ""}`,
+              intro: `${esc(proj.title || deal.title || "")}${proj.ref ? " · " + proj.ref : ""} — ${contestadas.length} de 12 contestadas` +
+                (faltan > 0 ? `, ${faltan} sin contestar` : ""),
               cuerpo: `<table style="width:100%;border-collapse:collapse">${filas}</table>`,
               cta: proj.ref ? { texto: "Abrir el proyecto", url: `https://www.viven.ch/dashboard/?proyecto=${proj.ref}` } : undefined,
               porque: "Aviso interno del portal." }),

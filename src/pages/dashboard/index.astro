@@ -22316,6 +22316,17 @@ const newsCases = [
       '</div>';
     });
     $('pbf-llenar').innerHTML = html;
+    /* Que se vea entero lo que contestó. Con rows="2" fijo, una respuesta larga era una
+       ventanita de dos líneas sobre 2.900px de texto — lo mismo que pasaba en el portal. */
+    Array.prototype.forEach.call($('pbf-llenar').querySelectorAll('textarea'), (ta) => {
+      const crecer = () => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight + 2, 420) + 'px';
+        ta.style.overflowY = ta.scrollHeight + 2 > 420 ? 'auto' : 'hidden';
+      };
+      ta.addEventListener('input', crecer);
+      crecer();
+    });
 
     $('pbf-llenar').querySelectorAll('textarea').forEach((ta) => ta.addEventListener('input', () => pbrGuardarDebounce()));
     $('pbf-llenar').querySelectorAll('.pb-chip').forEach((b) => b.addEventListener('click', () => {
@@ -22377,7 +22388,9 @@ const newsCases = [
   async function pbrRenderMandar(){
     const x = await pjBriefDatos({ callado: true });
     if (!x){
-      $('pbf-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente».</p>';
+      /* El link del portal ya no se pide: pjBriefDatos lo genera solo. Lo único que
+         puede faltar acá es el email del contacto. */
+      $('pbf-mandar').innerHTML = '<p class="muted-note" style="margin:0">El contacto del proyecto no tiene email cargado — sin eso no hay a dónde mandárselo. Se carga en el paso «El cliente».</p>';
       return;
     }
     const T = { largo: 'las 12 de corrido, en cuatro secciones', pasos: 'una sección por vez, con Atrás y Siguiente' }[x.variante];
