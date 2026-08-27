@@ -2457,6 +2457,21 @@ const newsCases = [
      tres, pero cada una respira. */
   .hm-masonry{column-count:3;column-width:360px;column-gap:16px;margin-top:16px}
   .hm-masonry .hm-card{break-inside:avoid;margin-bottom:16px}
+  /* La lista de acciones abarca las tres columnas. Vivía en una columna de 360 px, y ahí
+     un renglón con nombre + contexto + monto + botón no entra: el nombre quedaba cortado
+     («medienjobs....») y el contexto se partía en seis líneas al lado de un panel vecino
+     con media pantalla vacía. Es la lista principal de la pantalla; le corresponde el
+     ancho de la pantalla.
+     (Sebastián, 27 ago 2026: "corregí el layout en browser... así no sirve".) */
+  .hm-masonry #hm-acciones{column-span:all;-webkit-column-span:all}
+  /* Y en angosto los botones bajan, en vez de estrangular el texto. */
+  @media(max-width:700px){
+    .hm-item{flex-wrap:wrap}
+    .hm-item .tx{flex:1 1 100%;order:1}
+    .hm-item .ic{order:0}
+    .hm-item .hm-acts,.hm-item .hm-right,.hm-item .hm-chf{order:2;padding-left:0;margin-top:6px}
+    .hm-item .hm-acts{margin-left:auto}
+  }
   /* tablet (iPad portrait/landscape, ~620-1180px): "columns:280px 3" colapsaba a
      1 columna ahí porque el ancho de contenido (sidebar + padding descontados)
      no alcanzaba para 2×280px+gap — quedaba todo full-width y desperdiciando
@@ -8041,7 +8056,12 @@ const newsCases = [
         if (hmEsDudosa(d, days)) return;
         if (busyLeads.has(String(d.lead_id))) return;
         const r = leadById(d.lead_id) || {};
-        if (dlTasksMap[String(d.lead_id)] || r.next_follow_up_at) return;
+        /* Solo silencia si la fecha todavía no llegó. Con `r.next_follow_up_at` a secas,
+           marcar «hecho» lo callaba PARA SIEMPRE: la fecha se cumplía y el aviso no volvía
+           nunca, que es peor que molestar.
+           (Sebastián, 27 ago 2026: "una vez que ponemos hecho, hace un nuevo reminder en 7
+            días si no escuchamos nada del cliente".) */
+        if (dlTasksMap[String(d.lead_id)] || pendienteAun(r.next_follow_up_at)) return;
         const stLabel = (STAGES.find((s) => s.key === stageOf(d.stage)) || {}).label || '';
         items.push({ rank: 2, sev: 'rojo', icon: '🤝', at: now - days * D, leadId: d.lead_id || null, chf: dealValue(d), dias: days, t: d.title || r.name || r.email || '(deal)',
           ctx: days + ' d en ' + stLabel + ' · sin próximo paso',
@@ -8246,6 +8266,14 @@ const newsCases = [
     ? [{ label: '✓ Hecho', cls: 'btn-ghost', title: 'Ya lo seguí — que no vuelva a aparecer por una semana',
          fn: (b) => hmSeguimientoHecho(leadId, b, queEra) }]
     : null;
+
+  /* «Tiene un seguimiento agendado que todavía no venció». Una fecha pasada NO silencia:
+     el día que se cumple, el aviso vuelve. */
+  function pendienteAun(fecha){
+    if (!fecha) return false;
+    const t = Date.parse(String(fecha).length <= 10 ? fecha + 'T23:59:59' : fecha);
+    return isFinite(t) && t > Date.now();
+  }
 
   function hmRenderToday(items){
     const box = $('hm-today'); if (!box) return;
@@ -16393,7 +16421,11 @@ const newsCases = [
        propio botón, así que ocupaban el mismo lugar visual que las nueve cosas que sí
        son documentos, y de 57 filas en la tabla de ofertas solo 4 son ofertas.
        Se siguen viendo donde tienen sentido: adentro de su propuesta. */
-    $('opl-seg').innerHTML = [['todas', 'Todas'], ['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['archived', '🗄']]
+    /* «Paquetes» vuelve, al final. Lo había sacado porque 44 piezas internas ocupaban el
+       mismo lugar visual que los nueve documentos reales — pero sacarlo del segmentador
+       las dejó sin ninguna puerta desde acá.
+       (Sebastián, 27 ago 2026: "no veo los tiers, tengo solo 24".) */
+    $('opl-seg').innerHTML = [['todas', 'Todas'], ['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['tier', 'Paquetes'], ['archived', '🗄']]
       .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (oplSeg === k ? 'on' : '') + '">' + l + ' ' + (searchedOff.filter((o) => segMatchOff(o, k)).length + searchedProp.filter((p) => segMatchProp(p, k)).length) + '</button>').join('');
     $('opl-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { oplSeg = b.dataset.k; renderComboList(); }));
     const offRows = searchedOff.filter((o) => segMatchOff(o, oplSeg));
