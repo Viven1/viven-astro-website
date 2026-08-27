@@ -889,13 +889,22 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
          lo tocó tres veces esperando recibirlo ella, y las tres veces le llegó al cliente.
          (Sebastián, 27 ago 2026: "a Sofia no le llegó su código del panel de cliente,
           ¿por qué?") */
-      '<p class="muted-note" style="margin:-4px 0 12px;font-size:12.5px">El código llega a esa dirección, no a la tuya.</p>' +
+      /* Cualquiera que esté en el proyecto puede pedirlo a SU dirección. El link llega por
+         email a gente concreta, así que quien lo tiene ya es alguien a quien se lo mandamos;
+         obligarlo a que el código caiga en la casilla de otro no protege nada y bloquea al
+         que sí tiene que entrar.
+         (Sebastián, 27 ago 2026: "todos los que reciban ese email tienen que poder pedir el
+          código, ya que es un link interno y no lo recibe cualquiera".) */
       '<button class="btn btn-primary small" id="pt-code-send" type="button">' + L.codeSend + '</button>' +
-      '<p class="muted-note" style="margin:12px 0 0;font-size:12.5px">¿Sos de VIVEN? Abrí este proyecto desde el dashboard, en «Ver su portal»: entrás con tu cuenta y sin gastar el código del cliente.</p>' +
+      '<p class="muted-note" style="margin:12px 0 6px;font-size:12.5px">¿Sos otra persona del proyecto? Pedilo a tu dirección:</p>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">' +
+        '<input id="pt-code-mail" type="email" placeholder="tu@email.com" style="flex:1;min-width:190px" />' +
+        '<button class="btn btn-ghost small" id="pt-code-send2" type="button">Mandámelo a mí</button>' +
+      '</div>' +
       '<div id="pt-code-in"></div></div>';
-    $('pt-code-send').addEventListener('click', function(){
-      var b = this; b.disabled = true;
-      api('pedir_codigo').then(function(r){
+    function pedirCodigo(b, email){
+      b.disabled = true;
+      api('pedir_codigo', email ? { email: email } : {}).then(function(r){
         if (r.error) {
           /* Antes: `return` mudo. El botón se volvía a habilitar y no pasaba nada más, así
              que quien lo tocaba se quedaba esperando un email que nunca iba a llegar. */
@@ -903,7 +912,9 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
           $('pt-code-in').innerHTML = '<p class="pt-err" style="margin:10px 0 0">' +
             (r.error === 'sin_email'
               ? 'Este proyecto no tiene email de contacto cargado — avisanos y lo arreglamos.'
-              : 'No se pudo mandar el código: ' + esc(r.error)) + '</p>';
+              : r.error === 'no_es_del_proyecto'
+                ? 'Esa dirección no está en este proyecto. Las que sí: ' + esc((r.opciones || []).join(', ')) + '. Si falta la tuya, pedinos que te agreguemos.'
+                : 'No se pudo mandar el código: ' + esc(r.error)) + '</p>';
           return;
         }
         $('pt-code-in').innerHTML = '<p class="muted-note" style="margin:12px 0 8px;font-size:13px">' + L.codeSent + ' ' + esc(r.enviado_a) + '</p>' +
@@ -912,6 +923,12 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
         $('pt-code-go').addEventListener('click', verificar);
         $('pt-code-v').focus();
       });
+    }
+    $('pt-code-send').addEventListener('click', function(){ pedirCodigo(this, null); });
+    $('pt-code-send2').addEventListener('click', function(){
+      var m = ($('pt-code-mail').value || '').trim();
+      if (!m || m.indexOf('@') < 0){ $('pt-code-mail').focus(); return; }
+      pedirCodigo(this, m);
     });
     $('pt-code').scrollIntoView({ behavior:'smooth', block:'center' });
   }

@@ -3550,6 +3550,7 @@ const newsCases = [
              (Sebastián, 26 ago 2026: "¿cómo llego ahora yo al panel del cliente/proyecto?
               no tengo más el link para entrar".) -->
         <button class="btn btn-ghost small" id="pj-portal-ir" type="button" title="Abrir el portal del cliente con un pase de equipo — entrás sin código y sin gastar el suyo">🎞 Ver su portal</button>
+        <button class="btn btn-ghost small" id="pj-borrar" type="button" title="Borrar este proyecto y todo lo que cuelga de él" style="margin-left:auto;color:#ff8b8b">🗑 Borrar proyecto</button>
         <span class="muted-note" id="pj-save-note"></span>
       </div>
     </div>
@@ -22637,6 +22638,63 @@ const newsCases = [
   /* Abrir el portal del cliente entrando como equipo: sin código y sin gastar el suyo.
      Es la misma acción que el botón de adentro del paso «Post», pero acá vive suelta para
      que el botón de la barra —el que está siempre— pueda usarla. */
+  /* Borrar un proyecto. Es irreversible y se lleva puesto todo lo que cuelga: versiones,
+     comentarios del cliente, archivos, brief, guiones, plan, costos y horas. Por eso NO
+     alcanza con un confirm: primero se cuenta lo que hay y se muestra, y después hay que
+     escribir el número del proyecto. Un proyecto de prueba se borra igual de rápido; uno
+     real no se borra por error de dedo.
+     (Sebastián, 27 ago 2026: "dejame borrar proyectos de test también".) */
+  async function pjBorrar(){
+    const p = pjCur; if (!p) return;
+    const b = $('pj-borrar');
+    b.disabled = true;
+    try {
+      const cuenta = async (tabla) => {
+        const { count } = await supabase.from(tabla).select('id', { count: 'exact', head: true }).eq('project_id', p.id);
+        return count || 0;
+      };
+      const [vers, coms, files, briefs, scripts, costos, horas, cont] = await Promise.all([
+        cuenta('project_versions'), cuenta('project_comments'), cuenta('project_files'),
+        cuenta('project_briefs'), cuenta('project_scripts'), cuenta('project_costs'),
+        cuenta('project_hours'), cuenta('project_contacts'),
+      ]);
+      const lleva = [
+        vers && vers + ' versión' + (vers === 1 ? '' : 'es'),
+        coms && coms + ' comentario' + (coms === 1 ? '' : 's') + ' del cliente',
+        files && files + ' archivo' + (files === 1 ? '' : 's'),
+        briefs && briefs + ' respuesta' + (briefs === 1 ? '' : 's') + ' del brief',
+        scripts && scripts + ' guion/plan',
+        costos && costos + ' costo' + (costos === 1 ? '' : 's'),
+        horas && horas + ' registro' + (horas === 1 ? '' : 's') + ' de horas',
+        cont && cont + ' contacto' + (cont === 1 ? '' : 's'),
+      ].filter(Boolean);
+
+      const ref = String(p.ref || p.id);
+      const dicho = prompt(
+        'BORRAR EL PROYECTO ' + ref + ' — ' + (p.title || '') + '\n\n' +
+        (lleva.length ? 'Se borra también:\n· ' + lleva.join('\n· ') + '\n\n' : 'No tiene nada cargado adentro.\n\n') +
+        'Esto no se puede deshacer. El deal y las facturas NO se tocan.\n\n' +
+        'Escribí ' + ref + ' para confirmar:');
+      if (dicho === null) return;
+      if (String(dicho).trim() !== ref){ toast('No coincide — no se borró nada'); return; }
+
+      /* Los archivos del storage no se van con la fila: se borran antes, y si alguno falla
+         el proyecto NO se borra, para no dejar archivos sin dueño ocupando lugar. */
+      const { data: fs } = await supabase.from('project_files').select('file_path').eq('project_id', p.id);
+      const rutas = (fs || []).map((f) => f.file_path).filter(Boolean);
+      if (rutas.length){
+        const { error: eSt } = await supabase.storage.from('project-files').remove(rutas);
+        if (eSt){ toast('⚠️ No se pudieron borrar los archivos: ' + eSt.message); return; }
+      }
+
+      const { error } = await supabase.from('projects').delete().eq('id', p.id);
+      if (error){ toast('⚠️ ' + error.message); return; }
+      pjList = (pjList || []).filter((x) => String(x.id) !== String(p.id));
+      pjCur = null; pjUrl(null); pjRenderList();
+      toast('🗑 Proyecto ' + ref + ' borrado');
+    } finally { b.disabled = false; }
+  }
+
   async function pjAbrirPortal(boton){
     const p = pjCur; if (!p) return;
     if (boton) boton.disabled = true;
@@ -23158,6 +23216,7 @@ const newsCases = [
       pjCur = null; pjUrl(null); pjRenderList();
     });
     $('pj-portal-ir').addEventListener('click', () => pjAbrirPortal($('pj-portal-ir')));
+    $('pj-borrar').addEventListener('click', pjBorrar);
     $('pj-reload').addEventListener('click', pjLoad);
     $('pj-nuevo') && $('pj-nuevo').addEventListener('click', () => {
       const f = $('pj-form'); f.hidden = !f.hidden;

@@ -210,19 +210,48 @@ Deno.serve(async (req) => {
     }
 
     // ---------- PEDIR CÓDIGO ----------
+    const tapar = (e: string) => String(e || "").replace(/^(.).*(.@)/, "$1•••$2");
+
     if (accion === "pedir_codigo") {
-      if (!emailCliente) return json({ error: "sin_email" }, 400);
+      /* El código puede ir a CUALQUIERA de los contactos del proyecto, no solo al contacto
+         principal. El link del portal es privado —se manda por email a gente concreta— así
+         que quien lo tiene ya es alguien a quien se lo mandamos.
+         Antes iba siempre al contacto principal: Sofia lo pidió tres veces y las tres le
+         llegó a otra persona.
+         La dirección se valida contra la lista del proyecto: no se le manda un código a una
+         dirección que nadie cargó, y así el link no sirve para sondear direcciones ajenas.
+         (Sebastián, 27 ago 2026: "todos los que reciban ese email tienen que poder pedir el
+          código, ya que es un link interno y no lo recibe cualquiera".) */
+      const { data: contactos } = await service.from("project_contacts")
+        .select("email,name").eq("project_id", proj.id);
+      const permitidos = new Map<string, string>();
+      if (emailCliente) permitidos.set(emailCliente, String(proj.client_contact || lead?.name || ""));
+      if (lead?.email) permitidos.set(String(lead.email).toLowerCase().trim(), String(lead.name || ""));
+      for (const c of contactos ?? []) {
+        const e = String((c as { email?: string }).email || "").toLowerCase().trim();
+        if (e.includes("@")) permitidos.set(e, String((c as { name?: string }).name || ""));
+      }
+      if (!permitidos.size) return json({ error: "sin_email" }, 400);
+
+      const pedido = String(body.email || "").toLowerCase().trim();
+      /* Sin dirección pedida se mantiene lo de siempre: el contacto principal. */
+      const destino = pedido || emailCliente;
+      if (!destino) return json({ error: "sin_email" }, 400);
+      if (!permitidos.has(destino)) {
+        return json({ error: "no_es_del_proyecto", opciones: [...permitidos.keys()].map(tapar) }, 403);
+      }
+
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expira = new Date(Date.now() + 15 * 60e3).toISOString();
-      await service.from("portal_access").delete().eq("project_id", proj.id).eq("email", emailCliente);
+      await service.from("portal_access").delete().eq("project_id", proj.id).eq("email", destino);
       await service.from("portal_access").insert({
-        project_id: proj.id, email: emailCliente, code_hash: await sha256(code),
+        project_id: proj.id, email: destino, code_hash: await sha256(code),
         code_expires: expira, last_ip: ip,
       });
       if (RESEND) {
         const L = T[lang];
         const asunto = `${L.asunto} — ${esc(proj.title || deal.title || "VIVEN")}`;
-        const quien = String(lead?.name || proj.client_contact || "").trim().split(/\s+/)[0] || "";
+        const quien = String(permitidos.get(destino) || lead?.name || proj.client_contact || "").trim().split(/\s+/)[0] || "";
         const portalLink = `https://www.viven.ch/portal/?id=${encodeURIComponent(String(deal.id))}&t=${encodeURIComponent(String(deal.portal_token))}`;
         /* Este email usa la MISMA plantilla que todos los demás (_shared/email-viven).
            Antes cada función tenía su layout y el del brief salía como texto pelado con
@@ -249,22 +278,21 @@ Deno.serve(async (req) => {
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: "VIVEN AG <info@viven.ch>", to: [emailCliente], subject: asunto, html }),
+          body: JSON.stringify({ from: "VIVEN AG <info@viven.ch>", to: [destino], subject: asunto, html }),
         }).catch(() => {});
         /* Queda en la ficha de la persona. Este email fue el que destapó el problema:
            salió a un cliente real y en su ficha no había ni una línea. El código NO se
            guarda —solo se dice que se mandó uno— porque el registro lo lee cualquiera
            del equipo y sería una llave escrita en la timeline. */
         await registrarEmail({
-          service, to: emailCliente, subject: asunto,
+          service, to: destino, subject: asunto,
           body: "Código de acceso al portal (6 dígitos, vence en 15 min). El código no se guarda.",
           source: "get-portal", senderLabel: "VIVEN", leadId: lead?.id ?? null,
         });
       }
       /* Se devuelve el email TAPADO: sirve para que el cliente sepa a dónde mirar, sin
          revelar la dirección completa a quien tenga el link. */
-      const tapado = emailCliente.replace(/^(.).*(.@)/, "$1•••$2");
-      return json({ ok: true, enviado_a: tapado });
+      return json({ ok: true, enviado_a: tapar(destino) });
     }
 
     // ---------- VERIFICAR CÓDIGO ----------
@@ -719,7 +747,7 @@ Deno.serve(async (req) => {
         ok: true, lang,
         necesita_codigo: true,
         verificado: false,
-        email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
+        email_tapado: emailCliente ? tapar(emailCliente) : null,
         tiene_email: !!emailCliente,
       });
     }
@@ -873,7 +901,7 @@ Deno.serve(async (req) => {
       brief_listo: !!proj.brief_done_at,
       ref: proj.ref ?? null,
       email_cliente: (esEquipo || porPase) ? emailCliente : null,
-      email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
+      email_tapado: emailCliente ? tapar(emailCliente) : null,
     });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
