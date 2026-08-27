@@ -104,8 +104,50 @@ Deno.serve(async (req) => {
        ("esto es urgente", "la v3 va el viernes"). */
     const remitente = DE[String(de || "").toLowerCase()] || DE.sofia;
 
+    /* En el idioma del montajista. Salía siempre en español —incluidas las instrucciones
+       técnicas, «se importa desde Archivo → Importar»— dando por sentado que el equipo
+       trabaja en español. Solo Sebastián y Sofia.
+       El idioma sale de su ficha de técnico; sin cargar, alemán (Zúrich).
+       (Sebastián, 27 ago 2026: "solo sofia y yo trabajamos en español".) */
+    let langEd: "es" | "en" | "de" = "de";
+    {
+      /* Dos consultas y no un .or(): el filtro de PostgREST separa condiciones por COMA, así
+         que un montajista llamado «Freddy, el que monta» rompería la sintaxis y el idioma
+         caería silenciosamente al default. Por email primero, que es exacto y único. */
+      let l = "";
+      if (dest) {
+        const { data } = await service.from("crew").select("idioma").eq("email", dest).limit(1).maybeSingle();
+        l = String((data as { idioma?: string } | null)?.idioma || "");
+      }
+      if (!l && quien) {
+        const { data } = await service.from("crew").select("idioma").ilike("name", quien).limit(1).maybeSingle();
+        l = String((data as { idioma?: string } | null)?.idioma || "");
+      }
+      if (l === "es" || l === "en" || l === "de") langEd = l;
+    }
+    const T = {
+      es: { notas: (n: number) => `${n} nota${n === 1 ? "" : "s"} del cliente`,
+            hola: "Hola", intro: (n: number) => `El cliente dejó <b>${n} nota${n === 1 ? "" : "s"}</b> sobre el corte. Están abajo con su minuto, y adjunto va el <b>.xml</b> para importar en Premiere: cada nota entra como marcador en el timeline, en su posición.`,
+            comoImportar: "El <b>.xml</b> se importa desde Archivo → Importar. El <b>.edl</b> va por si tu programa no lee el xml.",
+            abreCorte: " Cada minuto de arriba abre el corte en ese segundo.",
+            verCorte: "Ver el corte", responde: "respondiendo a este email le escribís directo.",
+            porque: "Recibís este email porque estás montando este proyecto con VIVEN." },
+      en: { notas: (n: number) => `${n} client note${n === 1 ? "" : "s"}`,
+            hola: "Hi", intro: (n: number) => `The client left <b>${n} note${n === 1 ? "" : "s"}</b> on the cut. They are below with their timecode, and the <b>.xml</b> is attached to import into Premiere: each note lands as a marker on the timeline, at its position.`,
+            comoImportar: "Import the <b>.xml</b> from File → Import. The <b>.edl</b> is there in case your software cannot read the xml.",
+            abreCorte: " Each timecode above opens the cut at that second.",
+            verCorte: "Watch the cut", responde: "replying to this email reaches them directly.",
+            porque: "You are receiving this because you are editing this project with VIVEN." },
+      de: { notas: (n: number) => `${n} Anmerkung${n === 1 ? "" : "en"} vom Kunden`,
+            hola: "Hallo", intro: (n: number) => `Der Kunde hat <b>${n} Anmerkung${n === 1 ? "" : "en"}</b> zum Schnitt hinterlassen. Sie stehen unten mit Timecode, und im Anhang liegt das <b>.xml</b> für Premiere: jede Anmerkung wird als Marker an der richtigen Stelle gesetzt.`,
+            comoImportar: "Das <b>.xml</b> importierst du über Datei → Importieren. Das <b>.edl</b> liegt bei, falls deine Software das xml nicht liest.",
+            abreCorte: " Jeder Timecode oben öffnet den Schnitt an dieser Stelle.",
+            verCorte: "Schnitt ansehen", responde: "eine Antwort auf diese E-Mail geht direkt an ihn.",
+            porque: "Du erhältst diese E-Mail, weil du dieses Projekt schneidest." },
+    }[langEd];
+
     const asunto = String(asunto_manual || "").trim() ||
-      `${ref ? ref + " · " : ""}${titulo} — ${lista.length} nota${lista.length === 1 ? "" : "s"} del cliente${version ? " (v" + version + ")" : ""}`;
+      `${ref ? ref + " · " : ""}${titulo} — ${T.notas(lista.length)}${version ? " (v" + version + ")" : ""}`;
     const nota = String(mensaje || "").trim();
 
     /* Cada minuto es un LINK que abre el corte en ese segundo exacto.
@@ -143,18 +185,18 @@ Deno.serve(async (req) => {
        ser consistente".) */
     const verCorte = portal_url || pr.deliverable_url || video_url || null;
     const html = emailViven({
-      lang: "es",
-      saludo: quien ? "Hola " + esc(quien.split(/\s+/)[0]) + "," : "Hola,",
+      lang: langEd,
+      saludo: quien ? T.hola + " " + esc(quien.split(/\s+/)[0]) + "," : T.hola + ",",
       titulo: `${ref ? ref + " · " : ""}${esc(titulo)}${version ? " — v" + esc(String(version)) : ""}`,
-      intro: `El cliente dejó <b>${lista.length} nota${lista.length === 1 ? "" : "s"}</b> sobre el corte. Están abajo con su minuto, y adjunto va el <b>.xml</b> para importar en Premiere: cada nota entra como marcador en el timeline, en su posición.`,
+      intro: T.intro(lista.length),
       cuerpo:
         `${nota ? `<div style="font-size:15px;line-height:1.65;margin:0 0 20px;padding:14px 16px;background:#fffbe9;border:1px solid #f0e2b0;border-radius:10px;white-space:pre-wrap;color:#3d4757">${esc(nota)}</div>` : ""}` +
         `<table style="border-collapse:collapse;margin:0 0 22px;width:100%;background:#f6f8fb;border-radius:10px">${ficha}</table>` +
         `<table style="width:100%;border-collapse:collapse;margin:0 0 8px">${filas}</table>` +
-        `<p style="font-size:13px;color:#6b7896;line-height:1.6;margin:14px 0 0">El <b>.xml</b> se importa desde Archivo → Importar. El <b>.edl</b> va por si tu programa no lee el xml.${verCorte ? " Cada minuto de arriba abre el corte en ese segundo." : ""}</p>`,
-      cta: verCorte ? { texto: "Ver el corte", url: String(verCorte) } : undefined,
-      pie: `${esc(remitente.nombre)} · VIVEN AG, Zúrich — respondiendo a este email le escribís directo.`,
-      porque: "Recibís este email porque estás montando este proyecto con VIVEN.",
+        `<p style="font-size:13px;color:#6b7896;line-height:1.6;margin:14px 0 0">${T.comoImportar}${verCorte ? T.abreCorte : ""}</p>`,
+      cta: verCorte ? { texto: T.verCorte, url: String(verCorte) } : undefined,
+      pie: `${esc(remitente.nombre)} · VIVEN AG, Zúrich — ${T.responde}`,
+      porque: T.porque,
     });
 
     if (dry_run) return json({ ok: true, dry_run: true, para: dest, asunto, html, notas: lista.length,
