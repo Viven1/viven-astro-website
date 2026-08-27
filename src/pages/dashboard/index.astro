@@ -2456,6 +2456,10 @@ const newsCases = [
      columnas arrancan en 360px: en un monitor normal siguen entrando dos o
      tres, pero cada una respira. */
   .hm-masonry{column-count:3;column-width:360px;column-gap:16px;margin-top:16px}
+  .pb-q.pb-tarde{border-left:3px solid var(--acid);padding-left:11px}
+  .pb-tardechip{font-size:11px;color:var(--acid);font-weight:600;white-space:nowrap}
+  .pb-avisotarde{background:color-mix(in srgb,var(--acid) 13%,transparent);border:1px solid color-mix(in srgb,var(--acid) 40%,transparent);
+    color:var(--text);border-radius:11px;padding:10px 13px;font-size:13px;line-height:1.5;margin:0 0 12px}
   .crew-roles{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .crew-roles button{background:var(--navy-900);border:1px solid var(--line);border-radius:99px;color:var(--muted);
     font:inherit;font-size:12px;padding:4px 11px;cursor:pointer;white-space:nowrap}
@@ -19767,9 +19771,17 @@ const newsCases = [
      el ✓ del paso y el contador salen de acá. */
   async function pjBriefRespLoad(){
     const p = pjCur; if (!p) return;
-    const { data } = await supabase.from('project_briefs').select('key,value').eq('project_id', p.id);
-    pbrResp = {};
-    (data || []).forEach((r) => { pbrResp[r.key] = r.value || ''; });
+    /* updated_at también: con brief_done_at se sabe qué contestó DESPUÉS de darlo por
+       terminado. Esa respuesta llega cuando el brief ya se leyó —o ya se escribió el
+       guion—, así que si no se marca no la ve nadie.
+       (Sebastián, 27 ago 2026: "que se agregue al brief ya enviado".) */
+    const { data } = await supabase.from('project_briefs').select('key,value,updated_at').eq('project_id', p.id);
+    pbrResp = {}; pbrTarde = {};
+    const _cierre = p.brief_done_at ? Date.parse(p.brief_done_at) : null;
+    (data || []).forEach((r) => {
+      pbrResp[r.key] = r.value || '';
+      if (_cierre && Date.parse(r.updated_at) > _cierre + 60000) pbrTarde[r.key] = r.updated_at;
+    });
     if (pjCur === p) pjRenderSteps();
   }
 
@@ -23224,7 +23236,7 @@ const newsCases = [
      (Sebastián, 26 ago 2026: "tocar el project brief abre un popup vacío" / "tengo que
      poder tenerlo dentro del panel y llenarlo ahí".) */
   const PBRIEF = (() => { try { return JSON.parse($('brief-json').textContent); } catch (e){ return { BRIEF: [], BRIEF_SECCIONES: [], BRIEF_T: {} }; } })();
-  let pbrResp = {}, pbrT = null, pbrLang = 'es';
+  let pbrResp = {}, pbrTarde = {}, pbrT = null, pbrLang = 'es';
 
   async function pjBriefVer(){
     const p = pjCur; if (!p) return;
@@ -23237,9 +23249,17 @@ const newsCases = [
     const l = leadById(p.lead_id) || {};
     pbrLang = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
 
-    const { data } = await supabase.from('project_briefs').select('key,value').eq('project_id', p.id);
-    pbrResp = {};
-    (data || []).forEach((r) => { pbrResp[r.key] = r.value || ''; });
+    /* updated_at también: con brief_done_at se sabe qué contestó DESPUÉS de darlo por
+       terminado. Esa respuesta llega cuando el brief ya se leyó —o ya se escribió el
+       guion—, así que si no se marca no la ve nadie.
+       (Sebastián, 27 ago 2026: "que se agregue al brief ya enviado".) */
+    const { data } = await supabase.from('project_briefs').select('key,value,updated_at').eq('project_id', p.id);
+    pbrResp = {}; pbrTarde = {};
+    const _cierre = p.brief_done_at ? Date.parse(p.brief_done_at) : null;
+    (data || []).forEach((r) => {
+      pbrResp[r.key] = r.value || '';
+      if (_cierre && Date.parse(r.updated_at) > _cierre + 60000) pbrTarde[r.key] = r.updated_at;
+    });
     pbrRender();
     pbrRenderMandar();
   }
@@ -23269,7 +23289,13 @@ const newsCases = [
     const contestadas = PBRIEF.BRIEF.filter((q) => String(pbrResp[q.k] || '').trim()).length;
     const total = PBRIEF.BRIEF.length;
 
-    let html = '<div class="pb-prog"><span>' + contestadas + ' de ' + total + '</span>' +
+    const nTarde = Object.keys(pbrTarde || {}).length;
+    let html = (nTarde
+      ? '<div class="pb-avisotarde">📝 ' + nTarde + (nTarde === 1 ? ' respuesta llegó' : ' respuestas llegaron') +
+        ' después de que el cliente diera el brief por terminado. ' +
+        (nTarde === 1 ? 'Está marcada abajo' : 'Están marcadas abajo') + ' — miralas antes de escribir el guion.</div>'
+      : '') +
+      '<div class="pb-prog"><span>' + contestadas + ' de ' + total + '</span>' +
       '<span class="bar"><i style="width:' + Math.round(contestadas / total * 100) + '%"></i></span>' +
       '<span>' + (p.brief_done_at ? '✓ el cliente lo dio por terminado' :
                   p.brief_sent_at ? 'enviado, sin terminar' : 'no se mandó todavía') + '</span></div>';
@@ -23281,8 +23307,10 @@ const newsCases = [
         html += '<div class="pb-sec">' + esc((T.sec && T.sec[q.sec]) || q.sec) + '</div>';
       }
       const { chips, libre } = pbrPartir(pbrResp[q.k]);
-      html += '<div class="pb-q" data-q="' + q.k + '">' +
-        '<p class="qq">' + esc(q.q[L] || q.q.en) + (q.esencial ? '' : ' <span class="muted-note" style="font-weight:400">· opcional</span>') + '</p>' +
+      const tarde = pbrTarde[q.k];
+      html += '<div class="pb-q' + (tarde ? ' pb-tarde' : '') + '" data-q="' + q.k + '">' +
+        '<p class="qq">' + esc(q.q[L] || q.q.en) + (q.esencial ? '' : ' <span class="muted-note" style="font-weight:400">· opcional</span>') +
+        (tarde ? ' <span class="pb-tardechip">agregado el ' + esc(fmtDMY(tarde)) + ', después de darlo por terminado</span>' : '') + '</p>' +
         (q.h ? '<p class="hh">' + esc(q.h[L] || q.h.en) + '</p>' : '') +
         ((q.op && (q.op[L] || q.op.en))
           ? '<div class="pb-chips">' + (q.op[L] || q.op.en).map((o) =>
@@ -27936,7 +27964,16 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
       else if (oid) { gotoTab('offers'); openOffer(oid); }
       else if (ppid) { gotoTab('offers'); openProp(ppid); }
       else if (cdom) { gotoTab('companies'); openCompany(cdom); }
-      else if (pid) { gotoTab('projects'); abrirProyectoPorRef(pid); }
+      else if (pid) {
+        gotoTab('projects');
+        abrirProyectoPorRef(pid);
+        /* ?brief=1 abre el brief directo. Lo usa el aviso de «el cliente agregó algo
+           después de darlo por terminado»: sin esto, el aviso te deja en el proyecto y el
+           último tramo —abrir el brief, encontrar cuál cambió— queda a mano. */
+        /* pjBriefVer directo y no un click simulado: ese botón vive en el paso «Post», así
+           que si estás parado en otro paso está oculto y el click no llega a ningún lado. */
+        if (qs.get('brief')) setTimeout(() => { try { pjBriefVer(); } catch (e){} }, 700);
+      }
       else if (obid) obFocus(obid); // tab/sub (sistema/auto) ya los puso openTabFromQuery()
     } catch (e) {}
   }

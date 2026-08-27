@@ -340,6 +340,46 @@ Deno.serve(async (req) => {
         .upsert({ project_id: proj.id, key: clave, value: valor, answered_by: quien },
                 { onConflict: "project_id,key" });
       if (error) return json({ error: error.message }, 500);
+
+      /* Si el brief YA estaba dado por terminado y el cliente vuelve a escribir, hay que
+         avisar. Si no, el guion se escribe sin eso: el brief cerrado es la señal de "ya
+         está todo", y una respuesta que llega después de esa señal es invisible.
+         (Sebastián, 27 ago 2026: "me tiene que dar notificación o hacemos un guion
+          incompleto" / "que se agregue al brief ya enviado".)
+         El aviso se agrupa: quien reabre el brief suele tocar tres o cuatro respuestas
+         seguidas, y cuatro pushes por la misma sesión de edición se leen como spam y se
+         empiezan a ignorar. Si ya hubo uno en los últimos 20 minutos, no se manda otro —
+         el contenido igual queda escrito en la ficha. */
+      if (proj.brief_done_at && !esEquipo) {
+        const pregunta = preguntaDe(clave, lang);
+        const hace20 = new Date(Date.now() - 20 * 60e3).toISOString();
+        const { data: yaAviso } = await service.from("lead_notes")
+          .select("id").eq("lead_id", String(proj.lead_id ?? ""))
+          .ilike("body", "📝 Agregado al brief%")
+          .gte("created_at", hace20).limit(1);
+
+        if (proj.lead_id) {
+          await service.from("lead_notes").insert({
+            lead_id: String(proj.lead_id),
+            author: quien || "Cliente",
+            body: `📝 Agregado al brief DESPUÉS de darlo por terminado — ${pregunta}\n\n${valor.slice(0, 1500)}`,
+          });
+        }
+
+        if (!yaAviso || !yaAviso.length) {
+          fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
+            body: JSON.stringify({
+              title: `📝 ${proj.client_contact || "El cliente"} agregó al brief`,
+              body: `${proj.title || ""} — «${pregunta}». El brief ya estaba cerrado: miralo antes de escribir el guion.`,
+              /* Al BRIEF, no al proyecto. Tocar el aviso y caer en la pantalla del proyecto
+                 deja el último paso a mano: abrir el brief y buscar cuál cambió. */
+              url: proj.ref ? `/dashboard/?proyecto=${proj.ref}&brief=1` : `/dashboard/?tab=projects`,
+            }),
+          }).catch(() => {});
+        }
+      }
       return json({ ok: true });
     }
 
