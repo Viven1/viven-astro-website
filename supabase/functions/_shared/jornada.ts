@@ -1,20 +1,19 @@
 // La jornada de rodaje de VIVEN, y lo que cuesta pasarse.
 //
-// Sebastián, 26 ago 2026: "las reglas de rodaje son: 9 horas de rodaje más una de lunch. Y
-// se puede hacer overtime hasta quince horas, pero esas valen más caro: 10-12 horas, esas
-// dos valen 25% más de lo normal; 12-14, 50%; 15 arriba, 100% del precio por hora."
+// Sebastián, 26 ago 2026: "9 horas de rodaje más una de lunch. Se puede hacer overtime
+// hasta quince horas, pero esas valen más caro." Los tramos, corregidos por él el mismo día:
+//   horas 10, 11 y 12 → +25%
+//   horas 13 y 14     → +50%
+//   hora 15 y arriba  → +100%
 //
 // ── Por qué vive acá y no adentro de cada prompt ──
 // Esta regla decide tres cosas distintas: si un plan de rodaje es realista, cuánto sale una
 // jornada que se estira, y qué se le factura al cliente. Escrita tres veces se separa en
 // tres, y el día que cambie el convenio va a quedar bien en una sola.
 //
-// ── El supuesto que hay que tener a la vista ──
-// "10-12 esas dos" son las horas 10 y 11. Después dijo "12-14 50%" y "15 arriba 100%", que
-// deja la hora 14 sin tramo explícito. Se resuelve hacia ABAJO —14 va al 50%— porque cobrar
-// de más sin que nadie lo haya dicho es peor error que cobrar de menos, y porque el salto al
-// 100% él lo puso en 15.
-// Si el criterio es otro, se cambia acá y cambia en todos lados.
+// Los tramos vienen confirmados por él, no deducidos: la primera lectura los había puesto
+// en 10-11 / 12-14 / 15, y los corrigió. Quedan escritos acá una sola vez para que la
+// próxima corrección sea un archivo y no una búsqueda por todo el repo.
 
 export const JORNADA = {
   /** Horas de trabajo efectivo de una jornada normal. */
@@ -25,8 +24,8 @@ export const JORNADA = {
   topeAbsoluto: 15,
   /** Desde qué hora empieza cada recargo, y cuánto. */
   tramos: [
-    { desde: 10, hasta: 11, recargo: 0.25 },
-    { desde: 12, hasta: 14, recargo: 0.50 },
+    { desde: 10, hasta: 12, recargo: 0.25 },
+    { desde: 13, hasta: 14, recargo: 0.50 },
     { desde: 15, hasta: 99, recargo: 1.00 },
   ],
 } as const;
@@ -36,9 +35,9 @@ export const REGLA_JORNADA = `LA JORNADA DE RODAJE DE VIVEN (esto manda sobre cu
 - Una jornada normal son ${JORNADA.horasNormales} horas de rodaje MÁS ${JORNADA.horasLunch} hora de almuerzo. En el set eso es ${JORNADA.horasNormales + JORNADA.horasLunch} horas.
 - El almuerzo va SIEMPRE y no es tiempo de rodaje. Un plan sin comida se cae a media tarde.
 - Se puede estirar hasta ${JORNADA.topeAbsoluto} horas, nunca más, y cada hora de más cuesta:
-  · horas 10 y 11: +25% sobre la hora normal
-  · horas 12 a 14: +50%
-  · hora 15: +100%
+  · horas 10, 11 y 12: +25% sobre la hora normal
+  · horas 13 y 14: +50%
+  · hora 15 y arriba: +100%
 - Si el trabajo no entra en ${JORNADA.horasNormales} horas, la respuesta correcta es DOS JORNADAS, no una jornada larga.
   Estirar es la excepción cara, no el plan. Si igual conviene estirar, decilo con el número:
   cuántas horas de más y qué recargo, para poder decidirlo con la plata a la vista.`;

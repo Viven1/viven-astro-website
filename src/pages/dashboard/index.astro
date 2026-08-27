@@ -20403,21 +20403,16 @@ const newsCases = [
      (Sebastián, 26 ago 2026: "tiene que poder regenerarse por si no funciona o está mal
      hecho; puede ser cambiado a mano también. Mirá cómo lo hice con Maestro.") */
   /* ── LA JORNADA DE RODAJE DE VIVEN ──
-     Sebastián, 26 ago 2026: "9 horas de rodaje más una de lunch. Y se puede hacer overtime
-     hasta quince horas, pero esas valen más caro: 10-12, esas dos valen 25% más; 12-14,
-     50%; 15 arriba, 100%".
-
-     El supuesto que hay que tener a la vista: "10-12 esas dos" son las horas 10 y 11.
-     Después dijo "12-14 50%" y "15 arriba 100%", que deja la hora 14 sin tramo explícito.
-     Se resuelve hacia ABAJO —14 va al 50%— porque cobrar de más sin que nadie lo haya
-     dicho es peor que cobrar de menos, y porque el salto al 100% él lo puso en 15.
+     Sebastián, 26 ago 2026: 9 horas de rodaje más una de almuerzo, y overtime hasta 15.
+     Los tramos, confirmados por él: 10-12 → +25%, 13-14 → +50%, 15 y arriba → +100%.
+     (La primera lectura los había puesto en 10-11 / 12-14 / 15 y él los corrigió.)
 
      Está también en supabase/functions/_shared/jornada.ts, que es de donde la leen los
      prompts. Si cambia el convenio, cambian los dos. */
   const JORNADA = {
     horasNormales: 9, horasLunch: 1, topeAbsoluto: 15,
-    tramos: [{ desde: 10, hasta: 11, recargo: 0.25 },
-             { desde: 12, hasta: 14, recargo: 0.50 },
+    tramos: [{ desde: 10, hasta: 12, recargo: 0.25 },
+             { desde: 13, hasta: 14, recargo: 0.50 },
              { desde: 15, hasta: 99, recargo: 1.00 }],
   };
 
@@ -20569,7 +20564,7 @@ const newsCases = [
       }).join('') + '</div>' +
       (largas.length
         ? '<p class="muted-note" style="margin:8px 0 0">La jornada de VIVEN son ' + JORNADA.horasNormales +
-          ' h de rodaje más 1 de almuerzo. Estirar se paga: +25% las horas 10 y 11, +50% de la 12 a la 14, +100% la 15. ' +
+          ' h de rodaje más 1 de almuerzo. Estirar se paga: +25% de la hora 10 a la 12, +50% la 13 y la 14, +100% de la 15 en adelante. ' +
           'Si el trabajo no entra, dos jornadas salen más baratas que una larga.</p>'
         : '');
 
