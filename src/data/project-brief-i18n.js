@@ -146,7 +146,7 @@ export const BRIEF_T = {
         invitar: '✉️ Invite a colleague', invTit: 'Invite a colleague',
         invSub: 'They get their own 6-digit code for this project. Same brief, not a copy — and they can leave feedback on the cut too.',
         invPh: 'name@company.com', invBtn: 'Send invitation', invHecho: 'Invitation sent to',
-        yaInv: 'Already invited', listo: 'Brief complete — thank you. We take it from here.',
+        yaInv: 'Already invited', listo: 'Brief complete — thank you. We take it from here.', reabrir: 'Add something',
         falta: 'Still missing', enviar: 'Done — send it to VIVEN', siguiente: 'Next', anterior: 'Back',
         sug: 'From your previous project', sugUsar: 'use this', secciones: {
           historia: 'The story', publico: 'The audience', mensaje: 'The message', produccion: 'Production' } },
@@ -155,7 +155,7 @@ export const BRIEF_T = {
         invitar: '✉️ Kollegin oder Kollegen einladen', invTit: 'Jemanden einladen',
         invSub: 'Sie erhalten einen eigenen 6-stelligen Code für dieses Projekt. Dasselbe Briefing, keine Kopie — und sie können auch den Schnitt kommentieren.',
         invPh: 'name@firma.ch', invBtn: 'Einladung senden', invHecho: 'Einladung gesendet an',
-        yaInv: 'Bereits eingeladen', listo: 'Briefing vollständig — danke. Wir übernehmen ab hier.',
+        yaInv: 'Bereits eingeladen', listo: 'Briefing vollständig — danke. Wir übernehmen ab hier.', reabrir: 'Etwas ergänzen',
         falta: 'Es fehlt noch', enviar: 'Fertig — an VIVEN senden', siguiente: 'Weiter', anterior: 'Zurück',
         sug: 'Aus Ihrem letzten Projekt', sugUsar: 'übernehmen', secciones: {
           historia: 'Die Geschichte', publico: 'Die Zielgruppe', mensaje: 'Die Botschaft', produccion: 'Produktion' } },
@@ -164,7 +164,7 @@ export const BRIEF_T = {
         invitar: '✉️ Invitar a un colega', invTit: 'Invitar a un colega',
         invSub: 'Recibe su propio código de 6 dígitos para este proyecto. El mismo brief, no una copia — y también puede comentar el corte.',
         invPh: 'nombre@empresa.com', invBtn: 'Enviar invitación', invHecho: 'Invitación enviada a',
-        yaInv: 'Ya invitados', listo: 'Brief completo — gracias. Seguimos nosotros.',
+        yaInv: 'Ya invitados', listo: 'Brief completo — gracias. Seguimos nosotros.', reabrir: 'Agregar algo',
         falta: 'Todavía falta', enviar: 'Listo — enviárselo a VIVEN', siguiente: 'Siguiente', anterior: 'Atrás',
         sug: 'De tu proyecto anterior', sugUsar: 'usar esta', secciones: {
           historia: 'La historia', publico: 'El público', mensaje: 'El mensaje', produccion: 'Producción' } },

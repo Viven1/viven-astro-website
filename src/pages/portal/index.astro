@@ -618,6 +618,8 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
      Lo que se mide después es cuántos LO TERMINAN, no cuántos lo abren. */
   var BSEC = 0;   // sección visible en modo 'pasos'
 
+  var briefReabierto = false;
+
   function briefT(){ return BRIEF_T[(DATA && DATA.lang) || 'en'] || BRIEF_T.en; }
   function briefTxt(o){ var lg = (DATA && DATA.lang) || 'en'; return (o && (o[lg] || o.en)) || ''; }
 
@@ -639,9 +641,16 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       ? '<p class="bsub" style="color:var(--acid,#ddf98f)">Todavía no te lo mandamos por email — podés empezar a contestarlo desde acá igual.</p>'
       : '';
 
-    if (d.brief_listo){
+    /* Terminado, pero con la puerta abierta. Quedaba una línea con el ✓ y nada más: si el
+       cliente se acuerda de algo al día siguiente —que es lo normal— no tenía dónde
+       ponerlo, y eso termina en un email suelto que nadie pega en el brief.
+       Reabrirlo NO desmarca nada: sigue estando dado por terminado, y lo que agregue se
+       guarda igual que antes. */
+    if (d.brief_listo && !briefReabierto){
       return '<div class="pt-brief hecho"><div class="bh"><b>📋 ' + esc(T.titulo) + '</b>' +
-        '<span class="bok">✓ ' + esc(T.listo) + '</span></div></div>';
+        '<span class="bok">✓ ' + esc(T.listo) + '</span>' +
+        '<button type="button" class="binv" id="b-reabrir">' + esc(T.reabrir || 'Agregar algo más') + '</button>' +
+        '</div></div>';
     }
 
     var secs = pasos ? [BRIEF_SECCIONES[BSEC]] : BRIEF_SECCIONES;
@@ -725,6 +734,9 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
         briefGuardar(b.closest('.bq'));
       });
     });
+    var reab = $('b-reabrir');
+    if (reab) reab.addEventListener('click', function(){ briefReabierto = true; render(DATA); });
+
     Array.prototype.forEach.call(box.querySelectorAll('.blibre'), function(ta){
       ta.addEventListener('blur', function(){ briefGuardar(ta.closest('.bq')); });
       /* El cuadro crece con lo que hay adentro. Nació con rows="3" fijo, y en el 1202 la
