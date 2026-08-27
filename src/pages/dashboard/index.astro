@@ -19014,6 +19014,17 @@ const newsCases = [
       campo('Email', 'crew-f-email', c.email, 'para mandarle el plan y las notas', 'email') +
       campo('Teléfono', 'crew-f-phone', c.phone, '+41 …') +
       campo('Ciudad', 'crew-f-ciudad', c.ciudad, 'Zürich') +
+      /* En qué idioma se le escribe. El plan de rodaje salía en español para todo el equipo
+         dando por sentado que el equipo trabaja en español — solo Sebastián y Sofia.
+         Vacío = alemán, que es donde estamos, y lo dice para que no parezca una decisión
+         tomada cuando en realidad es un dato que falta.
+         (Sebastián, 27 ago 2026: "solo sofia y yo trabajamos en español, el resto en alemán,
+          inglés".) */
+      '<div class="pj-kv"><span class="k">Le escribimos en</span><span class="v">' +
+        '<select class="pj-inp" id="crew-f-idioma">' +
+        [['', 'Alemán — sin definir'], ['de', 'Alemán'], ['en', 'Inglés'], ['es', 'Español']]
+          .map(([k, l]) => '<option value="' + k + '"' + ((c.idioma || '') === k ? ' selected' : '') + '>' + l + '</option>').join('') +
+        '</select></span></div>' +
       campo('Factura como', 'crew-f-empresa', c.empresa, 'si factura por una GmbH') +
       '<div class="pj-kv"><span class="k">Roles</span><span class="v">' +
         '<input class="pj-inp" id="crew-f-roles" value="' + esc((c.roles || []).join(', ')) + '" placeholder="DoP, Gaffer" /></span></div>' +
@@ -19084,6 +19095,7 @@ const newsCases = [
      'crew-f-roles', 'crew-f-tdia', 'crew-f-thora', 'crew-f-iban', 'crew-notas']
       .forEach((id) => { const el = $(id); if (el) el.addEventListener('input', crewGuardarDebounce); });
     $('crew-f-interno').addEventListener('change', crewGuardar);
+    $('crew-f-idioma') && $('crew-f-idioma').addEventListener('change', crewGuardar);
   }
 
   function crewGuardarDebounce(){ clearTimeout(crewT); crewT = setTimeout(crewGuardar, 700); }
@@ -19099,6 +19111,9 @@ const newsCases = [
       roles: String(($('crew-f-roles') || {}).value || '').split(',').map((x) => x.trim()).filter(Boolean),
       tarifa_dia: num('crew-f-tdia'), tarifa_hora: num('crew-f-thora'),
       iban: txt('crew-f-iban'), notas: txt('crew-notas'),
+      /* Vacío se guarda como null: «no lo sabemos» es distinto de «decidimos alemán», y esa
+         diferencia es la que deja ver a quién le falta el dato. */
+      idioma: txt('crew-f-idioma'),
       interno: !!($('crew-f-interno') || {}).checked,
     };
     const { error } = await supabase.from('crew').update(patch).eq('id', c.id);
