@@ -13,6 +13,7 @@
 // Deploy: supabase functions deploy plan-al-equipo
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { htmlAPdf, pdfConfigurado } from "../_shared/pdf.ts";
 import { emailViven } from "../_shared/email-viven.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -216,6 +217,9 @@ Deno.serve(async (req) => {
       return json({ ok: true, dry_run: true, asunto, html, para: destinos, sin_email: sinEmail,
                     de: remitente.nombre, responde_a: remitente.email, bloques: filas.length,
                     publico: paraCliente,
+                    /* Para que el preview pueda decir si el email va a llevar el plan
+                       adjunto, en vez de que se descubra al recibirlo. */
+                    llevara_pdf: !!body.pdf_html && pdfConfigurado(),
                     equipo: conEmail.map((t: { name: string; email: string }) => ({ nombre: t.name, email: t.email })),
                     cliente: delCliente.map((c: { name?: string; email: string }) => ({ nombre: c.name || c.email, email: c.email })) });
     }
@@ -224,8 +228,24 @@ Deno.serve(async (req) => {
       : "Ninguno del crew tiene email cargado en su ficha. Cargalos en Técnicos." });
     if (!RESEND) return json({ error: "Falta RESEND_API_KEY" }, 500);
 
-    const adj = body.pdf_base64
-      ? [{ filename: `${proj.ref || "proyecto"}_plan_de_rodaje.pdf`, content: String(body.pdf_base64) }]
+    /* El PDF sale del MISMO HTML que imprime el botón 📄 del dashboard, que llega en
+       `pdf_html`. Se arma acá y no en el navegador porque el navegador no sabe hacer un
+       PDF sin abrirle a alguien el diálogo de impresión.
+       Si falla —o si todavía no están los secrets de Cloudflare— el email sale igual, sin
+       adjunto: que falte el PDF no puede dejar al equipo sin el plan a las seis de la
+       mañana. Se dice en la respuesta para que el dashboard lo avise. */
+    let pdf64: string | null = body.pdf_base64 ? String(body.pdf_base64) : null;
+    let pdfNota: string | null = null;
+    if (!pdf64 && body.pdf_html) {
+      if (!pdfConfigurado()) {
+        pdfNota = "el adjunto en PDF todavía no está configurado";
+      } else {
+        pdf64 = await htmlAPdf(String(body.pdf_html));
+        if (!pdf64) pdfNota = "no se pudo armar el PDF — el email salió sin adjunto";
+      }
+    }
+    const adj = pdf64
+      ? [{ filename: `${proj.ref || "proyecto"}_plan_de_rodaje.pdf`, content: pdf64 }]
       : [];
 
     const r = await fetch("https://api.resend.com/emails", {
@@ -242,7 +262,7 @@ Deno.serve(async (req) => {
       console.error("RESEND_FAIL_PLAN", r.status, t);
       return json({ error: `no salió (${r.status}): ${t.slice(0, 200)}` }, 502);
     }
-    return json({ ok: true, para: destinos, sin_email: sinEmail });
+    return json({ ok: true, para: destinos, sin_email: sinEmail, con_pdf: !!pdf64, pdf_nota: pdfNota });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

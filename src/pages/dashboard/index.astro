@@ -21371,7 +21371,11 @@ const newsCases = [
      La barra de imprimir va con .noprint y las reglas de impresión al FINAL del CSS — si no,
      una regla posterior con la misma especificidad la vuelve a mostrar y sale dentro del PDF.
      (Sebastián, 26 ago 2026: "falta todo lo de poder mandar como PDF".) */
-  function pjPlanPDF(){
+  /* Con `{soloHtml:true}` devuelve el HTML del plan en vez de abrir la ventana de impresión.
+     Ese mismo HTML es el que se manda al servidor para adjuntarlo en PDF al email: si el
+     papel se armara en otro lado, el adjunto y lo que ves al imprimir se irían separando. */
+  function pjPlanPDF(op){
+    const soloHtml = op && op.soloHtml;
     const p = pjCur; if (!p) return;
     const filas = pjPlanFilas();
     if (!filas.length){ toast('El plan está vacío'); return; }
@@ -21428,9 +21432,9 @@ const newsCases = [
     const lista = (t) => t.split('\n').map((x) => x.replace(/^[·\-\s]+/, '').trim()).filter(Boolean)
       .map((x) => '<li>' + esc(x) + '</li>').join('');
 
-    const w = window.open('', '_blank');
-    if (!w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
-    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
+    const w = soloHtml ? null : window.open('', '_blank');
+    if (!soloHtml && !w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
+    const HTML = ('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
       '<title>' + esc((p.ref ? p.ref + ' ' : '') + 'Plan de rodaje') + '</title><style>' +
       '@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap");' +
       ':root{--navy:#1b2c46;--acid:#ddf98f;--tinta:#1a2230;--gris:#6b7896;--linea:#e3e7ee;' +
@@ -21534,6 +21538,8 @@ const newsCases = [
       '<footer><b>VIVEN AG</b> · Zürich · viven.ch' +
         (p.ref ? ' — Referencia del proyecto: ' + esc(p.ref) + '.' : '') + '</footer>' +
       '</div></body></html>');
+    if (soloHtml) return HTML;
+    w.document.write(HTML);
     w.document.close();
     const dale = () => { try { w.focus(); w.print(); } catch (e){ } };
     const img = w.document.querySelector('header img');
@@ -21611,6 +21617,10 @@ const newsCases = [
           publico: plmVista === 'cliente',
           ...pjPlanParaEmail(),
           asunto: $('plm-asunto').value.trim() || undefined,
+          /* El mismo HTML que imprime el botón 📄. El servidor lo pasa a PDF y lo adjunta:
+             el navegador no sabe hacer un PDF sin abrirle a alguien el diálogo de imprimir.
+             (Sebastián, 26 ago 2026: "que el plan tmb vaya como pdf".) */
+          pdf_html: pjPlanPDF({ soloHtml: true }) || undefined,
           mensaje: $('plm-msg').value, dry_run: true } });
         if (error) throw new Error(error.message);
         if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
@@ -21640,7 +21650,11 @@ const newsCases = [
               ? '<p class="muted-note" style="margin:-6px 0 12px">Al cliente le llega otra hoja: los horarios, dónde y qué se rueda, y lo que tiene que traer él. Sin lo que lleva cada área ni las notas internas.</p>'
               : (data.sin_email || []).length
                 ? '<p class="muted-note" style="margin:-6px 0 12px">A los marcados no les llega: cargales el email en Técnicos.</p>'
-                : '');
+                : '') +
+          /* Que el adjunto se sepa ANTES, no al recibir el email. */
+          (data.llevara_pdf
+            ? '<p class="muted-note" style="margin:-6px 0 12px;color:var(--acid)">📄 Va con el plan adjunto en PDF, igual que el que sale del botón 📄.</p>'
+            : '<p class="muted-note" style="margin:-6px 0 12px">Sin adjunto: el plan va en el cuerpo del email. El PDF adjunto necesita la clave de Cloudflare — el email sale igual.</p>');
         $('plm-para').querySelectorAll('[data-plmp]').forEach((el) => el.addEventListener('click', () => {
           const e2 = el.dataset.plmp;
           if (plmSel[grupo].has(e2)) plmSel[grupo].delete(e2); else plmSel[grupo].add(e2);
@@ -21688,7 +21702,10 @@ const newsCases = [
         if (plmSel.equipo.size) tandas.push({ publico: false, to: [...plmSel.equipo] });
         if (plmSel.cliente.size) tandas.push({ publico: true, to: [...plmSel.cliente] });
         if (!tandas.length){ out.textContent = '⚠️ No tildaste a nadie'; b.disabled = false; return; }
-        let n = 0;
+        /* Se arma UNA vez para las dos tandas: es el mismo plan, y armarlo dos veces son
+           dos PDFs pagos por el mismo papel. */
+        const pdfHtml = pjPlanPDF({ soloHtml: true });
+        let n = 0, notaPdf = null;
         for (const t of tandas){
           const { data, error } = await supabase.functions.invoke('plan-al-equipo', { body: {
             project_id: pjCur.id, de: $('plm-de').value, publico: t.publico, to: t.to,
@@ -21696,12 +21713,14 @@ const newsCases = [
             /* El asunto escrito a mano vale solo para la versión que se estaba mirando: la
                otra usa el suyo, que dice otra cosa. */
             asunto: (t.publico === (plmVista === 'cliente')) ? ($('plm-asunto').value.trim() || undefined) : undefined,
+            pdf_html: pdfHtml || undefined,
             mensaje: $('plm-msg').value } });
           if (error) throw new Error(error.message);
           if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
           n += (data.para || []).length;
+          if (data.pdf_nota) notaPdf = data.pdf_nota;
         }
-        out.textContent = '✅ Enviado a ' + n;
+        out.textContent = '✅ Enviado a ' + n + (notaPdf ? ' · ⚠️ ' + notaPdf : '');
         toast('📤 Plan enviado a ' + n + (tandas.length > 1 ? ' — dos versiones, equipo y cliente' : ''));
         setTimeout(cerrar, 900);
       } catch (e2){ out.textContent = '⚠️ ' + (e2.message || e2); }
