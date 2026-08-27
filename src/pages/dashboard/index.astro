@@ -18745,6 +18745,27 @@ const newsCases = [
 
   const crewNorm = (x) => String(x || '').trim().toLowerCase();
 
+  /* La ficha del técnico a partir del nombre que tiene el proyecto.
+     El crew de un proyecto guarda el nombre como se escribió ahí —«Sofia»— y la ficha puede
+     llamarse «Sofia Treviño». Buscando por igualdad exacta no se encuentra, y entonces el
+     plan de rodaje sale «sin teléfono» para alguien que SÍ tiene teléfono cargado. Pasa hoy
+     en el 1201.
+     Primero exacto, y solo si no hay, por nombre contenido en cualquiera de los dos
+     sentidos — y únicamente si eso da UN candidato: con dos «Martin» distintos, adivinar
+     es peor que no encontrar. */
+  function crewFicha(nombre, lista){
+    const l = lista || crewList || [];
+    const n = crewNorm(nombre);
+    if (!n) return null;
+    const exacto = l.find((x) => crewNorm(x.name) === n);
+    if (exacto) return exacto;
+    const parciales = l.filter((x) => {
+      const c = crewNorm(x.name);
+      return c && (c.startsWith(n + ' ') || n.startsWith(c + ' '));
+    });
+    return parciales.length === 1 ? parciales[0] : null;
+  }
+
   async function crewLoad(){
     if (!crewBound){ crewBound = true; crewBind(); }
     const [cq, aq] = await Promise.all([
@@ -22060,7 +22081,7 @@ const newsCases = [
        equipo entero la leía como propia: el que tenía que llegar dos horas después se
        enteraba por WhatsApp, o no se enteraba. */
     const crewPDF = (Array.isArray(p.crew) ? p.crew : []).filter((c) => c && c.nombre).map((c) => {
-      const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
+      const t = crewFicha(c.nombre);
       return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '', hora: c.hora || '' };
     });
 
@@ -22303,7 +22324,7 @@ const newsCases = [
          volver a cruzar con las mismas reglas para llegar al mismo texto. */
       filas_extra: filas.map((f) => ({ sinopsis: pjSinopsisDe(f.escenas) })),
       equipo_lista: (Array.isArray(p.crew) ? p.crew : []).filter((c) => c && c.nombre).map((c) => {
-        const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
+        const t = crewFicha(c.nombre);
         return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '', hora: c.hora || '' };
       }),
     };
@@ -22479,14 +22500,14 @@ const newsCases = [
 
     box.innerHTML = '<div class="pj-sec-h">Quién viene</div><div class="pj-gente2">' +
       (crew.length ? '<div><h5>Equipo</h5>' + crew.map((c) => {
-        const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
+        const t = crewFicha(c.nombre);
         return fila(c.nombre, c.rol, t && t.phone, t && t.email, c.hora);
       }).join('') + '</div>' : '') +
       (conCli.length ? '<div><h5>Del cliente</h5>' + conCli.map((c) =>
         fila(c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''), c.phone, c.email, c.hora)).join('') +
         '<p class="muted-note" style="margin:9px 0 0">Solo los tildados en el paso Cliente. Su hora se carga en el paso Cliente.</p></div>' : '') +
       '</div>' +
-      (crew.some((c) => { const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre)); return !t || !t.phone; })
+      (crew.some((c) => { const t = crewFicha(c.nombre); return !t || !t.phone; })
         ? '<p class="muted-note" style="margin:9px 0 0">Los que salen «sin teléfono» van así en la hoja. Se cargan en <b>Técnicos</b>.</p>' : '');
   }
 
