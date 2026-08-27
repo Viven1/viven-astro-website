@@ -11864,7 +11864,33 @@ const newsCases = [
   function closeLead2(){ modal2.classList.remove('open'); modal2.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; lm2Lead = null; currentLead = null; }
   modal2.querySelectorAll('[data-close2]').forEach((el) => el.addEventListener('click', closeLead2));
 
-  function lm2FmtDT(d){ return d ? new Date(d).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''; }
+  /* Con AÑO cuando el evento no es de este año. Sin él, «14 ago 09:30» de 2025 y de 2026 se
+     ven idénticos y la lista parece desordenada aunque esté bien ordenada. */
+  function lm2FmtDT(d){
+    const t = Date.parse(d);
+    if (!Number.isFinite(t)) return 'sin fecha';
+    const f = new Date(t);
+    const opt = { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
+    if (f.getFullYear() !== new Date().getFullYear()) opt.year = 'numeric';
+    return f.toLocaleString('es-CH', opt);
+  }
+
+  /* Ordenar eventos por fecha, a prueba de fechas rotas.
+     `new Date(b.t) - new Date(a.t)` devuelve NaN en cuanto UN evento trae una fecha que no
+     parsea, y un comparador que devuelve NaN deja en cualquier orden la lista ENTERA, no
+     solo ese elemento. Acá se parsea una vez, lo inválido se va al fondo, y el desempate
+     por tipo hace que dos cosas del mismo segundo salgan siempre igual.
+     Lo usan las tres timelines: persona, empresa y proyecto — el mismo bug estaba copiado
+     en las tres.
+     (Sebastián, 27 ago 2026: "mirá la timeline de la persona, que no salen por tiempo ni en
+      orden".) */
+  function ordenarEventos(ev){
+    ev.forEach((e) => { const n = Date.parse(e && e.t); e._ms = Number.isFinite(n) ? n : -Infinity; });
+    ev.sort((a, b) => (b._ms - a._ms) || String(a.ty || '').localeCompare(String(b.ty || '')));
+    const rotas = ev.filter((e) => e._ms === -Infinity);
+    if (rotas.length) console.warn('TIMELINE: ' + rotas.length + ' evento(s) sin fecha válida', rotas);
+    return ev;
+  }
 
   // "última visita a la web" SIEMPRE visible en el header de la ficha (no solo en la
   // pestaña 🌐 Web de la timeline, que hay que abrir/filtrar para encontrarla) —
@@ -12746,7 +12772,7 @@ const newsCases = [
       ev.push({ t: e3.created_at, ty: chip[0], chip, title: titulo,
                 meta: [e3.form_path, e3.lang].filter(Boolean).map(esc).join(' · ') });
     });
-    ev.sort((a, b) => new Date(b.t) - new Date(a.t));
+    ordenarEventos(ev);
     lm2Events = ev;
     lm2RenderChips();
     lm2RenderTl();
@@ -26965,7 +26991,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     });
     tasks.forEach((t) => ev.push({ t: t.created_at, ty: 'task', task: t, chip: ['task', t.done ? '✅ Task hecha' : '⏳ Task'], meta: [t.due_date ? '📅 ' + t.due_date + (t.due_time ? ' · 🕒 ' + t.due_time : '') : '', t.assignee ? teamName(t.assignee) : '', nameOf(t.lead_id)].filter(Boolean).join(' · ') }));
     data.contacts.forEach((l) => offersForLead(l.id).filter((o) => o.status === 'won').forEach((o) => ev.push({ t: o.updated_at || o.created_at, ty: 'sys', chip: ['sys', '🏆 Ganada'], title: '<b>' + esc(o.title || 'Oferta') + '</b> · ' + fmtChf(offerNet(o)), meta: nameOf(l.id) })));
-    ev.sort((a, b) => new Date(b.t) - new Date(a.t));
+    ordenarEventos(ev);
     co3Events = ev;
     co3RenderChips();
     co3RenderTl();
@@ -27259,7 +27285,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     notes.forEach((n) => ev.push({ t: n.created_at, chip: ['nota', '📝 Nota'], title: esc((n.body || '').slice(0, 140)) + ((n.body || '').length > 140 ? '…' : ''), meta: esc(n.author || ''), who: nameOf(n.lead_id) }));
     tasks.forEach((t) => ev.push({ t: t.created_at, chip: ['task', t.done ? '✅ Task hecha' : '⏳ Task'], title: esc(t.title), who: nameOf(t.lead_id) }));
     data.contacts.forEach((l) => offersForLead(l.id).filter((o) => o.status === 'won').forEach((o) => ev.push({ t: o.updated_at || o.created_at, chip: ['sys', '🏆 Ganada'], title: '<b>' + esc(o.title || 'Oferta') + '</b> · ' + fmtChf(offerNet(o)), who: l.name || l.email })));
-    ev.sort((a, b) => new Date(b.t) - new Date(a.t));
+    ordenarEventos(ev);
     box.innerHTML = ev.length
       ? '<div class="lm2-tl">' + ev.slice(0, 100).map((e2) => '<div class="lm2-ev"><div class="when">hace ' + timeAgo(e2.t) + '</div><div class="card"><span class="lm2-chip ' + e2.chip[0] + '">' + e2.chip[1] + '</span>' + e2.title + ((e2.meta || e2.who) ? '<div class="meta">' + [e2.meta, e2.who ? 'en ' + esc(e2.who) : ''].filter(Boolean).join(' · ') + '</div>' : '') + '</div></div>').join('') + '</div>'
       : '<p class="muted-note">Sin actividad todavía — los emails, notas y tasks de sus contactos van a aparecer acá.</p>';
