@@ -5794,7 +5794,8 @@ const newsCases = [
     if (!token) return;
     supabase.functions.invoke('register-device-token', { body: { device_token: token, platform: 'ios' } })
       .then(({ error }) => {
-        if (error) return;
+        /* Sin rastro, "no me llegan las notificaciones" no tiene por dónde empezar. */
+        if (error){ console.error('DEVICE_TOKEN', error.message || error); return; }
         /* Dentro de la app del iPhone los avisos llegan por APNs, no por Web Push:
            WKWebView no tiene Push API, así que el chequeo de siempre daba "no
            soportado" y el header mostraba 🔕 Sin avisos AUNQUE el teléfono
@@ -9517,9 +9518,9 @@ const newsCases = [
   const synthDeal = (l) => ({ id: 'L' + l.id, synthetic: true, lead_id: l.id, title: null, stage: stageOf(l.status), deal_value: l.deal_value, lost_reason: l.lost_reason, archived: false, created_at: l.created_at, last_stage_at: l.last_stage_at, contacted_at: l.contacted_at, videocall_at: l.videocall_at, proposal_at: l.proposal_at, won_at: l.won_at, lost_at: l.lost_at });
   const leadById = (id) => (allLeads || []).find((l) => String(l.id) === String(id));
   const dealsForLead = (lid) => (dealsList || []).filter((d) => String(d.lead_id) === String(lid) && !d.archived);
-  const latestDealOf = (lid) => dealsForLead(lid).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
-  const openDealOf = (lid) => dealsForLead(lid).filter((d) => !['ganado', 'perdido'].includes(stageOf(d.stage))).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
-  const firstDealOf = (lid) => dealsForLead(lid).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0] || null;
+  const latestDealOf = (lid) => dealsForLead(lid).slice().sort(masNuevo('created_at'))[0] || null;
+  const openDealOf = (lid) => dealsForLead(lid).filter((d) => !['ganado', 'perdido'].includes(stageOf(d.stage))).sort(masNuevo('created_at'))[0] || null;
+  const firstDealOf = (lid) => dealsForLead(lid).slice().sort(masViejo('created_at'))[0] || null;
   // ofertas de UN deal: por deal_id; las viejas sin deal_id caen en el PRIMER deal de la persona
   const offersForDeal = (d) => {
     if (d.synthetic) return offersForLead(d.lead_id);
@@ -10496,7 +10497,10 @@ const newsCases = [
     const open = (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(lead.id) && !o.archived && !o.is_template && ['draft', 'sent'].includes(o.status));
     if (!open.length) return;
     const { error } = await supabase.from('offers').update({ status: 'won' }).eq('lead_id', String(lead.id)).in('status', ['draft', 'sent']);
-    if (error) return;
+    /* Si esto falla, las ofertas quedan en «enviada» con el deal ya ganado: Home y Ofertas
+       muestran como pendiente plata que ya entró. Un número equivocado sobre la mesa se
+       avisa, no se vuelve callado. */
+    if (error){ toast('⚠️ El deal se ganó, pero sus ofertas quedaron sin marcar: ' + error.message); return; }
     open.forEach((o) => { o.status = 'won'; });
     try { renderOffersList(); renderHome(); } catch (e) {}
     toast('🏆 ' + open.length + ' oferta' + (open.length > 1 ? 's' : '') + ' marcada' + (open.length > 1 ? 's' : '') + ' como ganada' + (open.length > 1 ? 's' : ''));
@@ -11900,6 +11904,26 @@ const newsCases = [
      en las tres.
      (Sebastián, 27 ago 2026: "mirá la timeline de la persona, que no salen por tiempo ni en
       orden".) */
+  /* Comparadores por fecha a prueba de fechas rotas. `new Date(a) - new Date(b)` devuelve
+     NaN si UNA fecha no parsea, y un comparador que devuelve NaN deja la lista entera en
+     cualquier orden — no solo ese elemento. Estos parsean una vez y mandan lo inválido al
+     fondo, que es donde no molesta. */
+  const _ts = (x) => { const n = Date.parse(x); return Number.isFinite(n) ? n : null; };
+  const masNuevo = (campo) => (a, b) => {
+    const x = _ts(a && a[campo]), y = _ts(b && b[campo]);
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return y - x;
+  };
+  const masViejo = (campo) => (a, b) => {
+    const x = _ts(a && a[campo]), y = _ts(b && b[campo]);
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return x - y;
+  };
+
   function ordenarEventos(ev){
     ev.forEach((e) => { const n = Date.parse(e && e.t); e._ms = Number.isFinite(n) ? n : -Infinity; });
     ev.sort((a, b) => (b._ms - a._ms) || String(a.ty || '').localeCompare(String(b.ty || '')));
@@ -12736,7 +12760,7 @@ const newsCases = [
     notes.filter((n) => !n.parent_id).forEach((n) => thrMap.set(n.id, { root: n, replies: [] }));
     notes.filter((n) => n.parent_id).forEach((n) => { const t2 = thrMap.get(n.parent_id); if (t2) t2.replies.push(n); else thrMap.set(n.id, { root: n, replies: [] }); }); // raíz fuera del límite de fetch → mostrar la respuesta suelta
     thrMap.forEach((t2) => {
-      t2.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      t2.replies.sort(masViejo('created_at'));
       const last = t2.replies.length ? t2.replies[t2.replies.length - 1] : t2.root;
       // nid/nauthor/nbody habilitan el «↩︎ Responder»; title solo alimenta el resumen para la IA (el render usa e.thread)
       ev.push({ t: last.created_at, ty: 'nota', chip: ['nota', t2.replies.length ? '💬 Hilo (' + (t2.replies.length + 1) + ')' : '📝 Nota'], title: esc((last.body || '').slice(0, 90)), thread: t2, nid: t2.root.id, nauthor: t2.root.author || '', nbody: t2.root.body || '' });
@@ -12993,7 +13017,7 @@ const newsCases = [
   /* --- columna derecha: próximo paso + negocio --- */
   async function lm2RenderRight(r){
     if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
-    const ldeals = dealsForLead(r.id).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const ldeals = dealsForLead(r.id).slice().sort(masNuevo('created_at'));
     const ofs = offersForLead(r.id);
     const props = (typeof propsAll !== 'undefined' ? propsAll : []).filter((p) => p.lead_id && String(p.lead_id) === String(r.id) && !p.is_template);
     const stB = (key) => { const s = STAGES.find((x) => x.key === stageOf(key)) || STAGES[0]; return '<span class="stb" style="color:' + s.color + ';border-color:' + s.color + '">' + s.label + '</span>'; };
@@ -16442,9 +16466,13 @@ const newsCases = [
   let ppHomeFetched = false;
   async function ppEnsureForHome(){
     if (ppHomeFetched || ppList.length) return;
-    ppHomeFetched = true;
     const { data, error } = await supabase.from('proposals').select('*').order('updated_at', { ascending: false });
-    if (error) return;
+    /* La bandera se pone DESPUÉS, y solo si salió bien. Estaba antes del await: si la
+       consulta fallaba una vez —por red— quedaba marcada como hecha para siempre, y Home
+       mostraba la plata sin las propuestas por el resto de la sesión, sin decir nada.
+       Un fallo de red tiene que poder reintentarse. */
+    if (error){ console.error('PROPUESTAS_HOME', error.message); return; }
+    ppHomeFetched = true;
     ppList = data || [];
     try { if (!$('tab-hoy').hidden) renderHome(); } catch (e) { /* ya se va a redibujar solo */ }
   }
@@ -27067,7 +27095,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     notes.filter((n) => !n.parent_id).forEach((n) => thrMap.set(n.id, { root: n, replies: [] }));
     notes.filter((n) => n.parent_id).forEach((n) => { const t2 = thrMap.get(n.parent_id); if (t2) t2.replies.push(n); else thrMap.set(n.id, { root: n, replies: [] }); });
     thrMap.forEach((t2) => {
-      t2.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      t2.replies.sort(masViejo('created_at'));
       const last = t2.replies.length ? t2.replies[t2.replies.length - 1] : t2.root;
       ev.push({ t: last.created_at, ty: 'nota', chip: ['nota', t2.replies.length ? '💬 Hilo (' + (t2.replies.length + 1) + ')' : '📝 Nota'], thread: t2, who: nameOf(t2.root.lead_id), nid: t2.root.id, nleadid: t2.root.lead_id, nauthor: t2.root.author || '', nbody: t2.root.body || '' });
     });
@@ -27168,7 +27196,7 @@ ${$('bg-video').value.trim() ? '<div style="position:relative;aspect-ratio:16/9;
     const data = co3Data(domain);
     const mo = coMoney(data);
     const ids = data.contacts.map((l) => String(l.id));
-    const cdeals = data.contacts.flatMap((l) => dealsForLead(l.id)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const cdeals = data.contacts.flatMap((l) => dealsForLead(l.id)).sort(masNuevo('created_at'));
     const props = (typeof propsAll !== 'undefined' ? propsAll : []).filter((p) => p.lead_id && ids.includes(String(p.lead_id)) && !p.is_template);
     const openTasks = (co3Tasks || []).filter((t) => !t.done);
     const stgB = (key) => { const s = STAGES.find((x) => x.key === stageOf(key)) || STAGES[0]; return '<span class="of-badge" style="color:' + s.color + ';border-color:' + s.color + '">' + s.label + '</span>'; };
