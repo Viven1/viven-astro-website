@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     const nombres = (Array.isArray(proj.crew) ? proj.crew : [])
       .map((c: { nombre?: string }) => String(c?.nombre || "").trim()).filter(Boolean);
     const { data: tecnicos } = nombres.length
-      ? await service.from("crew").select("id,name,email,roles").in("name", nombres)
+      ? await service.from("crew").select("id,name,email,roles,idioma").in("name", nombres)
       : { data: [] };
     const norm = (x: unknown) => String(x ?? "").trim().toLowerCase();
     const conEmail = (tecnicos || []).filter((t: { email?: string }) => t.email);
@@ -105,20 +105,52 @@ Deno.serve(async (req) => {
       const l = String((lead as { lang?: string } | null)?.lang || "");
       if (l === "en" || l === "de") langCli = l;
     }
-    const R = {
+    /* El tipo común hace falta: con `as const` cada idioma queda con sus propios literales
+       ("Citación general" vs "Allgemeine Startzeit") y TypeScript no los deja intercambiar,
+       que es justamente lo que necesitamos hacer. */
+    interface Rotulos {
+      citaGen: string; donde: string; maps: string; notasDia: string; quien: string;
+      conseguir: string; ojo: string; deUstedes: string; traen: string; llevar: string;
+      asunto: string; asuntoEq: string; tuCita: string; hola: string;
+      porqueCli: string; porqueEq: string; restoEntra: (h: string) => string;
+    }
+    const RES: Record<"es" | "en" | "de", Rotulos> = {
       es: { citaGen: "Citación general", donde: "Dónde presentarse", maps: "Abrir en Maps →",
             notasDia: "Notas del día", quien: "Quién viene", conseguir: "Hay que conseguir antes",
             ojo: "Ojo con", deUstedes: "Lo que necesitamos de ustedes", traen: "Ustedes traen: ",
-            llevar: "Llevar: ", asunto: "El día del rodaje", tuCita: "Tu citación", restoEntra: (h: string) => `El resto del equipo entra ${h}.` },
+            llevar: "Llevar: ", asunto: "El día del rodaje", asuntoEq: "Plan de rodaje", tuCita: "Tu citación",
+            hola: "Hola,", porqueCli: "Recibís este email porque estamos produciendo este video para ustedes.",
+            porqueEq: "Recibís este email porque estás en el crew de este rodaje.", restoEntra: (h: string) => `El resto del equipo entra ${h}.` },
       en: { citaGen: "General call time", donde: "Where to meet", maps: "Open in Maps →",
             notasDia: "Notes for the day", quien: "Who is coming", conseguir: "To arrange beforehand",
             ojo: "Watch out for", deUstedes: "What we need from you", traen: "You bring: ",
-            llevar: "Bring: ", asunto: "Your shoot day", tuCita: "Your call time", restoEntra: (h: string) => `The rest of the crew starts at ${h}.` },
+            llevar: "Bring: ", asunto: "Your shoot day", asuntoEq: "Shooting schedule", tuCita: "Your call time",
+            hola: "Hello,", porqueCli: "You are receiving this because we are producing this video for you.",
+            porqueEq: "You are receiving this because you are on the crew for this shoot.", restoEntra: (h: string) => `The rest of the crew starts at ${h}.` },
       de: { citaGen: "Allgemeine Startzeit", donde: "Treffpunkt", maps: "In Maps öffnen →",
             notasDia: "Notizen zum Tag", quien: "Wer kommt", conseguir: "Vorher zu organisieren",
             ojo: "Achtung", deUstedes: "Was wir von Ihnen brauchen", traen: "Sie bringen mit: ",
-            llevar: "Mitbringen: ", asunto: "Ihr Drehtag", tuCita: "Ihre Startzeit", restoEntra: (h: string) => `Das übrige Team startet um ${h}.` },
-    }[paraCliente ? langCli : "es"];
+            llevar: "Mitbringen: ", asunto: "Ihr Drehtag", asuntoEq: "Drehplan", tuCita: "Ihre Startzeit",
+            hola: "Guten Tag,", porqueCli: "Sie erhalten diese E-Mail, weil wir dieses Video für Sie produzieren.",
+            porqueEq: "Du erhältst diese E-Mail, weil du bei diesem Dreh im Team bist.", restoEntra: (h: string) => `Das übrige Team startet um ${h}.` },
+    };
+
+    /* El idioma de CADA destinatario, no uno para todos.
+       El equipo no trabaja en español: solo Sofia y Sebastián. El resto trabaja en alemán o
+       inglés, y estaba recibiendo la hoja del día de rodaje en un idioma que no es el suyo.
+       Sin idioma cargado se usa alemán —estamos en Zúrich— y la respuesta se puede corregir
+       en la ficha del técnico; adivinar español porque es el idioma en que está escrito el
+       código era justamente el error.
+       (Sebastián, 27 ago 2026: "solo sofia y yo trabajamos en español".) */
+    const idiomaDe = new Map<string, "es" | "en" | "de">();
+    for (const t of conEmail) {
+      const l = String((t as { idioma?: string }).idioma || "");
+      idiomaDe.set(String(t.email).toLowerCase(), (l === "es" || l === "en" || l === "de") ? l : "de");
+    }
+    for (const c of delCliente) {
+      if (c.email) idiomaDe.set(String(c.email).toLowerCase(), langCli);
+    }
+    const rotulos = (mail: string) => RES[idiomaDe.get(String(mail).toLowerCase()) || (paraCliente ? langCli : "de")];
 
 
     const destinos: string[] = Array.isArray(body.to) && body.to.length
@@ -135,7 +167,8 @@ Deno.serve(async (req) => {
     /* El cronograma en una tabla, agrupado por tramo. El email tiene que poder leerse en el
        teléfono a las seis de la mañana sin abrir ningún adjunto. */
     let blq: string | null = null;
-    const cuerpoTabla = filas.map((f) => {
+    /* También por idioma: la columna «Llevar / Ustedes traen» es un rótulo. */
+    const cuerpoTablaDe = (R: Rotulos) => filas.map((f) => {
       const b = String(f.bloque || "").trim();
       const cab = b && b !== blq
         ? (blq = b, `<tr><td colspan="4" style="background:#f3f7e8;font-weight:700;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#4e650f;padding:7px 10px">${esc(b)}</td></tr>`)
@@ -177,16 +210,22 @@ Deno.serve(async (req) => {
     const equipo = Array.isArray(body.equipo_lista)
       ? body.equipo_lista as Array<{ nombre: string; rol?: string; tel?: string; hora?: string }> : [];
 
-    const asunto = String(body.asunto || "").trim() ||
-      `${proj.ref ? proj.ref + " · " : ""}${proj.title || ""} — ${paraCliente ? R.asunto : "Plan de rodaje"}${fechas ? " · " + fechas : ""}`;
+    /* El asunto también va en el idioma de cada uno. Uno escrito a mano gana sobre todo:
+       si Sebastián lo tipeó, va tal cual para todos. */
+    const asuntoDe = (R: Rotulos) => String(body.asunto || "").trim() ||
+      `${proj.ref ? proj.ref + " · " : ""}${proj.title || ""} — ${paraCliente ? R.asunto : R.asuntoEq}${fechas ? " · " + fechas : ""}`;
 
     /* De lo que hay que conseguir, al cliente solo le llega lo que depende de él. El resto
        —el trípode, el kit de luces— es problema nuestro y decírselo solo genera preguntas. */
     const necCliente = String(nec).split("\n").filter((x) => /cliente|ustedes|acceso|permiso|autorizaci/i.test(x)).join("\n");
 
-    const html = emailViven({
-      lang: paraCliente ? langCli : "es",
-      saludo: "Hola,",
+    /* El email se arma POR DESTINATARIO, porque los rótulos cambian con su idioma. Antes
+       era un solo HTML para todos: correcto cuando el idioma era uno, equivocado desde que
+       cada persona tiene el suyo. El contenido —horas, escenas, lugares— es idéntico; lo
+       único que cambia son los rótulos y el idioma del pie. */
+    const armarHtml = (R: Rotulos, lang: "es" | "en" | "de") => emailViven({
+      lang,
+      saludo: R.hola,
       titulo: `${proj.ref ? "#" + proj.ref + " · " : ""}${esc(proj.title || "")}`,
       intro: paraCliente
         ? `Así queda el día del rodaje${fechas ? " del " + fechas : ""}${proj.location ? ", en " + esc(String(proj.location)) : ""}. Abajo están los horarios y lo que necesitamos de ustedes.`
@@ -224,7 +263,7 @@ Deno.serve(async (req) => {
           <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#4e650f;font-weight:700;margin-bottom:4px">${R.notasDia}</div>
           <div style="font-size:14px;line-height:1.6;color:#3d4757;white-space:pre-wrap">${esc(notasDia)}</div></div>` : ""}` +
         `${body.mensaje ? `<div style="font-size:15px;line-height:1.65;margin:0 0 20px;padding:14px 16px;background:#fffbe9;border:1px solid #f0e2b0;border-radius:10px;white-space:pre-wrap;color:#3d4757">${esc(body.mensaje)}</div>` : ""}` +
-        `<table style="width:100%;border-collapse:collapse;font-size:13.5px;color:#1a2230">${cuerpoTabla}</table>` +
+        `<table style="width:100%;border-collapse:collapse;font-size:13.5px;color:#1a2230">${cuerpoTablaDe(R)}</table>` +
         (paraCliente
           ? (necCliente.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">${R.deUstedes}</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(necCliente)}</ul>` : "")
           : (nec.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">${R.conseguir}</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(nec)}</ul>` : "") +
@@ -241,10 +280,14 @@ Deno.serve(async (req) => {
                     <td style="padding:5px 0;border-bottom:1px solid #e9ecf1;text-align:right;color:#3d4757;white-space:nowrap">${esc(p2.tel || "—")}</td></tr>`).join("")}
               </table>` : "")),
       pie: `${esc(remitente.nombre)} · VIVEN AG — respondiendo a este email le escribís directo.`,
-      porque: paraCliente
-        ? "Recibís este email porque estamos produciendo este video para ustedes."
-        : "Recibís este email porque estás en el crew de este rodaje.",
+      porque: paraCliente ? R.porqueCli : R.porqueEq,
     });
+
+    /* Para el preview: el idioma del primero de la lista. Es el que mejor representa lo que
+       va a salir, y el modal aclara al lado en qué idioma va cada uno. */
+    const langPreview = idiomaDe.get(String(destinos[0] || "").toLowerCase()) || (paraCliente ? langCli : "de");
+    const html = armarHtml(RES[langPreview], langPreview);
+    const asunto = asuntoDe(RES[langPreview]);
 
     if (body.dry_run) {
       return json({ ok: true, dry_run: true, asunto, html, para: destinos, sin_email: sinEmail,
@@ -301,6 +344,7 @@ Deno.serve(async (req) => {
 
     const citaGeneral = String(body.cabecera?.cita || "").slice(0, 5);
     const encabezado = (mail: string) => {
+      const R = rotulos(mail);
       const d = horaDe.get(String(mail).toLowerCase());
       const h = String(d?.hora || "").slice(0, 5) || citaGeneral;
       if (!h) return "";
@@ -327,8 +371,11 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: `${remitente.nombre} — VIVEN <${remitente.email}>`,
-          to: [mail], reply_to: remitente.email, subject: asunto,
-          html: html.replace("<!--CITACION-->", encabezado(mail)),
+          to: [mail], reply_to: remitente.email,
+          /* Cada uno recibe el plan en SU idioma: mismos datos, otros rótulos. */
+          subject: asuntoDe(rotulos(mail)),
+          html: armarHtml(rotulos(mail), idiomaDe.get(String(mail).toLowerCase()) || (paraCliente ? langCli : "de"))
+            .replace("<!--CITACION-->", encabezado(mail)),
           ...(adj.length ? { attachments: adj } : {}),
         }),
       });
