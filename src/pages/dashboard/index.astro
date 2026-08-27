@@ -3515,6 +3515,13 @@ const newsCases = [
         <button class="btn btn-ghost small" id="pj-invoice" type="button" title="Factura al CLIENTE, desde la propuesta que firmó">🧾 Facturar al cliente</button>
         <button class="btn btn-ghost small" id="pj-lead" type="button">👤 Abrir el contacto</button>
         <button class="btn btn-ghost small" id="pj-link" type="button" title="Copiar el link de este proyecto para mandárselo a alguien del equipo">🔗 Copiar link</button>
+        <!-- El portal del cliente vivía SOLO adentro del paso «Post»: parado en cualquier
+             otro paso no había manera de entrar a ver lo que ve el cliente.
+             Acá está siempre, porque «¿cómo se ve lo que le mostramos?» es una pregunta de
+             todos los pasos, no de uno.
+             (Sebastián, 26 ago 2026: "¿cómo llego ahora yo al panel del cliente/proyecto?
+              no tengo más el link para entrar".) -->
+        <button class="btn btn-ghost small" id="pj-portal-ir" type="button" title="Abrir el portal del cliente con un pase de equipo — entrás sin código y sin gastar el suyo">🎞 Ver su portal</button>
         <span class="muted-note" id="pj-save-note"></span>
       </div>
     </div>
@@ -6359,12 +6366,31 @@ const newsCases = [
       localStorage.setItem(key, g.classList.contains('collapsed') ? '1' : '0');
     });
   });
+  /* Tocar un tab del menú cierra el detalle que estuviera abierto. Sin esto, estando
+     dentro de un proyecto, tocar «Proyectos» no hacía NADA visible: gotoTab dibujaba la
+     lista pero pjRenderList no la muestra mientras haya un proyecto abierto —eso es lo que
+     hace que al recargar la página el proyecto siga abierto— y quedabas encerrado adentro
+     con el único camino de vuelta en «← Proyectos».
+     Va en el click y no adentro de gotoTab a propósito: los deep links (?proyecto=1202)
+     también llaman gotoTab, y ahí cerrar el detalle sería cerrar justo lo que se pidió.
+     (Sebastián, 26 ago 2026: "si estoy dentro del proyecto y toco el botón de proyectos no
+      vuelvo al main de proyectos... 😞") */
+  function tabDesdeMenu(tab){
+    if (typeof pjCur !== 'undefined' && pjCur){
+      pjCur = null;
+      pjRenderList();
+      /* pjUrl(null) escribe ?tab=projects, que sería mentira si te vas a Personas. */
+      if (tab === 'projects') pjUrl(null);
+      else try { history.replaceState({}, '', location.pathname); } catch (e){}
+    }
+    gotoTab(tab);
+  }
   document.querySelectorAll('.side-item[data-tab]').forEach((t) => {
     if (t.classList.contains('disabled')) return;
-    t.addEventListener('click', () => gotoTab(t.dataset.tab));
+    t.addEventListener('click', () => tabDesdeMenu(t.dataset.tab));
   });
   // barra inferior móvil + hoja "Más"
-  document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.addEventListener('click', () => gotoTab(b.dataset.tab)));
+  document.querySelectorAll('.mob-nav [data-tab], .mob-sheet [data-tab]').forEach((b) => b.addEventListener('click', () => tabDesdeMenu(b.dataset.tab)));
   $('mob-more') && $('mob-more').addEventListener('click', (e) => { e.stopPropagation(); const s = $('mob-sheet'); s.hidden = !s.hidden; });
   document.addEventListener('click', (e) => { const s = $('mob-sheet'); if (s && !s.hidden && !s.contains(e.target)) s.hidden = true; });
 
@@ -22167,24 +22193,35 @@ const newsCases = [
       finally { cp.disabled = false; }
     });
     const ab = $('pj-portal-abrir');
-    if (ab) ab.addEventListener('click', async () => {
-      ab.disabled = true;
-      try {
-        const { data, error } = await supabase.functions.invoke('get-portal', {
-          body: { id: d.id, t: d.portal_token, accion: 'pase_equipo' },
-        });
-        if (error) throw new Error(error.message);
-        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
-        window.open(url + '&pase=' + encodeURIComponent(data.pase), '_blank', 'noopener');
-      } catch (e){
-        toast('⚠️ ' + (e.message || e));
-      } finally { ab.disabled = false; }
-    });
+    if (ab) ab.addEventListener('click', () => pjAbrirPortal(ab));
     const c = $('pj-portal-copy');
     if (c) c.addEventListener('click', () => {
       navigator.clipboard.writeText(url).then(() => toast('🔗 Link del portal copiado'), () => toast('No se pudo copiar'));
     });
   }
+  /* Abrir el portal del cliente entrando como equipo: sin código y sin gastar el suyo.
+     Es la misma acción que el botón de adentro del paso «Post», pero acá vive suelta para
+     que el botón de la barra —el que está siempre— pueda usarla. */
+  async function pjAbrirPortal(boton){
+    const p = pjCur; if (!p) return;
+    if (boton) boton.disabled = true;
+    try {
+      if (!p.deal_id) throw new Error('Este proyecto no tiene deal asociado — sin eso no hay portal');
+      await pjGenPortal({ callado: true });
+      const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+      if (!d || !d.portal_token) throw new Error('No pude generar el link del portal');
+      const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
+      const { data, error } = await supabase.functions.invoke('get-portal', {
+        body: { id: d.id, t: d.portal_token, accion: 'pase_equipo' },
+      });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      window.open(url + '&pase=' + encodeURIComponent(data.pase), '_blank', 'noopener');
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+    } finally { if (boton) boton.disabled = false; }
+  }
+
   /* Vista previa del portal SIN mandar nada. Sebastián, 26 ago 2026: "necesito siempre
      preview antes de mandar". El email del código lo dispara el cliente, así que la única
      forma de revisarlo era pedírselo desde su portal — y ese mail le llega a él, en un
@@ -22673,6 +22710,7 @@ const newsCases = [
       if (pjAutoBind.yaMismo) pjAutoBind.yaMismo();   // lo pendiente no se pierde al volver
       pjCur = null; pjUrl(null); pjRenderList();
     });
+    $('pj-portal-ir').addEventListener('click', () => pjAbrirPortal($('pj-portal-ir')));
     $('pj-reload').addEventListener('click', pjLoad);
     $('pj-nuevo') && $('pj-nuevo').addEventListener('click', () => {
       const f = $('pj-form'); f.hidden = !f.hidden;
