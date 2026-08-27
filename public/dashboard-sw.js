@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v158';  // v158: 26 ago 2026 — los deals de prueba no cuentan, y el email del plan completo
+var CACHE = 'viven-crm-v159';  // v159: 26 ago 2026 — mandarles algo manda de verdad, el portal se genera solo, el brief vuelve al portal
 
 /* Al instalar se guarda el HTML **y los archivos que ese HTML pide**. Antes solo se
    guardaba '/dashboard/', y el bundle recién entraba a la cache la primera vez que el

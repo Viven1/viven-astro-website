@@ -602,10 +602,24 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   function briefTxt(o){ var lg = (DATA && DATA.lang) || 'en'; return (o && (o[lg] || o.en)) || ''; }
 
   function briefHTML(d){
-    if (!d.brief_enviado) return '';                 // todavía no se lo mandamos
+    /* Antes esto era `if (!d.brief_enviado) return ''` a secas: el brief solo existía en el
+       portal DESPUÉS de mandarlo. Dos problemas — el cliente que entra a ver el corte no
+       tiene dónde contarnos nada, y Sebastián no puede ni mirar cómo se ve sin mandárselo
+       a alguien.
+       Ahora: si se mandó, va siempre. Si no, va igual mientras el proyecto no tenga cortes
+       —ahí el brief todavía sirve— y siempre para nosotros, que estamos revisando.
+       Lo que no hace es aparecer en un proyecto que ya está en montaje: doce preguntas
+       sobre qué es el video, al lado de la v3, son ruido.
+       (Sebastián, 26 ago 2026: "¿por qué no está el project brief en el portal?") */
+    var hayCortes = (d.versiones || []).length > 0;
+    if (!d.brief_enviado && hayCortes && !d.modo_equipo) return '';
     var T = briefT(), R = d.brief || {}, SUG = d.brief_sugerencias || {};
     var hechas = BRIEF.filter(function(q){ return (R[q.k] || '').trim(); }).length;
     var pasos = d.brief_variante === 'pasos';
+
+    var sinMandar = !d.brief_enviado
+      ? '<p class="bsub" style="color:var(--acid,#ddf98f)">Todavía no te lo mandamos por email — podés empezar a contestarlo desde acá igual.</p>'
+      : '';
 
     if (d.brief_listo){
       return '<div class="pt-brief hecho"><div class="bh"><b>📋 ' + esc(T.titulo) + '</b>' +

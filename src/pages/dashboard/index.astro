@@ -1795,6 +1795,26 @@ const newsCases = [
     font:inherit;font-size:13px;font-weight:600;padding:8px 13px;cursor:pointer;margin-bottom:-1px}
   .pb-tabs button.on{color:var(--text);border-bottom-color:var(--acid)}
   .pb-pane{max-height:min(66vh,640px);overflow:auto;padding-right:4px}
+
+  /* ── Mandarles algo ── */
+  .ml-para{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+  .ml-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:99px;
+    padding:6px 12px 6px 8px;font-size:13px;background:rgba(255,255,255,.03)}
+  .ml-chip.no{opacity:.5;border-style:dashed}
+  .ml-chip .em{color:var(--muted-2);font-size:12px}
+  .ml-chip button{background:none;border:0;color:var(--muted-2);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+  .ml-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .ml-lb{display:block;font-size:12px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px}
+  .ml-row .ml-lb{margin:0}
+  .ml-row .inp.small{width:auto;min-width:160px}
+  .ml-plant{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+  .ml-plant button{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:99px;
+    color:var(--text);font:inherit;font-size:12.5px;padding:5px 12px;cursor:pointer}
+  .ml-plant button:hover{border-color:var(--acid)}
+  .ml-prev{margin-top:16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#f4f5f7}
+  .ml-prev iframe{display:block;width:100%;height:440px;border:0;background:#fff}
+  .ml-prev .cab{background:var(--navy-900);border-bottom:1px solid var(--line);padding:10px 14px;font-size:12.5px;color:var(--muted-2)}
+  .ml-prev .cab b{color:var(--text)}
   .pb-sec{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted-2);
     font-weight:700;margin:20px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
   .pb-sec:first-child{margin-top:0;padding-top:0;border-top:0}
@@ -5503,6 +5523,52 @@ const newsCases = [
     </div>
     <div id="pbf-llenar" class="pb-pane"></div>
     <div id="pbf-mandar" class="pb-pane" hidden></div>
+  </div>
+</div>
+
+<!-- MANDARLES ALGO — el compositor de email del proyecto.
+     Antes este botón abría un menú que te llevaba a OTRO paso y disparaba OTRO botón, y
+     ese botón copiaba el link al portapapeles. Los contactos que habías tildado se perdían
+     en el camino y nunca veías el email.
+     (Sebastián, 26 ago 2026: "el mandarles algo solo copia las cosas, no muestra el email
+      sender con preview y los emails".) -->
+<div class="fu-modal" id="ml-modal" hidden role="dialog" aria-modal="true" aria-label="Mandarles algo">
+  <div class="fu-back" id="ml-back"></div>
+  <div class="fu-card" style="width:min(880px,100%)">
+    <div class="fu-hd">
+      <div><b>📤 Mandarles algo</b><span id="ml-sub"></span></div>
+      <button class="fu-x" id="ml-x" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pb-pane">
+      <div id="ml-para" class="ml-para"></div>
+      <div class="ml-row">
+        <label class="ml-lb">Sale de</label>
+        <select id="ml-de" class="inp small"></select>
+        <label class="ml-lb">Idioma</label>
+        <select id="ml-lang" class="inp small">
+          <option value="en">Inglés</option><option value="de">Alemán</option><option value="es">Español</option>
+        </select>
+      </div>
+      <div id="ml-plant" class="ml-plant"></div>
+      <label class="ml-lb" for="ml-asunto">Asunto</label>
+      <input id="ml-asunto" class="inp" type="text" placeholder="Lo que se lee en la bandeja" />
+      <label class="ml-lb" for="ml-msg">Mensaje</label>
+      <textarea id="ml-msg" class="inp" rows="7" placeholder="Escribile como le escribirías por email."></textarea>
+      <div class="ml-row" style="margin-top:12px">
+        <label class="ml-lb">Con botón a</label>
+        <select id="ml-adj" class="inp small">
+          <option value="nada">nada — solo el mensaje</option>
+          <option value="portal">el portal del proyecto</option>
+          <option value="brief">el Project Brief</option>
+        </select>
+      </div>
+      <div id="ml-prev" class="ml-prev" hidden></div>
+      <div class="fu-actions" style="margin-top:16px">
+        <button class="btn btn-ghost" id="ml-ver" type="button">👁 Ver cómo le llega</button>
+        <button class="btn btn-primary" id="ml-go" type="button" disabled>📤 Mandarlo</button>
+        <span class="muted-note" id="ml-msg-est">Primero el preview. Nada sale sin que lo veas.</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -18553,10 +18619,12 @@ const newsCases = [
       n = { t: 'Armar el plan de rodaje.', s: 'La IA lo propone entero y vos lo corregís. No guarda nada sin que lo toques.', b: '📅 Proponer un plan', paso: 'plan', go: () => { $('pj-plan-blq').open = true; $('pj-plan-ia').click(); } };
     else if (!(pjVers || []).length)
       n = { t: 'Subir el primer corte.', s: 'El cliente lo ve en su portal y comenta con el minuto exacto.', b: '⬆ Nueva versión', paso: 'post', go: () => $('pj-ver-add').click() };
-    else if (ultima && !ultima.approved_at && !sinResolver && !ultima.notes_done_at)
-      n = { t: 'Avisarle que la v' + ultima.n + ' está lista.', s: 'Está subida y el portal pide código. Todavía no la vio nadie.', b: '📤 Avisarle', paso: 'post', go: () => $('pj-portal-prev').click() };
+    else if (ultima && !ultima.approved_at && !sinResolver && !ultima.notes_done_at && !pjForzado('aviso-v' + ultima.n))
+      n = { t: 'Avisarle que la v' + ultima.n + ' está lista.', s: 'Está subida y el portal pide código. Todavía no la vio nadie.', b: '📤 Avisarle', paso: 'post', go: () => $('pj-portal-prev').click(),
+            ok: () => pjForzarPaso('aviso-v' + ultima.n, 'Listo — no vuelvo a avisarte por la v' + ultima.n) };
     else if (sinResolver)
-      n = { t: sinResolver + (sinResolver === 1 ? ' nota sin resolver' : ' notas sin resolver') + '.', s: 'Mandáselas al que monta con el .xml adentro, o resolvelas acá.', b: '📤 Al editor', paso: 'post', go: () => { const b = $('pj-vers').querySelector('[data-noted]'); if (b) b.click(); } };
+      n = { t: sinResolver + (sinResolver === 1 ? ' nota sin resolver' : ' notas sin resolver') + '.', s: 'Mandáselas al que monta con el .xml adentro, o resolvelas acá.', b: '📤 Al editor', paso: 'post', go: () => { const b = $('pj-vers').querySelector('[data-noted]'); if (b) b.click(); },
+            ok: () => pjResolverTodas() };
     else if (e.post.ok && !p.delivered_at)
       n = { t: 'El corte está aprobado: entregá los archivos finales.', s: 'Y ahí se factura lo que falta.', b: '📦 Ir a la entrega', paso: 'entrega', go: () => { pjPaso = 'entrega'; pjRenderSteps(); } };
     else if (Number(p.amount_chf) > pjFacturado(p) && p.delivered_at)
@@ -18572,21 +18640,47 @@ const newsCases = [
       setTimeout(n.go, 60);
     });
     /* Darlo por hecho a mano. Existe porque la app se equivoca: se rodó sin cargar nada,
-       el brief llegó por WhatsApp, el guion está en un Drive. */
-    $('pj-next-ok').addEventListener('click', () => pjForzarPaso(n.paso));
+       el brief llegó por WhatsApp, el guion está en un Drive.
+       Cada aviso descarta LO SUYO. Antes todos forzaban el paso, y para los dos avisos que
+       no dependen del paso —las notas del cliente y el "avisale que está lista"— eso no
+       cambiaba nada: el aviso volvía intacto.
+       (Sebastián, 26 ago 2026: "aunque toque dado por hecho se mantiene ahi :(") */
+    $('pj-next-ok').addEventListener('click', () => (n.ok ? n.ok() : pjForzarPaso(n.paso)));
   }
 
-  async function pjForzarPaso(k){
+  function pjForzado(k){
+    const p = pjCur;
+    return !!(p && Array.isArray(p.pasos_forzados) && p.pasos_forzados.includes(k));
+  }
+
+  /* "Ya está" sobre las notas del cliente las da por resueltas de verdad — es lo que
+     significa. Se pregunta porque son notas de otra persona. */
+  async function pjResolverTodas(){
+    const p = pjCur; if (!p) return;
+    const abiertas = (pjComs || []).filter((c) => !c.resolved && c.from_client);
+    if (!abiertas.length) return;
+    if (!confirm('¿Doy por resueltas las ' + abiertas.length + ' notas del cliente?\n\nSe marcan como hechas y dejan de aparecer. Se puede deshacer una por una.')) return;
+    const { error } = await supabase.from('project_comments')
+      .update({ resolved: true, resolved_at: new Date().toISOString() })
+      .in('id', abiertas.map((c) => c.id));
+    if (error){ toast(error.message); return; }
+    abiertas.forEach((c) => { c.resolved = true; });
+    pjPortalRender();
+    pjRenderSteps();
+    toast('✓ ' + abiertas.length + (abiertas.length === 1 ? ' nota resuelta' : ' notas resueltas'));
+  }
+
+  async function pjForzarPaso(k, msg){
     const p = pjCur; if (!p || !k) return;
     const forz = Array.isArray(p.pasos_forzados) ? p.pasos_forzados.slice() : [];
-    if (forz.includes(k)) return;
+    if (forz.includes(k)){ toast('Ese ya estaba dado por hecho'); return; }
     forz.push(k);
     const { error } = await supabase.from('projects').update({ pasos_forzados: forz }).eq('id', p.id);
     if (error){ toast(error.message); return; }
     p.pasos_forzados = forz;
     pjPaso = null;
     pjRenderSteps();
-    toast('✓ Dado por hecho — se puede volver atrás desde el paso');
+    toast(msg || '✓ Dado por hecho — se puede volver atrás desde el paso');
   }
 
   /* ── Paso 1 · Los contactos del proyecto ──
@@ -18729,30 +18823,152 @@ const newsCases = [
 
   /* Mandarles algo: cada opción lleva al flujo que YA tiene su preview. Esto no manda nada
      por su cuenta — elige el camino y a quién. */
+  /* ═══ Mandarles algo ═══
+     Un email de verdad: se ve el remitente, se ven los destinatarios, se ve el email
+     exacto que le llega, y recién ahí aparece el botón de mandarlo. */
+  let mlElegidos = [], mlListo = false;
+
+  const ML_PLANT = {
+    portal: { asunto: (p) => (p.title || 'Tu proyecto') + ' — ya lo podés ver',
+      msg: () => 'Ya está todo cargado en tu portal: ahí ves el corte, dejás comentarios con el minuto exacto y bajás los archivos.\n\nCualquier cosa, respondeme este mismo email.',
+      adj: 'portal' },
+    version: { asunto: (p, v) => (p.title || 'Tu proyecto') + ' — v' + (v ? v.n : 1) + ' lista',
+      msg: (p, v) => 'Subimos la v' + (v ? v.n : 1) + '. La podés ver en el portal y comentar arriba del video: cada comentario queda con el minuto, así no hace falta describir dónde.\n\nCuando esté, avisame y seguimos.',
+      adj: 'portal' },
+    brief: { asunto: (p) => (p.title || 'Tu proyecto') + ' — unas preguntas antes de arrancar',
+      msg: () => 'Antes de escribir el guion necesitamos entender bien qué querés contar. Son 12 preguntas, se contestan de a poco y lo que escribas queda guardado.\n\nDe acá sale todo lo demás, así que vale la pena tomarse el rato.',
+      adj: 'brief' },
+    factura: { asunto: (p) => (p.title || 'Tu proyecto') + ' — la factura',
+      msg: () => 'Te mando la factura de este proyecto.\n\nLa factura en sí sale de bexio con todos los datos fiscales — este email es solo el aviso.',
+      adj: 'nada' },
+  };
+
   function pjContactosMandar(){
-    const elegidos = pjContactos.filter((c) => c._on !== false);
-    if (!elegidos.length){ toast('Tildá al menos a una persona'); return; }
-    if ($('pj-cli-menu')){ $('pj-cli-menu').remove(); return; }
-    const OP = [
-      ['📋 El Project Brief', 'las 12 preguntas de las que sale el guion', () => { pjPaso = 'brief'; pjRenderSteps(); pjBriefVer(); }],
-      ['🔗 El link del portal', 'ahí ve el corte, comenta y baja los archivos', () => { pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-link').click(), 60); }],
-      ['🎞 Que hay una versión nueva', 'con la vista previa de lo que recibe', () => { pjPaso = 'post'; pjRenderSteps(); setTimeout(() => $('pj-portal-prev').click(), 60); }],
-      ['🧾 La factura', 'se arma en bexio y sale desde ahí', () => { pjPaso = 'plata'; pjRenderSteps(); setTimeout(() => $('pj-invoice').click(), 60); }],
-    ];
-    const m = document.createElement('div');
-    m.id = 'pj-cli-menu';
-    m.style.cssText = 'border:1px solid var(--line-strong);border-radius:12px;padding:6px;margin-top:10px;background:var(--navy-900)';
-    m.innerHTML = '<p class="muted-note" style="margin:6px 8px 8px">A ' +
-      esc(elegidos.map((c) => c.name || c.email).join(', ')) + ':</p>' +
-      OP.map(([t, d], i) => '<button type="button" data-op="' + i + '" style="display:block;width:100%;text-align:left;' +
-        'background:none;border:0;color:var(--text);font:inherit;font-size:13.5px;padding:9px 10px;border-radius:9px;cursor:pointer">' +
-        esc(t) + '<span style="display:block;font-size:11.5px;color:var(--muted-2)">' + esc(d) + '</span></button>').join('');
-    $('pj-cli-mandar').closest('.ab-urlrow').after(m);
-    m.querySelectorAll('[data-op]').forEach((b) => {
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.04)'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'none'; });
-      b.addEventListener('click', () => { m.remove(); OP[+b.dataset.op][2](); });
+    const p = pjCur; if (!p) return;
+    mlElegidos = pjContactos.filter((c) => c._on !== false);
+    if (!mlElegidos.length){ toast('Tildá al menos a una persona'); return; }
+
+    $('ml-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '');
+    $('ml-de').innerHTML = '<option value="sofia">Sofia Treviño · sofia@viven.ch</option>' +
+      '<option value="sebastian">Sebastian Cepeda · sebastian@viven.ch</option>';
+    /* El idioma arranca en el del contacto, no en el nuestro: al cliente suizo alemán
+       mandarle español porque el dashboard está en español es el error clásico. */
+    const l = leadById(p.lead_id) || {};
+    $('ml-lang').value = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
+    $('ml-asunto').value = '';
+    $('ml-msg').value = '';
+    $('ml-adj').value = 'nada';
+    mlRenderPara();
+    mlRenderPlantillas();
+    mlInvalidar();
+    $('ml-modal').hidden = false;
+    setTimeout(() => $('ml-msg').focus(), 80);
+  }
+
+  function mlRenderPara(){
+    const con = mlElegidos.filter((c) => c.email && String(c.email).includes('@'));
+    const sin = mlElegidos.filter((c) => !c.email || !String(c.email).includes('@'));
+    $('ml-para').innerHTML =
+      '<span class="ml-lb" style="margin:0;align-self:center">Para</span>' +
+      con.map((c) => '<span class="ml-chip"><b>' + esc(c.name || c.email) + '</b>' +
+        '<span class="em">' + esc(c.email) + '</span>' +
+        '<button type="button" data-quitar="' + esc(String(c.id)) + '" title="Sacarlo de este envío">✕</button></span>').join('') +
+      sin.map((c) => '<span class="ml-chip no" title="Sin email cargado — no le va a llegar"><b>' +
+        esc(c.name || '(sin nombre)') + '</b><span class="em">sin email</span></span>').join('');
+    $('ml-para').querySelectorAll('[data-quitar]').forEach((b) => {
+      b.addEventListener('click', () => {
+        mlElegidos = mlElegidos.filter((c) => String(c.id) !== b.dataset.quitar);
+        if (!mlElegidos.length){ toast('Sin destinatarios'); $('ml-modal').hidden = true; return; }
+        mlRenderPara(); mlInvalidar();
+      });
     });
+  }
+
+  /* Las plantillas rellenan los campos y los dejan editables. La versión vieja de esto era
+     un menú que en vez de escribir el email te mandaba a otra pantalla. */
+  function mlRenderPlantillas(){
+    const p = pjCur, v = (pjVers || [])[0];
+    const ops = [['portal', '🔗 El link del portal'], ['version', '🎞 Hay una versión nueva'],
+                 ['brief', '📋 El Project Brief'], ['factura', '🧾 La factura']];
+    $('ml-plant').innerHTML = '<span class="ml-lb" style="margin:0;align-self:center">Arrancar de</span>' +
+      ops.map(([k, t]) => '<button type="button" data-pl="' + k + '">' + esc(t) + '</button>').join('');
+    $('ml-plant').querySelectorAll('[data-pl]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const t = ML_PLANT[b.dataset.pl];
+        $('ml-asunto').value = t.asunto(p, v);
+        $('ml-msg').value = t.msg(p, v);
+        $('ml-adj').value = t.adj;
+        mlInvalidar();
+      });
+    });
+  }
+
+  /* Cualquier cambio invalida el preview: el botón de mandar solo existe mientras lo que
+     viste en pantalla sea lo que va a salir. */
+  function mlInvalidar(){
+    mlListo = false;
+    $('ml-go').disabled = true;
+    $('ml-prev').hidden = true;
+    $('ml-msg-est').textContent = 'Primero el preview. Nada sale sin que lo veas.';
+  }
+
+  function mlCuerpo(){
+    return {
+      project_id: pjCur.id,
+      contact_ids: mlElegidos.map((c) => String(c.id)),
+      de: $('ml-de').value,
+      lang: $('ml-lang').value,
+      asunto: $('ml-asunto').value.trim(),
+      mensaje: $('ml-msg').value.trim(),
+      adjunto: $('ml-adj').value,
+    };
+  }
+
+  async function mlVer(){
+    if (!$('ml-msg').value.trim()){ toast('Escribí el mensaje primero'); $('ml-msg').focus(); return; }
+    const b = $('ml-ver');
+    b.disabled = true; b.textContent = 'Armando el email…';
+    try {
+      const { data, error } = await supabase.functions.invoke('mandar-al-cliente',
+        { body: { ...mlCuerpo(), dry_run: true } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      /* srcdoc y no innerHTML: el email trae su propio <body> y sus estilos, y meterlo en
+         el dashboard lo pinta de otro color. Sin permitir scripts. */
+      $('ml-prev').innerHTML =
+        '<div class="cab">De <b>' + esc(data.de.from) + '</b> · responde a <b>' + esc(data.de.email) + '</b><br>' +
+        'Para <b>' + esc(data.to.map((t) => t.email).join(', ')) + '</b><br>' +
+        'Asunto: <b>' + esc(data.asunto) + '</b>' +
+        (data.sin_email.length ? '<br><span style="color:#f0c060">Sin email, no les llega: ' + esc(data.sin_email.join(', ')) + '</span>' : '') +
+        '</div><iframe sandbox="" title="Vista previa del email"></iframe>';
+      $('ml-prev').querySelector('iframe').srcdoc = data.html;
+      $('ml-prev').hidden = false;
+      mlListo = true;
+      $('ml-go').disabled = false;
+      $('ml-go').textContent = '📤 Mandarlo a ' + data.to.length + (data.to.length === 1 ? ' persona' : ' personas');
+      $('ml-msg-est').textContent = 'Esto es exactamente lo que le llega.';
+      $('ml-prev').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+    } finally {
+      b.disabled = false; b.textContent = '👁 Ver cómo le llega';
+    }
+  }
+
+  async function mlMandar(){
+    if (!mlListo) return;
+    const b = $('ml-go');
+    b.disabled = true; b.textContent = 'Mandando…';
+    try {
+      const { data, error } = await supabase.functions.invoke('mandar-al-cliente', { body: mlCuerpo() });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      $('ml-modal').hidden = true;
+      toast('📤 Mandado a ' + data.enviados + (data.enviados === 1 ? ' persona' : ' personas'));
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+      b.disabled = false; b.textContent = '📤 Mandarlo';
+    }
   }
 
   /* Las respuestas del brief se leen al abrir el proyecto, no solo al abrir el modal:
@@ -21806,7 +22022,7 @@ const newsCases = [
     if (!d || !d.portal_token){
       box.innerHTML = '<button class="btn btn-ghost small" id="pj-portal-gen" type="button">Generar link</button>';
       const b = $('pj-portal-gen');
-      if (b) b.addEventListener('click', pjGenPortal);
+      if (b) b.addEventListener('click', () => pjGenPortal());
       return;
     }
     const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
@@ -21860,8 +22076,12 @@ const newsCases = [
      portal en una pestaña para ver la puerta de entrada tal cual la ve. */
   async function pjPortalPreview(){
     const p = pjCur; if (!p) return;
-    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
-    if (!d || !d.portal_token){ toast('Generá primero el link del portal'); return; }
+    let d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    if (d && !d.portal_token){
+      await pjGenPortal({ callado: true });
+      d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    }
+    if (!d || !d.portal_token){ toast('Este proyecto no tiene deal asociado — sin eso no hay portal'); return; }
     /* A propósito NO se arma la URL del portal acá: tener el link a mano fue lo que
        llevó a embeberlo en un iframe y a que un botón dibujado mandara un email real. */
     try {
@@ -21949,11 +22169,19 @@ const newsCases = [
           p: 'Antes de escribir nada, doce preguntas deciden qué es realmente el video. Están en tu portal — a tu ritmo, se guardan solas, y podés invitar a quien sepa las respuestas.' },
   };
 
-  function pjBriefDatos(op){
+  /* Si falta el token del portal se genera acá mismo. Antes decía "generá primero el link
+     del portal en «Portal del cliente»" y te mandaba a otra pantalla a apretar un botón que
+     no decide nada — el token son 16 bytes al azar, no hay nada que elegir.
+     (Sebastián, 26 ago 2026, mirando ese mismo cartel: "tendria q ser automatico...") */
+  async function pjBriefDatos(op){
     const callado = op && op.callado;
     const p = pjCur; if (!p) return null;
-    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
-    if (!d || !d.portal_token){ if (!callado) toast('Generá primero el link del portal'); return null; }
+    let d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    if (d && !d.portal_token){
+      await pjGenPortal({ callado: true });
+      d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    }
+    if (!d || !d.portal_token){ if (!callado) toast('Este proyecto no tiene deal asociado — sin eso no hay portal'); return null; }
     const l = leadById(p.lead_id) || {};
     if (!l.email){ if (!callado) toast('El contacto del proyecto no tiene email'); return null; }
     const lang = ['en', 'de', 'es'].includes(l.lang) ? l.lang : 'en';
@@ -22104,7 +22332,7 @@ const newsCases = [
      botón y abajo el link por si el botón no funciona. El branding tiene que ser
      consistente".) */
   async function pbrRenderMandar(){
-    const x = pjBriefDatos({ callado: true });
+    const x = await pjBriefDatos({ callado: true });
     if (!x){
       $('pbf-mandar').innerHTML = '<p class="muted-note" style="margin:0">Para mandárselo hace falta el link del portal y que el contacto del proyecto tenga email. Generá el link del portal en «Portal del cliente».</p>';
       return;
@@ -22187,15 +22415,21 @@ const newsCases = [
     } catch (e){ return { ok: false, error: e.message || String(e) }; }
   }
 
-  async function pjGenPortal(){
-    const p = pjCur; if (!p) return;
+  async function pjGenPortal(op){
+    const callado = op && op.callado;
+    const p = pjCur; if (!p || !p.deal_id) return false;
+    /* Regenerar un token existente rompe todos los links que el cliente ya tiene. Cuando
+       se llama solo (desde un envío) nunca pisa el que hay. */
+    const ya = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    if (callado && ya && ya.portal_token) return true;
     const tok = ([...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join(''));
     const { error } = await supabase.from('deals').update({ portal_token: tok }).eq('id', p.deal_id);
-    if (error){ toast('⚠️ ' + error.message); return; }
+    if (error){ toast('⚠️ ' + error.message); return false; }
     const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
     if (d) d.portal_token = tok;
-    toast('🔗 Link del portal generado');
+    if (!callado) toast('🔗 Link del portal generado');
     pjRenderPortal();
+    return true;
   }
 
   async function pjSetStage(st){
@@ -22372,6 +22606,14 @@ const newsCases = [
     $('pj-plan-ia').addEventListener('click', pjPlanPedir);
     $('pj-cli-add').addEventListener('click', pjContactoNuevo);
     $('pj-cli-mandar').addEventListener('click', pjContactosMandar);
+    $('ml-x').addEventListener('click', () => { $('ml-modal').hidden = true; });
+    $('ml-back').addEventListener('click', () => { $('ml-modal').hidden = true; });
+    $('ml-ver').addEventListener('click', mlVer);
+    $('ml-go').addEventListener('click', mlMandar);
+    ['ml-de', 'ml-lang', 'ml-asunto', 'ml-msg', 'ml-adj'].forEach((id) => {
+      $(id).addEventListener('input', mlInvalidar);
+      $(id).addEventListener('change', mlInvalidar);
+    });
     $('pj-brief2').addEventListener('click', pjBriefVer);
     $('pj-plan-fila').addEventListener('click', pjPlanFilaNueva);
     $('pj-plan-pdf').addEventListener('click', pjPlanPDF);
