@@ -5938,7 +5938,9 @@ const newsCases = [
 
     // la analítica se trae en segunda fase: si entrás a un tab que la usa y todavía
     // no llegó, se pide acá (ver loadAnalytics)
-    if (['hoy', 'analytics', 'leads'].includes(tab)) loadAnalytics();
+    /* Hoy pide la liviana; Analytics y Leads, la completa. */
+    if (['analytics', 'leads'].includes(tab)) loadAnalytics();
+    else if (tab === 'hoy') loadAnalyticsLiviana();
     if (tab === 'hoy') renderHome(); // KPIs + Para hoy/Señales/Agenda-mini/IA viven en Hoy (portada)
     if (tab === 'agenda'){ hmRenderAgenda(); hmRenderCalls(); }
     if (tab === 'companies') renderCompanies();
@@ -6935,6 +6937,10 @@ const newsCases = [
                            parado en Analytics y todavía no vino, se pide al entrar.
      Cada consulta que falla pinta su propio cartel (avisoCarga) y no toca al resto. */
   let anaCargada = false, anaCargando = false;
+  /* «La actividad humana ya llegó», sin importar por cuál de las dos cargas. El KPI de
+     Personas miraba anaCargada, que con la carga liviana nunca se prende: la tarjeta
+     habría quedado en «cargando…» para siempre con los datos ya en memoria. */
+  let actCargada = false;
 
   async function loadCore(){
     const [leadsQ, offersQ, coQ, propsQ, dealsQ, bookQ, bookPasadasQ, bookHistQ] = await Promise.all([
@@ -7060,6 +7066,35 @@ const newsCases = [
   function anaMarcarCarga(activo){
     document.querySelectorAll('#ana-sub-web .kpis').forEach((k) => k.classList.toggle('vv-cargando', !!activo));
   }
+  /* ── LA MITAD LIVIANA DE LA ANALÍTICA ──
+     Hoy necesita dos cosas de acá: el KPI de «Personas» (que sale de session_activity, 250
+     filas) y las señales calientes (qué lead conocido volvió a la web en las últimas 24 h).
+     Pero pedía loadAnalytics ENTERA: 8.644 pageviews con nueve campos, 917 reproducciones y
+     el histórico completo de notas y tasks. 7,3 segundos medidos, para una tarjeta y una
+     lista de tres renglones.
+     Analytics y Leads siguen pidiendo la completa; Hoy pide esta. Los pageviews de 60 días
+     del sparkline ya venían por su cuenta (hmFetchWeeks) y no se tocan. */
+  let anaLivianaAt = 0, anaLivianaBusy = false;
+
+  async function loadAnalyticsLiviana(){
+    if (anaCargada || anaCargando || anaLivianaBusy) return;
+    if (Date.now() - anaLivianaAt < 120000) return;
+    anaLivianaAt = Date.now(); anaLivianaBusy = true;
+    try {
+      const desde24 = new Date(Date.now() - 864e5).toISOString();
+      const [actQ, vistas24] = await Promise.all([
+        fetchAllRows('session_activity', 'session_id,created_at', since(), until()),
+        fetchAllRows('pageviews', 'created_at,session_id', desde24, new Date().toISOString()),
+      ]);
+      if (actQ && !actQ.error){ humanAct = actQ.data || []; actCargada = true; }
+      /* lastViews queda con las últimas 24 h: es lo único que Hoy lee de esa lista, y
+         Analytics lo pisa con el período completo cuando de verdad se abre. */
+      if (vistas24 && !vistas24.error && !anaCargada) lastViews = vistas24.data || [];
+      if (!$('tab-hoy').hidden) renderHome();
+    } catch (e){ console.error('ANALITICA_LIVIANA', e && e.message); }
+    finally { anaLivianaBusy = false; }
+  }
+
   async function loadAnalytics(force){
     if (anaCargando || (anaCargada && !force)) return;
     anaCargando = true;
@@ -7100,6 +7135,7 @@ const newsCases = [
         prevStats = (prevQ && prevQ.stats) || null;
         prevViews = (prevQ && !prevQ.error && !prevQ.stats) ? (prevQ.data || []) : [];
         humanAct = (actQ && !actQ.error) ? (actQ.data || []) : [];
+        if (actQ && !actQ.error) actCargada = true;
         actWeb = {}; (lastViews || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
         renderAnalytics(lastViews, allLeads);
       }
@@ -7181,11 +7217,20 @@ const newsCases = [
       (qs.get('proyecto') || qs.get('project') ? 'projects' :
        qs.get('lead') ? 'leads' : qs.get('offer') || qs.get('propuesta') ? 'offers' :
        qs.get('empresa') || qs.get('company') ? 'companies' : 'hoy');
-    const laUsa = ['hoy', 'analytics', 'leads'].includes(destino);
+    /* Al arrancar: la completa solo si el destino la usa entera. Hoy —que es donde se
+       cae por defecto— pide la liviana, que son 250 filas y no 16.000. */
+    const laUsaEntera = ['analytics', 'leads'].includes(destino);
+    const esHoy = destino === 'hoy' || !destino;
 
     perf('initial_load', { core, leads: allLeads.length, pruebas: leadsPrueba.length,
-                           destino, analitica: laUsa ? 'ya' : 'después' });
-    if (!laUsa) return;
+                           destino, analitica: laUsaEntera ? 'ya' : esHoy ? 'liviana' : 'después' });
+    if (esHoy){
+      loadAnalyticsLiviana().then(() => {
+        perf('analytics_liviana', { ms: Math.round(performance.now() - t0) - core, destino });
+      }, () => {});
+      return;
+    }
+    if (!laUsaEntera) return;
     loadAnalytics(true).then(() => {
       perf('analytics', { ms: Math.round(performance.now() - t0) - core, destino });
     }, () => {});
@@ -9218,7 +9263,7 @@ const newsCases = [
        pageviews. Sin este chequeo la tarjeta mostraba "Personas: 0" durante unos
        segundos — el mismo cero falso que ya habíamos sacado de las visitas, entrando
        por la puerta de al lado. */
-    const medido = anaCargada && rangeEnd() > HUMAN_DESDE;
+    const medido = actCargada && rangeEnd() > HUMAN_DESDE;
     if (medido){
       const pers = persEn(desdeMed, rangeEnd());
       const parcial = rangeStart() < HUMAN_DESDE;
@@ -9235,8 +9280,8 @@ const newsCases = [
                           : 'medido por scroll, puntero o toque');
       const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; }
     } else {
-      $('hm-vis-l').textContent = anaCargada ? 'Visitas (' + rangeLabel().toLowerCase() + ')' : 'Personas';
-      $('hm-vis-t').textContent = anaCargada ? 'incluye tráfico automático · personas se mide desde el 24/08' : 'cargando…';
+      $('hm-vis-l').textContent = actCargada ? 'Visitas (' + rangeLabel().toLowerCase() + ')' : 'Personas';
+      $('hm-vis-t').textContent = actCargada ? 'incluye tráfico automático · personas se mide desde el 24/08' : 'cargando…';
       $('hm-vis').textContent = visCur == null ? '–' : visCur.toLocaleString('de-CH');
       if (visCur == null){ const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; } }
       else setDelta('hm-vis-d', visCur, visPrev);
