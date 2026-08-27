@@ -282,7 +282,9 @@ Deno.serve(async (req) => {
         `Tu citación${nom ? " · " + esc(nom) : ""}</div>` +
         `<div style="font:700 30px/1.1 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#ddf98f;margin-top:4px;` +
         `font-variant-numeric:tabular-nums">${esc(h)}</div>` +
-        (d?.hora && citaGeneral && String(d.hora).slice(0, 5) !== citaGeneral
+        /* La aclaración de cuándo entra el resto es para el EQUIPO. Al cliente no le sirve
+           —él viene a su hora— y encima puede leerla como que tendría que estar antes. */
+        (!paraCliente && d?.hora && citaGeneral && String(d.hora).slice(0, 5) !== citaGeneral
           ? `<div style="font-size:12px;color:#9aa6bd;margin-top:4px">El resto del equipo entra ${esc(citaGeneral)}.</div>`
           : "") +
         `</td></tr></table>`;

@@ -6911,7 +6911,7 @@ const newsCases = [
   // ventana ANTERIOR de igual longitud: pageviews para los ▲▼ de KPIs y la línea punteada
   // del gráfico. Se trae UNA vez por corrida de loadAll (misma Promise.all) y queda cacheada
   // en módulo para los re-render intermedios (realtime, cambio de sub-tab).
-  let prevViews = [];
+  let prevViews = [], prevStats = null;
   let prevWin = { start: 0, end: 0 };
   /* Sesiones con actividad humana (SQL 0136). Empieza a acumular el 24/08/2026:
      para períodos anteriores NO hay dato, y mostrar 0 sería mentir al revés —
@@ -7069,7 +7069,17 @@ const newsCases = [
       prevWin = { start: winStart - winLen, end: winStart - 1 };
       const [viewsQ, prevQ, videosQ, notesQ, tasksQ, actQ] = await Promise.all([
         fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
-        fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString()),
+        /* El período ANTERIOR se cuenta en la base. Se bajaban sus 6.349 filas enteras
+           —con path, duración y todo— para sacar dos números: visitas y sesiones. Era el
+           39% de todo lo que descarga esta pantalla, que tardaba 7,3 s.
+           Si la RPC falla se cae al método viejo, así que un error acá no deja las flechas
+           ▲▼ sin comparación. */
+        supabase.rpc('stats_periodo', {
+          desde: new Date(winStart - winLen).toISOString(),
+          hasta: new Date(winStart - 1).toISOString(),
+        }).then(async (r) => (r.error || !r.data
+          ? await fetchAllRows('pageviews', 'created_at,session_id,duration', new Date(winStart - winLen).toISOString(), new Date(winStart - 1).toISOString())
+          : { data: null, stats: typeof r.data === 'string' ? JSON.parse(r.data) : r.data })),
         fetchAllRows('video_plays', '*', since(), until()),
         fetchAllRowsFull('lead_notes', 'lead_id,created_at', 'created_at'),
         fetchAllRowsFull('lead_tasks', 'lead_id,created_at,done_at', 'created_at'),
@@ -7084,7 +7094,11 @@ const newsCases = [
       } else {
         avisoCarga('tab-analytics', '');
         lastViews = viewsQ.data || [];
-        prevViews = (prevQ && !prevQ.error) ? (prevQ.data || []) : [];
+        /* Dos formas de tener el período anterior: los totales de la RPC (lo normal) o las
+           filas crudas (si la RPC falló). `prevStats` es la fuente de verdad; prevViews
+           queda solo para el camino viejo. */
+        prevStats = (prevQ && prevQ.stats) || null;
+        prevViews = (prevQ && !prevQ.error && !prevQ.stats) ? (prevQ.data || []) : [];
         humanAct = (actQ && !actQ.error) ? (actQ.data || []) : [];
         actWeb = {}; (lastViews || []).forEach((v) => { if (v.session_id) maxTo(actWeb, v.session_id, v.created_at); });
         renderAnalytics(lastViews, allLeads);
@@ -9181,7 +9195,7 @@ const newsCases = [
     // segundos — un número falso puesto como si fuera un dato. Mejor '–'.
     if (anaCargada && !rangeDay && rangeDays === 30){
       visCur = (lastViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
-      visPrev = (prevViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
+      visPrev = prevStats ? Number(prevStats.visitas) : (prevViews || []).filter((v) => !/^claude-/.test(v.session_id || '')).length;
     } else if (hmViews60){
       visCur = hmViews60.filter((v) => now - Date.parse(v.created_at) <= 30 * D).length;
       visPrev = hmViews60.filter((v) => { const a = now - Date.parse(v.created_at); return a > 30 * D && a <= 60 * D; }).length;
@@ -13403,22 +13417,28 @@ const newsCases = [
 
     /* ▲▼ vs el período anterior de igual longitud (pageviews de prevViews, leads por created_at) */
     const pReal = (prevViews || []).filter((r) => !/^claude-/.test(r.session_id || ''));
-    const pSessions = new Set(pReal.map((r) => r.session_id));
+    const pVisitas = prevStats ? Number(prevStats.visitas) : pReal.length;
+    const pSesiones = prevStats ? Number(prevStats.sesiones) : new Set(pReal.map((r) => r.session_id)).size;
+    const pSessions = { size: pSesiones };
     const pLeads = (leads || []).filter((l) => {
       if (/^claude-/.test(l.session_id || '')) return false;
       if (esCartera(l)) return false;   // mismo criterio que el período actual, si no la flecha ▲▼ compara distinto
       const t = new Date(l.created_at).getTime();
       return t >= prevWin.start && t <= prevWin.end;
     });
+    /* La mediana del período anterior: de la RPC si está, y si no del array como siempre.
+       Mediana también acá, si no la flecha compararía peras con manzanas. */
     const pDurs = pReal.filter((r) => r.duration > 0).map((r) => r.duration).sort((a, b) => a - b);
-    const pAvg = pDurs.length
-      ? (pDurs.length % 2 ? pDurs[(pDurs.length - 1) / 2] : (pDurs[pDurs.length / 2 - 1] + pDurs[pDurs.length / 2]) / 2)
-      : 0;   // mediana también acá, si no la flecha compararía peras con manzanas
+    const pAvg = prevStats
+      ? Number(prevStats.dur_mediana) || 0
+      : (pDurs.length
+        ? (pDurs.length % 2 ? pDurs[(pDurs.length - 1) / 2] : (pDurs[pDurs.length / 2 - 1] + pDurs[pDurs.length / 2]) / 2)
+        : 0);
     /* los leads no dependen de bots: esa comparación vale siempre */
     setDelta('ka-conv-d', periodLeads.length, pLeads.length);
     if (compararOk){
       setDelta('ka-sessions-d', sessions.size, pSessions.size);
-      setDelta('ka-views-d', real.length, pReal.length);
+      setDelta('ka-views-d', real.length, pVisitas);
       setDelta('ka-time-d', avg, pAvg);
       setDelta('ka-rate-d', sessions.size ? periodLeads.length / sessions.size : 0, pSessions.size ? pLeads.length / pSessions.size : 0);
     } else {
@@ -13451,7 +13471,16 @@ const newsCases = [
        medido con el MISMO criterio. Si no, sería la curva de bots contra la curva de
        gente: la escala se iría a las nubes y la línea real quedaría pegada al piso,
        leyéndose como un derrumbe que nunca pasó. */
-    if (compararOk) pReal.forEach((r) => { const d = prevDayMap.get(r.created_at.slice(0, 10)); if (d) d.pset.add(r.session_id); });
+    /* La línea punteada, día por día. Con la RPC ya vienen los conteos por fecha, así que
+       en vez de sumar sesión por sesión se asigna el número: `pset` se usa después solo por
+       su .size, y un objeto con size cumple el mismo contrato sin bajar 6.349 filas. */
+    if (compararOk){
+      if (prevStats && prevStats.por_dia){
+        prevDayMap.forEach((d, fecha) => { d.pset = { size: Number(prevStats.por_dia[fecha]) || 0 }; });
+      } else {
+        pReal.forEach((r) => { const d = prevDayMap.get(r.created_at.slice(0, 10)); if (d) d.pset.add(r.session_id); });
+      }
+    }
     periodLeads.forEach((l) => { const d = dayMap.get(l.created_at.slice(0, 10)); if (d) d.leads++; });
     /* gráfico SVG real: área + línea de sesiones, puntos de leads, línea punteada del período anterior */
     const n = days.length, W = 1000, H = 260, padL = 42, padR = 14, padT = 16, padB = 28;
