@@ -255,6 +255,15 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       gateT:'Your project', gateP:'To open your project we send a 6-digit code to your email. It stays valid on this device for 30 days.',
       gateNoMail:'This project has no contact email yet — write to info@viven.ch and we open it for you.',
       codePh:'000000', codeGo:'Confirm', codeSent:'Code sent to', codeBad:'Wrong code', codeOld:'The code expired — ask for a new one',
+      /* Agregado el 27 ago 2026: estos textos estaban escritos solo en español dentro
+         del código, así que un cliente alemán veía el portal en alemán y de golpe una
+         frase en castellano. */
+      codeMio:'Someone else on the project? Have it sent to your address:', codeMioBtn:'Send it to me',
+      codeNoTuyo:'The code goes to that address, not yours.',
+      codeAjeno:'That address is not on this project. These are:', codeAjeno2:'If yours is missing, ask us to add you.',
+      codeFalla:'The code could not be sent:', codeSinMail:'This project has no contact email — tell us and we will fix it.',
+      dlFallback:'Download did not start? Tap here', comFalla:'could not be sent — copy it and try again',
+      briefSinMandar:'We have not emailed it to you yet — you can start answering here anyway.',
       err:'Could not load — check the link or write to info@viven.ch', due:'Delivery by', noVid:'The cut is not ready yet.' },
     de: { title:'Ihr Projektstatus', steps:['Entwicklung','Vorproduktion','Dreh','Postproduktion','Geliefert'],
       ph:'Was soll geändert werden?', send:'Kommentar senden', sent:'✅ Gesendet — wir bekommen es sofort, mit dem Zeitpunkt.',
@@ -265,6 +274,12 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       gateT:'Ihr Projekt', gateP:'Um Ihr Projekt zu öffnen, senden wir einen 6-stelligen Code an Ihre E-Mail. Er bleibt auf diesem Gerät 30 Tage gültig.',
       gateNoMail:'Für dieses Projekt ist noch keine Kontakt-E-Mail hinterlegt — schreiben Sie an info@viven.ch, wir schalten es frei.',
       codePh:'000000', codeGo:'Bestätigen', codeSent:'Code gesendet an', codeBad:'Falscher Code', codeOld:'Der Code ist abgelaufen — bitte neuen anfordern',
+      codeMio:'Jemand anderes aus dem Projekt? Lassen Sie ihn an Ihre Adresse senden:', codeMioBtn:'An mich senden',
+      codeNoTuyo:'Der Code geht an diese Adresse, nicht an Ihre.',
+      codeAjeno:'Diese Adresse gehört nicht zum Projekt. Diese schon:', codeAjeno2:'Fehlt Ihre, sagen Sie uns Bescheid.',
+      codeFalla:'Der Code konnte nicht gesendet werden:', codeSinMail:'Für dieses Projekt ist keine Kontaktadresse hinterlegt — sagen Sie uns Bescheid.',
+      dlFallback:'Download nicht gestartet? Hier tippen', comFalla:'konnte nicht gesendet werden — kopieren und erneut versuchen',
+      briefSinMandar:'Wir haben es Ihnen noch nicht per E-Mail geschickt — Sie können hier trotzdem schon antworten.',
       err:'Konnte nicht geladen werden — Link prüfen oder info@viven.ch', due:'Lieferung bis', noVid:'Der Schnitt ist noch nicht bereit.' },
     es: { title:'El estado de tu proyecto', steps:['Desarrollo','Preproducción','Rodaje','Postproducción','Entregado'],
       ph:'¿Qué habría que cambiar?', send:'Enviar comentario', sent:'✅ Enviado — nos llega al instante, con el minuto.',
@@ -275,6 +290,12 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       gateT:'Tu proyecto', gateP:'Para abrir tu proyecto te mandamos un código de 6 dígitos a tu email. Queda válido en este dispositivo por 30 días.',
       gateNoMail:'Este proyecto todavía no tiene email de contacto — escribinos a info@viven.ch y te lo abrimos.',
       codePh:'000000', codeGo:'Confirmar', codeSent:'Código enviado a', codeBad:'Código incorrecto', codeOld:'El código venció — pedí uno nuevo',
+      codeMio:'¿Sos otra persona del proyecto? Pedilo a tu dirección:', codeMioBtn:'Mandámelo a mí',
+      codeNoTuyo:'El código llega a esa dirección, no a la tuya.',
+      codeAjeno:'Esa dirección no está en este proyecto. Las que sí:', codeAjeno2:'Si falta la tuya, pedinos que te agreguemos.',
+      codeFalla:'No se pudo mandar el código:', codeSinMail:'Este proyecto no tiene email de contacto cargado — avisanos y lo arreglamos.',
+      dlFallback:'¿No arrancó la descarga? Tocá acá', comFalla:'no se pudo enviar — copiala y probá de nuevo',
+      briefSinMandar:'Todavía no te lo mandamos por email — podés empezar a contestarlo desde acá igual.',
       err:'No se pudo cargar — revisá el link o escribí a info@viven.ch', due:'Entrega hasta', noVid:'El corte todavía no está listo.' },
   };
 
@@ -646,7 +667,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     var pasos = d.brief_variante === 'pasos';
 
     var sinMandar = !d.brief_enviado
-      ? '<p class="bsub" style="color:var(--acid,#ddf98f)">Todavía no te lo mandamos por email — podés empezar a contestarlo desde acá igual.</p>'
+      ? '<p class="bsub" style="color:var(--acid,#ddf98f)">' + esc(L.briefSinMandar) + '</p>'
       : '';
 
     /* Terminado, pero con la puerta abierta. Quedaba una línea con el ✓ y nada más: si el
@@ -865,7 +886,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
           provisorio.style.opacity = '1';
           provisorio.style.borderColor = '#ff8b8b';
           var p0 = provisorio.querySelector('p');
-          if (p0) p0.innerHTML = esc(t) + '<br /><small style="color:#ff8b8b">no se pudo enviar — copiala y probá de nuevo</small>';
+          if (p0) p0.innerHTML = esc(t) + '<br /><small style="color:#ff8b8b">' + esc(L.comFalla) + '</small>';
         }
         return;
       }
@@ -916,10 +937,10 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
          (Sebastián, 27 ago 2026: "todos los que reciban ese email tienen que poder pedir el
           código, ya que es un link interno y no lo recibe cualquiera".) */
       '<button class="btn btn-primary small" id="pt-code-send" type="button">' + L.codeSend + '</button>' +
-      '<p class="muted-note" style="margin:12px 0 6px;font-size:12.5px">¿Sos otra persona del proyecto? Pedilo a tu dirección:</p>' +
+      '<p class="muted-note" style="margin:12px 0 6px;font-size:12.5px">' + esc(L.codeMio) + '</p>' +
       '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">' +
         '<input id="pt-code-mail" type="email" placeholder="tu@email.com" style="flex:1;min-width:190px" />' +
-        '<button class="btn btn-ghost small" id="pt-code-send2" type="button">Mandámelo a mí</button>' +
+        '<button class="btn btn-ghost small" id="pt-code-send2" type="button">' + esc(L.codeMioBtn) + '</button>' +
       '</div>' +
       '<div id="pt-code-in"></div></div>';
     function pedirCodigo(b, email){
@@ -931,10 +952,10 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
           b.disabled = false;
           $('pt-code-in').innerHTML = '<p class="pt-err" style="margin:10px 0 0">' +
             (r.error === 'sin_email'
-              ? 'Este proyecto no tiene email de contacto cargado — avisanos y lo arreglamos.'
+              ? esc(L.codeSinMail)
               : r.error === 'no_es_del_proyecto'
-                ? 'Esa dirección no está en este proyecto. Las que sí: ' + esc((r.opciones || []).join(', ')) + '. Si falta la tuya, pedinos que te agreguemos.'
-                : 'No se pudo mandar el código: ' + esc(r.error)) + '</p>';
+                ? esc(L.codeAjeno) + ' ' + esc((r.opciones || []).join(', ')) + '. ' + esc(L.codeAjeno2)
+                : esc(L.codeFalla) + ' ' + esc(r.error)) + '</p>';
           return;
         }
         $('pt-code-in').innerHTML = '<p class="muted-note" style="margin:12px 0 8px;font-size:13px">' + L.codeSent + ' ' + esc(r.enviado_a) + '</p>' +
@@ -1021,7 +1042,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       var caja = document.getElementById('pt-dl-fallback');
       if (caja){
         caja.innerHTML = '<a href="' + esc(r.url) + '" download="' + esc(nombre || '') + '" ' +
-          'style="font-size:12.5px;color:var(--acid,#ddf98f)">¿No arrancó la descarga? Tocá acá</a>';
+          'style="font-size:12.5px;color:var(--acid,#ddf98f)">' + esc(L.dlFallback) + '</a>';
       }
     });
   }
