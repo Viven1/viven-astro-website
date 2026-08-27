@@ -38,6 +38,16 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   /* El minuto clavado se ve distinto: es la diferencia entre "va a este cuadro" y "va a
      donde esté el video cuando mandes". */
   .pt-tc.fijo{color:var(--acid,#ddf98f);border-color:var(--acid,#ddf98f)}
+  /* El esqueleto de carga. Late despacio: un parpadeo rápido pone nervioso. */
+  .pt-skel .sk{background:linear-gradient(90deg,rgba(255,255,255,.045),rgba(255,255,255,.085),rgba(255,255,255,.045));
+    background-size:200% 100%;border-radius:8px;animation:skel 1.6s ease-in-out infinite}
+  .pt-skel .sk-t{height:30px;width:58%;margin:0 0 12px}
+  .pt-skel .sk-s{height:14px;width:38%;margin:0 0 22px}
+  .pt-skel .sk-vid{aspect-ratio:16/9;width:100%;border-radius:14px;margin:0 0 20px}
+  .pt-skel .sk-l{height:13px;width:100%;margin:0 0 10px}
+  @keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  @media (prefers-reduced-motion: reduce){.pt-skel .sk{animation:none}}
+
   /* ── Project brief ── mismo lenguaje visual que el resto del portal, pero se lee
      como un formulario y no como un panel: el que entra a contestarlo viene a escribir. */
   .pt-brief{border:1px solid var(--line-strong,#2c3d5c);border-radius:14px;background:rgba(255,255,255,.02);
@@ -190,7 +200,16 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     <a href="/" class="logo" aria-label="Viven"><svg class="logo-mark"><use href="#viven-logo"/></svg></a>
     <span class="muted-note" id="pt-est" style="font-size:12px"></span>
   </div>
-  <div id="pt-body"><div class="pt-card"><p class="muted-note">…</p></div></div>
+  <!-- Un "…" solo, sobre una pantalla vacía, durante el segundo largo que tarda la
+       función en despertar, se lee como una página rota. Un esqueleto con la forma de lo
+       que viene se lee como algo que está cargando.
+       (Sebastián, 27 ago 2026: "el portal del cliente tarda un montón en cargar, parece
+        que no funciona".) -->
+  <div id="pt-body"><div class="pt-card pt-skel">
+    <div class="sk sk-t"></div><div class="sk sk-s"></div>
+    <div class="sk sk-vid"></div>
+    <div class="sk sk-l"></div><div class="sk sk-l" style="width:72%"></div>
+  </div></div>
 </div>
 
 <script is:inline define:vars={{ SB_URL, SB_KEY, BRIEF, BRIEF_T, BRIEF_SECCIONES }}>

@@ -127,13 +127,18 @@ Deno.serve(async (req) => {
     const { data: deal } = await service.from("deals").select("id,title,portal_token,lead_id,stage").eq("id", id).maybeSingle();
     if (!deal || !deal.portal_token || !igual(String(deal.portal_token), String(t))) return json({ error: "not_found" }, 404);
 
-    const { data: proj } = await service.from("projects")
-      .select("*").eq("deal_id", deal.id).maybeSingle();
+    /* Los dos salen del deal y no dependen entre sí, así que van juntos. Cada viaje a la
+       base desde acá cuesta ~0,3 s de red aunque la consulta tarde 0,14 ms: lo que hacía
+       lento al portal era la cantidad de viajes en fila, no el SQL.
+       (Sebastián, 27 ago 2026: "el portal del cliente tarda un montón en cargar, parece
+        que no funciona". Medido: 1,8 s con la base contestando en microsegundos.) */
+    const [{ data: proj }, { data: lead }] = await Promise.all([
+      service.from("projects").select("*").eq("deal_id", deal.id).maybeSingle(),
+      deal.lead_id
+        ? service.from("leads").select("id,name,lang,email").eq("id", deal.lead_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
     if (!proj) return json({ error: "not_found" }, 404);
-
-    const { data: lead } = deal.lead_id
-      ? await service.from("leads").select("id,name,lang,email").eq("id", deal.lead_id).maybeSingle()
-      : { data: null };
     /* Un solo idioma: el de la persona. "No hacen falta tres idiomas, solo el idioma
        del cliente que tenemos en su persona." */
     const lang = (["en", "de", "es"].includes(String(lead?.lang)) ? String(lead!.lang) : "en") as "en" | "de" | "es";
@@ -685,12 +690,32 @@ Deno.serve(async (req) => {
     }
 
     // ---------- ESTADO (lo que se ve al entrar) ----------
-    const [{ data: versiones }, { data: comentarios }, { data: archivos }] = await Promise.all([
+    /* PRIMERO se decide si esta persona puede ver algo. Antes se traía el proyecto entero
+       —versiones, comentarios, archivos, briefs, y hasta los briefs de proyectos
+       anteriores— y recién después, cuarenta líneas más abajo, un `if (!acc)` devolvía
+       cuatro campos y tiraba todo lo demás. El cliente que entra por primera vez pagaba
+       cinco viajes a la base para que le pidan un código.
+       (Sebastián, 27 ago 2026: "el portal del cliente tarda un montón en cargar, parece
+        que no funciona".) */
+    const accTok0 = await verificado(body.token);
+    const accEarly = esEquipo ? { equipo: true } : accTok0;
+    if (!accEarly) {
+      return json({
+        ok: true, lang,
+        necesita_codigo: true,
+        verificado: false,
+        email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
+        tiene_email: !!emailCliente,
+      });
+    }
+
+    const [{ data: versiones }, { data: comentarios }, { data: archivos }, { data: briefRows }] = await Promise.all([
       service.from("project_versions").select("*").eq("project_id", proj.id).order("n", { ascending: false }),
       service.from("project_comments").select("id,version_id,tc_ms,body,author_name,author_email,from_client,resolved,created_at")
         .eq("project_id", proj.id).order("tc_ms", { ascending: true, nullsFirst: true }),
       service.from("project_files").select("id,file_name,mime,size_bytes,created_at")
         .eq("project_id", proj.id).eq("visible_cliente", true).order("created_at", { ascending: false }),
+      service.from("project_briefs").select("key,value,answered_by,updated_at").eq("project_id", proj.id),
     ]);
     /* ── PASE DE EQUIPO ──
        Leer la sesión del navegador no alcanza: el dashboard vive en la app Viven CRM y
@@ -761,7 +786,7 @@ Deno.serve(async (req) => {
 
     /* Un token que se guardó con email "equipo:…" es un pase del equipo, no el acceso
        del cliente: entra igual pero la pantalla tiene que poder decirlo. */
-    const accTok = await verificado(body.token);
+    const accTok = accTok0;
     const emailAcc = String((accTok as { email?: string } | null)?.email || "");
     const porPase = emailAcc.startsWith("equipo:") || emailAcc.startsWith("editor:");
     const acc = esEquipo ? { equipo: true } : accTok;
@@ -772,8 +797,6 @@ Deno.serve(async (req) => {
        hacen algo y otros otra cosa, pero lo dejamos en todos lados como base de lo que
        ya hicimos". O sea: se OFRECEN, no se heredan. Una respuesta puesta a ciegas de
        otro proyecto es peor que un campo vacío, porque nadie la revisa. */
-    const { data: briefRows } = await service.from("project_briefs")
-      .select("key,value,answered_by,updated_at").eq("project_id", proj.id);
     const brief: Record<string, string> = {};
     for (const b2 of briefRows ?? []) brief[(b2 as { key: string }).key] = (b2 as { value: string }).value ?? "";
 
@@ -801,15 +824,9 @@ Deno.serve(async (req) => {
        login".) Ahora el link solo dice a qué mail se manda el código; lo demás llega
        después de verificarse. El token verificado dura 30 días en el navegador, así que
        el cliente no lo tipea en cada visita. */
-    if (!acc) {
-      return json({
-        ok: true, lang,
-        necesita_codigo: true,
-        verificado: false,
-        email_tapado: emailCliente ? emailCliente.replace(/^(.).*(.@)/, "$1•••$2") : null,
-        tiene_email: !!emailCliente,
-      });
-    }
+    /* La decisión ya se tomó arriba, antes de traer nada. Esto queda como red: si alguien
+       mueve el corte de lugar, el portal se cierra en vez de abrirse. */
+    if (!acc) return json({ error: "necesita_codigo" }, 401);
 
     return json({
       ok: true, lang,
