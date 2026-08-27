@@ -2525,6 +2525,73 @@ const newsCases = [
 </head>
 <body>
 
+<!-- ═══ RED DE SEGURIDAD DE LA PANTALLA EN BLANCO ═══
+     `login-view` y `dash-view` arrancan los dos con `hidden`, y quien los muestra es el
+     bundle. O sea: si el bundle no carga, la página queda COMPLETAMENTE en blanco, sin un
+     cartel, sin un botón, sin nada que explique qué pasó ni qué hacer.
+     Pasa de verdad: el service worker guarda el HTML del dashboard, y si sirve una copia
+     vieja, esa copia pide un bundle con un hash que ya no existe en el servidor. 404, el
+     módulo no ejecuta, pantalla blanca. Recargar no arregla nada porque el SW vuelve a
+     servir lo mismo.
+     Este script es INLINE y no depende de nada: si en seis segundos nadie mostró una
+     vista, aparece el cartel con el botón que borra las cachés y vuelve a pedir todo.
+     (Sebastián, 26 ago 2026: "sigo sin poder acceder el dashboard del browser, todo
+     blanco".) -->
+<div id="vv-rescate" hidden style="position:fixed;inset:0;z-index:99999;display:flex;
+  align-items:center;justify-content:center;padding:24px;background:#0b1220;
+  font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f4f6fb">
+  <div style="max-width:420px;text-align:center">
+    <p style="font-size:17px;font-weight:700;margin:0 0 8px">El dashboard no terminó de cargar</p>
+    <p id="vv-rescate-p" style="font-size:14px;line-height:1.6;color:#9aa6bd;margin:0 0 20px">
+      Suele ser una copia vieja guardada en el navegador. El botón la borra y vuelve a pedir todo.</p>
+    <button id="vv-rescate-b" type="button" style="background:#ddf98f;color:#1c2508;border:0;
+      border-radius:100px;font:700 15px inherit;padding:13px 26px;cursor:pointer">Recargar limpio</button>
+    <p id="vv-rescate-e" style="font-size:11.5px;color:#6b7896;margin:18px 0 0;word-break:break-word"></p>
+  </div>
+</div>
+<!-- `is:inline` NO es opcional: sin eso Astro se lleva este script a un archivo externo
+     con hash, y el rescate pasaría a depender de que carguen los archivos externos — que es
+     exactamente lo que falla cuando la pantalla queda en blanco. Probado con el bundle roto
+     a propósito: la versión procesada no aparecía. -->
+<script is:inline>
+(function(){
+  var mostrado = false, motivo = '';
+  function vista(id){ var e = document.getElementById(id); return e && !e.hidden; }
+  function mostrar(){
+    if (mostrado || vista('login-view') || vista('dash-view')) return;
+    mostrado = true;
+    var c = document.getElementById('vv-rescate'); if (!c) return;
+    c.hidden = false;
+    if (motivo) document.getElementById('vv-rescate-e').textContent = motivo;
+  }
+  /* Si el módulo no carga, el navegador dispara 'error' sobre el <script>. Es la señal
+     más rápida que hay: no hace falta esperar los seis segundos. */
+  window.addEventListener('error', function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')){
+      motivo = 'No cargó: ' + String(t.src || t.href || '').split('/').pop();
+      mostrar();
+    }
+  }, true);
+  setTimeout(mostrar, 6000);
+
+  document.getElementById('vv-rescate-b').addEventListener('click', function(){
+    var b = this; b.disabled = true; b.textContent = 'Limpiando…';
+    var fin = function(){ location.replace(location.pathname + location.search + '#r=' + Date.now()); location.reload(); };
+    /* Se borran las cachés Y se desregistra el service worker: si el SW es el que está
+       sirviendo el HTML viejo, borrar solo la caché lo deja volver a guardarlo igual. */
+    var tareas = [];
+    try { if (window.caches) tareas.push(caches.keys().then(function(ks){
+      return Promise.all(ks.map(function(k){ return caches.delete(k); })); })); } catch (e){ }
+    try { if (navigator.serviceWorker) tareas.push(navigator.serviceWorker.getRegistrations()
+      .then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister(); })); })); } catch (e){ }
+    Promise.all(tareas).then(fin, fin);
+    setTimeout(fin, 3000);   // si algo se cuelga, se recarga igual
+  });
+})();
+</script>
+
+
 <!-- sprite del logo real (mismo símbolo que usa el sitio público — SiteHeader/SiteFooter/
      Base.astro — inline acá porque el dashboard es un documento standalone, no pasa por
      Base.astro). Pedido explícito: "el nombre sigue sin ser nuestro logo, no quiero ver
