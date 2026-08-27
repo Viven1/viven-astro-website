@@ -2456,6 +2456,11 @@ const newsCases = [
      columnas arrancan en 360px: en un monitor normal siguen entrando dos o
      tres, pero cada una respira. */
   .hm-masonry{column-count:3;column-width:360px;column-gap:16px;margin-top:16px}
+  .ci-row{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);
+    border-radius:10px;margin-bottom:7px;cursor:pointer;font-size:13.5px}
+  .ci-row:hover{border-color:var(--acid)}
+  .ci-row input{margin-top:3px}
+  .ci-row .ci-d{display:block;font-size:12px;color:var(--muted);margin-top:2px}
   .of-desc{width:100%;margin-top:5px;background:var(--navy-900);border:1px solid var(--line);border-radius:7px;
     color:var(--muted);font:12px/1.45 inherit;padding:5px 8px;resize:vertical;min-height:28px;display:block}
   .of-desc:focus{color:var(--text);border-color:var(--acid);outline:none}
@@ -3159,6 +3164,7 @@ const newsCases = [
         <p class="muted-note" style="margin:3px 0 0">La gente con la que rodamos. A diferencia de Personas, a estos les <b>pagamos</b>: acá está con quién trabajamos, en qué proyectos y cuánto le pagamos.</p>
       </div>
       <div class="of-bar" style="margin:0">
+        <button class="btn btn-ghost small" id="crew-import" type="button" title="Traer emails y teléfonos desde Personas, o pegar una lista">📥 Importar contactos</button>
         <button class="btn btn-ghost small" id="crew-fusion" type="button" title="Juntar dos fichas que son la misma persona">🔗 Unir repetidos</button>
         <button class="btn btn-primary small" id="crew-new" type="button">➕ Nuevo técnico</button>
       </div>
@@ -5572,6 +5578,33 @@ const newsCases = [
     </div>
     <div id="pbf-llenar" class="pb-pane"></div>
     <div id="pbf-mandar" class="pb-pane" hidden></div>
+  </div>
+</div>
+
+<!-- IMPORTAR CONTACTOS DE TÉCNICOS
+     Ninguno de los siete tenía email ni teléfono, así que el plan de rodaje salía "sin
+     teléfono" para todos y no se les podía mandar nada. Dos caminos, porque los datos
+     están en dos sitios: algunos ya son contactos del CRM (Martin y Pascal lo estaban),
+     y el resto vive en la libreta del teléfono de alguien.
+     (Sebastián, 27 ago 2026: "importar contactos técnicos!") -->
+<div class="fu-modal" id="ci-modal" hidden role="dialog" aria-modal="true" aria-label="Importar contactos">
+  <div class="fu-back" id="ci-back"></div>
+  <div class="fu-card" style="width:min(760px,100%)">
+    <div class="fu-hd">
+      <div><b>📥 Importar contactos</b><span>emails y teléfonos de los técnicos</span></div>
+      <button class="fu-x" id="ci-x" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="pb-pane">
+      <label class="ml-lb" style="margin-top:0">Encontrados en Personas</label>
+      <div id="ci-match"></div>
+      <label class="ml-lb" for="ci-pegar">O pegá una lista</label>
+      <p class="muted-note" style="margin:0 0 8px">Una por línea: <b>Nombre, email, teléfono</b>. Sirve lo que copiás de un contacto del teléfono o de una planilla. Si el nombre ya existe, se le completan los datos que falten; si no, se crea la ficha.</p>
+      <textarea id="ci-pegar" class="ed-inp ml-ta" rows="7" placeholder="Tobias Meier, tobias@ejemplo.ch, +41 79 123 45 67&#10;Hank, hank@sonido.ch"></textarea>
+      <div class="fu-actions" style="margin-top:14px">
+        <button class="btn btn-primary" id="ci-go" type="button">Guardar los cambios</button>
+        <span class="muted-note" id="ci-msg"></span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -18708,8 +18741,104 @@ const newsCases = [
     })();
   }
 
+  /* ── Importar contactos de técnicos ──
+     Dos caminos porque los datos viven en dos sitios: los que ya son contactos del CRM, y
+     los que están en la libreta de alguien. Ninguno de los siete tenía email ni teléfono,
+     así que el plan de rodaje salía "sin teléfono" para todos.
+     Nunca pisa un dato que ya está: solo completa lo que falta. Un email viejo corregido a
+     mano no puede perderse porque el CRM tenga otro. */
+  function ciAbrir(){
+    const norm = (x) => String(x || '').toLowerCase().trim();
+    const sinDato = (c) => !c.email || !c.phone;
+    /* El match es por nombre contenido, en cualquiera de los dos sentidos: la ficha dice
+       "Martin" y la persona "Martin Arya". */
+    const props = [];
+    (crewList || []).filter(sinDato).forEach((c) => {
+      const n = norm(c.name); if (!n) return;
+      (allLeads || []).forEach((l) => {
+        const ln = norm(l.name);
+        if (!ln || !l.email) return;
+        if (!(ln.includes(n) || n.includes(ln))) return;
+        props.push({ crew: c, lead: l, email: l.email, tel: l.phone || '' });
+      });
+    });
+    ciProps = props;
+    $('ci-match').innerHTML = props.length
+      ? props.map((x, i) => '<label class="ci-row"><input type="checkbox" data-ci="' + i + '" checked />' +
+          '<span><b>' + esc(x.crew.name) + '</b>' +
+          (x.crew.roles && x.crew.roles.length ? ' <span class="muted-note">' + esc(x.crew.roles.join(', ')) + '</span>' : '') +
+          '<span class="ci-d">' + esc(x.email) + (x.tel ? ' · ' + esc(x.tel) : '') +
+          ' <span class="muted-note">— de «' + esc(x.lead.name || x.lead.email) + '» en Personas</span></span></span></label>').join('')
+      : '<p class="muted-note" style="margin:0 0 4px">Ningún técnico sin datos coincide con un contacto de Personas. Usá el cuadro de abajo.</p>';
+    $('ci-pegar').value = '';
+    $('ci-msg').textContent = '';
+    $('ci-modal').hidden = false;
+  }
+  let ciProps = [];
+
+  async function ciGuardar(){
+    const btn = $('ci-go');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    let tocados = 0, creados = 0;
+    try {
+      /* 1. Los que se tildaron de Personas. */
+      const marcados = [...$('ci-match').querySelectorAll('[data-ci]')].filter((c) => c.checked).map((c) => ciProps[+c.dataset.ci]);
+      for (const x of marcados){
+        const patch = {};
+        if (!x.crew.email && x.email) patch.email = x.email;
+        if (!x.crew.phone && x.tel) patch.phone = x.tel;
+        if (!Object.keys(patch).length) continue;
+        const { error } = await supabase.from('crew').update(patch).eq('id', x.crew.id);
+        if (error) throw new Error(error.message);
+        Object.assign(x.crew, patch); tocados++;
+      }
+
+      /* 2. Lo pegado. Coma o tabulación, y el email se reconoce por la arroba: así una
+         línea "Tobias, +41 79 …, tobias@…" entra igual que en el orden esperado. */
+      const lineas = $('ci-pegar').value.split('\n').map((l) => l.trim()).filter(Boolean);
+      for (const linea of lineas){
+        const partes = linea.split(/[,;\t]+/).map((x) => x.trim()).filter(Boolean);
+        if (!partes.length) continue;
+        const email = partes.find((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)) || null;
+        const tel = partes.find((x) => x !== email && /[\d]{6,}/.test(x.replace(/[^\d]/g, ''))) || null;
+        const nombre = partes.find((x) => x !== email && x !== tel);
+        if (!nombre) continue;
+        const ya = (crewList || []).find((c) => String(c.name || '').toLowerCase().trim() === nombre.toLowerCase());
+        if (ya){
+          const patch = {};
+          if (!ya.email && email) patch.email = email;
+          if (!ya.phone && tel) patch.phone = tel;
+          if (!Object.keys(patch).length) continue;
+          const { error } = await supabase.from('crew').update(patch).eq('id', ya.id);
+          if (error) throw new Error(error.message);
+          Object.assign(ya, patch); tocados++;
+        } else {
+          const { data, error } = await supabase.from('crew')
+            .insert({ name: nombre, email, phone: tel, activo: true }).select().single();
+          if (error) throw new Error(error.message);
+          if (data) crewList.push(data);
+          creados++;
+        }
+      }
+
+      $('ci-modal').hidden = true;
+      crewRenderList();
+      toast(tocados + creados
+        ? '✓ ' + [tocados ? tocados + ' completado' + (tocados === 1 ? '' : 's') : '', creados ? creados + ' nuevo' + (creados === 1 ? '' : 's') : ''].filter(Boolean).join(' · ')
+        : 'No había nada nuevo para guardar');
+    } catch (e){
+      $('ci-msg').textContent = '⚠️ ' + (e.message || e);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar los cambios';
+    }
+  }
+
   function crewBind(){
     $('crew-new').addEventListener('click', crewNuevo);
+    $('crew-import').addEventListener('click', ciAbrir);
+    $('ci-x').addEventListener('click', () => { $('ci-modal').hidden = true; });
+    $('ci-back').addEventListener('click', () => { $('ci-modal').hidden = true; });
+    $('ci-go').addEventListener('click', ciGuardar);
     $('crew-fusion').addEventListener('click', crewFusionar);
     $('crew-back').addEventListener('click', () => { clearTimeout(crewT); crewGuardar(); crewCur = null; crewRenderList(); });
     $('crew-q').addEventListener('input', crewRenderList);
