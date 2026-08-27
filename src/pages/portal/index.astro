@@ -602,17 +602,15 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   function briefTxt(o){ var lg = (DATA && DATA.lang) || 'en'; return (o && (o[lg] || o.en)) || ''; }
 
   function briefHTML(d){
-    /* Antes esto era `if (!d.brief_enviado) return ''` a secas: el brief solo existía en el
-       portal DESPUÉS de mandarlo. Dos problemas — el cliente que entra a ver el corte no
-       tiene dónde contarnos nada, y Sebastián no puede ni mirar cómo se ve sin mandárselo
-       a alguien.
-       Ahora: si se mandó, va siempre. Si no, va igual mientras el proyecto no tenga cortes
-       —ahí el brief todavía sirve— y siempre para nosotros, que estamos revisando.
-       Lo que no hace es aparecer en un proyecto que ya está en montaje: doce preguntas
-       sobre qué es el video, al lado de la v3, son ruido.
-       (Sebastián, 26 ago 2026: "¿por qué no está el project brief en el portal?") */
-    var hayCortes = (d.versiones || []).length > 0;
-    if (!d.brief_enviado && hayCortes && !d.modo_equipo) return '';
+    /* El brief va SIEMPRE. Nació escondido detrás de `brief_enviado` —solo existía después
+       de mandarlo por email— y el 26 ago 2026 lo destapé a medias, con una regla que me
+       inventé: "no lo muestres si el proyecto ya tiene cortes". El 1202 tiene dos cortes,
+       así que siguió sin verse, que es exactamente lo que Sebastián estaba reportando.
+       No hay ruido que evitar: cuando está terminado se dibuja como una sola línea con el
+       ✓, y cuando no, es lo único que le pedimos al cliente.
+       (Sebastián, 26 ago 2026: "porq no esta el project brief en el portal?" y, después de
+        mi arreglo a medias, "y el project brief sigue sin estar en el proyect page para el
+        cliente...") */
     var T = briefT(), R = d.brief || {}, SUG = d.brief_sugerencias || {};
     var hechas = BRIEF.filter(function(q){ return (R[q.k] || '').trim(); }).length;
     var pasos = d.brief_variante === 'pasos';
@@ -639,6 +637,7 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
         '<span class="bn">' + hechas + ' ' + esc(T.de) + ' ' + BRIEF.length + ' ' + esc(T.contestadas) + '</span>' +
         '<button type="button" class="binv" id="b-inv">' + esc(T.invitar) + '</button></div>' +
       '<p class="bsub">' + esc(T.sub) + ' · <i>' + esc(T.guardado) + '</i></p>' +
+      sinMandar +
       '<div id="b-invbox"></div>' +
       cuerpo +
       (pasos
