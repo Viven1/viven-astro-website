@@ -15738,9 +15738,9 @@ const newsCases = [
   };
   // etiquetas del PDF/preview de oferta por idioma (offer.lang: de/en/es)
   const OF_PDF_L = {
-    de: { doc: 'Offerte', valid: 'Gültig bis', forL: 'Für', greet: 'Guten Tag', intro: 'Besten Dank für Ihre Anfrage und das entgegengebrachte Vertrauen. Gerne unterbreiten wir Ihnen die folgende Offerte:', defTitle: 'Video Produktion', pos: 'Position', qty: 'Menge', price: 'Preis', total: 'Total', sub: 'Zwischensumme', disc: 'Rabatt', net: 'Total netto', vat: 'MwSt', gross: 'Total', terms: 'Terms & Conditions', prices: 'Alle Preise in CHF.', loc: 'de-CH', opcionales: 'Optionen', conTodo: 'Mit allen Optionen', opcionalesNota: 'Diese Positionen sind nicht im Total enthalten. Sagen Sie uns, was Sie dazunehmen möchten.' },
-    en: { doc: 'Offer', valid: 'Valid until', forL: 'For', greet: 'Hello', intro: 'Thank you for your inquiry and your trust. We are pleased to submit the following offer:', defTitle: 'Video Production', pos: 'Item', qty: 'Qty', price: 'Price', total: 'Total', sub: 'Subtotal', disc: 'Discount', net: 'Total net', vat: 'VAT', gross: 'Total', terms: 'Terms & Conditions', prices: 'All prices in CHF.', loc: 'en-GB', opcionales: 'Optional add-ons', conTodo: 'With all add-ons', opcionalesNota: 'These are not included in the total. Tell us which ones you would like to add.' },
-    es: { doc: 'Oferta', valid: 'Válida hasta', forL: 'Para', greet: 'Hola', intro: 'Gracias por tu consulta y tu confianza. Con gusto te presentamos la siguiente oferta:', defTitle: 'Producción de video', pos: 'Concepto', qty: 'Cant.', price: 'Precio', total: 'Total', sub: 'Subtotal', disc: 'Descuento', net: 'Total neto', vat: 'IVA', gross: 'Total', terms: 'Términos y condiciones', prices: 'Todos los precios en CHF.', loc: 'es-ES', opcionales: 'Opcionales', conTodo: 'Con todos los opcionales', opcionalesNota: 'No están incluidos en el total. Decinos cuáles querés sumar.' },
+    de: { doc: 'Offerte', valid: 'Gültig bis', forL: 'Für', greet: 'Guten Tag', intro: 'Besten Dank für Ihre Anfrage und das entgegengebrachte Vertrauen. Gerne unterbreiten wir Ihnen die folgende Offerte:', defTitle: 'Video Produktion', pos: 'Position', qty: 'Menge', price: 'Preis', total: 'Total', sub: 'Zwischensumme', disc: 'Rabatt', net: 'Total netto', vat: 'MwSt', gross: 'Total', terms: 'Terms & Conditions', prices: 'Alle Preise in CHF.', loc: 'de-CH', opcionales: 'Optionen', opcionalesNota: 'Diese Positionen sind nicht im Total enthalten. Sagen Sie uns, was Sie dazunehmen möchten.' },
+    en: { doc: 'Offer', valid: 'Valid until', forL: 'For', greet: 'Hello', intro: 'Thank you for your inquiry and your trust. We are pleased to submit the following offer:', defTitle: 'Video Production', pos: 'Item', qty: 'Qty', price: 'Price', total: 'Total', sub: 'Subtotal', disc: 'Discount', net: 'Total net', vat: 'VAT', gross: 'Total', terms: 'Terms & Conditions', prices: 'All prices in CHF.', loc: 'en-GB', opcionales: 'Optional add-ons', opcionalesNota: 'These are not included in the total. Tell us which ones you would like to add.' },
+    es: { doc: 'Oferta', valid: 'Válida hasta', forL: 'Para', greet: 'Hola', intro: 'Gracias por tu consulta y tu confianza. Con gusto te presentamos la siguiente oferta:', defTitle: 'Producción de video', pos: 'Concepto', qty: 'Cant.', price: 'Precio', total: 'Total', sub: 'Subtotal', disc: 'Descuento', net: 'Total neto', vat: 'IVA', gross: 'Total', terms: 'Términos y condiciones', prices: 'Todos los precios en CHF.', loc: 'es-ES', opcionales: 'Opcionales', opcionalesNota: 'No están incluidos en el total. Decinos cuáles querés sumar.' },
   };
   const ofLang = () => { const v = $('of3-lang') && $('of3-lang').value; return ['de', 'en', 'es'].includes(v) ? v : (['de', 'en', 'es'].includes(ofCur && ofCur.lang) ? ofCur.lang : 'de'); };
   const ofValidDate = () => { const v = ($('of3-valid') && $('of3-valid').value) || (ofCur && ofCur.valid_until); return v ? new Date(v + 'T00:00:00') : new Date(Date.now() + 30 * 864e5); };
@@ -15772,7 +15772,6 @@ const newsCases = [
       rows += '<tr class="sub"><td colspan="3">' + L.sub + ' ' + esc(ph) + '</td><td class="r">' + fmtM(s.net) + '</td></tr>';
     });
     const opcionales = (ofCur.items || []).filter(esOpt);
-    const optTotal = opcionales.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
     if (opcionales.length){
       rows += '<tr class="ph opt-h"><td colspan="4">' + esc(L.opcionales) + '</td></tr>';
       opcionales.forEach((it) => { rows += fila(it, true); });
@@ -15813,7 +15812,6 @@ const newsCases = [
       'tr.opt-h td{background:#eef1f6;color:#5b6472}' +
       'tr.opt td{color:#6b7280}' +
       'tr.opt-n td{font-size:10.5px;color:#8a94a8;border-bottom:0;padding-top:2px}' +
-      '.totcard .row.opt-tot{color:#8a94a8;font-size:11.5px;border-top:1px dashed #d5d9e2;margin-top:5px;padding-top:6px}' +
       '.totcard{margin:26px 0 0 auto;width:300px;background:#0f1826;color:#f4f6fb;border-radius:14px;padding:18px 22px;font-size:13px;line-height:2}' +
       '.totcard .row{display:flex;justify-content:space-between}' +
       '.totcard .gross{border-top:1px solid rgba(255,255,255,.18);margin-top:6px;padding-top:8px;font-family:"Space Grotesk";font-weight:700;font-size:17px;color:#ddf98f}' +
@@ -15852,15 +15850,12 @@ const newsCases = [
           '<div class="row"><span>' + L.net + '</span><span>' + fmtM(net) + '</span></div>' +
           '<div class="row"><span>' + L.vat + ' ' + vatRate + '%</span><span>' + fmtM(vat) + '</span></div>' +
           '<div class="row gross"><span>' + L.gross + '</span><span>' + fmtM(net + vat) + '</span></div>' +
-          /* El techo: cuánto sale si se lleva todo. Sin esta línea el cliente tiene los
-             opcionales con su precio y el total sin ellos, y la suma la tiene que hacer él
-             — que es justo el momento en que deja la oferta para después.
-             Va en gris y debajo del total, para que no se confunda con lo que se firma.
-             (Sebastián, 27 ago 2026: "es para que vea lo que puede salir".) */
-          (optTotal > 0
-            ? '<div class="row opt-tot"><span>' + esc(L.conTodo) + '</span><span>' +
-              fmtM((net + optTotal) * (1 + vatRate / 100)) + '</span></div>'
-            : '') +
+          /* NO va un total «con todos los opcionales». Lo puse y Sebastián lo sacó, con
+             razón: si el cliente quiere UNO, ver la suma de todos hace parecer cara la
+             oferta justo cuando estaba por decir que sí. Cada opcional lleva su precio;
+             el que quiera sumar dos, los suma.
+             (Sebastián, 27 ago 2026: "quizás solo quiere un opcional, saca eso mejor,
+              sino se vuelve muy caro".) */
           '</div>' +
         (ofCur.terms ? '<div class="terms"><div class="th">' + esc(L.terms) + '</div>' + esc(ofCur.terms) + '</div>' : '') +
         // texto personal de cierre (③), arriba del pie legal
@@ -16000,7 +15995,6 @@ const newsCases = [
       ofCur.items.forEach((it) => { if (phaseOf(it) === ph && !esOpt(it)) rows += filaMail(it, false); });
     });
     const optMail = (ofCur.items || []).filter(esOpt);
-    const optMailTot = optMail.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
     if (optMail.length){
       const LP = OF_PDF_L[lang];
       rows += '<tr><td colspan="3" style="padding:14px 10px 5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b6472;font-weight:700;background:#eef1f6">' + esc(LP.opcionales) + '</td></tr>';
@@ -16023,12 +16017,6 @@ const newsCases = [
           '<div>' + L.net + ' <span style="float:right">' + fmtM(net) + '</span></div>' +
           '<div>' + L.vatL + ' <span style="float:right">' + fmtM(vat) + '</span></div>' +
           '<div style="border-top:1px solid rgba(255,255,255,.2);margin-top:5px;padding-top:6px;font-weight:800;font-size:15px;color:#ddf98f">' + L.gross + ' <span style="float:right">' + fmtM(net + vat) + '</span></div>' +
-          /* El techo, también acá: el opcional con su precio y el total sin él obligan al
-             cliente a sumar, que es cuando deja la oferta para después. */
-          (optMailTot > 0
-            ? '<div style="margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.2);font-size:11.5px;color:#9aa6bd">' +
-              esc(OF_PDF_L[lang].conTodo) + ' <span style="float:right">' + fmtM((net + optMailTot) * (1 + vatRate / 100)) + '</span></div>'
-            : '') +
           '</div></td></tr></table>' +
         (ofCur.terms ? '<div style="margin-top:22px;border-top:1px solid #e8eaef;padding-top:14px;font-size:11.5px;line-height:1.6;color:#3c4454;white-space:pre-wrap">' + esc(ofCur.terms) + '</div>' : '') +
         // texto personal de cierre (③) al final del email
@@ -16139,10 +16127,7 @@ const newsCases = [
     const rowsT = [];
     if (discPct > 0){ rowsT.push([L.sub, fmtM(sum0)]); rowsT.push([L.disc + ' ' + discPct + '%', '- ' + fmtM(sum0 - net)]); }
     rowsT.push([L.net, fmtM(net)]); rowsT.push([L.vat + ' ' + vatRate + '%', fmtM(vat)]);
-    /* +16 por la línea del techo: sin esto se dibuja fuera de la tarjeta y queda flotando
-       sobre el fondo. */
-    const hayOpt = (optJs || []).some((it) => (Number(it.qty) || 0) * (Number(it.price) || 0) > 0);
-    const cardH = (rowsT.length + 1) * 16 + 22 + (hayOpt ? 16 : 0);
+    const cardH = (rowsT.length + 1) * 16 + 22;
     need(cardH + 6);
     const cardX = W - 48 - 240;
     doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]); doc.roundedRect(cardX, y, 240, cardH, 8, 8, 'F');
@@ -16152,13 +16137,6 @@ const newsCases = [
     doc.setDrawColor(90, 100, 120); doc.line(cardX + 16, cy - 6, cardX + 224, cy - 6);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.setTextColor(ACID[0], ACID[1], ACID[2]);
     doc.text(L.gross, cardX + 16, cy + 10); doc.text(fmtM(net + vat), cardX + 224, cy + 10, { align: 'right' });
-    /* El techo, en gris debajo del total. */
-    const optJsTot = optJs.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
-    if (optJsTot > 0){
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(154, 166, 189);
-      doc.text(L.conTodo, cardX + 16, cy + 26);
-      doc.text(fmtM((net + optJsTot) * (1 + vatRate / 100)), cardX + 224, cy + 26, { align: 'right' });
-    }
     y += cardH + 22;
     const para = (txt, size, color, bold) => {
       if (!txt) return;
