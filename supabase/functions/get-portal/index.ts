@@ -423,19 +423,34 @@ Deno.serve(async (req) => {
       /* Antes bastaba el link. Un comentario del cliente dispara trabajo de nuestro lado
          y queda firmado con su nombre: quien no probó que tiene su email no puede
          escribir en su nombre. */
-      if (!(await verificado(body.token))) return json({ error: "necesita_codigo" }, 401);
+      /* El equipo también puede comentar. Podía LEER el portal —esEquipo entra sin
+         código— pero al escribir esta acción solo miraba el token del cliente, que
+         Sebastián nunca va a tener porque el código va al email del cliente. Resultado:
+         ves el corte, escribís la nota, y sale "no se pudo enviar" sin decir por qué.
+         (Sebastián, 27 ago 2026, mirando el portal: "mirá ese error, ¿por qué?") */
+      const accC = await verificado(body.token);
+      const equipoC = esEquipo || String((accC as { email?: string } | null)?.email || "").startsWith("equipo:")
+        || String((accC as { email?: string } | null)?.email || "").startsWith("editor:");
+      if (!accC && !esEquipo) return json({ error: "necesita_codigo" }, 401);
       const texto = String(body.texto || "").trim();
       if (!texto) return json({ error: "vacio" }, 400);
+      /* Y queda firmado por quien escribe. Marcar como "del cliente" una nota nuestra
+         inflaría el contador de notas sin resolver con nuestras propias palabras. */
+      const quienEsc = equipoC
+        ? String((accC as { email?: string } | null)?.email || "").replace(/^(equipo|editor):/, "") || "VIVEN"
+        : null;
       const { data: c, error } = await service.from("project_comments").insert({
         project_id: proj.id, version_id: body.version_id ?? null,
         tc_ms: Number.isFinite(Number(body.tc_ms)) ? Math.max(0, Math.round(Number(body.tc_ms))) : null,
         body: texto.slice(0, 2000),
-        author_name: proj.client_contact || lead?.name || null,
-        author_email: emailCliente || null, from_client: true,
+        author_name: equipoC ? (quienEsc === "VIVEN" ? "VIVEN" : quienEsc) : (proj.client_contact || lead?.name || null),
+        author_email: equipoC ? quienEsc : (emailCliente || null),
+        from_client: !equipoC,
       }).select().single();
       if (error) return json({ error: error.message }, 500);
-      /* Aviso al equipo: un comentario que nadie ve no sirve de nada. */
-      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+      /* Aviso al equipo: un comentario que nadie ve no sirve de nada. Salvo que lo haya
+         escrito el equipo — avisarnos de lo que acabamos de escribir es ruido. */
+      if (!equipoC) fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
         body: JSON.stringify({

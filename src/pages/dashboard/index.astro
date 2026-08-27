@@ -20301,8 +20301,16 @@ const newsCases = [
                   '<br><button class="btn btn-ghost small" data-vunapr="' + v.id + '" title="Volver a dejarla esperando" style="margin-top:4px">↩︎ Desaprobar</button>'
                 : '<span style="color:#f0c060">esperando</span>') + '</td>' +
             '<td style="white-space:nowrap">' +
-              (cs.length ? '<button class="btn btn-ghost small" data-edl="' + v.id + '" title="Bajar el .xml y el .edl">📥 Notas</button> ' +
-                '<button class="btn btn-ghost small" data-noted="' + v.id + '" title="Mandarle las notas al que monta, con el .xml adjunto">📤 Al editor</button> ' : '') +
+              /* «Al editor» va SIEMPRE. Estaba condicionado a que hubiera comentarios, así que
+                 cuando no los hay el botón no existe —y desde afuera eso se lee como que
+                 se escondió—. Mandarle el corte al montajista sin notas es un caso real:
+                 "acá está la v1, mirala". El .xml solo se adjunta si hay notas con minuto.
+                 (Sebastián, 27 ago 2026: "email al editor no hace popup, ¿está escondido
+                  de vuelta?" — no había ningún comentario guardado en el proyecto.) */
+              (cs.length ? '<button class="btn btn-ghost small" data-edl="' + v.id + '" title="Bajar el .xml y el .edl">📥 Notas</button> ' : '') +
+              '<button class="btn btn-ghost small" data-noted="' + v.id + '" title="' +
+                (cs.length ? 'Mandarle las notas al que monta, con el .xml adjunto' : 'Mandarle el corte al que monta — todavía no hay notas con minuto') +
+                '">📤 Al editor</button> ' +
               '<button class="pj-crew-x" data-vdel="' + v.id + '" type="button">✕</button></td></tr>';
         }).join('') + '</tbody></table></div>';
 
@@ -20469,7 +20477,12 @@ const newsCases = [
     const v = pjVers.find((x) => String(x.id) === String(versionId)); if (!v) return null;
     const notas = pjComs.filter((c) => String(c.version_id) === String(v.id) && c.tc_ms != null)
       .sort((a, b) => a.tc_ms - b.tc_ms);
-    if (!notas.length){ toast('Esa versión no tiene comentarios con minuto'); return null; }
+    /* Sin notas con minuto NO se corta: el email al editor tiene sentido igual, solo va
+       sin .xml ni .edl. Antes devolvía null y el modal no se abría — un botón que no hace
+       nada y no dice por qué. */
+    if (!notas.length){
+      return { v, notas: [], xml: null, edl: null, base: ((pjCur.title || 'proyecto') + '_v' + v.n).replace(/[^\w.\-]+/g, '_') };
+    }
     const base = ((pjCur.title || 'proyecto') + '_v' + v.n).replace(/[^\w.\-]+/g, '_');
     const limpiar = (s2) => String(s2 || '').replace(/[\r\n]+/g, ' ').trim();
 
