@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
        info".) */
     const cab = (body.cabecera || {}) as Record<string, string | null>;
     const equipo = Array.isArray(body.equipo_lista)
-      ? body.equipo_lista as Array<{ nombre: string; rol?: string; tel?: string }> : [];
+      ? body.equipo_lista as Array<{ nombre: string; rol?: string; tel?: string; hora?: string }> : [];
 
     const asunto = String(body.asunto || "").trim() ||
       `${proj.ref ? proj.ref + " · " : ""}${proj.title || ""} — ${paraCliente ? "El día del rodaje" : "Plan de rodaje"}${fechas ? " · " + fechas : ""}`;
@@ -163,13 +163,17 @@ Deno.serve(async (req) => {
         ? `Así queda el día del rodaje${fechas ? " del " + fechas : ""}${proj.location ? ", en " + esc(String(proj.location)) : ""}. Abajo están los horarios y lo que necesitamos de ustedes.`
         : `El plan del rodaje${fechas ? " del " + fechas : ""}${proj.location ? ", en " + esc(String(proj.location)) : ""}.`,
       cuerpo:
+        /* Acá entra la citación personal de quien recibe el email — se reemplaza por
+           destinatario, justo antes de mandar. La ficha de abajo queda igual y muestra la
+           citación GENERAL del día: son dos datos distintos y los dos hacen falta. */
+        "<!--CITACION-->" +
         /* La citación arriba de todo y GRANDE: es el único número que alguien busca a las
            seis de la mañana. Y dónde presentarse pegado a ella — son un solo dato
            operativo, y separarlos hace que se mire la hora sin leer la dirección. */
         `<table style="width:100%;border-collapse:collapse;border:1px solid #e6e9ef;border-radius:12px;margin:0 0 20px">
           <tr>
             <td style="padding:14px 16px;vertical-align:top;white-space:nowrap">
-              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">Citación</div>
+              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">Citación general</div>
               <div style="font-size:30px;font-weight:800;color:#1b2c46;line-height:1.1">${esc(cab.cita || "—")}</div>
             </td>
             <td style="padding:14px 16px;vertical-align:top">
@@ -248,21 +252,66 @@ Deno.serve(async (req) => {
       ? [{ filename: `${proj.ref || "proyecto"}_plan_de_rodaje.pdf`, content: pdf64 }]
       : [];
 
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: `${remitente.nombre} — VIVEN <${remitente.email}>`,
-        to: destinos, reply_to: remitente.email, subject: asunto, html,
-        ...(adj.length ? { attachments: adj } : {}),
-      }),
-    });
+    /* UN EMAIL POR PERSONA, con SU citación arriba de todo.
+       El plan es el mismo para todos, pero la hora a la que tiene que estar cada uno no:
+       el DP monta a las 8 y el actor entra a las 11. Mandando un solo email a todos, cada
+       uno lee la hora del encabezado como propia — y el que llegaba después llega temprano,
+       o al revés.
+       Es lo que Maestro hace bien: "esto de arriba es lo que [nombre] entiende sin abrir el
+       PDF". El adjunto y el cuerpo son idénticos; lo único que cambia es el renglón de
+       arriba.
+       (Sebastián, 27 ago 2026: "calltime para cada persona para el plan de rodaje".) */
+    const horaDe = new Map<string, { hora?: string; nombre?: string }>();
+    for (const t of conEmail) {
+      const suyo = equipo.find((e) => (e.nombre || "").trim().toLowerCase() === String(t.name || "").trim().toLowerCase());
+      if (t.email) horaDe.set(String(t.email).toLowerCase(), { hora: suyo?.hora, nombre: t.name });
+    }
+    for (const c of delCliente) {
+      if (c.email) horaDe.set(String(c.email).toLowerCase(), { hora: (c as { hora?: string }).hora, nombre: c.name });
+    }
+
+    const citaGeneral = String(body.cabecera?.cita || "").slice(0, 5);
+    const encabezado = (mail: string) => {
+      const d = horaDe.get(String(mail).toLowerCase());
+      const h = String(d?.hora || "").slice(0, 5) || citaGeneral;
+      if (!h) return "";
+      const nom = String(d?.nombre || "").trim().split(/\s+/)[0];
+      return `<table style="width:100%;border-collapse:collapse;margin:0 0 18px"><tr>` +
+        `<td style="background:#0f1826;border-radius:12px;padding:16px 20px">` +
+        `<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#9aa6bd">` +
+        `Tu citación${nom ? " · " + esc(nom) : ""}</div>` +
+        `<div style="font:700 30px/1.1 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#ddf98f;margin-top:4px;` +
+        `font-variant-numeric:tabular-nums">${esc(h)}</div>` +
+        (d?.hora && citaGeneral && String(d.hora).slice(0, 5) !== citaGeneral
+          ? `<div style="font-size:12px;color:#9aa6bd;margin-top:4px">El resto del equipo entra ${esc(citaGeneral)}.</div>`
+          : "") +
+        `</td></tr></table>`;
+    };
+
+    const enviados: string[] = [];
+    let fallo: string | null = null;
+    for (const mail of destinos) {
+      const r0 = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: `${remitente.nombre} — VIVEN <${remitente.email}>`,
+          to: [mail], reply_to: remitente.email, subject: asunto,
+          html: html.replace("<!--CITACION-->", encabezado(mail)),
+          ...(adj.length ? { attachments: adj } : {}),
+        }),
+      });
+      if (r0.ok) enviados.push(mail);
+      else { fallo = (await r0.text()).slice(0, 200); console.error("RESEND_FAIL_PLAN", r0.status, fallo); }
+    }
+    const r = { ok: enviados.length > 0, status: enviados.length ? 200 : 502,
+                text: async () => fallo || "" } as unknown as Response;
     if (!r.ok) {
       const t = await r.text();
-      console.error("RESEND_FAIL_PLAN", r.status, t);
+      console.error("RESEND_FAIL_PLAN", 502, t);
       return json({ error: `no salió (${r.status}): ${t.slice(0, 200)}` }, 502);
     }
-    return json({ ok: true, para: destinos, sin_email: sinEmail, con_pdf: !!pdf64, pdf_nota: pdfNota });
+    return json({ ok: true, para: enviados, sin_email: sinEmail, con_pdf: !!pdf64, pdf_nota: pdfNota });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

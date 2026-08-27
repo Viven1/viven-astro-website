@@ -2456,6 +2456,17 @@ const newsCases = [
      columnas arrancan en 360px: en un monitor normal siguen entrando dos o
      tres, pero cada una respira. */
   .hm-masonry{column-count:3;column-width:360px;column-gap:16px;margin-top:16px}
+  .crew-roles{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .crew-roles button{background:var(--navy-900);border:1px solid var(--line);border-radius:99px;color:var(--muted);
+    font:inherit;font-size:12px;padding:4px 11px;cursor:pointer;white-space:nowrap}
+  .crew-roles button:hover{border-color:var(--acid);color:var(--acid)}
+  .crew-roles button.on{background:var(--acid);border-color:var(--acid);color:#16210a;font-weight:700}
+  .pj-per input[type=time]{margin-top:5px;background:var(--navy-900);border:1px solid var(--line);border-radius:7px;
+    color:var(--text);font:inherit;font-size:12px;padding:3px 6px;width:100px}
+  .pj-per1 .h{font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted-2);white-space:nowrap}
+  .pj-per1 .h.propia{color:var(--acid);font-weight:700}
+  .pj-crew-row .pj-crew-h{width:104px;flex:none;font-size:12.5px}
+  @media(max-width:560px){ .pj-crew-row .pj-crew-h{width:88px} }
   .ci-row{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);
     border-radius:10px;margin-bottom:7px;cursor:pointer;font-size:13.5px}
   .ci-row:hover{border-color:var(--acid)}
@@ -3173,6 +3184,11 @@ const newsCases = [
     <div id="crew-list-view">
       <div class="panel" style="margin-top:14px">
         <input class="pj-inp" id="crew-q" placeholder="Buscar por nombre o rol…" style="max-width:420px" />
+        <!-- Los roles como filtro. Buscar «Gaffer» a mano funciona si te acordás de cómo se
+             escribió; con siete técnicos alcanza, con cuarenta no. Y a la hora de armar un
+             crew la pregunta no es «quién es Martin» sino «a quién tengo de sonido».
+             (Sebastián, 27 ago 2026: "filtros para roles de técnicos".) -->
+        <div id="crew-roles" class="crew-roles"></div>
         <div id="crew-list" style="margin-top:12px"><p class="muted-note">Cargando…</p></div>
       </div>
     </div>
@@ -18516,6 +18532,7 @@ const newsCases = [
      es el error caro. Por eso "Unir repetidos" propone y decide una persona.
      ═══════════════════════════════════════════════════════════════════════════ */
   let crewList = [], crewAlias = [], crewCur = null, crewBound = false, crewT = null;
+  let crewRol = null;   // el rol elegido en el filtro de Técnicos
 
   const crewNorm = (x) => String(x || '').trim().toLowerCase();
 
@@ -18600,12 +18617,27 @@ const newsCases = [
     ].map(([l, n, s2]) => '<div class="kpi"><div class="kpi-l">' + esc(l) + '</div><div class="kpi-n">' + esc(n) +
       '</div><div class="kpi-s">' + esc(s2) + '</div></div>').join('');
 
-    const filtrados = !q ? datos : datos.filter((x) =>
+    /* Los roles que existen de verdad, con cuántos hay de cada uno. Salen de los datos, no
+       de una lista fija: un rol nuevo aparece solo la primera vez que se usa. */
+    const cuenta = new Map();
+    datos.forEach((x) => x.d.roles.forEach((r) => cuenta.set(r, (cuenta.get(r) || 0) + 1)));
+    const roles = [...cuenta.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    $('crew-roles').innerHTML = !roles.length ? '' :
+      '<button type="button" data-rol="" class="' + (crewRol ? '' : 'on') + '">Todos ' + datos.length + '</button>' +
+      roles.map(([r, n]) => '<button type="button" data-rol="' + esc(r) + '" class="' + (crewRol === r ? 'on' : '') + '">' +
+        esc(r) + ' ' + n + '</button>').join('');
+    $('crew-roles').querySelectorAll('[data-rol]').forEach((b) => b.addEventListener('click', () => {
+      crewRol = b.dataset.rol || null;
+      crewRenderList();
+    }));
+
+    const porRol = crewRol ? datos.filter((x) => x.d.roles.includes(crewRol)) : datos;
+    const filtrados = !q ? porRol : porRol.filter((x) =>
       crewNorm(x.c.name).includes(q) || x.d.roles.some((r) => crewNorm(r).includes(q)) ||
       crewNorm(x.c.empresa).includes(q));
 
     $('crew-list').innerHTML = !filtrados.length
-      ? '<p class="muted-note" style="margin:0">' + (q ? 'Nadie con eso.' : 'Todavía no hay técnicos. Se cargan solos cuando ponés gente en el crew de un proyecto.') + '</p>'
+      ? '<p class="muted-note" style="margin:0">' + (q || crewRol ? 'Nadie con eso.' : 'Todavía no hay técnicos. Se cargan solos cuando ponés gente en el crew de un proyecto.') + '</p>'
       : '<div class="lead-table-wrap"><table class="lead-table"><thead><tr><th>Técnico</th><th>Roles</th><th>Proyectos</th>' +
         '<th style="text-align:right">Presupuestado</th><th style="text-align:right">Pagado</th></tr></thead><tbody>' +
         filtrados.map(({ c, d }) =>
@@ -19168,13 +19200,26 @@ const newsCases = [
               '<div class="ml">' + esc(c.email || '') + '</div>' +
               '<select data-r="' + c.id + '">' + PJ_RECIBE.map(([k, l]) =>
                 '<option value="' + k + '"' + (c.recibe === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+              /* Su citación para el día de rodaje. El cliente que viene a ver el set casi
+                 nunca llega a la misma hora que el equipo: llega cuando se rueda lo suyo.
+                 (Sebastián, 27 ago 2026: "calltime para cada persona... para clientes,
+                  técnicos, actores, etc.") */
+              '<input type="time" data-h="' + c.id + '" value="' + esc(c.hora || '') + '" title="Su citación el día de rodaje — vacío = la general" />' +
             '</div>' +
             '<button class="x" data-cdel="' + c.id + '" type="button" title="Sacarlo del proyecto">✕</button>' +
             '<span class="ck">' + (c._on !== false ? '✓' : '') + '</span></div>';
         }).join('') + '</div>';
 
+    box.querySelectorAll('[data-h]').forEach((inp) => inp.addEventListener('change', async () => {
+      const c = pjContactos.find((x) => String(x.id) === inp.dataset.h); if (!c) return;
+      c.hora = inp.value || null;
+      const { error } = await supabase.from('project_contacts').update({ hora: c.hora }).eq('id', c.id);
+      if (error){ toast('⚠️ ' + error.message); return; }
+      pjPlanGenteRender && pjPlanGenteRender();
+    }));
+
     box.querySelectorAll('.pj-per').forEach((el) => el.addEventListener('click', (ev) => {
-      if (ev.target.closest('select, .x')) return;
+      if (ev.target.closest('select, .x, input')) return;
       const c = pjContactos.find((x) => String(x.id) === el.dataset.c); if (!c) return;
       c._on = c._on === false;
       pjRenderContactos();
@@ -19756,13 +19801,37 @@ const newsCases = [
         '<option value="__nuevo__">＋ Crear un técnico nuevo…</option>';
     };
 
+    /* La citación GENERAL: la primera hora del plan. Es el default de todos, y se muestra
+       en gris dentro del campo para que se vea que ya hay una respuesta aunque no
+       escribas nada. */
+    const filasP = pjPlanFilas();
+    const conH = filasP.filter((f) => String(f.hora || '').match(/^\d{1,2}:\d{2}/));
+    const citaGeneral = conH.length ? String(conH[0].hora).slice(0, 5) : '';
+
+    /* Cada uno con SU hora. El DP y el asistente llegan a montar, el actor y el cliente
+       llegan cuando se rueda: una sola hora para todos hace que la mitad del equipo
+       espere dos horas o que el actor llegue tarde a lo suyo.
+       Es lo que Maestro hace bien —cada persona recibe su citación, no la del equipo—.
+       (Sebastián, 27 ago 2026: "calltime para cada persona para el plan de rodaje, para
+        clientes, técnicos, actores, etc.") */
     box.innerHTML = '<div class="pj-crew">' + crew.map((c, i) =>
       '<div class="pj-crew-row" data-i="' + i + '">' +
         '<span class="pj-crew-rol" title="' + esc(c.rol || '') + '">' + esc(c.rol || 'Rol') + '</span>' +
         '<select class="pj-inp pj-crew-nm">' + opciones(c.nombre) + '</select>' +
+        '<input class="pj-inp pj-crew-h" type="time" value="' + esc(c.hora || '') + '"' +
+          (citaGeneral ? ' placeholder="' + esc(citaGeneral) + '" title="Su citación. Vacío = la general, ' + esc(citaGeneral) + '"' : ' title="Su citación"') + ' />' +
         '<button class="pj-crew-x" type="button" title="Sacar del crew">✕</button>' +
       '</div>').join('') + '</div>' +
-      '<p class="muted-note" style="margin:9px 0 0">Salen de <b>Técnicos</b>. Lo que elijas acá es a quien después se le carga el costo y se le manda el plan.</p>';
+      '<p class="muted-note" style="margin:9px 0 0">Salen de <b>Técnicos</b>. Lo que elijas acá es a quien después se le carga el costo y se le manda el plan.' +
+      (citaGeneral ? ' La hora es <b>su</b> citación: vacía significa la general (' + esc(citaGeneral) + ').' : '') + '</p>';
+
+    box.querySelectorAll('.pj-crew-h').forEach((inp) => inp.addEventListener('change', () => {
+      const i = +inp.closest('[data-i]').dataset.i;
+      const fila = pjCur.crew && pjCur.crew[i]; if (!fila) return;
+      fila.hora = inp.value || null;
+      pjAutoGuardar();
+      pjPlanGenteRender && pjPlanGenteRender();
+    }));
 
     /* El crew también se guarda solo: sacar a alguien y volver al listado sin tocar
        Guardar lo devolvía a la lista como si nada hubiera pasado. */
@@ -21743,9 +21812,12 @@ const newsCases = [
       luz: L.luz && L.luz.amanece ? L.luz.amanece + ' – ' + L.luz.atardece : null,
     };
     const notasDia = (pjPlan && pjPlan.notas_dia || '').trim();
+    /* Cada uno con SU citación en la hoja. Antes la hoja tenía una sola hora arriba y el
+       equipo entero la leía como propia: el que tenía que llegar dos horas después se
+       enteraba por WhatsApp, o no se enteraba. */
     const crewPDF = (Array.isArray(p.crew) ? p.crew : []).filter((c) => c && c.nombre).map((c) => {
       const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
-      return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '' };
+      return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '', hora: c.hora || '' };
     });
 
     let blq = null;
@@ -21866,6 +21938,7 @@ const newsCases = [
       '.eqt-fila td b{display:block;color:var(--navy)}' +
       '.eqt-fila td span{display:block;font-size:8pt;color:var(--gris);line-height:1.45}' +
       '.eqt-fila td .tel{font-variant-numeric:tabular-nums}' +
+      '.eqt-fila td .cita1{font:700 9.5pt var(--display);color:var(--navy);font-variant-numeric:tabular-nums;margin-top:1px;display:block}' +
       /* El guion va detrás, siempre en página nueva: es un anexo, no parte de la hoja. */
       '.guion{break-before:page;page-break-before:always;margin-top:0}' +
       '.guion h2{font:700 13pt var(--display);color:var(--navy);margin:0 0 2px}' +
@@ -21924,6 +21997,7 @@ const newsCases = [
       '<tbody>' + cuerpo + '</tbody></table>' +
       (crewPDF.length ? '<div class="eq"><h3>Quién viene</h3><table class="eqt eqt-fila"><tbody><tr>' +
         crewPDF.map((c) => '<td><b>' + esc(c.nombre) + '</b><span>' + esc(c.rol) + '</span>' +
+          '<span class="cita1">' + esc(c.hora ? String(c.hora).slice(0, 5) : (cab.cita || '')) + '</span>' +
           '<span class="tel">' + (c.tel ? esc(c.tel) : 'sin teléfono') + '</span></td>').join('') +
         '</tr></tbody></table></div>' : '') +
       '<footer><b>VIVEN AG</b> · Zürich · viven.ch' +
@@ -21986,7 +22060,7 @@ const newsCases = [
       filas_extra: filas.map((f) => ({ sinopsis: pjSinopsisDe(f.escenas) })),
       equipo_lista: (Array.isArray(p.crew) ? p.crew : []).filter((c) => c && c.nombre).map((c) => {
         const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
-        return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '' };
+        return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '', hora: c.hora || '' };
       }),
     };
   }
@@ -22145,20 +22219,28 @@ const newsCases = [
     const conCli = (pjContactos || []).filter((c) => c._on !== false);
     if (!crew.length && !conCli.length){ box.innerHTML = ''; return; }
 
-    const fila = (n, rol, tel, mail) =>
+    /* La citación de cada uno, a la vista. La general es la primera hora del plan; quien
+       tiene la suya la muestra en verde, para que se note de un vistazo quién no llega con
+       el resto. */
+    const conH = pjPlanFilas().filter((f) => String(f.hora || '').match(/^\d{1,2}:\d{2}/));
+    const citaGeneral = conH.length ? String(conH[0].hora).slice(0, 5) : '';
+    const fila = (n, rol, tel, mail, hora) =>
       '<div class="pj-per1"><span class="n">' + esc(n) + '</span>' +
       '<span class="r">' + esc(rol || '') + '</span>' +
+      (hora
+        ? '<span class="h propia" title="Citación propia">🕐 ' + esc(String(hora).slice(0, 5)) + '</span>'
+        : (citaGeneral ? '<span class="h" title="La citación general del día">🕐 ' + esc(citaGeneral) + '</span>' : '')) +
       '<span class="t' + (tel ? '' : ' no') + '">' + (tel ? esc(tel) : 'sin teléfono') + '</span>' +
       (mail ? '' : '<span class="t no">sin email</span>') + '</div>';
 
     box.innerHTML = '<div class="pj-sec-h">Quién viene</div><div class="pj-gente2">' +
       (crew.length ? '<div><h5>Equipo</h5>' + crew.map((c) => {
         const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
-        return fila(c.nombre, c.rol, t && t.phone, t && t.email);
+        return fila(c.nombre, c.rol, t && t.phone, t && t.email, c.hora);
       }).join('') + '</div>' : '') +
       (conCli.length ? '<div><h5>Del cliente</h5>' + conCli.map((c) =>
-        fila(c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''), c.phone, c.email)).join('') +
-        '<p class="muted-note" style="margin:9px 0 0">Solo los tildados en el paso Cliente.</p></div>' : '') +
+        fila(c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''), c.phone, c.email, c.hora)).join('') +
+        '<p class="muted-note" style="margin:9px 0 0">Solo los tildados en el paso Cliente. Su hora se carga en el paso Cliente.</p></div>' : '') +
       '</div>' +
       (crew.some((c) => { const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre)); return !t || !t.phone; })
         ? '<p class="muted-note" style="margin:9px 0 0">Los que salen «sin teléfono» van así en la hoja. Se cargan en <b>Técnicos</b>.</p>' : '');
