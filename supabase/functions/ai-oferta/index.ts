@@ -13,6 +13,7 @@
 // Secret:  ANTHROPIC_API_KEY (ya seteado)
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { REGLA_JORNADA } from "../_shared/jornada.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -124,6 +125,11 @@ en comisiones de reclutamiento no se cotiza como tres jornadas de rodaje.
 Si en las respuestas hay un valor declarado o un costo alternativo, USALO para ubicar el
 precio, y decí en 'avisos' de dónde salió. Si no hay ninguno de los dos, ubicá el precio
 con las ofertas ganadas y avisá que falta la conversación de valor.
+
+${REGLA_JORNADA}
+Si de la llamada surge que el rodaje no entra en una jornada normal, cotizá DOS jornadas —no
+una larga— y decilo en 'avisos'. Si el cliente pidió expresamente estirar el día, poné el
+recargo como línea propia para que se vea qué está pagando.
 
 REGLAS:
 - Moneda CHF. Precios sin IVA.

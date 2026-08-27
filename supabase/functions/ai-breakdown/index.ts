@@ -15,6 +15,7 @@
 // Secret:  ANTHROPIC_API_KEY (ya seteado)
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { REGLA_JORNADA } from "../_shared/jornada.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -135,10 +136,13 @@ Deno.serve(async (req) => {
 
 Desglosá escena por escena y sacá TODO lo que hay que conseguir. Después proponé cómo agrupar las escenas en jornadas.
 
+${REGLA_JORNADA}
+
 Reglas, y son las que separan un desglose útil de una lista bonita:
 - No inventes lo que el guión no dice. Si algo no está definido —una locación, un personaje, si es día o noche— ponelo en "avisos" como decisión pendiente en vez de rellenarlo.
 - Las jornadas se agrupan por LOCACIÓN primero (mover un equipo cuesta medio día) y después por luz: todo lo de día junto, todo lo de noche junto.
-- "horas_estimadas" incluye montaje y desmontaje, no solo lo que se filma.
+- "horas_estimadas" incluye montaje y desmontaje, no solo lo que se filma, y NO incluye el
+  almuerzo (que es una hora aparte y va siempre).
 - Si el guión pide algo que NO está en lo presupuestado, decilo en "avisos" con esa palabra exacta: "no está presupuestado". Es la plata que se escapa entre lo que se vendió y lo que hay que filmar.
 - Sé conciso: cada campo, lo mínimo que sirva para producir. Esto se lee en un set, no se estudia.
 - Textos en ${idioma}.

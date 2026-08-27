@@ -22,6 +22,7 @@
 // Secret:  ANTHROPIC_API_KEY
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { REGLA_JORNADA } from "../_shared/jornada.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -133,9 +134,10 @@ const FORMA_PLAN = {
           donde: { type: "string" },
           quien: { type: "string", description: "Quién tiene que estar. Incluido el cliente cuando hace falta." },
           escenas: { type: "string", description: "Los números de escena que entran acá, o «—»." },
+          lleva: { type: "string", description: "Lo que tiene que estar en ese bloque, del desglose de esas escenas. Vacío si no hace falta nada especial." },
           notas: { type: "string", description: "Por qué está en ese orden, qué puede complicarse, la luz." },
         },
-        required: ["bloque", "hora", "que", "donde", "quien", "escenas", "notas"],
+        required: ["bloque", "hora", "que", "donde", "quien", "escenas", "lleva", "notas"],
         additionalProperties: false,
       },
     },
@@ -275,6 +277,24 @@ Deno.serve(async (req) => {
               : `${f.n}. [${f.tc || ""}] ${String(f.video || "").slice(0, 220)}`).join("\n")
         : "";
 
+      /* El DESGLOSE, si ya se hizo. Un plan de rodaje que no sabe qué hay que llevar a cada
+         bloque es una agenda, no un plan: la mitad del trabajo de producción es que las
+         cosas estén donde tienen que estar a la hora que tienen que estar.
+         Cada elemento viene con su ficha —cuántos, de quién, quién lo trae— así que el plan
+         puede decir qué va en cada bloque en vez de repetir una lista genérica.
+         (Sebastián, 26 ago 2026: "para el desglose, y plan de rodaje, escenas, pensá más
+         como Maestro… cada ítem tiene su propia info adentro".) */
+      const desg = proj.breakdown as { escenas?: Array<Record<string, unknown>> } | null;
+      const conElementos = (desg?.escenas || [])
+        .filter((e) => Array.isArray(e.elementos) && (e.elementos as unknown[]).length)
+        .map((e) => {
+          const els = (e.elementos as Array<Record<string, unknown>>)
+            .map((el) => `   · ${el.cantidad && Number(el.cantidad) > 1 ? el.cantidad + "× " : ""}${el.que}` +
+              `${el.quien ? " (de " + el.quien + ")" : ""}${el.donde ? " — " + el.donde : ""}` +
+              `${el.quien_lo_consigue ? " [lo trae: " + el.quien_lo_consigue + "]" : ""}`).join("\n");
+          return `Escena ${e.n} — ${e.titulo || ""}${e.locacion ? " · " + e.locacion : ""}\n${els}`;
+        }).join("\n\n");
+
       const fechas = [proj.shoot_start ? "Arranca el " + String(proj.shoot_start).slice(0, 10) : "",
                       proj.shoot_end ? "Termina el " + String(proj.shoot_end).slice(0, 10) : ""]
                      .filter(Boolean).join(". ");
@@ -296,17 +316,26 @@ PROYECTO: ${proj.ref ? "#" + proj.ref + " · " : ""}${proj.title || ""}${proj.cl
 ${fechas ? "FECHAS DE RODAJE: " + fechas : "FECHAS DE RODAJE: sin definir — planificá jornadas relativas (Jornada 1, 2…), no fechas."}
 ${g ? `GUIÓN ELEGIDO: "${g.titulo || g.angulo}" (${g.angulo}) · ~${g.duracion_seg || duracion}s\n\nESCENAS:\n${escenas}` : "NO hay guión escrito todavía: planificá con lo que dice el material de abajo y decí en 'riesgos' qué queda por definir."}
 
-MATERIAL DEL PROYECTO (de acá salen los accesos, los permisos y quién aparece):
+${conElementos ? `LO QUE HAY QUE LLEVAR, ESCENA POR ESCENA (sale del desglose ya hecho — no lo repitas
+entero, usalo para saber qué entra en cada bloque y qué hay que pedirle al cliente):
+${conElementos}
+
+` : ""}MATERIAL DEL PROYECTO (de acá salen los accesos, los permisos y quién aparece):
 ${partes.join("\n\n") || "(poco material — decí en 'riesgos' qué falta saber)"}
 ${previo ? "\n" + previo : ""}
 ${pedido ? `\nINDICACIONES DE SEBASTIÁN:\n${pedido}` : ""}
 
+${REGLA_JORNADA}
+
 REGLAS:
 - Ordená por LUGAR y por quién aparece, NO por el orden del video. Todo lo de una persona
   junto, todo lo de un espacio junto. Decilo en 'notas' cuando reordenes.
+- En 'lleva' va lo que tiene que ESTAR en ese bloque: las cosas del desglose de las escenas
+  que se ruedan ahí, con su cantidad. No la lista entera del proyecto — solo lo de ese
+  bloque. Vacío si no hace falta nada especial (llegada, comida, desmontaje).
 - Equipo chico: no supongas más de 3 o 4 personas de VIVEN salvo que el material diga otra cosa.
 - Bloques de tiempo realistas: montar una entrevista lleva 30–45 min, no 10.
-- Incluí llegada, montaje, comida y desmontaje. Un plan sin comida se cae a las 14:00.
+- Incluí llegada, montaje, comida y desmontaje. El almuerzo va siempre y es una hora.
 - Todo lo que dependa del cliente —accesos, permisos, gente disponible, ropa— va en
   'necesita', que es la lista que le mandamos antes.
 - Si el guión pide algo que no se puede filmar con ese equipo o ese acceso, decilo en
@@ -347,7 +376,8 @@ tiene que estar.`;
       const t2 = (x: unknown, n = 600) => String(x ?? "").slice(0, n);
       const fp = (pp.filas as Array<Record<string, unknown>>).slice(0, 80).map((f, i) => ({
         n: i + 1, bloque: t2(f.bloque, 80), hora: t2(f.hora, 12), que: t2(f.que, 300),
-        donde: t2(f.donde, 160), quien: t2(f.quien, 200), escenas: t2(f.escenas, 80), notas: t2(f.notas, 600),
+        donde: t2(f.donde, 160), quien: t2(f.quien, 200), escenas: t2(f.escenas, 80),
+        lleva: t2(f.lleva, 500), notas: t2(f.notas, 600),
       })).filter((f) => f.que);
       const lista = (x: unknown) => (Array.isArray(x) ? x : []).filter(Boolean).map((y) => String(y).slice(0, 400)).slice(0, 20);
 
