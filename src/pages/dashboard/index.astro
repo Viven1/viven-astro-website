@@ -18686,7 +18686,14 @@ const newsCases = [
     /* Un bloque puede vivir en más de un paso: "Cuándo" hace falta al planificar y al
        rodar, y el portal se mira en post y en la entrega. Duplicar el markup sería peor. */
     document.querySelectorAll('#pj-detail [data-paso]').forEach((el) => {
-      el.hidden = !String(el.dataset.paso || '').split(' ').includes(pjPaso);
+      const suyo = String(el.dataset.paso || '').split(' ').includes(pjPaso);
+      el.hidden = !suyo;
+      /* Y si es un <details>, se abre. El guion y el plan son plegables —vienen de cuando
+         los once bloques estaban todos en la misma pantalla y había que poder cerrarlos—
+         pero ahora, parado en el paso «Plan», lo único que veías era el título con un
+         triangulito: el plan estaba ahí abajo, plegado.
+         (Sebastián, 27 ago 2026: "el plan de rodaje todavía no se ve como prometido".) */
+      if (suyo && el.tagName === 'DETAILS') el.open = true;
     });
     pjRenderNext(e);
     if (pjPaso === 'cliente') pjRenderContactos();
