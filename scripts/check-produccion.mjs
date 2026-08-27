@@ -57,8 +57,6 @@ for (const url of PAGINAS) {
     console.log(`✓ ${url} — sus ${assets.length} asset(s) existen`);
   }
 }
-process.exit(problemas ? 1 : 0);
-
 /* ── Además: textos que se le muestran al cliente sin traducir ──
  * El portal es trilingüe, pero es fácil escribir una frase suelta en español al agregar una
  * función. Un cliente suizo-alemán ve el portal en alemán y de golpe «Todavía no te lo
@@ -69,13 +67,19 @@ import { readFileSync as _leer } from 'node:fs';
 const _src = _leer('src/pages/portal/index.astro', 'utf8');
 const _i = _src.indexOf('var TX = {');
 const _fuera = _i < 0 ? _src : _src.slice(0, _i) + _src.slice(_src.indexOf('\n  };', _i));
-const _marcas = /'[^']*\b(Todavía|Tocá|Pedinos|avisanos|copiala|Mandámelo|arrancó|Escribí|Contestá|Mirá)\b[^']*'/g;
+/* SIN \b: en JavaScript el límite de palabra solo entiende [A-Za-z0-9_], así que
+ * `\bTocá\b` no matchea nunca —la «á» no es \w y entre «á» y el espacio no hay límite—.
+ * En Python sí funciona, que es donde lo probé la primera vez y me dio un falso verde.
+ * Las palabras son bastante específicas como para no necesitar el límite. */
+const _marcas = /'[^']*(Todavía|Tocá |Pedinos|avisanos|copiala|Mandámelo|arrancó|Escribí |Contestá |Mirá )[^']*'/g;
 const _sueltos = [...(_fuera.matchAll(_marcas))].map((m) => m[0].slice(0, 64));
 if (_sueltos.length) {
   console.error(`\n✘ portal: ${_sueltos.length} texto(s) en español fuera del diccionario TX`);
   _sueltos.forEach((t) => console.error(`   ${t}`));
   console.error('   → el cliente alemán los ve así. Movelos a TX (en/de/es).');
-  process.exitCode = 1;
+  problemas += _sueltos.length;
 } else {
   console.log('✓ portal: sin textos en español fuera del diccionario');
 }
+
+process.exit(problemas ? 1 : 0);
