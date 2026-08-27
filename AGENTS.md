@@ -77,3 +77,39 @@ reparar el historial sin miedo a romper nada.
 ⚠️ La carpeta está sincronizada y a veces duplica archivos como `0157_algo 2.sql`.
 Son copias byte a byte del original y hay que borrarlas antes de pushear —
 si no, la misma migración entra dos veces en el historial.
+
+---
+
+## Los chequeos automáticos
+
+`npm run build` corre solo, al final, tres verificaciones. **Ninguna necesita red**, así que
+un clon recién bajado compila igual:
+
+| chequeo | qué atrapa |
+|---|---|
+| `check-dashboard` | funciones llamadas que no existen, ids repetidos, ids que el JS lee y no están en el HTML |
+| `gen-brief-preguntas --check` | que las 12 preguntas del brief que usan las Edge Functions sigan siendo las del portal |
+| `check-columnas` | `select('...rol')` cuando la columna se llama `role` — falla en runtime y deja la pantalla vacía sin decir por qué |
+
+`check-columnas` compara contra `/tmp/schema_map.json`. Cuando cambia la base:
+
+```bash
+npm run esquema
+```
+
+Y hay dos que **sí** necesitan red y token, así que van aparte y a mano:
+
+```bash
+npm run revisar
+```
+
+- `check-functions` — functions desplegadas que no están en el repo (un redeploy las borra)
+  y functions del repo que nunca se desplegaron (el cron que las llame da 404).
+- `check-crons` — crons que apuntan a una function inexistente, y crons que llaman sin el
+  `cron_secret`. Este último es el peor de todos: la function contesta 403 y `pg_cron` lo
+  registra como **succeeded**, porque lo que salió bien es el `net.http_post` y no la
+  respuesta. El 27 ago 2026 había cinco así —uno era el sync de Gmail, que llevaba días
+  muerto— y dos apuntando a functions borradas hace meses.
+
+**Conviene correr `npm run revisar` después de tocar crons o functions**, y cuando algo
+automático "no anda" sin dar error.
