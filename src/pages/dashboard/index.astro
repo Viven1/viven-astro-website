@@ -2439,21 +2439,37 @@ const newsCases = [
      son tres o cuatro acciones más a la vista.
      Solo cambia la presentación: mismos ids, mismos datos, mismo JS.
      (Mockup aprobado por Sebastián el 27 ago 2026.) */
-  #tab-hoy .hm-kpis{gap:0;background:var(--navy-800);border:1px solid var(--line);
+  /* La MISMA tira para los tres números del ritmo del mes. Compactar solo los cuatro de
+     abajo no alcanzaba: el bloque de arriba —titular, párrafo, barra y TRES tarjetas
+     grandes— es el que empuja la lista fuera de la primera pantalla, y es el que Sebastián
+     seguía viendo igual.
+     (Sebastián, 27 ago 2026, después del primer intento: "same same".) */
+  #tab-hoy .hm-kpis,
+  #tab-hoy .rm-kpis{gap:0;background:var(--navy-800);border:1px solid var(--line);
     border-radius:12px;padding:2px 4px;margin-bottom:14px}
-  #tab-hoy .hm-kpis .hk{flex:1 1 150px;background:none;border:0;border-radius:0;
+  #tab-hoy .hm-kpis .hk,
+  #tab-hoy .rm-kpis .hk{flex:1 1 150px;background:none;border:0;border-radius:0;
     padding:9px 14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;min-width:0}
-  #tab-hoy .hm-kpis .hk + .hk{border-left:1px solid var(--line)}
-  #tab-hoy .hm-kpis .hk-l{font-size:11px;color:var(--muted-2);order:2;flex:1 1 100%;margin:0;line-height:1.35}
-  #tab-hoy .hm-kpis .hk-n{font-size:17px;margin:0;order:0;line-height:1.1}
+  #tab-hoy .hm-kpis .hk + .hk,
+  #tab-hoy .rm-kpis .hk + .hk{border-left:1px solid var(--line)}
+  #tab-hoy .hm-kpis .hk-l,
+  #tab-hoy .rm-kpis .hk-l{font-size:11px;color:var(--muted-2);order:2;flex:1 1 100%;margin:0;line-height:1.35}
+  #tab-hoy .hm-kpis .hk-n,
+  #tab-hoy .rm-kpis .hk-n{font-size:17px;margin:0;order:0;line-height:1.1}
   /* min-height:13px en una fila baja deja un hueco fantasma cuando no hay delta. */
-  #tab-hoy .hm-kpis .kdelta{order:1;margin:0;min-height:0;font-size:10.5px}
-  #tab-hoy .hm-kpis .kdelta:empty{display:none}
-  #tab-hoy .hm-kpis .hk-t{font-size:10.5px;margin:0;order:3;flex:1 1 100%;line-height:1.4}
+  #tab-hoy .hm-kpis .kdelta,
+  #tab-hoy .rm-kpis .kdelta{order:1;margin:0;min-height:0;font-size:10.5px}
+  #tab-hoy .hm-kpis .kdelta:empty,
+  #tab-hoy .rm-kpis .kdelta:empty{display:none}
+  #tab-hoy .hm-kpis .hk-t,
+  #tab-hoy .rm-kpis .hk-t{font-size:10.5px;margin:0;order:3;flex:1 1 100%;line-height:1.4}
   @media(max-width:700px){
-    #tab-hoy .hm-kpis .hk{flex:1 1 44%}
-    #tab-hoy .hm-kpis .hk + .hk{border-left:0}
-    #tab-hoy .hm-kpis .hk:nth-child(odd) + .hk{border-left:1px solid var(--line)}
+    #tab-hoy .hm-kpis .hk,
+  #tab-hoy .rm-kpis .hk{flex:1 1 44%}
+    #tab-hoy .hm-kpis .hk + .hk,
+  #tab-hoy .rm-kpis .hk + .hk{border-left:0}
+    #tab-hoy .hm-kpis .hk:nth-child(odd) + .hk,
+    #tab-hoy .rm-kpis .hk:nth-child(odd) + .hk{border-left:1px solid var(--line)}
   }
   .hk-t.up{color:#7ed957}
   .hk-t.down{color:#ff8b8b}
@@ -2537,7 +2553,14 @@ const newsCases = [
   .rm-goal-lbl{color:var(--muted);font-size:12.5px}
   .rm-goal-lbl b{color:var(--text);font-family:'Space Grotesk'}
   .rm-kpis{margin-bottom:12px}
-  .rm-titular{font:700 clamp(17px,2.1vw,23px)/1.35 'Space Grotesk',sans-serif;letter-spacing:-.01em;
+  /* El titular baja un punto y el párrafo de abajo pierde altura: la frase sigue siendo
+     lo primero que se lee, pero deja de ocupar tres renglones enteros. */
+  #tab-hoy .rm-panel{padding-top:16px;padding-bottom:14px}
+  /* El párrafo que cuelga del titular: es un <small> adentro, no un bloque aparte. */
+  #tab-hoy .rm-titular{margin:0 0 10px}
+  #tab-hoy .rm-titular small{font-size:12.5px;line-height:1.5;margin-top:5px}
+  #tab-hoy .rm-kpis{margin-top:12px}
+  .rm-titular{font:700 clamp(16px,1.85vw,20px)/1.32 'Space Grotesk',sans-serif;letter-spacing:-.01em;
     margin:2px 0 14px;text-wrap:balance}
   .rm-titular .mal{color:#ff8b5e} .rm-titular .bien{color:var(--acid)}
   .rm-titular small{display:block;font:400 13.5px/1.55 Inter,sans-serif;color:var(--muted);margin-top:7px;letter-spacing:0}
