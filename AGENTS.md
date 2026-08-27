@@ -113,3 +113,35 @@ npm run revisar
 
 **Conviene correr `npm run revisar` después de tocar crons o functions**, y cuando algo
 automático "no anda" sin dar error.
+
+### Y uno más, después de publicar
+
+```bash
+npm run produccion
+```
+
+`check-produccion` abre las páginas **en producción** y verifica que cada archivo que piden
+exista de verdad. El 27 ago 2026 el dashboard servía un HTML que pedía un `.css` con 404:
+la pantalla salía **sin su hoja de estilos**, y no se notaba desde un navegador con el
+service worker instalado —sirve la copia guardada— así que el bug sobrevivió a tres rondas
+de "no cambió nada". El HTML servido y sus assets venían de builds distintos.
+
+Nada lo detectaba: el Action decía `Deployed`, el build local estaba bien y el sitio
+respondía 200 en las URLs que el workflow comprueba. Faltaba mirar **adentro** del HTML.
+
+Ojo con el `200`: el Worker puede devolver la página 404 con status 200, así que el chequeo
+además mira si un `.css` o `.js` empieza con `<!doctype` — si empieza así, no existe.
+
+### Cómo verificar un deploy, en orden
+
+1. `sed -n '10p' dist/dashboard-sw.js` — qué versión se construyó.
+2. El log del Action: `Uploaded N files` y `Deployed`.
+3. `npm run produccion` — que los assets del HTML vivo existan.
+4. Recién ahí, comparar el bundle vivo con el local:
+   `curl -s https://www.viven.ch/_astro/<bundle>.js | cmp - dist/_astro/<bundle>.js`
+
+**Lo que NO sirve:** buscar nombres de función en el HTML servido. El JS va a un bundle
+externo y está **minificado** —los nombres se renombran—, y el CSS va a otro archivo. Hay
+que buscar textos visibles ("Cargar contactos"), no identificadores. Y `curl` desde fuera de
+Europa pega en un borde de Cloudflare con su propia copia: `cf-cache-status: HIT` con
+`no-cache` ignorado. Ver [[maestro-deploy-propagacion-cdn]] en las memorias.
