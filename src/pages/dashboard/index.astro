@@ -7305,6 +7305,7 @@ const newsCases = [
       ((aq && !aq.error && aq.data) || []).forEach((a) => {
         if (a.para && meEmail && String(a.para).toLowerCase() !== meEmail) return;
         bellItems.push({ kind: 'aviso', id: 'av' + a.id, lead_id: null, url: a.url,
+          sub: a.url && /proyecto=/.test(String(a.url)) ? 'Proyecto ' + String(a.url).split('proyecto=')[1].split('&')[0] : '',
           title: a.title + (a.body ? ' · ' + String(a.body).slice(0, 90) : ''),
           due: null, bucket: 'event', overdue: false, at: a.created_at });
       });
@@ -7328,14 +7329,39 @@ const newsCases = [
       const [lbl, od] = labels[b] || [b, false];
       html += '<div class="bell-grp' + (od ? ' od' : '') + '">' + lbl + ' (' + grouped[b].length + ')</div>';
       grouped[b].forEach((i) => {
-        html += '<div class="bell-row"><button class="bell-item" data-lead="' + esc(i.lead_id) + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + esc(leadName(i.lead_id)) + (i.due ? ' · <span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span>' + (i.at ? '<span class="bi-at">hace ' + timeAgo(i.at) + '</span>' : '') + '</button>' +
+        /* El subtítulo era leadName(i.lead_id) SIEMPRE, y para un aviso que no es de
+           ninguna persona eso devolvía la palabra "Lead" — un aviso sobre un proyecto
+           firmado como si fuera de un contacto. */
+        const sub = i.lead_id ? esc(leadName(i.lead_id)) : (i.sub ? esc(i.sub) : '');
+        html += '<div class="bell-row"><button class="bell-item" data-lead="' + esc(i.lead_id) + '" data-url="' + esc(i.url || '') + '" type="button"><span class="bi-t">' + (i.kind === 'mention' ? '💬 ' : '') + esc(i.title || '(sin título)') + '</span><span class="bi-s">' + sub + (i.due ? (sub ? ' · ' : '') + '<span class="bi-due' + (i.overdue ? ' od' : '') + '">' + fmtDue(i) + '</span>' : '') + '</span>' + (i.at ? '<span class="bi-at">hace ' + timeAgo(i.at) + '</span>' : '') + '</button>' +
           '<button class="bell-dis" data-k="' + esc(i.kind + ':' + i.id) + '" type="button" title="Descartar esta notificación" aria-label="Descartar">✕</button></div>';
       });
     });
     list.innerHTML = html;
-    list.querySelectorAll('.bell-item').forEach((b) => b.addEventListener('click', () => { $('bell-panel').hidden = true; gotoTab('leads'); openLead(b.dataset.lead); }));
+    /* Cada aviso ya venía con su destino (`url`) desde el buzón —el del brief apunta al
+       proyecto— pero el click lo ignoraba y mandaba TODO a Personas, con openLead(null)
+       cuando el aviso no era de nadie.
+       (Sebastián, 26 ago 2026: "la notificacion me sigue llevando a personas no al
+        proyecto donde esta la info".) */
+    list.querySelectorAll('.bell-item').forEach((b) => b.addEventListener('click', () => {
+      $('bell-panel').hidden = true;
+      if (b.dataset.url){ bellIr(b.dataset.url); return; }
+      if (b.dataset.lead && b.dataset.lead !== 'null'){ gotoTab('leads'); openLead(b.dataset.lead); }
+    }));
     list.querySelectorAll('.bell-dis').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); dismissBellItem(b.dataset.k); }));
   }
+  /* Un destino del buzón puede ser cualquier pantalla del dashboard. Si es de esta misma
+     página, se cambia la URL y se reusa openFromQuery() —el mismo camino que un link
+     pegado a mano— en vez de recargar entera la app. */
+  function bellIr(u){
+    try {
+      const url = new URL(u, location.origin);
+      if (url.pathname.replace(/\/$/, '') !== location.pathname.replace(/\/$/, '')){ location.href = url.href; return; }
+      history.replaceState({}, '', url.pathname + url.search);
+      openFromQuery();
+    } catch (e){ location.href = u; }
+  }
+
   function toggleBell(){ const p = $('bell-panel'); const willOpen = p.hidden; document.querySelectorAll('.bell-panel').forEach((x) => x.hidden = true); p.hidden = !willOpen; if (willOpen) loadBell(); }
   // re-evaluar cada 2 min: cuando una task cruza su hora, el badge salta solo
   setInterval(() => { const dv = $('dash-view'); if (dv && !dv.hidden && !document.hidden) loadBell(); }, 120000);
