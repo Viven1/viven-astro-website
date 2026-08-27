@@ -131,7 +131,14 @@ const FORMA_PLAN = {
           bloque: { type: "string", description: "La jornada y el momento: «Jornada 1 · Mañana». Si el rodaje es de UN SOLO día, escribí solo «Mañana», «Mediodía» o «Tarde» — poner «Jornada 1» en cada fila de un rodaje de un día es ruido." },
           hora: { type: "string", description: "«08:00»." },
           dura_min: { type: "integer", description: "Cuántos minutos dura el bloque. Realista: montar una entrevista lleva 30-45, no 10." },
-          que: { type: "string" },
+          /* En un bloque de rodaje va QUÉ PASA en esas escenas —la sinopsis— no el nombre
+             de la tarea. El equipo lee esto para entender qué está filmando; "Rodaje de la
+             apertura: notificaciones, búsqueda en el cuaderno" es una etiqueta, no una
+             escena. En los bloques que no son rodaje (llegada, almuerzo, viaje) sí va el
+             nombre de la tarea, que es todo lo que hay que saber.
+             (Sebastián, 26 ago 2026: "ahí va sinopsis de esa escena para entender qué
+             hacemos".) */
+          que: { type: "string", description: "Si se ruedan escenas: QUÉ PASA en ellas, en una o dos frases, como se lo contarías a alguien que no leyó el guion. Si no es rodaje (llegada, montaje, almuerzo, viaje): el nombre de la tarea, a secas." },
           donde: { type: "string" },
           quien: { type: "string", description: "Quién tiene que estar. Incluido el cliente cuando hace falta." },
           escenas: { type: "string", description: "Los números de escena que entran acá, o «—»." },
@@ -333,6 +340,10 @@ REGLAS:
   «Tarde» a secas. Numerar la única jornada que hay es ruido en cada fila.
 - Ordená por LUGAR y por quién aparece, NO por el orden del video. Todo lo de una persona
   junto, todo lo de un espacio junto. Decilo en 'notas' cuando reordenes.
+- En 'que', para los bloques de rodaje, va la SINOPSIS de lo que se filma ahí: qué pasa, en
+  una o dos frases. Sale del resumen de esas escenas. No es el nombre de la tarea ni una
+  lista de planos — el que lo lee quiere entender qué está filmando, y el número de escena
+  ya está en su columna.
 - En 'lleva' va lo que tiene que ESTAR en ese bloque: las cosas del desglose de las escenas
   que se ruedan ahí, con su cantidad. No la lista entera del proyecto — solo lo de ese
   bloque. Vacío si no hace falta nada especial (llegada, comida, desmontaje).
