@@ -8144,7 +8144,7 @@ const newsCases = [
            escribir de cero. Ahora abre el popup con el borrador ya hecho, sin salir
            de Hoy (pedido de Sebastián). Sin lead_id no hay a quién escribirle: en ese
            caso se mantiene el camino viejo. */
-        acts: hmActHecho(o.lead_id, 'oferta «' + (o.title || '') + '»'),
+        acts: hmActHecho(o.lead_id, 'oferta «' + (o.title || '') + '»', true, { tipo: 'oferta', id: o.id }),
         hint: 'Follow-up →', go: () => (o.lead_id ? fuAbrir(o.lead_id, { tipo: 'oferta', id: o.id })
                                                   : (gotoTab('offers'), openOffer(o.id))) });
     });
@@ -8158,12 +8158,12 @@ const newsCases = [
         if (p.lead_id) busyLeads.add(String(p.lead_id));
         items.push({ rank: 1, sev: 'rojo', icon: '🌐', at: ref, leadId: p.lead_id || null, chf: propNet(p), dias: days, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', days + ' d sin respuesta'].filter(Boolean).join(' · '),
-          acts: hmActHecho(p.lead_id, 'propuesta «' + (p.title || '') + '»'),
+          acts: hmActHecho(p.lead_id, 'propuesta «' + (p.title || '') + '»', true, { tipo: 'propuesta', id: p.id }),
           hint: 'Follow-up →', go: () => (p.lead_id ? fuAbrir(p.lead_id, { tipo: 'propuesta', id: p.id }) : goP()) });
       } else if (days > 2 && !p.last_view_at){
         items.push({ rank: 5, sev: 'azul', icon: '👁', at: ref, leadId: p.lead_id || null, chf: propNet(p), dias: days, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', days + ' d · 0 vistas — ¿le llegó el link?'].filter(Boolean).join(' · '),
-          acts: hmActHecho(p.lead_id, 'propuesta sin abrir'),
+          acts: hmActHecho(p.lead_id, 'propuesta sin abrir', true, { tipo: 'propuesta', id: p.id }),
           hint: 'Reenviar →', go: goP });
       }
     });
@@ -8186,7 +8186,7 @@ const newsCases = [
         const stLabel = (STAGES.find((s) => s.key === stageOf(d.stage)) || {}).label || '';
         items.push({ rank: 2, sev: 'rojo', icon: '🤝', at: now - days * D, leadId: d.lead_id || null, chf: dealValue(d), dias: days, t: d.title || r.name || r.email || '(deal)',
           ctx: days + ' d en ' + stLabel + ' · sin próximo paso',
-          acts: hmActHecho(d.lead_id, 'deal parado en ' + stLabel),
+          acts: hmActHecho(d.lead_id, 'deal parado en ' + stLabel, true, { tipo: 'deal', id: d.id }),
           hint: 'Definir paso →', go: () => (d.lead_id ? openLead(d.lead_id) : gotoTab('deals')) });
       });
     }
@@ -8204,7 +8204,7 @@ const newsCases = [
            que son justo los que más rápido hay que contestar. (Sebastián, 25 ago:
            "me sale contactar con gente nueva pero no me da popup con respuesta
            automática".) Sin email no hay a quién escribirle: ahí sí va la ficha. */
-        acts: hmActHecho(l.id, 'lead nuevo'),
+        acts: hmActHecho(l.id, 'lead nuevo', !!l.email, { tipo: 'lead_nuevo', id: l.id }),
         hint: 'Contactar →', go: () => (l.email ? fuAbrir(l.id, { tipo: 'lead_nuevo', id: l.id }) : openLead(l.id)) });
     });
     /* (0) LO QUE TIENE HORA FIJA EN LAS PRÓXIMAS 24 h.
@@ -8410,10 +8410,26 @@ const newsCases = [
   }
 
   /* El botón va en todo aviso que sea un seguimiento de una persona. */
-  const hmActHecho = (leadId, queEra) => leadId
-    ? [{ label: '✓ Hecho', cls: 'btn-ghost', title: 'Ya lo seguí — que no vuelva a aparecer por una semana',
-         fn: (b) => hmSeguimientoHecho(leadId, b, queEra) }]
-    : null;
+  /* Dos botones, no uno. «Hecho» solo servía para el caso en que ya lo seguiste por fuera
+     —una llamada, un WhatsApp—, pero el aviso dice «sin próximo paso»: lo que hay que hacer
+     es mandar el follow-up, no declararlo hecho. Poner el descarte como única acción invita
+     a silenciar avisos en vez de trabajarlos.
+     El follow-up va primero y resaltado; «Hecho» queda al lado, en gris.
+     (Sebastián, 27 ago 2026: "acá ofrecería follow up, ¿o hecho?") */
+  const hmActHecho = (leadId, queEra, conFollowUp, tipo) => {
+    if (!leadId) return null;
+    const acts = [];
+    if (conFollowUp){
+      acts.push({ label: '📤 Follow-up', cls: 'btn-primary',
+        title: 'Escribirle ahora — se abre el borrador con la IA',
+        fn: () => fuAbrir(leadId, tipo || { tipo: 'lead_nuevo', id: leadId }) });
+    }
+    acts.push({ label: '✓ Hecho', cls: 'btn-ghost',
+      title: conFollowUp ? 'Ya le escribí por otro lado — que no vuelva por una semana'
+                         : 'Ya lo seguí — que no vuelva a aparecer por una semana',
+      fn: (b) => hmSeguimientoHecho(leadId, b, queEra) });
+    return acts;
+  };
 
   /* «Tiene un seguimiento agendado que todavía no venció». Una fecha pasada NO silencia:
      el día que se cumple, el aviso vuelve. */
@@ -9271,6 +9287,28 @@ const newsCases = [
     if (medido){
       const pers = persEn(desdeMed, rangeEnd());
       const parcial = rangeStart() < HUMAN_DESDE;
+
+      /* Cuántas de esas personas dejaron sus datos, y si venimos mejor o peor.
+         Las dos cosas se cuentan en el MISMO tramo —desde que existe la medición de
+         personas— porque dividir leads de 30 días por personas de 4 da un número cuatro
+         veces más alto y falso.
+         El «vs» solo aparece cuando existe un período anterior de verdad: hoy la medición
+         tiene 4 días, así que compararla contra los 4 anteriores sería compararla contra
+         cero. Cuando haya el doble de ventana, la comparación aparece sola.
+         (Sebastián, 27 ago 2026: "dejaría también la cantidad de personas que vieron la
+          página, y si es mejor que la anterior [...] lo mismo con la conversion rate".) */
+      const leadsEn = (a2, b2) => (allLeads || []).filter((l) => {
+        if (/^claude-/.test(l.session_id || '')) return false;
+        if (esCartera(l)) return false;
+        const t = Date.parse(l.created_at);
+        return t >= a2 && t <= b2;
+      }).length;
+      const conv = pers ? (leadsEn(desdeMed, rangeEnd()) / pers * 100) : null;
+      const largo = rangeEnd() - desdeMed;
+      const iniPrev = desdeMed - largo;
+      const hayPrevio = iniPrev >= HUMAN_DESDE;
+      const persPrev = hayPrevio ? persEn(iniPrev, desdeMed - 1) : null;
+      const convPrev = (hayPrevio && persPrev) ? (leadsEn(iniPrev, desdeMed - 1) / persPrev * 100) : null;
       /* Mismo cálculo que Analytics (ceil, no round): con los mismos datos, la
          pantalla decía "últimos 1 día" acá y "últimos 2 días" allá. Y "últimos 1
          día" además está mal escrito. */
@@ -9278,11 +9316,21 @@ const newsCases = [
       $('hm-vis-l').textContent = parcial ? 'Personas (' + (dias === 1 ? 'último día' : 'últimos ' + dias + ' días') + ')'
                                           : 'Personas (' + rangeLabel().toLowerCase() + ')';
       $('hm-vis').textContent = pers.toLocaleString('de-CH');
-      $('hm-vis-t').textContent = parcial
-        ? 'se mide desde el 24/08 · en el período entero hubo ' + (visCur != null ? visCur.toLocaleString('de-CH') + ' visitas' : 'más visitas')
-        : (visCur != null ? 'de ' + visCur.toLocaleString('de-CH') + ' visitas · el resto es automático'
-                          : 'medido por scroll, puntero o toque');
-      const dd = $('hm-vis-d'); if (dd){ dd.textContent = ''; dd.className = 'kdelta'; }
+      /* El subtítulo dice la conversión, que es lo que se quiere saber de ese número:
+         de la gente que entró, cuánta dejó sus datos. */
+      const convTxt = conv == null ? ''
+        : (conv < 10 ? conv.toFixed(1) : Math.round(conv)) + '% dejó sus datos' +
+          (convPrev != null ? ' · antes ' + (convPrev < 10 ? convPrev.toFixed(1) : Math.round(convPrev)) + '%' : '');
+      $('hm-vis-t').textContent = [
+        convTxt,
+        parcial ? 'se mide desde el 24/08' : null,
+        visCur != null ? 'de ' + visCur.toLocaleString('de-CH') + ' visitas' : null,
+      ].filter(Boolean).join(' · ');
+      const dd = $('hm-vis-d');
+      if (dd){
+        if (persPrev) setDelta('hm-vis-d', pers, persPrev);
+        else { dd.textContent = ''; dd.className = 'kdelta'; }
+      }
     } else {
       $('hm-vis-l').textContent = actCargada ? 'Visitas (' + rangeLabel().toLowerCase() + ')' : 'Personas';
       $('hm-vis-t').textContent = actCargada ? 'incluye tráfico automático · personas se mide desde el 24/08' : 'cargando…';
