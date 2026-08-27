@@ -7,10 +7,33 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v146';  // v146: 26 ago 2026 — la pantalla en blanco ahora se explica y se arregla sola
+var CACHE = 'viven-crm-v147';  // v147: 26 ago 2026 — el SW guarda el bundle, no solo el HTML
 
+/* Al instalar se guarda el HTML **y los archivos que ese HTML pide**. Antes solo se
+   guardaba '/dashboard/', y el bundle recién entraba a la cache la primera vez que el
+   navegador lo pedia con red. O sea: se instalaba la version nueva, `activate` borraba la
+   cache anterior, y si el siguiente arranque era sin señal quedaba el HTML sin su
+   JavaScript — pantalla en blanco. Justo en el set, que es donde no hay señal y donde
+   Sebastian mira el tablero.
+   Los nombres llevan hash y cambian en cada deploy, asi que no se pueden poner a mano: se
+   lee el HTML y se sacan de ahi. Si algo falla, la instalacion sigue igual — es mejor un
+   offline incompleto que un service worker que no instala. */
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(['/dashboard/']); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(
+    caches.open(CACHE).then(function (c) {
+      return fetch('/dashboard/', { cache: 'reload' }).then(function (res) {
+        return c.put('/dashboard/', res.clone()).then(function () { return res.text(); });
+      }).then(function (html) {
+        var urls = [];
+        var re = /(?:src|href)="(\/(?:_astro|assets)\/[^"]+\.(?:js|css|woff2))"/g, m;
+        while ((m = re.exec(html))) if (urls.indexOf(m[1]) < 0) urls.push(m[1]);
+        return Promise.all(urls.map(function (u) {
+          return c.add(u).catch(function () { });   // uno que falle no tira la instalacion
+        }));
+      });
+    }).catch(function () { })
+     .then(function () { return self.skipWaiting(); })
+  );
 });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
