@@ -2431,6 +2431,30 @@ const newsCases = [
   .hk-l{color:var(--muted);font-size:11.5px}
   .hk-n{font-family:'Space Grotesk';font-weight:700;font-size:21px;color:var(--text);line-height:1.15;margin-top:3px}
   .hk-t{font-size:11.5px;margin-top:3px;font-weight:600}
+
+  /* ── HOY: los números en una tira, no en tarjetas ──
+     Eran siete tarjetas de 21px ocupando la primera pantalla, y la lista de lo que hay
+     que hacer —lo único accionable— empezaba abajo del pliegue. Los números no se van:
+     se achican y se ponen en fila, que es como se leen de reojo. Lo que gana la pantalla
+     son tres o cuatro acciones más a la vista.
+     Solo cambia la presentación: mismos ids, mismos datos, mismo JS.
+     (Mockup aprobado por Sebastián el 27 ago 2026.) */
+  #tab-hoy .hm-kpis{gap:0;background:var(--navy-800);border:1px solid var(--line);
+    border-radius:12px;padding:2px 4px;margin-bottom:14px}
+  #tab-hoy .hm-kpis .hk{flex:1 1 150px;background:none;border:0;border-radius:0;
+    padding:9px 14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;min-width:0}
+  #tab-hoy .hm-kpis .hk + .hk{border-left:1px solid var(--line)}
+  #tab-hoy .hm-kpis .hk-l{font-size:11px;color:var(--muted-2);order:2;flex:1 1 100%;margin:0;line-height:1.35}
+  #tab-hoy .hm-kpis .hk-n{font-size:17px;margin:0;order:0;line-height:1.1}
+  /* min-height:13px en una fila baja deja un hueco fantasma cuando no hay delta. */
+  #tab-hoy .hm-kpis .kdelta{order:1;margin:0;min-height:0;font-size:10.5px}
+  #tab-hoy .hm-kpis .kdelta:empty{display:none}
+  #tab-hoy .hm-kpis .hk-t{font-size:10.5px;margin:0;order:3;flex:1 1 100%;line-height:1.4}
+  @media(max-width:700px){
+    #tab-hoy .hm-kpis .hk{flex:1 1 44%}
+    #tab-hoy .hm-kpis .hk + .hk{border-left:0}
+    #tab-hoy .hm-kpis .hk:nth-child(odd) + .hk{border-left:1px solid var(--line)}
+  }
   .hk-t.up{color:#7ed957}
   .hk-t.down{color:#ff8b8b}
   .hk-t.muted{color:var(--muted-2);font-weight:400}
