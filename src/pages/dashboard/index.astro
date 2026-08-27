@@ -1805,6 +1805,15 @@ const newsCases = [
   .pb-prog{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted-2);margin:0 0 14px}
   .pb-prog .bar{flex:1;height:5px;background:var(--navy-800);border-radius:100px;overflow:hidden}
   .pb-prog .bar i{display:block;height:100%;background:var(--acid);border-radius:100px}
+  /* Quién viene, con su teléfono */
+  .pj-gente2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:0 0 4px}
+  .pj-gente2 h5{margin:0 0 7px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted-2);font-weight:700}
+  .pj-per1{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .pj-per1 .n{font-weight:600;color:var(--text);min-width:96px}
+  .pj-per1 .r{color:var(--muted-2);font-size:11.5px;flex:1}
+  .pj-per1 .t{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
+  .pj-per1 .t.no{color:#f0c060;font-family:inherit;font-style:italic;font-size:11.5px}
   /* La cabecera del día: la citación grande y dónde presentarse, juntas */
   .pj-cita{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;margin:0 0 16px;
     padding:16px 18px;border:1px solid var(--line);border-radius:13px;background:var(--navy-900)}
@@ -1840,6 +1849,9 @@ const newsCases = [
   .pj-pl input:hover,.pj-pl textarea:hover{border-color:var(--line)}
   .pj-pl input:focus,.pj-pl textarea:focus{border-color:var(--acid);outline:none;background:rgba(255,255,255,.03)}
   .pj-pl .c-hora input{font-variant-numeric:tabular-nums}
+  .pj-fija{display:block;font-size:10px;color:var(--acid);font-weight:600;margin-top:3px;line-height:1.3}
+  .pj-pl td.pisada{background:rgba(240,192,96,.09)}
+  .pj-pl td.pisada input{border-color:#f0c060}
   .pj-pl tr.blq-ini td{border-top:1px solid var(--line)}
   .pj-pl tr.blq-cab td{border:0;padding:14px 0 5px}
   .pj-pl tr.blq-cab input{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
@@ -3355,8 +3367,14 @@ const newsCases = [
           </div>
           <div id="pj-plan-prop"></div>
           <div id="pj-plan-cab"></div>
+          <!-- Las notas del día van ANTES del cronograma. Al final de una hoja larga no las
+               lee nadie, y una nota que nadie lee es peor que no tenerla: se cree que el
+               aviso ya está dado. (Es el orden de Maestro, pagado con rodajes reales.) -->
+          <label class="ned-lbl" style="margin:0 0 14px">Notas del día <em>— las lee todo el equipo, arriba del cronograma</em>
+            <textarea class="pj-inp" id="pj-plan-notas" rows="2" placeholder="p. ej. La cocina se usa hasta las 11:00 — después entra el personal de la hostería."></textarea></label>
           <div id="pj-plan-jor"></div>
           <div id="pj-plan-tabla"></div>
+          <div id="pj-plan-gente"></div>
           <div id="pj-plan-listas"></div>
         </div>
       </details>
@@ -20590,6 +20608,7 @@ const newsCases = [
   }
 
   let pjPlan = null;        // la fila guardada de project_scripts (tipo 'plan')
+  let pjPlanRecT = null;    // debounce del recálculo de horas
   let pjPlanProp = null;    // la propuesta de la IA, todavía sin guardar
   let pjPlanT = null;       // debounce del guardado
 
@@ -20618,6 +20637,20 @@ const newsCases = [
       .select('*').eq('project_id', p.id).eq('tipo', 'plan')
       .order('updated_at', { ascending: false }).limit(1);
     pjPlan = (error || !data || !data.length) ? null : data[0];
+    /* Las tres listas viven juntas en `premisa` y se separan al leer: notas del día, lo que
+       hay que conseguir y los riesgos. */
+    if (pjPlan){
+      const t = String(pjPlan.premisa || '');
+      const corte = (desde, hasta) => {
+        if (!t.includes(desde)) return '';
+        const x = t.split(desde)[1];
+        return (hasta && x.includes(hasta) ? x.split(hasta)[0] : x).trim();
+      };
+      pjPlan.notas_dia = corte('Notas del día:', 'Hay que conseguir antes:') ||
+                         corte('Notas del día:', 'Ojo con:');
+      pjPlan.necesita_txt = corte('Hay que conseguir antes:', 'Ojo con:');
+      pjPlan.riesgos_txt = corte('Ojo con:', null);
+    }
     pjPlanRender();
     pjPlanCabRender();
     pjLugarCargar();
@@ -20792,6 +20825,20 @@ const newsCases = [
             '</div></td></tr>';
         }).join('') + '</tbody></table></div>';
 
+    /* Las horas fijas se marcan con su motivo —la nota de esa fila— en vez de una etiqueta
+       que haya que aprender. Y si alguna quedó pisada por el bloque de arriba, se dice. */
+    const pisados = pjPlanRecalcular();
+    $('pj-plan-tabla').querySelectorAll('.c-hora').forEach((td, i) => {
+      const f = pjPlanFilas()[i];
+      if (!f) return;
+      if (f.fija){
+        const por = String(f.notas || '').trim().split(/[.\n]/)[0].slice(0, 40);
+        td.insertAdjacentHTML('beforeend',
+          '<span class="pj-fija">📌 ' + (por ? esc(por) : 'no se mueve') + '</span>');
+      }
+      if (pisados.includes(i)) td.classList.add('pisada');
+    });
+
     const tb = $('pj-plan-tabla');
     tb.querySelectorAll('[data-pf]').forEach((el) => el.addEventListener('input', () => {
       const fs = pjPlanFilas(), i = +el.dataset.pf, f = fs[i]; if (!f) return;
@@ -20802,12 +20849,36 @@ const newsCases = [
         fs.forEach((x) => { if (String(x.bloque || '') === antes) x.bloque = el.value; });
       } else {
         f[el.dataset.pk] = el.value;
+        /* Escribir una hora la vuelve FIJA: la escribió una persona. Borrarla la devuelve
+           al cálculo. */
+        if (el.dataset.pk === 'hora'){
+          f.fija = !!String(el.value).trim() && i > 0;
+          if (!String(el.value).trim()) delete f.fija;
+        }
+        /* Cambiar la duración o una hora corre todo lo de abajo. Se repinta después de
+           escribir, no mientras: redibujar en cada tecla saca el cursor del campo. */
+        if (el.dataset.pk === 'dura_min' || el.dataset.pk === 'hora'){
+          clearTimeout(pjPlanRecT);
+          pjPlanRecT = setTimeout(() => {
+            const foco = document.activeElement;
+            const guardar = foco && foco.dataset ? { f: foco.dataset.pf, k: foco.dataset.pk, sel: foco.selectionStart } : null;
+            pjPlanRecalcular();
+            pjPlanRender();
+            if (guardar){
+              const v = $('pj-plan-tabla').querySelector('[data-pf="' + guardar.f + '"][data-pk="' + guardar.k + '"]');
+              if (v){ v.focus(); try { v.setSelectionRange(guardar.sel, guardar.sel); } catch (e){ } }
+            }
+          }, 600);
+        }
       }
       pjPlanGuardarDebounce();
     }));
     tb.querySelectorAll('[data-pup]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pup, -1)));
     tb.querySelectorAll('[data-pdn]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pdn, 1)));
     tb.querySelectorAll('[data-pdel]').forEach((b) => b.addEventListener('click', () => pjPlanBorrarFila(+b.dataset.pdel)));
+
+    pjPlanGenteRender();
+    $('pj-plan-notas').value = (pjPlan && pjPlan.notas_dia) || '';
 
     /* "Hay que conseguir" y "Ojo con" también se editan: la IA los propone y después
        aparecen cosas que solo sabe el que atendió el teléfono. */
@@ -20827,6 +20898,12 @@ const newsCases = [
         pjPlanGuardarDebounce();
       }));
     }
+    if (pjPlan){
+      $('pj-plan-notas').addEventListener('input', () => {
+        pjPlan.notas_dia = $('pj-plan-notas').value;
+        pjPlanGuardarDebounce();
+      });
+    }
   }
 
   /* ── El plan en PDF ──
@@ -20845,6 +20922,29 @@ const newsCases = [
     const fechas = [p.shoot_start ? fmtDMY(p.shoot_start) : '', p.shoot_end && p.shoot_end !== p.shoot_start ? fmtDMY(p.shoot_end) : '']
       .filter(Boolean).join(' – ');
     const pieTxt = [(p.ref ? '#' + p.ref : ''), String(p.title || ''), 'VIVEN AG · Zürich'].filter(Boolean).join('  ·  ');
+
+    /* Los mismos datos que la pantalla, sacados de las mismas filas: si se calcularan dos
+       veces con dos criterios, el papel y la pantalla dirían horas distintas. */
+    const hh = (f) => String(f.hora || '').match(/^(\d{1,2}):(\d{2})/);
+    const conHora = filas.filter(hh);
+    const esPrep = (f) => /llegada|montaje|viaje|traslado|carga|preparaci/i.test(String(f.que || ''));
+    const ultF = conHora[conHora.length - 1];
+    let finTxt = null;
+    if (ultF){ const m = hh(ultF), t = +m[1] * 60 + +m[2] + (Number(ultF.dura_min) || 60);
+      finTxt = String(Math.floor(t / 60) % 24).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); }
+    const L = pjLugar || {};
+    const cab = {
+      cita: conHora.length ? conHora[0].hora : null,
+      primera: (conHora.find((f) => !esPrep(f)) || {}).hora || null,
+      fin: finTxt,
+      viaje: L.viaje ? L.viaje.min + ' min · ' + L.viaje.km + ' km desde ' + (L.base || '') : null,
+      luz: L.luz && L.luz.amanece ? L.luz.amanece + ' – ' + L.luz.atardece : null,
+    };
+    const notasDia = (pjPlan && pjPlan.notas_dia || '').trim();
+    const crewPDF = (Array.isArray(p.crew) ? p.crew : []).filter((c) => c && c.nombre).map((c) => {
+      const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
+      return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '' };
+    });
 
     let blq = null;
     const cuerpo = filas.map((f) => {
@@ -20908,6 +21008,22 @@ const newsCases = [
       '.dos h3{font:700 8pt var(--display);letter-spacing:.11em;text-transform:uppercase;color:var(--navy);' +
         'margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid var(--linea)}' +
       '.dos ul{margin:0;padding-left:16px;font-size:9pt;line-height:1.6;color:#3d4757}' +
+      '.cita{display:flex;gap:22px;flex-wrap:wrap;border:1px solid var(--linea);border-radius:8px;' +
+        'padding:10px 14px;margin:0 0 14px}' +
+      '.cita .l{display:block;font:700 7pt var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--gris)}' +
+      '.cita b{font:600 10.5pt var(--texto);color:var(--tinta)}' +
+      '.cita b.hh{font:700 14pt var(--display);color:var(--navy);font-variant-numeric:tabular-nums}' +
+      '.cita .dir{flex:1;min-width:150px}' +
+      '.cita .s{display:block;font-size:8pt;color:var(--gris);margin-top:2px}' +
+      '.notas{background:rgba(221,249,143,.22);border-left:3px solid var(--acid);padding:9px 12px;' +
+        'margin:0 0 14px;font-size:9.5pt;line-height:1.55;color:#3d4757;white-space:pre-wrap}' +
+      '.notas .l{display:block;font:700 7pt var(--display);letter-spacing:.12em;text-transform:uppercase;' +
+        'color:var(--navy);margin-bottom:3px}' +
+      '.eq{margin-top:20px;break-inside:avoid}' +
+      '.eq h3{font:700 8pt var(--display);letter-spacing:.11em;text-transform:uppercase;color:var(--navy);' +
+        'margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid var(--linea)}' +
+      '.eqt td{padding:5px 10px 5px 0;border-bottom:1px solid var(--linea);font-size:9pt}' +
+      '.eqt .tel{font-variant-numeric:tabular-nums;color:var(--gris);white-space:nowrap;text-align:right}' +
       'footer{margin-top:24px;border-top:3px solid var(--acid);padding-top:10px;font:8.5pt/1.6 var(--texto);color:var(--gris)}' +
       'footer b{color:var(--navy)}' +
       '.barra{position:sticky;top:0;background:var(--navy);color:#fff;padding:9px 14px;border-radius:9px;' +
@@ -20927,12 +21043,27 @@ const newsCases = [
         '<div class="hd-r">' + (p.ref ? 'Proyecto ' + esc(p.ref) + '<br>' : '') + esc(hoy) + '</div></header>' +
       '<h1>Plan de rodaje</h1>' +
       '<p class="meta">' + esc([p.title || '', p.client_contact || '', fechas].filter(Boolean).join(' · ')) + '</p>' +
+      /* La citación y dónde presentarse, arriba de todo y juntas: es lo que se busca a las
+         seis de la mañana, y en papel también. */
+      '<div class="cita">' +
+        '<div><span class="l">Citación</span><b class="hh">' + esc(cab.cita || '—') + '</b></div>' +
+        '<div class="dir"><span class="l">Dónde</span><b>' + esc(p.location || 'sin locación cargada') + '</b>' +
+          (cab.viaje ? '<span class="s">' + cab.viaje + '</span>' : '') + '</div>' +
+        '<div><span class="l">Primera toma</span><b class="hh">' + esc(cab.primera || '—') + '</b></div>' +
+        '<div><span class="l">Fin estimado</span><b class="hh">' + esc(cab.fin || '—') + '</b></div>' +
+        (cab.luz ? '<div><span class="l">Luz</span><b>' + esc(cab.luz) + '</b></div>' : '') +
+      '</div>' +
+      (notasDia ? '<div class="notas"><span class="l">Notas del día</span>' + esc(notasDia) + '</div>' : '') +
       (jor.length ? '<div class="jor">' + jor.map((j) =>
         '<div><b>' + esc(j.dia) + '</b>' + j.rodaje.toFixed(j.rodaje % 1 ? 1 : 0) + ' h' +
         (j.lunch ? ' + almuerzo' : '') + (j.sobra > 0 ? ' · ' + j.sobra.toFixed(j.sobra % 1 ? 1 : 0) + ' h de más' : '') +
         '</div>').join('') + '</div>' : '') +
       '<table><thead><tr><th>Empieza</th><th>Dura</th><th>Qué se rueda</th><th>Dónde</th><th>Quién</th><th>Qué llevar</th></tr></thead>' +
       '<tbody>' + cuerpo + '</tbody></table>' +
+      (crewPDF.length ? '<div class="eq"><h3>Quién viene</h3><table class="eqt"><tbody>' +
+        crewPDF.map((c) => '<tr><td><b>' + esc(c.nombre) + '</b></td><td>' + esc(c.rol) + '</td>' +
+          '<td class="tel">' + (c.tel ? esc(c.tel) : '—') + '</td></tr>').join('') +
+        '</tbody></table></div>' : '') +
       ((nec || rie) ? '<div class="dos">' +
         (nec ? '<div><h3>Hay que conseguir antes</h3><ul>' + lista(nec) + '</ul></div>' : '') +
         (rie ? '<div><h3>Ojo con</h3><ul>' + lista(rie) + '</ul></div>' : '') +
@@ -21033,10 +21164,83 @@ const newsCases = [
     });
   })();
 
+  /* ── Quién viene, con su teléfono ──
+     En Maestro esto está en la misma hoja porque el teléfono se busca cuando alguien no
+     llegó, y ahí no se abre otra pantalla. Sale de la ficha de cada técnico; el que no lo
+     tenga cargado sale marcado, no en blanco. */
+  function pjPlanGenteRender(){
+    const p = pjCur, box = $('pj-plan-gente'); if (!p || !box) return;
+    if (!pjPlanFilas().length){ box.innerHTML = ''; return; }
+    const crew = Array.isArray(p.crew) ? p.crew.filter((c) => c && c.nombre) : [];
+    const conCli = (pjContactos || []).filter((c) => c._on !== false);
+    if (!crew.length && !conCli.length){ box.innerHTML = ''; return; }
+
+    const fila = (n, rol, tel, mail) =>
+      '<div class="pj-per1"><span class="n">' + esc(n) + '</span>' +
+      '<span class="r">' + esc(rol || '') + '</span>' +
+      '<span class="t' + (tel ? '' : ' no') + '">' + (tel ? esc(tel) : 'sin teléfono') + '</span>' +
+      (mail ? '' : '<span class="t no">sin email</span>') + '</div>';
+
+    box.innerHTML = '<div class="pj-sec-h">Quién viene</div><div class="pj-gente2">' +
+      (crew.length ? '<div><h5>Equipo</h5>' + crew.map((c) => {
+        const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
+        return fila(c.nombre, c.rol, t && t.phone, t && t.email);
+      }).join('') + '</div>' : '') +
+      (conCli.length ? '<div><h5>Del cliente</h5>' + conCli.map((c) =>
+        fila(c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''), c.phone, c.email)).join('') +
+        '<p class="muted-note" style="margin:9px 0 0">Solo los tildados en el paso Cliente.</p></div>' : '') +
+      '</div>' +
+      (crew.some((c) => { const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre)); return !t || !t.phone; })
+        ? '<p class="muted-note" style="margin:9px 0 0">Los que salen «sin teléfono» van así en la hoja. Se cargan en <b>Técnicos</b>.</p>' : '');
+  }
+
+  /* ── LAS HORAS SE RECALCULAN ──
+     Escribís cuánto dura cada bloque y las horas salen solas: cada uno empieza cuando
+     termina el anterior. Si alargás uno de 60′ a 90′, todo lo de abajo se corre media hora.
+     Antes había que retipear las horas una por una — así se llega al set con dos que no
+     cierran.
+
+     Una hora escrita A MANO queda FIJA: no se mueve aunque lo de arriba se estire, y a
+     partir de ella el reloj arranca de nuevo. Es la diferencia entre una consecuencia y una
+     decisión: «la cocina se libera a las 11» no se corre porque el montaje tardó más — se
+     corre todo lo demás, y si llega a pisarla, se avisa.
+     (Sebastián, 26 ago 2026: "si cambio tiempo a mano, el resto se tiene que adaptar".) */
+  const pjHoraMin = (h) => {
+    const m = String(h || '').match(/^(\d{1,2}):(\d{2})/);
+    return m ? +m[1] * 60 + +m[2] : null;
+  };
+  const pjMinHora = (t) => String(Math.floor((t % 1440 + 1440) % 1440 / 60)).padStart(2, '0') +
+    ':' + String(((t % 60) + 60) % 60).padStart(2, '0');
+
+  /* Devuelve los índices cuya hora quedó pisada por el bloque de arriba. No los mueve: una
+     hora fija es una decisión de alguien, y correrla en silencio es peor que avisar. */
+  function pjPlanRecalcular(){
+    const filas = pjPlanFilas();
+    if (!filas.length) return [];
+    let reloj = pjHoraMin(filas[0].hora);
+    if (reloj == null) return [];
+    const pisados = [];
+    filas.forEach((f, i) => {
+      const propia = pjHoraMin(f.hora);
+      if (i === 0 || f.fija){
+        /* Fija: manda ella. Si el bloque anterior la pasó, se anota y sigue. */
+        if (propia != null){
+          if (i > 0 && reloj > propia) pisados.push(i);
+          reloj = propia;
+        }
+      } else {
+        f.hora = pjMinHora(reloj);
+      }
+      reloj += Number(f.dura_min) || 0;
+    });
+    return pisados;
+  }
+
   function pjPlanMover(i, d){
     const f = pjPlanFilas(); const j = i + d;
     if (j < 0 || j >= f.length) return;
     const t = f[i]; f[i] = f[j]; f[j] = t;
+    pjPlanRecalcular();
     pjPlanRender(); pjPlanGuardar();
   }
 
@@ -21046,6 +21250,7 @@ const newsCases = [
     /* Sin confirmación: es una fila de una tabla y volver a escribirla cuesta menos que
        leer un cartel. Lo que sí se confirma es reemplazar el plan entero. */
     f.splice(i, 1);
+    pjPlanRecalcular();
     pjPlanRender(); pjPlanGuardar();
   }
 
@@ -21078,7 +21283,8 @@ const newsCases = [
     const filas = pjPlanFilas().map((f, i) => ({ ...f, n: i + 1 }));
     const { error } = await supabase.from('project_scripts').update({
       cuerpo: filas,
-      premisa: [pjPlan.necesita_txt ? 'Hay que conseguir antes:\n' + pjPlan.necesita_txt : '',
+      premisa: [pjPlan.notas_dia ? 'Notas del día:\n' + pjPlan.notas_dia : '',
+                pjPlan.necesita_txt ? '\nHay que conseguir antes:\n' + pjPlan.necesita_txt : '',
                 pjPlan.riesgos_txt ? '\nOjo con:\n' + pjPlan.riesgos_txt : ''].filter(Boolean).join('\n'),
     }).eq('id', pjPlan.id);
     if (error){ toast(error.message); return; }
