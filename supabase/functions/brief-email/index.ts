@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + RESEND, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "VIVEN <info@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: t.subject, html }),
+      body: JSON.stringify({ from: "Sofia Treviño — VIVEN <sofia@viven.ch>", reply_to: "sofia@viven.ch", to: [to], subject: t.subject, html }),
     });
     if (!res.ok) { console.error("RESEND_FAIL", await res.text()); return json({ error: "send_failed" }, 502); }
     await registrarEmail({

@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: `${remitente.nombre} (VIVEN) <info@viven.ch>`,
+        from: `${remitente.nombre} — VIVEN <${remitente.email}>`,
         to: destinos, reply_to: remitente.email, subject: asunto, html,
         ...(adj.length ? { attachments: adj } : {}),
       }),

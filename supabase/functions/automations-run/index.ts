@@ -128,8 +128,16 @@ function slotZurich(base: Date, hour = HORA_ENVIO, minute = MIN_ENVIO): Date {
 }
 
 const FROMS: Record<string, { from: string; reply: string }> = {
-  sofia: { from: "Sofia Treviño — VIVEN <info@viven.ch>", reply: "sofia@viven.ch" },
-  sebastian: { from: "Sebastian Cepeda — VIVEN <info@viven.ch>", reply: "sebastian@viven.ch" },
+  /* El remitente es la PERSONA, no el buzón general. Salía "Sofia Treviño — VIVEN
+     <info@viven.ch>": el nombre decía Sofia y la dirección decía info@, así que el cliente
+     que responde o la agenda en su libreta guarda info@. Sofia es la que habla con los
+     clientes; sus emails salen de ella.
+     El dominio viven.ch ya está verificado en Resend, así que cualquier buzón del dominio
+     sale igual de bien. `team` sigue siendo info@ porque ahí sí escribe la empresa.
+     (Sebastián, 27 ago 2026: "Sofia dice que sus emails salen de info@ [...] ella solo de
+      sofia@viven.ch idealmente ya que es la que habla con los clientes".) */
+  sofia: { from: "Sofia Treviño — VIVEN <sofia@viven.ch>", reply: "sofia@viven.ch" },
+  sebastian: { from: "Sebastian Cepeda — VIVEN <sebastian@viven.ch>", reply: "sebastian@viven.ch" },
   team: { from: "VIVEN AG <info@viven.ch>", reply: "info@viven.ch" },
 };
 

@@ -8008,6 +8008,7 @@ const newsCases = [
            escribir de cero. Ahora abre el popup con el borrador ya hecho, sin salir
            de Hoy (pedido de Sebastián). Sin lead_id no hay a quién escribirle: en ese
            caso se mantiene el camino viejo. */
+        acts: hmActHecho(o.lead_id, 'oferta «' + (o.title || '') + '»'),
         hint: 'Follow-up →', go: () => (o.lead_id ? fuAbrir(o.lead_id, { tipo: 'oferta', id: o.id })
                                                   : (gotoTab('offers'), openOffer(o.id))) });
     });
@@ -8021,10 +8022,12 @@ const newsCases = [
         if (p.lead_id) busyLeads.add(String(p.lead_id));
         items.push({ rank: 1, sev: 'rojo', icon: '🌐', at: ref, leadId: p.lead_id || null, chf: propNet(p), dias: days, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', days + ' d sin respuesta'].filter(Boolean).join(' · '),
+          acts: hmActHecho(p.lead_id, 'propuesta «' + (p.title || '') + '»'),
           hint: 'Follow-up →', go: () => (p.lead_id ? fuAbrir(p.lead_id, { tipo: 'propuesta', id: p.id }) : goP()) });
       } else if (days > 2 && !p.last_view_at){
         items.push({ rank: 5, sev: 'azul', icon: '👁', at: ref, leadId: p.lead_id || null, chf: propNet(p), dias: days, t: p.title || 'Propuesta',
           ctx: [l.name || l.email || '', days + ' d · 0 vistas — ¿le llegó el link?'].filter(Boolean).join(' · '),
+          acts: hmActHecho(p.lead_id, 'propuesta sin abrir'),
           hint: 'Reenviar →', go: goP });
       }
     });
@@ -8042,6 +8045,7 @@ const newsCases = [
         const stLabel = (STAGES.find((s) => s.key === stageOf(d.stage)) || {}).label || '';
         items.push({ rank: 2, sev: 'rojo', icon: '🤝', at: now - days * D, leadId: d.lead_id || null, chf: dealValue(d), dias: days, t: d.title || r.name || r.email || '(deal)',
           ctx: days + ' d en ' + stLabel + ' · sin próximo paso',
+          acts: hmActHecho(d.lead_id, 'deal parado en ' + stLabel),
           hint: 'Definir paso →', go: () => (d.lead_id ? openLead(d.lead_id) : gotoTab('deals')) });
       });
     }
@@ -8059,6 +8063,7 @@ const newsCases = [
            que son justo los que más rápido hay que contestar. (Sebastián, 25 ago:
            "me sale contactar con gente nueva pero no me da popup con respuesta
            automática".) Sin email no hay a quién escribirle: ahí sí va la ficha. */
+        acts: hmActHecho(l.id, 'lead nuevo'),
         hint: 'Contactar →', go: () => (l.email ? fuAbrir(l.id, { tipo: 'lead_nuevo', id: l.id }) : openLead(l.id)) });
     });
     /* (0) LO QUE TIENE HORA FIJA EN LAS PRÓXIMAS 24 h.
@@ -8202,6 +8207,46 @@ const newsCases = [
     return sig.sort((a, b) => b.at - a.at);
   }
 
+  /* "Ya lo seguí". Los avisos de Hoy se silencian solos cuando el contacto tiene una
+     próxima fecha de seguimiento —esa condición ya existía— pero no había manera de
+     ponerla desde Hoy: había que entrar a la ficha, buscar el campo y volver. Así que el
+     mismo aviso volvía todos los días aunque lo hubieras hecho.
+     Deja rastro además de silenciar: dentro de un mes, "¿a este lo seguimos?" se contesta
+     mirando sus notas.
+     (Sebastián, 27 ago 2026: "¿cómo marcar follow up hecho en hoy para q deje de
+      molestar?") */
+  async function hmSeguimientoHecho(leadId, btn, queEra){
+    if (!leadId){ toast('Este aviso no tiene contacto asociado'); return; }
+    const dias = 7;
+    const cuando = new Date(Date.now() + dias * 86400000).toISOString().slice(0, 10);
+    if (btn){ btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const { error } = await supabase.from('leads')
+        .update({ next_follow_up_at: cuando }).eq('id', String(leadId));
+      if (error) throw new Error(error.message);
+      await supabase.from('lead_notes').insert({
+        lead_id: String(leadId),
+        author: meEmail || 'dashboard',
+        body: '✓ Seguimiento hecho' + (queEra ? ' — ' + queEra : '') + '. Vuelve a aparecer el ' + fmtDMY(cuando) + '.',
+      });
+      const l = leadById(leadId);
+      if (l) l.next_follow_up_at = cuando;
+      toast('✓ Anotado — no vuelve a aparecer hasta el ' + fmtDMY(cuando));
+      hmTodayCur = hmTodayItems();
+      $('hm-today-n').textContent = hmTodayCur.length ? '(' + hmTodayCur.length + ')' : '';
+      hmRenderToday(hmTodayCur);
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+      if (btn){ btn.disabled = false; btn.textContent = '✓ Hecho'; }
+    }
+  }
+
+  /* El botón va en todo aviso que sea un seguimiento de una persona. */
+  const hmActHecho = (leadId, queEra) => leadId
+    ? [{ label: '✓ Hecho', cls: 'btn-ghost', title: 'Ya lo seguí — que no vuelva a aparecer por una semana',
+         fn: (b) => hmSeguimientoHecho(leadId, b, queEra) }]
+    : null;
+
   function hmRenderToday(items){
     const box = $('hm-today'); if (!box) return;
     hmTodayCur = items;
@@ -8221,6 +8266,9 @@ const newsCases = [
       ? '<div class="hm-item ' + it.sev + '" style="cursor:default" data-i="' + i + '">' +
         '<span class="ic">' + it.icon + '</span>' +
         '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
+        /* El monto también en la variante con botones: si no, agregarle un «✓ Hecho» a un
+           aviso le borraba la plata que tiene en juego, que es lo que ordena la lista. */
+        (it.chf ? '<b class="hm-chf">' + fmtChf(Math.round(it.chf)) + '</b>' : '') +
         '<span class="hm-acts">' + it.acts.map((a, j) =>
           '<button class="btn ' + a.cls + ' small" data-act="' + i + ':' + j + '" type="button"' +
           (a.title ? ' title="' + esc(a.title) + '"' : '') + '>' + a.label + '</button>').join('') +
@@ -16325,10 +16373,19 @@ const newsCases = [
     const searchedOff = q ? offAll.filter((o) => ((o.title || '') + ' ' + (o.client || '') + ' ' + ofLeadNm(o)).toLowerCase().includes(q)) : offAll;
     const searchedProp = q ? propAll.filter((p) => ((p.title || '') + ' ' + (p.client_name || '')).toLowerCase().includes(q)) : propAll;
     // --- segmentos combinados: won↔accepted y draft/sent/lost/archived son equivalentes 1:1; tier es solo de ofertas ---
+    /* «Todas» faltaba, y el segmento que arranca por defecto es «Activas» = borrador o
+       enviada: de 63 ofertas en la base se veían CUATRO. El resto —las perdidas, las
+       ganadas de meses anteriores, las que se mandaron por PDF y se quieren volver a
+       mandar— no estaba escondido en ningún lado raro, simplemente no había un botón que
+       las mostrara todas juntas.
+       (Sebastián, 27 ago 2026: "¿dónde encontramos ahora todas las ofertas creadas para
+        poder enviar por pdf? Desaparecieron todas... ¿escondidas?") */
     const segMatchOff = (o, k) =>
+      k === 'todas' ? !o.archived && o.status !== 'tier' :
       k === 'archived' ? !!o.archived :
       !o.archived && (k === 'active' ? (o.status === 'draft' || o.status === 'sent') : k === 'tier' ? o.status === 'tier' : o.status === k);
     const segMatchProp = (p, k) =>
+      k === 'todas' ? !p.archived :
       k === 'archived' ? !!p.archived :
       !p.archived && (k === 'active' ? (p.status === 'draft' || p.status === 'sent') : k === 'tier' ? false : (k === 'won' ? p.status === 'accepted' : p.status === k));
     /* "Paquetes" salió del segmentador. Son las 44 opciones internas que el cliente
@@ -16336,7 +16393,7 @@ const newsCases = [
        propio botón, así que ocupaban el mismo lugar visual que las nueve cosas que sí
        son documentos, y de 57 filas en la tabla de ofertas solo 4 son ofertas.
        Se siguen viendo donde tienen sentido: adentro de su propuesta. */
-    $('opl-seg').innerHTML = [['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['archived', '🗄']]
+    $('opl-seg').innerHTML = [['todas', 'Todas'], ['active', 'Activas'], ['draft', 'Borradores'], ['sent', 'Enviadas'], ['won', 'Ganadas'], ['lost', 'Perdidas'], ['archived', '🗄']]
       .map(([k, l]) => '<button type="button" data-k="' + k + '" class="' + (oplSeg === k ? 'on' : '') + '">' + l + ' ' + (searchedOff.filter((o) => segMatchOff(o, k)).length + searchedProp.filter((p) => segMatchProp(p, k)).length) + '</button>').join('');
     $('opl-seg').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { oplSeg = b.dataset.k; renderComboList(); }));
     const offRows = searchedOff.filter((o) => segMatchOff(o, oplSeg));

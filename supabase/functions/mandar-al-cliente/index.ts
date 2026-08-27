@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
     if (body.dry_run) {
       return json({
         ok: true, dry_run: true, html, asunto,
-        de: { nombre: remitente.nombre, email: remitente.email, from: `${remitente.nombre} (VIVEN) <info@viven.ch>` },
+        de: { nombre: remitente.nombre, email: remitente.email, from: `${remitente.nombre} — VIVEN <${remitente.email}>` },
         to: conEmail.map((c) => ({ name: c.name, email: c.email, role: c.role })),
         sin_email: sinEmail,
         formato: uno ? "carta" : "email",
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: `${remitente.nombre} (VIVEN) <info@viven.ch>`,
+        from: `${remitente.nombre} — VIVEN <${remitente.email}>`,
         to, reply_to: remitente.email, subject: asunto, html,
       }),
     });

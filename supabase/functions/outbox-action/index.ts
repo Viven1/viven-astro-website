@@ -52,8 +52,9 @@ function confirmPage(actionUrl: string, actionLabel: string, danger: boolean, to
 }
 
 const FROMS: Record<string, { from: string; reply: string; name: string }> = {
-  sofia: { from: "Sofia Treviño — VIVEN <info@viven.ch>", reply: "sofia@viven.ch", name: "Sofia" },
-  sebastian: { from: "Sebastian Cepeda — VIVEN <info@viven.ch>", reply: "sebastian@viven.ch", name: "Sebastian" },
+  /* De la persona, no del buzón general — ver la nota en automations-run. */
+  sofia: { from: "Sofia Treviño — VIVEN <sofia@viven.ch>", reply: "sofia@viven.ch", name: "Sofia" },
+  sebastian: { from: "Sebastian Cepeda — VIVEN <sebastian@viven.ch>", reply: "sebastian@viven.ch", name: "Sebastian" },
   team: { from: "VIVEN AG <info@viven.ch>", reply: "info@viven.ch", name: "VIVEN" },
 };
 async function unsubToken(id: string | number): Promise<string> {

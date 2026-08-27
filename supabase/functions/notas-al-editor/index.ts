@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: `${remitente.nombre} (VIVEN) <info@viven.ch>`, to: [dest], reply_to: remitente.email,
+        from: `${remitente.nombre} — VIVEN <${remitente.email}>`, to: [dest], reply_to: remitente.email,
         subject: asunto, html, attachments: adj,
       }),
     });
