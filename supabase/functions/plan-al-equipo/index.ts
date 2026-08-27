@@ -59,7 +59,11 @@ Deno.serve(async (req) => {
       .select("*").eq("project_id", proj.id).eq("tipo", "plan")
       .order("updated_at", { ascending: false }).limit(1);
     const pl = (plan || [])[0];
-    const filas = pl && Array.isArray(pl.cuerpo) ? pl.cuerpo as Array<Record<string, unknown>> : [];
+    const base = pl && Array.isArray(pl.cuerpo) ? pl.cuerpo as Array<Record<string, unknown>> : [];
+    /* La sinopsis viene resuelta de la pantalla, fila por fila, en el mismo orden. */
+    const sinopsis = Array.isArray(body.filas_extra) ? body.filas_extra as Array<Record<string, unknown>> : [];
+    const filas: Array<Record<string, unknown>> = base.map((f, i) =>
+      ({ ...f, sinopsis: (sinopsis[i] && sinopsis[i].sinopsis) || "" }));
     if (!filas.length) return json({ error: "El plan está vacío. Armalo primero." });
 
     /* Los emails salen de la FICHA de cada técnico del crew. Los que no lo tengan cargado
@@ -118,6 +122,7 @@ Deno.serve(async (req) => {
         <td style="padding:9px 10px 9px 0;border-bottom:1px solid #e9ecf1;color:#8a94a8;white-space:nowrap;vertical-align:top;font-size:12.5px">${f.dura_min ? esc(f.dura_min) + "′" : ""}</td>
         <td style="padding:9px 10px 9px 0;border-bottom:1px solid #e9ecf1;vertical-align:top">
           <b>${esc(f.que)}</b>${!paraCliente && f.escenas && f.escenas !== "—" ? `<span style="display:block;font-size:12px;color:#4e650f;font-weight:600">Esc. ${esc(f.escenas)}</span>` : ""}
+          ${f.sinopsis ? `<span style="display:block;font-size:12.5px;color:#3d4757;line-height:1.5;margin-top:3px;padding-left:9px;border-left:2px solid #e6e9ef">${esc(f.sinopsis)}</span>` : ""}
           ${suyo ? `<span style="display:block;font-size:12px;color:#3d4757;margin-top:2px">${paraCliente ? "Ustedes traen: " : "Llevar: "}${esc(suyo)}</span>` : ""}
           ${!paraCliente && f.notas ? `<span style="display:block;font-size:12px;color:#8a94a8;margin-top:2px">${esc(f.notas)}</span>` : ""}</td>
         <td style="padding:9px 0;border-bottom:1px solid #e9ecf1;vertical-align:top;font-size:12.5px;color:#3d4757">
@@ -125,11 +130,22 @@ Deno.serve(async (req) => {
       </tr>`;
     }).join("");
 
+    const notasDia = String(body.notas_dia || "").trim();
     const listas = (t: unknown) => String(t ?? "").split("\n").map((x) => x.replace(/^[·\-\s]+/, "").trim())
       .filter(Boolean).map((x) => `<li>${esc(x)}</li>`).join("");
     const extra = String((pl as { premisa?: string })?.premisa || "");
     const nec = extra.includes("Hay que conseguir antes:") ? extra.split("Hay que conseguir antes:")[1].split("Ojo con:")[0] : "";
     const rie = extra.includes("Ojo con:") ? extra.split("Ojo con:")[1] : "";
+
+    /* La cabecera, la sinopsis y quién viene los calcula la PANTALLA y viajan en el body:
+       si el servidor los recalculara con su propio criterio, el email y el dashboard
+       dirían horas distintas — que es exactamente el bug que este proyecto ya tuvo dos
+       veces. Una sola fuente, la que se está mirando.
+       (Sebastián, 26 ago 2026: "igual que lo que se ve en el dashboard, acá le falta
+       info".) */
+    const cab = (body.cabecera || {}) as Record<string, string | null>;
+    const equipo = Array.isArray(body.equipo_lista)
+      ? body.equipo_lista as Array<{ nombre: string; rol?: string; tel?: string }> : [];
 
     const asunto = String(body.asunto || "").trim() ||
       `${proj.ref ? proj.ref + " · " : ""}${proj.title || ""} — ${paraCliente ? "El día del rodaje" : "Plan de rodaje"}${fechas ? " · " + fechas : ""}`;
@@ -146,6 +162,33 @@ Deno.serve(async (req) => {
         ? `Así queda el día del rodaje${fechas ? " del " + fechas : ""}${proj.location ? ", en " + esc(String(proj.location)) : ""}. Abajo están los horarios y lo que necesitamos de ustedes.`
         : `El plan del rodaje${fechas ? " del " + fechas : ""}${proj.location ? ", en " + esc(String(proj.location)) : ""}.`,
       cuerpo:
+        /* La citación arriba de todo y GRANDE: es el único número que alguien busca a las
+           seis de la mañana. Y dónde presentarse pegado a ella — son un solo dato
+           operativo, y separarlos hace que se mire la hora sin leer la dirección. */
+        `<table style="width:100%;border-collapse:collapse;border:1px solid #e6e9ef;border-radius:12px;margin:0 0 20px">
+          <tr>
+            <td style="padding:14px 16px;vertical-align:top;white-space:nowrap">
+              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">Citación</div>
+              <div style="font-size:30px;font-weight:800;color:#1b2c46;line-height:1.1">${esc(cab.cita || "—")}</div>
+            </td>
+            <td style="padding:14px 16px;vertical-align:top">
+              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">Dónde presentarse</div>
+              <div style="font-size:14.5px;font-weight:600;color:#1a2230;line-height:1.4">${esc(proj.location || "sin locación cargada")}</div>
+              ${cab.maps ? `<a href="${esc(cab.maps)}" style="font-size:12.5px;color:#2b6cff;text-decoration:none">Abrir en Maps →</a>` : ""}
+              ${cab.viaje ? `<div style="font-size:12px;color:#8a94a8;margin-top:3px">${esc(cab.viaje)}</div>` : ""}
+            </td>
+            <td style="padding:14px 16px;vertical-align:top;white-space:nowrap;font-size:12.5px;color:#3d4757">
+              ${cab.primera ? `<div><b style="color:#1b2c46">${esc(cab.primera)}</b> primera toma</div>` : ""}
+              ${cab.fin ? `<div><b style="color:#1b2c46">${esc(cab.fin)}</b> fin estimado</div>` : ""}
+              ${cab.luz ? `<div style="color:#8a94a8;margin-top:3px">Luz ${esc(cab.luz)}</div>` : ""}
+            </td>
+          </tr>
+        </table>` +
+        /* Las notas del día ANTES del cronograma: al final de un email largo no las lee
+           nadie, y una nota que nadie lee es peor que no tenerla. */
+        `${notasDia ? `<div style="background:#f3f7e8;border-left:3px solid #ddf98f;padding:12px 14px;margin:0 0 18px;border-radius:0 8px 8px 0">
+          <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#4e650f;font-weight:700;margin-bottom:4px">Notas del día</div>
+          <div style="font-size:14px;line-height:1.6;color:#3d4757;white-space:pre-wrap">${esc(notasDia)}</div></div>` : ""}` +
         `${body.mensaje ? `<div style="font-size:15px;line-height:1.65;margin:0 0 20px;padding:14px 16px;background:#fffbe9;border:1px solid #f0e2b0;border-radius:10px;white-space:pre-wrap;color:#3d4757">${esc(body.mensaje)}</div>` : ""}` +
         `<table style="width:100%;border-collapse:collapse;font-size:13.5px;color:#1a2230">${cuerpoTabla}</table>` +
         (paraCliente
@@ -154,7 +197,15 @@ Deno.serve(async (req) => {
             /* Los riesgos NO van al cliente: "si llueve no se puede rodar el patio" es una
                decisión nuestra, y en su bandeja se lee como una advertencia de que algo va
                a salir mal. */
-            (rie.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:20px 0 6px">Ojo con</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(rie)}</ul>` : "")),
+            (rie.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:20px 0 6px">Ojo con</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(rie)}</ul>` : "") +
+            /* Los teléfonos van en la misma hoja: se buscan cuando alguien no llegó, y ahí
+               nadie abre otra pantalla. Al cliente no: es nuestro equipo. */
+            (equipo.length ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">Quién viene</h3>
+              <table style="width:100%;border-collapse:collapse;font-size:13px">${equipo.map((p2) => `
+                <tr><td style="padding:5px 10px 5px 0;border-bottom:1px solid #e9ecf1"><b style="color:#1a2230">${esc(p2.nombre)}</b></td>
+                    <td style="padding:5px 10px 5px 0;border-bottom:1px solid #e9ecf1;color:#8a94a8;font-size:12px">${esc(p2.rol || "")}</td>
+                    <td style="padding:5px 0;border-bottom:1px solid #e9ecf1;text-align:right;color:#3d4757;white-space:nowrap">${esc(p2.tel || "—")}</td></tr>`).join("")}
+              </table>` : "")),
       pie: `${esc(remitente.nombre)} · VIVEN AG — respondiendo a este email le escribís directo.`,
       porque: paraCliente
         ? "Recibís este email porque estamos produciendo este video para ustedes."

@@ -6794,7 +6794,17 @@ const newsCases = [
     bookingsPasadas = (bookPasadasQ && !bookPasadasQ.error) ? (bookPasadasQ.data || []) : [];
     bookingsHist = (bookHistQ && !bookHistQ.error) ? (bookHistQ.data || []) : [];
     dealsReal = !!(dealsQ && !dealsQ.error);
-    dealsList = dealsReal ? (dealsQ.data || []) : [];
+    /* LOS DEALS DE LAS PRUEBAS TAMPOCO CUENTAN. El lead de prueba ya salía de `allLeads`,
+       pero su deal seguía entrando en el pipeline y en la plata del mes: "Cerrado este mes
+       CHF 12'000 · 1 deal ganado" era el «Proyecto de prueba x1».
+       La regla vive en la base (`leads.es_prueba`, migración 0162) y hay que aplicarla en
+       CADA entrada a memoria, no solo en la primera — es el mismo error que ya tuvo
+       refreshLeadsList.
+       (Sebastián, 26 ago 2026: "¿de dónde sale eso?" sobre los 12.000 de agosto.) */
+    const _idsPrueba = new Set((leadsPrueba || []).map((l) => String(l.id)));
+    dealsList = dealsReal
+      ? (dealsQ.data || []).filter((d) => !_idsPrueba.has(String(d.lead_id)))
+      : [];
     const _withDeal = new Set(dealsList.map((d) => String(d.lead_id)));
     allLeads.forEach((l) => { if (!_withDeal.has(String(l.id))) dealsList.push(synthDeal(l)); });
     // companies: best-effort (si no corrió el SQL 0011, coMeta queda vacío)
@@ -21149,6 +21159,40 @@ const newsCases = [
      mismo código que manda de verdad, así lo que se ve es lo que sale. */
   let plmT = null, plmVista = 'equipo', plmSel = { equipo: new Set(), cliente: new Set() };
 
+  /* Lo que el email necesita para decir lo MISMO que la pantalla: la cabecera calculada
+     acá, la sinopsis de cada fila y el equipo con sus teléfonos. Si el servidor lo
+     recalculara con su criterio, el email y el dashboard dirían horas distintas. */
+  function pjPlanParaEmail(){
+    const p = pjCur; if (!p) return {};
+    const filas = pjPlanFilas();
+    const hh = (f) => String(f.hora || '').match(/^(\d{1,2}):(\d{2})/);
+    const conHora = filas.filter(hh);
+    const esPrep = (f) => /llegada|montaje|viaje|traslado|carga|preparaci/i.test(String(f.que || ''));
+    const ult = conHora[conHora.length - 1];
+    let fin = null;
+    if (ult){ const m = hh(ult), t = +m[1] * 60 + +m[2] + (Number(ult.dura_min) || 60);
+      fin = String(Math.floor(t / 60) % 24).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); }
+    const L = pjLugar || {};
+    return {
+      cabecera: {
+        cita: conHora.length ? conHora[0].hora : null,
+        primera: (conHora.find((f) => !esPrep(f)) || {}).hora || null,
+        fin,
+        maps: L.maps || null,
+        viaje: L.viaje ? L.viaje.min + ' min · ' + L.viaje.km + ' km desde ' + (L.base || '') : null,
+        luz: L.luz && L.luz.amanece ? L.luz.amanece + ' – ' + L.luz.atardece : null,
+      },
+      notas_dia: (pjPlan && pjPlan.notas_dia) || '',
+      /* La sinopsis se manda ya resuelta: sale del desglose, que el servidor tendría que
+         volver a cruzar con las mismas reglas para llegar al mismo texto. */
+      filas_extra: filas.map((f) => ({ sinopsis: pjSinopsisDe(f.escenas) })),
+      equipo_lista: (Array.isArray(p.crew) ? p.crew : []).filter((c) => c && c.nombre).map((c) => {
+        const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(c.nombre));
+        return { nombre: c.nombre, rol: c.rol || '', tel: (t && t.phone) || '' };
+      }),
+    };
+  }
+
   async function pjPlanMandar(){
     const p = pjCur; if (!p) return;
     if (!pjPlanFilas().length){ toast('El plan está vacío'); return; }
@@ -21179,6 +21223,7 @@ const newsCases = [
         const { data, error } = await supabase.functions.invoke('plan-al-equipo', { body: {
           project_id: p.id, de: $('plm-de').value,
           publico: plmVista === 'cliente',
+          ...pjPlanParaEmail(),
           asunto: $('plm-asunto').value.trim() || undefined,
           mensaje: $('plm-msg').value, dry_run: true } });
         if (error) throw new Error(error.message);
@@ -21261,6 +21306,7 @@ const newsCases = [
         for (const t of tandas){
           const { data, error } = await supabase.functions.invoke('plan-al-equipo', { body: {
             project_id: pjCur.id, de: $('plm-de').value, publico: t.publico, to: t.to,
+            ...pjPlanParaEmail(),
             /* El asunto escrito a mano vale solo para la versión que se estaba mirando: la
                otra usa el suyo, que dice otra cosa. */
             asunto: (t.publico === (plmVista === 'cliente')) ? ($('plm-asunto').value.trim() || undefined) : undefined,
