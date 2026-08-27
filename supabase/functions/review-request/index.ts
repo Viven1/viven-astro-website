@@ -9,6 +9,7 @@
 // Schedule: SQL 0033. Secrets: RESEND_API_KEY. Opcional: REVIEW_LINK (link directo GBP).
 
 import { registrarEmail } from "../_shared/email.ts";
+import { cartaViven, type EmailLang } from "../_shared/email-viven.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -98,11 +99,23 @@ Deno.serve(async (req) => {
       const tmpl = await getTemplate("review_request", lang);
       const asunto = tmpl ? tokens(tmpl.subject, first, lastN) : MAIL[lang].subject;
       const cuerpo = tmpl ? htmlDePlantilla(tmpl.body, first, lastN, lang) : MAIL[lang].html(sal);
+      /* Envuelto en la carta de VIVEN, como el resto. Salía como <p> pelados: sin logo, sin
+         firma y sin pie — el único email que le pedimos algo al cliente, y el que peor se
+         veía. Va en formato CARTA y no en el de cabecera oscura, porque es un pedido
+         personal de Sebastián y no un comunicado.
+         (Sebastián, 26 ago 2026: "nada sale nunca sin branding" / "el texto parece spam".)
+         Auditado el 27 ago: de los 24 emails del sistema, este era el único que salía a un
+         cliente sin plantilla ninguna. */
+      const html = cartaViven({
+        lang: (["en", "de", "es"].includes(lang) ? lang : "en") as EmailLang,
+        texto: cuerpo,
+        firma: { nombre: "Sebastian Cepeda", cargo: "VIVEN AG" },
+      });
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from: "Sebastian de Viven <sebastian@viven.ch>", reply_to: "sebastian@viven.ch", to: [lead.email],
-          subject: asunto, html: cuerpo }),
+          subject: asunto, html }),
       });
       if (!r.ok) return json({ error: "Resend " + r.status }, 500);
       await service.from("lead_notes").insert({ lead_id: String(lead.id), author: "Sistema", body: "⭐ Pedido de reseña ENVIADO a " + lead.email });

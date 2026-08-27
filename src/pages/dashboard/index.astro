@@ -8180,9 +8180,18 @@ const newsCases = [
       if (!r.crew.length) faltan.push('sin crew armado');
       if (!faltan.length) return;
       const cuando = r.dias === 0 ? 'HOY' : r.dias === 1 ? 'MAÑANA' : 'en ' + r.dias + ' días';
+      /* Con el atajo a lo que falta: si lo que falta son contactos, el camino corto es el
+         importador de Técnicos, no el proyecto. Un aviso que solo señala el problema
+         obliga a buscar dónde se arregla. */
+      const faltanDatos = r.sinTel.length || r.sinMail.length;
       items.push({ rank: -4, sev: 'rojo', icon: '🎬', at: Date.parse(r.p.shoot_start + 'T06:00:00'), chf: 0, fija: true,
         t: 'Rodás ' + cuando + ' — ' + (r.p.title || 'proyecto ' + r.p.ref),
         ctx: 'De ' + r.crew.length + ' del equipo: ' + faltan.join(' · ') + '. Sin eso no les llega el plan.',
+        acts: faltanDatos
+          ? [{ label: '📥 Cargar contactos', cls: 'btn-primary',
+               title: 'Traerlos de Personas o pegar la lista',
+               fn: async () => { gotoTab('crew'); await crewLoad(); ciAbrir(); } }]
+          : null,
         hint: 'Abrir el proyecto →',
         go: () => { gotoTab('projects'); abrirProyectoPorRef(r.p.ref || r.p.id); } });
     });
@@ -18933,6 +18942,11 @@ const newsCases = [
      Nunca pisa un dato que ya está: solo completa lo que falta. Un email viejo corregido a
      mano no puede perderse porque el CRM tenga otro. */
   function ciAbrir(){
+    /* Si los técnicos todavía no llegaron, se abre igual y se redibuja cuando llegan: es
+       mejor que un modal que no abre porque se adelantó a los datos. */
+    if (!crewList.length){
+      crewLoad().then(() => { if (!$('ci-modal').hidden) ciAbrir(); });
+    }
     const norm = (x) => String(x || '').toLowerCase().trim();
     const sinDato = (c) => !c.email || !c.phone;
     /* El match es por nombre contenido, en cualquiera de los dos sentidos: la ficha dice

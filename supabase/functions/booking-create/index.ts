@@ -304,7 +304,11 @@ Deno.serve(async (req) => {
         const pHtml = tmpl ? tok(tmpl.body).trim().split(/\n{2,}/).map((p) => `<p style="font-size:15px;line-height:1.7;margin:0 0 6px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("") : `<p style="font-size:15px;line-height:1.7;margin:0 0 6px">${E.p}</p>`;
         const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a2230">
           <div style="background:#0f1826;border-radius:14px 14px 0 0;padding:22px 28px">
-            <span style="font-size:22px;font-weight:800;letter-spacing:-.02em;color:#ddf98f">viven</span>
+            <!-- El logo REAL, el mismo asset que el resto de los emails. Acá era la palabra
+                 "viven" escrita en verde: al mismo cliente le llegaba un email con el logo
+                 y otro con texto, la misma semana. El alt deja el texto si la imagen no
+                 carga, que es lo que Outlook hace por defecto. -->
+            <img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="viven" height="22" style="height:22px;width:auto;display:inline-block;vertical-align:middle" />
             <span style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#9aa6bd;margin-left:10px">Film Production</span>
           </div>
           <div style="border:1px solid #e8eaef;border-top:0;border-radius:0 0 14px 14px;padding:26px 28px">
