@@ -8169,6 +8169,24 @@ const newsCases = [
         go: () => { if (b.meet_url) window.open(b.meet_url, '_blank', 'noopener'); else if (b.lead_id) openLead(b.lead_id); } });
     });
 
+    /* (c bis) RODAJE EN LOS PRÓXIMOS DÍAS CON ALGO QUE FALTA.
+       Va arriba de todo —rank -4— porque tiene fecha de vencimiento real: un follow-up se
+       puede hacer mañana, un teléfono que falta el día del rodaje ya no se consigue. */
+    (hmRodajes || []).forEach((r) => {
+      const faltan = [];
+      if (r.sinTel.length) faltan.push(r.sinTel.length + ' sin teléfono');
+      if (r.sinMail.length) faltan.push(r.sinMail.length + ' sin email');
+      if (r.sinLoc) faltan.push('sin locación');
+      if (!r.crew.length) faltan.push('sin crew armado');
+      if (!faltan.length) return;
+      const cuando = r.dias === 0 ? 'HOY' : r.dias === 1 ? 'MAÑANA' : 'en ' + r.dias + ' días';
+      items.push({ rank: -4, sev: 'rojo', icon: '🎬', at: Date.parse(r.p.shoot_start + 'T06:00:00'), chf: 0, fija: true,
+        t: 'Rodás ' + cuando + ' — ' + (r.p.title || 'proyecto ' + r.p.ref),
+        ctx: 'De ' + r.crew.length + ' del equipo: ' + faltan.join(' · ') + '. Sin eso no les llega el plan.',
+        hint: 'Abrir el proyecto →',
+        go: () => { gotoTab('projects'); abrirProyectoPorRef(r.p.ref || r.p.id); } });
+    });
+
     /* (d bis) ESCRIBIERON A info@ Y NO ESTÁN EN EL CRM (SQL 0144).
        Va en la misma lista y no en un panel propio: una consulta que entró hoy y
        nadie contestó es exactamente "lo que hay que hacer hoy", y meterla en otra
@@ -9238,7 +9256,8 @@ const newsCases = [
     hmRenderAds();
 
     /* --- datos async con cache (los TTLs evitan refetch en cada auto-refresh) --- */
-    epLoad();        // 📥 los que escribieron a info@ y no están en el CRM
+    epLoad();               // 📥 los que escribieron a info@ y no están en el CRM
+    hmRodajesLoad();        // 🎬 rodajes de los próximos días a los que les falta algo
     hmFetchWeeks();
     hmFetchAds();
     ppEnsureForHome();
@@ -10234,6 +10253,51 @@ const newsCases = [
      Se agrupa por REMITENTE, no por email: la misma persona que escribió tres veces
      es una decisión, no tres. */
   let epRows = [], epAt = 0, epPidiendo = false;
+  /* ── RODAJE INMINENTE ──
+     Lo más caro que puede pasar es llegar al día de rodaje con algo que faltaba y se sabía.
+     El 27 de agosto el 1202 rodaba al día siguiente con tres del equipo sin teléfono ni
+     email: el sistema lo sabía y no lo decía en ninguna parte.
+     Es una consulta propia y liviana porque Hoy no carga proyectos —pjList se llena recién
+     al entrar a Proyectos— y este aviso tiene que estar aunque nunca hayas abierto esa
+     pestaña. */
+  let hmRodajes = [], hmRodAt = 0, hmRodPidiendo = false;
+
+  async function hmRodajesLoad(){
+    if (hmRodPidiendo || Date.now() - hmRodAt < 120000) return;
+    hmRodAt = Date.now(); hmRodPidiendo = true;
+    try {
+      const hoy = new Date().toISOString().slice(0, 10);
+      const en4 = new Date(Date.now() + 4 * 864e5).toISOString().slice(0, 10);
+      const [pq, cq] = await Promise.all([
+        supabase.from('projects').select('id,ref,title,shoot_start,location,crew')
+          .eq('archived', false).gte('shoot_start', hoy).lte('shoot_start', en4).order('shoot_start'),
+        supabase.from('crew').select('name,email,phone'),
+      ]);
+      if (pq.error) throw pq.error;
+      const tec = cq.error ? [] : (cq.data || []);
+      const norm = (x) => String(x || '').toLowerCase().trim();
+      hmRodajes = (pq.data || []).map((p) => {
+        const crew = Array.isArray(p.crew) ? p.crew.filter((c) => c && c.nombre) : [];
+        const sinTel = crew.filter((c) => {
+          const t = tec.find((x) => norm(x.name) === norm(c.nombre));
+          return !t || !t.phone;
+        });
+        const sinMail = crew.filter((c) => {
+          const t = tec.find((x) => norm(x.name) === norm(c.nombre));
+          return !t || !t.email;
+        });
+        const dias = Math.round((Date.parse(p.shoot_start + 'T00:00:00') - Date.parse(hoy + 'T00:00:00')) / 864e5);
+        return { p, crew, sinTel, sinMail, dias, sinLoc: !String(p.location || '').trim() };
+      });
+      if (!$('tab-hoy').hidden){
+        hmTodayCur = hmTodayItems();
+        $('hm-today-n').textContent = hmTodayCur.length ? '(' + hmTodayCur.length + ')' : '';
+        hmRenderToday(hmTodayCur);
+      }
+    } catch (e){ console.error('RODAJES_HOY', e && e.message); }
+    finally { hmRodPidiendo = false; }
+  }
+
   async function epLoad(forzar){
     /* ⚠️ NUNCA llamar a renderHome() desde acá.
        La primera versión hacía epLoad → epRender → renderHome → epLoad → … y eso es
