@@ -1714,6 +1714,28 @@ const newsCases = [
   .pj-blq > summary.pj-sum > span{font-size:10.5px}
   .pj-blq > summary.pj-sum em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:400;color:var(--muted)}
   .pj-guion-body{padding-top:14px}
+  /* Desglose: cada cosa con su ficha, no un chip suelto */
+  .pj-necg{margin:0 0 14px}
+  .pj-necg .cat{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);
+    font-weight:700;margin:0 0 5px}
+  .pj-nect{width:100%;border-collapse:collapse;font-size:12.5px}
+  .pj-nect th{text-align:left;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted-2);font-weight:700;padding:0 9px 6px 0;border-bottom:1px solid var(--line)}
+  .pj-nect td{padding:6px 9px 6px 0;border-bottom:1px solid var(--line);vertical-align:top;color:var(--muted)}
+  .pj-nect td.q{color:var(--text);font-weight:600;min-width:150px}
+  .pj-nect td.w{white-space:nowrap}
+  .pj-nect td.e{color:var(--muted-2);white-space:nowrap;font-size:11.5px}
+  .pj-nect td.ev{color:var(--muted-2);font-style:italic;font-size:11.5px;line-height:1.45}
+  .pj-area{border:1px solid var(--line-strong);border-radius:100px;padding:1px 8px;font-size:10.5px;
+    color:var(--muted);white-space:nowrap}
+  .pj-tipo{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted-2);font-weight:600;margin-top:2px}
+  @media(max-width:820px){
+    .pj-elem thead{display:none}
+    .pj-elem tbody,.pj-elem tr,.pj-elem td{display:block;width:100%}
+    .pj-elem tr{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0 0 8px}
+    .pj-elem td{border:0;padding:1px 0}
+  }
   /* La ficha de proyecto por pasos */
   .pj-steps{display:flex;overflow-x:auto;border:1px solid var(--line);border-radius:13px;
     background:var(--navy-900);margin:0 0 12px;scrollbar-width:none}
@@ -20617,6 +20639,9 @@ const newsCases = [
 
     const chips = (arr) => (arr || []).map((x) => '<span class="pj-chipn">' + esc(x) + '</span>').join('');
     const necesita = Object.keys(PJ_NEC_LBL).filter((k) => (b.necesidades || {})[k] && b.necesidades[k].length);
+    /* Si el desglose es de antes de las fichas, `necesidades_detalle` no existe: se sigue
+       mostrando el formato viejo en vez de dejar la sección vacía. */
+    const det = Object.keys(PJ_NEC_LBL).filter((k) => ((b.necesidades_detalle || {})[k] || []).length);
 
     /* Los avisos van PRIMERO. Son lo único del desglose que cambia una decisión hoy:
        lo que falta definir y —sobre todo— lo que el guión pide y no está presupuestado. */
@@ -20632,7 +20657,21 @@ const newsCases = [
         ? '<div class="pj-avisos"><b>❓ Falta definir</b><ul>' +
           otros.map((a) => '<li>' + esc(a) + '</li>').join('') + '</ul></div>' : '') +
 
-      (necesita.length ? '<div class="pj-sec-h">Todo lo que hay que conseguir</div>' +
+      /* Cada cosa con su ficha, no una palabra suelta. Un chip que dice "Laptop" no dice
+         cuántas, de quién, dónde entra ni quién la trae — y esas cuatro son las únicas
+         preguntas que importan en el set.
+         (Sebastián, 26 ago 2026: "pensá más como Maestro… todo dentro de cada escena,
+         cada ítem tiene su propia info adentro, para saber qué, quién, dónde, cuánto".) */
+      (det.length ? '<div class="pj-sec-h">Todo lo que hay que conseguir</div>' +
+        det.map((k) => '<div class="pj-necg"><div class="cat">' + PJ_NEC_LBL[k] + '</div>' +
+          '<div class="lead-table-wrap"><table class="pj-nect"><tbody>' +
+          (b.necesidades_detalle[k] || []).map((x) =>
+            '<tr><td class="q">' + (Number(x.cantidad) > 1 ? '<b>' + x.cantidad + '×</b> ' : '') + esc(x.que) + '</td>' +
+            '<td class="w">' + (x.quien ? esc(x.quien) : '') + '</td>' +
+            '<td class="a">' + (x.area ? '<span class="pj-area">' + esc(x.area) + '</span>' : '') + '</td>' +
+            '<td class="e">' + ((x.escenas || []).length ? 'esc. ' + x.escenas.join(', ') : '') + '</td></tr>').join('') +
+          '</tbody></table></div></div>').join('') : '') +
+      (!det.length && necesita.length ? '<div class="pj-sec-h">Todo lo que hay que conseguir</div>' +
         '<div class="pj-nec">' + necesita.map((k) =>
           '<div><span class="k">' + PJ_NEC_LBL[k] + '</span><div>' + chips(b.necesidades[k]) + '</div></div>').join('') +
         '</div>' : '') +
@@ -20651,9 +20690,23 @@ const newsCases = [
           '<em>' + [e.int_ext, e.dia_noche, e.locacion].filter(Boolean).map(esc).join(' · ') +
           (e.duracion_s ? ' · ' + e.duracion_s + 's' : '') + '</em></summary>' +
           (e.resumen ? '<p class="muted-note" style="margin:8px 0">' + esc(e.resumen) + '</p>' : '') +
-          ['personajes', 'props', 'vestuario', 'arte', 'maquillaje', 'sonido', 'equipo_especial', 'post']
-            .filter((k) => (e[k] || []).length)
-            .map((k) => '<div class="pj-esc-kv"><span>' + PJ_NEC_LBL[k] + '</span><div>' + chips(e[k]) + '</div></div>').join('') +
+          /* Los elementos de la escena, cada uno con lo suyo. La evidencia es la frase del
+             guion que lo justifica: si el desglose dice que hace falta algo, se puede ver
+             de dónde lo sacó sin volver a leer el guion. */
+          ((e.elementos || []).length
+            ? '<div class="lead-table-wrap"><table class="pj-nect pj-elem"><thead><tr>' +
+              '<th>Qué</th><th>Quién</th><th>Dónde</th><th>Lo trae</th><th>Del guion</th></tr></thead><tbody>' +
+              e.elementos.map((el) => '<tr><td class="q">' +
+                (Number(el.cantidad) > 1 ? '<b>' + el.cantidad + '×</b> ' : '') + esc(el.que) +
+                '<span class="pj-tipo">' + esc((PJ_NEC_LBL[el.tipo] || el.tipo).replace(/^\S+\s/, '')) + '</span></td>' +
+                '<td class="w">' + esc(el.quien || '') + '</td>' +
+                '<td class="w">' + esc(el.donde || '') + '</td>' +
+                '<td class="a">' + (el.quien_lo_consigue ? '<span class="pj-area">' + esc(el.quien_lo_consigue) + '</span>' : '') + '</td>' +
+                '<td class="ev">' + (el.evidencia ? '«' + esc(el.evidencia) + '»' : '') + '</td></tr>').join('') +
+              '</tbody></table></div>'
+            : ['personajes', 'props', 'vestuario', 'arte', 'maquillaje', 'sonido', 'equipo_especial', 'post']
+                .filter((k) => (e[k] || []).length)
+                .map((k) => '<div class="pj-esc-kv"><span>' + PJ_NEC_LBL[k] + '</span><div>' + chips(e[k]) + '</div></div>').join('')) +
           ((e.planos || []).length ? '<div class="lead-table-wrap" style="margin-top:10px"><table class="lead-table">' +
             '<thead><tr><th>Plano</th><th>Tipo</th><th>Movimiento</th><th>Qué pasa</th><th style="text-align:right">seg</th></tr></thead><tbody>' +
             e.planos.map((s2) => '<tr><td><b>' + esc(s2.n) + '</b></td><td>' + esc(s2.tipo) + '</td><td>' + esc(s2.movimiento) +

@@ -172,60 +172,228 @@ ${texto}`;
       });
     }
 
-    /* ── SEGUNDA PASADA: los planos ──
-       Por lotes de escenas y en paralelo. Cada lote es una respuesta chica que entra
-       holgada, y el reloj lo marca el lote más lento, no la suma de todos.
-       Si un lote falla, esas escenas quedan sin planos y el resto del desglose sale
-       igual: media lista de planos sirve, un desglose que no llega no sirve para nada. */
+    /* ══ SEGUNDA PASADA: LOS ELEMENTOS DE CADA ESCENA ══
+       Antes cada escena traía listas de palabras sueltas: props ["laptop","audífono"].
+       Eso alcanza para contar, no para producir: no dice cuántos, de quién, dónde entra
+       ni quién lo consigue, y en el set esas cuatro preguntas son las únicas que importan.
+       Ahora cada elemento es una ficha. Es el modelo de Maestro, que Sebastián ya resolvió
+       ahí: "todo dentro de cada escena; cada ítem tiene su propia info dentro, para saber
+       qué, quién, dónde, cuánto".
+
+       Tres cosas se traen de Maestro porque son las que hacen que sirva:
+       · EVIDENCIA OBLIGATORIA — la frase exacta del guion que justifica el elemento. Si no
+         se puede copiar, no se propone. Es lo que corta las invenciones.
+       · UN DEPARTAMENTO QUE LA ESCENA NO NECESITA SE DEJA VACÍO. Tener diez categorías no
+         es una lista para completar; cada propuesta de más le cuesta una decisión a quien
+         la revisa.
+       · LA FORMA LA GARANTIZA LA API (output_config.format), no el prompt. "Respondé solo
+         con JSON" funciona casi siempre, y el casi es el problema: un "Acá va:" adelante
+         rompe el parseo y la escena se cae entera.
+
+       Va en lotes y en paralelo: cada respuesta entra holgada y el reloj lo marca el lote
+       más lento, no la suma. */
+    const CATS = ["personajes", "props", "vestuario", "arte", "maquillaje", "sonido",
+                  "equipo_especial", "locacion", "permisos", "post"] as const;
+
+    const esquemaElementos = {
+      type: "object",
+      properties: {
+        escenas: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              n: { type: "integer", description: "El número de la escena, tal cual se lo dieron." },
+              elementos: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    tipo: { type: "string", enum: [...CATS] },
+                    que: { type: "string", description: "Sustantivo concreto y corto, como lo escribiría el jefe de ese departamento en su lista. «Cuaderno de reservas», no «el cuaderno lleno de tachones que ella hojea»." },
+                    cantidad: { type: "integer", description: "Cuántos hacen falta. 1 si no se dice." },
+                    quien: { type: "string", description: "De quién es o quién lo usa, si el guion lo dice. Cadena vacía si no aplica." },
+                    donde: { type: "string", description: "Dónde entra en cuadro o dónde tiene que estar. Cadena vacía si no se dice." },
+                    quien_lo_consigue: { type: "string", description: "Qué área lo trae: Arte, Vestuario, Sonido, Cámara, Producción, El cliente." },
+                    evidencia: { type: "string", description: "La frase EXACTA del guion que lo justifica, copiada tal cual." },
+                    notas: { type: "string", description: "Solo si hace falta algo que el resto no dice. Cadena vacía si no." },
+                  },
+                  required: ["tipo", "que", "cantidad", "quien", "donde", "quien_lo_consigue", "evidencia", "notas"],
+                  additionalProperties: false,
+                },
+              },
+              planos: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    n: { type: "string", description: "El número de la escena más una letra: 3A, 3B." },
+                    tipo: { type: "string", description: "Plano general, plano medio, primer plano, detalle…" },
+                    movimiento: { type: "string", description: "Fijo, paneo, travelling, mano…" },
+                    descripcion: { type: "string", description: "Qué pasa en el plano." },
+                    duracion_s: { type: "integer" },
+                  },
+                  required: ["n", "tipo", "movimiento", "descripcion", "duracion_s"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["n", "elementos", "planos"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["escenas"],
+      additionalProperties: false,
+    };
+
     const escenasBase = (parsed.escenas as Array<Record<string, unknown>>).slice(0, 120);
     if (escenasBase.length) {
-      const LOTE = 6;
+      const LOTE = 5;
       const lotes: Array<Array<Record<string, unknown>>> = [];
       for (let i = 0; i < escenasBase.length; i += LOTE) lotes.push(escenasBase.slice(i, i + LOTE));
 
-      const pedirPlanos = async (lote: Array<Record<string, unknown>>) => {
-        const resumen = lote.map((e) => `Escena ${e.n} — ${e.titulo}${e.int_ext ? " (" + e.int_ext + "/" + e.dia_noche + ")" : ""}` +
-          `${e.locacion ? " · " + e.locacion : ""}\n   ${e.resumen || ""}` +
-          `${(e.personajes as string[] || []).length ? "\n   Quién: " + (e.personajes as string[]).join(", ") : ""}`).join("\n\n");
-        const pp = `Sos director de fotografía de Viven. Para cada escena, la lista de planos que se rueda.
+      const pedirDetalle = async (lote: Array<Record<string, unknown>>) => {
+        const detalle = lote.map((e) =>
+          `ESCENA ${e.n} — ${e.titulo}${e.int_ext ? " (" + e.int_ext + "/" + e.dia_noche + ")" : ""}` +
+          `${e.locacion ? "\nLocación: " + e.locacion : ""}` +
+          `\n${e.resumen || ""}`).join("\n\n");
 
-${resumen}
+        const pp = `Sos jefe de producción de VIVEN, una productora de video en Zúrich. Para cada escena,
+sacá TODO lo que hay que conseguir y la lista de planos.
 
-REGLAS:
-- Los planos que usa un director: tipo de plano, movimiento, qué pasa. Sin poesía.
-- Entre 2 y 6 planos por escena. Si una escena es un solo plano, uno.
-- La numeración es la de la escena más una letra: 3A, 3B, 3C.
-- Textos en ${idioma}.
+${detalle}
 
-Respondé SOLO con JSON válido, sin texto extra:
-{"escenas":[{"n":${lote[0].n},"planos":[{"n":"${lote[0].n}A","tipo":"Plano medio","movimiento":"Fijo","descripcion":"qué pasa","duracion_s":4}]}]}`;
+EL GUION COMPLETO, por si hace falta el contexto:
+${guion.slice(0, 6000)}
+
+REGLAS, en orden de importancia:
+
+1. Solo lo que la escena dice. Si algo no aparece ahí, no existe para vos. Cada elemento va
+   con la frase EXACTA de la escena que lo justifica, copiada tal cual en "evidencia". Si no
+   podés copiar la frase, no lo pongas.
+
+2. UN DEPARTAMENTO QUE LA ESCENA NO NECESITA SE DEJA VACÍO. La mayoría de las escenas no
+   tienen maquillaje especial, ni permisos, ni equipo raro. Tener diez categorías no es una
+   lista para completar: es un vocabulario para nombrar lo que de verdad está ahí. Cada
+   elemento de más le cuesta una decisión a quien lo revisa. Si dudás, no.
+
+3. No inventes cantidades, marcas, colores ni épocas que la escena no diga. "Una lámpara"
+   es un elemento; "lámpara años 70 con pantalla beige" es una invención.
+
+4. "que" se nombra como lo escribiría el jefe de ese departamento en su lista: sustantivo
+   concreto y corto, no la frase entera.
+
+5. "quien" es de quién es o quién lo usa —solo si la escena lo dice—. "donde" es dónde entra
+   en cuadro. Los dos van vacíos si no se dicen: vacío es una respuesta correcta.
+
+6. "quien_lo_consigue" es el área que lo trae: Arte, Vestuario, Sonido, Cámara, Producción,
+   o El cliente cuando hay que pedírselo a él (un acceso, una persona suya, un producto).
+
+7. Si el mismo objeto aparece dos veces en la escena, es UN elemento con cantidad 2, no dos.
+
+8. Los planos son los que usa un director: tipo, movimiento, qué pasa. Entre 2 y 6 por
+   escena. Sin poesía.
+
+9. Todo en ${idioma}.`;
 
         const r2 = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-          body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 6000, messages: [{ role: "user", content: pp }] }),
+          body: JSON.stringify({
+            /* Opus para la extracción: un elemento mal leído manda a alguien a buscar algo
+               que no existe, o deja afuera algo que sí hacía falta. Es la misma razón por
+               la que Maestro usa Opus acá y Sonnet para conversar. */
+            model: "claude-opus-5",
+            max_tokens: 16000,
+            /* La forma la garantiza la API, no el prompt. `effort: medium` alcanza: esto es
+               extracción sobre un texto corto, no razonamiento. */
+            output_config: { effort: "medium", format: { type: "json_schema", schema: esquemaElementos } },
+            messages: [{ role: "user", content: pp }],
+          }),
         });
-        if (!r2.ok) return null;
+        if (!r2.ok) { console.error("DETALLE_FAIL", r2.status, (await r2.text()).slice(0, 200)); return null; }
         const d2 = await r2.json();
+        if (d2.stop_reason === "refusal") return null;
         let t2 = (Array.isArray(d2.content) ? d2.content : [])
           .filter((c: { type?: string; text?: string }) => c && c.type === "text" && typeof c.text === "string")
-          .map((c: { text: string }) => c.text).join("\n").trim();
-        t2 = t2.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-        const mm = t2.match(/\{[\s\S]*\}/); if (mm) t2 = mm[0];
+          .map((c: { text: string }) => c.text).join("").trim();
         try { return JSON.parse(t2); } catch { return null; }
       };
 
-      const resultados = await Promise.all(lotes.map((l) => pedirPlanos(l).catch(() => null)));
-      const porEscena: Record<string, unknown[]> = {};
+      const resultados = await Promise.all(lotes.map((l) => pedirDetalle(l).catch(() => null)));
+      const porEscena: Record<string, Record<string, unknown>> = {};
       resultados.forEach((r3) => {
         const es = r3 && Array.isArray((r3 as { escenas?: unknown[] }).escenas) ? (r3 as { escenas: Array<Record<string, unknown>> }).escenas : [];
-        es.forEach((e) => { if (Array.isArray(e.planos)) porEscena[String(e.n)] = e.planos as unknown[]; });
+        es.forEach((e) => { porEscena[String(e.n)] = e; });
       });
-      escenasBase.forEach((e) => { if (porEscena[String(e.n)]) e.planos = porEscena[String(e.n)]; });
-      /* Cuántas escenas quedaron sin planos: se dice, no se esconde. Un desglose al que le
-         faltan planos y no lo avisa se lleva al set como si estuviera completo. */
-      const sinPl = escenasBase.filter((e) => !Array.isArray(e.planos) || !(e.planos as unknown[]).length).length;
-      if (sinPl) parsed.aviso_planos = sinPl + (sinPl === 1 ? " escena quedó sin planos" : " escenas quedaron sin planos");
+
+      const txt = (x: unknown, n = 240) => String(x ?? "").trim().slice(0, n);
+      escenasBase.forEach((e) => {
+        const det = porEscena[String(e.n)];
+        if (!det) return;
+        /* La evidencia se verifica contra el texto de la escena. Si el modelo no pudo
+           copiar una frase que esté de verdad ahí, ese elemento se cae: es la diferencia
+           entre un desglose y una lista de cosas plausibles. */
+        const suelo = (String(e.titulo || "") + " " + String(e.resumen || "") + " " + String(e.locacion || "")).toLowerCase();
+        const enGuion = guion.toLowerCase();
+        e.elementos = (Array.isArray(det.elementos) ? det.elementos as Array<Record<string, unknown>> : [])
+          .slice(0, 30)
+          .map((el) => ({
+            tipo: txt(el.tipo, 24) || "props",
+            que: txt(el.que, 120),
+            cantidad: Number.isFinite(Number(el.cantidad)) && Number(el.cantidad) > 0 ? Math.round(Number(el.cantidad)) : 1,
+            quien: txt(el.quien, 80),
+            donde: txt(el.donde, 120),
+            quien_lo_consigue: txt(el.quien_lo_consigue, 40),
+            evidencia: txt(el.evidencia, 200),
+            notas: txt(el.notas, 200),
+          }))
+          .filter((el) => {
+            if (!el.que) return false;
+            if (!el.evidencia) return false;
+            const ev = el.evidencia.toLowerCase();
+            return suelo.includes(ev) || enGuion.includes(ev);
+          });
+        e.planos = (Array.isArray(det.planos) ? det.planos as Array<Record<string, unknown>> : [])
+          .slice(0, 40).map((s2, j) => ({
+            n: txt(s2.n, 10) || (String(e.n) + String.fromCharCode(65 + j)),
+            tipo: txt(s2.tipo, 60), movimiento: txt(s2.movimiento, 60),
+            descripcion: txt(s2.descripcion, 240),
+            duracion_s: Number.isFinite(Number(s2.duracion_s)) ? Number(s2.duracion_s) : 0,
+          }));
+      });
+
+      /* Lo que quedó incompleto se dice, no se esconde: un desglose al que le faltan
+         escenas y no lo avisa se lleva al set como si estuviera entero. */
+      const sinDet = escenasBase.filter((e) => !(e.elementos as unknown[] || []).length && !(e.planos as unknown[] || []).length).length;
+      if (sinDet) parsed.aviso_planos = sinDet + (sinDet === 1 ? " escena quedó sin detallar" : " escenas quedaron sin detallar");
+
+      /* "Todo lo que hay que conseguir" se arma DESDE los elementos, no aparte: así el
+         resumen y el detalle no pueden contradecirse. Cada línea dice de qué escenas sale. */
+      const bolsa: Record<string, Record<string, { cantidad: number; escenas: number[]; quien: string; area: string }>> = {};
+      escenasBase.forEach((e) => {
+        (e.elementos as Array<Record<string, unknown>> || []).forEach((el) => {
+          const cat = String(el.tipo);
+          const clave = String(el.que).toLowerCase();
+          bolsa[cat] = bolsa[cat] || {};
+          const y = bolsa[cat][clave];
+          if (y) { y.cantidad = Math.max(y.cantidad, Number(el.cantidad) || 1); y.escenas.push(Number(e.n)); }
+          else bolsa[cat][clave] = { cantidad: Number(el.cantidad) || 1, escenas: [Number(e.n)],
+                                     quien: String(el.quien || ""), area: String(el.quien_lo_consigue || "") };
+        });
+      });
+      parsed.necesidades_detalle = Object.fromEntries(Object.keys(bolsa).map((cat) => [cat,
+        Object.keys(bolsa[cat]).map((k) => ({
+          que: k.charAt(0).toUpperCase() + k.slice(1),
+          cantidad: bolsa[cat][k].cantidad,
+          escenas: [...new Set(bolsa[cat][k].escenas)].sort((a, b) => a - b),
+          quien: bolsa[cat][k].quien,
+          area: bolsa[cat][k].area,
+        }))]));
+      /* El formato viejo se mantiene: lo leen la pantalla actual y el plan de rodaje. */
+      parsed.necesidades = Object.fromEntries(Object.keys(bolsa).map((cat) => [cat,
+        Object.keys(bolsa[cat]).map((k) => k.charAt(0).toUpperCase() + k.slice(1))]));
     }
 
     /* Sanear: los números que van a sumarse tienen que ser números, y las listas,
@@ -243,6 +411,10 @@ Respondé SOLO con JSON válido, sin texto extra:
       personajes: lista(e.personajes), props: lista(e.props), vestuario: lista(e.vestuario),
       arte: lista(e.arte), maquillaje: lista(e.maquillaje), sonido: lista(e.sonido),
       equipo_especial: lista(e.equipo_especial), post: lista(e.post),
+      /* Los elementos con su ficha. Este saneo reconstruye cada escena campo por campo,
+         así que lo que no se nombre acá se pierde — y perder los elementos dejaría el
+         desglose otra vez en listas de palabras. */
+      elementos: Array.isArray(e.elementos) ? e.elementos : [],
       planos: Array.isArray(e.planos) ? e.planos.slice(0, 40).map((s: any, j: number) => ({
         n: String(s.n || (num(e.n, i + 1) + String.fromCharCode(65 + j))),
         tipo: String(s.tipo || "").slice(0, 60),
@@ -253,6 +425,8 @@ Respondé SOLO con JSON válido, sin texto extra:
     }));
     const nec = parsed.necesidades && typeof parsed.necesidades === "object" ? parsed.necesidades : {};
     parsed.necesidades = Object.fromEntries(Object.keys(nec).map((k) => [k, lista((nec as any)[k])]));
+    /* `necesidades_detalle` ya viene saneado de la segunda pasada y NO pasa por `lista()`:
+       son fichas, no cadenas, y convertirlas las aplastaría a "[object Object]". */
     parsed.jornadas = Array.isArray(parsed.jornadas) ? parsed.jornadas.slice(0, 30).map((j: any, i: number) => ({
       dia: num(j.dia, i + 1),
       locacion: String(j.locacion || "").slice(0, 120),
