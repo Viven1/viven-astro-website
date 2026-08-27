@@ -27,6 +27,32 @@ const b64 = (buf: ArrayBuffer) => {
   return btoa(s);
 };
 
+/* La forma la garantiza la API (`output_config.format`), no el prompt. En una factura esto
+   pesa más que en cualquier otro lado: estos números terminan en la contabilidad, y un
+   parseo que falla a mitad deja media factura cargada sin que nadie lo note.
+   `null` está permitido en casi todo a propósito — "no lo pude leer" tiene que poder
+   decirse. Un número inventado en una factura es peor que un campo vacío.
+   (Sebastián, 26 ago 2026: "que sea el desglose con IA siempre, que sale muy bien".) */
+const ESQUEMA = {
+  type: "object",
+  properties: {
+    supplier: { type: ["string", "null"], description: "Quien COBRA, no VIVEN. Si es una persona, su nombre completo." },
+    vendor_ref: { type: ["string", "null"], description: "El número de factura del proveedor, tal cual aparece." },
+    bill_date: { type: ["string", "null"], description: "AAAA-MM-DD." },
+    due_date: { type: ["string", "null"], description: "AAAA-MM-DD, o null si no hay vencimiento." },
+    currency: { type: ["string", "null"] },
+    net: { type: ["number", "null"], description: "Número puro, sin moneda ni separadores de miles." },
+    vat: { type: ["number", "null"], description: "0 si la factura no dice IVA — muchos freelances suizos no facturan IVA." },
+    gross: { type: ["number", "null"] },
+    iban: { type: ["string", "null"] },
+    concepto: { type: ["string", "null"], description: "Qué se cobró, en pocas palabras." },
+    confianza: { type: "string", enum: ["alta", "media", "baja"] },
+    dudas: { type: "array", items: { type: "string" }, description: "Lo que no se pudo leer bien." },
+  },
+  required: ["supplier", "vendor_ref", "bill_date", "due_date", "currency", "net", "vat", "gross", "iban", "concepto", "confianza", "dudas"],
+  additionalProperties: false,
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -64,8 +90,7 @@ Sacá los datos. Reglas:
 - Lo que no puedas leer con seguridad, va en null. NO adivines: un número inventado en una factura es peor que un campo vacío.
 - En "confianza" poné "alta", "media" o "baja" según lo legible que esté, y en "dudas" lo que no pudiste leer bien.
 
-Respondé SOLO con JSON válido:
-{"supplier":"...","vendor_ref":"...","bill_date":"2026-08-19","due_date":null,"currency":"CHF","net":950,"vat":0,"gross":950,"iban":null,"concepto":"qué se cobró, en pocas palabras","confianza":"alta","dudas":[]}`;
+Lo que no puedas leer con seguridad va en null.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -73,6 +98,7 @@ Respondé SOLO con JSON válido:
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 2000,
+        output_config: { format: { type: "json_schema", schema: ESQUEMA } },
         messages: [{ role: "user", content: [doc, { type: "text", text: prompt }] }],
       }),
     });
@@ -87,9 +113,7 @@ Respondé SOLO con JSON válido:
     let text = (Array.isArray(data.content) ? data.content : [])
       .filter((c: any) => c?.type === "text" && typeof c.text === "string")
       .map((c: any) => c.text).join("\n").trim();
-    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) text = m[0];
+    /* Sin destripar la respuesta: el esquema lo aplica la API. */
     let p: any = null;
     try { p = JSON.parse(text); } catch { /* abajo */ }
     if (!p) {

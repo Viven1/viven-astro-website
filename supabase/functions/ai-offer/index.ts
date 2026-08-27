@@ -19,6 +19,36 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
+/* La forma la garantiza la API (`output_config.format`), no el prompt.
+   (Sebastián, 26 ago 2026: "que sea el desglose con IA siempre, que sale muy bien".) */
+const ESQUEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    summary: { type: "string" },
+    intro_text: { type: "string" },
+    closing_text: { type: "string" },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          phase: { type: "string" },
+          name: { type: "string" },
+          qty: { type: "number" },
+          unit: { type: "string" },
+          price: { type: "number", description: "Lo que se le cobra al cliente, sin IVA." },
+          cost: { type: "number", description: "Lo que nos cuesta a nosotros. 0 si no se sabe." },
+        },
+        required: ["phase", "name", "qty", "unit", "price", "cost"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["title", "summary", "intro_text", "closing_text", "items"],
+  additionalProperties: false,
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -53,8 +83,6 @@ Reglas:
   · intro_text (2-4 frases): cálido y específico — agradecé la consulta, mencioná EL PROYECTO concreto del brief (qué video, para qué) y decí con ganas que nos encantaría hacerlo con ellos. Nada de plantillas genéricas.
   · closing_text (1-3 frases): cierre cercano — si hay preguntas sobre alcance o precio que escriban o llamen, estamos felices de ajustar lo que haga falta.
 
-Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-{"title":"...","summary":"...","intro_text":"...","closing_text":"...","items":[{"phase":"Production","name":"Director of Photography","qty":1,"unit":"Tag","price":1000,"cost":800}]}
 
 Consulta del cliente:
 ${inquiry || "(sin mensaje directo)"}
@@ -68,6 +96,7 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 8000,
+        output_config: { format: { type: "json_schema", schema: ESQUEMA } },
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -78,7 +107,7 @@ ${brief ? JSON.stringify(brief, null, 2) : "—"}`;
     }
     const data = await res.json();
     let text = (data.content?.[0]?.text ?? "").trim();
-    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();   // fences de markdown
+    /* Sin destripar la respuesta: el esquema lo aplica la API. */
     const m = text.match(/\{[\s\S]*\}/);
     if (m) text = m[0];
     let parsed: any;
