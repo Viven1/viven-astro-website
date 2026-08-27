@@ -1779,6 +1779,10 @@ const newsCases = [
   .pj-per .x:hover{color:#ff8080}
   /* Project Brief adentro del panel */
   #pbf-modal{z-index:435}
+  #plm-modal{z-index:436}
+  .plm-quien{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+  .plm-quien span{border:1px solid var(--line);border-radius:100px;padding:3px 11px;font-size:12px;color:var(--muted)}
+  .plm-quien span.no{border-color:#f0c060;color:#f0c060}
   .pb-tabs{display:flex;gap:6px;margin:2px 0 16px;border-bottom:1px solid var(--line)}
   .pb-tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted-2);
     font:inherit;font-size:13px;font-weight:600;padding:8px 13px;cursor:pointer;margin-bottom:-1px}
@@ -1820,7 +1824,11 @@ const newsCases = [
   .pj-pl input:hover,.pj-pl textarea:hover{border-color:var(--line)}
   .pj-pl input:focus,.pj-pl textarea:focus{border-color:var(--acid);outline:none;background:rgba(255,255,255,.03)}
   .pj-pl .c-hora input{font-variant-numeric:tabular-nums}
-  .pj-pl tr.blq-ini td{border-top:2px solid var(--line-strong)}
+  .pj-pl tr.blq-ini td{border-top:1px solid var(--line)}
+  .pj-pl tr.blq-cab td{border:0;padding:14px 0 5px}
+  .pj-pl tr.blq-cab input{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--acid);font-weight:700;padding:3px 7px;max-width:280px}
+  .pj-pl tr.blq-cab input:hover{border-color:var(--line)}
   .pj-pl .mv{display:flex;gap:2px}
   .pj-pl .mv button{background:none;border:none;color:var(--muted-2);cursor:pointer;font-size:12px;padding:2px 4px;line-height:1}
   .pj-pl .mv button:hover{color:var(--text)}
@@ -3224,10 +3232,19 @@ const newsCases = [
           <h3>👥 Quién</h3>
           <div class="pj-kv"><span class="k">Contacto del cliente</span><span class="v" id="pj-cliente"></span></div>
 
-          <!-- El email va acá y no en otro lado: quien pone el nombre del que monta es
-               el que sabe su email, y es el momento en que lo tiene a mano. -->
-          <div class="pj-kv"><span class="k">Quién edita</span><span class="v"><input class="pj-inp" id="pj-editor" placeholder="nombre" /></span></div>
-          <div class="pj-kv"><span class="k">Email del editor</span><span class="v"><input class="pj-inp" id="pj-editor-email" type="email" placeholder="para mandarle las notas del cliente" /></span></div>
+          <!-- El que monta es un TÉCNICO más, no dos campos de texto sueltos. Su email
+               sale de su ficha, igual que el del resto del equipo: si está en dos lugares,
+               un día uno de los dos queda viejo y las notas se mandan a la dirección que ya
+               no usa. El campo de texto se queda oculto porque lo leen el guardado y el
+               email al editor; se llena solo con lo que se elija acá.
+               (Sebastián, 26 ago 2026: "el editor como el resto del equipo también, y el
+               email sale de su ficha. De todos, para el plan de rodaje.") -->
+          <div class="pj-kv"><span class="k">Quién edita</span><span class="v">
+            <select class="pj-inp" id="pj-editor-sel"></select>
+            <input class="pj-inp" id="pj-editor" type="hidden" />
+            <input class="pj-inp" id="pj-editor-email" type="hidden" />
+            <span class="muted-note" id="pj-editor-nota" style="display:block;margin-top:5px"></span>
+          </span></div>
           <div class="pj-kv"><span class="k">Locación</span><span class="v"><input class="pj-inp" id="pj-location" placeholder="dónde se filma" /></span></div>
           <div class="pj-kv pj-kv-col"><span class="k">Crew <button class="btn btn-ghost small" id="pj-crew-auto" type="button" title="Traer los roles que ya están vendidos en el presupuesto">✨ Traer del presupuesto</button></span><div class="v" id="pj-crew"></div></div>
         </div>
@@ -3315,6 +3332,8 @@ const newsCases = [
           <div class="pj-gia">
             <button class="btn btn-primary small" id="pj-plan-ia" type="button">📅 Proponer un plan con IA</button>
             <button class="btn btn-ghost small" id="pj-plan-fila" type="button">➕ Bloque</button>
+            <button class="btn btn-ghost small" id="pj-plan-pdf" type="button" title="Se abre listo para imprimir o guardar como PDF">📄 PDF</button>
+            <button class="btn btn-ghost small" id="pj-plan-mandar" type="button" title="Al crew del proyecto, con su email de la ficha">📤 Mandarlo al equipo</button>
             <input class="pj-inp" id="pj-plan-ind" placeholder="Algo que quieras pedirle (opcional): «dos jornadas», «arrancamos 7:00», «la directora solo está el martes»…" />
             <span class="muted-note" id="pj-plan-note"></span>
           </div>
@@ -5352,6 +5371,32 @@ const newsCases = [
      tocar nada. Acá se ve lo que va a salir, se edita, y el .xml está a la vista.
      (Sebastián, 26 ago 2026: "que salga directo desde el dashboard con un popup propio
      donde me muestre qué se le envía y le pueda hacer cambios, agregar cosas, etc.") -->
+<!-- 📤 El plan de rodaje al equipo. Mismo patrón que el email al editor: se ve el email
+     exacto que sale —lo arma el servidor, con el mismo código que manda— se puede agregar
+     un mensaje, y recién ahí se manda. Nada sale sin que se toque el botón.
+     (Sebastián, 26 ago 2026: "falta todo lo de poder mandar como PDF, etc.") -->
+<div class="fu-modal" id="plm-modal" hidden role="dialog" aria-modal="true" aria-label="Mandar el plan de rodaje">
+  <div class="fu-back" id="plm-back"></div>
+  <div class="fu-card" style="width:min(860px,100%)">
+    <div class="fu-hd">
+      <div><b>📤 El plan al equipo</b><span id="plm-sub"></span></div>
+      <button class="fu-x" id="plm-x" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="ned-grid">
+      <label>De<select class="ed-inp" id="plm-de"></select></label>
+      <label>Asunto<input class="ed-inp" id="plm-asunto" type="text" /></label>
+    </div>
+    <div id="plm-para"></div>
+    <label class="ned-lbl">Algo que quieras agregarle <em>— va arriba del cronograma</em>
+      <textarea class="ed-inp" id="plm-msg" rows="2" placeholder="Opcional. P. ej.: «la entrada es por atrás, el portón de la izquierda»."></textarea></label>
+    <div class="ned-prev" id="plm-prev"></div>
+    <div class="fu-actions">
+      <button class="btn btn-primary" id="plm-go" type="button">📤 Mandar</button>
+      <span class="muted-note" id="plm-msgout">Nada sale hasta que toques Mandar.</span>
+    </div>
+  </div>
+</div>
+
 <script type="application/json" id="brief-json" set:html={JSON.stringify({ BRIEF, BRIEF_SECCIONES, BRIEF_T })}></script>
 
 <div class="fu-modal" id="ned-modal" hidden role="dialog" aria-modal="true" aria-label="Notas al editor">
@@ -18736,6 +18781,7 @@ const newsCases = [
       : '<span class="falta">sin contacto</span>';
     $('pj-editor').value = p.editor || '';
     $('pj-editor-email').value = p.editor_email || '';
+    pjEditorRender();
     const _cli = leadById(p.lead_id) || {};
     $('pj-cliente-email').value = p.client_contact_email || '';
     $('pj-cliente-email').placeholder = _cli.email || 'el de su ficha';
@@ -18869,6 +18915,37 @@ const newsCases = [
     if (error) crewPedidos = false;              // que se pueda reintentar al abrir otro proyecto
     else crewList = data || [];
     return crewList;
+  }
+
+  /* El que monta, elegido de Técnicos como el resto del equipo. El email sale de SU ficha:
+     tenerlo escrito acá y en la ficha es tener dos verdades, y un día una queda vieja.
+     Si el técnico no tiene email, se dice — sin email no se le pueden mandar las notas. */
+  function pjEditorRender(){
+    const p = pjCur, sel = $('pj-editor-sel'); if (!p || !sel) return;
+    pjCrewTecnicos().then((lista) => {
+      if (pjCur !== p) return;
+      const actual = String(p.editor || '');
+      const hay = lista.some((t) => crewNorm(t.name) === crewNorm(actual));
+      sel.innerHTML = '<option value="">— elegir —</option>' +
+        (actual && !hay ? '<option value="' + esc(actual) + '" selected>' + esc(actual) + ' · sin ficha</option>' : '') +
+        lista.map((t) => '<option value="' + esc(t.name) + '"' +
+          (crewNorm(t.name) === crewNorm(actual) ? ' selected' : '') + '>' + esc(t.name) +
+          (t.email ? '' : ' · sin email') + '</option>').join('') +
+        '<option value="__nuevo__">＋ Crear un técnico nuevo…</option>';
+
+      const t = lista.find((x) => crewNorm(x.name) === crewNorm(actual));
+      const nota = $('pj-editor-nota');
+      nota.innerHTML = !actual ? 'Sale de Técnicos. A esta persona se le mandan las notas del cliente.'
+        : t && t.email ? 'Las notas van a <b>' + esc(t.email) + '</b> — de su ficha.'
+        : t ? '⚠️ <b>' + esc(t.name) + '</b> no tiene email en su ficha. Sin eso no se le pueden mandar las notas.'
+        : '⚠️ «' + esc(actual) + '» no está en Técnicos. Elegilo de la lista o creá su ficha.';
+      /* El email del proyecto se mantiene al día con el de la ficha: lo leen el guardado y
+         el email al editor, y si se quedan viejos las notas salen a una dirección muerta. */
+      if (t && t.email && $('pj-editor-email').value !== t.email){
+        $('pj-editor-email').value = t.email;
+        pjAutoGuardar();
+      }
+    });
   }
 
   function pjRenderCrew(){
@@ -20472,15 +20549,24 @@ const newsCases = [
       const m = String(f.hora || '').match(/^(\d{1,2}):(\d{2})/);
       if (!m) return;
       const min = +m[1] * 60 + +m[2];
-      const b = porBloque[dia] = porBloque[dia] || { dia, desde: min, hasta: min, lunch: false, filas: 0 };
-      b.desde = Math.min(b.desde, min); b.hasta = Math.max(b.hasta, min); b.filas++;
-      if (/comida|almuerzo|lunch|pausa/i.test(String(f.que || ''))) b.lunch = true;
+      const b = porBloque[dia] = porBloque[dia] || { dia, desde: min, hasta: min, lunch: false, vuelta: false, ultimo: 0, filas: 0 };
+      b.desde = Math.min(b.desde, min);
+      if (min >= b.hasta){ b.hasta = min; b.ultimo = Number(f.dura_min) || 0; }
+      b.filas++;
+      if (/comida|almuerzo|lunch/i.test(String(f.que || ''))) b.lunch = true;
+      /* El regreso tiene que estar en el plan: si no está, la jornada dura más de lo que
+         dice y nadie lo ve. */
+      if (/vuelta|regreso|volver|retorno|go home|viaje de vuelta/i.test(String(f.que || ''))) b.vuelta = true;
     });
     return Object.values(porBloque).map((b) => {
-      /* La última fila también dura: se le suma una hora, que es lo que tarda desmontar y
-         cargar. Sin eso una jornada que termina "a las 18:00" figuraba de ocho horas
-         cuando en realidad el equipo se va a las siete. */
-      const enSet = (b.hasta - b.desde) / 60 + 1;
+      /* EL VIAJE DE VUELTA CUENTA. La jornada no termina cuando se apaga la cámara: termina
+         cuando el equipo llegó. Por eso el reloj va de la citación al regreso.
+         Al último bloque se le suma lo que dura: si trae minutos cargados, esos; si no, una
+         hora, que es lo que tarda desmontar y cargar. Sin eso, un día que "termina a las
+         18:00" figuraba una hora más corto de lo que es.
+         (Sebastián, 26 ago 2026: "también cuenta el go home time".) */
+      const ultimoMin = b.ultimo || 60;
+      const enSet = (b.hasta - b.desde + ultimoMin) / 60;
       const rodaje = Math.max(0, enSet - (b.lunch ? JORNADA.horasLunch : 0));
       return { ...b, enSet, rodaje, sobra: Math.max(0, rodaje - JORNADA.horasNormales) };
     });
@@ -20491,9 +20577,14 @@ const newsCases = [
   let pjPlanT = null;       // debounce del guardado
 
   const PJ_PL_COLS = [
-    ['bloque', 'Bloque', 'input', 'Jornada 1 · Mañana'],
-    ['hora', 'Hora', 'input', '08:00'],
-    ['que', 'Qué', 'textarea', 'Entrevista a la directora técnica'],
+    /* La jornada NO es una columna: es el encabezado de su tramo. Repetir «Jornada 1 ·» en
+       cada fila de un rodaje de un día es ruido en doce renglones.
+       (Sebastián, 26 ago 2026: "¿por qué ponés jornada 1 si es solo una?") */
+    ['hora', 'Empieza', 'input', '08:00'],
+    /* Cuánto dura el bloque. Es lo que permite que la jornada se sume de verdad —y, más
+       adelante, que mover un bloque recalcule el día en vez de retipear todas las horas. */
+    ['dura_min', 'Dura', 'input', '45'],
+    ['que', 'Qué se rueda', 'textarea', 'Entrevista a la directora técnica'],
     ['donde', 'Dónde', 'input', 'Sala de reuniones'],
     ['quien', 'Quién', 'input', 'Cámara + sonido'],
     ['escenas', 'Escenas', 'input', '3, 7'],
@@ -20568,12 +20659,14 @@ const newsCases = [
             : j.sobra > 0
               ? '<em>⚠️ ' + j.sobra.toFixed(j.sobra % 1 ? 1 : 0) + ' h de más' +
                 (c ? ' · +' + pjCHF(c.extra) + ' por persona' : ' · cargá una tarifa por hora para ver cuánto sale') + '</em>'
-              : !j.lunch ? '<em>sin almuerzo en el plan</em>' : '') +
+              : !j.lunch ? '<em>sin almuerzo en el plan</em>'
+              : !j.vuelta ? '<em>sin el viaje de vuelta — la jornada dura más de lo que dice</em>' : '') +
           '</div>';
       }).join('') + '</div>' +
       (largas.length
         ? '<p class="muted-note" style="margin:8px 0 0">La jornada de VIVEN son ' + JORNADA.horasNormales +
-          ' h de rodaje más 1 de almuerzo. Estirar se paga: +25% de la hora 10 a la 12, +50% la 13 y la 14, +100% de la 15 en adelante. ' +
+          ' h de rodaje más 1 de almuerzo, contando desde la citación hasta que el equipo vuelve — el viaje de vuelta es parte de la jornada. ' +
+          'Estirar se paga: +25% de la hora 10 a la 12, +50% la 13 y la 14, +100% de la 15 en adelante. ' +
           'Si el trabajo no entra, dos jornadas salen más baratas que una larga.</p>'
         : '');
 
@@ -20583,8 +20676,17 @@ const newsCases = [
       : '<div class="lead-table-wrap"><table class="pj-pl"><thead><tr>' +
         PJ_PL_COLS.map((c) => '<th>' + c[1] + '</th>').join('') + '<th></th></tr></thead><tbody>' +
         filas.map((f, i) => {
-          const nuevoBloque = i === 0 || String(f.bloque || '') !== String(filas[i - 1].bloque || '');
-          return '<tr' + (nuevoBloque ? ' class="blq-ini"' : '') + '>' +
+          /* El tramo se anuncia una vez, en una fila propia, y no se repite en cada
+             renglón. Cuando hay una sola jornada el nombre suele ser «Mañana» / «Tarde»,
+             que es exactamente lo que hace falta saber. */
+          const bloq = String(f.bloque || '').trim();
+          const nuevoBloque = i === 0 || bloq !== String(filas[i - 1].bloque || '').trim();
+          const cab = nuevoBloque && bloq
+            ? '<tr class="blq-cab"><td colspan="' + (PJ_PL_COLS.length + 1) + '">' +
+              '<input data-pf="' + i + '" data-pk="bloque" value="' + esc(bloq) + '" ' +
+              'placeholder="Mañana" title="El nombre de este tramo. Cambiarlo acá lo cambia para todas sus filas." /></td></tr>'
+            : '';
+          return cab + '<tr' + (nuevoBloque ? ' class="blq-ini"' : '') + '>' +
             PJ_PL_COLS.map((c) => '<td class="c-' + c[0] + '" data-l="' + c[1] + '">' +
               (c[2] === 'textarea'
                 ? '<textarea rows="2" data-pf="' + i + '" data-pk="' + c[0] + '" placeholder="' + esc(c[3]) + '">' + esc(f[c[0]] || '') + '</textarea>'
@@ -20599,8 +20701,15 @@ const newsCases = [
 
     const tb = $('pj-plan-tabla');
     tb.querySelectorAll('[data-pf]').forEach((el) => el.addEventListener('input', () => {
-      const f = pjPlanFilas()[+el.dataset.pf]; if (!f) return;
-      f[el.dataset.pk] = el.value;
+      const fs = pjPlanFilas(), i = +el.dataset.pf, f = fs[i]; if (!f) return;
+      /* Renombrar el tramo lo renombra en TODAS sus filas: son el mismo tramo, y dejar la
+         mitad con el nombre viejo lo partiría en dos sin que nadie lo pida. */
+      if (el.dataset.pk === 'bloque'){
+        const antes = String(f.bloque || '');
+        fs.forEach((x) => { if (String(x.bloque || '') === antes) x.bloque = el.value; });
+      } else {
+        f[el.dataset.pk] = el.value;
+      }
       pjPlanGuardarDebounce();
     }));
     tb.querySelectorAll('[data-pup]').forEach((b) => b.addEventListener('click', () => pjPlanMover(+b.dataset.pup, -1)));
@@ -20626,6 +20735,210 @@ const newsCases = [
       }));
     }
   }
+
+  /* ── El plan en PDF ──
+     Mismo papel que el guion: logo, cabecera con el número de proyecto, y el pie repetido
+     en todas las hojas. Un plan de rodaje se imprime y se lleva al set; una hoja suelta sin
+     número no vuelve a su carpeta.
+     La barra de imprimir va con .noprint y las reglas de impresión al FINAL del CSS — si no,
+     una regla posterior con la misma especificidad la vuelve a mostrar y sale dentro del PDF.
+     (Sebastián, 26 ago 2026: "falta todo lo de poder mandar como PDF".) */
+  function pjPlanPDF(){
+    const p = pjCur; if (!p) return;
+    const filas = pjPlanFilas();
+    if (!filas.length){ toast('El plan está vacío'); return; }
+    const jor = pjPlanJornadas();
+    const hoy = new Date().toLocaleDateString('de-CH');
+    const fechas = [p.shoot_start ? fmtDMY(p.shoot_start) : '', p.shoot_end && p.shoot_end !== p.shoot_start ? fmtDMY(p.shoot_end) : '']
+      .filter(Boolean).join(' – ');
+    const pieTxt = [(p.ref ? '#' + p.ref : ''), String(p.title || ''), 'VIVEN AG · Zürich'].filter(Boolean).join('  ·  ');
+
+    let blq = null;
+    const cuerpo = filas.map((f) => {
+      const b = String(f.bloque || '').trim();
+      const cab = b && b !== blq ? (blq = b, '<tr class="cab"><td colspan="6">' + esc(b) + '</td></tr>') : '';
+      const dur = Number(f.dura_min) ? Number(f.dura_min) + '′' : '';
+      return cab + '<tr>' +
+        '<td class="h">' + esc(f.hora || '') + '</td>' +
+        '<td class="d">' + dur + '</td>' +
+        '<td class="q"><b>' + esc(f.que || '') + '</b>' +
+          (f.escenas && f.escenas !== '—' ? '<span class="esc">Esc. ' + esc(f.escenas) + '</span>' : '') +
+          (f.notas ? '<span class="nt">' + esc(f.notas) + '</span>' : '') + '</td>' +
+        '<td>' + esc(f.donde || '') + '</td>' +
+        '<td>' + esc(f.quien || '') + '</td>' +
+        '<td class="ll">' + esc(f.lleva || '') + '</td></tr>';
+    }).join('');
+
+    const nec = (pjPlan && pjPlan.necesita_txt || '').trim();
+    const rie = (pjPlan && pjPlan.riesgos_txt || '').trim();
+    const lista = (t) => t.split('\n').map((x) => x.replace(/^[·\-\s]+/, '').trim()).filter(Boolean)
+      .map((x) => '<li>' + esc(x) + '</li>').join('');
+
+    const w = window.open('', '_blank');
+    if (!w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
+    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
+      '<title>' + esc((p.ref ? p.ref + ' ' : '') + 'Plan de rodaje') + '</title><style>' +
+      '@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap");' +
+      ':root{--navy:#1b2c46;--acid:#ddf98f;--tinta:#1a2230;--gris:#6b7896;--linea:#e3e7ee;' +
+        '--display:"Space Grotesk",Helvetica,Arial,sans-serif;--texto:Inter,-apple-system,Helvetica,Arial,sans-serif}' +
+      'body{font:10pt/1.55 var(--texto);color:var(--tinta);background:#e6e9ef;margin:0;padding:26px 16px 60px;' +
+        '-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.hoja{max-width:196mm;margin:0 auto;background:#fff;padding:20mm 16mm;' +
+        'box-shadow:0 10px 40px -12px rgba(0,0,0,.35);border-radius:2px}' +
+      '@page{margin:16mm 12mm 18mm;' +
+        '@bottom-left{content:"' + pieTxt.replace(/"/g, "'") + '";font:8pt Inter,Arial,sans-serif;color:#8a94a8}' +
+        '@bottom-right{content:counter(page) " / " counter(pages);font:8pt Inter,Arial,sans-serif;color:#8a94a8}}' +
+      'header{display:flex;align-items:center;justify-content:space-between;gap:20px;' +
+        'border-bottom:3px solid var(--navy);padding-bottom:11px;margin-bottom:18px}' +
+      'header img{width:92px;height:auto;display:block}' +
+      '.hd-r{text-align:right;font:8.5pt/1.5 var(--texto);color:var(--gris);letter-spacing:.07em;text-transform:uppercase}' +
+      'h1{font:700 19pt/1.16 var(--display);margin:0 0 5px;letter-spacing:-.02em;color:var(--navy)}' +
+      '.meta{font:600 8.5pt/1.5 var(--texto);color:var(--gris);letter-spacing:.09em;text-transform:uppercase;margin:0 0 14px}' +
+      '.jor{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}' +
+      '.jor div{border:1px solid var(--linea);border-radius:8px;padding:7px 12px;font-size:9pt}' +
+      '.jor b{display:block;font:700 9pt var(--display);color:var(--navy)}' +
+      'table{width:100%;border-collapse:collapse;font:9.5pt/1.5 var(--texto)}' +
+      'thead th{text-align:left;font:700 7.5pt var(--display);letter-spacing:.12em;text-transform:uppercase;' +
+        'color:var(--navy);background:var(--acid);padding:6px 8px;border:0}' +
+      'td{vertical-align:top;padding:8px 8px;border-bottom:1px solid var(--linea)}' +
+      'td.h{font:700 9.5pt var(--display);color:var(--navy);white-space:nowrap;width:52px;font-variant-numeric:tabular-nums}' +
+      'td.d{color:var(--gris);white-space:nowrap;width:38px;font-variant-numeric:tabular-nums}' +
+      'td.q b{display:block;color:var(--tinta)}' +
+      'td.q .esc{display:block;font-size:8pt;color:var(--navy);font-weight:600;margin-top:2px}' +
+      'td.q .nt{display:block;font-size:8pt;color:var(--gris);margin-top:2px;line-height:1.45}' +
+      'td.ll{font-size:8.5pt;color:#3d4757;width:22%}' +
+      'tr.cab td{background:rgba(221,249,143,.35);font:700 8pt var(--display);letter-spacing:.1em;' +
+        'text-transform:uppercase;color:var(--navy);padding:7px 8px;border-bottom:0}' +
+      'tr{break-inside:avoid}' +
+      '.dos{display:flex;gap:22px;margin-top:20px}' +
+      '.dos > div{flex:1}' +
+      '.dos h3{font:700 8pt var(--display);letter-spacing:.11em;text-transform:uppercase;color:var(--navy);' +
+        'margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid var(--linea)}' +
+      '.dos ul{margin:0;padding-left:16px;font-size:9pt;line-height:1.6;color:#3d4757}' +
+      'footer{margin-top:24px;border-top:3px solid var(--acid);padding-top:10px;font:8.5pt/1.6 var(--texto);color:var(--gris)}' +
+      'footer b{color:var(--navy)}' +
+      '.barra{position:sticky;top:0;background:var(--navy);color:#fff;padding:9px 14px;border-radius:9px;' +
+        'margin:0 auto 18px;max-width:196mm;font:13px var(--texto);display:flex;gap:12px;' +
+        'align-items:center;justify-content:space-between}' +
+      '.barra button{background:var(--acid);color:#1c2508;border:0;border-radius:100px;' +
+        'font:700 13px var(--texto);padding:8px 18px;cursor:pointer}' +
+      /* Al final y con !important: una regla posterior con la misma especificidad ganaría. */
+      '@media print{body{background:#fff;padding:0}' +
+        '.hoja{max-width:none;margin:0;padding:0;box-shadow:none;border-radius:0}' +
+        '.noprint,.barra{display:none !important}}' +
+      '</style></head><body>' +
+      '<div class="barra noprint"><span>Guardá como PDF desde el diálogo de imprimir.</span>' +
+        '<button onclick="window.print()">Imprimir / Guardar PDF</button></div>' +
+      '<div class="hoja">' +
+      '<header><img src="' + location.origin + '/assets/brand/viven-logo-navy.svg" alt="VIVEN" />' +
+        '<div class="hd-r">' + (p.ref ? 'Proyecto ' + esc(p.ref) + '<br>' : '') + esc(hoy) + '</div></header>' +
+      '<h1>Plan de rodaje</h1>' +
+      '<p class="meta">' + esc([p.title || '', p.client_contact || '', fechas].filter(Boolean).join(' · ')) + '</p>' +
+      (jor.length ? '<div class="jor">' + jor.map((j) =>
+        '<div><b>' + esc(j.dia) + '</b>' + j.rodaje.toFixed(j.rodaje % 1 ? 1 : 0) + ' h' +
+        (j.lunch ? ' + almuerzo' : '') + (j.sobra > 0 ? ' · ' + j.sobra.toFixed(j.sobra % 1 ? 1 : 0) + ' h de más' : '') +
+        '</div>').join('') + '</div>' : '') +
+      '<table><thead><tr><th>Empieza</th><th>Dura</th><th>Qué se rueda</th><th>Dónde</th><th>Quién</th><th>Qué llevar</th></tr></thead>' +
+      '<tbody>' + cuerpo + '</tbody></table>' +
+      ((nec || rie) ? '<div class="dos">' +
+        (nec ? '<div><h3>Hay que conseguir antes</h3><ul>' + lista(nec) + '</ul></div>' : '') +
+        (rie ? '<div><h3>Ojo con</h3><ul>' + lista(rie) + '</ul></div>' : '') +
+        '</div>' : '') +
+      '<footer><b>VIVEN AG</b> · Zürich · viven.ch' +
+        (p.ref ? ' — Referencia del proyecto: ' + esc(p.ref) + '.' : '') + '</footer>' +
+      '</div></body></html>');
+    w.document.close();
+    const dale = () => { try { w.focus(); w.print(); } catch (e){ } };
+    const img = w.document.querySelector('header img');
+    if (img && !img.complete){ img.onload = dale; img.onerror = dale; setTimeout(dale, 2500); }
+    else setTimeout(dale, 350);
+  }
+
+  /* Mandarlo al equipo: preview primero, siempre. El email lo arma el SERVIDOR con el
+     mismo código que manda de verdad, así lo que se ve es lo que sale. */
+  let plmT = null;
+
+  async function pjPlanMandar(){
+    const p = pjCur; if (!p) return;
+    if (!pjPlanFilas().length){ toast('El plan está vacío'); return; }
+    $('plm-modal').hidden = false;
+    $('plm-sub').textContent = (p.ref ? p.ref + ' · ' : '') + (p.title || '');
+    $('plm-msg').value = '';
+    $('plm-asunto').value = '';
+    const deSel = $('plm-de');
+    if (!deSel.options.length){
+      deSel.innerHTML = Object.keys(SENDERS).map((k) =>
+        '<option value="' + k + '">' + esc(SENDERS[k].name) + ' — ' + esc(SENDERS[k].email) + '</option>').join('');
+    }
+    deSel.value = localStorage.getItem('viven_ned_de') || sender || 'sofia';
+    $('plm-prev').innerHTML = '<p style="color:#8a94a8;margin:0">Armando el email…</p>';
+    plmT = null;
+    plmPreview();
+  }
+
+  function plmPreview(){
+    clearTimeout(plmT);
+    plmT = setTimeout(async () => {
+      const p = pjCur; if (!p) return;
+      const prev = $('plm-prev');
+      try {
+        const { data, error } = await supabase.functions.invoke('plan-al-equipo', { body: {
+          project_id: p.id, de: $('plm-de').value,
+          asunto: $('plm-asunto').value.trim() || undefined,
+          mensaje: $('plm-msg').value, dry_run: true } });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        if (!$('plm-asunto').value.trim()) $('plm-asunto').value = data.asunto;
+        /* Quién lo recibe, y quién NO por no tener email: sin eso el plan sale a medias y
+           nadie se entera hasta que alguien no aparece. */
+        $('plm-para').innerHTML = '<div class="plm-quien">' +
+          (data.para || []).map((e) => '<span>' + esc(e) + '</span>').join('') +
+          (data.sin_email || []).map((n) => '<span class="no">' + esc(n) + ' · sin email</span>').join('') +
+          '</div>' +
+          ((data.sin_email || []).length
+            ? '<p class="muted-note" style="margin:-6px 0 12px">A los marcados no les llega: cargales el email en Técnicos.</p>'
+            : '');
+        /* En un iframe: el email trae sus propios estilos y con innerHTML heredaría los del
+           dashboard — se vería distinto de como llega. */
+        prev.innerHTML = '<iframe style="width:100%;height:520px;border:0;display:block;background:#f4f5f7"></iframe>';
+        prev.querySelector('iframe').srcdoc = data.html;
+        $('plm-msgout').textContent = data.responde_a
+          ? 'Si contestan, les llega a ' + data.responde_a + '. Nada sale hasta que toques Mandar.'
+          : 'Nada sale hasta que toques Mandar.';
+      } catch (e){
+        prev.innerHTML = '<p style="color:#b00;margin:0">⚠️ ' + esc(e.message || e) + '</p>';
+      }
+    }, plmT === null ? 0 : 350);
+  }
+
+  (function plmBind(){
+    const cerrar = () => { $('plm-modal').hidden = true; clearTimeout(plmT); plmT = null; };
+    document.addEventListener('click', (e) => {
+      if (e.target && (e.target.id === 'plm-x' || e.target.id === 'plm-back' || e.target.id === 'plm-modal')) cerrar();
+    });
+    document.addEventListener('input', (e) => {
+      if (e.target && ['plm-asunto', 'plm-msg'].includes(e.target.id)) plmPreview();
+    });
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.id === 'plm-de'){ localStorage.setItem('viven_ned_de', e.target.value); plmPreview(); }
+    });
+    document.addEventListener('click', async (e) => {
+      if (!e.target || e.target.id !== 'plm-go' || !pjCur) return;
+      const b = e.target, out = $('plm-msgout');
+      b.disabled = true; out.textContent = 'Enviando…';
+      try {
+        const { data, error } = await supabase.functions.invoke('plan-al-equipo', { body: {
+          project_id: pjCur.id, de: $('plm-de').value,
+          asunto: $('plm-asunto').value.trim() || undefined, mensaje: $('plm-msg').value } });
+        if (error) throw new Error(error.message);
+        if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+        out.textContent = '✅ Enviado a ' + (data.para || []).length;
+        toast('📤 Plan enviado a ' + (data.para || []).length + ' del equipo');
+        setTimeout(cerrar, 900);
+      } catch (e2){ out.textContent = '⚠️ ' + (e2.message || e2); }
+      finally { b.disabled = false; }
+    });
+  })();
 
   function pjPlanMover(i, d){
     const f = pjPlanFilas(); const j = i + d;
@@ -21531,6 +21844,25 @@ const newsCases = [
     $('pjf-pdf') && $('pjf-pdf').addEventListener('change', (e) => { pjLeerOferta(e.target.files[0]); e.target.value = ''; });
     $('pj-save').addEventListener('click', () => pjSave());
     pjAutoBind();
+    /* El que monta se elige de Técnicos como cualquier otro del equipo. */
+    $('pj-editor-sel').addEventListener('change', async (e) => {
+      const sel = e.target; if (!pjCur) return;
+      if (sel.value === '__nuevo__'){
+        sel.value = pjCur.editor || '';
+        const nuevo = await pjCrewNuevo('Editor');
+        if (!nuevo) return;
+        pjCur.editor = nuevo.name;
+        $('pj-editor').value = nuevo.name;
+        $('pj-editor-email').value = nuevo.email || '';
+      } else {
+        pjCur.editor = sel.value;
+        $('pj-editor').value = sel.value;
+        const t = (crewList || []).find((x) => crewNorm(x.name) === crewNorm(sel.value));
+        $('pj-editor-email').value = (t && t.email) || '';
+      }
+      pjEditorRender();
+      pjAutoGuardar();
+    });
     $('pj-crew-auto').addEventListener('click', () => {
       const roles = pjRolesDelPresupuesto();
       if (!roles.length){ toast('El presupuesto no tiene roles de gente'); return; }
@@ -21556,6 +21888,8 @@ const newsCases = [
     $('pj-cli-mandar').addEventListener('click', pjContactosMandar);
     $('pj-brief2').addEventListener('click', pjBriefVer);
     $('pj-plan-fila').addEventListener('click', pjPlanFilaNueva);
+    $('pj-plan-pdf').addEventListener('click', pjPlanPDF);
+    $('pj-plan-mandar').addEventListener('click', pjPlanMandar);
     $('pj-desglosar').addEventListener('click', pjDesglosar);
     $('pj-plan-gen').addEventListener('click', pjPlanDesdeJornadas);
     $('pj-costos-sembrar').addEventListener('click', pjCostosSembrar);

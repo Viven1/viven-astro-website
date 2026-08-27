@@ -15,6 +15,13 @@
 // en 10-11 / 12-14 / 15, y los corrigió. Quedan escritos acá una sola vez para que la
 // próxima corrección sea un archivo y no una búsqueda por todo el repo.
 
+/* EL VIAJE DE VUELTA CUENTA. Sebastián, 26 ago 2026: "también cuenta el go home time".
+   La jornada no termina cuando se apaga la cámara: termina cuando el equipo llegó. Por eso
+   el reloj va desde la citación hasta el regreso, desmontaje y viaje incluidos — y por eso
+   un plan que "termina a las 18:00" en una locación a 40 minutos es, en realidad, una
+   jornada más larga de lo que dice.
+   Lo mismo vale para la ida: el equipo ya está trabajando desde la citación, no desde que
+   llega al set. */
 export const JORNADA = {
   /** Horas de trabajo efectivo de una jornada normal. */
   horasNormales: 9,
@@ -34,6 +41,11 @@ export const JORNADA = {
 export const REGLA_JORNADA = `LA JORNADA DE RODAJE DE VIVEN (esto manda sobre cualquier otra estimación):
 - Una jornada normal son ${JORNADA.horasNormales} horas de rodaje MÁS ${JORNADA.horasLunch} hora de almuerzo. En el set eso es ${JORNADA.horasNormales + JORNADA.horasLunch} horas.
 - El almuerzo va SIEMPRE y no es tiempo de rodaje. Un plan sin comida se cae a media tarde.
+- EL VIAJE CUENTA, ida y vuelta. La jornada arranca en la citación y termina cuando el
+  equipo llegó de vuelta, no cuando se apaga la cámara. Si la locación está lejos, el
+  desmontaje y el viaje de vuelta entran en las horas: un día que "termina a las 18:00" a
+  cuarenta minutos de la base es más largo de lo que dice.
+- El último bloque del plan tiene que ser el regreso, con sus minutos.
 - Se puede estirar hasta ${JORNADA.topeAbsoluto} horas, nunca más, y cada hora de más cuesta:
   · horas 10, 11 y 12: +25% sobre la hora normal
   · horas 13 y 14: +50%

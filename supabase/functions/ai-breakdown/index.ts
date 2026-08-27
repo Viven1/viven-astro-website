@@ -239,9 +239,16 @@ ${texto}`;
                     tipo: { type: "string", enum: [...CATS] },
                     que: { type: "string", description: "Sustantivo concreto y corto, como lo escribiría el jefe de ese departamento en su lista. «Cuaderno de reservas», no «el cuaderno lleno de tachones que ella hojea»." },
                     cantidad: { type: "integer", description: "Cuántos hacen falta. 1 si no se dice." },
-                    quien: { type: "string", description: "De quién es o quién lo usa, si el guion lo dice. Cadena vacía si no aplica." },
+                    quien: { type: "string", description: "De quién es o quién lo usa: un nombre o un rol («la dueña de la hostería», «el técnico»). NUNCA un pronombre — «ella» no le dice a nadie qué buscar. Cadena vacía si no aplica." },
                     donde: { type: "string", description: "Dónde entra en cuadro o dónde tiene que estar. Cadena vacía si no se dice." },
-                    quien_lo_consigue: { type: "string", description: "Qué área lo trae: Arte, Vestuario, Sonido, Cámara, Producción, El cliente." },
+                    /* Lista CERRADA. Estaba libre y devolvía cosas como "ella" — que en una
+                       hoja de rodaje no le dice a nadie qué tiene que hacer. Quién lo trae
+                       es un ÁREA, siempre; de quién es la cosa va en "quien". */
+                    quien_lo_consigue: {
+                      type: "string",
+                      enum: ["Arte", "Vestuario", "Maquillaje", "Sonido", "Cámara", "Luces", "Producción", "Post", "El cliente"],
+                      description: "El área que tiene que conseguirlo o traerlo. «El cliente» cuando hay que pedírselo a él: un acceso, una persona suya, su producto.",
+                    },
                     evidencia: { type: "string", description: "La frase EXACTA del guion que lo justifica, copiada tal cual." },
                     notas: { type: "string", description: "Solo si hace falta algo que el resto no dice. Cadena vacía si no." },
                   },
@@ -314,15 +321,22 @@ REGLAS, en orden de importancia:
 5. "quien" es de quién es o quién lo usa —solo si la escena lo dice—. "donde" es dónde entra
    en cuadro. Los dos van vacíos si no se dicen: vacío es una respuesta correcta.
 
-6. "quien_lo_consigue" es el área que lo trae: Arte, Vestuario, Sonido, Cámara, Producción,
-   o El cliente cuando hay que pedírselo a él (un acceso, una persona suya, un producto).
+6. "quien_lo_consigue" es el ÁREA que lo trae, de la lista cerrada. «El cliente» cuando hay
+   que pedírselo a él: un acceso, una persona suya, su producto. Nunca una persona suelta.
+   Si algo lo trae la persona que aparece en cámara, eso es «El cliente» (o «Producción» si
+   lo conseguimos nosotros), y de quién es va en "quien".
 
-7. Si el mismo objeto aparece dos veces en la escena, es UN elemento con cantidad 2, no dos.
+7. NADA DE PRONOMBRES. "quien" va con un nombre o un rol —«la dueña de la hostería»,
+   «el técnico de mantenimiento»—, nunca «ella» ni «él». La hoja se lee a las seis de la
+   mañana, en el teléfono, por alguien que no leyó el guion: «ella» no le dice a nadie qué
+   tiene que buscar ni a quién.
 
-8. Los planos son los que usa un director: tipo, movimiento, qué pasa. Entre 2 y 6 por
+8. Si el mismo objeto aparece dos veces en la escena, es UN elemento con cantidad 2, no dos.
+
+9. Los planos son los que usa un director: tipo, movimiento, qué pasa. Entre 2 y 6 por
    escena. Sin poesía.
 
-9. Todo en ${idioma}.`;
+10. Todo en ${idioma}.`;
 
         const r2 = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",

@@ -128,8 +128,9 @@ const FORMA_PLAN = {
       items: {
         type: "object",
         properties: {
-          bloque: { type: "string", description: "«Jornada 1 · Mañana»." },
+          bloque: { type: "string", description: "La jornada y el momento: «Jornada 1 · Mañana». Si el rodaje es de UN SOLO día, escribí solo «Mañana», «Mediodía» o «Tarde» — poner «Jornada 1» en cada fila de un rodaje de un día es ruido." },
           hora: { type: "string", description: "«08:00»." },
+          dura_min: { type: "integer", description: "Cuántos minutos dura el bloque. Realista: montar una entrevista lleva 30-45, no 10." },
           que: { type: "string" },
           donde: { type: "string" },
           quien: { type: "string", description: "Quién tiene que estar. Incluido el cliente cuando hace falta." },
@@ -137,7 +138,7 @@ const FORMA_PLAN = {
           lleva: { type: "string", description: "Lo que tiene que estar en ese bloque, del desglose de esas escenas. Vacío si no hace falta nada especial." },
           notas: { type: "string", description: "Por qué está en ese orden, qué puede complicarse, la luz." },
         },
-        required: ["bloque", "hora", "que", "donde", "quien", "escenas", "lleva", "notas"],
+        required: ["bloque", "hora", "dura_min", "que", "donde", "quien", "escenas", "lleva", "notas"],
         additionalProperties: false,
       },
     },
@@ -328,6 +329,8 @@ ${pedido ? `\nINDICACIONES DE SEBASTIÁN:\n${pedido}` : ""}
 ${REGLA_JORNADA}
 
 REGLAS:
+- Si el rodaje es de un solo día, NO numeres jornadas: el bloque es «Mañana», «Mediodía» o
+  «Tarde» a secas. Numerar la única jornada que hay es ruido en cada fila.
 - Ordená por LUGAR y por quién aparece, NO por el orden del video. Todo lo de una persona
   junto, todo lo de un espacio junto. Decilo en 'notas' cuando reordenes.
 - En 'lleva' va lo que tiene que ESTAR en ese bloque: las cosas del desglose de las escenas
@@ -335,7 +338,9 @@ REGLAS:
   bloque. Vacío si no hace falta nada especial (llegada, comida, desmontaje).
 - Equipo chico: no supongas más de 3 o 4 personas de VIVEN salvo que el material diga otra cosa.
 - Bloques de tiempo realistas: montar una entrevista lleva 30–45 min, no 10.
-- Incluí llegada, montaje, comida y desmontaje. El almuerzo va siempre y es una hora.
+- Incluí llegada, montaje, comida, desmontaje Y EL VIAJE DE VUELTA. El almuerzo va siempre y
+  es una hora. El último bloque es el regreso: la jornada termina cuando el equipo llegó, no
+  cuando se apaga la cámara.
 - Todo lo que dependa del cliente —accesos, permisos, gente disponible, ropa— va en
   'necesita', que es la lista que le mandamos antes.
 - Si el guión pide algo que no se puede filmar con ese equipo o ese acceso, decilo en
@@ -375,7 +380,9 @@ tiene que estar.`;
       }
       const t2 = (x: unknown, n = 600) => String(x ?? "").slice(0, n);
       const fp = (pp.filas as Array<Record<string, unknown>>).slice(0, 80).map((f, i) => ({
-        n: i + 1, bloque: t2(f.bloque, 80), hora: t2(f.hora, 12), que: t2(f.que, 300),
+        n: i + 1, bloque: t2(f.bloque, 80), hora: t2(f.hora, 12),
+        dura_min: Number.isFinite(Number(f.dura_min)) ? Math.max(0, Math.round(Number(f.dura_min))) : 0,
+        que: t2(f.que, 300),
         donde: t2(f.donde, 160), quien: t2(f.quien, 200), escenas: t2(f.escenas, 80),
         lleva: t2(f.lleva, 500), notas: t2(f.notas, 600),
       })).filter((f) => f.que);

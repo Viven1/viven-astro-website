@@ -33,7 +33,16 @@ for (const m of src.matchAll(/^\s*(?:let|const|var)\s+([^;\n]+)/gm)) {
   }
 }
 /* Solo los prefijos del dashboard: lo demás son APIs del navegador y librerías. */
-const llamadas = new Set([...src.matchAll(/\b((?:pj|crew|pbr|ned|pb|ana|seo|nw|au|cf|ab|lm|co|hm|of|pp|rc|bg|cq|vm|wq|limp|ob)[A-Z]\w+)\s*\(/g)].map((m) => m[1]));
+const PREFIJOS = /\b((?:pj|crew|pbr|ned|pb|ana|seo|nw|au|cf|ab|lm|co|hm|of|pp|rc|bg|cq|vm|wq|limp|ob)[A-Z]\w+)/g;
+const llamadas = new Set();
+/* Con paréntesis: pjPlanPDF(). */
+for (const m of src.matchAll(new RegExp(PREFIJOS.source + '\\s*\\(', 'g'))) llamadas.add(m[1]);
+/* Y SIN paréntesis, que es como se pasa a un listener:
+   addEventListener('click', pjPlanMandar). Faltaba esta forma, y por eso el chequeo dejó
+   pasar una función que no existía — el mismo tipo de error que el script existe para
+   atrapar. (26 ago 2026.) */
+for (const m of src.matchAll(new RegExp("addEventListener\\([^,]+,\\s*" + PREFIJOS.source, 'g'))) llamadas.add(m[1]);
+for (const m of src.matchAll(new RegExp("setTimeout\\(\\s*" + PREFIJOS.source, 'g'))) llamadas.add(m[1]);
 const huerfanas = [...llamadas].filter((f) => !defs.has(f)).sort();
 if (huerfanas.length) mal('Se llaman y no están definidas', huerfanas);
 
