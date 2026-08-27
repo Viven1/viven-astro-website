@@ -18235,6 +18235,37 @@ const newsCases = [
     pjBriefRespLoad();
   }
 
+  /* ── El deal del proyecto abierto ──
+     dealsList NO sirve para esto. Desde el 26 ago los deals cuyo lead está marcado como
+     prueba se sacan de esa lista, para que un proyecto inventado no sume plata al mes. Pero
+     el token del portal vive en el deal, así que al proyecto de prueba se le rompió el
+     portal, el brief y la vista previa de golpe: "No pude generar el link del portal" sobre
+     un deal que SÍ tenía token en la base.
+     La plata se sigue calculando sin las pruebas; lo que cambia es que el proyecto que
+     tenés abierto siempre encuentra su deal, esté o no en la lista.
+     (Sebastián, 27 ago 2026, con el cartel rojo en pantalla.) */
+  const pjDeals = new Map();
+
+  async function pjDeal(proj){
+    const p = proj || pjCur;
+    if (!p || !p.deal_id) return null;
+    const id = String(p.deal_id);
+    const enLista = (dealsList || []).find((x) => String(x.id) === id);
+    if (enLista) return enLista;
+    if (pjDeals.has(id)) return pjDeals.get(id);
+    const { data } = await supabase.from('deals').select('*').eq('id', id).maybeSingle();
+    if (data) pjDeals.set(id, data);
+    return data || null;
+  }
+
+  /* La versión sin esperar, para el dibujado: usa lo que ya esté a mano. */
+  function pjDealYa(proj){
+    const p = proj || pjCur;
+    if (!p || !p.deal_id) return null;
+    const id = String(p.deal_id);
+    return (dealsList || []).find((x) => String(x.id) === id) || pjDeals.get(id) || null;
+  }
+
   function pjUrl(p){
     try {
       history.replaceState({}, '', location.pathname +
@@ -20229,7 +20260,7 @@ const newsCases = [
        viven.ch. Así que llevan al portal, no a vimeo.com.
        Va aparte y sin bloquear: si tarda o falla, el modal ya está abierto y los minutos
        caen al link de Vimeo. */
-    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    const d = pjDealYa(p);
     if (d && d.portal_token && mail){
       supabase.functions.invoke('get-portal', {
         body: { id: d.id, t: d.portal_token, accion: 'pase_editor', email: mail } })
@@ -22160,7 +22191,13 @@ const newsCases = [
 
   function pjRenderPortal(){
     const p = pjCur, box = $('pj-portal'); if (!box) return;
-    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    const d = pjDealYa(p);
+    /* Si el deal todavía no está en memoria —los de prueba nunca entran a dealsList— se
+       pide una vez y se vuelve a dibujar, en vez de mostrar "Generar link" sobre un portal
+       que ya existe. */
+    if (!d && p.deal_id && !pjDeals.has(String(p.deal_id))){
+      pjDeal(p).then((x) => { if (x && pjCur === p) pjRenderPortal(); });
+    }
     if (!d || !d.portal_token){
       box.innerHTML = '<button class="btn btn-ghost small" id="pj-portal-gen" type="button">Generar link</button>';
       const b = $('pj-portal-gen');
@@ -22208,7 +22245,7 @@ const newsCases = [
     try {
       if (!p.deal_id) throw new Error('Este proyecto no tiene deal asociado — sin eso no hay portal');
       await pjGenPortal({ callado: true });
-      const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+      const d = await pjDeal(p);
       if (!d || !d.portal_token) throw new Error('No pude generar el link del portal');
       const url = location.origin + '/portal/?id=' + encodeURIComponent(d.id) + '&t=' + encodeURIComponent(d.portal_token);
       const { data, error } = await supabase.functions.invoke('get-portal', {
@@ -22229,10 +22266,10 @@ const newsCases = [
      portal en una pestaña para ver la puerta de entrada tal cual la ve. */
   async function pjPortalPreview(){
     const p = pjCur; if (!p) return;
-    let d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    let d = await pjDeal(p);
     if (d && !d.portal_token){
       await pjGenPortal({ callado: true });
-      d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+      d = await pjDeal(p);
     }
     if (!d || !d.portal_token){ toast('Este proyecto no tiene deal asociado — sin eso no hay portal'); return; }
     /* A propósito NO se arma la URL del portal acá: tener el link a mano fue lo que
@@ -22329,10 +22366,10 @@ const newsCases = [
   async function pjBriefDatos(op){
     const callado = op && op.callado;
     const p = pjCur; if (!p) return null;
-    let d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    let d = await pjDeal(p);
     if (d && !d.portal_token){
       await pjGenPortal({ callado: true });
-      d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+      d = await pjDeal(p);
     }
     if (!d || !d.portal_token){ if (!callado) toast('Este proyecto no tiene deal asociado — sin eso no hay portal'); return null; }
     const l = leadById(p.lead_id) || {};
@@ -22586,13 +22623,14 @@ const newsCases = [
     const p = pjCur; if (!p || !p.deal_id) return false;
     /* Regenerar un token existente rompe todos los links que el cliente ya tiene. Cuando
        se llama solo (desde un envío) nunca pisa el que hay. */
-    const ya = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    const ya = await pjDeal(p);
     if (callado && ya && ya.portal_token) return true;
     const tok = ([...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join(''));
     const { error } = await supabase.from('deals').update({ portal_token: tok }).eq('id', p.deal_id);
     if (error){ toast('⚠️ ' + error.message); return false; }
-    const d = (dealsList || []).find((x) => String(x.id) === String(p.deal_id));
+    const d = pjDealYa(p);
     if (d) d.portal_token = tok;
+    else pjDeals.set(String(p.deal_id), { id: p.deal_id, portal_token: tok });
     if (!callado) toast('🔗 Link del portal generado');
     pjRenderPortal();
     return true;
