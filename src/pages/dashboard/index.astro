@@ -13556,8 +13556,28 @@ const newsCases = [
        tramo dejaba el embudo comercial en dos filas y tiraba 29 días de señal buena.
        Lo único que tiene otra ventana es el primer escalón (las personas), y por eso
        el % entre ese escalón y los leads se suprime cuando las ventanas no coinciden. */
+    /* La conversión personas→leads SÍ se puede dar: hay que medir las dos cosas en el
+       mismo tramo. Las personas existen desde el 24/08, así que se cuentan los leads que
+       entraron desde esa fecha y se dividen por las personas de esa misma ventana.
+       No es el número del período completo, y por eso va dicho con su tramo al lado.
+       (Sebastián, 27 ago 2026: "acá falta lo más importante, porcentaje de personas a
+        leads".) */
+    let comun = null;
+    if (soloPersonas && parcial){
+      const desdeC = Math.max(rangeStart(), HUMAN_DESDE);
+      const personasC = new Set((humanAct || [])
+        .filter((x) => { const t = Date.parse(x.created_at); return t >= desdeC && t <= rangeEnd(); })
+        .map((x) => x.session_id)).size;
+      const leadsC = periodLeads.filter((l) => {
+        const t = Date.parse(l.created_at);
+        return t >= desdeC && t <= rangeEnd();
+      }).length;
+      const dias = Math.max(1, Math.ceil((rangeEnd() - desdeC) / 864e5));
+      comun = { personas: personasC, leads: leadsC,
+                txt: dias === 1 ? 'el último día' : 'los últimos ' + dias + ' días' };
+    }
     renderAnaFunnel(sessions.size, periodLeads, soloPersonas, rangeLabel().toLowerCase(),
-      !(soloPersonas && parcial));
+      !(soloPersonas && parcial), comun);
 
     /* rendimiento por CANAL: sesiones vs leads */
     const chSessions = new Map();
@@ -13692,7 +13712,7 @@ const newsCases = [
      3) Es una cohorte: gente que ENTRÓ en el período, seguida hasta hoy. Los
         escalones de abajo van a estar siempre bajos porque un negocio tarda meses
         en cerrar — eso no es una fuga, es el calendario. Va dicho al pie. */
-  function renderAnaFunnel(sessionCount, funnelLeads, soloPersonas, ventanaTxt, mismaVentana){
+  function renderAnaFunnel(sessionCount, funnelLeads, soloPersonas, ventanaTxt, mismaVentana, comun){
     const el = $('ana-funnel'); if (!el) return;
     const stColor = (k) => (STAGES.find((x) => x.key === k) || {}).color || '#8ab4ff';
     const base = funnelLeads.length;   // los leads son la base del embudo comercial
@@ -13716,9 +13736,20 @@ const newsCases = [
            daba 28% — el número que ya nos hizo tropezar una vez. Si las ventanas no
            coinciden, no hay porcentaje: se dice por qué. */
         const pct = (mismaVentana && sessionCount) ? Math.round(s.n / sessionCount * 100) : null;
-        meta = pct == null
-          ? '<b>—</b><span>otra ventana que las personas</span>'
-          : '<b>' + pct + '%</b><span>de las personas</span>';
+        if (pct != null){
+          meta = '<b>' + pct + '%</b><span>de las personas</span>';
+        } else if (comun && comun.personas){
+          /* El período entero no se puede dividir —las personas empiezan el 24/08— pero el
+             tramo donde las dos cosas existen sí, y es EL número: cuánta de la gente que
+             entra deja sus datos. Se dice de qué tramo es, para que nadie lo lea como si
+             fuera del mes. */
+          const p2 = comun.leads / comun.personas * 100;
+          meta = '<b>' + (p2 < 10 && p2 > 0 ? p2.toFixed(1) : Math.round(p2)) + '%</b>' +
+            '<span>de las personas</span>' +
+            '<span class="fn-prev">' + comun.leads + ' de ' + comun.personas + ' en ' + esc(comun.txt) + '</span>';
+        } else {
+          meta = '<b>—</b><span>otra ventana que las personas</span>';
+        }
       } else {
         const prev = steps[i - 1].n;
         const pctBase = base ? (s.n / base * 100) : null;
@@ -13734,7 +13765,10 @@ const newsCases = [
       '<div class="fn-foot">Cohorte: los leads que entraron en ' + esc(ventanaTxt || rangeLabel().toLowerCase()) +
       ', seguidos hasta hoy. Los escalones de abajo van bajos porque un negocio tarda meses en cerrar — eso es el calendario, no una fuga. ' +
       'Y los pasos no son obligatorios: se puede cerrar sin propuesta cargada.' +
-      (mismaVentana ? '' : ' El primer escalón mide otra ventana (las personas se miden desde el 24/08), por eso ese salto no lleva porcentaje.') +
+      (mismaVentana ? ''
+        : comun && comun.personas
+          ? ' El primer escalón mide otra ventana: las personas se miden desde el 24/08, así que el porcentaje de leads es el de ese tramo —donde las dos cosas existen— y no el del período entero.'
+          : ' El primer escalón mide otra ventana (las personas se miden desde el 24/08), por eso ese salto no lleva porcentaje.') +
       '</div>';
   }
 
@@ -19015,13 +19049,39 @@ const newsCases = [
      así que el plan de rodaje salía "sin teléfono" para todos.
      Nunca pisa un dato que ya está: solo completa lo que falta. Un email viejo corregido a
      mano no puede perderse porque el CRM tenga otro. */
-  function ciAbrir(){
+  async function ciAbrir(){
     /* Si los técnicos todavía no llegaron, se abre igual y se redibuja cuando llegan: es
        mejor que un modal que no abre porque se adelantó a los datos. */
     if (!crewList.length){
       crewLoad().then(() => { if (!$('ci-modal').hidden) ciAbrir(); });
     }
     const norm = (x) => String(x || '').toLowerCase().trim();
+
+    /* Segunda fuente: las direcciones a las que YA les escribimos. A Martin le mandamos
+       emails a martinarya@gmail.com y en Personas figura con martinarya6@gmail.com — dos
+       direcciones distintas de la misma persona, y la que sirve es a la que contestó.
+       Se busca por el nombre de pila dentro de la dirección, que es como se escriben casi
+       todas: nombre@ o nombreapellido@. */
+    let porEmail = [];
+    try {
+      const sinDatos = (crewList || []).filter((c) => !c.email);
+      if (sinDatos.length){
+        const { data } = await supabase.from('email_log')
+          .select('to_addr,created_at').not('to_addr', 'is', null)
+          .order('created_at', { ascending: false }).limit(600);
+        const vistos = new Set();
+        (data || []).forEach((e) => {
+          const dir = norm(e.to_addr);
+          if (!dir.includes('@') || vistos.has(dir)) return;
+          const usuario = dir.split('@')[0];
+          const quien = sinDatos.find((c) => {
+            const pila = norm(c.name).split(/\s+/)[0];
+            return pila.length >= 4 && usuario.includes(pila);
+          });
+          if (quien){ vistos.add(dir); porEmail.push({ crew: quien, email: e.to_addr, tel: '', fuente: 'le escribimos' }); }
+        });
+      }
+    } catch (e){ console.error('CI_EMAILS', e && e.message); }
     const sinDato = (c) => !c.email || !c.phone;
     /* El match es por nombre contenido, en cualquiera de los dos sentidos: la ficha dice
        "Martin" y la persona "Martin Arya". */
@@ -19035,14 +19095,18 @@ const newsCases = [
         props.push({ crew: c, lead: l, email: l.email, tel: l.phone || '' });
       });
     });
+    /* Las dos fuentes juntas, sin repetir la misma dirección para la misma persona. */
+    porEmail.forEach((x) => {
+      if (!props.some((p2) => p2.crew.id === x.crew.id && norm(p2.email) === norm(x.email))) props.push(x);
+    });
     ciProps = props;
     $('ci-match').innerHTML = props.length
       ? props.map((x, i) => '<label class="ci-row"><input type="checkbox" data-ci="' + i + '" checked />' +
           '<span><b>' + esc(x.crew.name) + '</b>' +
           (x.crew.roles && x.crew.roles.length ? ' <span class="muted-note">' + esc(x.crew.roles.join(', ')) + '</span>' : '') +
           '<span class="ci-d">' + esc(x.email) + (x.tel ? ' · ' + esc(x.tel) : '') +
-          ' <span class="muted-note">— de «' + esc(x.lead.name || x.lead.email) + '» en Personas</span></span></span></label>').join('')
-      : '<p class="muted-note" style="margin:0 0 4px">Ningún técnico sin datos coincide con un contacto de Personas. Usá el cuadro de abajo.</p>';
+          ' <span class="muted-note">— ' + (x.lead ? 'de «' + esc(x.lead.name || x.lead.email) + '» en Personas' : esc(x.fuente || 'de un email nuestro')) + '</span></span></span></label>').join('')
+      : '<p class="muted-note" style="margin:0 0 4px">No encontré a ninguno en Personas ni en los emails que mandamos. Usá el cuadro de abajo.</p>';
     $('ci-pegar').value = '';
     $('ci-msg').textContent = '';
     $('ci-modal').hidden = false;
