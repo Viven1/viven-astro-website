@@ -2456,6 +2456,13 @@ const newsCases = [
      columnas arrancan en 360px: en un monitor normal siguen entrando dos o
      tres, pero cada una respira. */
   .hm-masonry{column-count:3;column-width:360px;column-gap:16px;margin-top:16px}
+  .of-desc{width:100%;margin-top:5px;background:var(--navy-900);border:1px solid var(--line);border-radius:7px;
+    color:var(--muted);font:12px/1.45 inherit;padding:5px 8px;resize:vertical;min-height:28px;display:block}
+  .of-desc:focus{color:var(--text);border-color:var(--acid);outline:none}
+  .of-opt{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11px;color:var(--muted-2);cursor:pointer}
+  .of-opt input{margin:0}
+  tr.of-esopt{opacity:.72}
+  tr.of-esopt .num{font-style:italic}
   .hm-masonry .hm-card{break-inside:avoid;margin-bottom:16px}
   /* La lista de acciones abarca las tres columnas. Vivía en una columna de 360 px, y ahí
      un renglón con nombre + contexto + monto + botón no entra: el nombre quedaba cortado
@@ -15075,8 +15082,13 @@ const newsCases = [
       '</optgroup>').join('');
   }
 
-  const offerNet = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0) * (1 - (Number(o && o.discount_pct) || 0) / 100);
-  const offerCost = (o) => (o.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.cost) || 0), 0);
+  /* Los opcionales NO entran en el neto. Es lo que los hace opcionales: el cliente ve el
+     precio y decide, y mientras no decida el total no los incluye. Si sumaran, el pipeline
+     contaría plata que nadie aceptó.
+     (Sebastián, 27 ago 2026: "en la oferta — add ons/optional items".) */
+  const esOpt = (it) => !!(it && it.opcional);
+  const offerNet = (o) => (o.items || []).filter((it) => !esOpt(it)).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0) * (1 - (Number(o && o.discount_pct) || 0) / 100);
+  const offerCost = (o) => (o.items || []).filter((it) => !esOpt(it)).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.cost) || 0), 0);
   const offerMarginPct = (o) => { const n = offerNet(o); return n ? (n - offerCost(o)) / n * 100 : NaN; };
 
   async function offersLoad(){
@@ -15451,15 +15463,25 @@ const newsCases = [
   const phaseOf = (it) => it.phase || 'Production';
   function phaseSubtotal(ph){
     let net = 0, cost = 0;
-    ofCur.items.forEach((it) => { if (phaseOf(it) === ph){ const q = Number(it.qty) || 0; net += q * (Number(it.price) || 0); cost += q * (Number(it.cost) || 0); } });
+    ofCur.items.forEach((it) => { if (phaseOf(it) === ph && !esOpt(it)){ const q = Number(it.qty) || 0; net += q * (Number(it.price) || 0); cost += q * (Number(it.cost) || 0); } });
     return { net, cost };
   }
   function rowHTML(it, i, isFirst, isLast){
     const total = (Number(it.qty) || 0) * (Number(it.price) || 0);
     const margin = total - (Number(it.qty) || 0) * (Number(it.cost) || 0);
-    return '<tr data-i="' + i + '">' +
+    return '<tr data-i="' + i + '"' + (it.opcional ? ' class="of-esopt"' : '') + '>' +
+      /* Debajo del nombre, la descripción: qué incluye esa línea, en las palabras del
+         cliente. Sin esto, "Producción · 1 · Fix · 4.800" le pide al cliente que adivine
+         qué compró, y el que adivina no firma.
+         Y el tilde de opcional: un add-on se cotiza y se muestra, pero no se suma al total
+         —el cliente elige si lo quiere.
+         (Sebastián, 27 ago 2026: "en la oferta — para agregar texto/descripción — add
+          ons/optional items".) */
       '<td><div class="of-name-wrap"><span class="of-drag" draggable="true" title="Arrastrar para reordenar (dentro de su fase)">⠿</span>' +
-      '<input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></div></td>' +
+      '<input class="ofi" data-f="name" value="' + esc(it.name || '') + '"/></div>' +
+      '<textarea class="ofi of-desc" data-f="desc" rows="1" placeholder="Qué incluye — lo lee el cliente en la oferta">' + esc(it.desc || '') + '</textarea>' +
+      '<label class="of-opt"><input type="checkbox" class="ofi" data-f="opcional"' + (it.opcional ? ' checked' : '') + '/> opcional · no suma al total</label>' +
+      '</td>' +
       '<td><select class="ofi" data-f="phase">' + PHASES.map((p) => '<option' + (p === phaseOf(it) ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></td>' +
       '<td class="num"><input class="ofi w" data-f="qty" type="number" step="0.25" value="' + (it.qty ?? 1) + '"/></td>' +
       '<td><input class="ofi w" data-f="unit" value="' + esc(it.unit || '') + '"/></td>' +
@@ -15556,7 +15578,7 @@ const newsCases = [
   }
   function onRowInput(e){
     const tr = e.target.closest('tr'), i = +tr.dataset.i, f = e.target.dataset.f;
-    let v = e.target.value;
+    let v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     if (['qty', 'price', 'cost'].includes(f)) v = parseFloat(v) || 0;
     ofCur.items[i][f] = v;
     if (['qty', 'price', 'cost'].includes(f)){
@@ -15573,7 +15595,7 @@ const newsCases = [
   }
   function recalc(){
     const net = offerNet(ofCur), cost = offerCost(ofCur);
-    const sum0 = (ofCur.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    const sum0 = (ofCur.items || []).filter((it) => !esOpt(it)).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
     $('of-discamt').textContent = (sum0 - net) > 0.005 ? '− ' + fmtM(sum0 - net) : 'CHF 0.00';
     const vat = net * (parseFloat($('of-vat').value) || 0) / 100;
     const profit = net - cost, mp = net ? profit / net * 100 : 0;
@@ -15683,9 +15705,9 @@ const newsCases = [
   };
   // etiquetas del PDF/preview de oferta por idioma (offer.lang: de/en/es)
   const OF_PDF_L = {
-    de: { doc: 'Offerte', valid: 'Gültig bis', forL: 'Für', greet: 'Guten Tag', intro: 'Besten Dank für Ihre Anfrage und das entgegengebrachte Vertrauen. Gerne unterbreiten wir Ihnen die folgende Offerte:', defTitle: 'Video Produktion', pos: 'Position', qty: 'Menge', price: 'Preis', total: 'Total', sub: 'Zwischensumme', disc: 'Rabatt', net: 'Total netto', vat: 'MwSt', gross: 'Total', terms: 'Terms & Conditions', prices: 'Alle Preise in CHF.', loc: 'de-CH' },
-    en: { doc: 'Offer', valid: 'Valid until', forL: 'For', greet: 'Hello', intro: 'Thank you for your inquiry and your trust. We are pleased to submit the following offer:', defTitle: 'Video Production', pos: 'Item', qty: 'Qty', price: 'Price', total: 'Total', sub: 'Subtotal', disc: 'Discount', net: 'Total net', vat: 'VAT', gross: 'Total', terms: 'Terms & Conditions', prices: 'All prices in CHF.', loc: 'en-GB' },
-    es: { doc: 'Oferta', valid: 'Válida hasta', forL: 'Para', greet: 'Hola', intro: 'Gracias por tu consulta y tu confianza. Con gusto te presentamos la siguiente oferta:', defTitle: 'Producción de video', pos: 'Concepto', qty: 'Cant.', price: 'Precio', total: 'Total', sub: 'Subtotal', disc: 'Descuento', net: 'Total neto', vat: 'IVA', gross: 'Total', terms: 'Términos y condiciones', prices: 'Todos los precios en CHF.', loc: 'es-ES' },
+    de: { doc: 'Offerte', valid: 'Gültig bis', forL: 'Für', greet: 'Guten Tag', intro: 'Besten Dank für Ihre Anfrage und das entgegengebrachte Vertrauen. Gerne unterbreiten wir Ihnen die folgende Offerte:', defTitle: 'Video Produktion', pos: 'Position', qty: 'Menge', price: 'Preis', total: 'Total', sub: 'Zwischensumme', disc: 'Rabatt', net: 'Total netto', vat: 'MwSt', gross: 'Total', terms: 'Terms & Conditions', prices: 'Alle Preise in CHF.', loc: 'de-CH', opcionales: 'Optionen', opcionalesNota: 'Diese Positionen sind nicht im Total enthalten. Sagen Sie uns, was Sie dazunehmen möchten.' },
+    en: { doc: 'Offer', valid: 'Valid until', forL: 'For', greet: 'Hello', intro: 'Thank you for your inquiry and your trust. We are pleased to submit the following offer:', defTitle: 'Video Production', pos: 'Item', qty: 'Qty', price: 'Price', total: 'Total', sub: 'Subtotal', disc: 'Discount', net: 'Total net', vat: 'VAT', gross: 'Total', terms: 'Terms & Conditions', prices: 'All prices in CHF.', loc: 'en-GB', opcionales: 'Optional add-ons', opcionalesNota: 'These are not included in the total. Tell us which ones you would like to add.' },
+    es: { doc: 'Oferta', valid: 'Válida hasta', forL: 'Para', greet: 'Hola', intro: 'Gracias por tu consulta y tu confianza. Con gusto te presentamos la siguiente oferta:', defTitle: 'Producción de video', pos: 'Concepto', qty: 'Cant.', price: 'Precio', total: 'Total', sub: 'Subtotal', disc: 'Descuento', net: 'Total neto', vat: 'IVA', gross: 'Total', terms: 'Términos y condiciones', prices: 'Todos los precios en CHF.', loc: 'es-ES', opcionales: 'Opcionales', opcionalesNota: 'No están incluidos en el total. Decinos cuáles querés sumar.' },
   };
   const ofLang = () => { const v = $('of3-lang') && $('of3-lang').value; return ['de', 'en', 'es'].includes(v) ? v : (['de', 'en', 'es'].includes(ofCur && ofCur.lang) ? ofCur.lang : 'de'); };
   const ofValidDate = () => { const v = ($('of3-valid') && $('of3-valid').value) || (ofCur && ofCur.valid_until); return v ? new Date(v + 'T00:00:00') : new Date(Date.now() + 30 * 864e5); };
@@ -15696,20 +15718,32 @@ const newsCases = [
     const L = OF_PDF_L[lang];
     const vatRate = parseFloat($('of-vat').value) || 0;
     const net = offerNet(ofCur), vat = net * vatRate / 100;
-    const sum0 = (ofCur.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    const sum0 = (ofCur.items || []).filter((it) => !esOpt(it)).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
     const discPct = Number(ofCur.discount_pct) || 0;
     // agrupado por fase, con subtotal por fase (versión cliente: sin costo interno)
     let rows = '';
-    PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph)).forEach((ph) => {
+    /* La descripción va debajo del nombre, y los opcionales se agrupan aparte al final:
+       mezclados entre las líneas firmes, el cliente suma mal y pregunta por qué el total
+       no da. Separados, se leen como lo que son — cosas que puede agregar si quiere. */
+    const fila = (it, opt) => {
+      const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
+      return '<tr' + (opt ? ' class="opt"' : '') + '><td><b>' + esc(it.name || '') + '</b>' +
+        (it.desc ? '<span class="d">' + esc(it.desc) + '</span>' : '') + '</td>' +
+        '<td class="c">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td>' +
+        '<td class="r">' + fmtM(it.price) + '</td><td class="r">' + fmtM(t) + '</td></tr>';
+    };
+    PHASES.filter((ph) => ofCur.items.some((it) => phaseOf(it) === ph && !esOpt(it))).forEach((ph) => {
       rows += '<tr class="ph"><td colspan="4">' + esc(ph) + '</td></tr>';
-      ofCur.items.forEach((it) => {
-        if (phaseOf(it) !== ph) return;
-        const t = (Number(it.qty) || 0) * (Number(it.price) || 0);
-        rows += '<tr><td>' + esc(it.name || '') + '</td><td class="c">' + (it.qty ?? '') + ' ' + esc(it.unit || '') + '</td><td class="r">' + fmtM(it.price) + '</td><td class="r">' + fmtM(t) + '</td></tr>';
-      });
+      ofCur.items.forEach((it) => { if (phaseOf(it) === ph && !esOpt(it)) rows += fila(it, false); });
       const s = phaseSubtotal(ph);
       rows += '<tr class="sub"><td colspan="3">' + L.sub + ' ' + esc(ph) + '</td><td class="r">' + fmtM(s.net) + '</td></tr>';
     });
+    const opcionales = (ofCur.items || []).filter(esOpt);
+    if (opcionales.length){
+      rows += '<tr class="ph opt-h"><td colspan="4">' + esc(L.opcionales) + '</td></tr>';
+      opcionales.forEach((it) => { rows += fila(it, true); });
+      rows += '<tr class="opt-n"><td colspan="4">' + esc(L.opcionalesNota) + '</td></tr>';
+    }
     const today = new Date().toLocaleDateString(L.loc, { day: '2-digit', month: 'long', year: 'numeric' });
     const valid = ofValidDate().toLocaleDateString(L.loc, { day: '2-digit', month: 'long', year: 'numeric' });
     const w = window.open('', '_blank');
@@ -15738,6 +15772,13 @@ const newsCases = [
       'td.c{text-align:center;white-space:nowrap}td.r{text-align:right;white-space:nowrap}' +
       'tr.ph td{background:#f3f7e8;font-family:"Space Grotesk";font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#4e650f;border-bottom:0;border-radius:6px}' +
       'tr.sub td{font-weight:600;color:#5b6472;border-bottom:2px solid #d5d9e2;font-size:12px}' +
+      /* La descripción bajo el nombre, y los opcionales en gris: se ven, se pueden pedir,
+         y no se confunden con lo que ya está cerrado. */
+      'td b{font-weight:600;display:block}' +
+      'td .d{display:block;font-size:10.5px;color:#6b7280;line-height:1.45;margin-top:2px}' +
+      'tr.opt-h td{background:#eef1f6;color:#5b6472}' +
+      'tr.opt td{color:#6b7280}' +
+      'tr.opt-n td{font-size:10.5px;color:#8a94a8;border-bottom:0;padding-top:2px}' +
       '.totcard{margin:26px 0 0 auto;width:300px;background:#0f1826;color:#f4f6fb;border-radius:14px;padding:18px 22px;font-size:13px;line-height:2}' +
       '.totcard .row{display:flex;justify-content:space-between}' +
       '.totcard .gross{border-top:1px solid rgba(255,255,255,.18);margin-top:6px;padding-top:8px;font-family:"Space Grotesk";font-weight:700;font-size:17px;color:#ddf98f}' +
@@ -15958,7 +15999,7 @@ const newsCases = [
     const NAVY = [15, 24, 38], ACID = [221, 249, 143], MUT = [138, 148, 168], INK = [26, 34, 48], LINE = [232, 234, 239];
     const vatRate = parseFloat($('of-vat').value) || 0;
     const net = offerNet(ofCur), vat = net * vatRate / 100;
-    const sum0 = (ofCur.items || []).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    const sum0 = (ofCur.items || []).filter((it) => !esOpt(it)).reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
     const discPct = Number(ofCur.discount_pct) || 0;
     const today = new Date().toLocaleDateString(L.loc, { day: '2-digit', month: 'long', year: 'numeric' });
     const valid = ofValidDate().toLocaleDateString(L.loc, { day: '2-digit', month: 'long', year: 'numeric' });
