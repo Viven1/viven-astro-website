@@ -21416,8 +21416,16 @@ const newsCases = [
     });
 
     let blq = null;
+    /* En papel NO va la nota de producción de cada fila ("se arranca por cocina porque ahí
+       están casi todas las escenas"): es el porqué del orden, se lee una vez al planificar
+       y ocupaba más de la mitad de la altura de la tabla. Sí va la sinopsis —qué se ve— que
+       es lo que hay que rodar.
+       Y el nombre del bloque pierde el "Jornada 1 · " cuando hay una sola jornada: diez
+       franjas repitiendo lo mismo. */
+    const unaJornada = jor.length <= 1;
     const cuerpo = filas.map((f) => {
-      const b = String(f.bloque || '').trim();
+      const b0 = String(f.bloque || '').trim();
+      const b = unaJornada ? b0.replace(/^\s*jornada\s*\d+\s*[·:.-]\s*/i, '') : b0;
       const cab = b && b !== blq ? (blq = b, '<tr class="cab"><td colspan="6">' + esc(b) + '</td></tr>') : '';
       const dur = Number(f.dura_min) ? Number(f.dura_min) + '′' : '';
       return cab + '<tr>' +
@@ -21428,7 +21436,7 @@ const newsCases = [
           (() => { const sn = pjSinopsisDe(f.escenas);
                    return sn && !String(f.que || '').includes(sn.slice(0, 40))
                      ? '<span class="sin">' + esc(sn) + '</span>' : ''; })() +
-          (f.notas ? '<span class="nt">' + esc(f.notas) + '</span>' : '') + '</td>' +
+        '</td>' +
         '<td>' + esc(f.donde || '') + '</td>' +
         '<td>' + esc(f.quien || '') + '</td>' +
         '<td class="ll">' + esc(f.lleva || '') + '</td></tr>';
@@ -21439,6 +21447,18 @@ const newsCases = [
     const lista = (t) => t.split('\n').map((x) => x.replace(/^[·\-\s]+/, '').trim()).filter(Boolean)
       .map((x) => '<li>' + esc(x) + '</li>').join('');
 
+    /* El guion elegido, o el que esté pegado a mano. Mismo criterio que el paso «Guion»:
+       si hay uno marcado como elegido, ése; si no, el texto del proyecto. */
+    const gEleg = (pjGuiones || []).find((g) => g.elegido);
+    const guionTit = gEleg ? [gEleg.titulo, gEleg.angulo].filter(Boolean).join(' · ') : '';
+    /* El guion A/V viene como bloques {tc, video, audio}, no como un texto: se dibuja en
+       dos columnas, que es como se lee un guion audiovisual. Un guion de cine viene como
+       texto y va tal cual. */
+    const gc = gEleg && gEleg.cuerpo;
+    const guionAV = Array.isArray(gc) && gc.length && (gc[0].video || gc[0].audio) ? gc : null;
+    const guionTxt = guionAV ? '' : String(
+      (Array.isArray(gc) ? gc.map((x) => x && (x.texto || x.cuerpo || '')).join('\n\n') : gc) || p.script_text || '').trim();
+
     const w = soloHtml ? null : window.open('', '_blank');
     if (!soloHtml && !w){ toast('El navegador bloqueó la ventana. Permitila y probá de nuevo.'); return; }
     const HTML = ('<!doctype html><html lang="es"><head><meta charset="utf-8">' +
@@ -21448,7 +21468,7 @@ const newsCases = [
         '--display:"Space Grotesk",Helvetica,Arial,sans-serif;--texto:Inter,-apple-system,Helvetica,Arial,sans-serif}' +
       'body{font:10pt/1.55 var(--texto);color:var(--tinta);background:#e6e9ef;margin:0;padding:26px 16px 60px;' +
         '-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-      '.hoja{max-width:196mm;margin:0 auto;background:#fff;padding:20mm 16mm;' +
+      '.hoja{max-width:196mm;margin:0 auto;background:#fff;padding:14mm 12mm;' +
         'box-shadow:0 10px 40px -12px rgba(0,0,0,.35);border-radius:2px}' +
       '@page{margin:16mm 12mm 18mm;' +
         '@bottom-left{content:"' + pieTxt.replace(/"/g, "'") + '";font:8pt Inter,Arial,sans-serif;color:#8a94a8}' +
@@ -21462,20 +21482,24 @@ const newsCases = [
       '.jor{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}' +
       '.jor div{border:1px solid var(--linea);border-radius:8px;padding:7px 12px;font-size:9pt}' +
       '.jor b{display:block;font:700 9pt var(--display);color:var(--navy)}' +
-      'table{width:100%;border-collapse:collapse;font:9.5pt/1.5 var(--texto)}' +
-      'thead th{text-align:left;font:700 7.5pt var(--display);letter-spacing:.12em;text-transform:uppercase;' +
-        'color:var(--navy);background:var(--acid);padding:6px 8px;border:0}' +
-      'td{vertical-align:top;padding:8px 8px;border-bottom:1px solid var(--linea)}' +
-      'td.h{font:700 9.5pt var(--display);color:var(--navy);white-space:nowrap;width:52px;font-variant-numeric:tabular-nums}' +
-      'td.d{color:var(--gris);white-space:nowrap;width:38px;font-variant-numeric:tabular-nums}' +
-      'td.q b{display:block;color:var(--tinta)}' +
-      'td.q .esc{display:block;font-size:8pt;color:var(--navy);font-weight:600;margin-top:2px}' +
-      'td.q .sin{display:block;font-size:8.5pt;color:#3d4757;margin-top:3px;line-height:1.5;' +
-        'padding-left:8px;border-left:2px solid var(--linea)}' +
-      'td.q .nt{display:block;font-size:8pt;color:var(--gris);margin-top:2px;line-height:1.45}' +
-      'td.ll{font-size:8.5pt;color:#3d4757;width:22%}' +
-      'tr.cab td{background:rgba(221,249,143,.35);font:700 8pt var(--display);letter-spacing:.1em;' +
-        'text-transform:uppercase;color:var(--navy);padding:7px 8px;border-bottom:0}' +
+      /* Densidad de hoja de llamado: se lee de un vistazo, parado. Cada punto de padding
+         de más son dos filas menos por página. */
+      'table{width:100%;border-collapse:collapse;font:8.5pt/1.38 var(--texto);table-layout:fixed}' +
+      'thead th{text-align:left;font:700 7pt var(--display);letter-spacing:.1em;text-transform:uppercase;' +
+        'color:var(--navy);background:var(--acid);padding:4px 6px;border:0}' +
+      'td{vertical-align:top;padding:4px 6px;border-bottom:1px solid var(--linea);overflow-wrap:anywhere}' +
+      /* Los anchos, explícitos. Con table-layout:fixed y solo dos columnas medidas, el
+         navegador repartía el resto en partes iguales: «Qué se rueda» quedaba en seis
+         renglones mientras «Dura» tenía cuatro centímetros de aire al lado de un «90′». */
+      'col.c-h{width:12mm}col.c-d{width:10mm}col.c-q{width:38%}col.c-do{width:15%}col.c-qn{width:19%}col.c-ll{width:17%}' +
+      'td.h{font:700 9pt var(--display);color:var(--navy);white-space:nowrap;font-variant-numeric:tabular-nums}' +
+      'td.d{color:var(--gris);white-space:nowrap;font-variant-numeric:tabular-nums;font-size:8pt}' +
+      'td.q b{display:block;color:var(--tinta);font-weight:700}' +
+      'td.q .esc{font-size:7.5pt;color:var(--navy);font-weight:600;margin-left:5px}' +
+      'td.q .sin{display:block;font-size:8pt;color:#3d4757;margin-top:1px;line-height:1.4}' +
+      'td.ll{font-size:8pt;color:#3d4757}' +
+      'tr.cab td{background:rgba(221,249,143,.35);font:700 7pt var(--display);letter-spacing:.09em;' +
+        'text-transform:uppercase;color:var(--navy);padding:3px 6px;border-bottom:0}' +
       'tr{break-inside:avoid}' +
       '.dos{display:flex;gap:22px;margin-top:20px}' +
       '.dos > div{flex:1}' +
@@ -21498,6 +21522,25 @@ const newsCases = [
         'margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid var(--linea)}' +
       '.eqt td{padding:5px 10px 5px 0;border-bottom:1px solid var(--linea);font-size:9pt}' +
       '.eqt .tel{font-variant-numeric:tabular-nums;color:var(--gris);white-space:nowrap;text-align:right}' +
+      /* El crew en UNA fila de columnas en vez de una tabla larga: son cuatro nombres, no
+         necesitan cuatro renglones. */
+      '.eqt-fila{width:100%;table-layout:fixed}' +
+      '.eqt-fila td{border:0;padding:0 10px 0 0;vertical-align:top;font-size:9pt}' +
+      '.eqt-fila td b{display:block;color:var(--navy)}' +
+      '.eqt-fila td span{display:block;font-size:8pt;color:var(--gris);line-height:1.45}' +
+      '.eqt-fila td .tel{font-variant-numeric:tabular-nums}' +
+      /* El guion va detrás, siempre en página nueva: es un anexo, no parte de la hoja. */
+      '.guion{break-before:page;page-break-before:always;margin-top:0}' +
+      '.guion h2{font:700 13pt var(--display);color:var(--navy);margin:0 0 2px}' +
+      '.guion .gsub{font-size:9pt;color:var(--gris);margin:0 0 12px}' +
+      '.guion pre{white-space:pre-wrap;font:9.5pt/1.55 var(--texto);color:var(--tinta);margin:0}' +
+      '.gav{width:100%;border-collapse:collapse;margin:0}' +
+      '.gav th{font:700 7.5pt var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--gris);' +
+        'text-align:left;padding:0 8px 5px 0;border-bottom:1px solid var(--linea)}' +
+      '.gav td{padding:7px 8px 7px 0;border-bottom:1px solid var(--linea);font-size:9pt;line-height:1.5;vertical-align:top}' +
+      '.gav .tc{font-variant-numeric:tabular-nums;color:var(--gris);white-space:nowrap;width:8%}' +
+      '.gav .au{width:42%;color:var(--navy)}' +
+      '.gav tr{break-inside:avoid}' +
       'footer{margin-top:24px;border-top:3px solid var(--acid);padding-top:10px;font:8.5pt/1.6 var(--texto);color:var(--gris)}' +
       'footer b{color:var(--navy)}' +
       '.barra{position:sticky;top:0;background:var(--navy);color:#fff;padding:9px 14px;border-radius:9px;' +
@@ -21527,23 +21570,42 @@ const newsCases = [
         '<div><span class="l">Fin estimado</span><b class="hh">' + esc(cab.fin || '—') + '</b></div>' +
         (cab.luz ? '<div><span class="l">Luz</span><b>' + esc(cab.luz) + '</b></div>' : '') +
       '</div>' +
-      (notasDia ? '<div class="notas"><span class="l">Notas del día</span>' + esc(notasDia) + '</div>' : '') +
-      (jor.length ? '<div class="jor">' + jor.map((j) =>
-        '<div><b>' + esc(j.dia) + '</b>' + j.rodaje.toFixed(j.rodaje % 1 ? 1 : 0) + ' h' +
-        (j.lunch ? ' + almuerzo' : '') + (j.sobra > 0 ? ' · ' + j.sobra.toFixed(j.sobra % 1 ? 1 : 0) + ' h de más' : '') +
-        '</div>').join('') + '</div>' : '') +
-      '<table><thead><tr><th>Empieza</th><th>Dura</th><th>Qué se rueda</th><th>Dónde</th><th>Quién</th><th>Qué llevar</th></tr></thead>' +
+      /* Lo de abajo se saca de la HOJA. Las notas del día, las jornadas, lo que hay que
+         conseguir y los riesgos son cinco páginas de contexto para una hoja que se lee
+         parado, con una linterna, a las seis de la mañana. Van en el email, que es donde
+         se leen sentado la noche anterior.
+         Maestro hace lo mismo: la orden del día es cronograma y citación, y lo demás va
+         por otro lado.
+         (Sebastián, 27 ago 2026: "no solo los horarios con el tiempo de citación, la
+          locación, las cosas que se ruedan pero no todas las notas de arriba e idealmente
+          en una página máx dos... ahora son 5".) */
+      '<table>' +
+      '<colgroup><col class="c-h"><col class="c-d"><col class="c-q"><col class="c-do"><col class="c-qn"><col class="c-ll"></colgroup>' +
+      /* «Empieza» y «Dura» no entran en columnas de 12 mm: se pisaban entre sí en el
+         encabezado ("EMPIEZADURA"). En una hoja de llamado se dice Hora y Min. */
+      '<thead><tr><th>Hora</th><th>Min</th><th>Qué se rueda</th><th>Dónde</th><th>Quién</th><th>Qué llevar</th></tr></thead>' +
       '<tbody>' + cuerpo + '</tbody></table>' +
-      (crewPDF.length ? '<div class="eq"><h3>Quién viene</h3><table class="eqt"><tbody>' +
-        crewPDF.map((c) => '<tr><td><b>' + esc(c.nombre) + '</b></td><td>' + esc(c.rol) + '</td>' +
-          '<td class="tel">' + (c.tel ? esc(c.tel) : '—') + '</td></tr>').join('') +
-        '</tbody></table></div>' : '') +
-      ((nec || rie) ? '<div class="dos">' +
-        (nec ? '<div><h3>Hay que conseguir antes</h3><ul>' + lista(nec) + '</ul></div>' : '') +
-        (rie ? '<div><h3>Ojo con</h3><ul>' + lista(rie) + '</ul></div>' : '') +
-        '</div>' : '') +
+      (crewPDF.length ? '<div class="eq"><h3>Quién viene</h3><table class="eqt eqt-fila"><tbody><tr>' +
+        crewPDF.map((c) => '<td><b>' + esc(c.nombre) + '</b><span>' + esc(c.rol) + '</span>' +
+          '<span class="tel">' + (c.tel ? esc(c.tel) : 'sin teléfono') + '</span></td>').join('') +
+        '</tr></tbody></table></div>' : '') +
       '<footer><b>VIVEN AG</b> · Zürich · viven.ch' +
         (p.ref ? ' — Referencia del proyecto: ' + esc(p.ref) + '.' : '') + '</footer>' +
+      /* El guion detrás, en su propia página. Va con la hoja para que el equipo lo tenga
+         encima sin buscarlo en otro lado — que es lo que pasa siempre.
+         (Sebastián, 27 ago 2026: "y agrega el script a rodar tmb para que todos lo tengan".) */
+      ((guionAV || guionTxt)
+        ? '<div class="guion"><h2>El guion</h2>' +
+          (guionTit ? '<p class="gsub">' + esc(guionTit) + '</p>' : '') +
+          (guionAV
+            ? '<table class="gav"><thead><tr><th>TC</th><th>Video</th><th>Audio</th></tr></thead><tbody>' +
+              guionAV.map((b2) => '<tr><td class="tc">' + esc(b2.tc || b2.n || '') + '</td>' +
+                '<td>' + esc(b2.video || '') + '</td>' +
+                '<td class="au">' + esc(b2.audio || '') + '</td></tr>').join('') +
+              '</tbody></table>'
+            : '<pre>' + esc(guionTxt) + '</pre>') +
+          '</div>'
+        : '') +
       '</div></body></html>');
     if (soloHtml) return HTML;
     w.document.write(HTML);

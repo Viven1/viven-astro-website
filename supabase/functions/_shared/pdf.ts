@@ -42,6 +42,12 @@ export async function htmlAPdf(html: string, o: PdfOpts = {}): Promise<string | 
         signal: ctrl.signal,
         body: JSON.stringify({
           html,
+          /* Sin esto la API devuelve 6002 "Promise timed out" con nuestro propio HTML: se
+             queda esperando la fuente de Google Fonts y el logo. Medido, no leído — el
+             plan real fallaba entero hasta que se acotó la espera.
+             La hoja se ve igual: si la fuente no llegó a tiempo cae al fallback, que es
+             Helvetica, y el resto del diseño no depende de recursos externos. */
+          gotoOptions: { waitUntil: "domcontentloaded", timeout: 15000 },
           /* En minúscula: la API rechaza "A4" con un 400 y el mensaje solo lista las
              minúsculas. Se descubrió probándolo, no leyéndolo. */
           pdfOptions: {
