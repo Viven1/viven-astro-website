@@ -119,7 +119,9 @@ Deno.serve(async (req) => {
        el formato de siempre: una carta que empieza "Hola Kaan," y le llega a cuatro no es
        una carta, es un mailing mal hecho. */
     const uno = conEmail.length === 1;
-    const nombre1 = String(conEmail[0].name || "").split(" ")[0];
+    /* El saludo NO se pega acá. Lo escribe quien escribe el mensaje —la IA con el nombre
+       real, o Sebastián a mano— y así lo que se ve en el cuadro de texto es exactamente lo
+       que sale. Ponerlo de los dos lados daba "Hola Kaan," dos veces. */
 
     /* El botón va con el link plano abajo SIEMPRE. La regla es de Sebastián y no se
        negocia: "siempre con botón y abajo el link por si el boton no funca". */
@@ -136,8 +138,7 @@ Deno.serve(async (req) => {
     const html = uno
       ? cartaViven({
           lang,
-          texto: (nombre1 ? `<p style="margin:0 0 14px">Hola ${esc(nombre1)},</p>` : "") +
-                 parrafos(mensaje) + botonHTML + pieHTML,
+          texto: parrafos(mensaje) + botonHTML + pieHTML,
           firma: { nombre: remitente.nombre },
         })
       : emailViven({

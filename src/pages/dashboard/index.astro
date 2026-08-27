@@ -18830,20 +18830,20 @@ const newsCases = [
      exacto que le llega, y recién ahí aparece el botón de mandarlo. */
   let mlElegidos = [], mlListo = false;
 
-  const ML_PLANT = {
-    portal: { asunto: (p) => (p.title || 'Tu proyecto') + ' — ya lo podés ver',
-      msg: () => 'Ya está todo cargado en tu portal: ahí ves el corte, dejás comentarios con el minuto exacto y bajás los archivos.\n\nCualquier cosa, respondeme este mismo email.',
-      adj: 'portal' },
-    version: { asunto: (p, v) => (p.title || 'Tu proyecto') + ' — v' + (v ? v.n : 1) + ' lista',
-      msg: (p, v) => 'Subimos la v' + (v ? v.n : 1) + '. La podés ver en el portal y comentar arriba del video: cada comentario queda con el minuto, así no hace falta describir dónde.\n\nCuando esté, avisame y seguimos.',
-      adj: 'portal' },
-    brief: { asunto: (p) => (p.title || 'Tu proyecto') + ' — unas preguntas antes de arrancar',
-      msg: () => 'Antes de escribir el guion necesitamos entender bien qué querés contar. Son 12 preguntas, se contestan de a poco y lo que escribas queda guardado.\n\nDe acá sale todo lo demás, así que vale la pena tomarse el rato.',
-      adj: 'brief' },
-    factura: { asunto: (p) => (p.title || 'Tu proyecto') + ' — la factura',
-      msg: () => 'Te mando la factura de este proyecto.\n\nLa factura en sí sale de bexio con todos los datos fiscales — este email es solo el aviso.',
-      adj: 'nada' },
-  };
+  /* Los botones de arriba no son plantillas: le dicen a la IA de qué se trata el email y
+     ella lo escribe con el material del proyecto —la versión que subimos, lo que contestó
+     en el brief, las notas que dejó—. Una plantilla fija dice lo mismo para el proyecto
+     que arranca y para el que va por la v4 con seis notas abiertas.
+     (Sebastián, 26 ago 2026: "sin saludo, hola como andas? etc? por favor usa la IA bien
+      usada.") */
+  const ML_INTENC = [
+    ['portal', '🔗 Que su portal está listo'],
+    ['version', '🎞 Que hay una versión nueva'],
+    ['brief', '📋 Que conteste el brief'],
+    ['notas', '📝 En qué quedaron sus notas'],
+    ['factura', '🧾 Que le mandamos la factura'],
+  ];
+  const ML_ADJ = { portal: 'portal', version: 'portal', brief: 'brief', notas: 'portal', factura: 'nada', libre: 'nada' };
 
   function pjContactosMandar(){
     const p = pjCur; if (!p) return;
@@ -18889,20 +18889,47 @@ const newsCases = [
   /* Las plantillas rellenan los campos y los dejan editables. La versión vieja de esto era
      un menú que en vez de escribir el email te mandaba a otra pantalla. */
   function mlRenderPlantillas(){
-    const p = pjCur, v = (pjVers || [])[0];
-    const ops = [['portal', '🔗 El link del portal'], ['version', '🎞 Hay una versión nueva'],
-                 ['brief', '📋 El Project Brief'], ['factura', '🧾 La factura']];
-    $('ml-plant').innerHTML = '<span class="ml-lb" style="margin:0;align-self:center">Arrancar de</span>' +
-      ops.map(([k, t]) => '<button type="button" data-pl="' + k + '">' + esc(t) + '</button>').join('');
+    $('ml-plant').innerHTML = '<span class="ml-lb" style="margin:0;align-self:center">Escribir</span>' +
+      ML_INTENC.map(([k, t]) => '<button type="button" data-pl="' + k + '">' + esc(t) + '</button>').join('') +
+      '<button type="button" data-pl="libre">✨ Otra cosa…</button>';
     $('ml-plant').querySelectorAll('[data-pl]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const t = ML_PLANT[b.dataset.pl];
-        $('ml-asunto').value = t.asunto(p, v);
-        $('ml-msg').value = t.msg(p, v);
-        $('ml-adj').value = t.adj;
-        mlInvalidar();
-      });
+      b.addEventListener('click', () => mlEscribir(b.dataset.pl, b));
     });
+  }
+
+  /* La IA escribe el email entero: asunto, saludo, cuerpo y cierre, en el idioma del
+     cliente. Después se edita a mano como cualquier texto — lo que sale es lo que ves. */
+  async function mlEscribir(intencion, boton){
+    let pedido = '';
+    if (intencion === 'libre'){
+      pedido = prompt('¿De qué le escribimos?\n\nUna línea alcanza: «que se atrasa una semana por el clima».') || '';
+      if (!pedido.trim()) return;
+    }
+    const txt = boton.textContent;
+    boton.disabled = true; boton.textContent = 'Escribiendo…';
+    $('ml-msg-est').textContent = 'La IA está escribiendo con lo que sabemos del proyecto…';
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-mensaje-cliente', { body: {
+        project_id: pjCur.id,
+        intencion,
+        pedido,
+        lang: $('ml-lang').value,
+        de_nombre: $('ml-de').selectedOptions[0].textContent.split(' · ')[0],
+        destinatarios: mlElegidos.map((c) => c.name || c.email),
+      } });
+      if (error) throw new Error(error.message);
+      if (!data || data.error) throw new Error((data && data.error) || 'sin respuesta');
+      $('ml-asunto').value = data.asunto || '';
+      $('ml-msg').value = data.mensaje || '';
+      $('ml-adj').value = ML_ADJ[intencion] || 'nada';
+      mlInvalidar();
+      $('ml-msg-est').textContent = 'Escrito por la IA — editalo a gusto y después vé el preview.';
+    } catch (e){
+      toast('⚠️ ' + (e.message || e));
+      $('ml-msg-est').textContent = 'Primero el preview. Nada sale sin que lo veas.';
+    } finally {
+      boton.disabled = false; boton.textContent = txt;
+    }
   }
 
   /* Cualquier cambio invalida el preview: el botón de mandar solo existe mientras lo que
