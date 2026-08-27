@@ -22623,8 +22623,19 @@ const newsCases = [
     const p = pjCur; if (!p || !p.deal_id) return false;
     /* Regenerar un token existente rompe todos los links que el cliente ya tiene. Cuando
        se llama solo (desde un envío) nunca pisa el que hay. */
-    const ya = await pjDeal(p);
-    if (callado && ya && ya.portal_token) return true;
+    /* Contra la BASE, no contra la memoria. La comprobación miraba dealsList, y cuando el
+       deal no estaba ahí —los de prueba nunca están— daba por hecho que no había token y
+       generaba uno nuevo, pisando el link que el cliente ya tenía. Pasó de verdad el 27 ago
+       con el 1202: un token vivo reemplazado por otro.
+       Un token existente no se pisa nunca en modo callado, y a mano se pregunta. */
+    const { data: enBase } = await supabase.from('deals').select('portal_token').eq('id', p.deal_id).maybeSingle();
+    if (enBase && enBase.portal_token){
+      const d0 = pjDealYa(p);
+      if (d0) d0.portal_token = enBase.portal_token;
+      else pjDeals.set(String(p.deal_id), { id: p.deal_id, portal_token: enBase.portal_token });
+      if (callado) return true;
+      if (!confirm('Este proyecto YA tiene link de portal.\n\nSi generás uno nuevo, el que el cliente tenga guardado deja de funcionar.\n\n¿Generar uno nuevo igual?')) return true;
+    }
     const tok = ([...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join(''));
     const { error } = await supabase.from('deals').update({ portal_token: tok }).eq('id', p.deal_id);
     if (error){ toast('⚠️ ' + error.message); return false; }
