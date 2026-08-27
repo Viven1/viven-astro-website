@@ -5444,25 +5444,46 @@ const newsCases = [
      Se parcha UNA vez acá, sobre el cliente, y con eso hablan los 65 lugares que llaman
      funciones, no solo el que uno se acuerde de arreglar. Se muta el mensaje en vez de
      reemplazar el error para no romper a quien mire error.context. */
+  /* ── Que el error REAL llegue a la pantalla ──
+     supabase-js muestra "Edge Function returned a non-2xx status code", que no le dice
+     nada a nadie. El cuerpo con el motivo viene en `error.context`, pero no siempre: si
+     el error es de red o de tiempo, no hay contexto ninguno y el mensaje genérico se
+     queda. Pasó hoy con "Desglosar con IA".
+     Tres intentos de leer el cuerpo y, si ninguno da, un mensaje humano según lo que
+     pasó — con el nombre de la función adentro, para saber dónde mirar. */
   (function destaparErroresDeFunciones(){
     const orig = supabase.functions.invoke.bind(supabase.functions);
     supabase.functions.invoke = async function(nombre, opts){
-      const r = await orig(nombre, opts);
-      const ctx = r && r.error && r.error.context;
-      if (ctx){
-        /* Tres intentos, porque `context` llega en distintos estados según la versión de
-           supabase-js: a veces es una Response entera, a veces ya consumida (y entonces
-           clone() tira), a veces trae el cuerpo ya parseado. Con uno solo, el error real
-           se perdía y en pantalla quedaba "Edge Function returned a non-2xx status code",
-           que no le dice a nadie qué pasó. */
-        let real = null;
-        try { if (typeof ctx.clone === 'function') real = (await ctx.clone().json()).error; } catch (e){ }
-        if (!real){ try { if (typeof ctx.text === 'function') real = JSON.parse(await ctx.text()).error; } catch (e){ } }
-        if (!real && ctx.body && typeof ctx.body === 'object') real = ctx.body.error || null;
-        if (!real && typeof ctx === 'object' && ctx.error) real = ctx.error;
-        if (real) r.error.message = String(real);
-        else if (ctx.status) r.error.message = 'El servidor contestó ' + ctx.status + ' y no dijo por qué. Mirá los logs de la función.';
+      const t0 = performance.now();
+      let r;
+      try {
+        r = await orig(nombre, opts);
+      } catch (e){
+        /* invoke puede TIRAR (red caída, CORS, la petición cortada). Se devuelve con la
+           misma forma que el resto para que quien llama no tenga que distinguir. */
+        return { data: null, error: { message: 'No se pudo hablar con «' + nombre + '»: ' + (e.message || e) } };
       }
+      if (!r || !r.error) return r;
+
+      const ctx = r.error.context;
+      let real = null;
+      try { if (ctx && typeof ctx.clone === 'function') real = (await ctx.clone().json()).error; } catch (e){ }
+      if (!real){ try { if (ctx && typeof ctx.text === 'function') real = JSON.parse(await ctx.text()).error; } catch (e){ } }
+      if (!real && ctx && ctx.body && typeof ctx.body === 'object') real = ctx.body.error || null;
+      if (!real && ctx && typeof ctx === 'object' && ctx.error) real = ctx.error;
+
+      if (real){ r.error.message = String(real); return r; }
+
+      /* Sin cuerpo que leer: se dice lo que se sabe. El tiempo importa — a los 50
+         segundos casi siempre es que la función tardó más de lo que aguanta la conexión,
+         y eso se arregla distinto que un error de permisos. */
+      const seg = Math.round((performance.now() - t0) / 1000);
+      const status = ctx && ctx.status;
+      r.error.message =
+        seg >= 45 ? '«' + nombre + '» tardó ' + seg + ' s y se cortó la conexión. Suele ser demasiado texto de una vez.'
+        : status === 401 || status === 403 ? 'Sin permiso para usar «' + nombre + '». Probá salir y volver a entrar.'
+        : status ? '«' + nombre + '» contestó ' + status + ' sin explicar por qué (' + seg + ' s).'
+        : 'No hubo respuesta de «' + nombre + '» (' + seg + ' s).';
       return r;
     };
   })();
@@ -20648,7 +20669,7 @@ const newsCases = [
     const btn = $('pj-desglosar'), prev = btn.textContent;
     btn.disabled = true; btn.textContent = '✨ Desglosando…';
     /* Tarda cerca de un minuto: decirlo evita que se toque el botón cuatro veces. */
-    $('pj-desglose-note').textContent = 'Leyendo el guión escena por escena — tarda alrededor de un minuto.';
+    $('pj-desglose-note').textContent = 'Leyendo el guión escena por escena, y después los planos de cada una. Tarda un minuto o dos.';
     try {
       const { data, error } = await supabase.functions.invoke('ai-breakdown', {
         body: { project_id: p.id, script: guion, lang: 'es' },
@@ -20657,8 +20678,11 @@ const newsCases = [
       p.script_text = guion;
       p.breakdown = data.breakdown;
       p.breakdown_at = new Date().toISOString();
+      /* Si algún lote de planos falló, se dice: un desglose al que le faltan planos y no
+         lo avisa se lleva al set como si estuviera completo. */
       $('pj-desglose-note').textContent = data.aviso_guardado
         ? '⚠️ Desglosado, pero no se pudo guardar: ' + data.aviso_guardado
+        : data.aviso_planos ? '✅ Desglosado · ⚠️ ' + data.aviso_planos
         : '✅ Desglosado';
       pjRenderDesglose();
     } catch (e){

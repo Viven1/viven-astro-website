@@ -65,6 +65,21 @@ const ESQUEMA = `{
   "avisos": ["lo que el guión no dice y hace falta decidir"]
 }`;
 
+/* ── EL DESGLOSE VA EN DOS PASADAS ──
+   La lista de planos es, sola, más de la mitad de lo que hay que escribir: cuatro campos
+   por plano y varios planos por escena. Pedir todo junto hacía que la respuesta se pasara
+   del límite y volviera cortada — desde afuera, "Edge Function returned a non-2xx status
+   code".
+   La salida fácil era pedir menos. Sebastián la descartó: "no achiques la cantidad de
+   cosas que puede pedir, es más importante". Tiene razón — los planos son la mitad del
+   valor del desglose.
+   Así que se pide lo MISMO, en dos veces: primero las escenas con todo lo que hay que
+   conseguir y las jornadas; después los planos, en lotes de escenas y EN PARALELO. Cada
+   respuesta entra holgada y el reloj lo marca el lote más lento, no la suma.
+   (26 ago 2026.) */
+const sinPlanos = (esquema: string) =>
+  esquema.replace(/,?\s*"planos": \[\{[^\]]*\}\]/, "");
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -75,7 +90,9 @@ Deno.serve(async (req) => {
 
     const { project_id, script = "", lang = "es" } = await req.json();
     const guion = String(script || "").trim();
-    if (guion.length < 80) return json({ error: "El guión está vacío o es muy corto para desglosar." }, 400);
+    /* Con 200 y {error}: un 4xx llega al navegador como "non-2xx status code" y el
+       mensaje que explica qué falta se pierde por el camino. */
+    if (guion.length < 80) return json({ error: "El guión está vacío o es muy corto para desglosar." });
 
     const recortado = guion.length > TOPE;
     const texto = recortado ? guion.slice(0, TOPE) : guion;
@@ -106,11 +123,11 @@ Reglas, y son las que separan un desglose útil de una lista bonita:
 - Las jornadas se agrupan por LOCACIÓN primero (mover un equipo cuesta medio día) y después por luz: todo lo de día junto, todo lo de noche junto.
 - "horas_estimadas" incluye montaje y desmontaje, no solo lo que se filma.
 - Si el guión pide algo que NO está en lo presupuestado, decilo en "avisos" con esa palabra exacta: "no está presupuestado". Es la plata que se escapa entre lo que se vendió y lo que hay que filmar.
-- Los planos son los que un director usa: tipo de plano, movimiento, qué pasa. Sin poesía.
+- Sé conciso: cada campo, lo mínimo que sirva para producir. Esto se lee en un set, no se estudia.
 - Textos en ${idioma}.
 ${contexto}
 Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-${ESQUEMA}
+${sinPlanos(ESQUEMA)}
 
 GUIÓN:
 ${texto}`;
@@ -118,7 +135,7 @@ ${texto}`;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 16000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 12000, messages: [{ role: "user", content: prompt }] }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -147,12 +164,68 @@ ${texto}`;
       console.error("PARSE_ERROR", data.stop_reason, text.slice(0, 400));
       return json({
         error: corte
-          ? "El desglose salió más largo de lo que entra en una respuesta. Probá con menos guión, o pedilo sin lista de planos."
+          ? "El desglose salió más largo de lo que entra en una respuesta, incluso partido en dos. Probá con menos guión."
           : "La IA no devolvió un desglose válido. Probá de nuevo.",
         stop_reason: data.stop_reason ?? null,
         bloques: (Array.isArray(data.content) ? data.content : []).map((c: any) => c?.type),
         muestra: text.slice(0, 300),
-      }, 502);
+      });
+    }
+
+    /* ── SEGUNDA PASADA: los planos ──
+       Por lotes de escenas y en paralelo. Cada lote es una respuesta chica que entra
+       holgada, y el reloj lo marca el lote más lento, no la suma de todos.
+       Si un lote falla, esas escenas quedan sin planos y el resto del desglose sale
+       igual: media lista de planos sirve, un desglose que no llega no sirve para nada. */
+    const escenasBase = (parsed.escenas as Array<Record<string, unknown>>).slice(0, 120);
+    if (escenasBase.length) {
+      const LOTE = 6;
+      const lotes: Array<Array<Record<string, unknown>>> = [];
+      for (let i = 0; i < escenasBase.length; i += LOTE) lotes.push(escenasBase.slice(i, i + LOTE));
+
+      const pedirPlanos = async (lote: Array<Record<string, unknown>>) => {
+        const resumen = lote.map((e) => `Escena ${e.n} — ${e.titulo}${e.int_ext ? " (" + e.int_ext + "/" + e.dia_noche + ")" : ""}` +
+          `${e.locacion ? " · " + e.locacion : ""}\n   ${e.resumen || ""}` +
+          `${(e.personajes as string[] || []).length ? "\n   Quién: " + (e.personajes as string[]).join(", ") : ""}`).join("\n\n");
+        const pp = `Sos director de fotografía de Viven. Para cada escena, la lista de planos que se rueda.
+
+${resumen}
+
+REGLAS:
+- Los planos que usa un director: tipo de plano, movimiento, qué pasa. Sin poesía.
+- Entre 2 y 6 planos por escena. Si una escena es un solo plano, uno.
+- La numeración es la de la escena más una letra: 3A, 3B, 3C.
+- Textos en ${idioma}.
+
+Respondé SOLO con JSON válido, sin texto extra:
+{"escenas":[{"n":${lote[0].n},"planos":[{"n":"${lote[0].n}A","tipo":"Plano medio","movimiento":"Fijo","descripcion":"qué pasa","duracion_s":4}]}]}`;
+
+        const r2 = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 6000, messages: [{ role: "user", content: pp }] }),
+        });
+        if (!r2.ok) return null;
+        const d2 = await r2.json();
+        let t2 = (Array.isArray(d2.content) ? d2.content : [])
+          .filter((c: { type?: string; text?: string }) => c && c.type === "text" && typeof c.text === "string")
+          .map((c: { text: string }) => c.text).join("\n").trim();
+        t2 = t2.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
+        const mm = t2.match(/\{[\s\S]*\}/); if (mm) t2 = mm[0];
+        try { return JSON.parse(t2); } catch { return null; }
+      };
+
+      const resultados = await Promise.all(lotes.map((l) => pedirPlanos(l).catch(() => null)));
+      const porEscena: Record<string, unknown[]> = {};
+      resultados.forEach((r3) => {
+        const es = r3 && Array.isArray((r3 as { escenas?: unknown[] }).escenas) ? (r3 as { escenas: Array<Record<string, unknown>> }).escenas : [];
+        es.forEach((e) => { if (Array.isArray(e.planos)) porEscena[String(e.n)] = e.planos as unknown[]; });
+      });
+      escenasBase.forEach((e) => { if (porEscena[String(e.n)]) e.planos = porEscena[String(e.n)]; });
+      /* Cuántas escenas quedaron sin planos: se dice, no se esconde. Un desglose al que le
+         faltan planos y no lo avisa se lleva al set como si estuviera completo. */
+      const sinPl = escenasBase.filter((e) => !Array.isArray(e.planos) || !(e.planos as unknown[]).length).length;
+      if (sinPl) parsed.aviso_planos = sinPl + (sinPl === 1 ? " escena quedó sin planos" : " escenas quedaron sin planos");
     }
 
     /* Sanear: los números que van a sumarse tienen que ser números, y las listas,
@@ -200,9 +273,9 @@ ${texto}`;
         .eq("id", project_id);
       /* Si el guardado falla el desglose ya existe: se devuelve igual y se avisa, en vez
          de perder la corrida (que costó plata) por un error de escritura. */
-      if (uErr) return json({ ok: true, breakdown: parsed, aviso_guardado: uErr.message });
+      if (uErr) return json({ ok: true, breakdown: parsed, aviso_guardado: uErr.message, aviso_planos: parsed.aviso_planos ?? null });
     }
-    return json({ ok: true, breakdown: parsed });
+    return json({ ok: true, breakdown: parsed, aviso_planos: parsed.aviso_planos ?? null });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);
