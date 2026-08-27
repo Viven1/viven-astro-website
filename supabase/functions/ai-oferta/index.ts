@@ -26,17 +26,35 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-const ESQUEMA = `{
-  "title": "Sonova — video de producto New Sound (3 piezas)",
-  "items": [
-    {"phase":"Pre-producción","name":"Concepto y guión","qty":1,"unit":"pauschal","price":1800,"cost":0},
-    {"phase":"Producción","name":"Jornada de rodaje con equipo","qty":2,"unit":"Tag","price":3800,"cost":2400},
-    {"phase":"Post-producción","name":"Montaje y color, versión principal","qty":1,"unit":"pauschal","price":2600,"cost":900},
-    {"phase":"Entrega","name":"Masters por idioma y formato, subtítulos","qty":3,"unit":"Sprache","price":180,"cost":0}
-  ],
-  "notes": "Supuestos y lo que NO está incluido, en frases cortas.",
-  "avisos": ["lo que hubo que suponer porque el playbook no lo decía"]
-}`;
+/* La forma la garantiza la API (`output_config.format`), no el prompt. Una oferta que se
+   pierde por un "Acá va:" adelante es una llamada pagada y una oferta que no existe.
+   (Sebastián, 26 ago 2026: "que sea el desglose con IA siempre, que sale muy bien".) */
+const ESQUEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string", description: "El título de la oferta, en español, para uso interno." },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          phase: { type: "string", description: "Pre-producción, Producción, Post-producción o Entrega." },
+          name: { type: "string", description: "Un entregable real, no una tarea interna. En el idioma del cliente." },
+          qty: { type: "number" },
+          unit: { type: "string", description: "Tag, Std, Stk, pauschal, Sprache… Nunca «hora» ni «día» en una línea de venta." },
+          price: { type: "number", description: "Lo que se le cobra al cliente, sin IVA." },
+          cost: { type: "number", description: "Lo que nos cuesta a nosotros. 0 si no se sabe." },
+        },
+        required: ["phase", "name", "qty", "unit", "price", "cost"],
+        additionalProperties: false,
+      },
+    },
+    notes: { type: "string", description: "Supuestos y lo que NO está incluido, en frases cortas." },
+    avisos: { type: "array", items: { type: "string" }, description: "Todo lo que hubo que suponer porque el playbook no lo decía. Un supuesto a la vista se corrige; uno escondido se factura mal." },
+  },
+  required: ["title", "items", "notes", "avisos"],
+  additionalProperties: false,
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -122,13 +140,18 @@ REGLAS:
 - Nunca pongas 'por hora' ni 'por día' como unidad de una línea de venta al cliente. Las jornadas se usan para calcular el costo interno, no para justificar el precio.
 - Todo lo que tuviste que suponer va en 'avisos'. Un supuesto a la vista se corrige; uno escondido se factura mal.
 
-Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-${ESQUEMA}`;
+La oferta completa, con una línea por entregable real.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({
+        model: "claude-sonnet-5", max_tokens: 8000,
+        /* Poner precio SÍ es razonamiento: hay que cruzar lo que dijeron en la llamada con
+           lo que ya cobramos. Effort alto. */
+        output_config: { effort: "high", format: { type: "json_schema", schema: ESQUEMA } },
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -141,9 +164,7 @@ ${ESQUEMA}`;
     let text = (Array.isArray(data.content) ? data.content : [])
       .filter((c: any) => c && c.type === "text" && typeof c.text === "string")
       .map((c: any) => c.text).join("\n").trim();
-    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) text = m[0];
+    /* Sin destripar la respuesta: el esquema lo aplica la API. */
     let parsed: any = null;
     try { parsed = JSON.parse(text); } catch { /* abajo */ }
     if (!parsed || !Array.isArray(parsed.items) || !parsed.items.length) {

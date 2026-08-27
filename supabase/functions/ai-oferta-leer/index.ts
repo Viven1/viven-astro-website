@@ -26,6 +26,44 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
+/* La forma la garantiza la API (`output_config.format`), no el prompt. Acá importa más que
+   en ningún otro lado: lo que sale de este PDF se convierte en el presupuesto del proyecto,
+   y un parseo que falla a mitad deja media oferta cargada.
+   `null` está permitido en casi todo a propósito: "no lo pude leer" tiene que poder decirse.
+   Un número inventado acá es peor que un campo vacío.
+   (Sebastián, 26 ago 2026: "que sea el desglose con IA siempre, que sale muy bien".) */
+const ESQUEMA = {
+  type: "object",
+  properties: {
+    cliente: { type: ["string", "null"], description: "La EMPRESA que recibe la oferta, no VIVEN." },
+    contacto: { type: ["string", "null"] },
+    email: { type: ["string", "null"] },
+    titulo: { type: ["string", "null"], description: "El nombre del proyecto tal como aparece; si no hay, uno corto con el cliente y el tipo de video." },
+    fecha: { type: ["string", "null"], description: "AAAA-MM-DD." },
+    moneda: { type: ["string", "null"] },
+    total: { type: ["number", "null"], description: "El importe acordado SIN IVA. Número puro." },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          phase: { type: ["string", "null"], description: "Pre-producción, Producción, Post-producción, Entrega. null si el PDF no lo dice." },
+          name: { type: "string" },
+          qty: { type: ["number", "null"] },
+          unit: { type: ["string", "null"] },
+          price: { type: ["number", "null"], description: "Precio unitario, número puro." },
+        },
+        required: ["phase", "name", "qty", "unit", "price"],
+        additionalProperties: false,
+      },
+    },
+    confianza: { type: "string", enum: ["alta", "media", "baja"] },
+    dudas: { type: "array", items: { type: "string" }, description: "Lo que no se pudo leer bien o lo que hubo que decidir." },
+  },
+  required: ["cliente", "contacto", "email", "titulo", "fecha", "moneda", "total", "items", "confianza", "dudas"],
+  additionalProperties: false,
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -57,13 +95,16 @@ Sacá lo necesario para abrir el proyecto. Reglas:
 - Lo que no puedas leer con seguridad va en null. NO adivines: un número inventado acá se convierte en el presupuesto del proyecto.
 - En "confianza" poné "alta", "media" o "baja", y en "dudas" lo que no pudiste leer bien o lo que tuviste que decidir.
 
-Respondé SOLO con JSON válido:
-{"cliente":"Sonova AG","contacto":"Kaan Bulut","email":null,"titulo":"New Sound Demo 2026","fecha":"2026-07-31","moneda":"CHF","total":22358,"items":[{"phase":"Producción","name":"Jornada de rodaje","qty":2,"unit":"Tag","price":3800}],"confianza":"alta","dudas":[]}`;
+Lo que no puedas leer con seguridad va en null.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 4000, messages: [{ role: "user", content: [doc, { type: "text", text: prompt }] }] }),
+      body: JSON.stringify({
+        model: "claude-sonnet-5", max_tokens: 4000,
+        output_config: { format: { type: "json_schema", schema: ESQUEMA } },
+        messages: [{ role: "user", content: [doc, { type: "text", text: prompt }] }],
+      }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -74,9 +115,7 @@ Respondé SOLO con JSON válido:
     let text = (Array.isArray(data.content) ? data.content : [])
       .filter((c: any) => c?.type === "text" && typeof c.text === "string")
       .map((c: any) => c.text).join("\n").trim();
-    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) text = m[0];
+    /* Sin destripar la respuesta: el esquema lo aplica la API. */
     let p: any = null;
     try { p = JSON.parse(text); } catch { /* abajo */ }
     if (!p) {

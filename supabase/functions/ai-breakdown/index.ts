@@ -32,38 +32,58 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
    recortó, en vez de desglosar media película en silencio. */
 const TOPE = 60000;
 
-const ESQUEMA = `{
-  "sinopsis": "dos o tres frases de qué es esto",
-  "duracion_estimada_s": 90,
-  "escenas": [{
-    "n": 1,
-    "titulo": "Oficina — llegada",
-    "int_ext": "INT",
-    "dia_noche": "DÍA",
-    "locacion": "Oficina cliente, Zúrich",
-    "resumen": "qué pasa",
-    "duracion_s": 12,
-    "personajes": ["Presentadora"],
-    "props": ["laptop", "audífono"],
-    "vestuario": ["business casual"],
-    "arte": ["plantas"],
-    "maquillaje": ["natural"],
-    "sonido": ["lavalier x2"],
-    "equipo_especial": ["Ronin"],
-    "post": ["motion graphics del producto"],
-    "planos": [{"n":"1A","tipo":"Plano medio","movimiento":"Fijo","descripcion":"Ella entra y saluda","duracion_s":4}]
-  }],
-  "necesidades": {
-    "personajes": [], "locaciones": [], "props": [], "vestuario": [], "arte": [],
-    "maquillaje": ["..."], "sonido": [], "equipo_especial": [], "post": [], "permisos": []
+/* ── EL ESQUEMA DE LA PRIMERA PASADA ──
+   Ya no es un texto de ejemplo pegado al final del prompt: es un JSON Schema que la API
+   HACE CUMPLIR (`output_config.format`). "Respondé solo con JSON" funciona casi siempre, y
+   el casi es el problema — un "Acá va el desglose:" adelante rompe el parseo y se cae el
+   desglose entero.
+   (Sebastián, 26 ago 2026: "que sea el desglose con IA siempre, que sale muy bien".) */
+const ESQUEMA = {
+  type: "object",
+  properties: {
+    sinopsis: { type: "string", description: "Dos o tres frases de qué es esto." },
+    duracion_estimada_s: { type: "integer" },
+    escenas: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          n: { type: "integer" },
+          titulo: { type: "string", description: "Corto, como se nombra una escena en una lista: «Oficina — llegada»." },
+          int_ext: { type: "string", enum: ["INT", "EXT", "INT/EXT", ""] },
+          dia_noche: { type: "string", description: "DÍA, NOCHE, AMANECER, ATARDECER. Vacío si el guion no lo dice." },
+          locacion: { type: "string", description: "Vacío si el guion no la define — vacío es una respuesta correcta." },
+          resumen: { type: "string", description: "Qué pasa, en una o dos frases." },
+          duracion_s: { type: "integer" },
+        },
+        required: ["n", "titulo", "int_ext", "dia_noche", "locacion", "resumen", "duracion_s"],
+        additionalProperties: false,
+      },
+    },
+    jornadas: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          dia: { type: "integer" },
+          locacion: { type: "string" },
+          escenas: { type: "array", items: { type: "integer" } },
+          horas_estimadas: { type: "integer", description: "Incluye montaje y desmontaje, no solo lo que se filma." },
+          notas: { type: "string" },
+        },
+        required: ["dia", "locacion", "escenas", "horas_estimadas", "notas"],
+        additionalProperties: false,
+      },
+    },
+    avisos: {
+      type: "array",
+      items: { type: "string" },
+      description: "Lo que el guion no dice y hay que decidir, y lo que pide y no está presupuestado.",
+    },
   },
-  "jornadas": [{
-    "dia": 1, "locacion": "Oficina cliente, Zúrich", "escenas": [1,3],
-    "horas_estimadas": 6,
-    "notas": "agrupadas por locación; la 3 comparte el mismo set"
-  }],
-  "avisos": ["lo que el guión no dice y hace falta decidir"]
-}`;
+  required: ["sinopsis", "duracion_estimada_s", "escenas", "jornadas", "avisos"],
+  additionalProperties: false,
+};
 
 /* ── EL DESGLOSE VA EN DOS PASADAS ──
    La lista de planos es, sola, más de la mitad de lo que hay que escribir: cuatro campos
@@ -77,9 +97,6 @@ const ESQUEMA = `{
    conseguir y las jornadas; después los planos, en lotes de escenas y EN PARALELO. Cada
    respuesta entra holgada y el reloj lo marca el lote más lento, no la suma.
    (26 ago 2026.) */
-const sinPlanos = (esquema: string) =>
-  esquema.replace(/,?\s*"planos": \[\{[^\]]*\}\]/, "");
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -126,8 +143,8 @@ Reglas, y son las que separan un desglose útil de una lista bonita:
 - Sé conciso: cada campo, lo mínimo que sirva para producir. Esto se lee en un set, no se estudia.
 - Textos en ${idioma}.
 ${contexto}
-Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-${sinPlanos(ESQUEMA)}
+Las cosas que hay que conseguir NO van acá: se sacan escena por escena en un segundo paso.
+Acá van las escenas, cómo se agrupan en jornadas, y lo que falta decidir.
 
 GUIÓN:
 ${texto}`;
@@ -135,7 +152,14 @@ ${texto}`;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 12000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 12000,
+        /* La forma la garantiza la API. `effort: medium` alcanza: partir un guion en
+           escenas es lectura, no razonamiento. */
+        output_config: { effort: "medium", format: { type: "json_schema", schema: ESQUEMA } },
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -151,9 +175,8 @@ ${texto}`;
     let text = (Array.isArray(data.content) ? data.content : [])
       .filter((c: any) => c && c.type === "text" && typeof c.text === "string")
       .map((c: any) => c.text).join("\n").trim();
-    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) text = m[0];
+    /* Sin limpiar backticks ni buscar la primera llave: con el esquema aplicado por la
+       API, la respuesta ES el JSON. Esa limpieza existía para tapar el "Acá va:". */
     let parsed: any = null;
     try { parsed = JSON.parse(text); } catch { /* abajo */ }
     if (!parsed || !Array.isArray(parsed.escenas)) {

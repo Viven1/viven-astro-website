@@ -36,37 +36,115 @@ const cors = {
 const json = (o: unknown, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-/* Los dos formatos, con un ejemplo cada uno. El ejemplo hace más que la explicación:
-   sin él, "columna de video" sale como párrafo describiendo la columna. */
-const FORMA_AV = `{
-  "guiones": [
-    {
-      "angulo": "El problema antes que el producto",
-      "premisa": "Una línea explicando por qué este ángulo, para que se pueda elegir sin leer el guión entero.",
-      "titulo": "Título del video",
-      "duracion_seg": 90,
-      "filas": [
-        {"n":1,"tc":"00:00","video":"Lo que se VE. Plano, sujeto, acción. Concreto y filmable.","audio":"Lo que se ESCUCHA: locución, testimonio o texto en pantalla. Escrito como se dice."},
-        {"n":2,"tc":"00:08","video":"…","audio":"…"}
-      ]
-    }
-  ]
-}`;
+/* ── LOS ESQUEMAS ──
+   Ya no son ejemplos pegados al final del prompt: son JSON Schema que la API HACE CUMPLIR
+   (`output_config.format`). "Respondé solo con JSON" funciona casi siempre, y el casi es el
+   problema — un "Acá van los guiones:" adelante rompe el parseo y se pierde la tanda
+   entera, después de haberla pagado.
+   (Sebastián, 26 ago 2026: "que sea el desglose con IA siempre, que sale muy bien".) */
+const guionComun = {
+  angulo: { type: "string", description: "El nombre del ángulo. Una decisión sobre por dónde entra el espectador: «El problema antes que el producto»." },
+  premisa: { type: "string", description: "Una línea explicando por qué este ángulo, para poder elegir sin leer el guion entero." },
+  titulo: { type: "string" },
+  duracion_seg: { type: "integer" },
+};
 
-const FORMA_CINE = `{
-  "guiones": [
-    {
-      "angulo": "El problema antes que el producto",
-      "premisa": "Una línea explicando por qué este ángulo.",
-      "titulo": "Título del video",
-      "duracion_seg": 90,
-      "filas": [
-        {"n":1,"encabezado":"INT. LABORATORIO — DÍA","accion":"Descripción de lo que pasa en la escena, en presente.","dialogo":"NOMBRE\\nLo que dice."},
-        {"n":2,"encabezado":"EXT. PLANTA — TARDE","accion":"…","dialogo":""}
-      ]
-    }
-  ]
-}`;
+const FORMA_AV = {
+  type: "object",
+  properties: {
+    guiones: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          ...guionComun,
+          filas: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                n: { type: "integer" },
+                tc: { type: "string", description: "El minuto donde empieza la fila: «00:08»." },
+                video: { type: "string", description: "Lo que se VE. Plano, sujeto, acción. Concreto y filmable con un equipo chico." },
+                audio: { type: "string", description: "Lo que se ESCUCHA: locución, testimonio o texto en pantalla. Escrito como se dice." },
+              },
+              required: ["n", "tc", "video", "audio"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["angulo", "premisa", "titulo", "duracion_seg", "filas"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["guiones"],
+  additionalProperties: false,
+};
+
+const FORMA_CINE = {
+  type: "object",
+  properties: {
+    guiones: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          ...guionComun,
+          filas: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                n: { type: "integer" },
+                encabezado: { type: "string", description: "«INT. LABORATORIO — DÍA»." },
+                accion: { type: "string", description: "Qué pasa en la escena, en presente." },
+                dialogo: { type: "string", description: "NOMBRE, salto de línea, lo que dice. Vacío si no habla nadie." },
+              },
+              required: ["n", "encabezado", "accion", "dialogo"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["angulo", "premisa", "titulo", "duracion_seg", "filas"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["guiones"],
+  additionalProperties: false,
+};
+
+/* El plan de rodaje. No es el guion partido en pedazos: se ordena por LUGAR y por quién
+   aparece, NO por el orden en que se ve el video. Ese reordenamiento es todo el valor de un
+   plan — filmar en orden de guion es la forma más cara de perder un día. */
+const FORMA_PLAN = {
+  type: "object",
+  properties: {
+    titulo: { type: "string" },
+    filas: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          bloque: { type: "string", description: "«Jornada 1 · Mañana»." },
+          hora: { type: "string", description: "«08:00»." },
+          que: { type: "string" },
+          donde: { type: "string" },
+          quien: { type: "string", description: "Quién tiene que estar. Incluido el cliente cuando hace falta." },
+          escenas: { type: "string", description: "Los números de escena que entran acá, o «—»." },
+          notas: { type: "string", description: "Por qué está en ese orden, qué puede complicarse, la luz." },
+        },
+        required: ["bloque", "hora", "que", "donde", "quien", "escenas", "notas"],
+        additionalProperties: false,
+      },
+    },
+    necesita: { type: "array", items: { type: "string" }, description: "Lo que hay que conseguir o confirmar antes del rodaje." },
+    riesgos: { type: "array", items: { type: "string" }, description: "Lo que puede tirar abajo el día, con qué hacer si pasa." },
+  },
+  required: ["titulo", "filas", "necesita", "riesgos"],
+  additionalProperties: false,
+};
 
 /* Las claves del Project Brief con su pregunta. El dashboard puede mandar `etiquetas` y
    entonces manda eso; esto es el respaldo, para que un brief traído directo de la base no
@@ -87,18 +165,6 @@ const PREGUNTAS: Record<string, string> = {
   restricciones: "¿Hay restricciones o normas que tengamos que saber?",
 };
 
-/* El plan de rodaje. No es el guión partido en pedazos: se ordena por LUGAR y por quién
-   aparece, NO por el orden en que se ve el video. Ese reordenamiento es todo el valor de un
-   plan — filmar en orden de guión es la forma más cara de perder un día. */
-const FORMA_PLAN = `{
-  "titulo": "Plan de rodaje — 1 jornada",
-  "filas": [
-    {"bloque":"Jornada 1 · Mañana","hora":"08:00","que":"Llegada y montaje en el laboratorio","donde":"Laboratorio, planta baja","quien":"Equipo completo","escenas":"—","notas":"Pedir el acceso con 24 h. La ventana pega hasta las 11."},
-    {"bloque":"Jornada 1 · Mañana","hora":"09:00","que":"Entrevista a la directora técnica","donde":"Sala de reuniones","quien":"Directora técnica + cámara + sonido","escenas":"3, 7, 11","notas":"Todas sus escenas juntas, aunque en el video estén separadas."}
-  ],
-  "necesita": ["lo que hay que conseguir o confirmar antes del rodaje, una cosa por línea"],
-  "riesgos": ["lo que puede tirar abajo el día, con qué hacer si pasa"]
-}`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -249,13 +315,17 @@ REGLAS:
   adentro de una fila.
 - Todo en español, es para uso interno.
 
-Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-${FORMA_PLAN}`;
+El plan tiene que poder ejecutarse tal cual está: cada bloque con su hora, su lugar y quién
+tiene que estar.`;
 
       const rp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 12000, messages: [{ role: "user", content: promptPlan }] }),
+        body: JSON.stringify({
+          model: "claude-sonnet-5", max_tokens: 12000,
+          output_config: { effort: "medium", format: { type: "json_schema", schema: FORMA_PLAN } },
+          messages: [{ role: "user", content: promptPlan }],
+        }),
       });
       if (!rp.ok) {
         const t = await rp.text();
@@ -266,8 +336,6 @@ ${FORMA_PLAN}`;
       let tp = (Array.isArray(dp.content) ? dp.content : [])
         .filter((c: { type?: string; text?: string }) => c && c.type === "text" && typeof c.text === "string")
         .map((c: { text: string }) => c.text).join("\n").trim();
-      tp = tp.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-      const mp = tp.match(/\{[\s\S]*\}/); if (mp) tp = mp[0];
       let pp: Record<string, unknown> | null = null;
       try { pp = JSON.parse(tp); } catch { /* abajo */ }
       if (!pp || !Array.isArray(pp.filas) || !pp.filas.length) {
@@ -317,13 +385,18 @@ REGLAS:
   demás (ángulo, premisa, descripciones de imagen) en español, que es para uso interno.
 - Entre 8 y 20 filas por guión.
 
-Respondé SOLO con JSON válido, sin texto extra, con esta forma EXACTA:
-${formato === "cine" ? FORMA_CINE : FORMA_AV}`;
+Los tres guiones, completos.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 16000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({
+        model: "claude-sonnet-5", max_tokens: 16000,
+        /* Escribir tres guiones distintos SÍ es razonamiento: acá el effort alto se nota,
+           a diferencia del desglose, que es lectura. */
+        output_config: { effort: "high", format: { type: "json_schema", schema: formato === "cine" ? FORMA_CINE : FORMA_AV } },
+        messages: [{ role: "user", content: prompt }],
+      }),
     });
     if (!res.ok) {
       const t = await res.text();
@@ -335,9 +408,8 @@ ${formato === "cine" ? FORMA_CINE : FORMA_AV}`;
     let text = (Array.isArray(data.content) ? data.content : [])
       .filter((c: { type?: string; text?: string }) => c && c.type === "text" && typeof c.text === "string")
       .map((c: { text: string }) => c.text).join("\n").trim();
-    text = text.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "").trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) text = m[0];
+    /* Sin limpiar backticks ni buscar la primera llave: con el esquema aplicado por la
+       API, la respuesta ES el JSON. */
     let parsed: { guiones?: unknown[] } | null = null;
     try { parsed = JSON.parse(text); } catch { /* abajo */ }
     if (!parsed || !Array.isArray(parsed.guiones) || !parsed.guiones.length) {
