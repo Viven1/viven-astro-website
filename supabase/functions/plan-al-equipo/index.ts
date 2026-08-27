@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     const service = createClient(SB_URL, SERVICE);
     const { data: proj } = await service.from("projects")
-      .select("id,ref,title,shoot_start,shoot_end,location,crew,client_contact")
+      .select("id,ref,title,shoot_start,shoot_end,location,crew,client_contact,lead_id")
       .eq("id", String(projectId)).maybeSingle();
     if (!proj) return json({ error: "no encontré ese proyecto" }, 404);
 
@@ -92,6 +92,35 @@ Deno.serve(async (req) => {
        vea otras cosas que el resto".) */
     const paraCliente = body.publico === true;
 
+    /* EL PLAN DEL CLIENTE VA EN SU IDIOMA. Los rótulos estaban escritos en español y el
+       email salía con `lang: "es"` fijo: un cliente suizo-alemán recibía «Citación general»
+       y «Lo que necesitamos de ustedes» en castellano, en el email más importante del día
+       de rodaje.
+       Para el EQUIPO se queda en español, que es en lo que trabajan.
+       (Mismo problema que tenía el portal, encontrado el 27 ago 2026 revisando lo mismo.) */
+    let langCli: "es" | "en" | "de" = "es";
+    if (paraCliente && proj.lead_id) {
+      const { data: lead } = await service.from("leads")
+        .select("lang").eq("id", String(proj.lead_id)).maybeSingle();
+      const l = String((lead as { lang?: string } | null)?.lang || "");
+      if (l === "en" || l === "de") langCli = l;
+    }
+    const R = {
+      es: { citaGen: "Citación general", donde: "Dónde presentarse", maps: "Abrir en Maps →",
+            notasDia: "Notas del día", quien: "Quién viene", conseguir: "Hay que conseguir antes",
+            ojo: "Ojo con", deUstedes: "Lo que necesitamos de ustedes", traen: "Ustedes traen: ",
+            llevar: "Llevar: ", asunto: "El día del rodaje", tuCita: "Tu citación", restoEntra: (h: string) => `El resto del equipo entra ${h}.` },
+      en: { citaGen: "General call time", donde: "Where to meet", maps: "Open in Maps →",
+            notasDia: "Notes for the day", quien: "Who is coming", conseguir: "To arrange beforehand",
+            ojo: "Watch out for", deUstedes: "What we need from you", traen: "You bring: ",
+            llevar: "Bring: ", asunto: "Your shoot day", tuCita: "Your call time", restoEntra: (h: string) => `The rest of the crew starts at ${h}.` },
+      de: { citaGen: "Allgemeine Startzeit", donde: "Treffpunkt", maps: "In Maps öffnen →",
+            notasDia: "Notizen zum Tag", quien: "Wer kommt", conseguir: "Vorher zu organisieren",
+            ojo: "Achtung", deUstedes: "Was wir von Ihnen brauchen", traen: "Sie bringen mit: ",
+            llevar: "Mitbringen: ", asunto: "Ihr Drehtag", tuCita: "Ihre Startzeit", restoEntra: (h: string) => `Das übrige Team startet um ${h}.` },
+    }[paraCliente ? langCli : "es"];
+
+
     const destinos: string[] = Array.isArray(body.to) && body.to.length
       ? body.to.map(String)
       : paraCliente
@@ -124,7 +153,7 @@ Deno.serve(async (req) => {
         <td style="padding:9px 10px 9px 0;border-bottom:1px solid #e9ecf1;vertical-align:top">
           <b>${esc(f.que)}</b>${!paraCliente && f.escenas && f.escenas !== "—" ? `<span style="display:block;font-size:12px;color:#4e650f;font-weight:600">Esc. ${esc(f.escenas)}</span>` : ""}
           ${f.sinopsis ? `<span style="display:block;font-size:12.5px;color:#3d4757;line-height:1.5;margin-top:3px;padding-left:9px;border-left:2px solid #e6e9ef">${esc(f.sinopsis)}</span>` : ""}
-          ${suyo ? `<span style="display:block;font-size:12px;color:#3d4757;margin-top:2px">${paraCliente ? "Ustedes traen: " : "Llevar: "}${esc(suyo)}</span>` : ""}
+          ${suyo ? `<span style="display:block;font-size:12px;color:#3d4757;margin-top:2px">${paraCliente ? R.traen : R.llevar}${esc(suyo)}</span>` : ""}
           ${!paraCliente && f.notas ? `<span style="display:block;font-size:12px;color:#8a94a8;margin-top:2px">${esc(f.notas)}</span>` : ""}</td>
         <td style="padding:9px 0;border-bottom:1px solid #e9ecf1;vertical-align:top;font-size:12.5px;color:#3d4757">
           ${esc(f.donde)}${f.quien ? `<span style="display:block;color:#8a94a8">${esc(f.quien)}</span>` : ""}</td>
@@ -149,14 +178,14 @@ Deno.serve(async (req) => {
       ? body.equipo_lista as Array<{ nombre: string; rol?: string; tel?: string; hora?: string }> : [];
 
     const asunto = String(body.asunto || "").trim() ||
-      `${proj.ref ? proj.ref + " · " : ""}${proj.title || ""} — ${paraCliente ? "El día del rodaje" : "Plan de rodaje"}${fechas ? " · " + fechas : ""}`;
+      `${proj.ref ? proj.ref + " · " : ""}${proj.title || ""} — ${paraCliente ? R.asunto : "Plan de rodaje"}${fechas ? " · " + fechas : ""}`;
 
     /* De lo que hay que conseguir, al cliente solo le llega lo que depende de él. El resto
        —el trípode, el kit de luces— es problema nuestro y decírselo solo genera preguntas. */
     const necCliente = String(nec).split("\n").filter((x) => /cliente|ustedes|acceso|permiso|autorizaci/i.test(x)).join("\n");
 
     const html = emailViven({
-      lang: "es",
+      lang: paraCliente ? langCli : "es",
       saludo: "Hola,",
       titulo: `${proj.ref ? "#" + proj.ref + " · " : ""}${esc(proj.title || "")}`,
       intro: paraCliente
@@ -173,13 +202,13 @@ Deno.serve(async (req) => {
         `<table style="width:100%;border-collapse:collapse;border:1px solid #e6e9ef;border-radius:12px;margin:0 0 20px">
           <tr>
             <td style="padding:14px 16px;vertical-align:top;white-space:nowrap">
-              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">Citación general</div>
+              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">${R.citaGen}</div>
               <div style="font-size:30px;font-weight:800;color:#1b2c46;line-height:1.1">${esc(cab.cita || "—")}</div>
             </td>
             <td style="padding:14px 16px;vertical-align:top">
-              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">Dónde presentarse</div>
+              <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#8a94a8;font-weight:700">${R.donde}</div>
               <div style="font-size:14.5px;font-weight:600;color:#1a2230;line-height:1.4">${esc(proj.location || "sin locación cargada")}</div>
-              ${cab.maps ? `<a href="${esc(cab.maps)}" style="font-size:12.5px;color:#2b6cff;text-decoration:none">Abrir en Maps →</a>` : ""}
+              ${cab.maps ? `<a href="${esc(cab.maps)}" style="font-size:12.5px;color:#2b6cff;text-decoration:none">${R.maps}</a>` : ""}
               ${cab.viaje ? `<div style="font-size:12px;color:#8a94a8;margin-top:3px">${esc(cab.viaje)}</div>` : ""}
             </td>
             <td style="padding:14px 16px;vertical-align:top;white-space:nowrap;font-size:12.5px;color:#3d4757">
@@ -192,20 +221,20 @@ Deno.serve(async (req) => {
         /* Las notas del día ANTES del cronograma: al final de un email largo no las lee
            nadie, y una nota que nadie lee es peor que no tenerla. */
         `${notasDia ? `<div style="background:#f3f7e8;border-left:3px solid #ddf98f;padding:12px 14px;margin:0 0 18px;border-radius:0 8px 8px 0">
-          <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#4e650f;font-weight:700;margin-bottom:4px">Notas del día</div>
+          <div style="font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#4e650f;font-weight:700;margin-bottom:4px">${R.notasDia}</div>
           <div style="font-size:14px;line-height:1.6;color:#3d4757;white-space:pre-wrap">${esc(notasDia)}</div></div>` : ""}` +
         `${body.mensaje ? `<div style="font-size:15px;line-height:1.65;margin:0 0 20px;padding:14px 16px;background:#fffbe9;border:1px solid #f0e2b0;border-radius:10px;white-space:pre-wrap;color:#3d4757">${esc(body.mensaje)}</div>` : ""}` +
         `<table style="width:100%;border-collapse:collapse;font-size:13.5px;color:#1a2230">${cuerpoTabla}</table>` +
         (paraCliente
-          ? (necCliente.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">Lo que necesitamos de ustedes</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(necCliente)}</ul>` : "")
-          : (nec.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">Hay que conseguir antes</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(nec)}</ul>` : "") +
+          ? (necCliente.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">${R.deUstedes}</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(necCliente)}</ul>` : "")
+          : (nec.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">${R.conseguir}</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(nec)}</ul>` : "") +
             /* Los riesgos NO van al cliente: "si llueve no se puede rodar el patio" es una
                decisión nuestra, y en su bandeja se lee como una advertencia de que algo va
                a salir mal. */
-            (rie.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:20px 0 6px">Ojo con</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(rie)}</ul>` : "") +
+            (rie.trim() ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:20px 0 6px">${R.ojo}</h3><ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:#3d4757">${listas(rie)}</ul>` : "") +
             /* Los teléfonos van en la misma hoja: se buscan cuando alguien no llegó, y ahí
                nadie abre otra pantalla. Al cliente no: es nuestro equipo. */
-            (equipo.length ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">Quién viene</h3>
+            (equipo.length ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a94a8;margin:22px 0 6px">${R.quien}</h3>
               <table style="width:100%;border-collapse:collapse;font-size:13px">${equipo.map((p2) => `
                 <tr><td style="padding:5px 10px 5px 0;border-bottom:1px solid #e9ecf1"><b style="color:#1a2230">${esc(p2.nombre)}</b></td>
                     <td style="padding:5px 10px 5px 0;border-bottom:1px solid #e9ecf1;color:#8a94a8;font-size:12px">${esc(p2.rol || "")}</td>
@@ -279,13 +308,13 @@ Deno.serve(async (req) => {
       return `<table style="width:100%;border-collapse:collapse;margin:0 0 18px"><tr>` +
         `<td style="background:#0f1826;border-radius:12px;padding:16px 20px">` +
         `<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#9aa6bd">` +
-        `Tu citación${nom ? " · " + esc(nom) : ""}</div>` +
+        `${esc(R.tuCita)}${nom ? " · " + esc(nom) : ""}</div>` +
         `<div style="font:700 30px/1.1 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#ddf98f;margin-top:4px;` +
         `font-variant-numeric:tabular-nums">${esc(h)}</div>` +
         /* La aclaración de cuándo entra el resto es para el EQUIPO. Al cliente no le sirve
            —él viene a su hora— y encima puede leerla como que tendría que estar antes. */
         (!paraCliente && d?.hora && citaGeneral && String(d.hora).slice(0, 5) !== citaGeneral
-          ? `<div style="font-size:12px;color:#9aa6bd;margin-top:4px">El resto del equipo entra ${esc(citaGeneral)}.</div>`
+          ? `<div style="font-size:12px;color:#9aa6bd;margin-top:4px">${esc(R.restoEntra(citaGeneral))}</div>`
           : "") +
         `</td></tr></table>`;
     };
