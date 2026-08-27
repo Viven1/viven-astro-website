@@ -20315,9 +20315,7 @@ const newsCases = [
         '@bottom-left{content:"' + pieTxt.replace(/"/g, "'") + '";' +
         'font:8pt Inter,Helvetica,Arial,sans-serif;color:#8a94a8}' +
         '@bottom-right{content:counter(page) " / " counter(pages);font:8pt Inter,Helvetica,Arial,sans-serif;color:#8a94a8}}' +
-      '@media print{body{background:#fff;padding:0}' +
-        '.hoja{max-width:none;margin:0;padding:0;box-shadow:none;border-radius:0}' +
-        '.noprint{display:none}}' +
+
       'header{display:flex;align-items:center;justify-content:space-between;gap:20px;' +
         'border-bottom:3px solid var(--navy);padding-bottom:11px;margin-bottom:20px}' +
       /* El logo con ancho fijo y alto automático: con solo `height` el navegador puede
@@ -20362,6 +20360,17 @@ const newsCases = [
         'display:flex;gap:12px;align-items:center;justify-content:space-between}' +
       '.barra button{background:var(--acid);color:#1c2508;border:0;border-radius:100px;' +
         'font:700 13px var(--texto);padding:8px 18px;cursor:pointer}' +
+      /* LAS REGLAS DE IMPRESIÓN VAN ÚLTIMAS, Y CON !important.
+         Estaban en el medio del CSS, y `.barra` —que viene después— define `display:flex`.
+         Misma especificidad, gana la última: la barra de "Guardar como PDF" salía IMPRESA
+         adentro del PDF. Lo mismo le puede pasar a cualquier `.noprint` que se agregue
+         mañana, así que el bloque se queda al final y la regla se blinda.
+         (Sebastián, 26 ago 2026: "eso de guardar o imprimir no puede aparecer en el PDF".) */
+      '@media print{' +
+        'body{background:#fff;padding:0}' +
+        '.hoja{max-width:none;margin:0;padding:0;box-shadow:none;border-radius:0}' +
+        '.noprint,.barra{display:none !important}' +
+      '}' +
       '</style></head><body>' +
       /* Un botón propio: el diálogo de imprimir se abre solo, pero si se cierra por error
          no había forma de volver a abrirlo sin cerrar la ventana y empezar de nuevo. */
