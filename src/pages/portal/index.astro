@@ -72,7 +72,8 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
   .bchip:hover{border-color:#fff;color:#fff}
   .bchip.on{border-color:var(--acid,#ddf98f);background:rgba(221,249,143,.14);color:var(--acid,#ddf98f);font-weight:600}
   .blibre{width:100%;border:1px dashed var(--line-strong,#2c3d5c);border-radius:9px;padding:10px 12px;
-    background:rgba(0,0,0,.2);color:inherit;font:inherit;font-size:14.5px;line-height:1.55;resize:vertical}
+    background:rgba(0,0,0,.2);color:inherit;font:inherit;font-size:14.5px;line-height:1.55;
+    resize:none;overflow:hidden;min-height:74px;display:block}
   .blibre:focus{outline:none;border-style:solid;border-color:var(--acid,#ddf98f)}
   .bq.ok .blibre{border-style:solid;border-color:var(--line,#223049)}
   .bsug{font-size:12.5px;color:var(--muted-2,#6b7896);margin-top:7px;line-height:1.5}
@@ -707,6 +708,14 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
     });
     Array.prototype.forEach.call(box.querySelectorAll('.blibre'), function(ta){
       ta.addEventListener('blur', function(){ briefGuardar(ta.closest('.bq')); });
+      /* El cuadro crece con lo que hay adentro. Nació con rows="3" fijo, y en el 1202 la
+         primera respuesta tiene 2.900 px de texto: el cliente no podía leer ni corregir lo
+         que él mismo había escrito, solo espiarlo por una ventanita de tres líneas.
+         Con tope, porque una respuesta larguísima no puede empujar las otras once fuera de
+         la pantalla — pasado el tope, el cuadro scrollea solo.
+         (Visto en pantalla el 26 ago 2026 verificando el brief del portal.) */
+      ta.addEventListener('input', function(){ briefCrecer(ta); });
+      briefCrecer(ta);
     });
     Array.prototype.forEach.call(box.querySelectorAll('.busar'), function(b){
       b.addEventListener('click', function(){
@@ -728,6 +737,13 @@ import { BRIEF, BRIEF_T, BRIEF_SECCIONES } from '../../data/project-brief-i18n.j
       fn.disabled = true;
       api('brief_listo').then(function(){ DATA.brief_listo = true; render(); });
     });
+  }
+
+  function briefCrecer(ta){
+    ta.style.height = 'auto';
+    var alto = Math.min(ta.scrollHeight + 2, 460);
+    ta.style.height = alto + 'px';
+    ta.style.overflowY = ta.scrollHeight + 2 > 460 ? 'auto' : 'hidden';
   }
 
   function briefGuardar(fila){
