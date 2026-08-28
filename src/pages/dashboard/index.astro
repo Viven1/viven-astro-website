@@ -8180,10 +8180,20 @@ const newsCases = [
 
   // "🎯 Para hoy": UNA lista por urgencia — cada fila sabe abrir lo suyo (openLead/openOffer/gotoTab)
   function hmTodayItems(){
+
+    /* LO DE PRUEBA NO ENTRA EN «HOY». Un proyecto, una oferta o una propuesta de prueba
+       generan avisos idénticos a los reales, y el que los mira no tiene cómo distinguirlos:
+       el 1202 —«Proyecto de prueba x1»— puso durante días un aviso ROJO arriba de todo por
+       un rodaje que no existe.
+       El filtro va acá, en cada punto donde se MUESTRA, y nunca al entrar a memoria: sacar
+       las pruebas de la lista al cargarla ya rompió el portal y el brief, porque esa misma
+       lista es de donde el proyecto saca su token. Ver filtrar-pruebas-rompe-lo-que-no-es-plata. */
+    const _pruebaIds = new Set((leadsPrueba || []).map((l) => String(l.id)));
+    const dePrueba = (x) => !!x && _pruebaIds.has(String(x.lead_id));
     const now = Date.now(), D = 864e5, items = [];
     const busyLeads = new Set();   // leads ya cubiertos por (a)/(b): no repetir al mismo cliente en (c)
     // (a) ofertas enviadas esperando >10d (si abrió el email hace poco → seguir HOY)
-    (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent').forEach((o) => {
+    (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent' && !dePrueba(o)).forEach((o) => {
       const ref = Date.parse(o.sent_at || o.updated_at); if (!ref) return;
       const days = Math.floor((now - ref) / D); if (days <= 10) return;
       const l = leadById(o.lead_id) || {};
@@ -8203,7 +8213,7 @@ const newsCases = [
                                                   : (gotoTab('offers'), openOffer(o.id))) });
     });
     // (b) propuestas publicadas: >8d sin respuesta (rojo) / >2d con 0 vistas (azul: ¿le llegó el link?)
-    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent').forEach((p) => {
+    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent' && !dePrueba(p)).forEach((p) => {
       const ref = Date.parse(p.published_at || p.updated_at); if (!ref) return;
       const days = Math.floor((now - ref) / D);
       const l = leadById(p.lead_id) || {};
@@ -8272,7 +8282,7 @@ const newsCases = [
        18:00 y sigue valiendo lo mismo; una reunión a las 10:00 no se puede hacer a
        las 18:00. La hora fija no se negocia con la plata.
        Solo 24 h: más adelante que eso no es "hoy" y ya está en la Agenda. */
-    (upBookings || []).forEach((b) => {
+    (upBookings || []).filter((b) => !dePrueba(b)).forEach((b) => {
       const t = Date.parse(b.start_at); if (!t) return;
       if (t < now - 36e5 || t > now + 24 * 36e5) return;   // desde hace 1 h (por si está en curso) hasta mañana
       if (meEmail && b.host_email && String(b.host_email).toLowerCase() !== meEmail) return;
@@ -8289,10 +8299,17 @@ const newsCases = [
     /* (c bis) RODAJE EN LOS PRÓXIMOS DÍAS CON ALGO QUE FALTA.
        Va arriba de todo —rank -4— porque tiene fecha de vencimiento real: un follow-up se
        puede hacer mañana, un teléfono que falta el día del rodaje ya no se consigue. */
-    (hmRodajes || []).forEach((r) => {
+    (hmRodajes || []).filter((r) => !dePrueba(r.p)).forEach((r) => {
+      /* CON NOMBRE Y APELLIDO. «4 sin teléfono» te obliga a entrar al proyecto y comparar
+         la lista a mano para saber a quién llamar; los nombres dejan el aviso accionable
+         desde donde estás. Se cortan en tres para que la fila siga siendo una línea. */
+      const quienes = (lista) => {
+        const ns = lista.map((c) => String(c.nombre || '').split(' ')[0]).filter(Boolean);
+        return ns.length <= 3 ? ns.join(', ') : ns.slice(0, 3).join(', ') + ' y ' + (ns.length - 3) + ' más';
+      };
       const faltan = [];
-      if (r.sinTel.length) faltan.push(r.sinTel.length + ' sin teléfono');
-      if (r.sinMail.length) faltan.push(r.sinMail.length + ' sin email');
+      if (r.sinTel.length) faltan.push('sin teléfono: ' + quienes(r.sinTel));
+      if (r.sinMail.length) faltan.push('sin email: ' + quienes(r.sinMail));
       if (r.sinLoc) faltan.push('sin locación');
       if (!r.crew.length) faltan.push('sin crew armado');
       if (!faltan.length) return;
@@ -8303,7 +8320,7 @@ const newsCases = [
       const faltanDatos = r.sinTel.length || r.sinMail.length;
       items.push({ rank: -4, sev: 'rojo', icon: '🎬', at: Date.parse(r.p.shoot_start + 'T06:00:00'), chf: 0, fija: true,
         t: 'Rodás ' + cuando + ' — ' + (r.p.title || 'proyecto ' + r.p.ref),
-        ctx: 'De ' + r.crew.length + ' del equipo: ' + faltan.join(' · ') + '. Sin eso no les llega el plan.',
+        ctx: faltan.join(' · ') + (r.crew.length ? ' · de ' + r.crew.length + ' del equipo' : '') + '. Sin eso no les llega el plan.',
         acts: faltanDatos
           ? [{ label: '📥 Cargar contactos', cls: 'btn-primary',
                title: 'Traerlos de Personas o pegar la lista',
@@ -8338,7 +8355,7 @@ const newsCases = [
       const t0 = new Date(); t0.setHours(0, 0, 0, 0);
       const tEnd = t0.getTime() + D;
       const mine = (t) => !meEmail || !t.assignee || String(t.assignee).toLowerCase() === meEmail;
-      Object.keys(dlTasksMap).forEach((lid) => {
+      Object.keys(dlTasksMap).filter((lid) => !_pruebaIds.has(String(lid))).forEach((lid) => {
         const t = dlTasksMap[lid];
         if (!t || !t.due_date || !mine(t)) return;
         const due = new Date(t.due_date + 'T' + (t.due_time || '23:59') + ':00').getTime();
@@ -8396,7 +8413,7 @@ const newsCases = [
   // "🔥 Señales calientes": aperturas de propuesta/oferta <48h + leads conocidos que volvieron a la web <24h
   function hmSignalItems(){
     const now = Date.now(), H48 = 48 * 36e5, sig = [];
-    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.last_view_at && now - Date.parse(p.last_view_at) < H48).forEach((p) => {
+    (propsAll || []).filter((p) => !p.archived && !p.is_template && !dePrueba(p) && p.last_view_at && now - Date.parse(p.last_view_at) < H48).forEach((p) => {
       const l = leadById(p.lead_id) || {};
       const who = l.name || l.email || 'Alguien';
       const nth = Number(p.view_count) > 1 ? ' · ' + p.view_count + 'ª vista' : '';
@@ -8404,7 +8421,7 @@ const newsCases = [
         ctx: (p.title || '(sin título)') + ' · hace ' + timeAgo(p.last_view_at) + nth,
         plain: who + ' abrió la propuesta «' + (p.title || '') + '» hace ' + timeAgo(p.last_view_at) });
     });
-    (offersList || []).filter((o) => !o.archived && !o.is_template && o.last_open_at && now - Date.parse(o.last_open_at) < H48).forEach((o) => {
+    (offersList || []).filter((o) => !o.archived && !o.is_template && !dePrueba(o) && o.last_open_at && now - Date.parse(o.last_open_at) < H48).forEach((o) => {
       const l = leadById(o.lead_id) || {};
       const who = l.name || l.email || o.client || 'Alguien';
       sig.push({ at: Date.parse(o.last_open_at), icon: '🧾', lead: o.lead_id, t: who + ' abrió el email de la oferta',
@@ -10443,7 +10460,7 @@ const newsCases = [
       const hoy = new Date().toISOString().slice(0, 10);
       const en4 = new Date(Date.now() + 4 * 864e5).toISOString().slice(0, 10);
       const [pq, cq] = await Promise.all([
-        supabase.from('projects').select('id,ref,title,shoot_start,location,crew')
+        supabase.from('projects').select('id,ref,title,shoot_start,location,crew,lead_id')
           .eq('archived', false).gte('shoot_start', hoy).lte('shoot_start', en4).order('shoot_start'),
         supabase.from('crew').select('name,email,phone'),
       ]);
