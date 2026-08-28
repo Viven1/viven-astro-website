@@ -14,6 +14,7 @@
 // Deploy: supabase functions deploy notas-al-editor --no-verify-jwt
 // Secret: RESEND_API_KEY
 
+import { idiomaDe as idiomaSegun } from "../_shared/idioma.ts";
 import { registrarEmail } from "../_shared/email.ts";
 import { emailViven } from "../_shared/email-viven.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -109,7 +110,7 @@ Deno.serve(async (req) => {
        trabaja en español. Solo Sebastián y Sofia.
        El idioma sale de su ficha de técnico; sin cargar, alemán (Zúrich).
        (Sebastián, 27 ago 2026: "solo sofia y yo trabajamos en español".) */
-    let langEd: "es" | "en" | "de" = "de";
+    let langEd: "es" | "en" | "de" = idiomaSegun(null, dest);
     {
       /* Dos consultas y no un .or(): el filtro de PostgREST separa condiciones por COMA, así
          que un montajista llamado «Freddy, el que monta» rompería la sintaxis y el idioma
@@ -123,7 +124,7 @@ Deno.serve(async (req) => {
         const { data } = await service.from("crew").select("idioma").ilike("name", quien).limit(1).maybeSingle();
         l = String((data as { idioma?: string } | null)?.idioma || "");
       }
-      if (l === "es" || l === "en" || l === "de") langEd = l;
+      langEd = idiomaSegun(l, dest);
     }
     const T = {
       es: { notas: (n: number) => `${n} nota${n === 1 ? "" : "s"} del cliente`,

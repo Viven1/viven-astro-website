@@ -15,6 +15,7 @@ if (!existsSync(TOKEN)) { console.log('· check-functions: sin token, se saltea'
 
 const REF = 'lumoevaotokgqnpybkyf';
 let desplegadas;
+const verifyJwt = new Map();
 try {
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/functions`, {
     headers: { Authorization: `Bearer ${readFileSync(TOKEN, 'utf8').trim()}` },
@@ -22,6 +23,7 @@ try {
   const j = await r.json();
   if (!Array.isArray(j)) throw new Error(JSON.stringify(j).slice(0, 120));
   desplegadas = new Set(j.map((f) => f.slug));
+  for (const f of j) verifyJwt.set(f.slug, f.verify_jwt);
 } catch (e) {
   console.log(`· check-functions: no pude consultar (${String(e.message).slice(0, 60)}), se saltea`);
   process.exit(0);
@@ -46,4 +48,24 @@ if (soloRepo.length) {
 if (!soloServidor.length && !soloRepo.length) {
   console.log(`✓ functions: las ${enRepo.size} del repo son las que están desplegadas`);
 }
-process.exit(soloServidor.length || soloRepo.length ? 1 : 0);
+
+/* Y que config.toml diga de CADA una si pide JWT.
+   Nueve estaban sin declarar (27 ago 2026): con el valor sin escribir, quien pide o no la
+   sesión lo decide la bandera que uno se acuerde de tipear en el deploy. Ponerle verify_jwt
+   a una que el dashboard llama desde el navegador le mata el preflight de CORS, y la pantalla
+   no dice «no autorizado» — se queda muda. Ver la nota de supabase-verify-jwt-y-cors. */
+const cfg = readFileSync('supabase/config.toml', 'utf8');
+const declarado = new Map(
+  [...cfg.matchAll(/^\[functions\.([\w-]+)\]\s*\n\s*verify_jwt\s*=\s*(true|false)/gm)]
+    .map((m) => [m[1], m[2] === 'true']),
+);
+const sinDeclarar = [...desplegadas].filter((f) => !declarado.has(f)).sort();
+const distinto = [...desplegadas]
+  .filter((f) => declarado.has(f) && declarado.get(f) !== !!verifyJwt.get(f))
+  .map((f) => `${f} (config.toml dice ${declarado.get(f)}, el servidor tiene ${verifyJwt.get(f)})`);
+
+if (sinDeclarar.length) console.error(`✘ sin verify_jwt en config.toml (el próximo deploy decide solo): ${sinDeclarar.join(', ')}`);
+if (distinto.length) console.error(`✘ verify_jwt distinto al desplegado:\n   ${distinto.join('\n   ')}`);
+if (!sinDeclarar.length && !distinto.length) console.log(`✓ verify_jwt: las ${desplegadas.size} declaradas coinciden con lo desplegado`);
+
+process.exit(soloServidor.length || soloRepo.length || sinDeclarar.length || distinto.length ? 1 : 0);

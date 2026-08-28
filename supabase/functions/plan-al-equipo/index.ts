@@ -14,6 +14,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { htmlAPdf, pdfConfigurado } from "../_shared/pdf.ts";
+import { idiomaDe as idiomaSegun } from "../_shared/idioma.ts";
 import { emailViven } from "../_shared/email-viven.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -96,15 +97,22 @@ Deno.serve(async (req) => {
        email salía con `lang: "es"` fijo: un cliente suizo-alemán recibía «Citación general»
        y «Lo que necesitamos de ustedes» en castellano, en el email más importante del día
        de rodaje.
-       Para el EQUIPO se queda en español, que es en lo que trabajan.
-       (Mismo problema que tenía el portal, encontrado el 27 ago 2026 revisando lo mismo.) */
-    let langCli: "es" | "en" | "de" = "es";
+       (Mismo problema que tenía el portal, encontrado el 27 ago 2026 revisando lo mismo.)
+       El default NO es español: ver ../_shared/idioma.ts. */
+    let langLead = "";
+    let emailLead = "";
     if (paraCliente && proj.lead_id) {
       const { data: lead } = await service.from("leads")
-        .select("lang").eq("id", String(proj.lead_id)).maybeSingle();
-      const l = String((lead as { lang?: string } | null)?.lang || "");
-      if (l === "en" || l === "de") langCli = l;
+        .select("lang,email").eq("id", String(proj.lead_id)).maybeSingle();
+      const L = lead as { lang?: string; email?: string } | null;
+      langLead = String(L?.lang || "");
+      emailLead = String(L?.email || "");
     }
+    /* `project_contacts` no guarda idioma, así que cada contacto del cliente hereda el de
+       la ficha del lead; cuando esa ficha tampoco lo dice, decide su propio dominio. Dos
+       personas de la misma empresa pueden terminar en idiomas distintos, y está bien: es
+       más cerca de la verdad que meterlas a todas en el mismo. */
+    const langCli: "es" | "en" | "de" = idiomaSegun(langLead, emailLead || (delCliente[0] as { email?: string } | undefined)?.email);
     /* El tipo común hace falta: con `as const` cada idioma queda con sus propios literales
        ("Citación general" vs "Allgemeine Startzeit") y TypeScript no los deja intercambiar,
        que es justamente lo que necesitamos hacer. */
@@ -145,12 +153,12 @@ Deno.serve(async (req) => {
     const idiomaDe = new Map<string, "es" | "en" | "de">();
     for (const t of conEmail) {
       const l = String((t as { idioma?: string }).idioma || "");
-      idiomaDe.set(String(t.email).toLowerCase(), (l === "es" || l === "en" || l === "de") ? l : "de");
+      idiomaDe.set(String(t.email).toLowerCase(), idiomaSegun(l, String(t.email)));
     }
     for (const c of delCliente) {
-      if (c.email) idiomaDe.set(String(c.email).toLowerCase(), langCli);
+      if (c.email) idiomaDe.set(String(c.email).toLowerCase(), idiomaSegun(langLead, String(c.email)));
     }
-    const rotulos = (mail: string) => RES[idiomaDe.get(String(mail).toLowerCase()) || (paraCliente ? langCli : "de")];
+    const rotulos = (mail: string) => RES[idiomaDe.get(String(mail).toLowerCase()) || (paraCliente ? langCli : idiomaSegun(null, mail))];
 
 
     const destinos: string[] = Array.isArray(body.to) && body.to.length
@@ -285,7 +293,7 @@ Deno.serve(async (req) => {
 
     /* Para el preview: el idioma del primero de la lista. Es el que mejor representa lo que
        va a salir, y el modal aclara al lado en qué idioma va cada uno. */
-    const langPreview = idiomaDe.get(String(destinos[0] || "").toLowerCase()) || (paraCliente ? langCli : "de");
+    const langPreview = idiomaDe.get(String(destinos[0] || "").toLowerCase()) || (paraCliente ? langCli : idiomaSegun(null, String(destinos[0] || "")));
     const html = armarHtml(RES[langPreview], langPreview);
     const asunto = asuntoDe(RES[langPreview]);
 

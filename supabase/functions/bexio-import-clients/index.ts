@@ -17,6 +17,7 @@
 // Probar: -d '{"dry_run":true}'  → lista candidatos + distribución de estados,
 //          sin escribir nada.
 
+import { idiomaPorEmail } from "../_shared/idioma.ts";
 import { TEST } from "../_shared/prueba.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -125,10 +126,9 @@ Deno.serve(async (req) => {
       if (leadId && openLeads.has(leadId)) { skippedRun++; report.push({ email: c.email, action: "deal abierto en curso — no se toca" }); continue; }
       const wonAt = c.last_paid ? new Date(c.last_paid + "T12:00:00Z").toISOString() : new Date().toISOString();
       if (!leadId) {
-        // idioma por dominio del email: DACH+LI → de, resto → en (el motor de
-        // reactivación escribe en lead.lang; a un cliente de Irlanda o Corea
-        // no le puede llegar alemán)
-        const langGuess = /\.(ch|de|at|li)$/i.test(c.email.split("@")[1] ?? "") ? "de" : "en";
+        // La regla vive en ../_shared/idioma.ts, una sola vez: el motor de reactivación
+        // escribe en lead.lang, y a un cliente de Irlanda o Corea no le puede llegar alemán.
+        const langGuess = idiomaPorEmail(c.email);
         const { data: nl, error: lerr } = await service.from("leads").insert({
           name: c.name, first_name: c.first_name, last_name: c.last_name, company: c.company,
           email: c.email, lang: langGuess, channel: "bexio-import", status: "ganado", won_at: wonAt,
