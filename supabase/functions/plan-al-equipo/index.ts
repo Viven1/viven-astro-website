@@ -151,9 +151,14 @@ Deno.serve(async (req) => {
        código era justamente el error.
        (Sebastián, 27 ago 2026: "solo sofia y yo trabajamos en español".) */
     const idiomaDe = new Map<string, "es" | "en" | "de">();
+    const idiomasCargados = new Set<string>();
     for (const t of conEmail) {
       const l = String((t as { idioma?: string }).idioma || "");
       idiomaDe.set(String(t.email).toLowerCase(), idiomaSegun(l, String(t.email)));
+      /* Separado a propósito: «alemán porque lo dice su ficha» y «alemán porque el dominio
+         termina en .ch» se ven igual en el resultado y no valen lo mismo. El preview marca
+         los supuestos para que se corrijan en la ficha, no para que se descubran después. */
+      if (l === "es" || l === "en" || l === "de") idiomasCargados.add(String(t.email).toLowerCase());
     }
     for (const c of delCliente) {
       if (c.email) idiomaDe.set(String(c.email).toLowerCase(), idiomaSegun(langLead, String(c.email)));
@@ -304,8 +309,18 @@ Deno.serve(async (req) => {
                     /* Para que el preview pueda decir si el email va a llevar el plan
                        adjunto, en vez de que se descubra al recibirlo. */
                     llevara_pdf: !!body.pdf_html && pdfConfigurado(),
-                    equipo: conEmail.map((t: { name: string; email: string }) => ({ nombre: t.name, email: t.email })),
-                    cliente: delCliente.map((c: { name?: string; email: string }) => ({ nombre: c.name || c.email, email: c.email })) });
+                    /* EL IDIOMA DE CADA UNO, EN EL PREVIEW. El HTML que se muestra es el del
+                       primero de la lista, pero cada uno recibe el suyo: sin decirlo acá, la
+                       única forma de enterarse de que a alguien le va a llegar en un idioma
+                       equivocado es que él lo reciba. Y este es el email del día de rodaje. */
+                    equipo: conEmail.map((t: { name: string; email: string }) =>
+                      ({ nombre: t.name, email: t.email,
+                         idioma: idiomaDe.get(String(t.email).toLowerCase()) || "de",
+                         idioma_supuesto: !idiomasCargados.has(String(t.email).toLowerCase()) })),
+                    cliente: delCliente.map((c: { name?: string; email: string }) =>
+                      ({ nombre: c.name || c.email, email: c.email,
+                         idioma: idiomaDe.get(String(c.email).toLowerCase()) || langCli,
+                         idioma_supuesto: !langLead })) });
     }
     if (!destinos.length) return json({ error: paraCliente
       ? "El proyecto no tiene contactos con email. Se agregan en el paso Cliente."

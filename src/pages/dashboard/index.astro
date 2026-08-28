@@ -22491,6 +22491,7 @@ const newsCases = [
   /* Mandarlo al equipo: preview primero, siempre. El email lo arma el SERVIDOR con el
      mismo código que manda de verdad, así lo que se ve es lo que sale. */
   let plmT = null, plmVista = 'equipo', plmSel = { equipo: new Set(), cliente: new Set() };
+  const PLM_IDIOMA = { es: 'español', en: 'inglés', de: 'alemán' };
 
   /* Lo que el email necesita para decir lo MISMO que la pantalla: la cabecera calculada
      acá, la sinopsis de cada fila y el equipo con sus teléfonos. Si el servidor lo
@@ -22574,12 +22575,22 @@ const newsCases = [
            separado para que vea otras cosas que el resto".) */
         const grupo = plmVista;
         const gente = (grupo === 'cliente' ? data.cliente : data.equipo) || [];
+        const supuestos = gente.filter((g) => g.idioma_supuesto);
         if (!plmSel[grupo].size) gente.forEach((g) => plmSel[grupo].add(g.email));
         $('plm-para').innerHTML =
           '<div class="plm-quien">' +
             gente.map((g) => '<span class="' + (plmSel[grupo].has(g.email) ? 'on' : 'off') +
-              '" data-plmp="' + esc(g.email) + '">' + (plmSel[grupo].has(g.email) ? '✓ ' : '') +
-              esc(g.nombre) + '</span>').join('') +
+              '" data-plmp="' + esc(g.email) + '" title="' + esc(g.email) +
+              (g.idioma ? ' — le llega en ' + PLM_IDIOMA[g.idioma] + (g.idioma_supuesto ? ', supuesto por el dominio de su email' : ', según su ficha') : '') + '">' +
+              (plmSel[grupo].has(g.email) ? '✓ ' : '') + esc(g.nombre) +
+              /* EL IDIOMA, AL LADO DEL NOMBRE. El preview muestra UN email —el del primero de
+                 la lista— pero cada uno recibe el suyo. Sin esto, que a alguien le llegue en
+                 un idioma que no habla se descubre cuando ya lo recibió, y es el email del
+                 día de rodaje. El «?» marca los que no lo tienen cargado en la ficha: ahí el
+                 idioma es una apuesta por el dominio del email, no un dato. */
+              (g.idioma ? ' <b class="plm-lang' + (g.idioma_supuesto ? ' sup' : '') + '">' +
+                 g.idioma.toUpperCase() + (g.idioma_supuesto ? '?' : '') + '</b>' : '') +
+              '</span>').join('') +
             (grupo === 'equipo' ? (data.sin_email || []).map((n) =>
               '<span class="no">' + esc(n) + ' · sin email</span>').join('') : '') +
           '</div>' +
@@ -22593,6 +22604,12 @@ const newsCases = [
                 ? '<p class="muted-note" style="margin:-6px 0 12px">A los marcados no les llega: cargales el email en Técnicos.</p>'
                 : '') +
           /* Que el adjunto se sepa ANTES, no al recibir el email. */
+          (supuestos.length
+            ? '<p class="muted-note" style="margin:-6px 0 12px">A ' + supuestos.map((g) => esc(g.nombre)).join(', ') +
+              ' le' + (supuestos.length === 1 ? '' : 's') + ' escribimos en ' +
+              [...new Set(supuestos.map((g) => PLM_IDIOMA[g.idioma]))].join(' y ') +
+              ' porque no tiene' + (supuestos.length === 1 ? '' : 'n') + ' idioma cargado — se corrige en su ficha.</p>'
+            : '') +
           (data.llevara_pdf
             ? '<p class="muted-note" style="margin:-6px 0 12px;color:var(--acid)">📄 Va con el plan adjunto en PDF, igual que el que sale del botón 📄.</p>'
             : '<p class="muted-note" style="margin:-6px 0 12px">Sin adjunto: el plan va en el cuerpo del email. El PDF adjunto necesita la clave de Cloudflare — el email sale igual.</p>');

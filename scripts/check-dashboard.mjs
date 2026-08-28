@@ -100,5 +100,49 @@ if (!existsSync(OUT)) {
   if (malos.length) mal('Campos de plata en type="number" — van type="text" inputmode="decimal" + numCHF()', malos);
 }
 
-if (!fallos) console.log('✓ dashboard: sin llamadas huérfanas, sin ids repetidos, sin ids fantasma, sin plata en type=number');
+
+/* CONSTANTES USADAS Y NUNCA DECLARADAS.
+   El 28 ago 2026 escribí PLM_IDIOMA[g.idioma] y puse la declaración en un lugar donde el
+   regex no pegó: el build pasó verde y el preview del plan de rodaje habría tirado
+   ReferenceError al abrirlo. El chequeo miraba funciones huérfanas, no constantes.
+   Solo mira las MAYÚSCULAS_CON_GUION porque son las del código propio: minúsculas trae
+   media API del navegador y el ruido haría ignorar el chequeo entero. */
+{
+  /* Vale como declarada cualquiera que se ASIGNE en algún lado, no solo la que sigue a un
+     `const`: se declaran en listas con coma —`const NAVY = [...], ACID = [...], MUT = ...`—
+     y mirar solo la primera daba por sueltas a ACID, MUT, INK y LINE, que existen.
+     Es un criterio flojo a propósito: lo que este chequeo tiene que encontrar es el nombre
+     que no aparece asignado en NINGUNA parte. */
+  const declaradas = new Set([
+    ...[...src.matchAll(/([A-Z][A-Z0-9_]{2,})\s*=[^=]/g)].map((m) => m[1]),
+    ...[...src.matchAll(/\bfunction\s+([A-Z][A-Z0-9_]{2,})\b/g)].map((m) => m[1]),
+    ...[...src.matchAll(/([A-Z][A-Z0-9_]{2,})\s*:/g)].map((m) => m[1]),
+  ]);
+  const DEL_NAVEGADOR = new Set(['JSON', 'URL', 'URLSearchParams', 'FormData', 'Math', 'Date',
+    'Promise', 'Set', 'Map', 'Array', 'Object', 'String', 'Number', 'Boolean', 'Intl', 'RegExp',
+    'Error', 'Blob', 'File', 'FileReader', 'Image', 'Audio', 'Event', 'CustomEvent', 'Node',
+    'DOMParser', 'AbortController', 'Notification', 'WebSocket', 'XMLHttpRequest', 'TextEncoder',
+    'TextDecoder', 'Uint8Array', 'ArrayBuffer', 'BigInt', 'Symbol', 'WeakMap', 'WeakSet', 'Proxy',
+    'Reflect', 'Infinity', 'NaN', 'IntersectionObserver', 'ResizeObserver', 'MutationObserver']);
+  /* Sin comentarios NI textos. La primera versión los leía y daba 122 falsos: los títulos
+     en mayúscula de los comentarios («EL PDF (…)», «NUNCA HARDCODED») entraban como
+     constantes sin declarar. Un chequeo que grita en falso se ignora, y entonces no sirve
+     para nada. Se blanquean en vez de borrarse, para no mover los números de línea. */
+  const limpio = src
+    .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p) => p + ' '.repeat(m.length - p.length))
+    .replace(/'(?:[^'\\\n]|\\.)*'/g, (m) => "'" + ' '.repeat(Math.max(0, m.length - 2)) + "'")
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, (m) => '"' + ' '.repeat(Math.max(0, m.length - 2)) + '"')
+    .replace(/`(?:[^`\\]|\\.)*`/g, (m) => '`' + m.slice(1, -1).replace(/[^\n]/g, ' ') + '`');
+  const usadas = new Map();
+  for (const m of limpio.matchAll(/(?<![\w.$'"`])([A-Z][A-Z0-9_]{2,})\s*[[.(]/g)) {
+    if (DEL_NAVEGADOR.has(m[1]) || declaradas.has(m[1])) continue;
+    usadas.set(m[1], (usadas.get(m[1]) || 0) + 1);
+  }
+  const sueltas = [...usadas].map(([n, c]) => `${n} (${c} uso${c === 1 ? '' : 's'})`);
+  if (sueltas.length) mal('Constantes usadas y nunca declaradas — ReferenceError al usarlas', sueltas);
+}
+
+if (!fallos) console.log('✓ dashboard: sin llamadas huérfanas, sin ids repetidos, sin ids fantasma, sin plata en type=number, sin constantes sueltas');
 process.exit(fallos ? 1 : 0);
