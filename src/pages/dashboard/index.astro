@@ -7094,6 +7094,14 @@ const newsCases = [
     ]);
     // personas: es lo único sin lo cual la pantalla no tiene sentido — igual no se
     // corta la carga, se avisa en su tab y se sigue con lo que haya
+    /* NO LLEGARON LOS DATOS: se rehidrata del respaldo en vez de dejar la pantalla vacía.
+       Es el caso del set. La rehidratación NO pisa lo que ya esté en memoria si vino con
+       datos: solo entra cuando la consulta falló, que es cuando no hay nada mejor. */
+    if (leadsQ.error && !(leadsQ.data || []).length){
+      const at = snapRehidratar();
+      if (at){ vvSnapAt = at; vvSinSenal();
+        avisoCarga('tab-leads', '📵 Sin conexión — estos datos son de ' + fechaHoraCorta(at) + '. Tocá 🔄 Actualizar cuando vuelva la señal.'); }
+    }
     if (leadsQ.error) avisoCarga('tab-leads', '⚠️ No se pudieron cargar los contactos: ' + leadsQ.error.message + '. Probá 🔄 Actualizar.');
     else avisoCarga('tab-leads', '');
     /* Los tests salen de allLeads, no se borran. allLeads es de donde cuelga TODO —
@@ -7190,6 +7198,10 @@ const newsCases = [
     if (!$('tab-contenido').hidden && contenidoSub === 'seo' && !seoLoaded){ loadSeo(); loadBing(); }
     licLoad(); // licencias no entraba en loadAll — se sumó para que también se mantenga al día sola
     $('updated-at').textContent = rangeLabel() + ' · actualizado ' + new Date().toLocaleTimeString('es-CH', { hour: '2-digit', minute: '2-digit' });
+    /* La copia se guarda al final y solo si vinieron los contactos: guardar una carga a
+       medias sería peor que no guardar nada — la próxima vez sin señal se vería un
+       recorte incompleto con cara de completo. */
+    if (allLeads && allLeads.length) { vvSnapAt = 0; snapGuardar(); }
     loadBell();
     subscribeRealtime();
   }
@@ -7492,9 +7504,69 @@ const newsCases = [
     if (e.target && e.target.classList && e.target.classList.contains('js-chf')) chfEco(e.target);
   });
 
+  /* ── LO ÚLTIMO QUE SE CARGÓ, DE VERDAD ──
+     El cartel de abajo decía «se ve lo último que se cargó» y era mentira: no había ningún
+     respaldo local. Abrir la app sin señal daba el cartel Y las listas vacías, o sea el
+     peor de los dos mundos: te avisa que estás viendo datos viejos mientras no ves nada.
+     Sebastián mira el tablero EN EL SET, donde no hay señal.
+     Ahora cada carga buena deja una copia. Si la siguiente no llega, se rehidrata de ahí y
+     el cartel dice DE CUÁNDO es. La fecha no es un adorno: un dato viejo sin fecha es
+     indistinguible de uno de ahora, y en esta app hay plata en pantalla.
+     localStorage y no IndexedDB porque es síncrono y chico: se lee antes de pintar. Si no
+     entra, se guarda una versión recortada con lo que sirve en el set —proyectos, crew,
+     contactos, deals— antes que nada. */
+  const SNAP = 'vv_snap_v1';
+  function snapGuardar(){
+    const intentos = [
+      () => ({ leads: allLeads, pruebas: leadsPrueba, deals: dealsList, dealsPrueba,
+               offers: offersList, props: propsAll, co: coMeta, book: upBookings }),
+      /* recortado: lo que de verdad se usa sin señal. Las ofertas y las propuestas son lo
+         más pesado (traen sus ítems enteros) y son justo lo que no se mira en un rodaje. */
+      () => ({ leads: allLeads, pruebas: leadsPrueba, deals: dealsList, dealsPrueba, co: coMeta, book: upBookings }),
+      () => ({ leads: allLeads, deals: dealsList }),
+    ];
+    for (const armar of intentos){
+      try {
+        localStorage.setItem(SNAP, JSON.stringify({ at: Date.now(), d: armar() }));
+        return true;
+      } catch (e){ /* sin lugar: se prueba con menos */ }
+    }
+    try { localStorage.removeItem(SNAP); } catch (e){ }
+    return false;
+  }
+  function snapLeer(){
+    try {
+      const raw = localStorage.getItem(SNAP); if (!raw) return null;
+      const o = JSON.parse(raw);
+      return (o && o.at && o.d) ? o : null;
+    } catch (e){ return null; }
+  }
+  /* Devuelve la edad para el cartel, o null si no hubo nada que rehidratar. */
+  function snapRehidratar(){
+    const o = snapLeer(); if (!o) return null;
+    const d = o.d;
+    /* Los dos JUNTOS en allLeads. Abajo, loadCore vuelve a separarlos con
+       `_todos.filter(es_prueba)`; si acá se devolvieran ya separados, esa pasada dejaría
+       leadsPrueba vacío y sin señal las pruebas volverían a contarse como reales — que es
+       justo el bug que se acaba de arreglar, reapareciendo por la puerta de atrás. */
+    const _leads = (Array.isArray(d.leads) ? d.leads : []).concat(Array.isArray(d.pruebas) ? d.pruebas : []);
+    if (_leads.length) allLeads = _leads;
+    if (Array.isArray(d.pruebas)) leadsPrueba = d.pruebas;
+    /* Los deals NO se juntan: loadCore los separa con `dealsQ.data`, que sin señal no
+       existe, así que lo que se deje acá es lo que queda. */
+    if (Array.isArray(d.deals) && d.deals.length){ dealsList = d.deals; dealsReal = true; }
+    if (Array.isArray(d.dealsPrueba)) dealsPrueba = d.dealsPrueba;
+    if (Array.isArray(d.offers)) offersList = d.offers;
+    if (Array.isArray(d.props)) propsAll = d.props;
+    if (d.co && typeof d.co === 'object') coMeta = d.co;
+    if (Array.isArray(d.book)) upBookings = d.book;
+    return o.at;
+  }
+
   /* SIN SEÑAL. En el set no hay internet y los datos viven en Supabase, así que la app
      puede ABRIR pero no traer nada. Antes eso se veía como paneles vacíos o cargando
      para siempre — que se lee como "se rompió". Un cartel arriba lo dice. */
+  let vvSnapAt = 0;   // de cuándo es lo que se está viendo, si vino del respaldo
   function vvSinSenal(){
     let b = document.getElementById('vv-offline');
     if (!navigator.onLine){
@@ -7502,11 +7574,16 @@ const newsCases = [
         b = document.createElement('div'); b.id = 'vv-offline';
         b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9998;background:#f0c060;color:#20160a;' +
           'font:600 13px Inter,sans-serif;padding:8px 14px;text-align:center';
-        b.textContent = '📵 Sin conexión — se ve lo último que se cargó. Lo que toques no se guarda hasta que vuelva la señal.';
         document.body.appendChild(b);
       }
+      /* CON LA FECHA. «Lo último que se cargó» no dice nada: puede ser de hace un minuto o
+         de anteayer, y sobre la pantalla hay plata. */
+      b.textContent = vvSnapAt
+        ? '📵 Sin conexión — estos datos son de ' + fechaHoraCorta(vvSnapAt) + ' (' + timeAgo(new Date(vvSnapAt).toISOString()) + '). Lo que toques no se guarda hasta que vuelva la señal.'
+        : '📵 Sin conexión — no hay datos guardados de antes. Volvé a abrir con señal.';
     } else if (b) b.remove();
   }
+  const fechaHoraCorta = (ms) => new Date(ms).toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   window.addEventListener('online', vvSinSenal);
   window.addEventListener('offline', vvSinSenal);
   vvSinSenal();
@@ -15578,7 +15655,7 @@ const newsCases = [
     const cat = CATALOG();
     sel.innerHTML = Object.keys(cat).map((ph) =>
       '<optgroup label="' + ph + '">' +
-      cat[ph].map((it, i) => '<option value="' + ph + '::' + i + '">' + esc(it.name) + ' — ' + fmtM(it.price) + '/' + it.unit + '</option>').join('') +
+      cat[ph].map((it, i) => '<option value="' + ph + '::' + i + '">' + esc(it.name) + ' — ' + fmtM(it.price) + '/' + esc(it.unit || '') + '</option>').join('') +
       '</optgroup>').join('');
   }
 
