@@ -2026,6 +2026,30 @@ const newsCases = [
      esconde—, porque es justo ahí donde hace falta comparar la pantalla de uno con la del
      otro. Tabular para que dos números se comparen de un vistazo. */
   .dash-ver{color:var(--muted-2);font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.04em;margin-top:2px;cursor:default}
+  /* Los escalones del embudo se pueden tocar para ver quiénes son. La lupa aparece al
+     pasar por encima: en reposo el embudo se lee como un gráfico, no como un menú. */
+  .fn-row.fn-tocable{cursor:pointer;border-radius:10px;transition:background .12s}
+  .fn-row.fn-tocable:hover,.fn-row.fn-tocable:focus-visible{background:var(--panel-2);outline:none}
+  .fn-row.fn-tocable:focus-visible{box-shadow:0 0 0 2px var(--acid)}
+  .fn-lupa{opacity:0;font-size:10px;transition:opacity .12s}
+  .fn-row.fn-tocable:hover .fn-lupa,.fn-row.fn-tocable:focus-visible .fn-lupa{opacity:.8}
+  .fng{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-top:12px;overflow:hidden}
+  .fng-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
+  .fng-row{display:grid;grid-template-columns:1.2fr 1.4fr auto auto;gap:12px;align-items:center;width:100%;
+    background:none;border:0;border-bottom:1px solid var(--line);color:inherit;font:inherit;text-align:left;
+    padding:9px 14px;cursor:pointer}
+  .fng-row:last-child{border-bottom:0}
+  .fng-row:hover{background:var(--panel-2)}
+  .fng-n{font-weight:600;font-size:13.5px}
+  .fng-c,.fng-d{color:var(--muted);font-size:12.5px}
+  .fng-s{font-size:11.5px;font-weight:700;white-space:nowrap}
+  .fng-d{font-variant-numeric:tabular-nums;white-space:nowrap}
+  @media(max-width:560px){
+    /* En el teléfono, la empresa y la fecha pasan a un segundo renglón antes que apretarse */
+    .fng-row{grid-template-columns:1fr auto;row-gap:2px}
+    .fng-c{grid-column:1/-1;order:3}
+  }
   .chip-prueba{display:inline-block;border:1px solid var(--falso);color:var(--falso);
     background:color-mix(in srgb, var(--falso) 15%, transparent);border-radius:999px;
     padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -3856,6 +3880,7 @@ const newsCases = [
       <div class="panel">
         <h2>Funnel del período <span class="count">(sesiones → ganado)</span></h2>
         <div class="funnel" id="ana-funnel"></div>
+        <div id="ana-funnel-gente" class="fng" hidden></div>
       </div>      </details>
       <details class="ana-grupo-det" data-g="g1">
         <summary class="ana-grupo">De dónde salió<span>canales, referrers y con qué entran</span><em class="ana-grupo-n">4 paneles</em></summary>
@@ -10051,14 +10076,20 @@ const newsCases = [
     return data;
   }
   // mueve UN deal de etapa (drag del board o select del contacto) + cascadas + espejo
-  async function setDealStage(id, stage){
+  /* `motivoDado` existe para la cascada automática: cuando el deal se cierra solo porque
+     su propuesta se perdió, el motivo ya lo escribió la persona una vez y volver a
+     preguntarlo sería pedirle lo mismo dos veces. Sin ese parámetro, pregunta como antes. */
+  async function setDealStage(id, stage, motivoDado){
     let d = (dealsList || []).find((x) => String(x.id) === String(id));
     if (!d || stageOf(d.stage) === stage) return false;
     if (d.synthetic && !dealsReal) return setLeadStage(d.lead_id, stage);   // modo legado total
     let lostReason;
     if (stage === 'perdido') {
-      lostReason = prompt('¿Por qué se perdió este deal? (opcional)', d.lost_reason || '');
-      if (lostReason === null) return false;
+      if (motivoDado !== undefined) lostReason = motivoDado;
+      else {
+        lostReason = prompt('¿Por qué se perdió este deal? (opcional)', d.lost_reason || '');
+        if (lostReason === null) return false;
+      }
     }
     let followUpTargetAt, followUpReason;
     if (stage === 'seguimiento_futuro') {
@@ -11050,13 +11081,40 @@ const newsCases = [
     toast('🏆 ' + open.length + ' oferta' + (open.length > 1 ? 's' : '') + ' marcada' + (open.length > 1 ? 's' : '') + ' como ganada' + (open.length > 1 ? 's' : ''));
   }
   // Registra la pérdida donde haga falta (best-effort: nada de esto bloquea el cambio de etapa)
+  /* ── SI EL PAPEL ESTÁ PERDIDO, EL DEAL ESTÁ CERRADO ──
+     Sebastián, 28 ago 2026: "si está en perdida es deal cerrado, eso tiene que salir
+     automáticamente, sino no sirve. Pensé que estaba así".
+     Existía la cascada en un solo sentido —cerrar el deal marcaba sus ofertas— pero no al
+     revés: perder la propuesta dejaba el deal en «propuesta» para siempre. Cinco clientes
+     tenían el papel perdido y solo dos el deal cerrado, y el win rate se calcula con la
+     ETAPA DEL DEAL: daba 33% donde lo real era 14%.
+     Se cierra solo cuando NO QUEDA NADA VIVO. Mientras haya una oferta o una propuesta en
+     pie, el trato sigue abierto aunque otra se haya caído — perder un paquete no es perder
+     el cliente. */
+  async function cerrarDealSiNoQuedaNada(leadId, motivo){
+    const abiertos = (dealsList || []).filter((d) => String(d.lead_id) === String(leadId) &&
+      !d.archived && stageOf(d.stage) !== 'perdido' && stageOf(d.stage) !== 'ganado');
+    for (const d of abiertos) {
+      const ofs = offersForDeal(d).filter((o) => o.status !== 'tier' && !o.archived && !o.is_template);
+      const pps = (propsAll || []).filter((p) => !p.archived && !p.is_template &&
+        String(p.lead_id || '') === String(d.lead_id));
+      const papeles = ofs.concat(pps);
+      if (!papeles.length || !papeles.every((x) => x.status === 'lost')) continue;
+      const ok = await setDealStage(d.id, 'perdido', motivo || '');
+      if (ok) toast('📕 El deal se cerró como perdido: ya no queda ninguna oferta viva');
+    }
+  }
+
   async function cascadeLost(lead, reason){
     const rTxt = reason || 'sin especificar';
     // 1) nota automática en el contacto → historial permanente aunque la etapa cambie después
     supabase.from('lead_notes').insert({ lead_id: String(lead.id), author: teamName(myEmail()), body: '❌ Deal perdido — motivo: ' + rTxt })
       .then(() => { if (currentLead && String(currentLead.id) === String(lead.id) && typeof lm2LoadTimeline === 'function') lm2LoadTimeline(lead); });
     // 2) ofertas ligadas (no ganadas) → lost + motivo
-    const ofs = (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(lead.id) && o.status !== 'won');
+    /* Las `tier` quedan afuera: son los paquetes que generó una propuesta, la MISMA plata
+       tres veces. Pasarlas a `lost` las convierte en tres ofertas perdidas distintas y
+       triplica el «perdido». Ver la nota en setDealStage. */
+    const ofs = (offersList || []).filter((o) => o.lead_id && String(o.lead_id) === String(lead.id) && o.status !== 'won' && o.status !== 'tier');
     for (const o of ofs) {
       let { error } = await supabase.from('offers').update({ status: 'lost', lost_reason: reason }).eq('id', o.id);
       if (error && /lost_reason/.test(error.message || '')) ({ error } = await supabase.from('offers').update({ status: 'lost' }).eq('id', o.id));
@@ -14151,11 +14209,19 @@ const newsCases = [
       /* el primer escalón cambia de nombre según qué se esté contando: decir
          "sesiones" cuando son personas hace que el % del paso siguiente parezca otro */
       { label: soloPersonas ? 'Personas' : 'Sesiones', n: sessionCount, color: '#8ab4ff', web: true },
-      { label: 'Leads',      n: base, color: stColor('lead') },
-      { label: 'Video Call', n: funnelLeads.filter((l) => l.videocall_at).length, color: stColor('videocall') },
-      { label: 'Propuesta',  n: funnelLeads.filter((l) => l.proposal_at).length, color: stColor('propuesta') },
-      { label: 'Ganado',     n: funnelLeads.filter((l) => l.won_at).length, color: stColor('ganado') },
+      /* Cada escalón se lleva SU gente, no solo el número. Un embudo que dice «8 leads» y
+         no deja ver cuáles son obliga a irse a Personas y reconstruir el filtro a mano —
+         y ahí ya no es el mismo recorte, es uno parecido.
+         (Sebastián, 28 ago 2026: "dejame tocar leads y que me muestre todos los que
+         entraron".) */
+      { label: 'Leads',      n: base, color: stColor('lead'), gente: funnelLeads },
+      { label: 'Video Call', n: funnelLeads.filter((l) => l.videocall_at).length, color: stColor('videocall'), gente: funnelLeads.filter((l) => l.videocall_at) },
+      { label: 'Propuesta',  n: funnelLeads.filter((l) => l.proposal_at).length, color: stColor('propuesta'), gente: funnelLeads.filter((l) => l.proposal_at) },
+      { label: 'Ganado',     n: funnelLeads.filter((l) => l.won_at).length, color: stColor('ganado'), gente: funnelLeads.filter((l) => l.won_at) },
     ];
+    /* Se guardan acá y no en el DOM: meter 289 personas en un data- las serializa enteras
+       en el HTML y las vuelve a parsear en cada click. */
+    anaFunnelGente = steps.map((s) => s.gente || null);
     const top = Math.max(1, steps[0].n);
     el.innerHTML = steps.map((s, i) => {
       let meta;
@@ -14189,7 +14255,10 @@ const newsCases = [
           (prev > 0 ? '<span class="fn-prev">' + Math.round(s.n / prev * 100) + '% del paso previo</span>'
                     : (s.n > 0 ? '<span class="fn-prev fn-skip">salteó el paso anterior</span>' : ''));
       }
-      return '<div class="fn-row"><div class="fn-label">' + s.label + '</div>' +
+      const tocable = (s.gente || []).length > 0;
+      return '<div class="fn-row' + (tocable ? ' fn-tocable' : '') + '"' +
+        (tocable ? ' role="button" tabindex="0" data-fn="' + i + '" title="Ver quiénes son estos ' + esc(s.label.toLowerCase()) + '"' : '') +
+        '><div class="fn-label">' + s.label + (tocable ? ' <span class="fn-lupa">🔍</span>' : '') + '</div>' +
         '<div class="fn-bar-wrap"><div class="fn-bar" style="width:' + Math.max(5, Math.round(s.n / top * 100)) + '%;background:' + s.color + '"><span class="fn-n">' + s.n + '</span></div></div>' +
         '<div class="fn-meta">' + meta + '</div></div>';
     }).join('') +
@@ -14201,6 +14270,40 @@ const newsCases = [
           ? ' El primer escalón mide otra ventana: las personas se miden desde el 24/08, así que el porcentaje de leads es el de ese tramo —donde las dos cosas existen— y no el del período entero.'
           : ' El primer escalón mide otra ventana (las personas se miden desde el 24/08), por eso ese salto no lleva porcentaje.') +
       '</div>';
+
+    el.querySelectorAll('[data-fn]').forEach((fila) => {
+      const abrir = () => anaFunnelVerGente(Number(fila.dataset.fn), steps[Number(fila.dataset.fn)].label);
+      fila.addEventListener('click', abrir);
+      fila.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); abrir(); } });
+    });
+  }
+
+  /* La lista de un escalón. Se muestra acá mismo, debajo del embudo, y no mandando a
+     Personas con un filtro: el recorte del embudo es una cohorte —los que ENTRARON en el
+     período— y Personas no tiene ese filtro, así que reconstruirlo daría otra lista
+     parecida. Mostrar la de verdad es más corto y no miente. */
+  let anaFunnelGente = [];
+  function anaFunnelVerGente(i, etiqueta){
+    const gente = anaFunnelGente[i] || [];
+    const caja = $('ana-funnel-gente'); if (!caja) return;
+    if (caja.dataset.abierto === String(i)){ caja.hidden = true; caja.dataset.abierto = ''; return; }
+    caja.dataset.abierto = String(i);
+    caja.hidden = false;
+    const filas = gente.slice().sort(masNuevo('created_at')).map((l) => {
+      const st = STAGES.find((x) => x.key === stageOf(l.status)) || {};
+      return '<button type="button" class="fng-row" data-lead="' + esc(String(l.id)) + '">' +
+        '<span class="fng-n">' + esc(l.name || l.first_name || l.email || '(sin nombre)') + '</span>' +
+        '<span class="fng-c">' + esc(l.company || l.email || '') + '</span>' +
+        '<span class="fng-s" style="color:' + (st.color || 'var(--muted)') + '">' + esc(st.label || l.status || '—') + '</span>' +
+        '<span class="fng-d">' + (l.created_at ? fmtDMY(l.created_at) : '') + '</span>' +
+        '</button>';
+    }).join('');
+    caja.innerHTML = '<div class="fng-h">' + esc(etiqueta) + ' · ' + gente.length +
+      ' <button type="button" class="btn btn-ghost xs" id="fng-cerrar">✕ Cerrar</button></div>' +
+      (filas || '<p class="muted-note">Nadie en este escalón.</p>');
+    $('fng-cerrar').addEventListener('click', () => { caja.hidden = true; caja.dataset.abierto = ''; });
+    caja.querySelectorAll('[data-lead]').forEach((b) =>
+      b.addEventListener('click', () => openLead(b.dataset.lead)));
   }
 
   /* =================== OFFER TOOL (Kostenkalkulation) =================== */
@@ -17546,7 +17649,16 @@ const newsCases = [
     // resiliente: si la columna lost_reason no existe todavía, al menos queda el estado
     if (error && /lost_reason/.test(error.message || '')) ({ error } = await supabase.from('proposals').update({ status: 'lost' }).eq('id', p.id));
     if (error){ toast('No se pudo: ' + error.message); return; }
-    toast('✖ Marcada como perdida'); ppLoad();
+    /* Las dos listas, no una: `ppList` es la de la pantalla de Propuestas y `propsAll` la
+       que usan el pipeline y Hoy. Son arrays distintos con las mismas filas, así que tocar
+       solo el objeto que tengo a mano deja a la otra creyendo que la propuesta sigue viva
+       — y la cascada de abajo no dispararía nunca. */
+    p.status = 'lost'; p.lost_reason = reason.trim() || null;
+    const enTodas = (propsAll || []).find((x) => String(x.id) === String(p.id));
+    if (enTodas){ enTodas.status = 'lost'; enTodas.lost_reason = p.lost_reason; }
+    toast('✖ Marcada como perdida');
+    await cerrarDealSiNoQuedaNada(p.lead_id, reason.trim() || null);
+    ppLoad();
   }
   async function archProp(p){
     const { error } = await supabase.from('proposals').update({ archived: !p.archived }).eq('id', p.id);
