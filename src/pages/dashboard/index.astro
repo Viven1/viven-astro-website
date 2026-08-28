@@ -18726,6 +18726,19 @@ const newsCases = [
     pjRenderList();
   }
 
+  /* LA PLATA DE PRUEBA NO SE SUMA. Los proyectos 1202 y 1203 —los dos de prueba— metían
+     CHF 18.036 en «En producción»: la pantalla decía 40.394 donde lo real eran 22.358.
+     Los 12.000 de uno de ellos son exactamente los que Sebastián ya preguntó de dónde
+     salían (26 ago); se arregló para los deals y quedó vivo acá.
+     Se filtra al SUMAR, nunca al cargar: la lista los sigue teniendo —se pueden abrir, y
+     de ahí salen el portal y el brief— pero no cuentan como plata ni como rodaje.
+     Ver filtrar-pruebas-rompe-lo-que-no-es-plata. */
+  function pjEsPrueba(p){
+    const ids = new Set((leadsPrueba || []).map((l) => String(l.id)));
+    return !!p && ids.has(String(p.lead_id));
+  }
+  const pjReales = () => (pjList || []).filter((p) => !pjEsPrueba(p));
+
   function pjRenderList(){
     /* Con un proyecto abierto, la lista se dibuja pero NO se muestra. pjLoad() termina
        llamando acá, y al recargar la página el proyecto que abrió la URL quedaba abierto
@@ -18735,7 +18748,7 @@ const newsCases = [
 
     // etapas con conteo y plata
     $('pj-etapas').innerHTML = PJ_ETAPAS.map((e) => {
-      const en = pjList.filter((p) => p.stage === e.k);
+      const en = pjReales().filter((p) => p.stage === e.k);
       const chf = en.reduce((a, p) => a + (Number(p.amount_chf) || 0), 0);
       return '<button type="button" class="pj-et' + (pjFiltro === e.k ? ' on' : '') + '" data-et="' + e.k + '">' +
         '<div class="n">' + en.length + '</div><div class="l">' + esc(e.l) + '</div>' +
@@ -18747,18 +18760,18 @@ const newsCases = [
     }));
 
     // KPIs
-    const vivos = pjList.filter((p) => p.stage !== 'entregado');
+    const vivos = pjReales().filter((p) => p.stage !== 'entregado');
     const enProd = vivos.reduce((a, p) => a + (Number(p.amount_chf) || 0), 0);
-    const sinFact = pjList.reduce((a, p) => a + Math.max(0, (Number(p.amount_chf) || 0) - pjFacturado(p)), 0);
+    const sinFact = pjReales().reduce((a, p) => a + Math.max(0, (Number(p.amount_chf) || 0) - pjFacturado(p)), 0);
     const hoy = new Date().toISOString().slice(0, 10);
     const en30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
-    const rodajes = pjList.filter((p) => p.shoot_start && p.shoot_start >= hoy && p.shoot_start <= en30);
+    const rodajes = pjReales().filter((p) => p.shoot_start && p.shoot_start >= hoy && p.shoot_start <= en30);
     /* "El más quieto": el que lleva más días en la misma etapa sin fecha de rodaje.
        Es el que más riesgo corre de quedarse dormido, y no tiene otro lugar donde
        aparecer — un proyecto ganado no vuelve al pipeline. */
     const quietos = vivos.filter((p) => !p.shoot_start)
       .map((p) => ({ p, d: pjDias(p.started_at) || 0 })).sort((a, b) => b.d - a.d);
-    const pctFact = enProd > 0 ? Math.round((1 - sinFact / pjList.reduce((a, p) => a + (Number(p.amount_chf) || 0), 0)) * 100) : 0;
+    const pctFact = enProd > 0 ? Math.round((1 - sinFact / pjReales().reduce((a, p) => a + (Number(p.amount_chf) || 0), 0)) * 100) : 0;
     const k = (n, sub, l, alerta) => '<div class="kpi"><div class="n"' + (alerta ? ' style="color:#f0c060"' : '') + '>' + n +
       (sub ? '<small class="bajo">' + sub + '</small>' : '') + '</div><div class="l">' + l + '</div></div>';
     $('pj-kpis').innerHTML =
