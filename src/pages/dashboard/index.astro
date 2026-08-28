@@ -9944,7 +9944,26 @@ const newsCases = [
      trato son un upsell de verdad—; entre alternativas se cuenta la mayor, que es el techo
      y no el resultado. Es un supuesto, y por eso `deN` lo devuelve para que la pantalla lo
      diga en vez de esconderlo. Ver maestro-cantidad-de-linea-son-unidades-no-personas. */
-  const netoDeUna = (ofs) => ofs.reduce((mx, o) => Math.max(mx, offerNet(o)), 0);
+  /* CUÁNTO VALE UN TRATO CON VARIAS ALTERNATIVAS.
+     No la suma —nadie compra los tres paquetes— y tampoco la mayor, que es el mejor caso
+     disfrazado de dato. Sebastián, 28 ago 2026: "agarrá el promedio, no la suma, ya que
+     comprarían uno no los tres… o incluso agarrá el recomendado".
+     En ese orden:
+       · si uno está marcado como recomendado, ese: es el que de verdad se le propuso;
+       · si no, el PROMEDIO, que es lo que se espera vender sin saber cuál elige.
+     Las propuestas web ya funcionaban así (propNet toma el tier recomendado); las ofertas
+     sueltas no tienen esa marca todavía, así que hoy casi siempre cae en el promedio — y
+     el día que la tengan, este mismo código la usa sin tocar nada. */
+  const netoDeUna = (ofs) => {
+    if (!ofs.length) return 0;
+    if (ofs.length === 1) return offerNet(ofs[0]);
+    const rec = ofs.find((o) => o && o.recommended);
+    if (rec) return offerNet(rec);
+    return ofs.reduce((a, o) => a + offerNet(o), 0) / ofs.length;
+  };
+  /* Para que la pantalla pueda decir CUÁL de las dos reglas se usó. Un promedio sin
+     etiquetar se lee como un precio, y no lo es. */
+  const comoSeContó = (ofs) => ofs.length < 2 ? null : (ofs.some((o) => o && o.recommended) ? 'rec' : 'prom');
   const dealValueInfo = (d) => {
     const ofs = offersForDeal(d);
     const ganadas = ofs.filter((o) => o.status === 'won');
@@ -9952,7 +9971,7 @@ const newsCases = [
     if (won) return { chf: won, deN: 0 };
     const abiertas = ofs.filter((o) => o.status === 'draft' || o.status === 'sent');
     const open = netoDeUna(abiertas) + propsSentForDeal(d);
-    if (open) return { chf: open, deN: abiertas.length };
+    if (open) return { chf: open, deN: abiertas.length, como: comoSeContó(abiertas) };
     return { chf: Number(d.deal_value) || 0, deN: 0 };
   };
   const dealValue = (d) => dealValueInfo(d).chf;
@@ -9963,7 +9982,7 @@ const newsCases = [
   const dealLostValueInfo = (d) => {
     const ofs = offersForDeal(d).filter((o) => o.status !== 'tier');
     const chf = netoDeUna(ofs);
-    return chf ? { chf, deN: ofs.length } : { chf: Number(d.deal_value) || 0, deN: 0 };
+    return chf ? { chf, deN: ofs.length, como: comoSeContó(ofs) } : { chf: Number(d.deal_value) || 0, deN: 0 };
   };
   const dealLostValue = (d) => dealLostValueInfo(d).chf;
   const dealsLostValue = (ds) => ds.reduce((a, d) => a + dealLostValue(d), 0);
@@ -10459,7 +10478,11 @@ const newsCases = [
         '<td>' + esc(co || '—') + (r.name || r.first_name ? '<div class="lt-sub">' + esc(r.name || r.first_name) + '</div>' : '') + '</td>' +
         '<td><span class="lt-pill" style="color:' + s.color + ';background:color-mix(in srgb,' + s.color + ' 14%,transparent);border-color:color-mix(in srgb,' + s.color + ' 40%,transparent)">' + s.label + '</span></td>' +
         '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') +
-          (vi.deN > 1 ? '<div class="lt-sub" title="Son paquetes alternativos del mismo trabajo: el cliente elige uno. Se cuenta el mayor.">de ' + vi.deN + ' paquetes</div>' : '') + '</td>' +
+          (vi.deN > 1
+            ? '<div class="lt-sub" title="Son paquetes alternativos del mismo trabajo: el cliente elige UNO. ' +
+                (vi.como === 'rec' ? 'Se cuenta el que está marcado como recomendado.' : 'Ninguno está marcado como recomendado, así que se cuenta el promedio de los ' + vi.deN + '.') + '">' +
+              (vi.como === 'rec' ? 'el recomendado de ' + vi.deN : 'promedio de ' + vi.deN + ' paquetes') + '</div>'
+            : '') + '</td>' +
         '<td>' + dealDaysChip(days) + '</td>' +
         '<td class="lt-act">' + dealNextStep(d, false) + '</td>' +
         '<td class="lt-act">' + esc(actLabel(lastActivity(r))) + '</td></tr>';

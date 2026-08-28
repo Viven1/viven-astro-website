@@ -25,7 +25,7 @@ const trozo = (marca, fin) => {
 const codigo = [
   "const esOpt = (it) => !!(it && it.opcional);",
   src.slice(src.indexOf('  const offerNet = (o) =>'), src.indexOf('\n', src.indexOf('  const offerNet = (o) =>'))),
-  trozo('  const netoDeUna = (ofs)', 'const dealValue = (d) => dealValueInfo(d).chf;'),
+  trozo('  /* CUÁNTO VALE UN TRATO CON VARIAS ALTERNATIVAS.', 'const dealValue = (d) => dealValueInfo(d).chf;'),
   trozo('  const dealLostValueInfo = (d)', 'const dealLostValue = (d) => dealLostValueInfo(d).chf;'),
 ].join('\n');
 
@@ -33,17 +33,21 @@ const codigo = [
 const paquete = (neto, status) => ({ status, discount_pct: 0, items: [{ qty: 1, price: neto }] });
 const GEISTLICH = [paquete(27130, 'lost'), paquete(17520, 'lost'), paquete(6294, 'lost')];
 
+/* 27130 + 17520 + 6294 = 50944 → promedio 16981,33 */
 const casos = [
-  { t: 'tres paquetes perdidos = el mayor, no la suma',
-    ofs: GEISTLICH, perdido: true, esperado: 27130, deN: 3 },
-  { t: 'tres paquetes mandados = el mayor',
-    ofs: GEISTLICH.map((o) => ({ ...o, status: 'sent' })), perdido: false, esperado: 27130, deN: 3 },
+  { t: 'tres paquetes perdidos = el PROMEDIO, ni la suma ni el mayor',
+    ofs: GEISTLICH, perdido: true, esperado: 16981, deN: 3, como: 'prom' },
+  { t: 'tres paquetes mandados = el promedio',
+    ofs: GEISTLICH.map((o) => ({ ...o, status: 'sent' })), perdido: false, esperado: 16981, deN: 3, como: 'prom' },
+  { t: 'si uno está marcado recomendado, gana ese (no el promedio)',
+    ofs: [paquete(27130, 'sent'), { ...paquete(17520, 'sent'), recommended: true }, paquete(6294, 'sent')],
+    perdido: false, esperado: 17520, deN: 3, como: 'rec' },
   { t: 'una sola oferta = su valor, sin etiqueta rara',
-    ofs: [paquete(9000, 'sent')], perdido: false, esperado: 9000, deN: 1 },
+    ofs: [paquete(9000, 'sent')], perdido: false, esperado: 9000, deN: 1, como: null },
   { t: 'dos GANADAS sí se suman (upsell de verdad)',
-    ofs: [paquete(9000, 'won'), paquete(3000, 'won')], perdido: false, esperado: 12000, deN: 0 },
+    ofs: [paquete(9000, 'won'), paquete(3000, 'won')], perdido: false, esperado: 12000, deN: 0, como: undefined },
   { t: 'sin ofertas: cae al valor cargado a mano',
-    ofs: [], perdido: false, esperado: 5000, deN: 0 },
+    ofs: [], perdido: false, esperado: 5000, deN: 0, como: undefined },
 ];
 
 let fallos = 0;
@@ -53,11 +57,12 @@ for (const c of casos) {
   const api = fn(() => c.ofs, () => 0, () => 0);
   const d = { id: 1, lead_id: 1, deal_value: 5000 };
   const r = c.perdido ? api.dealLostValueInfo(d) : api.dealValueInfo(d);
-  if (Math.round(r.chf) !== c.esperado || r.deN !== c.deN) {
-    console.error(`✗ ${c.t}\n    dio CHF ${Math.round(r.chf)} (de ${r.deN}) · esperaba ${c.esperado} (de ${c.deN})`);
+  const comoOk = c.como === undefined ? true : (r.como ?? null) === c.como;
+  if (Math.round(r.chf) !== c.esperado || r.deN !== c.deN || !comoOk) {
+    console.error(`✗ ${c.t}\n    dio CHF ${Math.round(r.chf)} (de ${r.deN}, ${r.como ?? 'sin criterio'}) · esperaba ${c.esperado} (de ${c.deN}, ${c.como ?? 'sin criterio'})`);
     fallos++;
   }
 }
 
 if (fallos) { console.error(`\n  ${fallos} caso(s) mal. Sumar alternativas dobla la plata en pantalla.\n`); process.exit(1); }
-console.log(`✓ valor del deal: un negocio vale una oferta (${casos.length} casos)`);
+console.log(`✓ valor del deal: un trato vale UNA oferta: el recomendado, o el promedio (${casos.length} casos)`);
