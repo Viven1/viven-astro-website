@@ -6951,21 +6951,26 @@ const newsCases = [
     // en el FilterBuilder que devuelve .select(). Llamarlos antes tiraba un TypeError
     // sincrónico que async convertía en promesa rechazada, sin catch en loadAll() →
     // Promise.all entero colgado para siempre, sin error visible.
-    const { count, error: countErr } = await supabase.from(table).select(cols, { count: 'exact', head: true })
-      .gte(dateCol, sinceIso).lte(dateCol, untilIso);
-    if (countErr) return { data: null, error: countErr };
-    const total = Math.min(count || 0, 200000); // mismo salvavidas de siempre
-    if (!total) return { data: [], error: null };
+    /* El conteo viene en el Content-Range de la primera página: no hace falta una
+       consulta aparte con head:true. Ver la nota larga en fetchAllRowsFull. */
+    const primera = await supabase.from(table).select(cols, { count: 'exact' })
+      .gte(dateCol, sinceIso).lte(dateCol, untilIso)
+      .order(dateCol, { ascending: true })
+      .range(0, PAGE - 1);
+    if (primera.error) return { data: null, error: primera.error };
+    const total = Math.min(primera.count || 0, 200000); // mismo salvavidas de siempre
+    const filas = primera.data || [];
+    if (total <= filas.length) return { data: filas, error: null };
     const pages = Math.ceil(total / PAGE);
-    const results = await Promise.all(Array.from({ length: pages }, (_, i) =>
+    const resto = await Promise.all(Array.from({ length: pages - 1 }, (_, i) =>
       supabase.from(table).select(cols)
         .gte(dateCol, sinceIso).lte(dateCol, untilIso)
         .order(dateCol, { ascending: true })
-        .range(i * PAGE, i * PAGE + PAGE - 1)
+        .range((i + 1) * PAGE, (i + 2) * PAGE - 1)
     ));
-    const err = results.find((r) => r.error);
+    const err = resto.find((r) => r.error);
     if (err) return { data: null, error: err.error };
-    return { data: results.flatMap((r) => r.data || []), error: null };
+    return { data: filas.concat(resto.flatMap((r) => r.data || [])), error: null };
   }
 
   /* Igual que fetchAllRows pero para tablas SIN ventana de fechas (leads, notas,
@@ -6975,16 +6980,31 @@ const newsCases = [
      declara incompleto es peor que no mostrarlo. */
   async function fetchAllRowsFull(table, cols, orderCol){
     const PAGE = 1000;
-    const { count, error: countErr } = await supabase.from(table).select(cols, { count: 'exact', head: true });
-    if (countErr) return { data: null, error: countErr };
-    const total = Math.min(count || 0, 200000);   // mismo salvavidas que fetchAllRows
-    if (!total) return { data: [], error: null, total: 0 };
+    /* UN VIAJE, NO DOS. Antes preguntaba el total con un `head:true` y recién después
+       pedía la primera página: dos idas y vueltas por tabla, y son cinco tablas en cada
+       carga y en cada refresco. PostgREST devuelve el total en el Content-Range de la
+       misma consulta que trae los datos, así que la primera página ya viene con el conteo.
+       Las cinco entran holgadas en una página (leads 205, deals 204, offers 63, proposals
+       16, companies 13), así que en la práctica son 5 viajes menos por carga. En el set,
+       con mala señal, eso es lo que más se siente — más que los bytes.
+       La paginación sigue estando para el día que alguna pase de 1000: es el tope que ya
+       nos comió filas en leads una vez, sin avisar. */
+    const primera = await supabase.from(table)
+      .select(cols, { count: 'exact' })
+      .order(orderCol, { ascending: false })
+      .range(0, PAGE - 1);
+    if (primera.error) return { data: null, error: primera.error };
+    const total = Math.min(primera.count || 0, 200000);
+    const filas = primera.data || [];
+    if (total <= filas.length) return { data: filas, error: null, total: total || filas.length };
+
     const pages = Math.ceil(total / PAGE);
-    const results = await Promise.all(Array.from({ length: pages }, (_, i) =>
-      supabase.from(table).select(cols).order(orderCol, { ascending: false }).range(i * PAGE, i * PAGE + PAGE - 1)));
-    const err = results.find((r) => r.error);
+    const resto = await Promise.all(Array.from({ length: pages - 1 }, (_, i) =>
+      supabase.from(table).select(cols).order(orderCol, { ascending: false })
+        .range((i + 1) * PAGE, (i + 2) * PAGE - 1)));
+    const err = resto.find((r) => r.error);
     if (err) return { data: null, error: err.error };
-    return { data: results.flatMap((r) => r.data || []), error: null, total };
+    return { data: filas.concat(resto.flatMap((r) => r.data || [])), error: null, total };
   }
 
   /* Cartel de "esto no cargó" DENTRO del panel afectado. Antes, si fallaba leads o
@@ -7483,6 +7503,16 @@ const newsCases = [
       t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--acid);color:#142033;font-weight:700;font-family:Space Grotesk;padding:14px 20px;border-radius:12px;box-shadow:0 12px 40px -10px rgba(0,0,0,.6);transition:.3s;opacity:0;transform:translateY(10px)';
       document.body.appendChild(t);
     }
+    /* UN AVISO DE ERROR TAMBIÉN SE REGISTRA.
+       Los 68 `toast('⚠️ …')` del archivo son fallas que el código SÍ atrapó: la consulta se
+       cayó, el archivo no subió, el email no salió. El usuario las ve y desaparecen en seis
+       segundos; el registro de errores no las veía nunca, porque un catch que muestra un
+       aviso no dispara 'error' ni 'unhandledrejection'.
+       Se anota el texto crudo —no el humanizado— que es el que sirve para encontrar la
+       causa. Nunca rompe el aviso: si el registro falla, el toast sale igual. */
+    try {
+      if (/^\s*(⚠️|❌|🚫)/.test(String(msg))) perf('error_visto', { msg: String(msg).slice(0, 160) });
+    } catch (e){ }
     t.textContent = humanizarError(msg);
     requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'none'; });
     clearTimeout(t._h);

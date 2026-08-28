@@ -21,11 +21,11 @@ try {
     method: 'POST',
     headers: { Authorization: `Bearer ${readFileSync(TOKEN, 'utf8').trim()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: `
-      select phases->>'msg' msg, phases->>'donde' donde, phases->>'tab' tab,
+      select phases->>'kind' clase, phases->>'msg' msg, phases->>'donde' donde, phases->>'tab' tab,
              count(*) veces, max(at)::timestamp(0)::text ultima, min(at)::timestamp(0)::text primera
       from dash_perf_log
-      where phases->>'kind' = 'error' and at > now() - interval '${DIAS} days'
-      group by 1,2,3 order by max(at) desc limit 20` }),
+      where phases->>'kind' in ('error','error_visto') and at > now() - interval '${DIAS} days'
+      group by 1,2,3,4 order by max(at) desc limit 20` }),
   });
   filas = await r.json();
   if (!Array.isArray(filas)) throw new Error(JSON.stringify(filas).slice(0, 120));
@@ -39,9 +39,11 @@ if (!filas.length) { console.log(`✓ errores: ninguno en la app en los últimos
 console.error(`\n✗ la app tiró ${filas.reduce((a, f) => a + Number(f.veces), 0)} error(es) en los últimos ${DIAS} días:\n`);
 for (const f of filas) {
   const donde = [f.donde, f.tab].filter(Boolean).join(' · ') || 'sin ubicar';
-  console.error(`   ${f.msg}`);
+  console.error(`   ${f.clase === 'error_visto' ? '[lo vio en pantalla] ' : '[excepción] '}${f.msg}`);
   console.error(`      ${f.veces}× · ${donde} · última ${f.ultima}\n`);
 }
-console.error('   Un error acá ya le pasó a alguien en su pantalla. Ningún chequeo del build');
-console.error('   los ve: son de ámbito, de datos o de red, y solo existen al correr.\n');
+console.error('   [excepción] rompió la función donde pasó y dejó la pantalla a medias.');
+console.error('   [lo vio en pantalla] el código la atrapó y mostró un aviso de 6 segundos.');
+console.error('   Los dos ya le pasaron a alguien. Ningún chequeo del build los ve: son de');
+console.error('   ámbito, de datos o de red, y solo existen al correr.\n');
 process.exit(1);
