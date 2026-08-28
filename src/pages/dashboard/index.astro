@@ -6676,14 +6676,18 @@ const newsCases = [
 
   // resumen de ofertas (conversión, semanas para cerrar, margen)
   function offersSummary(){
-    if (!offersList || !offersList.length) return null;
-    const won = offersList.filter((o) => o.status === 'won'), lost = offersList.filter((o) => o.status === 'lost'), open = offersList.filter((o) => o.status === 'sent');
+    /* Sin las de prueba. Esto es lo que se le manda a la IA para que escriba las
+       conclusiones: una oferta inventada le mueve la conversión, el ticket medio y el
+       margen, y devuelve un consejo bien redactado sobre números que no pasaron. */
+    const ofs = (offersList || []).filter((o) => !esDePrueba(o));
+    if (!ofs.length) return null;
+    const won = ofs.filter((o) => o.status === 'won'), lost = ofs.filter((o) => o.status === 'lost'), open = ofs.filter((o) => o.status === 'sent');
     const dec = won.length + lost.length;
-    const margins = offersList.map(offerMarginPct).filter((m) => isFinite(m));
+    const margins = ofs.map(offerMarginPct).filter((m) => isFinite(m));
     const closeW = won.map((o) => (Date.parse(o.updated_at) - Date.parse(o.created_at)) / 6048e5).filter((d) => d >= 0);
     return {
       contexto: 'Ofertas/presupuestos de Viven (productora de video). Precio al cliente vs costo interno.',
-      ofertas_totales: offersList.length, enviadas_esperando: open.length, ganadas: won.length, perdidas: lost.length,
+      ofertas_totales: ofs.length, enviadas_esperando: open.length, ganadas: won.length, perdidas: lost.length,
       conversion_ganadas_sobre_decididas_pct: dec ? Math.round(won.length / dec * 100) : 0,
       semanas_promedio_para_cerrar: closeW.length ? +(closeW.reduce((a, b) => a + b, 0) / closeW.length).toFixed(1) : null,
       valor_ganado_neto_chf: Math.round(won.reduce((a, o) => a + offerNet(o), 0)),
@@ -9078,8 +9082,8 @@ const newsCases = [
     const gapEl = $('rm-gap') || nada, gapT = $('rm-gap-t') || nada;
     const bar = $('rm-bar'), cap = $('rm-bar-cap'), act = $('rm-action');
     // "Afuera, esperando": mismo criterio que el KPI de abajo (ofertas + propuestas enviadas)
-    const offSentR = (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent');
-    const propSentR = (ppList || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent');
+    const offSentR = (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent' && !esDePrueba(o));
+    const propSentR = (ppList || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent' && !esDePrueba(p));
     const sentN = offSentR.length + propSentR.length;
     const sentV = offSentR.reduce((a, o) => a + offerNet(o), 0) + propSentR.reduce((a, p) => a + propVal(p), 0);
     if ($('rm-sent')){

@@ -16,6 +16,20 @@ const TOKEN = `${homedir()}/.supabase-token`;
 if (!existsSync(TOKEN)) { console.log('· check-integridad: sin token, se saltea'); process.exit(0); }
 const REF = 'lumoevaotokgqnpybkyf';
 
+/** Una consulta suelta. Devuelve [] si algo falla: el detalle es un extra, y que se caiga
+    por él sería peor que no tenerlo. */
+const q = async (sql) => {
+  try {
+    const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${readFileSync(TOKEN, 'utf8').trim()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: sql }),
+    });
+    const j = await r.json();
+    return Array.isArray(j) ? j : [];
+  } catch { return []; }
+};
+
 const SQL = `
 select 'deals con lead inexistente' q, count(*) n, coalesce(sum(coalesce(deal_value,0)),0) plata
   from deals d where d.lead_id is not null and not exists (select 1 from leads l where l.id::text=d.lead_id::text)
@@ -60,5 +74,32 @@ for (const f of filas) {
   hay++;
   console.error(`⚠️  ${f.q}: ${n}${plata ? ` · CHF ${plata.toLocaleString('de-CH')} en juego` : ' · sin plata asociada'}`);
 }
-console.log(hay ? '\n· son huérfanos: no rompen nada, pero salen sin nombre en las listas'
-                : '✓ integridad: nada apunta a filas que ya no existen');
+if (!hay) {
+  console.log('✓ integridad: nada apunta a filas que ya no existen');
+} else {
+  /* CON NOMBRE, Y CON A DÓNDE VOLVER. «8 huérfanos» es un número que se lee y se ignora;
+     lo que se puede decidir es «el deal ganado de Curtis Instruments perdió a su persona,
+     y hay una que se llama igual». Un borrado a propósito no se repone solo —una fila que
+     la fuente ya no tiene es una pregunta, no un hueco— así que esto propone, no arregla. */
+  const sueltos = await q(`
+    select d.title, d.stage, d.lead_id,
+      (select string_agg('#' || l.id || ' ' || coalesce(l.company, l.name, l.email), ', ')
+         from leads l
+        where d.title is not null and length(d.title) > 3
+          and (l.company ilike '%' || split_part(d.title, ' ', 1) || '%'
+            or l.name    ilike '%' || split_part(d.title, ' ', 1) || '%')) parecido
+    from deals d
+    where d.lead_id is not null
+      and not exists (select 1 from leads l where l.id::text = d.lead_id::text)
+    order by d.stage <> 'ganado', d.created_at`);
+  if (Array.isArray(sueltos) && sueltos.length) {
+    console.error('\n   deals sin persona:');
+    for (const d of sueltos) {
+      const quien = d.parecido ? `→ ¿es ${d.parecido}?` : '→ no hay ninguna persona parecida';
+      console.error(`   · ${(d.title || '(sin título)').padEnd(32)} ${String(d.stage).padEnd(11)} ${quien}`);
+    }
+    console.error('\n   Los «ganado» son los que importan: un deal ganado sin persona no sale en');
+    console.error('   ninguna lista y su plata no se puede reclamar. Repuntarlos o borrarlos es');
+    console.error('   una decisión de Sebastián, no del script.');
+  }
+}
