@@ -77,5 +77,28 @@ if (!existsSync(OUT)) {
   if (fantasma.length) mal('El JS los busca y no existen ni se crean', fantasma);
 }
 
-if (!fallos) console.log('✓ dashboard: sin llamadas huérfanas, sin ids repetidos, sin ids fantasma');
+
+/* NINGÚN CAMPO DE PLATA EN type="number".
+   Sebastián cargó 9.531 —nueve mil quinientos treinta y uno, a la europea— y el input lo
+   leyó como nueve francos con medio. Sin error y sin verse: la proyección de liquidez quedó
+   calculando la empresa con CHF 750 de costos fijos al mes. `type=number` lee el punto como
+   decimal SIEMPRE, y encima no deja escribir el apóstrofo suizo.
+   Van en type="text" inputmode="decimal" y se leen con numCHF(). */
+{
+  const DINERO = /chf|precio|price|cost|monto|amount|tarifa|budget|presupuesto|valor|honorar|sueldo|saldo|principal|cuota/i;
+  const EXENTO = /%|pct|porcentaje|vat|iva|dias|days|qty|cantidad|width|height|step="0\.1"/i;
+  const malos = [];
+  src.split('\n').forEach((l, i) => {
+    for (const inp of l.match(/<input[^>]*type=["']number["'][^>]*>/g) || []) {
+      const ctx = l.slice(Math.max(0, l.indexOf(inp) - 90), l.indexOf(inp)) + inp;
+      if (!DINERO.test(ctx) || EXENTO.test(inp)) continue;
+      const id = (inp.match(/id=["']([^"']+)/) || [])[1] || (inp.match(/data-f=["']([^"']+)/) || [])[1]
+        || (inp.match(/class=["']([^"']+)/) || [])[1] || '?';
+      malos.push(`linea ${i + 1}: ${id}`);
+    }
+  });
+  if (malos.length) mal('Campos de plata en type="number" — van type="text" inputmode="decimal" + numCHF()', malos);
+}
+
+if (!fallos) console.log('✓ dashboard: sin llamadas huérfanas, sin ids repetidos, sin ids fantasma, sin plata en type=number');
 process.exit(fallos ? 1 : 0);
