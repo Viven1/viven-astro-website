@@ -178,6 +178,9 @@ const newsCases = [
   .bell-empty{padding:26px 15px;text-align:center;color:var(--muted);font-size:13px}
   @media(max-width:560px){.bell-panel{position:fixed;top:60px;left:16px;right:16px;width:auto;max-width:none}}
   .dash-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+  /* Estaba EN LÍNEA en el div, y un estilo en línea le gana a toda media query: el
+     `gap:7px` de la versión móvil no se aplicaba nunca. Acá sí. */
+  .dash-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   /* marca clickable (misma gramática que .bk-logo/.bk-fp del booking: wordmark + label chico
      debajo) — pedido explícito: "pone mejor el logo y que eso nos lleve al home" */
   .dash-brand{display:flex;flex-direction:column;align-items:flex-start;gap:0;background:none;border:0;padding:0;cursor:pointer;font-family:inherit;text-align:left;border-radius:6px}
@@ -2613,6 +2616,19 @@ const newsCases = [
   .hm-sub .count{text-transform:none;letter-spacing:0}
   .hm-item .hm-acts{flex:none;display:flex;gap:6px;align-items:center;padding-left:10px}
   @media(max-width:560px){
+    /* EN EL TELÉFONO, «SALIR» QUEDABA FUERA DE LA PANTALLA.
+       A 375px los seis botones del encabezado terminaban en 398px: la campana, el
+       actualizar y el salir no se podían tocar. Y si los avisos están apagados aparece
+       «🔕 Sin avisos», 99px más, y se caen tres.
+       Dos causas encimadas: el `gap:10px` estaba EN LÍNEA en el div —y un estilo en línea
+       le gana a toda media query, así que el `gap:7px` de la versión móvil no se aplicaba
+       nunca— y el bloque de ≤820px, que va DESPUÉS en el archivo, le pisaba el
+       `flex-wrap:wrap` al de ≤560px con un !important. La regla más angosta perdía contra
+       la más ancha por orden, que es al revés de lo que uno espera al leerlo.
+       Acá van juntas y al final, que es donde ganan. Con esto los seis entran en su propio
+       renglón y terminan en 285. (Medido en el DOM real a 375px, 28 ago 2026.) */
+    .dash-head{flex-wrap:wrap!important}
+    .dash-actions{gap:7px!important;flex-wrap:wrap!important;flex:1 1 100%;justify-content:flex-start}
     .hm-item .hm-acts .btn{padding:6px 9px;font-size:11.5px}
   }
   .hm-item .hm-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-left:10px}
@@ -2858,7 +2874,7 @@ const newsCases = [
       <button class="dash-brand" id="dash-brand-btn" type="button" title="Ir a Hoy"><svg class="logo-mark" aria-label="Viven"><use href="#viven-logo"/></svg><span class="db-sub">Dashboard</span></button>
       <p class="dash-sub" id="updated-at">Últimos 30 días</p>
     </div>
-    <div class="dash-actions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div class="dash-actions">
       <!-- Búsqueda global ⌘K: pastilla-affordance (abre el command palette al click) -->
       <button class="vv-search" id="vv-search-btn" type="button" title="Buscar persona, empresa, oferta… (⌘K)" aria-label="Buscar">
         <span class="vv-search-ic">🔍</span><span class="vv-search-t">Buscar…</span><kbd class="vv-kbd">⌘K</kbd>
