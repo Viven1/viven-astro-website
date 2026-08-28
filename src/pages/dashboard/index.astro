@@ -8512,6 +8512,38 @@ const newsCases = [
         go: () => { gotoTab('projects'); abrirProyectoPorRef(r.p.ref || r.p.id); } });
     });
 
+    /* (c ter) EL PAPEL DICE PERDIDO Y EL DEAL NO.
+       Sebastián, 28 ago 2026: "¿por qué no muestra en ningún lado deals perdidos?".
+       No los escondía: no estaban marcados. Cinco clientes tenían la oferta o la propuesta
+       en «perdida» y solo dos tenían el deal cerrado — Agepa seguía en «contactado» con
+       tres ofertas perdidas encima.
+       Eso no es un detalle de prolijidad: el win rate se calcula con la ETAPA DEL DEAL, así
+       que cada pérdida sin marcar lo infla. Con 1 ganado y 2 perdidos daba 33%; con los 6
+       perdidos reales da 14%. Un número que se mira para decidir precios.
+       El aviso trae el botón: cerrarlo es un toque, y si no se puede cerrar de un toque no
+       se cierra nunca. */
+    (dealsList || []).forEach((d) => {
+      const et = stageOf(d.stage);
+      if (et === 'perdido' || et === 'ganado' || esDePrueba(d)) return;
+      const ofs = offersForDeal(d).filter((o) => o.status !== 'tier' && !o.archived && !o.is_template);
+      const pps = (propsAll || []).filter((p) => !p.archived && !p.is_template &&
+        String(p.lead_id || '') === String(d.lead_id));
+      const papeles = ofs.concat(pps);
+      if (!papeles.length) return;
+      if (!papeles.every((x) => x.status === 'lost')) return;
+      const r = leadById(d.lead_id) || {};
+      const quien = r.company || r.name || r.email || d.title || 'este deal';
+      const cuantos = papeles.length;
+      items.push({ rank: -1, sev: 'ambar', icon: '📕', at: now, chf: 0,
+        t: quien + ' — ' + (cuantos === 1 ? 'su oferta está perdida' : 'sus ' + cuantos + ' ofertas están perdidas') + ' y el deal sigue en «' + (STAGES.find((x) => x.key === et) || {}).label + '»',
+        ctx: 'El win rate se calcula con la etapa del deal, así que mientras no se cierre cuenta como si siguiera vivo.',
+        acts: [{ label: '📕 Cerrar como perdido', cls: 'btn-ghost',
+                 title: 'Marca el deal como perdido; te va a pedir el motivo',
+                 fn: async (b) => { b.disabled = true; await setDealStage(d.id, 'perdido'); renderHome(); } }],
+        hint: 'Abrir el deal →',
+        go: () => { gotoTab('deals'); openLead(d.lead_id); } });
+    });
+
     /* (d bis) ESCRIBIERON A info@ Y NO ESTÁN EN EL CRM (SQL 0144).
        Va en la misma lista y no en un panel propio: una consulta que entró hoy y
        nadie contestó es exactamente "lo que hay que hacer hoy", y meterla en otra
@@ -10057,7 +10089,17 @@ const newsCases = [
     const lead = leadById(d.lead_id);
     if (stage === 'perdido') {
       // solo las ofertas de ESTE deal (los otros proyectos de la persona no se tocan)
-      for (const o of offersForDeal(d).filter((x) => x.status !== 'won' && x.status !== 'lost')) {
+      /* LAS «tier» NO SE TOCAN. Una propuesta con tres paquetes crea tres ofertas con
+         estado `tier` —son la MISMA plata, existen para poder editarlas— y todo el
+         cálculo las excluye justamente por eso. Al perder el deal, esto las pasaba a
+         `lost` junto con las demás: dejaban de ser paquetes y entraban a la cuenta como
+         tres ofertas distintas.
+         Así, el «perdido» de Geistlich Pharma decía CHF 50.944 por un trabajo que valía
+         27.130, y el total mostraba 135.450 donde lo real es la mitad. La propuesta ya
+         lleva su propio estado; sus paquetes no necesitan uno.
+         (Sebastián, 28 ago 2026: "la propuesta crea tres ofertas, esas son las mismas, es
+         para poder editarlas".) */
+      for (const o of offersForDeal(d).filter((x) => x.status !== 'won' && x.status !== 'lost' && x.status !== 'tier')) {
         const r2 = await supabase.from('offers').update({ status: 'lost', lost_reason: lostReason || null }).eq('id', o.id);
         if (r2.error && /lost_reason/.test(r2.error.message || '')) await supabase.from('offers').update({ status: 'lost' }).eq('id', o.id);
         o.status = 'lost'; o.lost_reason = lostReason || null;
