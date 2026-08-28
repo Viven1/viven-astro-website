@@ -67,6 +67,14 @@ jobs:
           # desde GitHub y desde una máquina den exactamente lo mismo.
           wranglerVersion: "4.123.0"
 
+      # Qué versión quedó con el tráfico. Sin esto no hay forma de ver desde
+      # Actions que se subió una versión nueva y sigue sirviendo una vieja.
+      - name: Qué versión está sirviendo
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler@4.123.0 deployments list --name viven-astro-website | tail -30
+
       # Verificar, no suponer. Un deploy "exitoso" que devuelve 404 en la home
       # ya pasó; el paso falla y queda registrado en Actions en vez de descubrirse
       # tres días después en Search Console.
@@ -78,6 +86,32 @@ jobs:
             echo "$code  $u"
             [ "$code" = "200" ] || exit 1
           done
+
+      # ── Y QUE SEA EL CÓDIGO QUE ACABA DE COMPILAR ──
+      #
+      # 28 ago 2026: doce horas de deploys en verde y producción servía un build
+      # del 22. Wrangler decía "Uploaded 3 files", el paso de arriba decía 200 en
+      # las cuatro URLs, y el archivo recién subido daba 404 al pedirlo por su
+      # nombre. Un 200 sobre el build viejo se ve idéntico a un 200 sobre el nuevo.
+      #
+      # Esto compara el hash del bundle que Astro acaba de generar contra el que
+      # pide el HTML servido. Es la única comprobación que distingue "publicado"
+      # de "publicado hace seis días". Reintenta por la propagación del CDN.
+      - name: Comprobar que lo servido ES lo que se compiló
+        run: |
+          esperado=$(grep -o '_astro/index\.astro_astro_type_script[^"]*\.js' dist/dashboard/index.html | head -1)
+          if [ -z "$esperado" ]; then echo "no pude leer el bundle del build local"; exit 1; fi
+          echo "esperado: $esperado"
+          for i in 1 2 3 4 5 6; do
+            servido=$(curl -s -m 25 "https://www.viven.ch/dashboard/?cb=$(date +%s%N)" | grep -o '_astro/index\.astro_astro_type_script[^"]*\.js' | head -1)
+            echo "  intento $i · servido: ${servido:-(nada)}"
+            [ "$servido" = "$esperado" ] && echo "✓ producción sirve el build de este commit" && exit 0
+            sleep 15
+          done
+          echo "✗ producción sigue sirviendo otro build: '$servido' en vez de '$esperado'"
+          echo "  El deploy subió los archivos pero el tráfico va a otra versión."
+          echo "  Mirar el paso «Qué versión está sirviendo» de acá arriba."
+          exit 1
 
       # Avisarle a Bing en CADA deploy, no cuando alguien se acuerda. Google se
       # entera solo (cron diario que reenvía el sitemap); Bing no tiene forma de

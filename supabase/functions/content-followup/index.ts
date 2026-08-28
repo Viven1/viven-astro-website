@@ -185,6 +185,8 @@ async function testSend(email: string, category: string): Promise<Response> {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+        /* El mismo remitente que el envío real de la secuencia: un preview que sale de
+           otra dirección prueba otra cosa. */
         body: JSON.stringify({ from: "VIVEN AG <info@viven.ch>", to: [email], subject, html: wrapEmail(bodyHtml) }),
       });
       sent.push({ step: i + 1, lang: lg, ok: res.ok });
@@ -266,6 +268,12 @@ Deno.serve(async (req) => {
         const cuando = new Date(Math.max(enrolledAt + STEP_DAYS[i] * D, Date.now()));
         const { data: ins, error } = await service.from("outbox").insert({
           lead_id: st.lead_id, kind: "content_followup", category: st.category, step,
+          /* La secuencia automática sale de info@, y está bien: no la escribe nadie.
+             Sebastián, 28 ago 2026: "los aprobados de calculator cost sí salen de info@;
+             solo cuando Sofía manda algo ella tiene que poder mandar del suyo".
+             O sea que el remitente lo decide QUIÉN MANDA, no de qué cola salió: este
+             "team" es solo el valor por defecto del borrador, y el desplegable «Sale de»
+             del dashboard viene con la persona que está logueada. */
           sender: "team", subject, body, status: "pending",
           scheduled_at: cuando.toISOString(),
         }).select("id").maybeSingle();

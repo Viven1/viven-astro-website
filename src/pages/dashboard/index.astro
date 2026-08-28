@@ -1,8 +1,20 @@
 ---
+import { readFileSync } from 'node:fs';
 /* Dónde vive cada formulario de PDF. Se calcula en el BUILD leyendo las páginas, no
    a mano: si mañana el magnet se embebe en otra página, el denominador del panel de
    lead magnets se actualiza solo. Sin esto no hay "sesiones" para los PDF, porque el
    formulario no tiene una landing propia — está embebido en decenas de páginas. */
+/* LA VERSIÓN, ESCRITA EN LA PANTALLA.
+   Sebastián, 28 ago 2026: "escribí la versión en el dashboard así sabemos por cuál vamos".
+   Lo pidió el mismo día en que descubrimos que producción venía sirviendo un build de
+   hacía seis días mientras cada deploy decía "success": no había forma de mirar la
+   pantalla y saber qué código estabas viendo, ni de comparar la suya con la de Sofía.
+   Se lee del sw.js en tiempo de build —el mismo archivo que define la caché— así que no
+   hay un segundo número que pueda quedar desfasado. */
+const _sw = readFileSync('public/dashboard-sw.js', 'utf8');
+const DASH_VER = 'v' + ((_sw.match(/viven-crm-v(\d+)/) || [])[1] || '?');
+const DASH_VER_NOTA = ((_sw.match(/\/\/\s*v\d+:\s*(.+)/) || [])[1] || '').trim();
+
 const _paginas = import.meta.glob('/src/pages/**/*.astro', { query: '?raw', import: 'default', eager: true });
 const _magnetPaths = {};
 for (const [archivo, fuente] of Object.entries(_paginas)) {
@@ -2010,6 +2022,10 @@ const newsCases = [
      que no existe. Violeta a propósito — verde, rojo y ámbar ya significan un estado del
      negocio, y «esto es de mentira» no es un estado del negocio sino una etiqueta sobre el dato.
      (Sebastián, 28 ago 2026: "un chip para las pruebas alcanza".) */
+  /* La versión: discreta pero siempre visible, también en el teléfono —donde .dash-sub se
+     esconde—, porque es justo ahí donde hace falta comparar la pantalla de uno con la del
+     otro. Tabular para que dos números se comparen de un vistazo. */
+  .dash-ver{color:var(--muted-2);font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.04em;margin-top:2px;cursor:default}
   .chip-prueba{display:inline-block;border:1px solid var(--falso);color:var(--falso);
     background:color-mix(in srgb, var(--falso) 15%, transparent);border-radius:999px;
     padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -2877,6 +2893,7 @@ const newsCases = [
     <div>
       <button class="dash-brand" id="dash-brand-btn" type="button" title="Ir a Hoy"><svg class="logo-mark" aria-label="Viven"><use href="#viven-logo"/></svg><span class="db-sub">Dashboard</span></button>
       <p class="dash-sub" id="updated-at">Últimos 30 días</p>
+      <p class="dash-ver" id="dash-ver" title={DASH_VER_NOTA ? DASH_VER + ' — ' + DASH_VER_NOTA : DASH_VER}>{DASH_VER}</p>
     </div>
     <div class="dash-actions">
       <!-- Búsqueda global ⌘K: pastilla-affordance (abre el command palette al click) -->
@@ -9881,7 +9898,19 @@ const newsCases = [
   };
   const leadsValue = (leads) => leads.reduce((a, l) => a + leadValue(l), 0);
   // valor PERDIDO: lo que estaba sobre la mesa cuando se perdió (ofertas incl. perdidas, o estimado)
-  const leadLostValue = (l) => offersForLead(l.id).filter((o) => o.status !== 'tier').reduce((b, o) => b + offerNet(o), 0) || Number(l.deal_value) || 0;
+  /* Por PERSONA se suman los tratos, pero dentro de cada uno vale una sola oferta. Una
+     empresa puede haber perdido dos trabajos distintos; lo que no puede es haber perdido
+     los tres paquetes del mismo trabajo. */
+  const leadLostValue = (l) => {
+    const ofs = offersForLead(l.id).filter((o) => o.status !== 'tier');
+    const porDeal = new Map();
+    for (const o of ofs){
+      const k = o.deal_id ? 'd' + o.deal_id : 'l' + l.id;
+      porDeal.set(k, Math.max(porDeal.get(k) || 0, offerNet(o)));
+    }
+    const chf = [...porDeal.values()].reduce((a, b) => a + b, 0);
+    return chf || Number(l.deal_value) || 0;
+  };
   const leadsLostValue = (leads) => leads.reduce((a, l) => a + leadLostValue(l), 0);
   const fmtChf = (n) => n ? 'CHF ' + Math.round(n).toLocaleString('de-CH') : '—';
 
@@ -9904,16 +9933,39 @@ const newsCases = [
       o.deal_id ? String(o.deal_id) === String(d.id)
                 : (o.lead_id && String(o.lead_id) === String(d.lead_id) && first && String(first.id) === String(d.id))));
   };
-  // misma REGLA DE VALOR ÚNICA, por deal
-  const dealValue = (d) => {
+  /* ── TRES PAQUETES NO SON TRES VENTAS ──
+     Al 28 ago 2026, tres clientes tenían tres ofertas cada uno —Lite / Plus / Premium,
+     Essentials / Professional / Scaling— y el pipeline las SUMABA. Geistlich Pharma
+     figuraba con CHF 50.944 perdidos por un trabajo que como mucho valía 27.130. El total
+     de «perdido» decía 135.450 donde lo honesto son ~68.000: exactamente el doble.
+     Son alternativas: el cliente elige UNA. Ninguna tiene deal_id, así que el código las
+     colgaba todas del mismo negocio y las sumaba.
+     La regla: un negocio vale UNA oferta. Ganadas sí se suman —dos ganadas en el mismo
+     trato son un upsell de verdad—; entre alternativas se cuenta la mayor, que es el techo
+     y no el resultado. Es un supuesto, y por eso `deN` lo devuelve para que la pantalla lo
+     diga en vez de esconderlo. Ver maestro-cantidad-de-linea-son-unidades-no-personas. */
+  const netoDeUna = (ofs) => ofs.reduce((mx, o) => Math.max(mx, offerNet(o)), 0);
+  const dealValueInfo = (d) => {
     const ofs = offersForDeal(d);
-    const won = ofs.filter((o) => o.status === 'won').reduce((b, o) => b + offerNet(o), 0) + propsWonForDeal(d);
-    if (won) return won;
-    const open = ofs.filter((o) => o.status === 'draft' || o.status === 'sent').reduce((b, o) => b + offerNet(o), 0) + propsSentForDeal(d);
-    return open || Number(d.deal_value) || 0;
+    const ganadas = ofs.filter((o) => o.status === 'won');
+    const won = ganadas.reduce((b, o) => b + offerNet(o), 0) + propsWonForDeal(d);
+    if (won) return { chf: won, deN: 0 };
+    const abiertas = ofs.filter((o) => o.status === 'draft' || o.status === 'sent');
+    const open = netoDeUna(abiertas) + propsSentForDeal(d);
+    if (open) return { chf: open, deN: abiertas.length };
+    return { chf: Number(d.deal_value) || 0, deN: 0 };
   };
+  const dealValue = (d) => dealValueInfo(d).chf;
   const dealsValue = (ds) => ds.reduce((a, d) => a + dealValue(d), 0);
-  const dealLostValue = (d) => offersForDeal(d).filter((o) => o.status !== 'tier').reduce((b, o) => b + offerNet(o), 0) || Number(d.deal_value) || 0;
+  /* Perdido: la misma regla. Sumar las tres alternativas de un trato perdido decía que se
+     perdieron 50.944 donde el trabajo valía 27.130. Se cuenta la mayor: es el techo de lo
+     que se podría haber vendido, no la suma de mundos paralelos. */
+  const dealLostValueInfo = (d) => {
+    const ofs = offersForDeal(d).filter((o) => o.status !== 'tier');
+    const chf = netoDeUna(ofs);
+    return chf ? { chf, deN: ofs.length } : { chf: Number(d.deal_value) || 0, deN: 0 };
+  };
+  const dealLostValue = (d) => dealLostValueInfo(d).chf;
   const dealsLostValue = (ds) => ds.reduce((a, d) => a + dealLostValue(d), 0);
   async function mirrorLeadStatus(lid){
     const lead = leadById(lid); const top = latestDealOf(lid);
@@ -10374,7 +10426,12 @@ const newsCases = [
     if (dlStuck) ds = ds.filter((d) => DL_OPEN.includes(stageOf(d.stage)) && dealStageDays(d) > 14);
     if (dlListStage === 'open') ds = ds.filter((d) => DL_OPEN.includes(stageOf(d.stage)));
     else if (dlListStage === 'ganado' || dlListStage === 'perdido' || dlListStage === 'seguimiento_futuro') ds = ds.filter((d) => stageOf(d.stage) === dlListStage);
-    const rowVal = (d) => stageOf(d.stage) === 'perdido' ? dealLostValue(d) : dealValue(d);
+    /* Con el supuesto a la vista: cuando el número sale de VARIAS ofertas alternativas
+       —los paquetes Lite/Plus/Premium del mismo trato— la celda lo dice. Antes se sumaban
+       las tres y el total mentía al doble; ahora se cuenta la mayor, que es un techo, y
+       decirlo es la diferencia entre una estimación y un dato. */
+    const rowValInfo = (d) => stageOf(d.stage) === 'perdido' ? dealLostValueInfo(d) : dealValueInfo(d);
+    const rowVal = (d) => rowValInfo(d).chf;
     const CMP = {
       value: (a, b) => rowVal(b) - rowVal(a),
       days: (a, b) => dealStageDays(b) - dealStageDays(a),
@@ -10389,7 +10446,8 @@ const newsCases = [
     const body = ds.map((d) => {
       const r = leadById(d.lead_id) || {};
       const s = STAGES.find((x) => x.key === stageOf(d.stage)) || STAGES[0];
-      const val = rowVal(d);
+      const vi = rowValInfo(d);
+      const val = vi.chf;
       const days = dealStageDays(d);
       const dom = leadDomain(r);
       const co = (dom && companyName(dom)) || r.company || '';
@@ -10400,7 +10458,8 @@ const newsCases = [
         '<td><div class="lt-name">' + esc(dealName) + '</div>' + (stageOf(d.stage) === 'perdido' && (d.lost_reason || r.lost_reason) ? '<div class="lt-sub">✕ ' + esc(d.lost_reason || r.lost_reason) + '</div>' : '') + '</td>' +
         '<td>' + esc(co || '—') + (r.name || r.first_name ? '<div class="lt-sub">' + esc(r.name || r.first_name) + '</div>' : '') + '</td>' +
         '<td><span class="lt-pill" style="color:' + s.color + ';background:color-mix(in srgb,' + s.color + ' 14%,transparent);border-color:color-mix(in srgb,' + s.color + ' 40%,transparent)">' + s.label + '</span></td>' +
-        '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') + '</td>' +
+        '<td class="lt-val">' + (val ? fmtChf(val) : '<span class="lt-num">—</span>') +
+          (vi.deN > 1 ? '<div class="lt-sub" title="Son paquetes alternativos del mismo trabajo: el cliente elige uno. Se cuenta el mayor.">de ' + vi.deN + ' paquetes</div>' : '') + '</td>' +
         '<td>' + dealDaysChip(days) + '</td>' +
         '<td class="lt-act">' + dealNextStep(d, false) + '</td>' +
         '<td class="lt-act">' + esc(actLabel(lastActivity(r))) + '</td></tr>';
@@ -10996,6 +11055,17 @@ const newsCases = [
     sebastian: { name: 'Sebastian Cepeda', book: 'https://www.viven.ch/book/sebastian', email: 'sebastian@viven.ch' },
   };
   let sender = localStorage.getItem('viven_sender') || 'sofia';
+  /* QUIÉN ESTÁ MANDANDO. Sale de la SESIÓN, no de una preferencia guardada: Sofía y
+     Sebastián usan cada uno la suya, y `viven_sender` es una elección vieja que puede
+     estar de cualquier manera en el navegador de cada uno.
+     (Sebastián, 28 ago 2026: "solo cuando Sofía manda algo, ella tiene que poder mandar
+     del suyo, no de info@".) */
+  const yoClave = () => {
+    const e = String(meEmail || '').toLowerCase();
+    if (e.startsWith('sofia@')) return 'sofia';
+    if (e.startsWith('sebastian@') || e.startsWith('cepeda')) return 'sebastian';
+    return null;
+  };
   const briefUrl = (r) => 'https://www.viven.ch/brief/?lead=' + encodeURIComponent(r.id) + '&lang=' + (['en', 'de', 'es'].includes(r.lang) ? r.lang : 'en') + '&topic=' + detectTopic(r.message);
 
   // customProof: frase personalizada de la IA (opcional). Si no viene, usa la estática.
@@ -24200,6 +24270,14 @@ const newsCases = [
       const l = (allLeads || []).find((x) => String(x.id) === String(o.lead_id)) || {};
       const CFW_CAT_LBL = { product: '📦 Product', brand: '🎬 Brand', employer: '👥 Employer branding', howto: '🎓 How-to', social: '📱 Social', corporate: '🏢 Corporate' };
       const srcTag = o.kind === 'followup' ? '📬 Follow-up' : o.kind === 'content_followup' ? '🎯 ' + (CFW_CAT_LBL[o.category] || o.category || 'Contenido') + ' · paso ' + o.step : o.kind === 'reactivation' ? '♻️ Reactivación · ' + (o.category === 'won' ? 'cliente ganado' : 'lead perdido') : o.kind === 'followup_later' ? '🕓 Seguimiento futuro' : '⚙️ Workflow';
+
+      /* El borrador guarda un remitente por defecto —"team" para lo automático—, pero el
+         que lo está por mandar es el que está mirando la pantalla. Si es Sofía o
+         Sebastián, el desplegable arranca en su nombre; el valor guardado solo manda
+         cuando alguien ya lo eligió a mano (sofia/sebastian) o cuando no sabemos quién es.
+         Sin esto, Sofía tenía que acordarse de cambiarlo en cada envío, y 30 seguimientos
+         salieron de info@ pidiendo respuesta. Un buzón que escribe no invita a contestar. */
+      const obDe = (x) => (x.sender && x.sender !== 'team') ? x.sender : (yoClave() || x.sender || 'team');
       const senderEmail = SENDER_EMAIL_G[o.sender] || SENDER_EMAIL_G.team;
       const senderName = o.sender === 'sebastian' ? 'Sebastian' : o.sender === 'sofia' ? 'Sofia' : 'VIVEN';
       // content_followup: scheduled_at es la fecha real de envío (no un
@@ -24215,7 +24293,7 @@ const newsCases = [
         '<div class="ob-hd"><div class="ob-who">' + teamAvatarHtml(senderEmail, senderName) + '<b>' + esc(l.name || l.email || 'Lead #' + o.lead_id) + '</b>' + (l.company ? '<span class="muted-note">' + esc(l.company) + '</span>' : '') + '</div>' +
         '<span class="ob-kind">' + esc(srcTag) + '</span></div>' +
         schedNote +
-        '<div class="ob-row"><div class="ob-f"><label>Sale de</label><select class="ob-sender"><option value="sofia"' + (o.sender === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (o.sender === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (o.sender === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select></div>' +
+        '<div class="ob-row"><div class="ob-f"><label>Sale de</label><select class="ob-sender"><option value="sofia"' + (obDe(o) === 'sofia' ? ' selected' : '') + '>Sofia</option><option value="sebastian"' + (obDe(o) === 'sebastian' ? ' selected' : '') + '>Sebastian</option><option value="team"' + (obDe(o) === 'team' ? ' selected' : '') + '>VIVEN (team)</option></select></div>' +
         '<div class="ob-f" style="flex:3"><label>Asunto</label><input class="ob-subject" value="' + esc(o.subject) + '" /></div></div>' +
         (o.kind === 'content_followup'
           ? '<div class="ob-f"><div class="ob-preview-bar"><label>Vista previa</label><button type="button" class="ob-html-toggle">✏️ Editar HTML</button></div>' +
