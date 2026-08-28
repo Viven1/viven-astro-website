@@ -740,7 +740,11 @@ const newsCases = [
   .pp-grid3{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:6px;align-items:start}
   .pp-grid3 > div .bf:last-child{margin-bottom:0}
   .pp-ta{width:100%;min-height:80px;background:var(--navy-900);border:1px solid var(--line-strong);border-radius:11px;color:var(--text);font-family:inherit;font-size:14.5px;padding:11px 13px;resize:vertical}
-  .pp-sec-h{display:flex;align-items:center;gap:12px;font-weight:700;font-size:14px;margin:22px 0 10px;color:var(--text)}
+  /* flex-wrap: son 13 encabezados de sección y varios llevan dos botones al lado del
+     título. Sin envolver, en el teléfono el último se va fuera de la pantalla y no hay
+     scroll que lo alcance —«+ Añadir» de los videos terminaba en 408px sobre 375—.
+     El row-gap evita que al bajar de renglón quede pegado al título. */
+  .pp-sec-h{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;font-weight:700;font-size:14px;margin:22px 0 10px;color:var(--text)}
   .pp-sec-h .count{font-weight:400;color:var(--muted-2);font-size:12.5px}
   .btn.xs{font-size:12px;padding:4px 10px}
   .pp-status-badge{border:1px solid var(--line-strong);border-radius:999px;font-size:12px;font-weight:600;padding:4px 12px;color:var(--muted)}
@@ -8221,15 +8225,18 @@ const newsCases = [
        generan avisos idénticos a los reales, y el que los mira no tiene cómo distinguirlos:
        el 1202 —«Proyecto de prueba x1»— puso durante días un aviso ROJO arriba de todo por
        un rodaje que no existe.
-       El filtro va acá, en cada punto donde se MUESTRA, y nunca al entrar a memoria: sacar
-       las pruebas de la lista al cargarla ya rompió el portal y el brief, porque esa misma
+       Se usa esDePrueba(), el helper global, y NO una copia local: la primera versión lo
+       declaró acá adentro y hmSignalItems() —que es otra función— lo llamaba igual. Eso es
+       un ReferenceError que rompe las señales enteras, no una línea. Lo cazó el propio
+       dash_perf_log de la app, no el build.
+       El filtro va en cada punto donde se MUESTRA, y nunca al entrar a memoria: sacar las
+       pruebas de la lista al cargarla ya rompió el portal y el brief, porque esa misma
        lista es de donde el proyecto saca su token. Ver filtrar-pruebas-rompe-lo-que-no-es-plata. */
     const _pruebaIds = new Set((leadsPrueba || []).map((l) => String(l.id)));
-    const dePrueba = (x) => !!x && _pruebaIds.has(String(x.lead_id));
     const now = Date.now(), D = 864e5, items = [];
     const busyLeads = new Set();   // leads ya cubiertos por (a)/(b): no repetir al mismo cliente en (c)
     // (a) ofertas enviadas esperando >10d (si abrió el email hace poco → seguir HOY)
-    (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent' && !dePrueba(o)).forEach((o) => {
+    (offersList || []).filter((o) => !o.archived && !o.is_template && o.status === 'sent' && !esDePrueba(o)).forEach((o) => {
       const ref = Date.parse(o.sent_at || o.updated_at); if (!ref) return;
       const days = Math.floor((now - ref) / D); if (days <= 10) return;
       const l = leadById(o.lead_id) || {};
@@ -8249,7 +8256,7 @@ const newsCases = [
                                                   : (gotoTab('offers'), openOffer(o.id))) });
     });
     // (b) propuestas publicadas: >8d sin respuesta (rojo) / >2d con 0 vistas (azul: ¿le llegó el link?)
-    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent' && !dePrueba(p)).forEach((p) => {
+    (propsAll || []).filter((p) => !p.archived && !p.is_template && p.status === 'sent' && !esDePrueba(p)).forEach((p) => {
       const ref = Date.parse(p.published_at || p.updated_at); if (!ref) return;
       const days = Math.floor((now - ref) / D);
       const l = leadById(p.lead_id) || {};
@@ -8318,7 +8325,7 @@ const newsCases = [
        18:00 y sigue valiendo lo mismo; una reunión a las 10:00 no se puede hacer a
        las 18:00. La hora fija no se negocia con la plata.
        Solo 24 h: más adelante que eso no es "hoy" y ya está en la Agenda. */
-    (upBookings || []).filter((b) => !dePrueba(b)).forEach((b) => {
+    (upBookings || []).filter((b) => !esDePrueba(b)).forEach((b) => {
       const t = Date.parse(b.start_at); if (!t) return;
       if (t < now - 36e5 || t > now + 24 * 36e5) return;   // desde hace 1 h (por si está en curso) hasta mañana
       if (meEmail && b.host_email && String(b.host_email).toLowerCase() !== meEmail) return;
@@ -8335,7 +8342,7 @@ const newsCases = [
     /* (c bis) RODAJE EN LOS PRÓXIMOS DÍAS CON ALGO QUE FALTA.
        Va arriba de todo —rank -4— porque tiene fecha de vencimiento real: un follow-up se
        puede hacer mañana, un teléfono que falta el día del rodaje ya no se consigue. */
-    (hmRodajes || []).filter((r) => !dePrueba(r.p)).forEach((r) => {
+    (hmRodajes || []).filter((r) => !esDePrueba(r.p)).forEach((r) => {
       /* CON NOMBRE Y APELLIDO. «4 sin teléfono» te obliga a entrar al proyecto y comparar
          la lista a mano para saber a quién llamar; los nombres dejan el aviso accionable
          desde donde estás. Se cortan en tres para que la fila siga siendo una línea. */
@@ -8449,7 +8456,7 @@ const newsCases = [
   // "🔥 Señales calientes": aperturas de propuesta/oferta <48h + leads conocidos que volvieron a la web <24h
   function hmSignalItems(){
     const now = Date.now(), H48 = 48 * 36e5, sig = [];
-    (propsAll || []).filter((p) => !p.archived && !p.is_template && !dePrueba(p) && p.last_view_at && now - Date.parse(p.last_view_at) < H48).forEach((p) => {
+    (propsAll || []).filter((p) => !p.archived && !p.is_template && !esDePrueba(p) && p.last_view_at && now - Date.parse(p.last_view_at) < H48).forEach((p) => {
       const l = leadById(p.lead_id) || {};
       const who = l.name || l.email || 'Alguien';
       const nth = Number(p.view_count) > 1 ? ' · ' + p.view_count + 'ª vista' : '';
@@ -8457,7 +8464,7 @@ const newsCases = [
         ctx: (p.title || '(sin título)') + ' · hace ' + timeAgo(p.last_view_at) + nth,
         plain: who + ' abrió la propuesta «' + (p.title || '') + '» hace ' + timeAgo(p.last_view_at) });
     });
-    (offersList || []).filter((o) => !o.archived && !o.is_template && !dePrueba(o) && o.last_open_at && now - Date.parse(o.last_open_at) < H48).forEach((o) => {
+    (offersList || []).filter((o) => !o.archived && !o.is_template && !esDePrueba(o) && o.last_open_at && now - Date.parse(o.last_open_at) < H48).forEach((o) => {
       const l = leadById(o.lead_id) || {};
       const who = l.name || l.email || o.client || 'Alguien';
       sig.push({ at: Date.parse(o.last_open_at), icon: '🧾', lead: o.lead_id, t: who + ' abrió el email de la oferta',
@@ -18722,9 +18729,17 @@ const newsCases = [
   ];
   let pjList = [], pjCur = null, pjFiltro = null, pjInvoices = [], pjBound = false;
   /* Una sola pregunta para todo el dashboard: ¿esta fila cuelga de un lead marcado como
-     prueba? Se recalcula el Set en cada llamada porque leadsPrueba se rearma en cada
-     loadAll y guardarlo en una constante lo dejaba viejo tras el primer refresco. */
-  const esDePrueba = (x) => !!x && new Set((leadsPrueba || []).map((l) => String(l.id))).has(String(x.lead_id));
+     prueba?
+     El Set se guarda, pero atado al ARRAY que lo generó: `leadsPrueba` se rearma entero en
+     cada loadAll, así que comparar la referencia alcanza para saber si hay que rehacerlo.
+     Guardarlo en una constante suelta lo dejaba viejo tras el primer refresco; rehacerlo en
+     cada llamada costaba un Set nuevo por cada fila de cada lista filtrada. */
+  let _dpArr = null, _dpSet = null;
+  const esDePrueba = (x) => {
+    if (!x) return false;
+    if (_dpArr !== leadsPrueba){ _dpArr = leadsPrueba; _dpSet = new Set((leadsPrueba || []).map((l) => String(l.id))); }
+    return _dpSet.has(String(x.lead_id));
+  };
   const chipPrueba = (x) => esDePrueba(x) ? '<span class="chip-prueba">🧪 Prueba</span> ' : '';
 
   const pjCHF = (n) => 'CHF ' + Math.round(Number(n) || 0).toLocaleString('de-CH');
