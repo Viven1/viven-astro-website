@@ -4899,7 +4899,22 @@ const newsCases = [
          lugar donde eso se ve. Rojo arriba, porque lo que está bien no necesita
          atención. Lee la RPC cron_health(). -->
     <div id="sistema-sub-crons" hidden>
+    <!-- ============ LO QUE SE ROMPIÓ DE VERDAD ============
+         Va PRIMERO, arriba de los crons, porque un error que ya le pasó a alguien en su
+         pantalla manda sobre una tarea que quizás falle. La app viene escribiendo sus
+         errores en dash_perf_log desde siempre y solo se podían leer desde una terminal:
+         el 28 ago 2026 ahí estaba, hacía dos horas, un ReferenceError mío que tenía rota
+         la sección de señales de Hoy y que ningún chequeo del build podía ver. -->
     <div class="of-bar" style="margin-bottom:14px">
+      <div>
+        <h2 style="margin:0">🧯 Lo que se rompió</h2>
+        <p class="muted-note" style="margin:2px 0 0">Los errores que la app se encontró en los últimos 7 días, en tu pantalla o en la de Sofía. Vacío es la respuesta buena.</p>
+      </div>
+      <button class="btn btn-ghost small" id="errs-refresh" type="button">↻ Actualizar</button>
+    </div>
+    <div class="panel"><div id="errs-list"><p class="muted-note">Cargando…</p></div></div>
+
+    <div class="of-bar" style="margin:26px 0 14px">
       <div>
         <h2 style="margin:0">🩺 Salud de los crons</h2>
         <p class="muted-note" style="margin:2px 0 0">Cada tarea programada, cuándo corrió por última vez y si terminó bien. En rojo lo que falló, lo que está apagado y lo que hace más de dos ciclos que no corre.</p>
@@ -24572,9 +24587,59 @@ const newsCases = [
      primero, porque lo que anda no necesita mirarse. */
   let cronsBuilt = false;
   function cronsInit(){
-    if (!cronsBuilt){ cronsBuilt = true; $('crons-refresh').addEventListener('click', () => { cronsCargar(); frescuraCargar(); }); }
+    if (!cronsBuilt){ cronsBuilt = true;
+      $('crons-refresh').addEventListener('click', () => { cronsCargar(); frescuraCargar(); });
+      $('errs-refresh') && $('errs-refresh').addEventListener('click', erroresCargar);
+    }
+    erroresCargar();
     cronsCargar();
     frescuraCargar();
+  }
+
+  /* ---------- 🧯 Lo que se rompió ----------
+     Dos clases, y la diferencia importa:
+     · «excepción» — un error de JS. Mata la función donde ocurre y deja la pantalla a
+       medias sin decir nada. Desde afuera se ve como «no puedo entrar al proyecto».
+     · «lo viste en pantalla» — el código lo atrapó y mostró un aviso de seis segundos.
+       El usuario se enteró; el que arregla, no, hasta ahora.
+     Se agrupan por mensaje: si algo falla en bucle, interesa el mensaje y cuántas veces,
+     no doscientas filas iguales. */
+  async function erroresCargar(){
+    const box = $('errs-list'); if (!box) return;
+    box.innerHTML = '<p class="muted-note">Cargando…</p>';
+    const desde = new Date(Date.now() - 7 * 864e5).toISOString();
+    const { data, error } = await supabase.from('dash_perf_log')
+      .select('at,email,phases').gte('at', desde).order('at', { ascending: false }).limit(400);
+    if (error){ box.innerHTML = '<p class="muted-note" style="color:#ff8b5e">No pude leer el registro: ' + esc(error.message) + '</p>'; return; }
+    const grupos = new Map();
+    for (const f of data || []){
+      const p = f.phases || {};
+      if (p.kind !== 'error' && p.kind !== 'error_visto') continue;
+      const clave = p.kind + '|' + String(p.msg || '').slice(0, 140);
+      const g = grupos.get(clave) || { kind: p.kind, msg: String(p.msg || '(sin mensaje)'),
+                                       donde: p.donde || '', tab: p.tab || '', n: 0, ultima: f.at, quien: new Set() };
+      g.n++; if (f.at > g.ultima) g.ultima = f.at;
+      if (f.email) g.quien.add(String(f.email).split('@')[0]);
+      grupos.set(clave, g);
+    }
+    const lista = [...grupos.values()].sort((a, b) => (a.ultima < b.ultima ? 1 : -1));
+    if (!lista.length){
+      box.innerHTML = '<p class="muted-note">✅ Ningún error en 7 días.</p>';
+      return;
+    }
+    box.innerHTML = lista.map((g) => {
+      const roto = g.kind === 'error';
+      return '<div style="border-left:3px solid ' + (roto ? 'var(--lost)' : 'var(--warn)') +
+        ';padding:9px 0 9px 12px;margin-bottom:12px">' +
+        '<div style="font-weight:600;font-size:13.5px">' + esc(g.msg) + '</div>' +
+        '<div class="muted-note" style="margin-top:3px">' +
+          (roto ? 'dejó la pantalla a medias' : 'lo viste en un aviso') +
+          ' · ' + g.n + '×' +
+          (g.quien.size ? ' · ' + [...g.quien].join(', ') : '') +
+          ' · última ' + timeAgo(g.ultima) +
+          (g.tab ? ' · en ' + esc(String(g.tab).slice(0, 40)) : '') +
+        '</div></div>';
+    }).join('');
   }
 
   /* ---------- 📥 ¿Las tablas se están llenando? (RPC frescura_de_datos, SQL 0141) ----------
