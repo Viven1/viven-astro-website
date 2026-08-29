@@ -3596,6 +3596,17 @@ const newsCases = [
             <span class="muted-note" id="pj-plan-note"></span>
           </div>
           <div id="pj-plan-prop"></div>
+          <!-- DOS PESTAÑAS. El plan era una hoja larga con el cronograma arriba y la gente
+               al final; para poner la hora de alguien había que bajar hasta abajo y, si era
+               del cliente, irse a otro paso. Ahora la citación es su propio lugar, con
+               TODOS adentro y editable ahí mismo.
+               (Sebastián, 29 ago 2026: "en plan de rodaje poné una pestaña, citación y
+               todas las personas dentro. Ese es el lugar correcto".) -->
+          <div class="pjp-tabs" id="pj-plan-tabs">
+            <button type="button" class="pjp-tab on" data-plantab="dia">🗓 El día</button>
+            <button type="button" class="pjp-tab" data-plantab="cita">🕐 Citación <span id="pjp-cita-n"></span></button>
+          </div>
+          <div id="pj-plan-dia">
           <div id="pj-plan-cab"></div>
           <!-- Las notas del día van ANTES del cronograma. Al final de una hoja larga no las
                lee nadie, y una nota que nadie lee es peor que no tenerla: se cree que el
@@ -3604,8 +3615,9 @@ const newsCases = [
             <textarea class="pj-inp" id="pj-plan-notas" rows="2" placeholder="p. ej. La cocina se usa hasta las 11:00 — después entra el personal de la hostería."></textarea></label>
           <div id="pj-plan-jor"></div>
           <div id="pj-plan-tabla"></div>
-          <div id="pj-plan-gente"></div>
           <div id="pj-plan-listas"></div>
+          </div>
+          <div id="pj-plan-gente" hidden></div>
         </div>
       </details>
 
@@ -20057,19 +20069,18 @@ const newsCases = [
                  nunca llega a la misma hora que el equipo: llega cuando se rueda lo suyo.
                  (Sebastián, 27 ago 2026: "calltime para cada persona... para clientes,
                   técnicos, actores, etc.") */
-              '<input type="time" data-h="' + c.id + '" value="' + esc(c.hora || '') + '" title="Su citación el día de rodaje — vacío = la general" />' +
+              /* LA HORA YA NO SE CARGA ACÁ. Estaba suelta al lado del contacto, sin etiqueta,
+                 y Sebastián abrió su propio proyecto y preguntó «¿qué es esto?» (28 ago
+                 2026). Ahora vive en la pestaña «Citación» del plan de rodaje, con TODOS
+                 —equipo y cliente— en una sola lista: es el lugar donde la pregunta «¿a qué
+                 hora viene cada uno?» se hace de verdad.
+                 (Sebastián, 29 ago 2026: "ese es el lugar correcto".) */
             '</div>' +
             '<button class="x" data-cdel="' + c.id + '" type="button" title="Sacarlo del proyecto">✕</button>' +
             '<span class="ck">' + (c._on !== false ? '✓' : '') + '</span></div>';
-        }).join('') + '</div>';
+        }).join('') + '</div>' +
+        '<p class="muted-note" style="margin:9px 0 0">La hora a la que citás a cada uno se pone en el plan de rodaje, pestaña <b>🕐 Citación</b> — ahí están todos juntos, equipo y cliente.</p>';
 
-    box.querySelectorAll('[data-h]').forEach((inp) => inp.addEventListener('change', async () => {
-      const c = pjContactos.find((x) => String(x.id) === inp.dataset.h); if (!c) return;
-      c.hora = inp.value || null;
-      const { error } = await supabase.from('project_contacts').update({ hora: c.hora }).eq('id', c.id);
-      if (error){ toast('⚠️ ' + error.message); return; }
-      pjPlanGenteRender && pjPlanGenteRender();
-    }));
 
     box.querySelectorAll('.pj-per').forEach((el) => el.addEventListener('click', (ev) => {
       if (ev.target.closest('select, .x, input')) return;
@@ -20666,8 +20677,7 @@ const newsCases = [
        en gris dentro del campo para que se vea que ya hay una respuesta aunque no
        escribas nada. */
     const filasP = pjPlanFilas();
-    const conH = filasP.filter((f) => String(f.hora || '').match(/^\d{1,2}:\d{2}/));
-    const citaGeneral = conH.length ? String(conH[0].hora).slice(0, 5) : '';
+    const citaGeneral = pjCitaGeneral();
 
     /* Cada uno con SU hora. El DP y el asistente llegan a montar, el actor y el cliente
        llegan cuando se rueda: una sola hora para todos hace que la mitad del equipo
@@ -20691,7 +20701,7 @@ const newsCases = [
       const fila = pjCur.crew && pjCur.crew[i]; if (!fila) return;
       fila.hora = inp.value || null;
       pjAutoGuardar();
-      pjPlanGenteRender && pjPlanGenteRender();
+      pjPlanTabs && pjPlanTabs(); pjPlanGenteRender && pjPlanGenteRender();
     }));
 
     /* El crew también se guarda solo: sacar a alguien y volver al listado sin tocar
@@ -22343,6 +22353,14 @@ const newsCases = [
     pjRenderSteps();
   }
 
+  /* La citación GENERAL: la primera hora del plan. Estaba calculada igual en tres lugares
+     (el crew, la hoja de gente y ahora los contactos del cliente); con tres copias, el día
+     que cambie el criterio dos van a seguir diciendo lo de antes. */
+  function pjCitaGeneral(){
+    const conH = pjPlanFilas().filter((f) => String(f.hora || '').match(/^\d{1,2}:\d{2}/));
+    return conH.length ? String(conH[0].hora).slice(0, 5) : '';
+  }
+
   function pjPlanFilas(){ return (pjPlan && Array.isArray(pjPlan.cuerpo)) ? pjPlan.cuerpo : []; }
 
   /* ── La cabecera del día ──
@@ -23090,39 +23108,94 @@ const newsCases = [
      En Maestro esto está en la misma hoja porque el teléfono se busca cuando alguien no
      llegó, y ahí no se abre otra pantalla. Sale de la ficha de cada técnico; el que no lo
      tenga cargado sale marcado, no en blanco. */
+  /* ── LA PESTAÑA CITACIÓN ──
+     Todos los que van al rodaje en una sola lista —equipo y cliente— con su hora editable
+     acá mismo. Antes esto era una tarjeta de solo lectura al final de la hoja que decía
+     «su hora se carga en el paso Cliente»: para poner una hora había que salir del plan,
+     buscar el paso, y volver. Un dato que cuesta cargar no se carga, y el que no se carga
+     sale mal en el email del día de rodaje.
+     (Sebastián, 29 ago 2026: "poné una pestaña, citación y todas las personas dentro. Ese
+     es el lugar correcto".)
+     La general es la primera hora del plan; quien tiene la suya la muestra en verde, para
+     que se vea de un golpe quién no llega con el resto. */
+  /* El cambio de pestaña. Se engancha una sola vez —el plan se redibuja muchas veces— y
+     al entrar a Citación se re-renderiza, porque la gente y las horas cambian desde otros
+     pasos mientras la pestaña está oculta. */
+  let pjpTabsBound = false;
+  function pjPlanTabs(){
+    const barra = $('pj-plan-tabs'); if (!barra || pjpTabsBound) return;
+    pjpTabsBound = true;
+    barra.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-plantab]'); if (!b) return;
+      const cual = b.dataset.plantab;
+      barra.querySelectorAll('[data-plantab]').forEach((x) => x.classList.toggle('on', x === b));
+      $('pj-plan-dia').hidden = cual !== 'dia';
+      $('pj-plan-gente').hidden = cual !== 'cita';
+      if (cual === 'cita') pjPlanGenteRender();
+    });
+  }
+
   function pjPlanGenteRender(){
     const p = pjCur, box = $('pj-plan-gente'); if (!p || !box) return;
-    if (!pjPlanFilas().length){ box.innerHTML = ''; return; }
     const crew = Array.isArray(p.crew) ? p.crew.filter((c) => c && c.nombre) : [];
     const conCli = (pjContactos || []).filter((c) => c._on !== false);
-    if (!crew.length && !conCli.length){ box.innerHTML = ''; return; }
+    const n = crew.length + conCli.length;
+    const chip = $('pjp-cita-n'); if (chip) chip.textContent = n ? '(' + n + ')' : '';
+    if (!n){
+      box.innerHTML = '<p class="muted-note">Todavía no hay nadie: el equipo se arma en el paso <b>Crew</b> y los del cliente en el paso <b>Cliente</b>.</p>';
+      return;
+    }
+    const citaGeneral = pjCitaGeneral();
 
-    /* La citación de cada uno, a la vista. La general es la primera hora del plan; quien
-       tiene la suya la muestra en verde, para que se note de un vistazo quién no llega con
-       el resto. */
-    const conH = pjPlanFilas().filter((f) => String(f.hora || '').match(/^\d{1,2}:\d{2}/));
-    const citaGeneral = conH.length ? String(conH[0].hora).slice(0, 5) : '';
-    const fila = (n, rol, tel, mail, hora) =>
-      '<div class="pj-per1"><span class="n">' + esc(n) + '</span>' +
-      '<span class="r">' + esc(rol || '') + '</span>' +
-      (hora
-        ? '<span class="h propia" title="Citación propia">🕐 ' + esc(String(hora).slice(0, 5)) + '</span>'
-        : (citaGeneral ? '<span class="h" title="La citación general del día">🕐 ' + esc(citaGeneral) + '</span>' : '')) +
-      '<span class="t' + (tel ? '' : ' no') + '">' + (tel ? esc(tel) : 'sin teléfono') + '</span>' +
-      (mail ? '' : '<span class="t no">sin email</span>') + '</div>';
+    const fila = (clave, id, nombre, rol, tel, mail, hora) =>
+      '<div class="pj-cita-row">' +
+        '<span class="n">' + esc(nombre) + '</span>' +
+        '<span class="r">' + esc(rol || '') + '</span>' +
+        '<span class="t' + (tel ? '' : ' no') + '">' + (tel ? esc(tel) : 'sin teléfono') + '</span>' +
+        '<span class="t' + (mail ? '' : ' no') + '">' + (mail ? esc(mail) : 'sin email') + '</span>' +
+        '<input type="time" class="pj-inp pj-cita-h' + (hora ? ' propia' : '') + '"' +
+          ' data-cita="' + clave + '" data-id="' + esc(String(id)) + '"' +
+          ' value="' + esc(hora ? String(hora).slice(0, 5) : '') + '"' +
+          (citaGeneral ? ' title="Vacío = la citación general, ' + esc(citaGeneral) + '"' : ' title="A qué hora lo citás"') + ' />' +
+      '</div>';
 
-    box.innerHTML = '<div class="pj-sec-h">Quién viene</div><div class="pj-gente2">' +
-      (crew.length ? '<div><h5>Equipo</h5>' + crew.map((c) => {
+    box.innerHTML =
+      '<p class="muted-note" style="margin:0 0 12px">' +
+        (citaGeneral
+          ? 'La citación general es <b>' + esc(citaGeneral) + '</b> —la primera hora del plan—. Poné una hora acá solo para quien llegue distinto: en <b>verde</b> los que tienen la suya.'
+          : 'Cargá el cronograma y la primera hora pasa a ser la citación general. Mientras tanto, la hora que pongas acá es la de esa persona.') +
+        ' Va en el plan y en el email de cada uno.</p>' +
+      (crew.length ? '<div class="pj-sec-h">Equipo</div>' + crew.map((c, i2) => {
         const t = crewFicha(c.nombre);
-        return fila(c.nombre, c.rol, t && t.phone, t && t.email, c.hora);
-      }).join('') + '</div>' : '') +
-      (conCli.length ? '<div><h5>Del cliente</h5>' + conCli.map((c) =>
-        fila(c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''), c.phone, c.email, c.hora)).join('') +
-        '<p class="muted-note" style="margin:9px 0 0">Solo los tildados en el paso Cliente. Su hora se carga en el paso Cliente.</p></div>' : '') +
-      '</div>' +
+        return fila('crew', i2, c.nombre, c.rol, t && t.phone, t && t.email, c.hora);
+      }).join('') : '') +
+      (conCli.length ? '<div class="pj-sec-h">Del cliente</div>' + conCli.map((c) =>
+        fila('cli', c.id, c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''),
+             c.phone, c.email, c.hora)).join('') : '') +
       (crew.some((c) => { const t = crewFicha(c.nombre); return !t || !t.phone; })
-        ? '<p class="muted-note" style="margin:9px 0 0">Los que salen «sin teléfono» van así en la hoja. Se cargan en <b>Técnicos</b>.</p>' : '');
+        ? '<p class="muted-note" style="margin:11px 0 0">Los que salen «sin teléfono» van así en la hoja. Se cargan en <b>Técnicos</b>.</p>' : '');
+
+    /* Guardar al vuelo, cada uno donde vive: el crew es un campo del proyecto y los del
+       cliente son filas de project_contacts. */
+    box.querySelectorAll('[data-cita]').forEach((inp) => inp.addEventListener('change', async () => {
+      const val = inp.value || null;
+      inp.classList.toggle('propia', !!val);
+      if (inp.dataset.cita === 'crew'){
+        const arr = Array.isArray(pjCur.crew) ? pjCur.crew.filter((c) => c && c.nombre) : [];
+        const c = arr[Number(inp.dataset.id)]; if (!c) return;
+        c.hora = val;
+        const { error } = await supabase.from('projects').update({ crew: pjCur.crew }).eq('id', pjCur.id);
+        if (error){ toast('⚠️ ' + error.message); return; }
+      } else {
+        const c = (pjContactos || []).find((x) => String(x.id) === inp.dataset.id); if (!c) return;
+        c.hora = val;
+        const { error } = await supabase.from('project_contacts').update({ hora: val }).eq('id', c.id);
+        if (error){ toast('⚠️ ' + error.message); return; }
+      }
+      pjPlanCabRender && pjPlanCabRender();
+    }));
   }
+
 
   /* ── LAS HORAS SE RECALCULAN ──
      Escribís cuánto dura cada bloque y las horas salen solas: cada uno empieza cuando

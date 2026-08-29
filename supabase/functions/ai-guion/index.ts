@@ -99,7 +99,7 @@ const FORMA_CINE = {
               properties: {
                 n: { type: "integer" },
                 encabezado: { type: "string", description: "«INT. LABORATORIO — DÍA»." },
-                accion: { type: "string", description: "Qué pasa en la escena, en presente." },
+                accion: { type: "string", description: "Qué pasa en la escena, en presente. Los PERSONAJES en mayúscula: «LA DUEÑA revisa el teléfono»." },
                 dialogo: { type: "string", description: "NOMBRE, salto de línea, lo que dice. Vacío si no habla nadie." },
               },
               required: ["n", "encabezado", "accion", "dialogo"],
@@ -432,6 +432,11 @@ REGLAS:
 - Si el brief está en otro idioma, escribí el texto hablado en el idioma del cliente y lo
   demás (ángulo, premisa, descripciones de imagen) en español, que es para uso interno.
 - Entre 8 y 20 filas por guión.
+- LAS PERSONAS, EN MAYÚSCULA, siempre y en todas las filas: «LA DUEÑA revisa el teléfono»,
+  «sale a recibir a un HUÉSPED que llega con valijas». Es la convención del guion y sirve
+  para algo concreto: leyendo en diagonal se ve de un vistazo cuánta gente hay que convocar
+  y quién aparece en qué escena. «La dueña» en minúscula se lee como decorado.
+  (Sebastián, 28 ago 2026: "las personas van siempre en mayúscula para entender quiénes son".)
 
 Los tres guiones, completos.`;
 
