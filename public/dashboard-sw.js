@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v211';  // v211: 29 ago 2026 — pestana Citacion en el plan de rodaje
+var CACHE = 'viven-crm-v212';  // v212: 29 ago 2026 — la pestana Citacion ahora abre, y usa el control de la casa
 
 /* Al instalar se guarda el HTML **y los archivos que ese HTML pide**. Antes solo se
    guardaba '/dashboard/', y el bundle recién entraba a la cache la primera vez que el

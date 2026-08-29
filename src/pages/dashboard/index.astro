@@ -2050,6 +2050,28 @@ const newsCases = [
     .fng-row{grid-template-columns:1fr auto;row-gap:2px}
     .fng-c{grid-column:1/-1;order:3}
   }
+  /* Una fila por persona en la pestaña Citación: nombre, rol, contacto y su hora, editable
+     ahí mismo. (El bloque anterior de estilos propios para las pestañas se borró a
+     propósito: usan .co-seg, el control segmentado que ya se usa en Analytics, Ofertas y
+     Sistema. Un control nuevo que se parece pero no es igual se nota, y era exactamente lo
+     que Sebastián vio: «el diseño no pega con nada».) */
+  .pj-cita-row{display:grid;grid-template-columns:minmax(110px,1.1fr) 1fr auto auto 96px;gap:12px;align-items:center;
+    padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .pj-cita-row .n{font-weight:600;color:var(--text)}
+  .pj-cita-row .r{color:var(--muted-2);font-size:11.5px}
+  .pj-cita-row .t{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
+  .pj-cita-row .t.no{color:var(--warn);font-family:inherit;font-style:italic;font-size:11.5px}
+  .pj-cita-h{width:96px;text-align:center}
+  /* En verde el que tiene hora propia: se ve de un golpe quién no llega con el resto */
+  .pj-cita-h.propia{border-color:var(--acid);color:var(--acid);font-weight:700}
+  #pj-plan-tabs span{color:var(--muted-2);font-weight:500}
+  @media(max-width:700px){
+    /* En el teléfono el contacto pasa abajo antes que apretarse contra la hora */
+    .pj-cita-row{grid-template-columns:1fr 96px;row-gap:3px}
+    .pj-cita-row .r{grid-column:1;order:2}
+    .pj-cita-row .t{grid-column:1/-1;order:3}
+    .pj-cita-h{grid-row:1/3;grid-column:2}
+  }
   .chip-prueba{display:inline-block;border:1px solid var(--falso);color:var(--falso);
     background:color-mix(in srgb, var(--falso) 15%, transparent);border-radius:999px;
     padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -3602,9 +3624,9 @@ const newsCases = [
                TODOS adentro y editable ahí mismo.
                (Sebastián, 29 ago 2026: "en plan de rodaje poné una pestaña, citación y
                todas las personas dentro. Ese es el lugar correcto".) -->
-          <div class="pjp-tabs" id="pj-plan-tabs">
-            <button type="button" class="pjp-tab on" data-plantab="dia">🗓 El día</button>
-            <button type="button" class="pjp-tab" data-plantab="cita">🕐 Citación <span id="pjp-cita-n"></span></button>
+          <div class="co-seg" id="pj-plan-tabs" style="margin:0 0 14px">
+            <button type="button" class="on" data-plantab="dia">🗓 El día</button>
+            <button type="button" data-plantab="cita">🕐 Citación <span id="pjp-cita-n"></span></button>
           </div>
           <div id="pj-plan-dia">
           <div id="pj-plan-cab"></div>
@@ -20701,7 +20723,7 @@ const newsCases = [
       const fila = pjCur.crew && pjCur.crew[i]; if (!fila) return;
       fila.hora = inp.value || null;
       pjAutoGuardar();
-      pjPlanTabs && pjPlanTabs(); pjPlanGenteRender && pjPlanGenteRender();
+      pjPlanGenteRender && pjPlanGenteRender();
     }));
 
     /* El crew también se guarda solo: sacar a alguien y volver al listado sin tocar
@@ -22469,6 +22491,14 @@ const newsCases = [
   }
 
   function pjPlanRender(){
+    /* El enganche del click va ACÁ, donde el plan se dibuja de verdad. La primera versión
+       lo llamaba solo desde el manejador de horas del crew —o sea, casi nunca— y la
+       pestaña «Citación» no hacía nada al tocarla. Es idempotente: se engancha una sola
+       vez aunque el plan se redibuje veinte veces. */
+    pjPlanTabs();
+    /* Y se renderiza la gente aunque la pestaña esté oculta: el contador «(4)» del botón
+       sale de ahí, y un contador vacío hace dudar de si la pestaña tiene algo. */
+    pjPlanGenteRender();
     const filas = pjPlanFilas();
     const est = $('pj-plan-est');
     if (est) est.textContent = filas.length
