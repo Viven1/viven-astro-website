@@ -2058,20 +2058,29 @@ const newsCases = [
   /* Columnas FIJAS, no `auto`: con auto, cada fila las acomodaba a su contenido y el
      teléfono de uno no quedaba debajo del teléfono del otro. Una lista donde las columnas
      bailan se lee peor que una tabla, que es lo que esto es. */
-  .pj-cita-row{display:grid;grid-template-columns:minmax(110px,1.4fr) minmax(80px,1fr) 150px minmax(150px,1.6fr) 100px;
+  .pj-cita-row{display:grid;
+    grid-template-columns:minmax(110px,1.4fr) minmax(80px,1fr) 150px minmax(150px,1.6fr) repeat(var(--cita-dias,1),115px);
     gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  /* El encabezado con el nombre de cada jornada y su citación general. Solo aparece con
+     más de un día: con uno solo, una fila de títulos para una sola columna es ruido. */
+  .pj-cita-cab{border-bottom-color:var(--line-strong);padding-bottom:5px}
+  .pj-cita-cab .jh{color:var(--muted-2);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+  .pj-cita-cab .jh em{display:block;font-style:normal;font-variant-numeric:tabular-nums;
+    letter-spacing:0;text-transform:none;font-size:11.5px;color:var(--muted)}
+  /* «No viene» se ve distinto de «llega a la general»: apagado, no verde. */
+  .pj-cita-h.fuera{color:var(--muted-2);border-style:dashed;font-style:italic}
   .pj-cita-row .n{font-weight:600;color:var(--text)}
   .pj-cita-row .r{color:var(--muted-2);font-size:11.5px}
   .pj-cita-row .t{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pj-cita-row .t.no{color:var(--warn);font-family:inherit;font-style:italic;font-size:11.5px}
-  .pj-cita-h{width:96px;text-align:center}
+  .pj-cita-h{width:100%;text-align:center}
   /* En verde el que tiene hora propia: se ve de un golpe quién no llega con el resto */
   .pj-cita-h.propia{border-color:var(--acid);color:var(--acid);font-weight:700}
   #pj-plan-tabs span{color:var(--muted-2);font-weight:500}
   @media(max-width:700px){
     /* En el teléfono el contacto pasa abajo antes que apretarse contra la hora */
-    .pj-cita-row{grid-template-columns:1fr 96px;row-gap:3px}
+    .pj-cita-row{grid-template-columns:1fr repeat(var(--cita-dias,1),100px);row-gap:3px}
     .pj-cita-row .r{grid-column:1;order:2}
     .pj-cita-row .t{grid-column:1/-1;order:3}
     .pj-cita-h{grid-row:1/3;grid-column:2}
@@ -23179,56 +23188,121 @@ const newsCases = [
       box.innerHTML = '<p class="muted-note">Todavía no hay nadie: el equipo se arma en el paso <b>Crew</b> y los del cliente en el paso <b>Cliente</b>.</p>';
       return;
     }
-    const citaGeneral = pjCitaGeneral();
 
-    const fila = (clave, id, nombre, rol, tel, mail, hora) =>
+    /* UNA COLUMNA POR JORNADA. Con un solo campo de hora, un rodaje de tres días miente dos
+       veces: cada jornada arranca a una hora distinta, y sobre todo NO TODOS VAN TODOS LOS
+       DÍAS. Un campo vacío significaba «la general», así que el DP que no trabaja el día 2
+       aparecía igual en el plan de ese día — y se enteraba al recibir el email.
+       (Sebastián, 29 ago 2026: "¿y qué pasa si son varios días? ¿cómo lo hacemos ahí?")
+       La citación general es la primera hora DE ESA JORNADA, no la del plan entero. */
+    const jors = pjPlanJornadas()
+      .map((b) => ({ nombre: b.dia, general: String(Math.floor(b.desde / 60)).padStart(2, '0') + ':' + String(b.desde % 60).padStart(2, '0') }));
+    const dias = jors.length ? jors : [{ nombre: 'Jornada 1', general: '' }];
+    const unSoloDia = dias.length === 1;
+
+    /* Dónde vive la hora de alguien ese día. `horas` es el mapa nuevo; `hora` es el valor
+       viejo de una sola jornada y se sigue leyendo para la primera, para no perder lo ya
+       cargado. */
+    const horaDe = (x, i2) => {
+      const m = x && x.horas;
+      if (m && Object.prototype.hasOwnProperty.call(m, dias[i2].nombre)) return m[dias[i2].nombre];
+      return i2 === 0 ? (x && x.hora) || '' : '';
+    };
+
+    /* De 04:00 a 23:45 de a 15 minutos, que es como se cita a alguien a un rodaje. Si ya
+       tiene una hora que no cae en el cuarto, se agrega para no perderla al abrir. */
+    /* Con varias jornadas la hora general ya está en el encabezado de la columna, así que
+       la opción dice solo «la general»: repetirla no cabía —salía «la general (08…»— y
+       encima duplicaba el dato. Con un solo día no hay encabezado, así que ahí sí va. */
+    const opciones = (valor, general) => {
+      const actual = valor && valor !== 'no' ? String(valor).slice(0, 5) : '';
+      const horas = [];
+      for (let h = 4; h <= 23; h++) for (const mm of ['00', '15', '30', '45'])
+        horas.push(String(h).padStart(2, '0') + ':' + mm);
+      if (actual && !horas.includes(actual)) horas.push(actual);
+      horas.sort();
+      return '<option value=""' + (!valor ? ' selected' : '') + '>' +
+          ((general && unSoloDia) ? 'la general (' + esc(general) + ')' : 'la general') + '</option>' +
+        /* «No viene» es una respuesta, no un vacío: es la diferencia entre «llega a la hora
+           de todos» y «ese día no está». Sin esta opción, la segunda se escribe como la
+           primera y sale en el plan. */
+        '<option value="no"' + (valor === 'no' ? ' selected' : '') + '>— no viene —</option>' +
+        horas.map((t) => '<option value="' + t + '"' + (t === actual ? ' selected' : '') + '>' + t + '</option>').join('');
+    };
+
+    const celdas = (clave, id, x) => dias.map((d, i2) => {
+      const v = horaDe(x, i2);
+      return '<select class="pj-inp pj-cita-h' + (v === 'no' ? ' fuera' : (v ? ' propia' : '')) + '"' +
+        ' data-cita="' + clave + '" data-id="' + esc(String(id)) + '" data-dia="' + esc(d.nombre) + '"' +
+        ' title="' + esc(d.nombre) + (d.general ? ' — la general es ' + esc(d.general) : '') + '">' +
+        opciones(v, d.general) + '</select>';
+    }).join('');
+
+    const fila = (clave, id, nombre, rol, tel, mail, x) =>
       '<div class="pj-cita-row">' +
         '<span class="n">' + esc(nombre) + '</span>' +
         '<span class="r">' + esc(rol || '') + '</span>' +
         '<span class="t' + (tel ? '' : ' no') + '">' + (tel ? esc(tel) : 'sin teléfono') + '</span>' +
         '<span class="t' + (mail ? '' : ' no') + '">' + (mail ? esc(mail) : 'sin email') + '</span>' +
-        '<input type="time" class="pj-inp pj-cita-h' + (hora ? ' propia' : '') + '"' +
-          ' data-cita="' + clave + '" data-id="' + esc(String(id)) + '"' +
-          ' value="' + esc(hora ? String(hora).slice(0, 5) : '') + '"' +
-          (citaGeneral ? ' title="Vacío = la citación general, ' + esc(citaGeneral) + '"' : ' title="A qué hora lo citás"') + ' />' +
+        celdas(clave, id, x) +
       '</div>';
 
+    const cab = unSoloDia ? '' :
+      '<div class="pj-cita-row pj-cita-cab"><span class="n"></span><span class="r"></span><span class="t"></span><span class="t"></span>' +
+      dias.map((d) => '<span class="jh">' + esc(d.nombre.replace(/^Jornada /, 'J')) + (d.general ? '<em>' + esc(d.general) + '</em>' : '') + '</span>').join('') +
+      '</div>';
+
+    box.style.setProperty('--cita-dias', String(dias.length));
     box.innerHTML =
       '<p class="muted-note" style="margin:0 0 12px">' +
-        (citaGeneral
-          ? 'La citación general es <b>' + esc(citaGeneral) + '</b> —la primera hora del plan—. Poné una hora acá solo para quien llegue distinto: en <b>verde</b> los que tienen la suya.'
-          : 'Cargá el cronograma y la primera hora pasa a ser la citación general. Mientras tanto, la hora que pongas acá es la de esa persona.') +
+        (unSoloDia
+          ? (dias[0].general
+              ? 'La citación general es <b>' + esc(dias[0].general) + '</b> —la primera hora del plan—. Poné una hora solo para quien llegue distinto.'
+              : 'Cargá el cronograma y su primera hora pasa a ser la citación general.')
+          : 'Son <b>' + dias.length + ' jornadas</b>, cada una con su propia citación general. Poné una hora solo para quien llegue distinto ese día, y <b>«no viene»</b> para quien ese día no trabaja.') +
         ' Va en el plan y en el email de cada uno.</p>' +
-      (crew.length ? '<div class="pj-sec-h">Equipo</div>' + crew.map((c, i2) => {
+      (crew.length ? '<div class="pj-sec-h">Equipo</div>' + cab + crew.map((c, i2) => {
         const t = crewFicha(c.nombre);
-        return fila('crew', i2, c.nombre, c.rol, t && t.phone, t && t.email, c.hora);
+        return fila('crew', i2, c.nombre, c.rol, t && t.phone, t && t.email, c);
       }).join('') : '') +
-      (conCli.length ? '<div class="pj-sec-h">Del cliente</div>' + conCli.map((c) =>
+      (conCli.length ? '<div class="pj-sec-h">Del cliente</div>' + (crew.length ? cab : '') + conCli.map((c) =>
         fila('cli', c.id, c.name || c.email, PJ_RECIBE.reduce((a, [k, l]) => k === c.recibe ? l : a, ''),
-             c.phone, c.email, c.hora)).join('') : '') +
+             c.phone, c.email, c)).join('') : '') +
       (crew.some((c) => { const t = crewFicha(c.nombre); return !t || !t.phone; })
         ? '<p class="muted-note" style="margin:11px 0 0">Los que salen «sin teléfono» van así en la hoja. Se cargan en <b>Técnicos</b>.</p>' : '');
 
-    /* Guardar al vuelo, cada uno donde vive: el crew es un campo del proyecto y los del
-       cliente son filas de project_contacts. */
-    box.querySelectorAll('[data-cita]').forEach((inp) => inp.addEventListener('change', async () => {
-      const val = inp.value || null;
-      inp.classList.toggle('propia', !!val);
-      if (inp.dataset.cita === 'crew'){
+    box.querySelectorAll('[data-cita]').forEach((sel) => sel.addEventListener('change', async () => {
+      const val = sel.value || null;
+      const dia = sel.dataset.dia;
+      sel.classList.toggle('propia', !!val && val !== 'no');
+      sel.classList.toggle('fuera', val === 'no');
+      const guardar = (x) => {
+        x.horas = x.horas && typeof x.horas === 'object' ? x.horas : {};
+        if (val === null) delete x.horas[dia]; else x.horas[dia] = val;
+        /* `hora` se mantiene en espejo para la primera jornada: lo leen el plan, el PDF y
+           el email, que todavía piensan en un solo día. Cuando pasen a leer `horas`, se
+           saca de acá y no antes — mientras tanto, dos lugares diciendo lo mismo es mejor
+           que uno diciendo algo viejo. */
+        if (dia === dias[0].nombre) x.hora = (val && val !== 'no') ? val : null;
+        return x;
+      };
+      if (sel.dataset.cita === 'crew'){
         const arr = Array.isArray(pjCur.crew) ? pjCur.crew.filter((c) => c && c.nombre) : [];
-        const c = arr[Number(inp.dataset.id)]; if (!c) return;
-        c.hora = val;
+        const c = arr[Number(sel.dataset.id)]; if (!c) return;
+        guardar(c);
         const { error } = await supabase.from('projects').update({ crew: pjCur.crew }).eq('id', pjCur.id);
         if (error){ toast('⚠️ ' + error.message); return; }
       } else {
-        const c = (pjContactos || []).find((x) => String(x.id) === inp.dataset.id); if (!c) return;
-        c.hora = val;
-        const { error } = await supabase.from('project_contacts').update({ hora: val }).eq('id', c.id);
+        const c = (pjContactos || []).find((x) => String(x.id) === sel.dataset.id); if (!c) return;
+        guardar(c);
+        const { error } = await supabase.from('project_contacts')
+          .update({ horas: c.horas, hora: c.hora }).eq('id', c.id);
         if (error){ toast('⚠️ ' + error.message); return; }
       }
       pjPlanCabRender && pjPlanCabRender();
     }));
   }
+
 
 
   /* ── LAS HORAS SE RECALCULAN ──
