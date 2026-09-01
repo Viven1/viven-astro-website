@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 // perdía páginas — llegó a faltar el 30% del sitio, incluidos posts pilares).
 // Excluidas: páginas privadas/funcionales y las LP noindex.
 const SITEMAP_EXCLUDE = [
-  '/dashboard/', '/proposal/', '/portal/', '/lp/',
+  '/dashboard/', '/proposal/', '/portal/',
   '/book/', '/brief/', '/thank-you/', '/danke/', '/gracias/',
   '/portal/brief-preview/',  // vista previa interna del brief, no es una página del sitio
   '/abrir/',                 // puente del email a la app: interna, no es una página del sitio
