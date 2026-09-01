@@ -1,0 +1,68 @@
+---
+export const prerender = true;
+
+const sections = {
+  ventas: { label: 'Ventas', tab: 'deals', hint: 'Pipeline, ofertas, propuestas y seguimientos' },
+  proyectos: { label: 'Proyectos', tab: 'projects', hint: 'Producción, crew, entregas y facturación' },
+  personas: { label: 'Personas', tab: 'leads', hint: 'Contactos, conversaciones, tareas y actividad' },
+  empresas: { label: 'Empresas', tab: 'companies', hint: 'Cuentas, personas, oportunidades y actividad' },
+  tecnicos: { label: 'Técnicos', tab: 'crew', hint: 'Equipo externo, disponibilidad, tarifas y documentos' },
+  agenda: { label: 'Agenda', tab: 'agenda', hint: 'Reuniones, tareas y próximos compromisos' },
+  analytics: { label: 'Analytics', tab: 'analytics', hint: 'Web, campañas, videos y oportunidades CRO' },
+  contenido: { label: 'Contenido', tab: 'contenido', hint: 'Blog, noticias, SEO y recursos' },
+  automatizaciones: { label: 'Automatizaciones', tab: 'sistema', sub: 'auto', hint: 'Bandeja, reglas, ejecuciones y aprobaciones' },
+  sistema: { label: 'Sistema', tab: 'sistema', hint: 'Servicios, licencias, reservas, caja y configuración' },
+};
+
+export function getStaticPaths() {
+  return ['ventas','proyectos','personas','empresas','tecnicos','agenda','analytics','contenido','automatizaciones','sistema']
+    .map((section) => ({ params: { section }, props: { section } }));
+}
+
+const { section } = Astro.props;
+const current = sections[section];
+const query = new URLSearchParams({ tab: current.tab });
+if (current.sub) query.set('sub', current.sub);
+const source = `/dashboard/?${query}`;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#07182b" />
+    <title>{current.label} 2 · Viven</title>
+    <style>
+      :root{color-scheme:dark;--bg:#061526;--rail:#071a2d;--panel:#0b1e32;--line:#263c52;--text:#f6f8fb;--muted:#96a9bc;--lime:#d9fb35}
+      *{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--bg);color:var(--text);font:14px/1.4 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}.app{height:100%;display:grid;grid-template-columns:216px minmax(0,1fr)}
+      aside{background:var(--rail);border-right:1px solid var(--line);padding:26px 15px;overflow:auto}.brand{font-size:27px;letter-spacing:.22em;margin:0 12px 28px}.brand small{display:block;color:var(--lime);font-size:9px;letter-spacing:.2em}.nav{display:grid;gap:4px}.nav a{color:var(--muted);text-decoration:none;padding:10px 12px;border-radius:9px}.nav a:hover{background:#11283e;color:white}.nav a.on{background:#152d43;color:var(--lime);box-shadow:inset 3px 0 var(--lime)}.group{margin:17px 12px 5px;color:#637a90;font-size:10px;text-transform:uppercase;letter-spacing:.12em}.stage{display:grid;grid-template-rows:72px minmax(0,1fr);min-width:0}.top{display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);background:rgba(7,24,42,.95)}.title h1{font-size:21px;margin:0}.title p{margin:3px 0 0;color:var(--muted);font-size:12px}.actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:#10263b;color:var(--text);border-radius:9px;padding:9px 12px;text-decoration:none}.btn.primary{background:var(--lime);color:#071526;border-color:var(--lime);font-weight:750}.frame-wrap{position:relative;min-height:0;background:#061526}.frame-wrap:before{content:'Cargando ' attr(data-label) '…';position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);z-index:0}.frame{position:relative;z-index:1;border:0;width:100%;height:100%;display:block;background:#061526}.safe{position:absolute;right:18px;bottom:14px;z-index:2;background:rgba(7,24,42,.92);border:1px solid var(--line);color:var(--muted);padding:7px 10px;border-radius:999px;font-size:11px;pointer-events:none;backdrop-filter:blur(10px)}
+      @media(max-width:850px){.app{grid-template-columns:1fr}.app>aside{display:none}.top{padding:0 14px}.title p{display:none}.safe{display:none}}
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside>
+        <div class="brand">VIVEN<small>FILM PRODUCTION</small></div>
+        <nav class="nav">
+          <a href="/dashboard-v2/">◎ Hoy</a>
+          <div class="group">Trabajo</div>
+          {Object.entries(sections).slice(0,7).map(([key,item]) => <a class={key===section?'on':''} href={`/dashboard-v2/${key}/`}>{item.label}</a>)}
+          <div class="group">Gestión</div>
+          {Object.entries(sections).slice(7).map(([key,item]) => <a class={key===section?'on':''} href={`/dashboard-v2/${key}/`}>{item.label}</a>)}
+        </nav>
+      </aside>
+      <main class="stage">
+        <header class="top">
+          <div class="title"><h1>{current.label}</h1><p>{current.hint}</p></div>
+          <div class="actions"><a class="btn" href="/dashboard-v2/">Hoy 2</a><a class="btn primary" href={source} target="_top">Abrir pantalla completa ↗</a></div>
+        </header>
+        <div class="frame-wrap" data-label={current.label}>
+          <iframe class="frame" title={current.label} src={source}></iframe>
+          <div class="safe">Compatibilidad total · misma información y funciones</div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
