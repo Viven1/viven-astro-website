@@ -217,11 +217,15 @@ function loadHeroVideo(){
     loadHeroVideo();   // el visitante YA interactuó — cargar sin esperar al idle
   }
   evs.forEach(function(e){ window.addEventListener(e, go, { once: true, passive: true }); });
-  /* y si el visitante solo MIRA sin tocar nada: arrancar solo apenas termina de cargar
-     la página (post-LCP, no afecta la métrica) — el hero se siente vivo siempre */
+  /* Si el visitante solo mira, el video también arranca, pero no en el primer idle:
+     en mobile ese idle puede llegar antes del LCP y decodificar el MP4 bloquea el hilo
+     principal. La interacción sigue cargándolo al instante; sin interacción esperamos
+     siete segundos para proteger la primera pintura y la respuesta inicial. */
   function later(){
-    if('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 1800 });
-    else setTimeout(go, 1200);
+    setTimeout(function(){
+      if('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 1800 });
+      else go();
+    }, 7000);
   }
   if(document.readyState === 'complete') later();
   else window.addEventListener('load', later, { once: true });

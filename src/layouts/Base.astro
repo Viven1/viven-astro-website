@@ -4,6 +4,7 @@ import { T, pick, localePath, hreflangs, SITE, DEFAULT_LANG } from '../i18n.js';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import Tracking from '../components/Tracking.astro';
+import siteCss from '../../public/assets/site.css?raw';
 
 const {
   lang = DEFAULT_LANG,
@@ -26,8 +27,8 @@ const pageDesc = pick(description, lang);
 const canonical = canonicalPath ? SITE + canonicalPath : SITE + localePath(lang, slug);
 const alts = hreflangs(slug);
 const OG_IMG = SITE + '/assets/og.jpg';
-const HERO = '/assets/heroes/home-hero-828.jpg';
-const HERO_LG = '/assets/heroes/home-hero-1600.jpg';
+const HERO = '/assets/heroes/home-hero-828.webp';
+const HERO_LG = '/assets/heroes/home-hero-1600.webp';
 
 // Identidad global (Organization + WebSite) en cada página — bueno para SEO/AI-SEO
 const orgGraph = {
@@ -95,7 +96,9 @@ const orgGraph = {
 {preloadHero && (
   <link rel="preload" as="image" fetchpriority="high" href={HERO} imagesrcset={HERO + ' 828w, ' + HERO_LG + ' 1600w'} imagesizes="100vw" />
 )}
-<link rel="stylesheet" href="/assets/site.css" />
+<!-- 51 KB sin comprimir / ~12 KB con gzip. Inline evita el segundo round-trip
+     render-blocking y conserva exactamente el mismo layout desde el primer frame. -->
+<style is:inline set:html={siteCss} />
 
 <script type="application/ld+json" set:html={JSON.stringify(orgGraph)} />
 <slot name="jsonld" />

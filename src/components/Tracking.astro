@@ -57,9 +57,9 @@ function _vivenLoadTracking(){
    del LCP, así que los ~300 KB de GTM + Ads seguían compitiendo justo mientras el hero
    tiene que pintar. Medido el 24 ago con Lighthouse 13 contra produccion: bloqueando
    GTM/Ads la home pasa de 71 a 85 y el LCP de 6,8 s a 3,6 s.
-   Ahora esperamos a que el main thread esté libre (requestIdleCallback), con un tope de
-   3 s por si nunca queda libre. No se pierde nada: el container carga igual, solo
-   despues de que el visitante ya vio la pagina.
+   requestIdleCallback solo no alcanza: en una pagina liviana se ejecuta enseguida y
+   GTM vuelve a caer dentro de la ventana critica. Primero dejamos siete segundos para
+   que terminen LCP y las primeras interacciones; despues usamos el primer rato ocioso.
    EXCEPCION: las paginas de conversion (thank-you/danke/gracias/book) cargan como antes,
    sin esperar. Ahi el tag de conversion de Google Ads tiene que disparar si o si, y
    alguien puede cerrar la pestaña a los dos segundos — una conversion no reportada
@@ -67,8 +67,10 @@ function _vivenLoadTracking(){
 var _vivenEsConversion = /\/(thank-you|danke|gracias|book)\//.test(location.pathname);
 function _vivenAgendarTracking(){
   if(_vivenEsConversion) return setTimeout(_vivenLoadTracking, 100);
-  if('requestIdleCallback' in window) requestIdleCallback(_vivenLoadTracking, { timeout: 3000 });
-  else setTimeout(_vivenLoadTracking, 2500);
+  setTimeout(function(){
+    if('requestIdleCallback' in window) requestIdleCallback(_vivenLoadTracking, { timeout: 2000 });
+    else _vivenLoadTracking();
+  }, 7000);
 }
 if(document.readyState === 'complete') _vivenAgendarTracking();
 else window.addEventListener('load', _vivenAgendarTracking);
