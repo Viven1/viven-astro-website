@@ -1,0 +1,613 @@
+---
+const { section = 'contenido' } = Astro.props;
+const copy = {
+  contenido: {
+    title: 'Contenido',
+    subtitle: 'Publicaciones, campañas y mejoras que alimentan la web',
+  },
+  automatizaciones: {
+    title: 'Automatizaciones',
+    subtitle: 'Workflows, ejecuciones, borradores y tareas automáticas',
+  },
+  sistema: {
+    title: 'Sistema',
+    subtitle: 'Configuración operativa, equipo y salud de la plataforma',
+  },
+};
+const current = copy[section] || copy.contenido;
+---
+
+<section class="management" data-management-root data-section={section}>
+  <header class="management-head">
+    <div>
+      <h2>{current.title}</h2>
+      <p>{current.subtitle}</p>
+      <small data-management-mode>Cargando datos reales…</small>
+    </div>
+    <label class="management-search">
+      <span aria-hidden="true">⌕</span>
+      <input data-management-search type="search" placeholder={`Buscar en ${current.title.toLowerCase()}…`} />
+    </label>
+  </header>
+
+  <nav class="management-tabs" data-management-tabs aria-label={`Secciones de ${current.title}`}></nav>
+
+  <div class="management-kpis" aria-label="Resumen de la sección">
+    <div><small data-kpi-total-label>Registros</small><strong data-kpi-total>—</strong></div>
+    <div><small>Requieren atención</small><strong data-kpi-attention>—</strong></div>
+    <div><small>Actualizados este mes</small><strong data-kpi-month>—</strong></div>
+  </div>
+
+  <div class="management-toolbar">
+    <div>
+      <h3 data-list-title>Registros</h3>
+      <p data-list-copy>La información verificada aparece aquí.</p>
+    </div>
+    <select data-management-filter aria-label="Filtrar por estado"><option value="">Todos los estados</option></select>
+  </div>
+
+  <div class="management-table" data-management-table>
+    <div class="management-row management-labels" data-management-labels></div>
+    <div data-management-list><p class="management-empty">Esperando datos reales.</p></div>
+  </div>
+
+  <div class="management-drawer" data-management-drawer hidden>
+    <button class="management-backdrop" data-management-close type="button" aria-label="Cerrar detalle"></button>
+    <article class="management-sheet" role="dialog" aria-modal="true" aria-labelledby="management-detail-title">
+      <button class="management-close" data-management-close type="button" aria-label="Cerrar">×</button>
+      <span class="management-eyebrow" data-detail-kind>Detalle</span>
+      <h2 id="management-detail-title" data-detail-title>Detalle</h2>
+      <p data-detail-sub></p>
+      <div class="management-fields" data-detail-body></div>
+      <footer><a class="management-origin" data-detail-origin href="/dashboard/">Abrir en el dashboard original →</a></footer>
+    </article>
+  </div>
+</section>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  const root = document.querySelector('[data-management-root]');
+  if (root instanceof HTMLElement) {
+    const db = createClient(
+      'https://lumoevaotokgqnpybkyf.supabase.co',
+      'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca',
+    );
+    const section = root.dataset.section || 'contenido';
+    const demo = new URLSearchParams(location.search).get('demo') === '1';
+    const $ = (selector) => root.querySelector(selector);
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[char]);
+    const text = (value, fallback = '—') => {
+      if (value === null || value === undefined || value === '') return fallback;
+      if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+      if (Array.isArray(value)) return value.length ? value.join(', ') : fallback;
+      if (typeof value === 'object') return JSON.stringify(value);
+      return String(value);
+    };
+    const date = (value, withTime = false) => {
+      if (!value) return '—';
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return text(value);
+      return parsed.toLocaleString('es-CH', withTime
+        ? { dateStyle: 'medium', timeStyle: 'short' }
+        : { dateStyle: 'medium' });
+    };
+    const money = (value) => {
+      if (value === null || value === undefined || value === '') return '—';
+      const amount = Number(value);
+      return Number.isFinite(amount) ? `CHF ${amount.toLocaleString('de-CH')}` : '—';
+    };
+    const status = (row) => text(row.status ?? (row.enabled === true ? 'active' : row.enabled === false ? 'paused' : ''), 'Sin estado');
+    const timestamp = (row) => row.updated_at || row.created_at || row.published_at || row.scheduled_at || row.started_at || row.approved_at || row.at || row.last_run || row.ultima || null;
+    const inactive = (value) => ['inactive', 'paused', 'disabled', 'cancelled', 'discarded', 'stopped'].includes(String(value || '').toLowerCase());
+    const waiting = (value) => ['pending', 'queued', 'approved', 'draft', 'waiting', 'requested', 'failed', 'error'].includes(String(value || '').toLowerCase());
+    const origin = (tab, sub = '') => `/dashboard/?tab=${encodeURIComponent(tab)}${sub ? `&sub=${encodeURIComponent(sub)}` : ''}`;
+    const genericDetails = (row, fields) => fields.map(([label, key, format]) => [label, format ? format(row[key], row) : text(row[key])]);
+    const subjectFor = (row) => row.subject || row.subject_i18n?.en || row.subject_i18n?.de || row.subject_i18n?.es || '';
+    const minutesAsTime = (value) => {
+      const minutes = Number(value);
+      if (!Number.isFinite(minutes)) return '—';
+      const hours = Math.floor(minutes / 60) % 24;
+      const mins = minutes % 60;
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    };
+    const canonicalDashboardUrl = (value) => {
+      if (!value) return '';
+      try {
+        const url = new URL(String(value), location.origin);
+        return url.origin === location.origin && url.pathname === '/dashboard/'
+          ? `${url.pathname}${url.search}${url.hash}`
+          : '';
+      } catch (_) {
+        return '';
+      }
+    };
+    const issueSubject = (row) => row.content?.en?.subject || row.content?.de?.subject || row.content?.es?.subject || '';
+    const cashflowTitle = (row) => {
+      if (row._table === 'cashflow_entries') return row.description || 'Partida sin descripción';
+      if (row._table === 'cashflow_recurring_templates') return row.description || 'Recurrente sin descripción';
+      if (row._table === 'cashflow_loans') return row.name || 'Préstamo sin nombre';
+      if (row._table === 'cashflow_bank_balance') return 'Saldo bancario';
+      if (row._table === 'cashflow_alert_settings') return 'Configuración de alertas';
+      return 'Registro de caja';
+    };
+    const cashflowSource = (row) => ({
+      cashflow_entries: 'Partida',
+      cashflow_recurring_templates: 'Recurrente',
+      cashflow_loans: 'Préstamo / leasing',
+      cashflow_bank_balance: 'Saldo',
+      cashflow_alert_settings: 'Configuración',
+    })[row._table] || 'Caja';
+    const cashflowAmount = (row) => row.amount_chf ?? row.balance_chf ?? row.principal_chf ?? row.min_balance_threshold_chf;
+    const cashflowDate = (row) => row.due_date || row.as_of_date || row.end_date || row.created_at;
+    const cashflowDetail = (row) => {
+      if (row._table === 'cashflow_entries') return genericDetails(row, [['Descripción', 'description'], ['Tipo', 'kind'], ['Origen', 'source'], ['Monto', 'amount_chf', money], ['Vencimiento', 'due_date', date], ['Estado', 'status'], ['Creado por', 'created_by']]);
+      if (row._table === 'cashflow_recurring_templates') return genericDetails(row, [['Descripción', 'description'], ['Tipo', 'kind'], ['Monto', 'amount_chf', money], ['Frecuencia', 'frequency'], ['Día del mes', 'day_of_month'], ['Desde', 'start_date', date], ['Hasta', 'end_date', date], ['Activo', 'active']]);
+      if (row._table === 'cashflow_loans') return genericDetails(row, [['Nombre', 'name'], ['Principal', 'principal_chf', money], ['Cuota mensual', 'monthly_payment_chf', money], ['Desde', 'start_date', date], ['Hasta', 'end_date', date], ['Notas', 'notes']]);
+      if (row._table === 'cashflow_bank_balance') return genericDetails(row, [['Saldo', 'balance_chf', money], ['Fecha del saldo', 'as_of_date', date], ['Nota', 'note'], ['Creado por', 'created_by']]);
+      return genericDetails(row, [['Umbral mínimo', 'min_balance_threshold_chf', money], ['Límite de crédito', 'credit_limit_chf', money], ['Email de alerta', 'alert_email'], ['Alertas activas', 'enabled'], ['Último período alertado', 'last_alerted_period']]);
+    };
+    let currentUserEmail = '';
+
+    const sections = {
+      contenido: [
+        {
+          key: 'blog', label: 'Blog', icon: '✍️', table: 'blogs', source: 'Blog',
+          title: (r) => r.title || r.topic || 'Artículo sin título',
+          sub: (r) => [String(r.lang || '').toUpperCase(), r.slug].filter(Boolean).join(' · '),
+          labels: ['Artículo', 'Idioma', 'Estado', 'Actualizado'],
+          cells: (r) => [r.title || r.topic || 'Artículo sin título', String(r.lang || '—').toUpperCase(), status(r), date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Título', 'title'], ['Idioma', 'lang', (v) => String(v || '—').toUpperCase()], ['Estado', 'status'], ['Slug', 'slug'], ['Keyword objetivo', 'target_keyword'], ['Posición inicial', 'keyword_current_position'], ['Veredicto de keyword', 'keyword_verdict'], ['URL publicada', 'published_url'], ['Actualización', 'updated_at', date], ['Publicación', 'published_at', date]]),
+          attention: (r) => ['pending', 'draft', 'review'].includes(String(r.status || '').toLowerCase()),
+          href: origin('contenido', 'blog'), copy: 'Artículos y borradores en los idiomas de la web.',
+        },
+        {
+          key: 'cola', label: 'Cola editorial', icon: '☷', table: 'content_queue', source: 'Cola editorial',
+          title: (r) => r.topic || r.title || 'Tema sin título', sub: (r) => `Prioridad ${text(r.priority)}`,
+          labels: ['Tema', 'Prioridad', 'Estado', 'Creado'],
+          cells: (r) => [r.topic || r.title || 'Tema sin título', text(r.priority), status(r), date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Tema', 'topic'], ['Estado', 'status'], ['Prioridad', 'priority'], ['Keyword objetivo', 'target_keyword'], ['Motivo de la keyword', 'keyword_why'], ['Prioridad de keyword', 'keyword_priority'], ['Finalizado', 'done_at', date], ['Creado', 'created_at', date]]),
+          attention: (r) => waiting(r.status), href: origin('contenido', 'blog'), copy: 'Temas que esperan entrar al motor de contenido.',
+        },
+        {
+          key: 'newsletter', label: 'Newsletter', icon: '▤', table: 'newsletters', source: 'Newsletter',
+          title: (r) => subjectFor(r) || 'Envío sin asunto', sub: (r) => String(r.segment_lang || '—').toUpperCase(),
+          labels: ['Campaña', 'Segmento', 'Estado', 'Fecha'],
+          cells: (r) => [subjectFor(r) || 'Envío sin asunto', text(r.segment_stage), status(r), date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Asunto', 'subject', (v, x) => text(v || subjectFor(x))], ['Asuntos por idioma', 'subject_i18n'], ['Estado', 'status'], ['Segmento', 'segment_stage'], ['Idioma', 'segment_lang', (v) => String(v || '—').toUpperCase()], ['Programado', 'scheduled_at', (v) => date(v, true)], ['Enviado', 'sent_at', (v) => date(v, true)], ['Cantidad enviada', 'sent_count'], ['Creado', 'created_at', date]]),
+          attention: (r) => waiting(r.status), href: origin('contenido', 'news'), copy: 'Campañas, borradores y envíos guardados.',
+        },
+        {
+          key: 'issues', label: 'Ediciones mensuales', icon: '▥', table: 'newsletter_issues', source: 'Edición mensual', order: 'created_at',
+          title: (r) => issueSubject(r) || r.month || 'Edición sin asunto', sub: (r) => text(r.month),
+          labels: ['Edición', 'Mes', 'Estado', 'Enviados'],
+          cells: (r) => [issueSubject(r) || 'Edición sin asunto', text(r.month), status(r), r.sent_count === null || r.sent_count === undefined ? '—' : String(r.sent_count)],
+          detail: (r) => genericDetails(r, [['Mes', 'month'], ['Estado', 'status'], ['Contenido por idioma', 'content'], ['Proyecto destacado', 'project_key'], ['Aprobado por', 'approved_by'], ['Enviado', 'sent_at', (v) => date(v, true)], ['Cantidad enviada', 'sent_count'], ['Creado', 'created_at', date]]),
+          attention: (r) => r.status === 'draft', href: origin('contenido', 'news'), copy: 'Ediciones automáticas que nunca se envían sin aprobación humana.',
+        },
+        {
+          key: 'seo', label: 'SEO', icon: '⌕', table: 'seo_actions', source: 'Acción SEO',
+          title: (r) => r.page || r.title || 'Acción SEO', sub: (r) => text(r.action_type || r.type),
+          labels: ['Página', 'Acción', 'Estado', 'Creado'],
+          cells: (r) => [r.page || r.title || 'Acción SEO', text(r.action_type || r.type), status(r), date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Página', 'page'], ['Tipo', 'action_type'], ['Estado', 'status'], ['Nota', 'note'], ['Creado por', 'created_by'], ['Fecha', 'created_at', date]]),
+          attention: (r) => waiting(r.status), href: origin('contenido', 'seo'), copy: 'Cambios propuestos y aplicados sobre la web.',
+        },
+        {
+          key: 'keywords', label: 'Keywords', icon: 'K', table: 'keyword_opportunities', source: 'Oportunidad de keyword', order: 'priority',
+          title: (r) => r.keyword || 'Keyword sin nombre', sub: (r) => String(r.lang || '—').toUpperCase(),
+          labels: ['Keyword', 'Tipo', 'Prioridad', 'Estado'],
+          cells: (r) => [r.keyword || 'Keyword sin nombre', text(r.type), r.priority === null || r.priority === undefined ? '—' : String(r.priority), status(r)],
+          detail: (r) => genericDetails(r, [['Keyword', 'keyword'], ['Idioma', 'lang', (v) => String(v || '—').toUpperCase()], ['Tipo', 'type'], ['Prioridad', 'priority'], ['Por qué', 'why'], ['Acción', 'action'], ['Fuente', 'source'], ['Estado', 'status'], ['Actualizado', 'updated_at', date]]),
+          attention: (r) => r.status === 'new', href: origin('contenido', 'seo'), copy: 'Oportunidades acumuladas desde Search Console y Ads.',
+        },
+        {
+          key: 'search-console', label: 'Search Console', icon: 'G', table: 'gsc_daily', source: 'Dato de Search Console', order: 'date',
+          title: (r) => r.query || 'Búsqueda sin texto', sub: (r) => date(r.date),
+          labels: ['Búsqueda', 'Clicks', 'Impresiones', 'Posición'],
+          cells: (r) => [r.query || 'Búsqueda sin texto', String(r.clicks ?? '—'), String(r.impressions ?? '—'), r.position === null || r.position === undefined ? '—' : Number(r.position).toLocaleString('es-CH', { maximumFractionDigits: 1 })],
+          detail: (r) => genericDetails(r, [['Búsqueda', 'query'], ['Fecha', 'date', date], ['Clicks', 'clicks'], ['Impresiones', 'impressions'], ['Posición', 'position'], ['Actualizado', 'updated_at', date]]),
+          attention: () => false, href: origin('contenido', 'seo'), copy: 'Snapshots reales de búsquedas, clicks, impresiones y posición.',
+        },
+        {
+          key: 'site-health', label: 'Salud web', icon: '✓', table: 'site_health_runs', source: 'Revisión del sitio', order: 'created_at',
+          title: (r) => `Revisión ${date(r.created_at, true)}`, sub: (r) => `${r.total ?? '—'} URLs`,
+          labels: ['Revisión', 'Correctas', 'Redirecciones', 'Rotas'],
+          cells: (r) => [date(r.created_at, true), String(r.ok ?? '—'), String(r.redirect_count ?? '—'), String(r.broken_count ?? '—')],
+          detail: (r) => genericDetails(r, [['Fecha', 'created_at', (v) => date(v, true)], ['URLs revisadas', 'total'], ['Correctas', 'ok'], ['Redirecciones', 'redirect_count'], ['Rotas', 'broken_count'], ['Detalle de rotas', 'broken'], ['Detalle de redirecciones', 'redirects']]),
+          attention: (r) => Number(r.broken_count) > 0 || Number(r.redirect_count) > 0, href: origin('contenido', 'seo'), copy: 'Chequeos reales del sitemap y sus URLs.',
+        },
+        {
+          key: 'magnets', label: 'Lead magnets', icon: '↓', table: 'magnet_sends', source: 'Envío de lead magnet', order: 'created_at',
+          title: (r) => r.magnet || 'Lead magnet', sub: (r) => text(r.email),
+          labels: ['Magnet', 'Contacto', 'Idioma', 'Enviado'],
+          cells: (r) => [r.magnet || 'Lead magnet', text(r.email), String(r.lang || '—').toUpperCase(), date(r.sent_at || r.created_at, true)],
+          detail: (r) => genericDetails(r, [['Magnet', 'magnet'], ['Email', 'email'], ['Idioma', 'lang', (v) => String(v || '—').toUpperCase()], ['Lead', 'lead_id'], ['Enviado', 'sent_at', (v) => date(v, true)], ['Abierto', 'opened_at', (v) => date(v, true)], ['Click', 'clicked_at', (v) => date(v, true)], ['Creado', 'created_at', date]]),
+          attention: () => false, href: origin('contenido', 'magnets'), copy: 'Entregas reales por email y sus señales de apertura y click.',
+        },
+      ],
+      automatizaciones: [
+        {
+          key: 'workflows', label: 'Workflows', icon: '⌘', table: 'automations', source: 'Workflow',
+          title: (r) => r.name || 'Workflow sin nombre', sub: (r) => text(r.trigger_type || r.trigger),
+          labels: ['Workflow', 'Disparador', 'Estado', 'Actualizado'],
+          cells: (r) => [r.name || 'Workflow sin nombre', text(r.trigger_type || r.trigger), r.enabled === true ? 'Activo' : r.enabled === false ? 'Pausado' : status(r), date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Nombre', 'name'], ['Activo', 'enabled'], ['Disparador', 'trigger', (v) => text(v)], ['Configuración', 'trigger_config'], ['Split A/B', 'ab_split', (v) => v === null || v === undefined ? '—' : `${v}% para B`], ['Pasos A', 'steps_a'], ['Pasos B', 'steps_b'], ['Actualizado', 'updated_at', date]]),
+          attention: (r) => String(r.status || '').toLowerCase() === 'error', href: origin('sistema', 'auto'), copy: 'Reglas automáticas y secuencias configuradas.',
+        },
+        {
+          key: 'runs', label: 'Ejecuciones', icon: '↻', table: 'automation_runs', source: 'Ejecución',
+          title: (r) => `Ejecución ${text(r.id)}`, sub: (r) => `Lead ${text(r.lead_id)}`,
+          labels: ['Ejecución', 'Lead', 'Estado', 'Próximo paso'],
+          cells: (r) => [`Ejecución ${text(r.id)}`, text(r.lead_id), status(r), date(r.next_at, true)],
+          detail: (r) => genericDetails(r, [['ID', 'id'], ['Workflow', 'automation_id'], ['Lead', 'lead_id'], ['Variante', 'variant'], ['Paso', 'step_idx'], ['Estado', 'status'], ['Próxima ejecución', 'next_at', (v) => date(v, true)]]),
+          attention: (r) => ['failed', 'error'].includes(String(r.status || '').toLowerCase()), href: origin('sistema', 'auto'), copy: 'Personas que están recorriendo un workflow.',
+        },
+        {
+          key: 'outbox', label: 'Bandeja', icon: '↗', table: 'outbox', source: 'Borrador automático',
+          title: (r) => r.subject || 'Email sin asunto', sub: (r) => text(r.kind),
+          labels: ['Asunto', 'Tipo', 'Estado', 'Programado'],
+          cells: (r) => [r.subject || 'Email sin asunto', text(r.kind), status(r), date(r.scheduled_at, true)],
+          detail: (r) => genericDetails(r, [['Asunto', 'subject'], ['Tipo', 'kind'], ['Estado', 'status'], ['Lead', 'lead_id'], ['Remitente', 'sender'], ['Programado', 'scheduled_at', (v) => date(v, true)], ['Creado', 'created_at', date]]),
+          attention: (r) => ['pending', 'failed', 'error'].includes(String(r.status || '').toLowerCase()), href: (r) => `${origin('sistema', 'auto')}&ob=${encodeURIComponent(r.id)}`, copy: 'Emails automáticos que esperan revisión o salida.',
+        },
+        {
+          key: 'templates', label: 'Plantillas', icon: '▱', table: 'email_templates', source: 'Plantilla',
+          title: (r) => r.name || r.key || r.subject || 'Plantilla sin nombre', sub: (r) => String(r.lang || '—').toUpperCase(),
+          labels: ['Plantilla', 'Idioma', 'Asunto', 'Actualizada'],
+          cells: (r) => [r.name || r.key || 'Plantilla sin nombre', String(r.lang || '—').toUpperCase(), text(r.subject), date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Clave', 'key'], ['Nombre', 'name'], ['Idioma', 'lang', (v) => String(v || '—').toUpperCase()], ['Asunto', 'subject'], ['Actualización', 'updated_at', date]]),
+          attention: () => false, href: origin('sistema', 'tmpl'), copy: 'Personalizaciones guardadas. Los textos originales siguen disponibles en el editor del dashboard.',
+        },
+        {
+          key: 'queue', label: 'Cola de trabajo', icon: '✓', table: 'work_queue', source: 'Tarea automática',
+          title: (r) => r.title || 'Tarea sin título', sub: (r) => text(r.source),
+          labels: ['Tarea', 'Tipo', 'Estado', 'Creada'],
+          cells: (r) => [r.title || 'Tarea sin título', text(r.source), status(r), date(r.approved_at || r.created_at)],
+          detail: (r) => genericDetails(r, [['Título', 'title'], ['Origen', 'source'], ['Referencia', 'ref'], ['Estado', 'status'], ['Detalle', 'detail'], ['Aprobado por', 'approved_by'], ['Aprobado', 'approved_at', (v) => date(v, true)], ['Terminado', 'done_at', (v) => date(v, true)], ['Resultado', 'done_note']]),
+          attention: (r) => waiting(r.status), href: (r) => canonicalDashboardUrl(r.url) || origin('sistema', 'auto'), copy: 'Trabajo aprobado que todavía espera ejecución.',
+        },
+      ],
+      sistema: [
+        {
+          key: 'services', label: 'Servicios', icon: '◇', table: 'services', source: 'Servicio',
+          title: (r) => r.name || 'Servicio sin nombre', sub: (r) => text(r.phase || r.category),
+          labels: ['Servicio', 'Fase', 'Unidad', 'Precio'],
+          cells: (r) => [r.name || 'Servicio sin nombre', text(r.phase || r.category), text(r.unit), money(r.price)],
+          detail: (r) => genericDetails(r, [['Nombre', 'name'], ['Fase', 'phase'], ['Unidad', 'unit'], ['Precio', 'price', money], ['Costo', 'cost', money], ['Activo', 'active'], ['Actualizado', 'updated_at', date]]),
+          attention: () => false, href: origin('sistema', 'services'), copy: 'Catálogo real que alimenta las ofertas.',
+        },
+        {
+          key: 'licenses', label: 'Licencias', icon: '□', table: 'licenses', source: 'Licencia',
+          title: (r) => r.title || 'Licencia sin título', sub: (r) => r.lead_id === null || r.lead_id === undefined ? '—' : `Lead ${r.lead_id}`,
+          labels: ['Licencia', 'Estado', 'Renovación', 'Monto'],
+          cells: (r) => [r.title || r.name || 'Licencia sin título', status(r), date(r.renewal_date), money(r.amount)],
+          detail: (r) => genericDetails(r, [['Título', 'title'], ['Estado', 'status'], ['Cliente', 'lead_id'], ['Monto', 'amount', money], ['Inicio', 'start_date', date], ['Renovación', 'renewal_date', date], ['Notas', 'notes']]),
+          attention: (r) => {
+            if (inactive(r.status) || !r.renewal_date) return false;
+            const renewal = Date.parse(r.renewal_date);
+            return Number.isFinite(renewal) && renewal <= Date.now() + 90 * 864e5;
+          },
+          href: origin('sistema', 'licenses'), copy: 'Derechos de uso e ingresos recurrentes.',
+        },
+        {
+          key: 'cashflow', label: 'Cash Flow', icon: 'CHF', tables: ['cashflow_entries', 'cashflow_recurring_templates', 'cashflow_loans', 'cashflow_bank_balance', 'cashflow_alert_settings'], source: 'Cash Flow', superadmin: true,
+          title: cashflowTitle, sub: cashflowSource,
+          labels: ['Registro', 'Fuente', 'Monto', 'Fecha / estado'],
+          cells: (r) => [cashflowTitle(r), cashflowSource(r), money(cashflowAmount(r)), r.status ? text(r.status) : date(cashflowDate(r))],
+          detail: cashflowDetail,
+          attention: (r) => r._table === 'cashflow_entries' && r.status === 'projected' && Number.isFinite(Date.parse(r.due_date)) && Date.parse(r.due_date) < Date.now(),
+          href: origin('sistema', 'cashflow'), copy: 'Partidas, recurrentes, préstamos, saldo y alertas. Solo superadmin.',
+        },
+        {
+          key: 'booking', label: 'Booking', icon: '▦', table: 'booking_settings', source: 'Agenda',
+          title: (r) => r.host_name || r.name || r.email || 'Agenda', sub: (r) => text(r.email),
+          labels: ['Agenda', 'Horario', 'Estado', 'Horizonte'],
+          cells: (r) => [r.host_name || r.email || 'Agenda', `${minutesAsTime(r.work_start)} – ${minutesAsTime(r.work_end)}`, r.active === true ? 'Activa' : r.active === false ? 'Inactiva' : '—', r.horizon_days === null || r.horizon_days === undefined ? '—' : `${r.horizon_days} días`],
+          detail: (r) => genericDetails(r, [['Anfitrión', 'host_name'], ['Rol', 'host_role'], ['Email', 'email'], ['Activa', 'active'], ['Desde', 'work_start', minutesAsTime], ['Hasta', 'work_end', minutesAsTime], ['Días disponibles', 'days'], ['Duraciones', 'durations'], ['Aviso mínimo', 'notice_hours', (v) => v === null || v === undefined ? '—' : `${v} horas`], ['Buffer', 'buffer_min', (v) => v === null || v === undefined ? '—' : `${v} min`], ['Horizonte', 'horizon_days', (v) => v === null || v === undefined ? '—' : `${v} días`]]),
+          attention: () => false, href: (r) => !r.email || String(r.email).toLowerCase() === currentUserEmail ? origin('sistema', 'booking') : '', copy: 'Disponibilidad y reglas de reserva por anfitrión.',
+        },
+        {
+          key: 'tests', label: 'A/B tests', icon: 'A/B', table: 'ab_tests', source: 'A/B test',
+          title: (r) => r.name || 'Test sin nombre', sub: (r) => text(r.url_path),
+          labels: ['Test', 'Página', 'Estado', 'Hasta'],
+          cells: (r) => [r.name || 'Test sin nombre', text(r.url_path), status(r), date(r.end_at)],
+          detail: (r) => genericDetails(r, [['Nombre', 'name'], ['Página', 'url_path'], ['Estado', 'status'], ['Split B', 'split_pct', (v) => v === null || v === undefined ? '—' : `${v}%`], ['Cambios', 'changes'], ['Desde', 'start_at', date], ['Hasta', 'end_at', date], ['Notas', 'notes'], ['Creado', 'created_at', date]]),
+          attention: (r) => ['failed', 'error'].includes(String(r.status || '').toLowerCase()), href: origin('sistema', 'ab'), copy: 'Experimentos configurados sobre páginas públicas.',
+        },
+        {
+          key: 'team', label: 'Equipo', icon: '◉', table: 'team_profiles', source: 'Perfil',
+          title: (r) => r.name || r.email || 'Perfil sin nombre', sub: (r) => text(r.role),
+          labels: ['Persona', 'Rol', 'Booking', 'Actualizado'],
+          cells: (r) => [r.name || r.email || 'Perfil sin nombre', text(r.role), r.book_visible === true ? 'Visible' : r.book_visible === false ? 'No visible' : '—', date(timestamp(r))],
+          detail: (r) => genericDetails(r, [['Nombre', 'name'], ['Email', 'email'], ['Rol', 'role'], ['Teléfono', 'phone'], ['Booking visible', 'book_visible'], ['Costo por hora', 'costo_hora', money], ['Actualizado', 'updated_at', date]]),
+          attention: (r) => !r.name || !r.email, href: (r) => String(r.email || '').toLowerCase() === currentUserEmail ? origin('sistema', 'profile') : '', copy: 'Perfiles que operan y firman desde el dashboard.',
+        },
+        {
+          key: 'roles', label: 'Accesos', icon: '⌾', table: 'user_roles', source: 'Rol de acceso', superadmin: true,
+          title: (r) => r.email || 'Acceso sin email', sub: (r) => text(r.role),
+          labels: ['Usuario', 'Rol', 'Creado', 'Fuente'],
+          cells: (r) => [r.email || 'Acceso sin email', text(r.role), date(r.created_at), 'Roles del dashboard'],
+          detail: (r) => genericDetails(r, [['Email', 'email'], ['Rol', 'role'], ['Creado', 'created_at', date]]),
+          attention: () => false, href: '', copy: 'Roles registrados. La gestión de contraseñas permanece en el flujo protegido del dashboard original.',
+        },
+        {
+          key: 'crons', label: 'Crons', icon: '↻', rpc: 'cron_health', source: 'Tarea programada',
+          state: (r) => text(r.estado),
+          title: (r) => r.jobname || 'Cron sin nombre', sub: (r) => text(r.schedule),
+          labels: ['Tarea', 'Estado', 'Última corrida', 'Frecuencia'],
+          cells: (r) => [r.jobname || 'Cron sin nombre', text(r.estado), date(r.last_run, true), text(r.schedule)],
+          detail: (r) => genericDetails(r, [['Tarea', 'jobname'], ['Agenda', 'schedule'], ['Activa', 'activo'], ['Estado', 'estado'], ['Última corrida', 'last_run', (v) => date(v, true)], ['Resultado', 'last_status'], ['Mensaje', 'last_message'], ['Minutos desde la última', 'minutos_desde'], ['Esperado cada (min)', 'esperado_cada_min']]),
+          attention: (r) => ['apagado', 'nunca_corrio', 'fallo', 'atrasado'].includes(String(r.estado || '')), href: '', copy: 'Estado real de cada tarea programada.',
+        },
+        {
+          key: 'freshness', label: 'Frescura', icon: '◷', rpc: 'frescura_de_datos', source: 'Fuente de datos',
+          state: (r) => text(r.estado),
+          title: (r) => r.que_es || r.tabla || 'Fuente sin nombre', sub: (r) => text(r.tabla),
+          labels: ['Fuente', 'Estado', 'Último dato', 'Antigüedad'],
+          cells: (r) => [r.que_es || r.tabla || 'Fuente sin nombre', text(r.estado), date(r.ultima, true), r.horas === null || r.horas === undefined ? '—' : `${r.horas} h`],
+          detail: (r) => genericDetails(r, [['Tabla', 'tabla'], ['Qué mide', 'que_es'], ['Estado', 'estado'], ['Último dato', 'ultima', (v) => date(v, true)], ['Horas', 'horas'], ['Tolerancia (horas)', 'horas_tolerancia']]),
+          attention: (r) => r.estado === 'viejo', href: '', copy: 'Comprueba que cada proceso esté dejando datos recientes, no solo ejecutándose.',
+        },
+        {
+          key: 'health', label: 'Salud', icon: '!', table: 'dash_perf_log', source: 'Error registrado', order: 'at',
+          filterRows: (sourceRows) => sourceRows.filter((r) => {
+            const kind = String(r.phases?.kind || '');
+            const at = Date.parse(r.at);
+            return ['error', 'error_visto'].includes(kind) && Number.isFinite(at) && at >= Date.now() - 7 * 864e5;
+          }),
+          title: (r) => text(r.phases?.msg, '(sin mensaje)'), sub: (r) => text(r.phases?.donde || r.phases?.tab || r.email),
+          labels: ['Evento', 'Origen', 'Tipo', 'Fecha'],
+          cells: (r) => [text(r.phases?.msg, '(sin mensaje)'), text(r.phases?.donde || r.phases?.tab || r.email), r.phases?.kind === 'error' ? 'Excepción' : 'Aviso visible', date(r.at, true)],
+          detail: (r) => [['Mensaje', text(r.phases?.msg)], ['Dónde', text(r.phases?.donde)], ['Pestaña', text(r.phases?.tab)], ['Tipo', r.phases?.kind === 'error' ? 'Excepción' : 'Aviso visible'], ['Usuario', text(r.email)], ['Fecha', date(r.at, true)], ['Navegador', text(r.ua)]],
+          attention: () => true, href: '', copy: 'Errores de los últimos 7 días; vacío es una buena señal.',
+        },
+      ],
+    };
+
+    const configs = sections[section] || sections.contenido;
+    let active = configs[0];
+    let rows = [];
+    let requestId = 0;
+    let verified = false;
+
+    async function readAll(table, order = '') {
+      const data = [];
+      for (let from = 0; from < 20000; from += 1000) {
+        let query = db.from(table).select('*');
+        if (order) query = query.order(order, { ascending: false });
+        const result = await query.range(from, from + 999);
+        if (result.error) return result;
+        data.push(...(result.data || []));
+        if ((result.data || []).length < 1000) return { data, error: null };
+      }
+      const probe = await db.from(table).select('*').range(20000, 20000);
+      return probe.error || (probe.data || []).length
+        ? { data: null, error: probe.error || { message: 'Más de 20.000 registros' } }
+        : { data, error: null };
+    }
+
+    function setMode(html, isHtml = false) {
+      const el = $('[data-management-mode]');
+      if (!el) return;
+      if (isHtml) el.innerHTML = html;
+      else el.textContent = html;
+    }
+    function updateTabs() {
+      const tabs = $('[data-management-tabs]');
+      if (!tabs) return;
+      tabs.innerHTML = configs.map((cfg) => `<button type="button" data-management-tab="${esc(cfg.key)}" class="${cfg.key === active.key ? 'active' : ''}"><span>${esc(cfg.icon)}</span>${esc(cfg.label)}</button>`).join('');
+      tabs.querySelectorAll('[data-management-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+          active = configs.find((cfg) => cfg.key === button.dataset.managementTab) || configs[0];
+          const search = $('[data-management-search]');
+          if (search instanceof HTMLInputElement) search.value = '';
+          updateTabs();
+          load();
+        });
+      });
+    }
+    function clearNumbers() {
+      ['[data-kpi-total]', '[data-kpi-attention]', '[data-kpi-month]'].forEach((selector) => {
+        const el = $(selector);
+        if (el) el.textContent = '—';
+      });
+    }
+    function render() {
+      if (!verified) return;
+      const input = $('[data-management-search]');
+      const select = $('[data-management-filter]');
+      const term = input instanceof HTMLInputElement ? input.value.trim().toLowerCase() : '';
+      const filter = select instanceof HTMLSelectElement ? select.value : '';
+      const stateFor = (row) => active.state ? active.state(row) : status(row);
+      const filtered = rows.filter((row) => {
+        const haystack = [active.title(row), active.sub(row), ...active.cells(row)].join(' ').toLowerCase();
+        return (!term || haystack.includes(term)) && (!filter || stateFor(row) === filter);
+      });
+      const list = $('[data-management-list]');
+      if (list) {
+        list.innerHTML = filtered.length
+          ? filtered.map((row, index) => `<button class="management-row" type="button" data-management-row="${index}">${active.cells(row).map((cell, cellIndex) => `<span${cellIndex === 0 ? ' class="management-primary"' : ''}>${esc(cell)}</span>`).join('')}</button>`).join('')
+          : '<p class="management-empty">No hay resultados para esta vista.</p>';
+        list.querySelectorAll('[data-management-row]').forEach((button) => {
+          button.addEventListener('click', () => openDetail(filtered[Number(button.dataset.managementRow)]));
+        });
+      }
+      const total = $('[data-kpi-total]');
+      const attention = $('[data-kpi-attention]');
+      const month = $('[data-kpi-month]');
+      if (total) total.textContent = String(rows.length);
+      if (attention) attention.textContent = String(rows.filter(active.attention).length);
+      const dates = rows.map(timestamp).map((value) => Date.parse(value)).filter(Number.isFinite);
+      if (month) {
+        const start = new Date();
+        start.setDate(1); start.setHours(0, 0, 0, 0);
+        month.textContent = dates.length ? String(dates.filter((value) => value >= start.getTime()).length) : '—';
+      }
+    }
+    function openDetail(row) {
+      if (!row) return;
+      const drawer = $('[data-management-drawer]');
+      const kind = $('[data-detail-kind]');
+      const titleEl = $('[data-detail-title]');
+      const sub = $('[data-detail-sub]');
+      const body = $('[data-detail-body]');
+      const link = $('[data-detail-origin]');
+      if (kind) kind.textContent = active.source;
+      if (titleEl) titleEl.textContent = active.title(row);
+      if (sub) sub.textContent = active.sub(row) || 'Información verificada del registro';
+      if (body) body.innerHTML = active.detail(row).map(([label, value]) => `<div><small>${esc(label)}</small><strong>${esc(text(value))}</strong></div>`).join('');
+      if (link instanceof HTMLAnchorElement) {
+        const href = typeof active.href === 'function' ? active.href(row) : active.href;
+        link.href = href || '/dashboard/';
+        link.hidden = demo || !href;
+      }
+      if (drawer instanceof HTMLElement) drawer.hidden = false;
+    }
+    function closeDetail() {
+      const drawer = $('[data-management-drawer]');
+      if (drawer instanceof HTMLElement) drawer.hidden = true;
+    }
+    root.querySelectorAll('[data-management-close]').forEach((button) => button.addEventListener('click', closeDetail));
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDetail(); });
+    $('[data-management-search]')?.addEventListener('input', render);
+    $('[data-management-filter]')?.addEventListener('change', render);
+
+    async function load() {
+      const thisRequest = ++requestId;
+      rows = [];
+      verified = false;
+      closeDetail();
+      clearNumbers();
+      const title = $('[data-list-title]');
+      const copy = $('[data-list-copy]');
+      const labels = $('[data-management-labels]');
+      const list = $('[data-management-list]');
+      const filter = $('[data-management-filter]');
+      if (title) title.textContent = active.label;
+      if (copy) copy.textContent = active.copy;
+      if (labels) labels.innerHTML = active.labels.map((label) => `<span>${esc(label)}</span>`).join('');
+      if (list) list.innerHTML = '<p class="management-empty">Cargando datos reales…</p>';
+      if (filter instanceof HTMLSelectElement) filter.innerHTML = '<option value="">Todos los estados</option>';
+      if (demo) {
+        setMode(`Vista demo · sin datos ni métricas ficticias <a class="mode-link" href="/dashboard-v2/${esc(section)}/">Ver datos reales →</a>`, true);
+        if (list) list.innerHTML = '<p class="management-empty">Los registros reales aparecen aquí al abrir esta vista con una sesión activa.</p>';
+        return;
+      }
+      const { data: { session } } = await db.auth.getSession();
+      if (thisRequest !== requestId) return;
+      if (!session) {
+        setMode('Sesión local no iniciada · iniciá sesión para consultar la información real.');
+        if (list) list.innerHTML = '<p class="management-empty">No se muestran datos sin una sesión verificada.</p>';
+        return;
+      }
+      currentUserEmail = String(session.user.email || '').toLowerCase();
+      if (active.superadmin) {
+        const roleResult = await db.from('user_roles').select('role').eq('email', currentUserEmail).maybeSingle();
+        if (thisRequest !== requestId) return;
+        if (roleResult.error || roleResult.data?.role !== 'superadmin') {
+          setMode('Esta fuente está restringida a superadmin · información oculta.');
+          if (list) list.innerHTML = '<p class="management-empty">No se muestran valores sin el rol requerido.</p>';
+          return;
+        }
+      }
+      setMode(`Consultando ${active.label.toLowerCase()}…`);
+      let result;
+      let partialFailures = 0;
+      if (active.rpc) {
+        result = await db.rpc(active.rpc);
+      } else if (active.tables) {
+        const results = await Promise.all(active.tables.map((table) => readAll(table)));
+        partialFailures = results.filter((item) => item.error).length;
+        const available = results.flatMap((item, index) => item.error ? [] : (item.data || []).map((row) => ({ ...row, _table: active.tables[index] })));
+        const firstError = results.find((item) => item.error)?.error || null;
+        result = partialFailures === results.length
+          ? { data: null, error: firstError }
+          : { data: available, error: null };
+      } else {
+        result = await readAll(active.table, active.order);
+      }
+      if (thisRequest !== requestId) return;
+      if (result.error) {
+        setMode('No se pudo verificar esta fuente · información oculta.');
+        if (list) list.innerHTML = '<p class="management-empty">La consulta falló. No se completó ningún valor.</p>';
+        return;
+      }
+      const sourceRows = (result.data || []).filter((row) => row.archived !== true && row.es_prueba !== true && row.is_test !== true);
+      rows = active.filterRows ? active.filterRows(sourceRows) : sourceRows;
+      verified = true;
+      const states = [...new Set(rows.map((row) => active.state ? active.state(row) : status(row)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+      if (filter instanceof HTMLSelectElement) filter.innerHTML = '<option value="">Todos los estados</option>' + states.map((state) => `<option>${esc(state)}</option>`).join('');
+      setMode(`Datos reales · ${session.user.email || 'sesión activa'}${partialFailures ? ` · ${partialFailures} fuente${partialFailures === 1 ? '' : 's'} no disponible${partialFailures === 1 ? '' : 's'}` : ''}`);
+      render();
+    }
+
+    updateTabs();
+    load();
+  }
+</script>
+
+<style is:global>
+  .management{--mg-acid:#dffb43;--mg-bg:#07172a;--mg-panel:#102239;--mg-panel-2:#0b1b30;--mg-line:rgba(174,195,220,.2);--mg-muted:#9aaabe;--mg-text:#f5f8fc;background:radial-gradient(circle at 60% -30%,#12334f 0,transparent 38%),var(--mg-bg);color:var(--mg-text);height:100%;min-height:0;min-width:0;overflow:auto;padding:24px}
+  .management *{box-sizing:border-box}
+  .management-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}
+  .management-head h2{font:700 clamp(28px,3vw,40px)/1.05 'Space Grotesk',Inter,sans-serif;letter-spacing:-.035em;margin:0}
+  .management-head p{color:var(--mg-muted);font-size:14px;line-height:1.5;margin:7px 0 3px}
+  .management-head small{color:#72859d;font-size:12px}
+  .management-head small a,.management .mode-link{color:var(--mg-acid);font-weight:700;text-decoration:none}
+  .management-search{align-items:center;background:rgba(255,255,255,.035);border:1px solid var(--mg-line);border-radius:12px;color:var(--mg-muted);display:flex;gap:8px;min-width:min(330px,40vw);padding:0 13px}
+  .management-search:focus-within{border-color:rgba(223,251,67,.65);box-shadow:0 0 0 3px rgba(223,251,67,.07)}
+  .management-search input{background:transparent;border:0;color:var(--mg-text);font:inherit;min-width:0;outline:0;padding:11px 0;width:100%}
+  .management-search input::placeholder{color:#6f829a}
+  .management-tabs{border-bottom:1px solid var(--mg-line);display:flex;gap:4px;margin-bottom:16px;overflow:auto;scrollbar-width:none}
+  .management-tabs::-webkit-scrollbar{display:none}
+  .management-tabs button{align-items:center;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--mg-muted);cursor:pointer;display:flex;font:650 13px/1 inherit;gap:7px;margin-bottom:-1px;padding:10px 13px 12px;white-space:nowrap}
+  .management-tabs button span{color:#71839b;font-size:12px}
+  .management-tabs button:hover{color:var(--mg-text)}
+  .management-tabs button.active{border-bottom-color:var(--mg-acid);color:var(--mg-text)}
+  .management-tabs button.active span{color:var(--mg-acid)}
+  .management-kpis{background:linear-gradient(135deg,rgba(17,38,63,.96),rgba(10,27,47,.92));border:1px solid var(--mg-line);border-radius:14px;display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 18px;overflow:hidden}
+  .management-kpis>div{min-width:0;padding:15px 18px}
+  .management-kpis>div+div{border-left:1px solid var(--mg-line)}
+  .management-kpis small{color:var(--mg-muted);display:block;font-size:11px;margin-bottom:5px}
+  .management-kpis strong{font:700 23px/1 'Space Grotesk',Inter,sans-serif}
+  .management-toolbar{align-items:end;display:flex;justify-content:space-between;gap:16px;margin:0 0 10px}
+  .management-toolbar h3{font-size:17px;margin:0 0 3px}
+  .management-toolbar p{color:var(--mg-muted);font-size:12px;margin:0}
+  .management-toolbar select{background:var(--mg-panel-2);border:1px solid var(--mg-line);border-radius:999px;color:var(--mg-text);font:600 12px/1 inherit;max-width:210px;padding:8px 34px 8px 12px}
+  .management-table{background:linear-gradient(180deg,rgba(16,34,57,.9),rgba(9,25,44,.9));border:1px solid var(--mg-line);border-radius:14px;min-height:220px;overflow:hidden}
+  .management-row{align-items:center;background:transparent;border:0;border-bottom:1px solid rgba(174,195,220,.12);color:var(--mg-text);display:grid;font:inherit;grid-template-columns:minmax(220px,1.4fr) minmax(130px,.8fr) minmax(110px,.65fr) minmax(120px,.7fr);gap:16px;padding:13px 16px;text-align:left;width:100%}
+  button.management-row{cursor:pointer;transition:background .14s ease}
+  button.management-row:hover{background:rgba(223,251,67,.055)}
+  .management-row:last-child{border-bottom:0}
+  .management-row span{color:#bfcbda;font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .management-row .management-primary{color:var(--mg-text);font-size:13px;font-weight:700}
+  .management-labels{background:rgba(255,255,255,.025);color:#71839a;min-height:38px;padding-block:10px}
+  .management-labels span{color:#71839a;font-size:10px;font-weight:750;letter-spacing:.07em;text-transform:uppercase}
+  .management-empty{color:var(--mg-muted);display:grid;font-size:13px;min-height:180px;margin:0;padding:28px;place-items:center;text-align:center}
+  .management-drawer{inset:0;position:fixed;z-index:900}
+  .management-drawer[hidden]{display:none}
+  .management-backdrop{background:rgba(1,8,17,.73);border:0;inset:0;position:absolute;width:100%}
+  .management-sheet{background:linear-gradient(180deg,#122641,#0a1c31);border-left:1px solid rgba(190,209,231,.25);box-shadow:-25px 0 70px rgba(0,0,0,.34);height:100%;margin-left:auto;max-width:520px;overflow:auto;padding:clamp(26px,4vw,48px);position:relative;width:min(520px,94vw)}
+  .management-close{background:rgba(255,255,255,.05);border:1px solid var(--mg-line);border-radius:50%;color:var(--mg-text);cursor:pointer;font-size:22px;height:38px;line-height:1;position:absolute;right:22px;top:22px;width:38px}
+  .management-eyebrow{color:var(--mg-acid);display:block;font-size:10px;font-weight:800;letter-spacing:.11em;margin:4px 46px 10px 0;text-transform:uppercase}
+  .management-sheet h2{font:700 29px/1.1 'Space Grotesk',Inter,sans-serif;letter-spacing:-.025em;margin:0 45px 7px 0}
+  .management-sheet>p{color:var(--mg-muted);font-size:13px;margin:0 0 24px}
+  .management-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .management-fields>div{background:rgba(255,255,255,.035);border:1px solid rgba(174,195,220,.14);border-radius:11px;min-width:0;padding:12px 13px}
+  .management-fields small{color:#7f91a7;display:block;font-size:10px;margin-bottom:5px;text-transform:uppercase}
+  .management-fields strong{display:block;font-size:12.5px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap}
+  .management-sheet footer{border-top:1px solid var(--mg-line);margin-top:24px;padding-top:18px}
+  .management-origin{align-items:center;background:var(--mg-acid);border-radius:10px;color:#10200a;display:inline-flex;font-size:12px;font-weight:800;padding:10px 14px;text-decoration:none}
+  .management-origin[hidden]{display:none}
+  @media(max-width:760px){
+    .management{padding:16px}.management-head{display:block}.management-search{margin-top:14px;min-width:0;width:100%}
+    .management-kpis>div{padding:13px}.management-kpis small{min-height:27px}.management-kpis strong{font-size:20px}
+    .management-toolbar{align-items:stretch;display:block}.management-toolbar select{margin-top:11px;max-width:none;width:100%}
+    .management-labels{display:none}.management-row{grid-template-columns:1fr auto;gap:5px 14px;padding:14px}
+    .management-row span:nth-child(3),.management-row span:nth-child(4){color:#7f91a7;font-size:11px}
+    .management-sheet{padding:28px 20px}.management-fields{grid-template-columns:1fr}
+  }
+</style>

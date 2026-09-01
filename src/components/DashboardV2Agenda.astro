@@ -1,0 +1,407 @@
+---
+// Agenda nativa de Dashboard V2. El componente no recibe ni fabrica datos:
+// todas las filas se cargan en el navegador desde la sesión real de Supabase.
+---
+
+<section class="agenda-v2" data-agenda-root>
+  <div class="agenda-v2__head">
+    <div>
+      <h2>Agenda</h2>
+      <p data-agenda-mode>Cargando reuniones y tareas reales…</p>
+    </div>
+    <div class="agenda-v2__views" aria-label="Vista de agenda">
+      <button class="agenda-v2__view is-active" type="button" data-agenda-view="list" aria-pressed="true">Lista</button>
+      <button class="agenda-v2__view" type="button" data-agenda-view="week" aria-pressed="false">Semana</button>
+    </div>
+  </div>
+
+  <div class="agenda-v2__summary" aria-label="Resumen de agenda">
+    <button type="button" data-agenda-shortcut="today"><small>Hoy</small><strong data-agenda-today>—</strong></button>
+    <button type="button" data-agenda-shortcut="week"><small>Próximos 7 días</small><strong data-agenda-next>—</strong></button>
+    <button type="button" data-agenda-shortcut="overdue"><small>Tareas vencidas</small><strong data-agenda-overdue>—</strong></button>
+    <button type="button" data-agenda-shortcut="undated"><small>Sin fecha</small><strong data-agenda-undated>—</strong></button>
+  </div>
+
+  <div class="agenda-v2__toolbar">
+    <label class="agenda-v2__search">
+      <span aria-hidden="true">⌕</span>
+      <input type="search" data-agenda-search placeholder="Buscar persona, empresa o tarea…" autocomplete="off" />
+    </label>
+    <label class="agenda-v2__select"><span>Período</span><select data-agenda-scope>
+      <option value="upcoming">Próximos 30 días</option>
+      <option value="today">Hoy</option>
+      <option value="week">Próximos 7 días</option>
+      <option value="overdue">Vencidas</option>
+      <option value="undated">Sin fecha</option>
+      <option value="all">Todo</option>
+    </select></label>
+    <label class="agenda-v2__select"><span>Tipo</span><select data-agenda-kind>
+      <option value="all">Reuniones y tareas</option>
+      <option value="booking">Solo reuniones</option>
+      <option value="task">Solo tareas</option>
+    </select></label>
+    <label class="agenda-v2__select"><span>Responsable</span><select data-agenda-owner><option value="all">Todos</option></select></label>
+  </div>
+
+  <div class="agenda-v2__content">
+    <div class="agenda-v2__list" data-agenda-list>
+      <p class="agenda-v2__empty">Esperando datos reales</p>
+    </div>
+    <div class="agenda-v2__week" data-agenda-week hidden>
+      <div class="agenda-v2__weekbar">
+        <button type="button" data-week-prev aria-label="Semana anterior">←</button>
+        <strong data-week-title>Semana</strong>
+        <button type="button" data-week-next aria-label="Semana siguiente">→</button>
+      </div>
+      <div class="agenda-v2__weekgrid" data-week-grid></div>
+    </div>
+  </div>
+
+  <div class="agenda-v2__drawer" data-agenda-drawer hidden>
+    <div class="agenda-v2__backdrop" data-agenda-close></div>
+    <article class="agenda-v2__sheet" role="dialog" aria-modal="true" aria-labelledby="agenda-v2-detail-title">
+      <button class="agenda-v2__close" type="button" data-agenda-close aria-label="Cerrar">×</button>
+      <div class="agenda-v2__badge" data-detail-kind>Agenda</div>
+      <h2 id="agenda-v2-detail-title" data-detail-title>Detalle</h2>
+      <p data-detail-subtitle></p>
+      <div class="agenda-v2__fields" data-detail-fields></div>
+      <div class="agenda-v2__message" data-detail-message hidden></div>
+      <div class="agenda-v2__foot">
+        <a class="btn" data-detail-meet href="#" target="_blank" rel="noreferrer" hidden>Entrar a la videollamada ↗</a>
+        <a class="btn primary" data-detail-origin href="/dashboard/?tab=agenda">Abrir registro original</a>
+      </div>
+    </article>
+  </div>
+</section>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  const agendaRoot = document.querySelector('[data-agenda-root]');
+  if (agendaRoot instanceof HTMLElement) {
+    const db = createClient(
+      'https://lumoevaotokgqnpybkyf.supabase.co',
+      'sb_publishable_ORGL5_FNZTXcGKwvjs-ymw_Y8DV_4ca'
+    );
+    const demo = new URLSearchParams(location.search).get('demo') === '1';
+    const $ = (selector) => agendaRoot.querySelector(selector);
+    const $$ = (selector) => [...agendaRoot.querySelectorAll(selector)];
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+    const locale = 'es-CH';
+    const dayMs = 86400000;
+    const startDay = (value = new Date()) => {
+      const date = new Date(value);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+    const endDay = (value = new Date()) => new Date(startDay(value).getTime() + dayMs);
+    const taskHasTime = (task) => /^\d{2}:\d{2}/.test(String(task.due_time || ''));
+    const taskDate = (task) => {
+      if (!task.due_date) return null;
+      // Mediodía evita que una fecha sin hora cambie de día por zona horaria.
+      // Es sólo una clave interna de orden: nunca se presenta como hora real.
+      const time = taskHasTime(task) ? String(task.due_time).slice(0, 5) : '12:00';
+      const date = new Date(`${task.due_date}T${time}:00`);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const dateTime = (value) => value ? new Date(value).toLocaleString(locale, {
+      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    }) : 'Sin fecha';
+    const dateOnly = (value) => value ? new Date(value).toLocaleDateString(locale, {
+      weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
+    }) : 'Sin fecha';
+    const shortDay = (value) => new Date(value).toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short' });
+    const language = (value) => ({ de: 'Alemán', en: 'Inglés', es: 'Español' }[String(value || '').toLowerCase()] || 'Sin definir');
+    const cleanOwner = (value) => String(value || '').trim().toLowerCase();
+
+    let items = [];
+    let filteredItems = [];
+    let currentView = 'list';
+    let detailTrigger = null;
+    let weekStart = startDay();
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+
+    const setVerifiedValues = (values) => {
+      $('[data-agenda-today]').textContent = values ? String(values.today) : '—';
+      $('[data-agenda-next]').textContent = values ? String(values.next) : '—';
+      $('[data-agenda-overdue]').textContent = values ? String(values.overdue) : '—';
+      $('[data-agenda-undated]').textContent = values ? String(values.undated) : '—';
+    };
+
+    const leadTitle = (lead, fallback = '') => lead?.name || lead?.company || lead?.email || fallback || 'Contacto sin nombre';
+    const normalize = (bookings, tasks, leads) => {
+      const leadMap = new Map(leads.map((lead) => [String(lead.id), lead]));
+      const bookingRows = bookings
+        .filter((booking) => String(booking.status || 'confirmed').toLowerCase() !== 'canceled')
+        .map((booking) => {
+          const lead = leadMap.get(String(booking.lead_id)) || null;
+          const at = booking.start_at ? new Date(booking.start_at) : null;
+          return {
+            key: `booking:${booking.id}`, kind: 'booking', id: booking.id, leadId: booking.lead_id,
+            title: `Videollamada · ${booking.name || leadTitle(lead, booking.email)}`,
+            subtitle: booking.email || lead?.email || '', company: lead?.company || '', owner: booking.host_email || '',
+            at: at && !Number.isNaN(at.getTime()) ? at : null, end: booking.end_at ? new Date(booking.end_at) : null,
+            status: booking.status || 'confirmed', done: false, noDate: !at, hasTime: true, source: booking, lead
+          };
+        });
+      const taskRows = tasks.map((task) => {
+        const lead = leadMap.get(String(task.lead_id)) || null;
+        const at = taskDate(task);
+        return {
+          key: `task:${task.id}`, kind: 'task', id: task.id, leadId: task.lead_id,
+          title: task.title || 'Tarea sin título', subtitle: leadTitle(lead), company: lead?.company || '',
+          owner: task.assignee || '', at, end: null, status: task.done ? 'done' : 'open', done: Boolean(task.done),
+          noDate: !task.due_date, hasTime: taskHasTime(task), source: task, lead
+        };
+      });
+      return [...bookingRows, ...taskRows].sort((a, b) => {
+        if (!a.at && !b.at) return String(a.title).localeCompare(String(b.title));
+        if (!a.at) return 1;
+        if (!b.at) return -1;
+        return a.at.getTime() - b.at.getTime();
+      });
+    };
+
+    const isOverdue = (item) => {
+      if (item.kind !== 'task' || item.done || !item.at) return false;
+      return item.source.due_time ? item.at.getTime() < Date.now() : item.at < startDay();
+    };
+    const isToday = (item) => item.at && item.at >= startDay() && item.at < endDay();
+    const isNext = (item, days) => item.at && item.at >= startDay() && item.at < new Date(startDay().getTime() + days * dayMs);
+
+    const kindLabel = (item) => item.kind === 'booking' ? 'Videollamada' : 'Tarea';
+    const stateLabel = (item) => {
+      if (item.kind === 'booking') return 'Confirmada';
+      if (item.done) return 'Completada';
+      if (isOverdue(item)) return 'Vencida';
+      return 'Pendiente';
+    };
+    const originalHref = (item) => item.kind === 'booking'
+      ? '/dashboard/?tab=agenda'
+      : `/dashboard/?lead=${encodeURIComponent(item.leadId || '')}`;
+
+    function rowHtml(item) {
+      const time = item.at
+        ? (item.kind === 'task' && !item.hasTime ? 'Sin hora' : item.at.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))
+        : '—';
+      return `<button class="agenda-v2__row ${isOverdue(item) ? 'is-overdue' : ''} ${item.done ? 'is-done' : ''}" type="button" data-agenda-item="${esc(item.key)}">
+        <span class="agenda-v2__date"><b>${esc(item.noDate ? 'Sin fecha' : shortDay(item.at))}</b><small>${esc(item.noDate ? 'Pendiente de agendar' : time)}</small></span>
+        <span class="agenda-v2__rowmain"><i class="agenda-v2__kind agenda-v2__kind--${item.kind}">${item.kind === 'booking' ? '●' : '✓'}</i><span><b>${esc(item.title)}</b><small>${esc([item.subtitle, item.company].filter(Boolean).join(' · '))}</small></span></span>
+        <span class="agenda-v2__owner">${esc(item.owner || 'Sin asignar')}</span>
+        <span class="agenda-v2__status agenda-v2__status--${isOverdue(item) ? 'late' : item.done ? 'done' : item.kind}">${esc(stateLabel(item))}</span>
+        <span class="agenda-v2__arrow">›</span>
+      </button>`;
+    }
+
+    function matchesSharedFilters(item) {
+      const term = $('[data-agenda-search]').value.trim().toLowerCase();
+      const kind = $('[data-agenda-kind]').value;
+      const owner = $('[data-agenda-owner]').value;
+      const haystack = [item.title, item.subtitle, item.company, item.owner].join(' ').toLowerCase();
+      return (!term || haystack.includes(term))
+        && (kind === 'all' || item.kind === kind)
+        && (owner === 'all' || cleanOwner(item.owner) === owner);
+    }
+
+    function applyFilters() {
+      const scope = $('[data-agenda-scope]').value;
+      const monthEnd = new Date(startDay().getTime() + 30 * dayMs);
+      filteredItems = items.filter((item) => {
+        const scopeMatch = scope === 'all'
+          || (scope === 'today' && isToday(item))
+          || (scope === 'week' && isNext(item, 7))
+          || (scope === 'upcoming' && item.at && item.at >= startDay() && item.at < monthEnd && !item.done)
+          || (scope === 'overdue' && isOverdue(item))
+          || (scope === 'undated' && item.noDate && !item.done);
+        return matchesSharedFilters(item) && scopeMatch;
+      });
+      renderList();
+      renderWeek();
+    }
+
+    function renderList() {
+      const list = $('[data-agenda-list]');
+      if (!filteredItems.length) {
+        list.innerHTML = '<p class="agenda-v2__empty">No hay resultados con estos filtros.</p>';
+        return;
+      }
+      const groups = [];
+      filteredItems.forEach((item) => {
+        const key = item.noDate ? 'Sin fecha' : item.at.toISOString().slice(0, 10);
+        let group = groups.find((entry) => entry.key === key);
+        if (!group) { group = { key, items: [] }; groups.push(group); }
+        group.items.push(item);
+      });
+      list.innerHTML = groups.map((group) => `<section class="agenda-v2__group"><h3>${esc(group.key === 'Sin fecha' ? group.key : new Date(`${group.key}T12:00:00`).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }))}</h3>${group.items.map(rowHtml).join('')}</section>`).join('');
+      bindItems();
+    }
+
+    function renderWeek() {
+      const end = new Date(weekStart.getTime() + 7 * dayMs);
+      // La grilla semanal tiene su propio período: conserva búsqueda, tipo y
+      // responsable, pero nunca queda recortada por el período de la lista.
+      const weekItems = items.filter(matchesSharedFilters);
+      $('[data-week-title]').textContent = `${weekStart.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} — ${new Date(end.getTime() - dayMs).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      $('[data-week-grid]').innerHTML = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(weekStart.getTime() + index * dayMs);
+        const nextDay = new Date(day.getTime() + dayMs);
+        const dayItems = weekItems.filter((item) => item.at && item.at >= day && item.at < nextDay);
+        return `<section class="agenda-v2__day ${isToday({ at: day }) ? 'is-today' : ''}"><h3><span>${esc(day.toLocaleDateString(locale, { weekday: 'short' }))}</span><b>${day.getDate()}</b></h3><div>${dayItems.length ? dayItems.map((item) => `<button type="button" class="agenda-v2__weekitem agenda-v2__weekitem--${item.kind}" data-agenda-item="${esc(item.key)}"><time>${esc(item.kind === 'task' && !item.hasTime ? 'Sin hora' : item.at.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))}</time><b>${esc(item.title)}</b><small>${esc(item.subtitle)}</small></button>`).join('') : '<p>Sin compromisos</p>'}</div></section>`;
+      }).join('');
+      bindItems();
+    }
+
+    function openDetail(key, trigger = null) {
+      const item = items.find((entry) => entry.key === key);
+      if (!item) return;
+      detailTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement;
+      $('[data-detail-kind]').textContent = kindLabel(item);
+      $('[data-detail-kind]').className = `agenda-v2__badge agenda-v2__badge--${item.kind}`;
+      $('[data-detail-title]').textContent = item.title;
+      $('[data-detail-subtitle]').textContent = [item.subtitle, item.company].filter(Boolean).join(' · ');
+      const fields = item.kind === 'booking'
+        ? [
+            ['Inicio', dateTime(item.source.start_at)], ['Fin', dateTime(item.source.end_at)],
+            ['Responsable', item.owner || 'Sin asignar'], ['Estado', stateLabel(item)],
+            ['Duración', item.source.duration_m ? `${item.source.duration_m} minutos` : '—'], ['Idioma', language(item.source.lang)],
+            ['Email', item.source.email], ['Teléfono', item.source.phone]
+          ]
+        : [
+            ['Vencimiento', item.at ? (item.hasTime ? dateTime(item.at) : `${dateOnly(item.at)} · Sin hora`) : 'Sin fecha'], ['Responsable', item.owner || 'Sin asignar'],
+            ['Estado', stateLabel(item)], ['Contacto', item.subtitle],
+            ['Empresa', item.company], ['Completada', item.source.done_at ? dateTime(item.source.done_at) : '—']
+          ];
+      $('[data-detail-fields]').innerHTML = fields.map(([label, value]) => `<div><small>${esc(label)}</small><b>${esc(value || '—')}</b></div>`).join('');
+      const message = String(item.source.message || '').trim();
+      $('[data-detail-message]').hidden = !message;
+      $('[data-detail-message]').innerHTML = message ? `<small>Mensaje del contacto</small><p>${esc(message)}</p>` : '';
+      const meet = $('[data-detail-meet]');
+      meet.hidden = !(item.kind === 'booking' && item.source.meet_url && !demo);
+      if (!meet.hidden) meet.href = item.source.meet_url;
+      const origin = $('[data-detail-origin]');
+      origin.hidden = demo;
+      origin.href = originalHref(item);
+      $('[data-agenda-drawer]').hidden = false;
+      document.body.classList.add('agenda-v2-open');
+      requestAnimationFrame(() => $('.agenda-v2__close')?.focus());
+    }
+
+    function closeDetail() {
+      $('[data-agenda-drawer]').hidden = true;
+      document.body.classList.remove('agenda-v2-open');
+      if (detailTrigger instanceof HTMLElement && detailTrigger.isConnected) detailTrigger.focus();
+      detailTrigger = null;
+    }
+    function bindItems() {
+      $$('[data-agenda-item]').forEach((button) => { button.onclick = () => openDetail(button.dataset.agendaItem, button); });
+    }
+
+    $$('[data-agenda-close]').forEach((button) => { button.onclick = closeDetail; });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !$('[data-agenda-drawer]').hidden) closeDetail(); });
+    ['[data-agenda-search]', '[data-agenda-scope]', '[data-agenda-kind]', '[data-agenda-owner]'].forEach((selector) => {
+      $(selector).addEventListener(selector.includes('search') ? 'input' : 'change', applyFilters);
+    });
+    $$('[data-agenda-shortcut]').forEach((button) => {
+      button.onclick = () => { $('[data-agenda-scope]').value = button.dataset.agendaShortcut; currentView = 'list'; selectView(); applyFilters(); };
+    });
+    $$('[data-agenda-view]').forEach((button) => {
+      button.onclick = () => { currentView = button.dataset.agendaView; selectView(); };
+    });
+    function selectView() {
+      $$('[data-agenda-view]').forEach((button) => {
+        const active = button.dataset.agendaView === currentView;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      $('[data-agenda-list]').hidden = currentView !== 'list';
+      $('[data-agenda-week]').hidden = currentView !== 'week';
+      $('[data-agenda-scope]').disabled = demo || currentView === 'week';
+    }
+    $('[data-week-prev]').onclick = () => { weekStart = new Date(weekStart.getTime() - 7 * dayMs); renderWeek(); };
+    $('[data-week-next]').onclick = () => { weekStart = new Date(weekStart.getTime() + 7 * dayMs); renderWeek(); };
+
+    function showUnavailable(message) {
+      setVerifiedValues(null);
+      $('[data-agenda-mode]').textContent = message;
+      $('[data-agenda-list]').innerHTML = '<p class="agenda-v2__empty">La agenda queda oculta hasta verificar los datos reales.</p>';
+      $('[data-week-grid]').innerHTML = '<p class="agenda-v2__empty">Sin datos verificados</p>';
+    }
+
+    async function fetchPaged(table, columns, configure) {
+      const rows = [];
+      const pageSize = 1000;
+      const maxRows = 20000;
+      const page = (from, to) => {
+        let query = db.from(table).select(columns);
+        query = configure(query);
+        return query.range(from, to);
+      };
+      for (let start = 0; start < maxRows; start += pageSize) {
+        const result = await page(start, start + pageSize - 1);
+        if (result.error) return { data: [], error: result.error };
+        rows.push(...(result.data || []));
+        if (!result.data || result.data.length < pageSize) return { data: rows, error: null };
+      }
+      // No se publican totales parciales: una fila adicional invalida la fuente.
+      const probe = await page(maxRows, maxRows);
+      if (probe.error) return { data: [], error: probe.error };
+      if (probe.data?.length) return { data: [], error: new Error(`${table} supera ${maxRows.toLocaleString('de-CH')} registros`) };
+      return { data: rows, error: null };
+    }
+
+    async function loadAgenda() {
+      if (demo) {
+        setVerifiedValues(null);
+        $('[data-agenda-mode]').innerHTML = 'Vista demo · sin reuniones, tareas ni contadores ficticios <a class="mode-link" href="/dashboard-v2/agenda/">Ver datos reales →</a>';
+        $('[data-agenda-list]').innerHTML = '<p class="agenda-v2__empty">Las reuniones y tareas reales aparecen aquí.</p>';
+        $('[data-week-grid]').innerHTML = '<p class="agenda-v2__empty">La semana real aparece al iniciar sesión.</p>';
+        $$('input, select').forEach((control) => { control.disabled = true; });
+        return;
+      }
+      const { data: { session }, error: sessionError } = await db.auth.getSession();
+      if (sessionError) { showUnavailable('No se pudo verificar la sesión · información oculta'); return; }
+      if (!session) {
+        showUnavailable('Sesión local no iniciada');
+        $('[data-agenda-mode]').innerHTML = 'Sesión local no iniciada <a class="mode-link" href="/dashboard/">Iniciar sesión →</a>';
+        return;
+      }
+      const [bookingResult, taskResult, leadResult] = await Promise.all([
+        fetchPaged('bookings', '*', (query) => query.order('start_at', { ascending: true }).order('id', { ascending: true })),
+        fetchPaged('lead_tasks', '*', (query) => query.order('due_date', { ascending: true, nullsFirst: false }).order('id', { ascending: true })),
+        fetchPaged('leads', 'id,name,email,company', (query) => query.order('id', { ascending: true }))
+      ]);
+      if (bookingResult.error || taskResult.error || leadResult.error) {
+        showUnavailable('No se pudieron verificar reuniones y tareas · información oculta');
+        return;
+      }
+      items = normalize(bookingResult.data || [], taskResult.data || [], leadResult.data || []);
+      const owners = [...new Set(items.map((item) => item.owner).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      $('[data-agenda-owner]').innerHTML = '<option value="all">Todos</option>' + owners.map((owner) => `<option value="${esc(cleanOwner(owner))}">${esc(owner)}</option>`).join('');
+      setVerifiedValues({
+        today: items.filter((item) => isToday(item) && !item.done).length,
+        next: items.filter((item) => isNext(item, 7) && !item.done).length,
+        overdue: items.filter(isOverdue).length,
+        undated: items.filter((item) => item.kind === 'task' && item.noDate && !item.done).length
+      });
+      $('[data-agenda-mode]').textContent = `Datos reales · ${session.user.email || 'sesión activa'}`;
+      applyFilters();
+    }
+
+    loadAgenda();
+  }
+</script>
+
+<style is:global>
+  body.agenda-v2-open{overflow:hidden}
+  .agenda-v2{height:100%;overflow:auto;padding:24px;background:radial-gradient(circle at 60% -30%,#12334f 0,transparent 38%),var(--bg,#061526);color:var(--text,#f6f8fb)}
+  .agenda-v2__head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}.agenda-v2__head h2{font-size:30px;line-height:1.1;margin:0}.agenda-v2__head p{color:var(--muted,#96a9bc);margin:5px 0 0}.agenda-v2__views{display:flex;gap:6px;border:1px solid var(--line,#263c52);border-radius:10px;padding:4px;background:#081b2e}.agenda-v2__view{border:0;border-radius:7px;background:transparent;color:var(--muted,#96a9bc);padding:8px 14px;cursor:pointer}.agenda-v2__view.is-active{background:var(--lime,#d9fb35);color:#071526;font-weight:750}
+  .agenda-v2__summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:14px}.agenda-v2__summary button{border:1px solid var(--line,#263c52);background:rgba(11,30,50,.94);color:inherit;text-align:left;border-radius:11px;padding:14px 16px;cursor:pointer}.agenda-v2__summary button:hover{border-color:#57718a}.agenda-v2__summary small{display:block;color:var(--muted,#96a9bc)}.agenda-v2__summary strong{display:block;font-size:24px;margin-top:3px}
+  .agenda-v2__toolbar{display:grid;grid-template-columns:minmax(240px,1fr) repeat(3,auto);gap:8px;margin-bottom:15px}.agenda-v2__search,.agenda-v2__select{display:flex;align-items:center;gap:8px;border:1px solid var(--line,#263c52);background:#0c2136;border-radius:9px;padding:8px 11px}.agenda-v2__search input{width:100%;border:0;outline:0;color:white;background:transparent}.agenda-v2__select span{color:var(--muted,#96a9bc);font-size:11px}.agenda-v2__select select{border:0;outline:0;background:transparent;color:white;max-width:180px}.agenda-v2__toolbar :disabled{opacity:.55;cursor:not-allowed}
+  .agenda-v2__content{border:1px solid var(--line,#263c52);background:rgba(8,27,46,.9);border-radius:12px;overflow:hidden;min-height:320px}.agenda-v2__group h3{margin:0;padding:10px 15px;color:var(--muted,#96a9bc);font-size:11px;text-transform:uppercase;letter-spacing:.08em;background:#07192b;border-bottom:1px solid var(--line,#263c52)}.agenda-v2__row{width:100%;display:grid;grid-template-columns:145px minmax(250px,1fr) minmax(120px,.5fr) 105px 18px;gap:12px;align-items:center;padding:13px 15px;border:0;border-bottom:1px solid var(--line,#263c52);background:transparent;color:white;text-align:left;cursor:pointer}.agenda-v2__row:hover{background:#10283e}.agenda-v2__row.is-done{opacity:.62}.agenda-v2__date b,.agenda-v2__date small,.agenda-v2__rowmain small{display:block}.agenda-v2__date small,.agenda-v2__rowmain small,.agenda-v2__owner{color:var(--muted,#96a9bc);font-size:12px}.agenda-v2__rowmain{display:flex;align-items:center;gap:10px;min-width:0}.agenda-v2__rowmain>span{min-width:0}.agenda-v2__rowmain b,.agenda-v2__rowmain small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.agenda-v2__kind{display:grid;place-items:center;width:29px;height:29px;flex:0 0 29px;border-radius:50%;font-style:normal}.agenda-v2__kind--booking{background:rgba(217,251,53,.13);color:var(--lime,#d9fb35)}.agenda-v2__kind--task{background:rgba(95,177,255,.13);color:#75baff}.agenda-v2__status{justify-self:start;border-radius:999px;padding:4px 8px;font-size:11px;background:#112a41;color:#b9c8d7}.agenda-v2__status--booking{color:var(--lime,#d9fb35)}.agenda-v2__status--late{color:#ffbd53;background:rgba(255,166,36,.12)}.agenda-v2__status--done{color:#79dba3;background:rgba(88,205,138,.12)}.agenda-v2__arrow{font-size:22px;color:#71879a}.agenda-v2__empty{margin:0;padding:42px 20px;text-align:center;color:var(--muted,#96a9bc)}
+  .agenda-v2__weekbar{height:52px;display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:1px solid var(--line,#263c52)}.agenda-v2__weekbar button{border:1px solid var(--line,#263c52);background:#10263b;color:white;border-radius:8px;width:32px;height:32px;cursor:pointer}.agenda-v2__weekgrid{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));min-height:430px;overflow:auto}.agenda-v2__day{min-width:130px;border-right:1px solid var(--line,#263c52)}.agenda-v2__day:last-child{border-right:0}.agenda-v2__day>h3{display:flex;align-items:center;justify-content:space-between;margin:0;padding:10px 11px;border-bottom:1px solid var(--line,#263c52);font-size:12px;color:var(--muted,#96a9bc);text-transform:capitalize}.agenda-v2__day>h3 b{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;color:white}.agenda-v2__day.is-today>h3 b{background:var(--lime,#d9fb35);color:#071526}.agenda-v2__day>div{display:grid;gap:7px;padding:7px}.agenda-v2__day>div>p{color:#60788d;text-align:center;font-size:11px;margin:18px 0}.agenda-v2__weekitem{display:block;width:100%;border:1px solid #2b455e;border-left:3px solid #75baff;background:#0d243a;color:white;border-radius:7px;padding:8px;text-align:left;cursor:pointer}.agenda-v2__weekitem--booking{border-left-color:var(--lime,#d9fb35)}.agenda-v2__weekitem:hover{background:#15314a}.agenda-v2__weekitem time,.agenda-v2__weekitem b,.agenda-v2__weekitem small{display:block}.agenda-v2__weekitem time{color:var(--muted,#96a9bc);font-size:10px}.agenda-v2__weekitem b{font-size:11px;margin:3px 0;line-height:1.25}.agenda-v2__weekitem small{color:#8499ad;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .agenda-v2__drawer{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:20px}.agenda-v2__drawer[hidden]{display:none}.agenda-v2__backdrop{position:absolute;inset:0;background:rgba(1,9,17,.8);backdrop-filter:blur(5px)}.agenda-v2__sheet{position:relative;width:min(700px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:#0b2035;border:1px solid #38516a;border-radius:15px;padding:25px}.agenda-v2__close{position:absolute;right:14px;top:9px;border:0;background:transparent;color:white;font-size:27px;cursor:pointer}.agenda-v2__badge{display:inline-block;margin-bottom:10px;border-radius:999px;padding:5px 9px;background:#15304a;color:#a7bad0;font-size:11px}.agenda-v2__badge--booking{color:var(--lime,#d9fb35);background:rgba(217,251,53,.1)}.agenda-v2__badge--task{color:#75baff;background:rgba(95,177,255,.1)}.agenda-v2__sheet h2{margin:0 35px 0 0}.agenda-v2__sheet>p{color:var(--muted,#96a9bc);margin:5px 0 17px}.agenda-v2__fields{display:grid;grid-template-columns:1fr 1fr;gap:9px}.agenda-v2__fields>div{border:1px solid var(--line,#263c52);background:#07182a;border-radius:8px;padding:11px}.agenda-v2__fields small{display:block;color:var(--muted,#96a9bc);margin-bottom:2px}.agenda-v2__message{margin-top:10px;border:1px solid var(--line,#263c52);background:#07182a;border-radius:8px;padding:12px}.agenda-v2__message small{color:var(--muted,#96a9bc)}.agenda-v2__message p{margin:5px 0 0;white-space:pre-wrap}.agenda-v2__foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.agenda-v2__foot [hidden]{display:none}.agenda-v2 .mode-link{color:var(--lime,#d9fb35);font-weight:700;text-decoration:none;margin-left:6px}
+  @media(max-width:1050px){.agenda-v2__toolbar{grid-template-columns:1fr 1fr}.agenda-v2__row{grid-template-columns:125px minmax(210px,1fr) 100px 18px}.agenda-v2__owner{display:none}.agenda-v2__weekgrid{grid-template-columns:repeat(7,minmax(150px,1fr))}}
+  @media(max-width:700px){.agenda-v2{padding:16px}.agenda-v2__head{align-items:flex-start;flex-direction:column}.agenda-v2__summary{grid-template-columns:1fr 1fr}.agenda-v2__toolbar{grid-template-columns:1fr}.agenda-v2__row{grid-template-columns:95px minmax(0,1fr) 18px;padding:12px}.agenda-v2__status{display:none}.agenda-v2__date b{font-size:11px}.agenda-v2__fields{grid-template-columns:1fr}.agenda-v2__foot{align-items:stretch;flex-direction:column}.agenda-v2__foot .btn{text-align:center}.agenda-v2__sheet{padding:22px 18px}}
+</style>
