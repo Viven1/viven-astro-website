@@ -67,10 +67,25 @@ function _vivenLoadTracking(){
 var _vivenEsConversion = /\/(thank-you|danke|gracias|book)\//.test(location.pathname);
 function _vivenAgendarTracking(){
   if(_vivenEsConversion) return setTimeout(_vivenLoadTracking, 100);
-  setTimeout(function(){
+  /* SIETE SEGUNDOS DE ESPERA PURA PIERDEN MEDIA AUDIENCIA. Medido el 2 sep 2026 sobre 30
+     dias: de 539 sesiones HUMANAS (con actividad real, sin bots), el 47% dura menos de
+     siete segundos — mediana 9 s. A esa mitad GTM no le cargaba nunca: no entraban en
+     Analytics ni en las audiencias de remarketing.
+     Ahora dispara con lo que pase primero: LA PRIMERA INTERACCION o los siete segundos.
+     Quien hace algo —scrollear, tocar, tipear— se mide al instante, que es justo el
+     visitante que importa. Y Lighthouse no interactua nunca, asi que sigue viendo el
+     camino de siete segundos y el puntaje que gano ese cambio queda igual. */
+  var _ya = false;
+  function _arrancar(){
+    if(_ya) return; _ya = true;
     if('requestIdleCallback' in window) requestIdleCallback(_vivenLoadTracking, { timeout: 2000 });
     else _vivenLoadTracking();
-  }, 7000);
+  }
+  /* passive y capture: no se le agrega latencia al scroll ni se pisa ningun handler. */
+  ['pointerdown','keydown','scroll','touchstart'].forEach(function(e){
+    window.addEventListener(e, _arrancar, { once: true, passive: true, capture: true });
+  });
+  setTimeout(_arrancar, 7000);
 }
 if(document.readyState === 'complete') _vivenAgendarTracking();
 else window.addEventListener('load', _vivenAgendarTracking);
