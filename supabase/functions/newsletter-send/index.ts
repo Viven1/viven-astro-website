@@ -179,6 +179,15 @@ const UNSUB_LABEL: Record<string, string> = { en: "Unsubscribe", de: "Abmelden",
 // Saludo por idioma. REGLA DURA (misma que 0089/0111): en DE jamás nombre de
 // pila ni du — "Guten Tag" formal a secas (no tenemos apellido/género
 // confiables en leads). EN/ES sí con nombre de pila si existe.
+/* Cada link del email lleva QUIÉN lo recibió (utm_content=p<lead_id>), así la
+   analítica propia del sitio puede decir "Kaan entró a Costos y se quedó 40 s" en
+   vez de "alguien". Se agrega sobre el HTML final, después de utm_campaign, para
+   que valga para los dos caminos (campañas y edición mensual) sin tocar cómo se
+   arman los bloques. (Sebastián, 2 sep 2026: "¿se puede ver quién fue?") */
+function conQuien(html: string, leadId?: number | null): string {
+  if (leadId == null) return html;
+  return html.replace(/utm_campaign=([A-Za-z0-9._-]+)/g, (m) => m + "&amp;utm_content=p" + leadId).replace(/&amp;amp;/g, "&amp;");
+}
 function greeting(lang: string, firstName: string): string {
   if (lang === "de") return `<p style="margin:0 0 16px;font-size:15px;color:#222">Guten Tag</p>`;
   if (!firstName) return "";
@@ -642,7 +651,7 @@ Deno.serve(async (req) => {
         return {
           from: "VIVEN <info@viven.ch>", reply_to: "info@viven.ch", to: [r.email],
           subject: ct.subject || content.en.subject || "VIVEN",
-          html: wrapEmail(greeting(lang, r.name || "") + (ct.html || ""), unsub, lang),
+          html: conQuien(wrapEmail(greeting(lang, r.name || "") + (ct.html || ""), unsub, lang), r.id),
           tags: [{ name: "issue_id", value: String(issue_id) }],   // → resend-events estampa apertura/click
         };
       };
@@ -778,7 +787,7 @@ Deno.serve(async (req) => {
       const tok = r.id != null ? await unsubToken(r.id) : "";
       const unsub = r.id != null ? `${SB_URL}/functions/v1/newsletter-unsub?l=${r.id}&t=${tok}` : "https://www.viven.ch";
       // saludo vía greeting(): en DE siempre "Guten Tag" formal, sin nombre de pila
-      return wrapEmail(greeting(lang, r.name || "") + inner, unsub, lang);
+      return conQuien(wrapEmail(greeting(lang, r.name || "") + inner, unsub, lang), r.id);
     };
 
     /* ===== PREVIEW DEL EMAIL FINAL =====

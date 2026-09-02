@@ -254,6 +254,9 @@ const newsCases = [
   .nwm-posts li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px}
   .nwm-posts li span{color:var(--muted-2);font-variant-numeric:tabular-nums}
   .nwm-posts li a{color:var(--text);text-decoration:none} .nwm-posts li a:hover{color:var(--acid)}
+  .nwm-visitas{display:grid;gap:6px;margin-top:10px}
+  .nwm-visita{background:var(--panel-2);border-radius:10px;padding:8px 11px;font-size:13px}
+  .nwm-visita small{color:var(--muted-2)}
   .kpi{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--navy-700),var(--navy-800));padding:20px}
   .kpi .n{font-family:'Space Grotesk';font-weight:700;font-size:30px;color:var(--acid);line-height:1.1;white-space:nowrap}
   .kpi .n small{font-size:16px;color:var(--muted)}
@@ -27165,9 +27168,18 @@ const newsCases = [
     // quién abrió
     nwmPintarGente(a);
     // qué hicieron en el sitio (analítica propia)
-    const pvRes = await supabase.from('pageviews').select('path,duration,session_id,lang,created_at').eq('utm_campaign', 'issue-' + ult.month).gte('created_at', ult.sent_at).limit(2000);
+    const pvRes = await supabase.from('pageviews').select('path,duration,session_id,lang,created_at,utm_content').eq('utm_campaign', 'issue-' + ult.month).gte('created_at', ult.sent_at).order('created_at').limit(2000);
+    /* Personas vs escáneres: los filtros de seguridad del correo abren cada link del
+       email en una sesión distinta, segundos después de recibirlo, y se van en 0-5 s.
+       Una persona se queda o mira más de una página. El criterio es el mismo que usa
+       Analytics para "solo personas": actividad real, no una carga. */
+    const porSes = {};
+    (pvRes.data || []).forEach((v) => { const x = porSes[v.session_id] = porSes[v.session_id] || { paginas: [], seg: 0, quien: null, t: v.created_at }; x.paginas.push(v); x.seg += Number(v.duration || 0); const m = /^p(\d+)$/.exec(v.utm_content || ''); if (m) x.quien = m[1]; });
+    const sesiones = Object.values(porSes);
+    const humanas = sesiones.filter((x) => x.seg >= 10 || x.paginas.length >= 2);
+    const escaneres = sesiones.length - humanas.length;
     const porPath = {};
-    (pvRes.data || []).forEach((v) => { const x = porPath[v.path] = porPath[v.path] || { n: 0, ses: new Set(), seg: 0 }; x.n++; x.ses.add(v.session_id); x.seg += Number(v.duration || 0); });
+    humanas.forEach((x) => x.paginas.forEach((v) => { const y = porPath[v.path] = porPath[v.path] || { n: 0, ses: new Set(), seg: 0 }; y.n++; y.ses.add(v.session_id); y.seg += Number(v.duration || 0); }));
     const paths = Object.entries(porPath).sort((x, y) => (y[1].seg / y[1].n) - (x[1].seg / x[1].n));
     const maxSeg = Math.max(1, ...paths.map(([, x]) => x.seg / x.n));
     const nombrePath = (path) => { const m = path.match(/^\/(en|de|es)\/?(.*?)\/?$/); const lg = m ? m[1] : ''; const slug = m ? m[2] : path; const t = !slug ? 'Inicio' : slug.replace(/^blog\//, '').replace(/^projects?\//, 'Proyecto ').replace(/-/g, ' '); return (NWM_FLAG[lg] ? NWM_FLAG[lg] + ' ' : '') + t.charAt(0).toUpperCase() + t.slice(1); };
@@ -27175,7 +27187,17 @@ const newsCases = [
       const prom = Math.round(x.seg / x.n);
       const esContacto = /contact|kontakt|contacto/.test(path);
       return '<div class="nwm-bar" title="' + esc(path) + '"><span class="lb">' + esc(nombrePath(path)) + (esContacto ? ' <span style="color:var(--won)">· fue a escribirnos</span>' : '') + '</span><div class="t"><div class="f" style="width:' + Math.round(prom / maxSeg * 100) + '%' + (esContacto ? ';background:var(--won)' : '') + '"></div></div><span class="v">' + nwmSeg(prom) + ' · ' + x.ses.size + (x.ses.size === 1 ? ' persona' : ' personas') + '</span></div>';
-    }).join('') + (paths.length ? '<p class="muted-note" style="margin:6px 0 0">' + (pvRes.data || []).length + ' visitas · ' + new Set((pvRes.data || []).map((v) => v.session_id)).size + ' personas · promedio de segundos por página.</p>' : '<p class="muted-note">Nadie entró al sitio desde esta edición todavía.</p>');
+    }).join('') +
+      // quién fue, visita por visita: con nombre si el link lo traía (desde la edición de
+      // octubre 2026), y si no, lo que se sabe: hora, recorrido y tiempo
+      (humanas.length ? '<div class="nwm-visitas">' + humanas.map((x) => {
+        const l = x.quien ? byId.get(String(x.quien)) : null;
+        const nombre = l ? '<b data-lead="' + esc(String(x.quien)) + '" style="cursor:pointer">' + esc(l.first_name || l.name || 'persona') + '</b>' : '<span class="muted-note" style="margin:0">alguien sin identificar</span>';
+        const hora = new Date(x.t).toLocaleString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        return '<div class="nwm-visita">' + nombre + ' <small>· ' + esc(hora) + '</small><div class="muted-note" style="margin:2px 0 0">' + x.paginas.map((v) => esc(nombrePath(v.path)) + ' <b>' + nwmSeg(Number(v.duration || 0)) + '</b>').join(' → ') + '</div></div>';
+      }).join('') + '</div>' : '') +
+      (paths.length || escaneres ? '<p class="muted-note" style="margin:6px 0 0">' + humanas.length + (humanas.length === 1 ? ' persona' : ' personas') + (escaneres ? ' · ' + escaneres + ' aperturas automáticas de escáneres de correo, descartadas' : '') + (humanas.some((x) => !x.quien) ? ' · el nombre aparece desde la edición de octubre: los links de esta salieron sin identificar a quién' : '') + '.</p>' : '<p class="muted-note">Nadie entró al sitio desde esta edición todavía.</p>');
+    $('nwm-sitio').querySelectorAll('[data-lead]').forEach((el) => el.addEventListener('click', () => openLead(Number(el.dataset.lead))));
     // qué link tocaron (Resend)
     const porLink = {};
     (cRes.data || []).forEach((c) => { const x = porLink[c.link] = porLink[c.link] || { n: 0, quien: new Set() }; x.n++; const l = c.lead_id != null ? byId.get(String(c.lead_id)) : null; x.quien.add((l && (l.first_name || l.name)) || String(c.email).split('@')[0]); });
