@@ -4661,7 +4661,6 @@ const newsCases = [
         <select class="nw-inp" id="nwi-proj" style="max-width:210px"><option value="">Proyecto: rota solo</option><option value="anybotics-anymal-c-product-launch">ANYbotics</option><option value="carvolution-you-have-the-right-tvc-social-media-campaign">Carvolution</option><option value="fifa-living-football-social-media-campaign">FIFA</option><option value="franke-the-office-hero-horeca-product-launch">Franke</option><option value="himmelfahrtskommando-feature-film">Himmelfahrtskommando</option><option value="kanebo-sensai-skincare-how-to-video-campaign">Kanebo</option><option value="kpmg-consultepreneur-employer-branding">KPMG</option><option value="kyan-health-making-mental-well-being-a-superpower-at-work">Kyan Health</option><option value="employer-branding-campaign-for-lem">LEM</option><option value="devenir-a-merkle-interactive-experience-product-launch">Merkle</option><option value="meteomatics-product-campaign-brand-video">Meteomatics</option><option value="nccr-robotics-brand-video">NCCR Robotics</option><option value="singularity">Netflix</option><option value="nile-spring-winter-campaign-social-media-campaign">Nile</option><option value="on-product-launch-shoe-reveals-keynote">ON</option><option value="philips-oneblade-playoffs-social-media-campaign">Philips</option><option value="philips-world-cup-cooking-duell-with-rené-schudel">Philips</option><option value="pmi-why-science-matters-brand-video">PMI Science</option><option value="porsche-on-the-road-to-electromobility">Porsche</option><option value="sevensense-brand-video">Sevensense</option><option value="siemens-the-circle-brand-video">Siemens</option><option value="siemens-mobility-employer-branding-campaign">Siemens</option><option value="siemens-shaping-the-future-together-employer-branding-campaign">Siemens</option><option value="sigg-run-swiss-product-launch">SIGG</option><option value="stadtspital-zurich-mis-spital-mis-laebe-employer-branding-social-media">Stadtspital Zürich</option><option value="stadtspital-zurich-women-in-medicine-employer-branding-social-media">Stadtspital Zürich</option><option value="sv-group-innovation-film-brand-video">SV Group</option><option value="tomfit-train-smarter-not-harder">TomFit</option><option value="ubs-more-than-code-employer-branding">UBS</option><option value="ubs-bem-employer-branding">UBS</option><option value="ubs-group-internal-consulting-employer-branding-campaign">UBS</option><option value="ubs-coffee-stain-employer-branding-campaign">UBS</option><option value="v-zug-combair-600-how-to-video-campaign">V-ZUG</option><option value="vidby-omnichannel-video-marketing-strategy-product-launch">Vidby</option><option value="villa-malaga-el-tiempo-de-un-vino-documentary-film">Villa Málaga</option></select>
         <input class="nw-inp" id="nwi-notas" style="min-width:230px;flex:1" placeholder="Instrucciones (opcional): más corto · tono relajado · enfocá en costos" />
       </div>
-      <p class="muted-note" style="margin:6px 0 10px">El primer martes del mes (07:00 UTC) se arma solo un draft con los mejores posts del blog (por visitas) + un proyecto destacado que rota sin repetirse, en EN/DE/ES. <b>Nada se envía sin tu aprobación</b> — cada suscriptor lo recibe en su idioma, con su link de baja.</p>
       <p class="muted-note" id="nwm-prox" style="margin:0 0 4px"></p>
       <div id="nwi-detail" hidden style="margin-top:14px;border-top:1px solid var(--line-strong);padding-top:14px">
         <div class="ab-urlrow" style="margin-bottom:8px">
@@ -27103,6 +27102,7 @@ const newsCases = [
   }
   const nwmSeg = (n) => n >= 60 ? Math.floor(n / 60) + ' min ' + (n % 60 ? (n % 60) + ' s' : '') : n + ' s';
   const NWM_LANG_LBL = { en: '🇬🇧 EN', de: '🇩🇪 DE', es: '🇪🇸 ES' };
+  const NWM_FLAG = { en: '🇬🇧', de: '🇩🇪', es: '🇪🇸' };
   async function nwmLoad(){
     const ult = (nwiList || []).find((i) => i.status === 'sent') || null;
     const prox = nwmProximaFecha();
@@ -27114,7 +27114,9 @@ const newsCases = [
       supabase.from('newsletter_sends').select('issue_id,email,lead_id,opened_at,clicked_at,status').not('issue_id', 'is', null),
       ult ? supabase.from('newsletter_clicks').select('email,lead_id,link,at').eq('issue_id', ult.id).order('at', { ascending: false }).limit(500) : Promise.resolve({ data: [] }),
     ]);
-    const byId = new Map((allLeads || []).map((l) => [String(l.id), l]));
+    const ids = [...new Set((sRes.data || []).map((r) => r.lead_id).filter((x) => x != null))];
+    const lRes = ids.length ? await supabase.from('leads').select('id,first_name,name,lang').in('id', ids) : { data: [] };
+    const byId = new Map((lRes.data || []).map((l) => [String(l.id), l]));
     nwmStats = {};
     (sRes.data || []).forEach((r) => {
       const a = nwmStats[r.issue_id] = nwmStats[r.issue_id] || { n: 0, open: 0, click: 0, bounce: 0, porLang: {}, gente: [] };
@@ -27161,7 +27163,7 @@ const newsCases = [
     (pvRes.data || []).forEach((v) => { const x = porPath[v.path] = porPath[v.path] || { n: 0, ses: new Set(), seg: 0 }; x.n++; x.ses.add(v.session_id); x.seg += Number(v.duration || 0); });
     const paths = Object.entries(porPath).sort((x, y) => (y[1].seg / y[1].n) - (x[1].seg / x[1].n));
     const maxSeg = Math.max(1, ...paths.map(([, x]) => x.seg / x.n));
-    const nombrePath = (path) => { const m = path.match(/^\/(en|de|es)\/?(.*?)\/?$/); const lg = m ? m[1] : ''; const slug = m ? m[2] : path; const t = !slug ? 'Inicio' : slug.replace(/^blog\//, '').replace(/^projects?\//, 'Proyecto ').replace(/-/g, ' '); return (NWM_LANG_LBL[lg] ? NWM_LANG_LBL[lg].slice(0, 2) + ' ' : '') + t.charAt(0).toUpperCase() + t.slice(1); };
+    const nombrePath = (path) => { const m = path.match(/^\/(en|de|es)\/?(.*?)\/?$/); const lg = m ? m[1] : ''; const slug = m ? m[2] : path; const t = !slug ? 'Inicio' : slug.replace(/^blog\//, '').replace(/^projects?\//, 'Proyecto ').replace(/-/g, ' '); return (NWM_FLAG[lg] ? NWM_FLAG[lg] + ' ' : '') + t.charAt(0).toUpperCase() + t.slice(1); };
     $('nwm-sitio').innerHTML = paths.map(([path, x]) => {
       const prom = Math.round(x.seg / x.n);
       const esContacto = /contact|kontakt|contacto/.test(path);
