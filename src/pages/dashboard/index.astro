@@ -2089,6 +2089,10 @@ const newsCases = [
   /* Los KPI de Hoy que llevan a algún lado. Un número que no se puede abrir obliga a
      buscar a mano de dónde salió, y ahí ya nadie comprueba nada.
      (Sebastián, 2 sep 2026: "el ganado me tiene que llevar a lo ganado, ahora no hace nada".) */
+  /* Señala el botón de traducir cuando el envío se frena por falta de idiomas: decir
+     «falta alemán» sin mostrar dónde se arregla es media respuesta. */
+  @keyframes vvPulso{0%,100%{box-shadow:0 0 0 0 rgba(221,249,143,0)}50%{box-shadow:0 0 0 5px rgba(221,249,143,.45)}}
+  .pulso{animation:vvPulso 1.2s ease-in-out 2}
   .hk-go{cursor:pointer;transition:border-color .12s,background .12s}
   .hk-go:hover{border-color:var(--line-strong);background:var(--panel-2)}
   .hk-go:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
@@ -15126,6 +15130,33 @@ const newsCases = [
           toast('⏰ Programada' + (real ? ' — sale ' + real.toLocaleString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''));
           newsInit();
           return;
+        }
+        /* ── NO SALE MEZCLADO ──
+           El saludo y el pie se arman en el idioma de cada persona, pero el CUERPO sale de
+           `blocks_i18n`. Si a un idioma le falta su versión, el envío caía a los bloques
+           planos —el único idioma en que se escribió— y un alemán recibía «Guten Tag» con
+           el texto en español. Los tres borradores de la base tenían CERO idiomas cargados,
+           así que esto no era un caso raro: era lo que pasaba siempre.
+           El botón «✨ Traducir» ya existía, pero era opcional y se saltea sin querer. Acá
+           se frena antes de mandar y se dice exactamente qué falta.
+           (Sebastián, 2 sep 2026: "newsletter no funciona bien, mezcla idiomas".) */
+        if (!toOne){
+          nwGuardarTab();
+          const faltan = ['en', 'de', 'es'].filter((lg) => {
+            const v2 = nwI18n[lg] || {};
+            return !String(v2.subject || '').trim() || !((v2.blocks || []).length);
+          });
+          if (faltan.length === 3){
+            $('nw-note').textContent = '⚠️ Escribí al menos una versión antes de mandar.';
+            toast('⚠️ No hay contenido para mandar'); return;
+          }
+          if (faltan.length){
+            const nombres = faltan.map((l) => NW_LANG_LBL[l]).join(' y ');
+            $('nw-note').textContent = '⚠️ Falta ' + nombres + '. Tocá «✨ Traducir desde ' + NW_LANG_LBL[nwLangTab] + '» y volvé a mandar.';
+            toast('⚠️ Sin ' + nombres + ' saldría mezclado: saludo en su idioma y texto en otro');
+            const bt = $('nw-traducir'); if (bt){ bt.focus(); bt.classList.add('pulso'); setTimeout(() => bt.classList.remove('pulso'), 2400); }
+            return;
+          }
         }
         const id = await nwSave(); if (!id) return;
         if (!confirm(toOne ? '¿Enviar directo a ' + oneEmail + '?' : '¿Enviar esta campaña al segmento seleccionado?\n\nNo se puede deshacer.')) return;

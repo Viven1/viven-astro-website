@@ -590,6 +590,20 @@ Deno.serve(async (req) => {
     const buildFull = async (r: { id?: number; email: string; name?: string; lang?: string }) => {
       const lang = ["en", "de", "es"].includes(r.lang || "") ? r.lang! : "en";
       const propios = bloquesDe(lang);
+      /* El orden importa y el último escalón es el que muerde:
+         1. la versión del idioma de esta persona — lo correcto;
+         2. los bloques planos — un solo idioma para todos, pero CON sus imágenes;
+         3. `nl.body` — texto pelado, SIN imágenes ni videos ni botones.
+         El tercero existe para campañas viejas que se guardaron antes de que hubiera
+         bloques. El problema es que también atrapaba a las nuevas: un borrador guardado
+         con cero bloques salía como un mail de texto plano y nadie entendía por qué «no
+         pone imágenes». Ahora ese camino solo se toma si de verdad NO hay bloques en
+         ningún lado, y queda escrito en el log para que se vea.
+         (Sebastián, 2 sep 2026: "no pone imágenes".) */
+      const hayAlgoConBloques = !!propios || useBlocks;
+      if (!hayAlgoConBloques) {
+        console.log("NL_SIN_BLOQUES", id, "sale como texto plano: sin imágenes ni CTA");
+      }
       const inner = propios ? blocksHtml(propios, lang, id)
         : useBlocks ? blocksHtml(nl.blocks as Block[], lang, id) : bodyHtml(nl.body, id);
       const tok = r.id != null ? await unsubToken(r.id) : "";
