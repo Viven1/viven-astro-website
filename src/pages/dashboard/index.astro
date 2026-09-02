@@ -4381,6 +4381,7 @@ const newsCases = [
       <div class="draft-head">
         <h2 style="margin:0">📬 Edición mensual automática <span class="count" id="nwi-count"></span></h2>{/* OJO: nwi-count es ESTE span (el "N para revisar"). El botón de destinatarios usa nwi-recips-btn — el 12 ago 2026 le puse el mismo id que a este span y getElementById devolvía el span, así que el botón quedó sin listener y no hacía nada. */}
         <button class="btn btn-ghost small" id="nwi-gen" type="button">⚙️ Generar draft ahora</button>
+        <button class="btn btn-ghost small" id="nwi-limpiar" type="button" hidden title="Borra las ediciones que descartaste">🗑 Borrar descartadas</button>
         <!-- Elegir el proyecto y darle instrucciones al generador AUTOMÁTICO. Por defecto
              rota sin repetir, que es un buen default pero no una regla: a veces querés que
              la edición hable de un cliente puntual porque lo acabás de entregar.
@@ -14919,6 +14920,21 @@ const newsCases = [
       });
 
       // Newsletter — edición mensual automática (newsletter_issues, SQL 0114)
+      $('nwi-limpiar') && $('nwi-limpiar').addEventListener('click', async () => {
+        const ids = nwiList.filter((i) => i.status === 'discarded').map((i) => i.id);
+        if (!ids.length){ toast('No hay descartadas'); return; }
+        if (!confirm('¿Borrar ' + ids.length + ' edición(es) descartada(s)?\n\nNo se puede deshacer. Las enviadas y las que esperan aprobación no se tocan.')) return;
+        const btn = $('nwi-limpiar'); btn.disabled = true;
+        try {
+          /* En una sola llamada, y filtrando por status además de por id: si entre que se
+             armó la lista y se aprieta el botón alguien aprobó una, no se borra igual. */
+          const { error } = await supabase.from('newsletter_issues').delete().in('id', ids).eq('status', 'discarded');
+          if (error){ toast('⚠️ ' + error.message); return; }
+          if (nwiCur && ids.includes(nwiCur.id)){ nwiCur = null; $('nwi-detail').hidden = true; }
+          toast('🗑 ' + ids.length + ' descartada(s) borrada(s)');
+          nwiInit();
+        } finally { btn.disabled = false; }
+      });
       $('nwi-gen') && $('nwi-gen').addEventListener('click', async () => {
         const btn = $('nwi-gen'), prev = btn.textContent;
         if (!confirm('¿Generar el draft mensual ahora?\n\nSi ya existe un draft de este mes, se descarta y se arma uno nuevo. No se envía nada.')) return;
@@ -26852,6 +26868,12 @@ const newsCases = [
     nwiList = data || [];
     const pend = nwiList.filter((i) => i.status === 'draft').length;
     $('nwi-count').textContent = pend ? pend + ' para revisar' : '';
+    /* Las descartadas se acumulan y tapan la que importa. El botón solo aparece si hay
+       algo que borrar: uno que casi siempre no hace nada se aprieta sin leer.
+       (Sebastián, 2 sep 2026: "dejame borrar los newsletters automáticos descartados".) */
+    const desc = nwiList.filter((i) => i.status === 'discarded');
+    const bl = $('nwi-limpiar');
+    if (bl){ bl.hidden = !desc.length; bl.textContent = '🗑 Borrar descartadas (' + desc.length + ')'; }
     $('nwi-list').innerHTML = nwiList.map((n) => {
       const badge = n.status === 'sent' ? '<span class="of-badge" style="color:var(--won);border-color:currentColor">✅ ' + (n.sent_count || 0) + ' enviados</span>'
         : n.status === 'discarded' ? '<span class="of-badge" style="color:#8a93a6;border-color:currentColor">Descartada</span>'
