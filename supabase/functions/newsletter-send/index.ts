@@ -396,6 +396,67 @@ Deno.serve(async (req) => {
     const bodyReq = await req.json();
     const { id, test_to, mark_sent, issue_id } = bodyReq;
     let noReg = 0;   // envíos que salieron pero NO quedaron registrados (ver registrar())
+
+    /* ---- RECONSTRUIR el registro de una edición desde Resend -------------------
+       El 2 sep 2026 la edición 2026-09 salió a 44 personas y newsletter_sends quedó
+       en CERO (42P10 en cada tanda, sin mirar el error). Sin esas filas no hay
+       aperturas ni clicks, y Sebastián no puede saber si mandar tiene sentido.
+       Resend guarda cada email con su último evento: de ahí se rearma la tabla.
+       Se identifica el envío por ventana de tiempo (sent_at → +15 min), remitente
+       y asunto de la edición (en/de/es). { reconstruir: issue_id, dry_run?: true }
+       Con dry_run no escribe nada: devuelve qué encontró. */
+    if (bodyReq.reconstruir) {
+      const issueId = String(bodyReq.reconstruir);
+      const { data: issue } = await service.from("newsletter_issues").select("id,sent_at,content").eq("id", issueId).maybeSingle();
+      if (!issue?.sent_at) return json({ error: "issue sin sent_at" }, 400);
+      const content = (issue.content ?? {}) as Record<string, { subject?: string }>;
+      const asuntos = new Set(["en", "de", "es"].map((l) => content[l]?.subject).filter(Boolean));
+      const t0 = new Date(issue.sent_at).getTime() - 2 * 60e3, t1 = t0 + 17 * 60e3;
+      const fecha = (x: unknown) => new Date(String(x || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).getTime();
+      type Em = { id: string; to: string[] | string; from?: string; subject?: string; created_at: string; last_event?: string };
+      const hallados: Em[] = [];
+      let after = "", paginas = 0, vistos = 0;
+      while (paginas++ < 40) {
+        const r = await fetch("https://api.resend.com/emails?limit=100" + (after ? "&after=" + after : ""), { headers: { Authorization: `Bearer ${RESEND}` } });
+        if (!r.ok) return json({ error: "resend " + r.status + " " + (await r.text()).slice(0, 200) }, 502);
+        const out = await r.json();
+        const data: Em[] = out?.data || [];
+        vistos += data.length;
+        for (const e of data) {
+          const ts = fecha(e.created_at);
+          if (ts >= t0 && ts <= t1 && asuntos.has(e.subject || "") && /info@viven\.ch/i.test(e.from || "")) hallados.push(e);
+        }
+        const ultimo = data[data.length - 1];
+        if (!out?.has_more || !ultimo || ultimo.id === after) break;
+        if (fecha(ultimo.created_at) < t0) break;        // la lista viene del más nuevo al más viejo
+        after = ultimo.id;
+      }
+      // una fila por email (Resend lista cada envío individual del batch)
+      const porEmail = new Map<string, Em>();
+      for (const e of hallados) {
+        const em = String(Array.isArray(e.to) ? e.to[0] : e.to).toLowerCase().trim();
+        if (em && !porEmail.has(em)) porEmail.set(em, e);
+      }
+      const ahora = new Date().toISOString();
+      const rows: FilaEnvio[] = [];
+      for (const [em, e] of porEmail) {
+        const { data: lead } = await service.from("leads").select("id").ilike("email", em).maybeSingle();
+        const ev = String(e.last_event || "");
+        rows.push({ issue_id: issueId, lead_id: lead?.id ?? null, email: em, resend_id: e.id,
+          opened_at: ev === "opened" || ev === "clicked" ? ahora : null, clicked_at: ev === "clicked" ? ahora : null });
+      }
+      const resumen = {
+        ok: true, dry_run: !!bodyReq.dry_run, paginas_resend: paginas, emails_vistos: vistos, hallados: hallados.length, personas: rows.length,
+        abiertos: rows.filter((r) => r.opened_at).length, clicks: rows.filter((r) => r.clicked_at).length,
+        eventos: [...porEmail.values()].reduce((a, e) => { a[e.last_event || "?"] = (a[e.last_event || "?"] || 0) + 1; return a; }, {} as Record<string, number>),
+        emails: rows.map((r) => r.email),
+      };
+      if (bodyReq.dry_run) return json(resumen);
+      const noRegistrados = await registrar(rows, "issue_id,email", "reconstruir " + issueId);
+      const { count } = await service.from("newsletter_sends").select("*", { count: "exact", head: true }).eq("issue_id", issueId);
+      await service.from("newsletter_issues").update({ sent_count: count ?? rows.length, updated_at: ahora }).eq("id", issueId);
+      return json({ ...resumen, no_registrados: noRegistrados, en_tabla: count });
+    }
     if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
 
     /* ---- PREVIEW: quién lo recibe, en qué idioma (NO MANDA NADA) -------------
