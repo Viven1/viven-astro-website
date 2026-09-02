@@ -42,26 +42,9 @@ const cors = {
 };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
-// ---- horario laboral suizo -------------------------------------------------
-const ZONA = "Europe/Zurich";
-// ventanas en minutos desde medianoche. El hueco 12:00–13:30 es deliberado.
-const VENTANAS: [number, number][] = [[9 * 60, 12 * 60], [13 * 60 + 30, 17 * 60]];
-const DIAS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-function zurich(d: Date): { dow: number; min: number; label: string } {
-  const partes = new Intl.DateTimeFormat("en-GB", {
-    timeZone: ZONA, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).formatToParts(d);
-  const g = (t: string) => partes.find((x) => x.type === t)?.value ?? "";
-  const hh = Number(g("hour")), mm = Number(g("minute"));
-  return { dow: DIAS[g("weekday")] ?? 1, min: hh * 60 + mm, label: g("weekday") + " " + g("hour") + ":" + g("minute") };
-}
-
-export function enHorarioLaboral(d: Date): boolean {
-  const { dow, min } = zurich(d);
-  if (dow < 1 || dow > 5) return false;                       // sábado/domingo no
-  return VENTANAS.some(([desde, hasta]) => min >= desde && min < hasta);
-}
+// ---- horario laboral suizo: vive en _shared/horario.ts, compartido con
+// newsletter-send. Una sola regla para el que programa y el que manda.
+import { enHorarioLaboral, zurich } from "../_shared/horario.ts";
 
 const VENCE_MS = 48 * 60 * 60 * 1000;
 

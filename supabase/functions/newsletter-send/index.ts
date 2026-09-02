@@ -30,6 +30,7 @@
 // Usa:     RESEND_API_KEY (ya seteado), SERVICE_ROLE para leer leads.
 
 import { RE_LINK } from "../_shared/autolink.ts";
+import { enHorarioLaboral, proximoHorarioLaboral, HORARIO_LABEL } from "../_shared/horario.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -43,6 +44,30 @@ const cors = {
 };
 
 
+/* Registrar un envío en newsletter_sends. Hasta el 2 sep 2026 el upsert iba sin
+   mirar el error: los 44 envíos de la edición 2026-09 fallaron al registrarse
+   (42P10: el índice era parcial y el ON CONFLICT no lo encontraba) y la tabla
+   quedó en cero sin que nadie lo viera. Ahora el error se loguea y vuelve en la
+   respuesta como `no_registrados`, que el dashboard muestra. */
+type FilaEnvio = Record<string, unknown>;
+async function registrar(rows: FilaEnvio[], onConflict: string, ctx: string): Promise<number> {
+  if (!rows.length) return 0;
+  const { error } = await service.from("newsletter_sends").upsert(rows, { onConflict, ignoreDuplicates: true });
+  if (!error) return 0;
+  console.error("NL_REGISTRO_FALLO", ctx, error.code, error.message, "emails:", rows.map((r) => r.email).join(","));
+  return rows.length;
+}
+/* Fuera del horario laboral suizo NO se manda — ni a uno ni a mil. La respuesta
+   trae `proximo` para que el dashboard ofrezca programarlo ahí mismo. Va con
+   200 a propósito: con un 4xx, supabase.functions.invoke le esconde el cuerpo
+   al dashboard y solo llega "non-2xx status code". */
+function fueraDeHorario() {
+  const ahora = new Date();
+  if (enHorarioLaboral(ahora)) return null;
+  const proximo = proximoHorarioLaboral(ahora);
+  console.error("NL_FUERA_DE_HORARIO", ahora.toISOString(), "proximo:", proximo.toISOString());
+  return json({ error: "fuera de horario: " + HORARIO_LABEL, fuera_de_horario: true, proximo: proximo.toISOString(), horario: HORARIO_LABEL });
+}
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 async function unsubToken(id: string | number): Promise<string> {
@@ -370,6 +395,7 @@ Deno.serve(async (req) => {
     }
     const bodyReq = await req.json();
     const { id, test_to, mark_sent, issue_id } = bodyReq;
+    let noReg = 0;   // envíos que salieron pero NO quedaron registrados (ver registrar())
     if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
 
     /* ---- PREVIEW: quién lo recibe, en qué idioma (NO MANDA NADA) -------------
@@ -430,6 +456,7 @@ Deno.serve(async (req) => {
       if (!issue) return json({ error: "issue no encontrado" }, 404);
       if (issue.status === "discarded") return json({ error: "este issue fue descartado" }, 400);
       if (issue.status === "sent" && !test_to) return json({ error: "este issue ya fue enviado" }, 400);
+      if (!test_to) { const fh = fueraDeHorario(); if (fh) return fh; }
       const content = (issue.content ?? {}) as Record<string, { subject?: string; html?: string }>;
       if (!content.en?.html) return json({ error: "el issue no tiene contenido EN" }, 400);
 
@@ -497,7 +524,7 @@ Deno.serve(async (req) => {
             sent += chunk.length;
             if (!test_to) {
               const rows = chunk.map((r, j) => ({ issue_id, lead_id: r.id ?? null, email: r.email.toLowerCase(), resend_id: ids[j] ?? null }));
-              await service.from("newsletter_sends").upsert(rows, { onConflict: "issue_id,email", ignoreDuplicates: true });
+              noReg += await registrar(rows, "issue_id,email", "issue " + issue_id);
             }
           } else {
             failed += chunk.length;
@@ -516,7 +543,7 @@ Deno.serve(async (req) => {
           approved_by: user.email ?? "dashboard", updated_at: new Date().toISOString(),
         }).eq("id", issue_id);
       }
-      return json({ ok: true, sent, failed, skipped: skippedIss, total: totalIss, test: !!test_to, issue: issue_id });
+      return json({ ok: true, sent, failed, skipped: skippedIss, total: totalIss, test: !!test_to, issue: issue_id, no_registrados: noReg });
     }
 
     // ---- campañas manuales (newsletters, comportamiento original) ----------
@@ -525,6 +552,8 @@ Deno.serve(async (req) => {
     const { data: nl } = await service.from("newsletters").select("*").eq("id", id).maybeSingle();
     if (!nl) return json({ error: "newsletter no encontrada" }, 404);
     if (nl.status === "sent" && !test_to) return json({ error: "esta campaña ya fue enviada" }, 400);
+    // el envío a una persona con mark_sent también es un envío real: misma regla
+    if (!test_to || mark_sent) { const fh = fueraDeHorario(); if (fh) return fh; }
     // envío real a UNA persona (mark_sent) — se registra igual que un envío completo,
     // para no perder rastro ni permitir remandar el mismo borrador a todo el segmento
     // por error. El self-test rápido ("Test a mi email") NO manda mark_sent y sigue
@@ -648,10 +677,7 @@ Deno.serve(async (req) => {
         if (trackThis) {
           let resendId: string | null = null;
           try { resendId = (await res.clone().json())?.id ?? null; } catch { /* ignore */ }
-          await service.from("newsletter_sends").upsert(
-            { newsletter_id: id, lead_id: r.id ?? null, email: r.email.toLowerCase(), resend_id: resendId },
-            { onConflict: "newsletter_id,email", ignoreDuplicates: true },
-          );
+          noReg += await registrar([{ newsletter_id: id, lead_id: r.id ?? null, email: r.email.toLowerCase(), resend_id: resendId }], "newsletter_id,email", "campaña " + id);
         }
       } else {
         failed++; failedEmails.push(r.email);
@@ -675,7 +701,7 @@ Deno.serve(async (req) => {
           sent += chunk.length;
           if (trackThis) {
             const rows = chunk.map((r, j) => ({ newsletter_id: id, lead_id: r.id ?? null, email: r.email.toLowerCase(), resend_id: ids[j] ?? null }));
-            await service.from("newsletter_sends").upsert(rows, { onConflict: "newsletter_id,email", ignoreDuplicates: true });
+            noReg += await registrar(rows, "newsletter_id,email", "campaña " + id);
           }
         } else {
           failed += chunk.length;
@@ -696,7 +722,7 @@ Deno.serve(async (req) => {
         sent_count: count ?? (sent + skipped), updated_at: new Date().toISOString(),
       }).eq("id", id);
     }
-    return json({ ok: true, sent, failed, skipped, total, test: !!test_to });
+    return json({ ok: true, sent, failed, skipped, total, test: !!test_to, no_registrados: noReg });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

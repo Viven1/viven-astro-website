@@ -14941,22 +14941,26 @@ const newsCases = [
           nwiInit();
         } finally { btn.disabled = false; }
       });
+      /* Programarla ES aprobarla: queda firmada por quien la programó. Lo que cambia es
+         cuándo sale, no quién lo decidió. */
+      async function nwiProgramar(t){
+        const { error } = await supabase.from('newsletter_issues')
+          .update({ scheduled_at: t.toISOString(), approved_by: meEmail || null, updated_at: new Date().toISOString() })
+          .eq('id', nwiCur.id).eq('status', 'draft');
+        if (error){ toast('⚠️ ' + error.message); return false; }
+        $('nwi-note').textContent = '⏰ Programada para ' + t.toLocaleString('es-CH', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+          '. Sale sola en la siguiente ventana de horario laboral suizo (lun-vie 09:00–12:00 y 13:30–17:00). Se revisa cada 15 minutos.';
+        toast('⏰ Programada');
+        nwiInit();
+        return true;
+      }
       $('nwi-prog') && $('nwi-prog').addEventListener('click', async () => {
         if (!nwiCur){ toast('Abrí una edición primero'); return; }
         const cuando = $('nwi-at').value;
         if (!cuando){ toast('Elegí fecha y hora'); $('nwi-at').focus(); return; }
         const t = new Date(cuando);
         if (!(t.getTime() > Date.now())){ toast('Esa fecha ya pasó'); return; }
-        /* Programarla ES aprobarla: queda firmada por quien la programó. Lo que cambia es
-           cuándo sale, no quién lo decidió. */
-        const { error } = await supabase.from('newsletter_issues')
-          .update({ scheduled_at: t.toISOString(), approved_by: meEmail || null, updated_at: new Date().toISOString() })
-          .eq('id', nwiCur.id).eq('status', 'draft');
-        if (error){ toast('⚠️ ' + error.message); return; }
-        $('nwi-note').textContent = '⏰ Programada para ' + t.toLocaleString('es-CH', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) +
-          '. Sale sola en la siguiente ventana de horario laboral suizo (lun-vie 09:00–12:00 y 13:30–17:00). Se revisa cada 15 minutos.';
-        toast('⏰ Programada');
-        nwiInit();
+        await nwiProgramar(t);
       });
       $('nwi-gen') && $('nwi-gen').addEventListener('click', async () => {
         const btn = $('nwi-gen'), prev = btn.textContent;
@@ -15003,6 +15007,12 @@ const newsCases = [
           $('nwi-at').focus();
           return;
         }
+        const hueco = nwProximoHuecoSiFueraDeHorario();
+        if (hueco){
+          if (nwPreguntaFueraDeHorario(hueco)) await nwiProgramar(hueco);
+          else $('nwi-note').textContent = '⏰ Fuera de horario — no se mandó. Programala o volvé lun-vie 09:00–12:00 / 13:30–17:00.';
+          return;
+        }
         // el segmento elegido se guarda ANTES de mandar: si no, el envío lee lo
         // último persistido y no lo que está en pantalla
         await nwiSaveSeg();
@@ -15013,8 +15023,15 @@ const newsCases = [
         $('nwi-note').textContent = 'Enviando por tandas…'; $('nwi-send').disabled = true;
         const { data, error } = await supabase.functions.invoke('newsletter-send', { body: { issue_id: nwiCur.id } });
         $('nwi-send').disabled = false;
+        // el servidor tiene la misma regla (por si el reloj de acá difiere): mismo ofrecimiento
+        if (data && data.fuera_de_horario && data.proximo){
+          const h2 = new Date(data.proximo);
+          if (nwPreguntaFueraDeHorario(h2)) await nwiProgramar(h2); else $('nwi-note').textContent = '⏰ ' + data.error;
+          return;
+        }
         if (error || (data && data.error)){ $('nwi-note').textContent = '⚠️ ' + (error ? error.message : data.error) + (data && data.sent ? ' · ' + data.sent + ' ya salieron — reintentá: se retoma sin duplicar.' : ''); return; }
-        $('nwi-note').textContent = '🚀 Enviada a ' + (data.sent || 0) + ' suscriptores' + (data.skipped ? ' (+' + data.skipped + ' ya registrados de un intento previo)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') + '.';
+        $('nwi-note').textContent = '🚀 Enviada a ' + (data.sent || 0) + ' suscriptores' + (data.skipped ? ' (+' + data.skipped + ' ya registrados de un intento previo)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') +
+          (data.no_registrados ? ' · ⚠️ ' + data.no_registrados + ' salieron pero NO quedaron registrados (ver logs NL_REGISTRO_FALLO)' : '') + '.';
         nwiInit();
       });
       $('nwi-discard') && $('nwi-discard').addEventListener('click', async () => {
@@ -15251,6 +15268,16 @@ const newsCases = [
             return;
           }
         }
+        const hueco = nwProximoHuecoSiFueraDeHorario();
+        if (hueco){
+          if (toOne){ toast('⏰ Fuera de horario (lun-vie 09:00–12:00 / 13:30–17:00 Zúrich) — no se manda ni a una persona'); $('nw-note').textContent = '⏰ Son las ' + nwHoraZH(new Date()) + ' en Zúrich: fuera del horario de envío. El envío directo no se programa; volvé en horario.'; return; }
+          if (!nwPreguntaFueraDeHorario(hueco)){ $('nw-note').textContent = '⏰ Fuera de horario — no se mandó.'; return; }
+          $('nw-sched-mode').value = 'at'; $('nw-sched-at').hidden = false; $('nw-sched-at').value = nwLocalIso(hueco);
+          const idp = await nwSave(); if (!idp) return;
+          $('nw-note').textContent = '⏰ Programada. Sale sola el ' + nwFechaZH(hueco) + ' (hora de Zúrich).';
+          toast('⏰ Programada — sale ' + nwHoraZH(hueco)); nwSchedHint(); newsInit();
+          return;
+        }
         const id = await nwSave(); if (!id) return;
         if (!confirm(toOne ? '¿Enviar directo a ' + oneEmail + '?' : '¿Enviar esta campaña al segmento seleccionado?\n\nNo se puede deshacer.')) return;
         const sendBtn = $('nw-send'); sendBtn.disabled = true;
@@ -15261,7 +15288,9 @@ const newsCases = [
         let prog = 15; const tick = setInterval(() => { prog = Math.min(90, prog + 8); if (fill) fill.style.width = prog + '%'; }, 700);
         const { data, error } = await supabase.functions.invoke('newsletter-send', { body: toOne ? { id, test_to: oneEmail, mark_sent: true } : { id } });
         clearInterval(tick); sendBtn.disabled = false;
+        if (data && data.fuera_de_horario){ if (fill) fill.style.width = '0'; if (barT) barT.textContent = ''; $('nw-note').textContent = '⏰ ' + data.error + ' — elegí «Programar fecha/hora».'; return; }
         if (error || (data && data.error)){ if (fill) fill.style.width = '0'; if (barT) barT.textContent = ''; $('nw-note').textContent = '⚠️ ' + (error ? error.message : data.error); return; }
+        if (data && data.no_registrados) toast('⚠️ ' + data.no_registrados + ' salieron pero no quedaron registrados');
         if (fill) fill.style.width = '100%';
         if (barT) barT.textContent = 'Listo · ' + (data.sent || 0) + ' enviados' + (data.skipped ? ' · ' + data.skipped + ' ya estaban (no duplicados)' : '') + (data.failed ? ' · ' + data.failed + ' fallaron' : '');
         $('nw-note').textContent = toOne ? '🚀 Enviado a ' + oneEmail + '.' : '🚀 Enviada a ' + (data.sent || 0) + ' contactos' + (data.skipped ? ' (+' + data.skipped + ' ya registrados)' : '') + (data.failed ? ' · ⚠️ ' + data.failed + ' fallaron' : '') + '.';
@@ -26793,6 +26822,25 @@ const newsCases = [
     return null;
   }
   const nwFechaZH = (d) => d.toLocaleString('es-CH', { timeZone: 'Europe/Zurich', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  /* ── LA REGLA DE HORARIO VALE PARA TODO BOTÓN QUE MANDA ──
+     Hasta el 2 sep 2026 solo la miraba el despachador de programados. «Aprobar y
+     enviar» llamaba directo a newsletter-send, que no la conocía, y una edición
+     salió un miércoles a las 19:50 a 44 personas. Ahora: (1) el servidor la aplica
+     siempre (ver _shared/horario.ts), y (2) acá, ANTES de llamarlo, si estamos fuera
+     de horario el botón no manda: ofrece programar para el próximo hueco válido.
+     (Sebastián: "siempre esa regla, si hago aprobar y enviar que controle antes de
+     enviar ciegamente".) */
+  function nwProximoHuecoSiFueraDeHorario(){
+    const ahora = new Date();
+    return nwEnHorario(ahora) ? null : nwProxSalida(ahora);
+  }
+  const nwHoraZH = (d) => d.toLocaleTimeString('es-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' });
+  // valor para un <input type="datetime-local">, en la hora local del navegador
+  const nwLocalIso = (d) => { const z = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+  function nwPreguntaFueraDeHorario(hueco){
+    return confirm('⏰ Son las ' + nwHoraZH(new Date()) + ' en Zúrich: fuera del horario de envío (lun-vie 09:00–12:00 y 13:30–17:00).\n\n' +
+      'No la mando ahora. ¿La programo para el ' + nwFechaZH(hueco) + '? Sale sola, sin que tengas que volver.');
+  }
   function nwSchedHint(){
     const el = $('nw-sched-real'); if (!el) return;
     const modo = $('nw-sched-mode') && $('nw-sched-mode').value === 'at';
@@ -26813,7 +26861,7 @@ const newsCases = [
     const title = $('nw-send-title'), info = $('nw-send-info'); if (!title || !info) return;
     nwSchedHint();
     const sched = $('nw-sched-mode') && $('nw-sched-mode').value === 'at';
-    const btn0 = $('nw-send'); if (btn0) btn0.textContent = sched ? '⏰ Programar' : '📤 Enviar ahora';
+    const btn0 = $('nw-send'); if (btn0) btn0.textContent = sched ? '⏰ Programar' : (nwProximoHuecoSiFueraDeHorario() ? '⏰ Fuera de horario · programar' : '📤 Enviar ahora');
     if ($('nw-mode') && $('nw-mode').value === 'one'){
       title.textContent = '📤 Envío directo a 1 persona';
       info.innerHTML = 'Queda registrado en el historial (con utm y link de baja). El self-test rápido NO deja rastro.';
@@ -26925,6 +26973,7 @@ const newsCases = [
       nwiCur = nwiList.find((x) => x.id === c.dataset.nwi) || null; if (!nwiCur) return;
       $('nwi-detail').hidden = false;
       $('nwi-send').hidden = nwiCur.status !== 'draft';
+      $('nwi-send').textContent = nwProximoHuecoSiFueraDeHorario() ? '⏰ Fuera de horario · aprobar y programar' : '✅ Aprobar y enviar';
       const esDraft = nwiCur.status === 'draft';
       if ($('nwi-prog')) $('nwi-prog').hidden = !esDraft;
       if ($('nwi-at')){
