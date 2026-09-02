@@ -4413,6 +4413,12 @@ const newsCases = [
         <div class="ab-urlrow" style="margin-top:10px">
           <button class="btn btn-ghost small" id="nwi-test" type="button">✉️ Test a mi email</button>
           <button class="btn btn-primary small" id="nwi-send" type="button">✅ Aprobar y enviar</button>
+          <!-- Programar la edición automática. Antes solo estaba «Aprobar y enviar», así que
+               preparar hoy algo que sale mañana obligaba a volver mañana a apretar el botón.
+               Sale por el mismo despachador y en la misma ventana horaria que las campañas
+               manuales: para el que la recibe es el mismo newsletter. -->
+          <input id="nwi-at" class="nw-inp" type="datetime-local" style="max-width:210px" title="Cuándo tiene que salir" />
+          <button class="btn btn-ghost small" id="nwi-prog" type="button">⏰ Programar</button>
           <button class="btn btn-ghost small" id="nwi-discard" type="button">🗑 Descartar</button>
           <button class="btn btn-ghost small" id="nwi-close" type="button">Cerrar</button>
         </div>
@@ -14934,6 +14940,23 @@ const newsCases = [
           toast('🗑 ' + ids.length + ' descartada(s) borrada(s)');
           nwiInit();
         } finally { btn.disabled = false; }
+      });
+      $('nwi-prog') && $('nwi-prog').addEventListener('click', async () => {
+        if (!nwiCur){ toast('Abrí una edición primero'); return; }
+        const cuando = $('nwi-at').value;
+        if (!cuando){ toast('Elegí fecha y hora'); $('nwi-at').focus(); return; }
+        const t = new Date(cuando);
+        if (!(t.getTime() > Date.now())){ toast('Esa fecha ya pasó'); return; }
+        /* Programarla ES aprobarla: queda firmada por quien la programó. Lo que cambia es
+           cuándo sale, no quién lo decidió. */
+        const { error } = await supabase.from('newsletter_issues')
+          .update({ scheduled_at: t.toISOString(), approved_by: meEmail || null, updated_at: new Date().toISOString() })
+          .eq('id', nwiCur.id).eq('status', 'draft');
+        if (error){ toast('⚠️ ' + error.message); return; }
+        $('nwi-note').textContent = '⏰ Programada para ' + t.toLocaleString('es-CH', { weekday: 'long', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+          '. Sale sola en la siguiente ventana de horario laboral suizo (lun-vie 09:00–12:00 y 13:30–17:00). Se revisa cada 15 minutos.';
+        toast('⏰ Programada');
+        nwiInit();
       });
       $('nwi-gen') && $('nwi-gen').addEventListener('click', async () => {
         const btn = $('nwi-gen'), prev = btn.textContent;
@@ -26887,6 +26910,17 @@ const newsCases = [
       nwiCur = nwiList.find((x) => x.id === c.dataset.nwi) || null; if (!nwiCur) return;
       $('nwi-detail').hidden = false;
       $('nwi-send').hidden = nwiCur.status !== 'draft';
+      const esDraft = nwiCur.status === 'draft';
+      if ($('nwi-prog')) $('nwi-prog').hidden = !esDraft;
+      if ($('nwi-at')){
+        $('nwi-at').hidden = !esDraft;
+        /* Precargado mañana a las 09:00: es lo que se pide casi siempre y evita tipear una
+           fecha entera para el caso normal. */
+        if (!$('nwi-at').value){
+          const m = new Date(); m.setDate(m.getDate() + 1); m.setHours(9, 0, 0, 0);
+          $('nwi-at').value = new Date(m.getTime() - m.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        }
+      }
       $('nwi-discard').hidden = nwiCur.status !== 'draft';
       $('nwi-note').textContent = nwiCur.status === 'sent' ? 'Ya enviada — solo lectura.' : nwiCur.status === 'discarded' ? 'Descartada — solo lectura.' : '';
       // destinatarios guardados de esta edición

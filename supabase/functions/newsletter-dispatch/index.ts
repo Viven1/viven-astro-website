@@ -87,6 +87,19 @@ Deno.serve(async (req) => {
       .lte("scheduled_at", nowIso);
     if (error) return json({ error: error.message }, 500);
 
+    /* Y las ediciones mensuales automáticas, que hasta hoy solo se podían mandar a mano.
+       Van en la MISMA cola y con la misma ventana horaria: para el que recibe es el mismo
+       newsletter, y tener dos motores con dos criterios de horario es la forma segura de
+       que uno de los dos mande un domingo a las 3 de la mañana.
+       (Sebastián, 2 sep 2026: "lo quiero programar para mañana no ahora".) */
+    const { data: dueIss } = await admin.from("newsletter_issues")
+      .select("id,month,scheduled_at,status,content")
+      .eq("status", "draft")
+      .not("scheduled_at", "is", null)
+      .lte("scheduled_at", nowIso);
+    const issues = ((dueIss || []) as { id: string; month: string; scheduled_at: string; content: Record<string, { subject?: string }> | null }[])
+      .map((i) => ({ id: i.id, subject: (i.content?.en?.subject) || i.month, scheduled_at: i.scheduled_at, esIssue: true }));
+
     const pendientes = (due || []) as { id: string; subject: string; scheduled_at: string }[];
     const vencidas = pendientes.filter((n) => now.getTime() - Date.parse(n.scheduled_at) > VENCE_MS);
     const listas = pendientes.filter((n) => now.getTime() - Date.parse(n.scheduled_at) <= VENCE_MS);
@@ -104,6 +117,7 @@ Deno.serve(async (req) => {
         en_horario: abierto,
         dry_run: dryRun,
         listas: listas.map((n) => ({ id: n.id, subject: n.subject, scheduled_at: n.scheduled_at })),
+        ediciones: issues.map((n) => ({ id: n.id, subject: n.subject, scheduled_at: n.scheduled_at })),
         vencidas: vencidas.map((n) => ({ id: n.id, subject: n.subject, scheduled_at: n.scheduled_at })),
       });
     }
@@ -114,12 +128,19 @@ Deno.serve(async (req) => {
     }
 
     const results: { id: string; ok: boolean; sent?: number; failed?: number; error?: string }[] = [];
-    for (const nl of listas) {
+    /* Las vencidas de las ediciones se filtran igual que las manuales: una programada hace
+       más de 48 h ya no se manda sola — el contexto cambió y mandarla sería peor que no. */
+    const issVencidas = issues.filter((n) => now.getTime() - Date.parse(n.scheduled_at) > VENCE_MS);
+    const issListas = issues.filter((n) => !issVencidas.includes(n));
+    if (issVencidas.length) console.error("DISPATCH_ISSUES_VENCIDAS", issVencidas.map((n) => n.id).join(", "));
+
+    for (const nl of [...listas, ...issListas]) {
       try {
+        const esIssue = !!(nl as { esIssue?: boolean }).esIssue;
         const res = await fetch(`${SB_URL}/functions/v1/newsletter-send`, {
           method: "POST",
           headers: { Authorization: "Bearer " + SERVICE, "Content-Type": "application/json" },
-          body: JSON.stringify({ id: nl.id }),
+          body: JSON.stringify(esIssue ? { issue_id: nl.id } : { id: nl.id }),
         });
         const out = await res.json().catch(() => ({}));
         results.push({ id: nl.id, ok: res.ok && !out.error, sent: out.sent, failed: out.failed, error: out.error });
