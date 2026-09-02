@@ -13584,7 +13584,7 @@ const newsCases = [
   async function lm2LoadTimeline(r){
     const box = $('lm2-tl'); if (!box || !lm2Lead || String(lm2Lead.id) !== String(r.id)) return;
     const q = (t) => t.then((x) => (x && !x.error && x.data) || []).catch(() => []);
-    const [emails, notes, tasks, briefs1, briefs2, pv, vp, lev, mag] = await Promise.all([
+    const [emails, notes, tasks, briefs1, briefs2, pv, vp, lev, mag, nlSends, nlClicks, nlVisitas] = await Promise.all([
       q(supabase.from('email_log').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
       q(supabase.from('lead_notes').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
       q(supabase.from('lead_tasks').select('*').eq('lead_id', String(r.id)).order('created_at', { ascending: false }).limit(100)),
@@ -13600,6 +13600,13 @@ const newsCases = [
       // sabe si ABRIÓ el email y si CLICKEÓ el link (lo estampa resend-events),
       // que es la señal que dice si el material le interesó de verdad.
       q(supabase.from('magnet_sends').select('*').eq('lead_id', r.id).order('created_at', { ascending: false }).limit(50)),
+      /* El newsletter, grabado en la persona (Sebastián, 2 sep 2026: "fijate que esa
+         info quede en cada persona grabada"): qué edición recibió y si la abrió,
+         qué link tocó, y qué hizo en el sitio cuando llegó desde el email. Sale de
+         las tablas que ya se escriben por persona — no hay que copiar nada. */
+      q(supabase.from('newsletter_sends').select('issue_id,newsletter_id,opened_at,clicked_at,status,created_at,newsletter_issues(month,sent_at,content),newsletters(subject,sent_at)').eq('lead_id', r.id).order('created_at', { ascending: false }).limit(50)),
+      q(supabase.from('newsletter_clicks').select('link,at,issue_id,newsletter_id').eq('lead_id', r.id).order('at', { ascending: false }).limit(100)),
+      q(supabase.from('pageviews').select('path,created_at,duration,utm_campaign').eq('utm_content', 'p' + r.id).order('created_at').limit(300)),
     ]);
     if (!lm2Lead || String(lm2Lead.id) !== String(r.id)) return;   // cambió de contacto mientras cargaba
     const briefSeen = new Set(); const briefs = [...briefs1, ...briefs2].filter((b) => !briefSeen.has(b.id) && briefSeen.add(b.id));
@@ -13653,6 +13660,22 @@ const newsCases = [
                 title: 'Bajó: <b>' + esc(m.magnet || 'material') + '</b>',
                 meta: [señales, m.lang].filter(Boolean).join(' · ') });
     });
+    /* Newsletter: una entrada por edición recibida, con las señales que importan. */
+    const nlNombrePath = (path) => { const m = String(path || '').match(/^\/(en|de|es)\/?(.*?)\/?$/); const slug = m ? m[2] : String(path || ''); const t = !slug ? 'Inicio' : slug.replace(/^blog\//, '').replace(/-/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
+    const nlSeg = (n) => n >= 60 ? Math.floor(n / 60) + ' min' : n + ' s';
+    nlSends.forEach((sd) => {
+      const iss = sd.newsletter_issues, cam = sd.newsletters;
+      const cuando = (iss && iss.sent_at) || (cam && cam.sent_at) || sd.created_at;
+      const nombre = iss ? 'Edición ' + esc(iss.month) + (iss.content && iss.content.en && iss.content.en.subject ? ' — «' + esc(iss.content.en.subject) + '»' : '') : cam ? '«' + esc(cam.subject || 'campaña') + '»' : 'newsletter';
+      const señales = [sd.status === 'bounced' ? '⛔ rebotó' : sd.status === 'complained' ? '🚫 lo marcó como spam' : '', sd.opened_at ? '📨 lo abrió' : '', sd.clicked_at ? '🔗 tocó un link' : ''].filter(Boolean).join(' · ') || 'sin abrir';
+      ev.push({ t: cuando, ty: 'web', chip: ['web', '📬 Newsletter'], title: 'Recibió el newsletter: <b>' + nombre + '</b>', meta: señales });
+    });
+    nlClicks.forEach((c) => { let nom = c.link; try { const u = new URL(c.link); nom = u.pathname === '/' ? u.hostname : nlNombrePath(u.pathname); } catch (e) {} ev.push({ t: c.at, ty: 'web', chip: ['web', '🔗 Newsletter'], title: 'Tocó en el newsletter: <b>' + esc(nom) + '</b>', meta: esc(c.link) }); });
+    // lo que hizo en el sitio al llegar desde el newsletter (el link lleva quién es, desde oct 2026)
+    const nlPorDia = {};
+    nlVisitas.forEach((v) => { const d = String(v.created_at).slice(0, 10); (nlPorDia[d] = nlPorDia[d] || []).push(v); });
+    Object.keys(nlPorDia).forEach((d) => { const ps = nlPorDia[d];
+      ev.push({ t: ps[ps.length - 1].created_at, ty: 'web', chip: ['web', '🌐 Desde el newsletter'], title: 'Entró desde el newsletter y vio ' + ps.length + ' página' + (ps.length === 1 ? '' : 's'), meta: ps.map((v) => esc(nlNombrePath(v.path)) + ' ' + nlSeg(Number(v.duration || 0))).join(' → ') }); });
     lev.forEach((e3) => {
       const txt = String(e3.label || '').trim();
       if (txt && String(r.message || '').trim() === txt) return;   // ya está arriba
