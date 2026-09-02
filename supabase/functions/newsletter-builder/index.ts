@@ -115,11 +115,14 @@ const FROM_BLOG: Record<Lang, string> = { en: "From the blog", de: "Aus dem Blog
 // soporta): messages termina en user; el JSON se recorta desde la primera "{"
 // hasta la última "}" y se limpian fences. En DE, ss garantizado por código.
 // ---------------------------------------------------------------------------
-async function aiCopy(lang: Lang, posts: { title: string; lead: string }[], project: { client: string; headline: string; summary: string }): Promise<Copy | null> {
+async function aiCopy(lang: Lang, posts: { title: string; lead: string }[], project: { client: string; headline: string; summary: string }, notas?: string): Promise<Copy | null> {
   if (!ANTHROPIC_API_KEY) return null;
   const sys = `You write the monthly email newsletter of VIVEN AG, a video production company in Zurich (produced the first Swiss feature film on Netflix; clients: UBS, Siemens, Porsche, FIFA, Philips). Write in ${LANG_NAME[lang]}. NEVER invent facts, projects or numbers not present in the input.
 Output ONLY a single valid minified JSON object — no markdown, no fences, no commentary.`;
-  const prompt = `This month's issue contains ${posts.length} blog articles and 1 featured project. Write ONLY the connecting copy — the article titles and links are rendered separately.
+  /* Las instrucciones de Sebastián van ARRIBA del pedido y marcadas como prioritarias:
+     abajo, entre los artículos y las reglas de formato, el modelo las trata como contexto
+     y las diluye. */
+  const prompt = `${notas ? `IMPORTANT — instructions from the sender for this issue, follow them over the generic guidance below:\n${notas}\n\n` : ""}This month's issue contains ${posts.length} blog articles and 1 featured project. Write ONLY the connecting copy — the article titles and links are rendered separately.
 
 Blog articles:
 ${posts.map((p, i) => `${i + 1}. "${p.title}" — ${p.lead}`).join("\n")}
@@ -220,7 +223,7 @@ Deno.serve(async (req) => {
     userEmail = user.email ?? "dashboard";
   }
   try {
-    let body: { force?: boolean } = {};
+    let body: { force?: boolean; proyecto?: string; notas?: string } = {};
     try { body = await req.json(); } catch { /* cron manda body vacío */ }
 
     // force solo con usuario logueado (el cron nunca fuerza)
@@ -288,7 +291,14 @@ Deno.serve(async (req) => {
     const { data: prevIssues } = await service.from("newsletter_issues").select("project_key").neq("status", "discarded");
     const used = new Set((prevIssues ?? []).map((r) => (r as { project_key: string | null }).project_key).filter(Boolean));
     const pool = projects as Array<{ key: string; client: string; still: string | null; langs: Record<string, { url: string; headline: string; summary: string }> }>;
-    const project = pool.find((p) => !used.has(p.key)) ?? pool[used.size % pool.length];
+    /* La rotación es un buen default, no una regla: a veces querés que la edición del mes
+       hable de un cliente puntual —porque acabás de entregarlo, o porque le vas a escribir
+       a ese sector—. Si el dashboard manda `proyecto`, manda ese; si no, sigue rotando.
+       (Sebastián, 2 sep 2026: "que me dé dropdown de los proyectos… es para el automático".) */
+    const pedido = typeof body?.proyecto === "string" ? body.proyecto.trim() : "";
+    const notas = typeof body?.notas === "string" ? body.notas.trim().slice(0, 600) : "";
+    const project = (pedido ? pool.find((p) => p.key === pedido) : undefined)
+      ?? pool.find((p) => !used.has(p.key)) ?? pool[used.size % pool.length];
 
     // ---- 3) copy IA por idioma (fallback si falla) ------------------------
     const content: Record<string, { subject: string; html: string; posts: { title: string; url: string }[]; ai: boolean }> = {};
@@ -299,7 +309,7 @@ Deno.serve(async (req) => {
         return { title: b!.title, lead: (b!.lead || "").slice(0, 260), url: b!.published_url!, hero: abs(b!.hero_image) };
       });
       const pj = project.langs[lang] ?? project.langs.en;
-      const ai = await aiCopy(lang, posts.map((p) => ({ title: p.title, lead: p.lead })), { client: project.client, headline: pj.headline, summary: pj.summary });
+      const ai = await aiCopy(lang, posts.map((p) => ({ title: p.title, lead: p.lead })), { client: project.client, headline: pj.headline, summary: pj.summary }, notas);
       const copy: Copy = ai ?? { ...FALLBACK[lang], post_blurbs: [] };
       content[lang] = {
         subject: copy.subject,
