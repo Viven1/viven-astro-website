@@ -26,7 +26,13 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { topic, notes, lang } = await req.json();
+    /* `catalogo` lo manda el dashboard: los proyectos reales con su still. Sin esto, la IA
+       no tiene forma de "usar el proyecto Siemens" —no conoce ninguno— y solo podía
+       devolver texto. Y un newsletter sin bloques cae en el camino viejo que manda texto
+       pelado: por eso "no pone imágenes" y "no puedo decir qué proyecto usar" eran el
+       mismo bug visto desde dos lados.
+       (Sebastián, 2 sep 2026.) */
+    const { topic, notes, lang, catalogo } = await req.json();
     if (!topic) return json({ error: "falta el tema/título" }, 400);
     const language = lang === "de" ? "German (Swiss High German — NEVER use ß, always ss)" : lang === "es" ? "Spanish" : "English";
 
@@ -34,13 +40,21 @@ Deno.serve(async (req) => {
 
 Topic / title given by the sender: "${topic}"${notes ? `\nAdditional context/notes from the sender: ${notes}` : ""}
 
+${Array.isArray(catalogo) && catalogo.length ? `
+Real VIVEN projects you may reference (use ONLY these — never invent a client or an image):
+${(catalogo as { cliente: string; still: string }[]).slice(0, 40).map((c) => `- ${c.cliente} | ${c.still}`).join("\n")}
+If the sender's notes name one of these clients, use THAT project's image. If they name none, pick the one that best fits the topic.` : ""}
+
 Rules:
 - Plain text body (no HTML tags), paragraphs separated by a blank line. Write any links as plain URLs (they become clickable automatically).
 - 80-160 words. Sounds like a real person wrote it in one sitting, not a template. No corporate fluff, no excessive exclamation marks, no "we are thrilled to announce".
 - One light, natural call to action near the end (reply, book a call, read more) — no hard sell.
 - Subject line: short, specific, curiosity-driven, under 60 characters, no clickbait.
 
-Respond ONLY with valid minified JSON, no markdown fences: {"subject":"...","body":"..."}`;
+- Pick exactly ONE image from the list above and return its path verbatim in "still". Copy it character by character: a path you alter does not exist and the email arrives with a broken image.
+
+Respond ONLY with valid minified JSON, no markdown fences: {"subject":"...","body":"...","still":"...","caption":"..."}
+"caption" is optional, max 8 words, describing the image. Leave "still" empty only if the list above is empty.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -59,10 +73,17 @@ Respond ONLY with valid minified JSON, no markdown fences: {"subject":"...","bod
     text = text.replace(/```json|```/g, "").trim();
     const last = text.lastIndexOf("}");
     if (last > -1) text = text.slice(0, last + 1);
-    let p: { subject?: string; body?: string } | null = null;
+    let p: { subject?: string; body?: string; still?: string; caption?: string } | null = null;
     try { p = JSON.parse(text); } catch { p = null; }
     if (!p || !p.body || !p.subject) return json({ error: "la IA no devolvió un formato válido — probá de nuevo" }, 502);
-    return json({ ok: true, subject: p.subject, body: p.body });
+    /* La imagen se valida contra el catálogo que mandó el dashboard: si la IA inventó o
+       alteró la ruta, se descarta. Una imagen rota en un email no se puede arreglar
+       después de mandarlo. */
+    const permitidas = new Set((Array.isArray(catalogo) ? catalogo : [])
+      .map((c: { still?: string }) => String(c?.still || "")));
+    const still = p.still && permitidas.has(String(p.still)) ? String(p.still) : "";
+    if (p.still && !still) console.log("NL_STILL_INVENTADO", String(p.still).slice(0, 120));
+    return json({ ok: true, subject: p.subject, body: p.body, still, caption: still ? (p.caption || "") : "" });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
     return json({ error: String(e) }, 500);

@@ -4331,7 +4331,7 @@ const newsCases = [
           </div>
           <div class="nw-bfield" style="margin-top:10px">
             <label style="font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em">Notas para la IA (opcional)</label>
-            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. mencionar el case study de Meteomatics, tono relajado" />
+            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. usá el proyecto de Siemens · más corto · tono relajado · mencionar el case study de Meteomatics" />
           </div>
 
           </div>
@@ -15104,10 +15104,27 @@ const newsCases = [
         const btn = $('nw-ai'), prev = btn.textContent; btn.disabled = true; btn.textContent = '✨ Escribiendo…';
         try {
           const lg = $('nw-lang').value === 'all' ? 'en' : $('nw-lang').value;
-          const { data, error } = await supabase.functions.invoke('ai-newsletter', { body: { topic, notes: $('nw-ai-notes').value.trim(), lang: lg } });
+          /* Se le manda el CATÁLOGO REAL de proyectos con sus stills. Sin esto la IA no
+             conoce ningún proyecto —así que «usá el de Siemens» no podía funcionar— y solo
+             devolvía texto, que es lo que dejaba el borrador con cero bloques y el email
+             sin imágenes. Los dos síntomas eran el mismo agujero. */
+          const catalogo = (window.STILLS_POOL || [])
+            .filter((g) => g && g.client && (g.stills || []).length)
+            .map((g) => ({ cliente: String(g.client), still: String(g.stills[0]) }))
+            .slice(0, 40);
+          const { data, error } = await supabase.functions.invoke('ai-newsletter', { body: { topic, notes: $('nw-ai-notes').value.trim(), lang: lg, catalogo } });
           if (error || (data && data.error)){ toast('⚠️ ' + (error ? error.message : data.error)); return; }
-          $('nw-subject').value = data.subject; nwSetBodyText(data.body);
-          $('nw-note').textContent = '✨ Borrador generado (' + lg.toUpperCase() + ') — revisá y editá antes de mandar.';
+          $('nw-subject').value = data.subject;
+          nwSetBodyText(data.body);
+          /* La imagen entra como bloque propio, no pegada al texto: así se puede mover,
+             cambiar o borrar desde el editor como cualquier otro bloque. */
+          if (data.still){
+            nwBlocks.push({ type: 'still', src: data.still, caption: data.caption || '' });
+            nwRenderEditor();
+          }
+          $('nw-note').textContent = '✨ Borrador generado (' + lg.toUpperCase() + ')' +
+            (data.still ? ' con una imagen de ' + esc((catalogo.find((c) => c.still === data.still) || {}).cliente || 'un proyecto') : ' — sin imagen: elegí un still en el editor') +
+            '. Revisá y después tocá ✨ Traducir para las otras versiones.';
         } finally { btn.disabled = false; btn.textContent = prev; }
       });
       $('nw-send') && $('nw-send').addEventListener('click', async () => {
