@@ -60,19 +60,41 @@ Respond ONLY with valid minified JSON, no markdown fences: {"subject":"...","bod
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        /* OPUS, NO HAIKU. Esto escribe el texto que le llega a los clientes; el modelo
+           chico se nota justo ahí —frases de plantilla, entusiasmo genérico— y se manda
+           un puñado de veces por mes, así que el costo no es el criterio.
+           (Sebastián, 2 sep 2026: "que use IA real".) */
+        model: "claude-opus-5",
         max_tokens: 8000,
-        system: "You output ONLY a single valid minified JSON object. No markdown, no code fences, no commentary.",
-        messages: [{ role: "user", content: prompt }, { role: "assistant", content: "{" }],
+        /* Esquema en vez del truco de prefill: el JSON viene bien formado por contrato y
+           deja de depender de recortar llaves a mano más abajo. Mismo patrón que ai-guion. */
+        output_config: {
+          effort: "high",
+          format: {
+            type: "json_schema",
+            schema: {
+              type: "object",
+              properties: {
+                subject: { type: "string", description: "Menos de 60 caracteres." },
+                body: { type: "string", description: "Texto plano, párrafos separados por línea en blanco." },
+                still: { type: "string", description: "Una ruta EXACTA del catálogo, o vacío." },
+                caption: { type: "string", description: "Máximo 8 palabras, o vacío." },
+              },
+              required: ["subject", "body", "still", "caption"],
+              additionalProperties: false,
+            },
+          },
+        },
+        messages: [{ role: "user", content: prompt }],
       }),
     });
     if (!res.ok) return json({ error: "Anthropic " + res.status + ": " + (await res.text()).slice(0, 200) }, 502);
     const data = await res.json();
-    let text = (data.content?.[0]?.text ?? "").trim();
-    if (!text.startsWith("{")) text = "{" + text;
+    /* Con salida estructurada el texto ya es JSON válido. Se recorre el contenido en vez
+       de asumir content[0]: con effort alto puede venir un bloque de razonamiento antes. */
+    let text = ((data.content ?? []) as { type: string; text?: string }[])
+      .filter((c) => c.type === "text").map((c) => c.text ?? "").join("").trim();
     text = text.replace(/```json|```/g, "").trim();
-    const last = text.lastIndexOf("}");
-    if (last > -1) text = text.slice(0, last + 1);
     let p: { subject?: string; body?: string; still?: string; caption?: string } | null = null;
     try { p = JSON.parse(text); } catch { p = null; }
     if (!p || !p.body || !p.subject) return json({ error: "la IA no devolvió un formato válido — probá de nuevo" }, 502);

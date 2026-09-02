@@ -4330,8 +4330,15 @@ const newsCases = [
             <button class="btn btn-ghost small" id="nw-preview" type="button">👁 Preview HTML</button>
           </div>
           <div class="nw-bfield" style="margin-top:10px">
+            <label style="font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em">Proyecto (opcional)</label>
+            <!-- La lista sale del mismo catálogo que se le manda a la IA. Escribir el
+                 nombre a mano obliga a acordárselo, y un nombre mal tipeado no hace nada:
+                 la IA elegía otro y no lo decía. Elegido acá, la imagen NO se negocia. -->
+            <select id="nw-ai-proj" class="nw-inp"><option value="">— que elija la IA —</option></select>
+          </div>
+          <div class="nw-bfield" style="margin-top:10px">
             <label style="font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em">Notas para la IA (opcional)</label>
-            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. usá el proyecto de Siemens · más corto · tono relajado · mencionar el case study de Meteomatics" />
+            <input id="nw-ai-notes" class="nw-inp" placeholder="p. ej. más corto · tono relajado · mencionar que fue en Zúrich" />
           </div>
 
           </div>
@@ -15108,22 +15115,28 @@ const newsCases = [
              conoce ningún proyecto —así que «usá el de Siemens» no podía funcionar— y solo
              devolvía texto, que es lo que dejaba el borrador con cero bloques y el email
              sin imágenes. Los dos síntomas eran el mismo agujero. */
-          const catalogo = (window.STILLS_POOL || [])
-            .filter((g) => g && g.client && (g.stills || []).length)
-            .map((g) => ({ cliente: String(g.client), still: String(g.stills[0]) }))
-            .slice(0, 40);
-          const { data, error } = await supabase.functions.invoke('ai-newsletter', { body: { topic, notes: $('nw-ai-notes').value.trim(), lang: lg, catalogo } });
+          const catalogo = nwCatalogo();
+          /* Si elegiste un proyecto en el desplegable, la imagen NO se negocia: se le pide
+             igual a la IA para que el texto hable de ESE cliente, pero el still se fuerza
+             abajo. Dejarlo a criterio del modelo es pedirle que acierte algo que vos ya
+             decidiste. */
+          const elegido = $('nw-ai-proj') && $('nw-ai-proj').value
+            ? catalogo.find((c) => c.still === $('nw-ai-proj').value) : null;
+          const notas = [$('nw-ai-notes').value.trim(), elegido ? 'Usá el proyecto de ' + elegido.cliente + '.' : '']
+            .filter(Boolean).join(' ');
+          const { data, error } = await supabase.functions.invoke('ai-newsletter', { body: { topic, notes: notas, lang: lg, catalogo } });
           if (error || (data && data.error)){ toast('⚠️ ' + (error ? error.message : data.error)); return; }
           $('nw-subject').value = data.subject;
           nwSetBodyText(data.body);
           /* La imagen entra como bloque propio, no pegada al texto: así se puede mover,
              cambiar o borrar desde el editor como cualquier otro bloque. */
-          if (data.still){
-            nwBlocks.push({ type: 'still', src: data.still, caption: data.caption || '' });
+          const still = elegido ? elegido.still : data.still;
+          if (still){
+            nwBlocks.push({ type: 'still', src: still, caption: data.caption || '' });
             nwRenderEditor();
           }
           $('nw-note').textContent = '✨ Borrador generado (' + lg.toUpperCase() + ')' +
-            (data.still ? ' con una imagen de ' + esc((catalogo.find((c) => c.still === data.still) || {}).cliente || 'un proyecto') : ' — sin imagen: elegí un still en el editor') +
+            (still ? ' con una imagen de ' + esc((catalogo.find((c) => c.still === still) || {}).cliente || 'un proyecto') : ' — sin imagen: elegí un still en el editor') +
             '. Revisá y después tocá ✨ Traducir para las otras versiones.';
         } finally { btn.disabled = false; btn.textContent = prev; }
       });
@@ -26855,7 +26868,27 @@ const newsCases = [
     $('nwi-preview').setAttribute('srcdoc', html);
   }
 
+  /* El catálogo de proyectos: la MISMA lista para el desplegable y para la IA, así lo que
+     ves elegir es exactamente lo que el modelo puede usar. Sale de STILLS_POOL, que arma
+     el build desde projects.json — los mismos datos de la galería del sitio. */
+  function nwCatalogo(){
+    return (window.STILLS_POOL || [])
+      .filter((g) => g && g.client && (g.stills || []).length)
+      .map((g) => ({ cliente: String(g.client), still: String(g.stills[0]) }))
+      .sort((a, b) => a.cliente.localeCompare(b.cliente))
+      .slice(0, 40);
+  }
+  function nwLlenarProyectos(){
+    const sel = $('nw-ai-proj'); if (!sel || sel.dataset.listo) return;
+    const cat = nwCatalogo();
+    if (!cat.length) return;
+    sel.dataset.listo = '1';
+    sel.innerHTML = '<option value="">— que elija la IA —</option>' +
+      cat.map((c) => '<option value="' + esc(c.still) + '">' + esc(c.cliente) + '</option>').join('');
+  }
+
   async function newsInit(){
+    nwLlenarProyectos();
     nwiInit();
     const [nlRes, sendsRes] = await Promise.all([
       supabase.from('newsletters').select('*').order('created_at', { ascending: false }),
