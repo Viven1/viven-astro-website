@@ -26888,7 +26888,16 @@ const newsCases = [
     const ct = (nwiCur.content || {})[lang] || {};
     $('nwi-subject').innerHTML = '<b>Asunto (' + lang.toUpperCase() + '):</b> ' + esc(ct.subject || '(vacío)') + (ct.ai === false ? ' · <b style="color:#f0c060">⚠️ copy de respaldo (la IA falló) — regenerá el draft o revisá el texto</b>' : '');
     // preview client-side espejo del wrapper de newsletter-send (saludo DE = "Guten Tag" formal, sin nombre)
-    const greet = lang === 'de' ? '<p style="margin:0 0 16px;font-size:15px;color:#222">Guten Tag</p>' : lang === 'es' ? '<p style="margin:0 0 16px;font-size:15px;color:#222">Hola &lt;nombre&gt;,</p>' : '<p style="margin:0 0 16px;font-size:15px;color:#222">Hi &lt;name&gt;,</p>';
+    /* En el preview el saludo va con un nombre DE EJEMPLO y dicho como tal. Antes decía
+       «Hi <name>,» y se lee como una etiqueta rota justo antes de apretar enviar — que es
+       el peor momento para dudar. En el envío real sale el nombre de cada persona, y si no
+       lo tenemos cargado no sale saludo (nunca un placeholder).
+       (Sebastián, 2 sep 2026.) */
+    const ejemploN = lang === 'de' ? '' : (lang === 'es' ? 'Hola María,' : 'Hi Anna,');
+    const greet = ejemploN
+      ? '<p style="margin:0 0 16px;font-size:15px;color:#222">' + ejemploN +
+        ' <span style="font-size:12px;color:#8a93a6">← ejemplo: va el nombre de cada uno</span></p>'
+      : '<p style="margin:0 0 16px;font-size:15px;color:#222">Guten Tag</p>';
     const html = '<!doctype html><body style="margin:0;background:#f4f5f7;font-family:Helvetica,Arial,sans-serif"><div style="max-width:600px;margin:0 auto;padding:28px 16px">' +
       '<div style="background:#0f1826;border-radius:14px 14px 0 0;padding:18px 26px"><img src="https://www.viven.ch/assets/brand/viven-logo-email.png" alt="VIVEN" height="24" style="height:24px" /></div>' +
       '<div style="background:#fff;border-radius:0 0 14px 14px;padding:30px 26px">' + greet + (ct.html || '<p>(sin contenido)</p>') +

@@ -303,11 +303,21 @@ Deno.serve(async (req) => {
     // ---- 3) copy IA por idioma (fallback si falla) ------------------------
     const content: Record<string, { subject: string; html: string; posts: { title: string; url: string }[]; ai: boolean }> = {};
     for (const lang of LANGS) {
-      // por idioma: post en ese idioma o fallback a EN
-      const posts = ranked.map((g) => {
-        const b = g.byLang[lang] ?? g.byLang.en ?? g.byLang.de ?? g.byLang.es!;
-        return { title: b!.title, lead: (b!.lead || "").slice(0, 260), url: b!.published_url!, hero: abs(b!.hero_image) };
-      });
+      /* SOLO ARTÍCULOS QUE EXISTEN EN ESTE IDIOMA. La cadena anterior caía a alemán y
+         después a español, así que un post que solo existía en alemán entraba en la
+         edición INGLESA, en alemán, con su «Read the article →» al lado. Mejor tres
+         artículos legibles que cuatro con uno que el lector no puede leer — y peor aún:
+         un artículo en otro idioma se lee como un error de la agencia, no como un extra.
+         (Sebastián, 2 sep 2026, sobre el draft en inglés con un B2B Erklärvideo adentro.) */
+      const posts = ranked
+        .map((g) => g.byLang[lang])
+        .filter(Boolean)
+        .map((b) => ({ title: b!.title, lead: (b!.lead || "").slice(0, 260), url: b!.published_url!, hero: abs(b!.hero_image) }));
+      const descartados = ranked.length - posts.length;
+      if (descartados) console.log("NL_POSTS_SIN_TRADUCIR", lang, descartados, "de", ranked.length);
+      /* Sin artículos en este idioma no hay edición que armar: mandar solo el proyecto
+         destacado sería un email a medias, y en silencio. */
+      if (!posts.length){ console.log("NL_SIN_POSTS", lang); continue; }
       const pj = project.langs[lang] ?? project.langs.en;
       const ai = await aiCopy(lang, posts.map((p) => ({ title: p.title, lead: p.lead })), { client: project.client, headline: pj.headline, summary: pj.summary }, notas);
       const copy: Copy = ai ?? { ...FALLBACK[lang], post_blurbs: [] };
