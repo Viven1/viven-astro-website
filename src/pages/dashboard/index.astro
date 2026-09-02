@@ -4310,7 +4310,7 @@ const newsCases = [
                inglés (ver el fallback en newsletter-send) y el preview lo avisa. -->
           <div class="nw-langtabs" id="nw-langtabs"></div>
           <div class="nw-sec-h">Asunto</div>
-          <input id="nw-subject" class="nw-inp" placeholder="p. ej. Was kostet ein Imagefilm 2026?" />
+          <input id="nw-subject" class="nw-inp" placeholder="p. ej. What does a brand film cost in 2026?" />
 
           <div class="nw-sec-h">Redactar <span class="muted-note" style="font-weight:400;text-transform:none;letter-spacing:0">— texto + bloques listos de tu propio material</span></div>
           <div id="nw-editor"></div>
@@ -26368,7 +26368,27 @@ const newsCases = [
     nwBlocks = (v.blocks || []).map((b) => ({ ...b }));
     nwRenderEditor(); nwRenderLangTabs();
   }
+  /* El ejemplo del asunto en el idioma de la pestaña. Estaba clavado en alemán —«Was
+     kostet ein Imagefilm 2026?»— y aparecía igual con la pestaña en Inglés: se lee como si
+     el borrador ya estuviera en alemán, que es justo la confusión que este editor tiene
+     que evitar. El del cuerpo también.
+     (Sebastián, 2 sep 2026: "sigue con el texto en alemán".) */
+  /* Solo el ASUNTO: es un ejemplo del CONTENIDO, así que va en el idioma que estás
+     escribiendo. El resto de la pantalla —«Escribí un párrafo…»— son instrucciones para
+     Sebastián y Sofía, y ésas se quedan en español: traducirlas convertiría el editor en
+     alemán cuando la pestaña está en alemán, que no es lo que nadie quiere. */
+  const NW_ASUNTO_EJ = {
+    en: 'e.g. What does a brand film cost in 2026?',
+    de: 'z. B. Was kostet ein Imagefilm 2026?',
+    es: 'p. ej. ¿Cuánto cuesta un video de marca en 2026?',
+  };
+  function nwEjemplos(){
+    const su = $('nw-subject');
+    if (su) su.placeholder = NW_ASUNTO_EJ[nwLangTab] || NW_ASUNTO_EJ.en;
+  }
+
   function nwRenderLangTabs(){
+    nwEjemplos();
     const box = $('nw-langtabs'); if (!box) return;
     box.innerHTML = ['en', 'de', 'es'].map((lg) => {
       const v = nwI18n[lg] || {};
