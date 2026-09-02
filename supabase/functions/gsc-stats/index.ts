@@ -72,11 +72,19 @@ async function detectSite(token: string): Promise<string> {
 
 type GscRow = { keys?: string[]; clicks: number; impressions: number; ctr: number; position: number };
 
-async function gscQuery(token: string, site: string, s: Date, e: Date, dimensions: string[] | null, rowLimit = 15): Promise<GscRow[]> {
+/* `pais` filtra por país (ISO-3 en minúscula: "che" = Suiza).
+   Sin filtro, la POSICIÓN QUE DEVUELVE GOOGLE ES UN PROMEDIO MUNDIAL, y eso engaña con
+   cara de dato: el 2 sep 2026 la tabla decía «corporate film production switzerland,
+   posición 1,9» y Sebastián miró el buscador de verdad — no estaba ni en los diez
+   primeros; aparecía solo en el pack de empresas. Los dos números pueden ser ciertos a la
+   vez, porque promedian países distintos.
+   Para una productora de Zúrich el único promedio que decide es el suizo. */
+async function gscQuery(token: string, site: string, s: Date, e: Date, dimensions: string[] | null, rowLimit = 15, pais?: string): Promise<GscRow[]> {
   const res = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify({ startDate: ymd(s), endDate: ymd(e), ...(dimensions ? { dimensions } : {}), rowLimit }),
+    body: JSON.stringify({ startDate: ymd(s), endDate: ymd(e), ...(dimensions ? { dimensions } : {}), rowLimit,
+      ...(pais ? { dimensionFilterGroups: [{ filters: [{ dimension: "country", operator: "equals", expression: pais }] }] } : {}) }),
   });
   if (!res.ok) throw new Error("gsc " + res.status + " " + (await res.text()).slice(0, 200));
   return (await res.json()).rows ?? [];
@@ -154,13 +162,18 @@ Deno.serve(async (req) => {
 
     const query = (dimensions: string[] | null, rowLimit = 15) => gscQuery(token, site, start, end, dimensions, rowLimit);
 
-    const [tot, prevTot, queries, pages, prevPages, combos] = await Promise.all([
+    const [tot, prevTot, queries, pages, prevPages, combos, queriesCH, combosCH] = await Promise.all([
       query(null, 1),
       gscQuery(token, site, prevStart, prevEnd, null, 1),
       query(["query"], 100),
       query(["page"], 100),
       gscQuery(token, site, prevStart, prevEnd, ["page"], 100), // deltas por página (📈 Top páginas)
       query(["query", "page"], 500), // canibalización: agregada abajo
+      /* La misma foto, solo Suiza. Es la que vale para decidir: un promedio mundial mezcla
+         países donde no vendemos y esconde dónde estamos de verdad frente a la competencia
+         local. */
+      gscQuery(token, site, start, end, ["query"], 100, "che"),
+      gscQuery(token, site, start, end, ["query", "page"], 300, "che"),
     ]);
     const t = tot[0] ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 };
     const pt = prevTot[0] ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 };
@@ -191,6 +204,18 @@ Deno.serve(async (req) => {
       const key = r.keys?.[0] ?? "";
       return { key, clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position, page: topPageByQuery.get(key) || "" };
     };
+    /* La página dominante suiza puede no ser la misma que la mundial: por eso su propio mapa. */
+    const pageCH = new Map<string, { page: string; impressions: number }>();
+    for (const r of combosCH as { keys: string[]; impressions: number }[]) {
+      const [q, p] = r.keys;
+      const prev = pageCH.get(q);
+      if (!prev || r.impressions > prev.impressions) pageCH.set(q, { page: p, impressions: r.impressions });
+    }
+    const shapeCH = (r: GscRow) => {
+      const key = r.keys?.[0] ?? "";
+      return { key, clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position,
+               page: pageCH.get(key)?.page || "" };
+    };
 
     return json({
       ok: true, site, from: ymd(start), to: ymd(end), days: d,
@@ -199,6 +224,10 @@ Deno.serve(async (req) => {
       prevTotals: { clicks: pt.clicks, impressions: pt.impressions, ctr: pt.ctr, position: pt.position },
       queries: queries.map(shape), pages: pages.map(shape), prevPages: prevPages.map(shape),
       cannibalization,
+      /* La misma lista, solo Suiza, con SU página dominante. Que vayan las dos permite ver
+         la brecha: una búsqueda puede estar 2ª en el promedio mundial y fuera de los diez
+         primeros acá, y hasta hoy eso no se podía distinguir. */
+      queriesCH: queriesCH.map(shapeCH),
     });
   } catch (e) {
     console.error("FUNCTION_ERROR", String(e));
