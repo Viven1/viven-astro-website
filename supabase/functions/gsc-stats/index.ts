@@ -141,7 +141,41 @@ Deno.serve(async (req) => {
       }
       return json({ ok: true, snapshot: true, site, date, from: ymd(start), to: ymd(end), saved: recs.length });
     }
-    if (isService || isCron) return json({ error: "solo submit_sitemap / snapshot disponibles sin sesión de dashboard" }, 400);
+    /* ── BACKFILL: traer los 16 meses que Google guarda ──
+       `gsc_page_history` se llena con una foto semanal, así que solo sabemos lo que pasó
+       desde que ese cron existe. El 2 sep 2026 eso eran seis semanas, y Sebastián dijo
+       «antes rankeábamos en las primeras páginas»: la caída ocurrió ANTES de donde
+       empiezan nuestros datos, y por la ventana que teníamos se veía todo estable.
+       Search Console guarda 16 meses. Esto los baja mes a mes y los guarda con la misma
+       forma, así que la caída aparece en el mismo gráfico — sin herramientas nuevas.
+       Se hace por MES y no por semana a propósito: 70 llamadas seguidas no entran en el
+       tiempo de una function, y para encontrar CUÁNDO se cayó, el mes alcanza. */
+    if (body0.backfill && (isService || isCron)) {
+      const token = await googleToken();
+      const site = await detectSite(token);
+      const meses = Math.min(Math.max(Number(body0.meses) || 16, 1), 16);
+      const svc = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const hecho: { mes: string; filas: number; pos: number | null }[] = [];
+      for (let i = meses; i >= 1; i--) {
+        const fin = new Date(); fin.setMonth(fin.getMonth() - (i - 1), 0);   // último día del mes
+        const ini = new Date(fin.getFullYear(), fin.getMonth(), 1);
+        if (fin.getTime() > Date.now() - 2 * 864e5) fin.setTime(Date.now() - 2 * 864e5);
+        if (ini.getTime() >= fin.getTime()) continue;
+        let filas: GscRow[] = [];
+        try { filas = await gscQuery(token, site, ini, fin, ["page"], 200); }
+        catch (e) { hecho.push({ mes: ymd(ini).slice(0, 7), filas: -1, pos: null }); console.error("BACKFILL", ymd(ini), String(e)); continue; }
+        const recs = filas
+          .map((r) => ({ page: r.keys?.[0] ?? "", date: ymd(fin), clicks: r.clicks || 0,
+                         impressions: r.impressions || 0, position: r.position ?? null, ctr: r.ctr ?? null }))
+          .filter((r) => r.page);
+        if (recs.length) await svc.from("gsc_page_history").upsert(recs, { onConflict: "page,date" });
+        const impr = recs.reduce((a, r) => a + r.impressions, 0);
+        const pos = impr ? recs.reduce((a, r) => a + (r.position || 0) * r.impressions, 0) / impr : null;
+        hecho.push({ mes: ymd(ini).slice(0, 7), filas: recs.length, pos: pos ? Math.round(pos * 10) / 10 : null });
+      }
+      return json({ ok: true, backfill: true, site, meses, hecho });
+    }
+    if (isService || isCron) return json({ error: "solo submit_sitemap / snapshot / backfill disponibles sin sesión de dashboard" }, 400);
 
     const { days = 28 } = body0;
     // 7–180 días (selector del sub-tab). Con comparación de igual longitud son

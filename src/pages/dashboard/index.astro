@@ -2085,6 +2085,10 @@ const newsCases = [
     .pj-cita-row .t{grid-column:1/-1;order:3}
     .pj-cita-h{grid-row:1/3;grid-column:2}
   }
+  /* La fila con botones se comporta como las demás: cursor, hover y la flecha. */
+  .hm-item-acts{cursor:pointer}
+  .hm-item-acts:focus-visible{outline:2px solid var(--acid);outline-offset:2px}
+  .go-acts{margin-left:auto;margin-right:10px}
   .chip-prueba{display:inline-block;border:1px solid var(--falso);color:var(--falso);
     background:color-mix(in srgb, var(--falso) 15%, transparent);border-radius:999px;
     padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -2978,7 +2982,7 @@ const newsCases = [
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" type="button" title="Tareas y avisos" aria-label="Tareas y avisos">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
         <div class="bell-panel" id="bell-panel" hidden>
-          <div class="bell-h"><span>🔔 Tareas y avisos</span><span style="display:flex;gap:8px;align-items:center"><button class="bell-pushbtn" id="bell-push" type="button" title="Recibir notificaciones en este dispositivo aunque la app esté cerrada">📲 Activar push</button><button class="bell-x" id="bell-x" type="button" aria-label="Cerrar">✕</button></span></div>
+          <div class="bell-h"><span>🔔 Tareas y avisos</span><span style="display:flex;gap:8px;align-items:center"><button class="bell-pushbtn" id="bell-clear" type="button" title="Borrar todos los avisos de una vez">🔕 Borrar todo</button><button class="bell-pushbtn" id="bell-push" type="button" title="Recibir notificaciones en este dispositivo aunque la app esté cerrada">📲 Activar push</button><button class="bell-x" id="bell-x" type="button" aria-label="Cerrar">✕</button></span></div>
           <div id="bell-list"><p class="muted-note" style="padding:14px">Cargando…</p></div>
         </div>
       </div>
@@ -7713,6 +7717,30 @@ const newsCases = [
     bellItems = bellItems.filter((i) => (i.kind + ':' + i.id) !== k);
     renderBell();
   }
+  /* BORRAR TODAS DE UNA. Descartar de a una es correcto cuando hay tres avisos; con
+     veinte es una tarea en sí misma, y entonces no se descarta ninguna y el badge deja de
+     significar algo. Va a la base igual que el descarte individual, así que se apaga en
+     todos tus dispositivos.
+     Pide confirmación porque no tiene vuelta atrás, y dice CUÁNTAS son: «borrar 23» y
+     «borrar 2» no son la misma decisión.
+     (Sebastián, 2 sep 2026: "dame la opción de borrar todas las notificaciones y no
+     hacerlo uno por uno que tarda un montón".) */
+  async function dismissBellAll(){
+    const claves = bellItems.map((i) => i.kind + ':' + i.id);
+    if (!claves.length){ toast('No hay avisos para borrar'); return; }
+    if (!confirm('¿Borrar los ' + claves.length + ' avisos?\n\nSe van de todos tus dispositivos y no se pueden recuperar.')) return;
+    claves.forEach((k) => bellDismissed.add(k));
+    try { localStorage.setItem('bellDismissed', JSON.stringify([...bellDismissed].slice(-300))); } catch (e){ }
+    bellItems = [];
+    renderBell();
+    /* En una sola llamada, no una por aviso: veintitrés upserts sueltos tardan más que el
+       borrado de a uno que esto viene a reemplazar. */
+    const { error } = await supabase.from('bell_dismissed')
+      .upsert(claves.map((k) => ({ user_email: meEmail || '', key: k })));
+    if (error) toast('⚠️ Se ocultaron acá, pero no se pudieron guardar: ' + error.message);
+    else toast('🔕 ' + claves.length + ' aviso' + (claves.length === 1 ? '' : 's') + ' borrado' + (claves.length === 1 ? '' : 's'));
+  }
+
   async function loadBell(){
     if (!bellBound){ bellBound = true;
       $('bell-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleBell(); });
@@ -7720,6 +7748,7 @@ const newsCases = [
       $('bell-panel').addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { $('bell-panel').hidden = true; });
       $('bell-push').addEventListener('click', (e) => { e.stopPropagation(); enablePush(); });
+    $('bell-clear') && $('bell-clear').addEventListener('click', (e) => { e.stopPropagation(); dismissBellAll(); });
       $('push-warn') && $('push-warn').addEventListener('click', (e) => { e.stopPropagation(); enablePush(); });
       refreshPushBtn();
     }
@@ -8823,12 +8852,20 @@ const newsCases = [
        contexto se partía en dos renglones dejando un "·" suelto al empezar el
        segundo. Acá no compite con nada y las cifras quedan alineadas en columna. */
     const fila = (it, i) => it.acts
-      ? '<div class="hm-item ' + it.sev + '" style="cursor:default" data-i="' + i + '">' +
+      /* SE PUEDE TOCAR, Y AHORA SE NOTA. Esta variante —la que trae botones de acción— ya
+         llevaba al lugar exacto al hacerle click, pero decía `cursor:default` y no mostraba
+         la flecha que muestran las otras: parecía un cartel y no un camino, así que nadie
+         la tocaba. El texto es el que navega; los botones cortan la propagación.
+         (Sebastián, 2 sep 2026: "en hoy, que todos los items me lleven a los items en
+         cuestión".) */
+      ? '<div class="hm-item hm-item-acts ' + it.sev + '" data-i="' + i + '" role="button" tabindex="0"' +
+        (it.hint ? ' title="' + esc(it.hint.replace(/\s*→\s*$/, '')) + '"' : '') + '>' +
         '<span class="ic">' + it.icon + '</span>' +
         '<span class="tx"><b>' + esc(it.t) + '</b><small>' + esc(it.ctx) + '</small></span>' +
         /* El monto también en la variante con botones: si no, agregarle un «✓ Hecho» a un
            aviso le borraba la plata que tiene en juego, que es lo que ordena la lista. */
         (it.chf ? '<b class="hm-chf">' + fmtChf(Math.round(it.chf)) + '</b>' : '') +
+        (it.hint ? '<span class="go go-acts">' + it.hint + '</span>' : '') +
         '<span class="hm-acts">' + it.acts.map((a, j) =>
           '<button class="btn ' + a.cls + ' small" data-act="' + i + ':' + j + '" type="button"' +
           (a.title ? ' title="' + esc(a.title) + '"' : '') + '>' + a.label + '</button>').join('') +
@@ -8844,6 +8881,9 @@ const newsCases = [
       box.innerHTML += '<button class="hm-more" id="hm-today-more" type="button">ver las otras ' + (items.length - VISIBLES) + ' →</button>';
     }
     const enganchar = () => {
+      box.querySelectorAll('.hm-item[role="button"]').forEach((b) => b.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); b.click(); }
+      }));
       box.querySelectorAll('.hm-item').forEach((b) => b.addEventListener('click', () => { const it = hmTodayCur[+b.dataset.i]; if (it && it.go) it.go(); }));
       box.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', (e) => {
         e.stopPropagation();
