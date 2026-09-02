@@ -14988,6 +14988,21 @@ const newsCases = [
       $('nwi-send') && $('nwi-send').addEventListener('click', async () => {
         if (!nwiCur) return;
         if (nwiCur.status === 'sent'){ toast('Este issue ya fue enviado'); return; }
+        /* SI HAY UNA FECHA PUESTA, ESTE BOTÓN NO MANDA. Puse el campo de fecha al lado de
+           «Aprobar y enviar» y este botón lo ignoraba: Sebastián escribió 03.09 09:30,
+           apretó enviar, y salió en el acto a 44 personas. El error fue mío y de diseño —
+           un campo que no hace nada al lado del botón que sí manda.
+           (Sebastián, 2 sep 2026: "¿tuve que haber tocado programar? eso está mal, le puse
+           fecha a mano".) */
+        const fechaPuesta = $('nwi-at') && $('nwi-at').value ? new Date($('nwi-at').value) : null;
+        if (fechaPuesta && fechaPuesta.getTime() > Date.now() + 60000){
+          $('nwi-note').textContent = '⏰ Tenés puesta la fecha ' +
+            fechaPuesta.toLocaleString('es-CH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+            '. Para que salga entonces, tocá «⏰ Programar». Para mandarla AHORA, borrá la fecha primero.';
+          toast('⏰ Hay una fecha puesta — usá «Programar», o borrala para mandar ahora');
+          $('nwi-at').focus();
+          return;
+        }
         // el segmento elegido se guarda ANTES de mandar: si no, el envío lee lo
         // último persistido y no lo que está en pantalla
         await nwiSaveSeg();
