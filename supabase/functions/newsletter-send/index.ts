@@ -371,6 +371,52 @@ async function elegirDestinatarios(service: any, seg?: Seg) {
   return { recips, fuera, porIdioma, sacados };
 }
 
+/* Lee de Resend los emails de una edición (ventana sent_at-2min → +17min, remitente
+   info@viven.ch, asunto en/de/es) y los convierte en filas de newsletter_sends con
+   opened_at/clicked_at según el último evento. Lo usan «reconstruir» y «sincronizar». */
+type IssueMin = { id: string; sent_at: string; content: Record<string, { subject?: string }> | null };
+type Em = { id: string; to: string[] | string; from?: string; subject?: string; created_at: string; last_event?: string };
+async function filasDesdeResend(issue: IssueMin): Promise<{ rows: FilaEnvio[]; resumen: Record<string, unknown> }> {
+  const content = issue.content ?? {};
+  const asuntos = new Set(["en", "de", "es"].map((l) => content[l]?.subject).filter(Boolean));
+  const t0 = new Date(issue.sent_at).getTime() - 2 * 60e3, t1 = t0 + 17 * 60e3;
+  const fecha = (x: unknown) => new Date(String(x || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).getTime();
+  const hallados: Em[] = [];
+  let after = "", paginas = 0, vistos = 0;
+  while (paginas++ < 40) {
+    const r = await fetch("https://api.resend.com/emails?limit=100" + (after ? "&after=" + after : ""), { headers: { Authorization: `Bearer ${RESEND}` } });
+    if (!r.ok) { console.error("RESEND_LIST_FAIL", r.status, (await r.text()).slice(0, 200)); break; }
+    const out = await r.json();
+    const data: Em[] = out?.data || [];
+    vistos += data.length;
+    for (const e of data) {
+      const ts = fecha(e.created_at);
+      if (ts >= t0 && ts <= t1 && asuntos.has(e.subject || "") && /info@viven\.ch/i.test(e.from || "")) hallados.push(e);
+    }
+    const ultimo = data[data.length - 1];
+    if (!out?.has_more || !ultimo || ultimo.id === after) break;
+    if (fecha(ultimo.created_at) < t0) break;        // la lista viene del más nuevo al más viejo
+    after = ultimo.id;
+  }
+  const porEmail = new Map<string, Em>();
+  for (const e of hallados) {
+    const em = String(Array.isArray(e.to) ? e.to[0] : e.to).toLowerCase().trim();
+    if (em && !porEmail.has(em)) porEmail.set(em, e);
+  }
+  const ahora = new Date().toISOString();
+  const rows: FilaEnvio[] = [];
+  for (const [em, e] of porEmail) {
+    const { data: lead } = await service.from("leads").select("id").ilike("email", em).maybeSingle();
+    const ev = String(e.last_event || "");
+    rows.push({ issue_id: issue.id, lead_id: lead?.id ?? null, email: em, resend_id: e.id,
+      opened_at: ev === "opened" || ev === "clicked" ? ahora : null, clicked_at: ev === "clicked" ? ahora : null,
+      status: ev === "bounced" ? "bounced" : "sent" });
+  }
+  const eventos = [...porEmail.values()].reduce((a, e) => { a[e.last_event || "?"] = (a[e.last_event || "?"] || 0) + 1; return a; }, {} as Record<string, number>);
+  return { rows, resumen: { paginas_resend: paginas, emails_vistos: vistos, hallados: hallados.length, personas: rows.length,
+    abiertos: rows.filter((r) => r.opened_at).length, clicks: rows.filter((r) => r.clicked_at).length, eventos } };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -409,53 +455,56 @@ Deno.serve(async (req) => {
       const issueId = String(bodyReq.reconstruir);
       const { data: issue } = await service.from("newsletter_issues").select("id,sent_at,content").eq("id", issueId).maybeSingle();
       if (!issue?.sent_at) return json({ error: "issue sin sent_at" }, 400);
-      const content = (issue.content ?? {}) as Record<string, { subject?: string }>;
-      const asuntos = new Set(["en", "de", "es"].map((l) => content[l]?.subject).filter(Boolean));
-      const t0 = new Date(issue.sent_at).getTime() - 2 * 60e3, t1 = t0 + 17 * 60e3;
-      const fecha = (x: unknown) => new Date(String(x || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).getTime();
-      type Em = { id: string; to: string[] | string; from?: string; subject?: string; created_at: string; last_event?: string };
-      const hallados: Em[] = [];
-      let after = "", paginas = 0, vistos = 0;
-      while (paginas++ < 40) {
-        const r = await fetch("https://api.resend.com/emails?limit=100" + (after ? "&after=" + after : ""), { headers: { Authorization: `Bearer ${RESEND}` } });
-        if (!r.ok) return json({ error: "resend " + r.status + " " + (await r.text()).slice(0, 200) }, 502);
-        const out = await r.json();
-        const data: Em[] = out?.data || [];
-        vistos += data.length;
-        for (const e of data) {
-          const ts = fecha(e.created_at);
-          if (ts >= t0 && ts <= t1 && asuntos.has(e.subject || "") && /info@viven\.ch/i.test(e.from || "")) hallados.push(e);
-        }
-        const ultimo = data[data.length - 1];
-        if (!out?.has_more || !ultimo || ultimo.id === after) break;
-        if (fecha(ultimo.created_at) < t0) break;        // la lista viene del más nuevo al más viejo
-        after = ultimo.id;
-      }
-      // una fila por email (Resend lista cada envío individual del batch)
-      const porEmail = new Map<string, Em>();
-      for (const e of hallados) {
-        const em = String(Array.isArray(e.to) ? e.to[0] : e.to).toLowerCase().trim();
-        if (em && !porEmail.has(em)) porEmail.set(em, e);
-      }
-      const ahora = new Date().toISOString();
-      const rows: FilaEnvio[] = [];
-      for (const [em, e] of porEmail) {
-        const { data: lead } = await service.from("leads").select("id").ilike("email", em).maybeSingle();
-        const ev = String(e.last_event || "");
-        rows.push({ issue_id: issueId, lead_id: lead?.id ?? null, email: em, resend_id: e.id,
-          opened_at: ev === "opened" || ev === "clicked" ? ahora : null, clicked_at: ev === "clicked" ? ahora : null });
-      }
-      const resumen = {
-        ok: true, dry_run: !!bodyReq.dry_run, paginas_resend: paginas, emails_vistos: vistos, hallados: hallados.length, personas: rows.length,
-        abiertos: rows.filter((r) => r.opened_at).length, clicks: rows.filter((r) => r.clicked_at).length,
-        eventos: [...porEmail.values()].reduce((a, e) => { a[e.last_event || "?"] = (a[e.last_event || "?"] || 0) + 1; return a; }, {} as Record<string, number>),
-        emails: rows.map((r) => r.email),
-      };
-      if (bodyReq.dry_run) return json(resumen);
+      const { rows, resumen } = await filasDesdeResend(issue as IssueMin);
+      if (bodyReq.dry_run) return json({ ...resumen, dry_run: true });
       const noRegistrados = await registrar(rows, "issue_id,email", "reconstruir " + issueId);
       const { count } = await service.from("newsletter_sends").select("*", { count: "exact", head: true }).eq("issue_id", issueId);
-      await service.from("newsletter_issues").update({ sent_count: count ?? rows.length, updated_at: ahora }).eq("id", issueId);
+      await service.from("newsletter_issues").update({ sent_count: count ?? rows.length, updated_at: new Date().toISOString() }).eq("id", issueId);
       return json({ ...resumen, no_registrados: noRegistrados, en_tabla: count });
+    }
+
+    /* ---- SINCRONIZAR aperturas/clicks desde Resend (cron horario) --------------
+       El webhook resend-events NUNCA fue llamado (0 invocaciones en los logs, con 44
+       envíos y 15 aperturas el 2 sep 2026): las aperturas no llegan solas. Este
+       sincronizador no depende de él: cada hora le pide a Resend el estado de los
+       emails de las ediciones enviadas en los últimos 30 días y estampa lo que
+       cambió. Sebastián: "que si la gente abre mañana muestre ese cambio también". */
+    if (bodyReq.sincronizar) {
+      const desde = new Date(Date.now() - 30 * 864e5).toISOString();
+      const { data: issues } = await service.from("newsletter_issues").select("id,sent_at,content").eq("status", "sent").gte("sent_at", desde);
+      const ahora = new Date().toISOString();
+      const out: Record<string, unknown>[] = [];
+      for (const issue of (issues || []) as IssueMin[]) {
+        const { rows, resumen } = await filasDesdeResend(issue);
+        let nuevos = 0, abiertos = 0, clicks = 0, rebotes = 0;
+        if (!bodyReq.dry_run) {
+          const { data: ya } = await service.from("newsletter_sends").select("email,opened_at,clicked_at,status").eq("issue_id", issue.id);
+          const porEmail = new Map((ya || []).map((r) => [String(r.email).toLowerCase(), r]));
+          const faltan = rows.filter((r) => !porEmail.has(String(r.email)));
+          if (faltan.length) { await registrar(faltan, "issue_id,email", "sync " + issue.id); nuevos = faltan.length; }
+          for (const r of rows) {
+            const y = porEmail.get(String(r.email)); if (!y) continue;
+            const upd: Record<string, unknown> = {};
+            if (r.opened_at && !y.opened_at) { upd.opened_at = ahora; abiertos++; }
+            if (r.clicked_at && !y.clicked_at) { upd.clicked_at = ahora; clicks++; }
+            if (r.status === "bounced" && y.status !== "bounced") { upd.status = "bounced"; rebotes++; }
+            if (Object.keys(upd).length) {
+              const { error } = await service.from("newsletter_sends").update(upd).eq("issue_id", issue.id).eq("email", r.email);
+              if (error) console.error("NL_SYNC_FALLO", issue.id, r.email, error.message);
+            }
+          }
+        }
+        out.push({ issue: issue.id, ...resumen, nuevos, abiertos_nuevos: abiertos, clicks_nuevos: clicks, rebotes_nuevos: rebotes });
+      }
+      return json({ ok: true, dry_run: !!bodyReq.dry_run, ediciones: out });
+    }
+
+    /* ---- DIAGNÓSTICO: qué webhooks tiene Resend (sin secretos) ---------------- */
+    if (bodyReq.diagnostico) {
+      const r = await fetch("https://api.resend.com/webhooks", { headers: { Authorization: `Bearer ${RESEND}` } });
+      const out = r.ok ? await r.json() : { error: r.status + " " + (await r.text()).slice(0, 200) };
+      const hooks = (out?.data || []).map((w: Record<string, unknown>) => ({ endpoint: w.endpoint, events: w.events, status: w.status, created_at: w.created_at }));
+      return json({ ok: r.ok, webhooks: hooks, esperado: SB_URL + "/functions/v1/resend-events" });
     }
     if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
 
