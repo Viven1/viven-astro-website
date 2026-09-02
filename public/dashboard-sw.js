@@ -7,7 +7,7 @@
    (y la app del Dock) siguen corriendo el JS viejo sin sintoma. Paso de verdad el
    12 ago 2026: 8 deploys seguidos y Sebastian veia la version anterior — tocaba
    'Ver / editar lista' y no pasaba nada porque su pagina no tenia el fix. */
-var CACHE = 'viven-crm-v214';  // v214: 29 ago 2026 — citacion por jornada, y desplegable en vez del reloj del navegador
+var CACHE = 'viven-crm-v215';  // v215: 2 sep 2026 — push de leads que nunca salia, y bexio deja de reclamar
 
 /* Al instalar se guarda el HTML **y los archivos que ese HTML pide**. Antes solo se
    guardaba '/dashboard/', y el bundle recién entraba a la cache la primera vez que el

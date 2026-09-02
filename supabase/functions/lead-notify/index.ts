@@ -37,11 +37,24 @@ const esc = (s: unknown) =>
 // solo a browsers con la PWA suscripta. Ahora delega en push-send (mismo
 // camino que reactivation-engine/deal-followup-later), que ya manda por
 // Web Push Y APNs con un solo JWT cacheado por corrida.
+/* DEVUELVE la promesa, y quien la llama la ESPERA.
+   Antes era `fetch(...).catch(...)` suelto, sin devolver nada: la función respondía
+   enseguida y el isolate se apagaba con el pedido a medio salir. El push no llegaba nunca
+   y no quedaba ni un error — el catch tampoco alcanzaba a correr.
+   Se notaba porque el email sí llegaba: ese fetch sí se esperaba. booking-create hacía lo
+   correcto desde el principio, por eso las de videollamada sí entraban.
+   Medido el 2 sep 2026: 4 leads reales desde el 29 ago, cero pushes.
+   (Sebastián: "no llegan push notificaciones de nuevas leads... solo por email".) */
 function pushBroadcast(title: string, body: string, url = "/dashboard/") {
-  fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+  return fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") },
     body: JSON.stringify({ title, body, url }),
+  }).then(async (r) => {
+    /* Y si push-send contesta mal, que quede escrito: un push que no sale es invisible
+       para todos —no hay rebote, no hay bandeja— así que sin este log solo se descubre
+       preguntando «¿te llegó?». */
+    if (!r.ok) console.error("PUSH_NO_SALIO", r.status, (await r.text()).slice(0, 200));
   }).catch((e) => console.error("PUSH_ERROR", String(e)));
 }
 
@@ -200,7 +213,7 @@ Deno.serve(async (req) => {
       }),
     });
     // push al celular (además del email) — abre el lead directo al tocarla
-    if (!esTest) pushBroadcast(
+    if (!esTest) await pushBroadcast(
       "🎬 Nuevo lead: " + name,
       [(r.message || "").slice(0, 90) || r.email,
        rec ? `${rec.paginas} pág · ${rec.minutos} min` : null,

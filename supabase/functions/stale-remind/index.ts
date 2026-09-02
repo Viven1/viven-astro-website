@@ -40,7 +40,15 @@ Deno.serve(async (req) => {
     const now = Date.now();
     const cutoff = now - STALE_DAYS * 864e5;
 
-    const { data: leads, error } = await service.from("leads").select("*").limit(5000);
+    /* LA GENTE IMPORTADA DE BEXIO NO GENERA TAREAS. Son 167 contactos históricos que se
+       trajeron para tener el archivo, no prospectos: nadie los va a llamar porque "hace
+       90 días que no hay actividad". Al 2 sep 2026 producían 42 de las 45 tareas abiertas
+       —el 93%—, y con eso el panel de tareas dejó de mirarse.
+       Se quedan en la base y en sus fichas; lo que se apaga es que reclamen atención.
+       (Sebastián, 2 sep 2026: "no hagas más tasks con la gente de bexio, esos ya no
+       sirven. Dejémoslos dentro pero apagados para no molestar con notificaciones".) */
+    const { data: leads, error } = await service.from("leads").select("*")
+      .neq("channel", "bexio-import").limit(5000);
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
 
     // actividad por lead desde todas las fuentes (best-effort: tabla ausente = se ignora)
