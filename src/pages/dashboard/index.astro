@@ -27125,7 +27125,10 @@ const newsCases = [
     (sRes.data || []).forEach((r) => {
       const a = nwmStats[r.issue_id] = nwmStats[r.issue_id] || { n: 0, open: 0, click: 0, bounce: 0, porLang: {}, gente: [] };
       const l = r.lead_id != null ? byId.get(String(r.lead_id)) : null;
-      const lang = (l && l.lang) || '?';
+      /* el idioma en que LO RECIBIÓ, con la misma regla que newsletter-send: el de la
+         ficha si es en/de/es, y si no, inglés. "Sin idioma" no existe para el que lo lee.
+         (Sebastián, 2 sep 2026: "esto no hace sentido: sin idioma 2 de 4"). */
+      const lang = ['en', 'de', 'es'].includes(l && l.lang) ? l.lang : 'en';
       a.n++; if (r.opened_at) a.open++; if (r.clicked_at) a.click++; if (r.status === 'bounced' || r.status === 'complained') a.bounce++;
       const pl = a.porLang[lang] = a.porLang[lang] || { n: 0, open: 0 }; pl.n++; if (r.opened_at) pl.open++;
       a.gente.push({ id: r.lead_id, email: r.email, name: (l && (l.first_name || l.name)) || String(r.email).split('@')[0], dom: String(r.email).split('@')[1] || '', lang, abrio: !!r.opened_at, click: !!r.clicked_at, rebote: r.status === 'bounced' || r.status === 'complained' });
@@ -27154,10 +27157,10 @@ const newsCases = [
                       : '<div class="k mute"><div class="n">—</div><div class="l">Clicks</div><div class="d">no medible en esta edición (tracking encendido después)</div></div>') +
       '<div class="k' + (a.bounce ? ' lost' : '') + '"><div class="n">' + a.bounce + '</div><div class="l">Rebotaron</div><div class="d">' + (a.bounce ? 'salen solos de la lista' : 'ninguno') + '</div></div>';
     // por idioma
-    const langs = Object.entries(a.porLang).sort((x, y) => y[1].n - x[1].n);
+    const langs = ['en', 'de', 'es'].filter((lg) => a.porLang[lg]).map((lg) => [lg, a.porLang[lg]]);
     $('nwm-langs').innerHTML = langs.map(([lg, v]) => {
       const p = v.n ? Math.round(v.open / v.n * 100) : 0;
-      return '<div class="nwm-bar"><span class="lb">' + (NWM_LANG_LBL[lg] || '<span class="muted-note" style="margin:0">sin idioma</span>') + '</span><div class="t"><div class="f" style="width:' + p + '%' + (lg === '?' ? ';background:var(--muted-2)' : '') + '"></div></div><span class="v">' + v.open + ' de ' + v.n + ' · ' + p + '%</span></div>';
+      return '<div class="nwm-bar"><span class="lb">' + NWM_LANG_LBL[lg] + '</span><div class="t"><div class="f" style="width:' + p + '%"></div></div><span class="v">' + v.open + ' de ' + v.n + ' · ' + p + '%</span></div>';
     }).join('') || '<p class="muted-note">Sin datos por persona.</p>';
     // quién abrió
     nwmPintarGente(a);
