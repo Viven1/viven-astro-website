@@ -499,12 +499,42 @@ Deno.serve(async (req) => {
       return json({ ok: true, dry_run: !!bodyReq.dry_run, ediciones: out });
     }
 
-    /* ---- DIAGNÓSTICO: qué webhooks tiene Resend (sin secretos) ---------------- */
+    /* ---- ADMINISTRAR RESEND: diagnóstico, webhook, tracking -------------------
+       El 2 sep 2026 se descubrió que el único webhook de Resend estaba apagado y
+       apuntaba a /functions/v1/resend (no existe). Estas acciones hacen desde acá
+       lo que antes había que hacer a mano en el dashboard de Resend. Solo con
+       sesión del dashboard o el secret del cron. Sebastián: "hacelo". */
+    const resendGet = async (path: string) => { const r = await fetch("https://api.resend.com" + path, { headers: { Authorization: `Bearer ${RESEND}` } }); return { ok: r.ok, status: r.status, body: await r.json().catch(() => ({})) }; };
+    const resendSend = async (method: string, path: string, payload?: unknown) => {
+      const r = await fetch("https://api.resend.com" + path, { method, headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" }, body: payload === undefined ? undefined : JSON.stringify(payload) });
+      return { ok: r.ok, status: r.status, body: await r.json().catch(() => ({})) };
+    };
+    const ENDPOINT = SB_URL + "/functions/v1/resend-events";
     if (bodyReq.diagnostico) {
-      const r = await fetch("https://api.resend.com/webhooks", { headers: { Authorization: `Bearer ${RESEND}` } });
-      const out = r.ok ? await r.json() : { error: r.status + " " + (await r.text()).slice(0, 200) };
-      const hooks = (out?.data || []).map((w: Record<string, unknown>) => ({ endpoint: w.endpoint, events: w.events, status: w.status, created_at: w.created_at }));
-      return json({ ok: r.ok, webhooks: hooks, esperado: SB_URL + "/functions/v1/resend-events" });
+      const wh = await resendGet("/webhooks");
+      const dom = await resendGet("/domains");
+      const hooks = (wh.body?.data || []).map((w: Record<string, unknown>) => ({ id: w.id, endpoint: w.endpoint, events: w.events, status: w.status, created_at: w.created_at }));
+      const dominios = [];
+      for (const d of (dom.body?.data || []) as Record<string, unknown>[]) {
+        const det = await resendGet("/domains/" + d.id);
+        dominios.push({ id: d.id, name: d.name, status: d.status, open_tracking: det.body?.open_tracking, click_tracking: det.body?.click_tracking, tracking_subdomain: det.body?.tracking_subdomain ?? null });
+      }
+      return json({ ok: wh.ok && dom.ok, webhooks: hooks, dominios, esperado: ENDPOINT });
+    }
+    if (bodyReq.crear_webhook) {
+      // opened + clicked (lo que estampa resend-events), bounced + complained (para
+      // sacar de la lista a quien rebota o se queja: seguir mandándole daña la entrega)
+      const r = await resendSend("POST", "/webhooks", { endpoint: ENDPOINT, events: ["email.opened", "email.clicked", "email.bounced", "email.complained"] });
+      // el signing_secret vuelve UNA sola vez: quien llama lo guarda con `supabase secrets set`
+      return json({ ok: r.ok, status: r.status, id: r.body?.id, signing_secret: r.body?.signing_secret, error: r.ok ? undefined : r.body });
+    }
+    if (bodyReq.borrar_webhook) {
+      const r = await resendSend("DELETE", "/webhooks/" + String(bodyReq.borrar_webhook));
+      return json({ ok: r.ok, status: r.status, body: r.body });
+    }
+    if (bodyReq.activar_tracking) {
+      const r = await resendSend("PATCH", "/domains/" + String(bodyReq.activar_tracking), { open_tracking: true, click_tracking: true });
+      return json({ ok: r.ok, status: r.status, body: r.body });
     }
     if (!user && !isInternal) return json({ error: "unauthorized" }, 401);
 

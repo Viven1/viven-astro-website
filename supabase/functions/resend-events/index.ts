@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
       evt = JSON.parse(raw);
     }
 
-    if (evt?.type !== "email.opened" && evt?.type !== "email.clicked") return new Response("ignored");
+    const TIPOS = ["email.opened", "email.clicked", "email.bounced", "email.complained"];
+    if (!TIPOS.includes(evt?.type)) return new Response("ignored");
     const tags = evt?.data?.tags || {};
     // Resend entrega tags como objeto {offer_id: "123"} o como lista [{name,value}] según versión
     const tagVal = (k: string) => tags[k] || (Array.isArray(tags) ? (tags.find((t: any) => t.name === k) || {}).value : null);
@@ -65,6 +66,42 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SB_URL, SERVICE);
     const at = evt?.created_at || new Date().toISOString();
+    const toRaw0 = evt?.data?.to ?? evt?.data?.email;
+    const recip0 = String(Array.isArray(toRaw0) ? (toRaw0[0] || "") : (toRaw0 || "")).toLowerCase().trim();
+
+    /* Rebote o queja: la fila del envío queda marcada, y si es definitivo (rebote
+       permanente o queja de spam) la persona sale de la lista. Seguir mandándole a
+       una casilla que rebota o a alguien que nos marcó como spam empeora la entrega
+       de TODOS los demás. (2 sep 2026: la edición 2026-09 tuvo 1 rebote.) */
+    if (evt.type === "email.bounced" || evt.type === "email.complained") {
+      const permanente = evt.type === "email.complained" || String(evt?.data?.bounce?.type || "").toLowerCase() === "permanent";
+      const estado = evt.type === "email.complained" ? "complained" : "bounced";
+      if (recip0 && (nlId || issueId)) {
+        let q = admin.from("newsletter_sends").update({ status: estado }).eq("email", recip0);
+        q = nlId ? q.eq("newsletter_id", nlId) : q.eq("issue_id", issueId);
+        const { error } = await q; if (error) console.error("NL_BOUNCE_UPDATE_ERROR", error.message);
+      }
+      if (recip0 && permanente) {
+        const { error } = await admin.from("leads").update({ unsubscribed: true }).ilike("email", recip0);
+        if (error) console.error("LEAD_UNSUB_ERROR", error.message);
+        console.log("NL_BAJA_AUTOMATICA", estado, recip0, evt?.data?.bounce?.subType || "");
+      }
+      return new Response("ok");
+    }
+
+    /* Click: además del "clickeó" (abajo), se guarda QUÉ link tocó cada persona.
+       Sebastián, 2 sep 2026: "mostrá qué botones tocaron". */
+    if (evt.type === "email.clicked" && (nlId || issueId) && recip0) {
+      const link = String(evt?.data?.click?.link || "");
+      if (link) {
+        const { data: fila } = await admin.from("newsletter_sends").select("lead_id").eq("email", recip0).eq(nlId ? "newsletter_id" : "issue_id", nlId || issueId).maybeSingle();
+        const { error } = await admin.from("newsletter_clicks").insert({
+          newsletter_id: nlId || null, issue_id: issueId || null, email: recip0, lead_id: fila?.lead_id ?? null,
+          link, at: evt?.data?.click?.timestamp || at, user_agent: String(evt?.data?.click?.userAgent || "").slice(0, 300),
+        });
+        if (error) console.error("NL_CLICK_INSERT_ERROR", error.message);
+      }
+    }
 
     if (offerId) {
       const { error } = await admin.from("offers").update({ last_open_at: at }).eq("id", offerId);
