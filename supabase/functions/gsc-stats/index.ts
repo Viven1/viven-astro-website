@@ -97,6 +97,17 @@ Deno.serve(async (req) => {
     // service-role bypass (mismo patrón que push-send): permite acciones
     // server-to-server como submit_sitemap sin sesión de dashboard.
     const isService = auth === "Bearer " + (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "");
+    /* SONDA (2 sep 2026): ¿el refresh token que ya usan Search Console y Google Ads
+       alcanza para Google Analytics? Devuelve los scopes del token y, si puede, las
+       propiedades GA4 visibles. No escribe nada. Solo service/cron. */
+    const sonda = await req.clone().json().catch(() => ({}));
+    if (sonda?.ga4_probe && (isService || (!!CRON_SECRET && auth === "Bearer " + CRON_SECRET))) {
+      const tok = await googleToken();
+      const info = await (await fetch("https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + encodeURIComponent(tok))).json();
+      const r = await fetch("https://analyticsadmin.googleapis.com/v1beta/accountSummaries", { headers: { Authorization: "Bearer " + tok } });
+      const cuentas = await r.json().catch(() => ({}));
+      return json({ scopes: String(info?.scope || "").split(" "), ga4_status: r.status, ga4: r.ok ? cuentas : (cuentas?.error?.message || cuentas) });
+    }
     // cron bypass (mismo patrón que reactivation-engine): el cron del snapshot
     // semanal (SQL 0116) llama con Bearer CRON_SECRET resuelto desde el vault.
     const isCron = !!CRON_SECRET && auth === "Bearer " + CRON_SECRET;
