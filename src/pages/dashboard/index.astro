@@ -7442,7 +7442,7 @@ const newsCases = [
       const winStart = rangeStart(), winEnd = rangeEnd(), winLen = winEnd - winStart;
       prevWin = { start: winStart - winLen, end: winStart - 1 };
       const [viewsQ, prevQ, videosQ, notesQ, tasksQ, actQ] = await Promise.all([
-        fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration', since(), until()),
+        fetchAllRows('pageviews', 'created_at,path,device,session_id,channel,referrer,lang,is_entry,duration,utm_source', since(), until()),
         /* El período ANTERIOR se cuenta en la base. Se bajaban sus 6.349 filas enteras
            —con path, duración y todo— para sacar dos números: visitas y sesiones. Era el
            39% de todo lo que descarga esta pantalla, que tardaba 7,3 s.
@@ -14297,11 +14297,15 @@ const newsCases = [
     renderAnaFunnel(sessions.size, periodLeads, soloPersonas, rangeLabel().toLowerCase(),
       !(soloPersonas && parcial), comun);
 
-    /* rendimiento por CANAL: sesiones vs leads */
+    /* rendimiento por CANAL: sesiones vs leads.
+       El newsletter llega con channel='email' (así lo clasifica el sitio) y quedaba
+       escondido bajo esa etiqueta genérica: "no salió lo de newsletter" (Sebastián,
+       2 sep 2026). Se separa por utm_source, que el newsletter siempre lleva. */
+    const canalDe = (x) => (x.channel === 'email' && /newsletter/i.test(x.utm_source || '')) ? 'newsletter' : (x.channel || 'direct');
     const chSessions = new Map();
-    entries.forEach((e) => { const k = e.channel || 'direct'; chSessions.set(k, (chSessions.get(k) || 0) + 1); });
+    entries.forEach((e) => { const k = canalDe(e); chSessions.set(k, (chSessions.get(k) || 0) + 1); });
     const chLeads = new Map();
-    tablaLeads.forEach((l) => { const k = l.channel || 'direct'; chLeads.set(k, (chLeads.get(k) || 0) + 1); });
+    tablaLeads.forEach((l) => { const k = canalDe(l); chLeads.set(k, (chLeads.get(k) || 0) + 1); });
     const chKeys = new Set([...chSessions.keys(), ...chLeads.keys()]);
     const channelPerf = [...chKeys].map((k) => ({ key: k, label: k, badge: true, sessions: chSessions.get(k) || 0, leads: chLeads.get(k) || 0 }));
     perfTable($('perf-channel'), channelPerf, { clickable: 'channel' });
