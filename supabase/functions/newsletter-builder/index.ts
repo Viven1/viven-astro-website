@@ -309,10 +309,21 @@ Deno.serve(async (req) => {
          artículos legibles que cuatro con uno que el lector no puede leer — y peor aún:
          un artículo en otro idioma se lee como un error de la agencia, no como un extra.
          (Sebastián, 2 sep 2026, sobre el draft en inglés con un B2B Erklärvideo adentro.) */
+      /* La portada se toma del hermano del grupo si esta versión no tiene la suya: es la
+         MISMA foto para los tres idiomas —una imagen no se traduce— y sin esto el post
+         salía sin imagen solo en alemán o en español. Al 2 sep 2026 le pasaba a 7 de 54.
+         Se arregló también el dato, pero el fallback queda: el próximo post que se cargue
+         sin portada en un idioma no tiene por qué volver a romper el envío.
+         (Sebastián: "en alemán sigue sin imagen… el español también".) */
       const posts = ranked
-        .map((g) => g.byLang[lang])
-        .filter(Boolean)
-        .map((b) => ({ title: b!.title, lead: (b!.lead || "").slice(0, 260), url: b!.published_url!, hero: abs(b!.hero_image) }));
+        .map((g) => {
+          const b = g.byLang[lang];
+          if (!b) return null;
+          const hero = b.hero_image
+            || (Object.values(g.byLang).find((x) => x && x.hero_image)?.hero_image ?? null);
+          return { title: b.title, lead: (b.lead || "").slice(0, 260), url: b.published_url!, hero: abs(hero) };
+        })
+        .filter(Boolean) as { title: string; lead: string; url: string; hero: string | null }[];
       const descartados = ranked.length - posts.length;
       if (descartados) console.log("NL_POSTS_SIN_TRADUCIR", lang, descartados, "de", ranked.length);
       /* Sin artículos en este idioma no hay edición que armar: mandar solo el proyecto
