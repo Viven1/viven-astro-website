@@ -143,7 +143,16 @@ const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7
     // y linkean al case study — así los case studies SIEMPRE se muestran como tal
     const csSlug = null;   // tiles de video SIEMPRE reproducen; los case studies tienen sus propios tiles
     const thumb = <span class="wt-thumb"><img src={v.thumb} width={v.tw || 960} height={v.th || 540} loading="lazy" decoding="async" alt={v.title} /></span>;
-    const cats = (v.cat || '').split(' ').filter(Boolean);
+    // Un video con varias categorías (ej. TomFit: "howto product") mostraba SIEMPRE la
+    // primera —"How-to"— sin importar en qué página apareciera, porque solo el índice 0
+    // queda visible por defecto (el resto lo revela el JS de filtros, que en una página
+    // de servicio fija como esta nunca se activa). En /services/product-video/ eso hacía
+    // que TomFit se viera como "How-to Video" y pareciera no ser un video de producto,
+    // aunque sí lo es. (Sebastián, 3 sep 2026: "tomfit tmb es un product video… tiene que
+    // ser ambos".) Fix: la categoría de ESTA página va primera, así el badge visible
+    // siempre coincide con la página, sea cual sea el orden en el dato.
+    const catsRaw = (v.cat || '').split(' ').filter(Boolean);
+    const cats = cat && catsRaw.includes(cat) ? [cat, ...catsRaw.filter((c) => c !== cat)] : catsRaw;
     // todas las etiquetas de categoría; el JS de filtros muestra la del filtro activo (la primera por defecto)
     const meta = (
       <span class="wt-meta">
