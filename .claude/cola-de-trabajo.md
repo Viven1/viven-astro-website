@@ -1,13 +1,13 @@
 <!-- Lo escribe sola la function cola-a-repo, todos los días. No editar a mano. -->
 # Cola de trabajo aprobada por Sebastián
 
-Actualizada: 2026-09-02 · 4 pendientes
+Actualizada: 2026-09-03 · 4 pendientes
 
 Cada ítem lo aprobó Sebastián desde el teléfono. El agente diario los trabaja
 y deja un PR; el merge sigue siendo decisión suya.
 
 ## #36 — Replicar estructura de calculadora
-- **Esperando:** 18 días (aprobado 2026-08-14)
+- **Esperando:** 19 días (aprobado 2026-08-14)
 - **Origen:** idea
 
 La calculadora generó 5 leads de 161 personas (tasa 3.1%, la más alta). Crear herramienta interactiva similar para 'product video' (246 personas) o 'brand video' (221) podría generar 7-8 leads adicionales.
@@ -17,7 +17,7 @@ Los números de arriba son SESIONES, y el 82% del tráfico son bots. Contando so
 Lectura: la calculadora recibe el tráfico MÁS humano del sitio, y por eso convierte. «Recursos» es el MENOS humano de todos — poner calculadoras nuevas ahí es ponerlas donde hay bots. Antes de construir, conviene decidir si el cuello es la captura o el tráfico real.
 
 ## #37 — Lead magnet: Guía how-to descargable
-- **Esperando:** 18 días (aprobado 2026-08-14)
+- **Esperando:** 19 días (aprobado 2026-08-14)
 - **Origen:** idea
 
 293 personas buscaron 'how-to / explainer' con 0 leads. Crear PDF 'Cómo hacer un video explicativo que convierte' para capturar 10-15 leads. Tocar página /how-to con descarga gated.
@@ -27,7 +27,7 @@ Los números de arriba son SESIONES, y el 82% del tráfico son bots. Contando so
 Lectura: la calculadora recibe el tráfico MÁS humano del sitio, y por eso convierte. «Recursos» es el MENOS humano de todos — poner calculadoras nuevas ahí es ponerlas donde hay bots. Antes de construir, conviene decidir si el cuello es la captura o el tráfico real.
 
 ## #39 — Insertar captura de lead contextual dentro de /en/blog/ que hoy no convierte nada
-- **Esperando:** 8 días (aprobado 2026-08-24)
+- **Esperando:** 9 días (aprobado 2026-08-24)
 - **Origen:** cro · /dashboard/?tab=analytics&sub=cro
 
 Agregar un CTA embebido a mitad de artículo (ej. 'calculá el costo de tu video' o descarga del lead magnet) segmentado por tema del post, y medir sesiones que avanzan a más de 1 página o completan email_submitted.
@@ -37,7 +37,7 @@ Agregar un CTA embebido a mitad de artículo (ej. 'calculá el costo de tu video
 No lo construí: con ese volumen no se puede medir si sirve, y el mismo trabajo puesto en las páginas donde SÍ hay gente rinde más. Decidilo vos con el número a la vista.
 
 ## #40 — Replicar modelo de calculadora en recursos
-- **Esperando:** 8 días (aprobado 2026-08-25)
+- **Esperando:** 9 días (aprobado 2026-08-25)
 - **Origen:** idea
 
 La calculadora generó 8 leads de 189 personas (4.2% conversion). Los 'recursos' atrajeron 769 personas con 0 leads. Crear 2-3 calculadoras temáticas (ej: presupuesto de video, ROI de contenido) como lead magnet en la sección recursos para capturar ese tráfico.
