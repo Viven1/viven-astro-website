@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "es";
+const p = (s) => localePath(lang, s);
+const title = {"es":"Vídeo de producto: guía práctica para vender más | Viven"};
+const description = {"es":"Cómo crear vídeos de producto efectivos que aumentan conversiones. Estrategia, estructura y mejores prácticas para empresas suizas."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "video-producto-venta";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/video-producto-venta" active="blog" singleLang={true} langUrls={{"en":"/en/blog/product-video-guide/","de":"/de/blog/","es":"/es/blog/video-producto-venta/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/es/blog/video-producto-venta/\"},\"headline\":\"Vídeo de producto: guía práctica para vender más\",\"description\":\"Cómo crear vídeos de producto efectivos que aumentan conversiones. Estrategia, estructura y mejores prácticas para empresas suizas.\",\"inLanguage\":\"es\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/es/blog/video-producto-venta/\",\"datePublished\":\"2026-09-04T15:21:30.097Z\",\"image\":\"https://www.viven.ch/projects/en/tomfit-train-smarter-not-harder/05-TomFit_8.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/es/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Vídeo de producto: guía práctica para vender más\",\"item\":\"https://www.viven.ch/es/blog/video-producto-venta/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"¿Cuál es la duración ideal de un vídeo de producto?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"No existe duración única. Los vídeos cortos (15–30 segundos) funcionan en redes; los medianos (1–2 minutos) en landing pages; los largos (3–5 minutos) para productos complejos. Adapta la duración al canal y al objetivo de tu audiencia.\"}},{\"@type\":\"Question\",\"name\":\"¿Cuánto presupuesto necesito para producir un vídeo de producto?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Desde 3,000 CHF para un vídeo simple hasta 20,000+ CHF para producciones premium con locaciones, actores o animación. El ROI generalmente justifica la inversión si el vídeo está bien estratégico.\"}},{\"@type\":\"Question\",\"name\":\"¿Dónde debo publicar mi vídeo de producto?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Comienza en tu sitio web (landing page o página de producto), luego en YouTube, LinkedIn y Google Ads. Cada plataforma requiere un enfoque y formato ligeramente diferente para máximo impacto.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Vídeo de producto: guía práctica para vender más</span></nav>
+  <span class="eyebrow">Producción de vídeo</span>
+  <h1>Vídeo de producto: guía práctica para vender más</h1>
+  <p class="lead">Un vídeo de producto bien hecho no es un simple comercial: es una herramienta de venta que explica características, genera confianza y convierte espectadores en clientes. En Suiza y el espacio hispanohablante, donde la competencia es feroz, las empresas que invierten en vídeos de producto estructurados aumentan sus tasas de conversión entre un 20% y un 40%. Esta guía te muestra cómo crear vídeos que realmente funcionan.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>4 de septiembre de 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/en/tomfit-train-smarter-not-harder/05-TomFit_8.jpg" alt="Vídeo de producto: guía práctica para vender más" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>¿Por qué el vídeo de producto es imprescindible en 2024?</h2><p>Los consumidores modernos no quieren leer especificaciones técnicas: quieren ver el producto en acción. Un vídeo de producto permite mostrar funcionalidad, beneficios y casos de uso en pocos segundos. En empresas como UBS, Siemens y Porsche, el vídeo de producto es un pilar central de la estrategia de marketing porque resuelve dudas antes de que el cliente contacte al equipo de ventas.</p><p>Los datos son claros: las páginas con vídeo de producto tienen un tiempo de permanencia 2.5 veces mayor que las páginas estáticas, y generan más solicitudes de demostración. Si tu empresa vende B2B o B2C en la región DACH, no puedes ignorar este formato.</p><h2>Estructura ganadora: los elementos clave</h2><p>No todos los vídeos de producto funcionan igual. Los más efectivos siguen una estructura clara:</p><ul><li><strong>Gancho visual (0–3 segundos):</strong> Muestra el problema o el resultado final, no el producto.</li><li><strong>Presentación del producto (3–10 segundos):</strong> Aquí sí entra el protagonista, pero en contexto real de uso.</li><li><strong>Demostración de características (10–25 segundos):</strong> Explica qué hace, cómo se usa, por qué es diferente.</li><li><strong>Casos de uso o beneficios (25–35 segundos):</strong> Muestra el impacto real: ahorro de tiempo, dinero, eficiencia.</li><li><strong>Call-to-action claro (35–40 segundos):</strong> Un botón, un enlace, un teléfono. Sin ambigüedad.</li></ul><p>Esta estructura funciona porque respeta la capacidad de atención del espectador digital. Cada segundo cuenta.</p><h2>Diferencias entre vídeo de producto corto y largo</h2><p>No existe un único formato correcto. La duración depende del canal y del objetivo:</p><ul><li><strong>Vídeos cortos (15–30 segundos):</strong> Ideales para redes sociales, anuncios en YouTube, LinkedIn. Requieren máxima concisión.</li><li><strong>Vídeos medios (1–2 minutos):</strong> Perfectos para landing pages, correos de marketing, demostración rápida.</li><li><strong>Vídeos largos (3–5 minutos):</strong> Para explicar productos complejos o B2B, cuando necesitas profundidad. Funciona mejor en sitios web o webinars.</li></ul><p>Las empresas más inteligentes producen múltiples versiones del mismo contenido: una para redes, otra para el sitio web, otra para la demostración. Un <a href={p("services/product-video")}>vídeo de producto</a> adaptado a cada plataforma multiplica su ROI.</p><h2>Errores comunes que debes evitar</h2><p>Hemos visto miles de vídeos de producto. Los que fracasan comparten patrones:</p><ul><li>Empiezan con el nombre de la empresa en lugar del problema del cliente.</li><li>Hablan en jerga técnica sin traducir beneficios a lenguaje humano.</li><li>No muestran el producto en uso real; solo lo presentan estático.</li><li>Tienen un CTA débil o confuso al final.</li><li>La calidad de producción es visiblemente pobre, lo que daña la credibilidad.</li></ul><p>El vídeo de producto es una inversión. No vale la pena hacerlo mal. Si tu presupuesto es limitado, mejor haz un vídeo excelente de 30 segundos que tres vídeos mediocres.</p><h2>Cómo integrar el vídeo de producto en tu estrategia de marketing</h2><p>Crear el vídeo es el primer paso; distribuirlo estratégicamente es el segundo. Un vídeo de producto efectivo debe estar en:</p><ul><li>Tu página de inicio o de producto (aumenta conversiones directas).</li><li>Correos de marketing automatizados (especialmente en fases de consideración).</li><li>LinkedIn y YouTube (donde tu audiencia B2B pasa tiempo).</li><li>Google Ads y redes sociales (para alcance pagado).</li><li>Presentaciones de ventas y demostraciones en vivo.</li></ul><p>Cada canal tiene su propio comportamiento. El vídeo que funciona en TikTok no funciona en LinkedIn. Por eso, un <a href={p("services/how-to-video")}>vídeo educativo</a> o un <a href={p("services/brand-video")}>brand video</a> requieren enfoques diferentes, pero el principio es el mismo: adapta el mensaje al canal.</p><h2>Medición y optimización: saber qué funciona</h2><p>Un vídeo de producto no es «hecho» cuando se publica. Los mejores resultados vienen de iterar:</p><ul><li>Mide tiempo de visualización promedio, completitud de reproducción, clics en CTA.</li><li>Prueba diferentes títulos, miniaturas y ganchos iniciales.</li><li>Recopila feedback de tu equipo de ventas (ellos hablan con los clientes todos los días).</li><li>Optimiza basándote en datos reales, no en intuición.</li></ul><p>Si tu vídeo pierde el 50% de espectadores antes del segundo 10, el problema está en el gancho. Si pierden audiencia en la mitad, el contenido es demasiado largo o aburrido. Los datos te dicen exactamente dónde mejorar.</p><h2>Cuando conviene trabajar con profesionales</h2><p>Algunos productos son simples y permiten un vídeo DIY. Pero si tu producto es técnico, premium o dirigido a decisores empresariales, la calidad de producción es no-negociable. Empresas como Philips, ON y FIFA trabajan con productoras especializadas porque saben que cada vídeo representa su marca.</p><p>Una producción profesional incluye: guión estratégico, cinematografía de calidad, edición, animación si es necesaria, y distribución optimizada. El retorno es medible: vídeos de producto profesionales generan entre 3 y 8 veces más leads que contenido amateur. Puedes consultar nuestros <a href={p("projects")}>proyectos recientes</a> para ver ejemplos reales.</p><p>Si estás considerando producir vídeos de producto para tu empresa, lo más importante es empezar. El mercado avanza rápido, y cada mes sin vídeo es un mes donde tus competidores avanzan. <a href={p("contact")}>Contacta con nosotros</a> para una consulta sin compromiso sobre cómo el vídeo de producto puede impulsar tus ventas.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036759173?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Esto también te puede interesar</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Leer más →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Mira nuestro trabajo</h2>
+    <VideoGallery lang={lang} limit={3} seed="video-producto-venta" />
+  </div></section>
+</Base>

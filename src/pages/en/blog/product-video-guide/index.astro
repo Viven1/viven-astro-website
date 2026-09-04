@@ -1,0 +1,138 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "en";
+const p = (s) => localePath(lang, s);
+const title = {"en":"Product Video: The Complete Guide to Visual Selling | Viven"};
+const description = {"en":"Learn how product videos drive conversions, build trust, and rank on Google. Expert insights from a Swiss video production agency."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "product-video-guide";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/product-video-guide" active="blog" singleLang={true} langUrls={{"en":"/en/blog/product-video-guide/","de":"/de/blog/","es":"/es/blog/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/en/blog/product-video-guide/\"},\"headline\":\"Product Video: The Complete Guide to Visual Selling\",\"description\":\"Learn how product videos drive conversions, build trust, and rank on Google. Expert insights from a Swiss video production agency.\",\"inLanguage\":\"en\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/en/blog/product-video-guide/\",\"datePublished\":\"2026-09-04T15:18:30.365Z\",\"image\":\"https://www.viven.ch/projects/en/tomfit-train-smarter-not-harder/05-TomFit_8.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/en/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Product Video: The Complete Guide to Visual Selling\",\"item\":\"https://www.viven.ch/en/blog/product-video-guide/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"How long should a product video be?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"It depends on platform and intent. Social media videos: 15–60 seconds. Landing pages: 60–90 seconds. Explainers and tutorials: 90–180 seconds. Longer case studies (2–4 minutes) work on YouTube and your website. Test and measure—shorter is usually better for initial engagement, longer for comprehensive education.\"}},{\"@type\":\"Question\",\"name\":\"What's the typical cost of a professional product video?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Budget ranges from CHF 5,000–15,000 for a high-quality 60–90 second video, depending on production complexity, locations, talent, and revisions. Brands requiring premium cinematography, extensive B-roll, or animation may invest CHF 20,000–50,000+. Work with a producer upfront to align budget with goals.\"}},{\"@type\":\"Question\",\"name\":\"Do product videos help with Google rankings?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Yes. Videos on landing pages increase dwell time and reduce bounce rates, both SEO ranking factors. Optimised video titles, descriptions, and schema markup signal relevance to Google. Videos also generate backlinks and social shares, boosting domain authority. Expect improved rankings within 3–6 months of publishing.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Product Video: The Complete Guide to Visual Selling</span></nav>
+  <span class="eyebrow">Product video</span>
+  <h1>Product Video: The Complete Guide to Visual Selling</h1>
+  <p class="lead">A product video is far more than a demo—it's a strategic tool that demonstrates value, builds trust, and drives purchasing decisions. Modern buyers expect to see products in action before committing, and video delivers that proof 85% more effectively than static images alone. Whether you're launching a new offering, explaining technical features to a sceptical audience, or building social proof, a well-crafted product video accelerates your sales cycle and improves SEO rankings simultaneously.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>September 4, 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/en/tomfit-train-smarter-not-harder/05-TomFit_8.jpg" alt="Product Video: The Complete Guide to Visual Selling" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>What Is a Product Video—and Why It Matters Now</h2>
+<p>A product video visually explains what your offering does, how it works, and why it solves a real problem. Unlike generic promotional content, effective product videos focus on user outcomes: they show your product in real environments, with real people, solving genuine pain points. The result is higher engagement, lower bounce rates, and measurable conversion uplift.</p>
+<p>For B2B companies especially—think industrial equipment, software, or professional services—product videos reduce the friction in complex sales cycles. Prospects can grasp technical specifications and benefits in 60–90 seconds, shortening your sales team's discovery phase.</p>
+<h2>Core Elements of a High-Converting Product Video</h2>
+<ul>
+<li><strong>Clear value proposition upfront:</strong> Lead with the primary benefit, not the company name. Viewers decide in 3 seconds whether to keep watching.</li>
+<li><strong>Real-world demonstration:</strong> Show your product working in authentic contexts—offices, warehouses, homes. Avoid sterile studio setups unless your brand positioning demands it.</li>
+<li><strong>Customer testimonials or case results:</strong> Third-party validation dramatically increases credibility. Include metrics: time saved, cost reduced, revenue gained.</li>
+<li><strong>Clear call-to-action:</strong> Direct viewers to your website, a demo booking, or a contact form. Ambiguity kills conversions.</li>
+<li><strong>Mobile-first editing:</strong> 80% of video is watched on phones. Keep text large, use captions for sound-off viewing, and design vertical compositions for mobile feeds.</li>
+<li><strong>SEO-friendly metadata:</strong> Title, description, and tags matching search intent ensure your video surfaces in Google Search and YouTube results alongside text content.</li>
+</ul>
+<h2>Product Video Formats That Deliver Results</h2>
+<p><strong>Short-form demo (30–60 seconds):</strong> Ideal for social media, email campaigns, and landing pages. Focus on one key feature or outcome.</p>
+<p><strong>Explainer video (90–120 seconds):</strong> Perfect for complex products requiring step-by-step explanation. Use animation, screen capture, and voiceover to simplify.</p>
+<p><strong>Case study video (2–4 minutes):</strong> Feature a real customer's journey: problem, implementation, results. Builds massive credibility with similar prospects.</p>
+<p><strong>How-to guide:</strong> Long-form content that teaches viewers to use your product fully. Ranks well on Google and YouTube, drives organic traffic. <a href={p("services/how-to-video")}>Learn more about how-to video production</a>.</p>
+<p><strong>Product comparison:</strong> Head-to-head visual breakdown of your solution versus alternatives. Powerful for consideration-stage buyers.</p>
+<h2>Video Production Best Practices for Product Videos</h2>
+<p>Professional production quality matters. Grainy footage, poor lighting, and cheap audio signal low brand value to prospects. Invest in:</p>
+<ul>
+<li>Colour-graded cinematography aligned with your brand identity</li>
+<li>Clear, mixed audio (voiceover, ambient sound, music at correct levels)</li>
+<li>B-roll that contextualises your product—not just close-ups</li>
+<li>Motion graphics and text overlays to guide viewers through complex concepts</li>
+<li>Captions and multiple language options for global reach</li>
+</ul>
+<p>At Viven, we produce <a href={p("services/product-video")}>product videos</a> for global brands like UBS, Siemens, and ON—companies that understand video is a non-negotiable part of modern marketing.</p>
+<h2>Distribution and SEO Strategy</h2>
+<p>Creating a great product video is half the battle. Distribution amplifies impact:</p>
+<ul>
+<li><strong>YouTube and Google:</strong> Optimise your video title and description for keywords. Embed videos on relevant landing pages. YouTube videos in SERPs boost click-through rates by 28%.</li>
+<li><strong>LinkedIn:</strong> Upload natively (not YouTube links) for B2B reach. Video posts generate 5× more engagement than text.</li>
+<li><strong>Social media:</strong> Adapt your video for TikTok, Instagram, and Facebook. <a href={p("services/social-media-video")}>Social media videos</a> require different pacing and formats than long-form content.</li>
+<li><strong>Email campaigns:</strong> A video thumbnail in an email increases click-through rates by 80%.</li>
+<li><strong>Sales enablement:</strong> Host product videos on your website, product pages, and sales collateral. Train your sales team to share them during discovery calls.</li>
+</ul>
+<h2>Measuring Product Video ROI</h2>
+<p>Track these metrics to prove impact:</p>
+<ul>
+<li>View-through rate (VTR): How many viewers watch to completion or key milestones?</li>
+<li>Click-through rate (CTR): How many viewers act on your CTA?</li>
+<li>Conversion rate: Which viewers become leads or customers?</li>
+<li>Engagement time: Where do viewers drop off? Refine future videos accordingly.</li>
+<li>SEO lift: Monitor keyword rankings and organic traffic from video-enhanced pages.</li>
+</ul>
+<p>Product videos typically generate ROI within 6–12 months, with top performers delivering 3–5× returns on production investment.</p>
+<h2>Ready to Produce Your Product Video?</h2>
+<p>Whether you're launching a new product, explaining technical features, or building trust with a global audience, a professional product video is essential. Viven has helped industry leaders like FIFA, Philips, and Porsche showcase their offerings to millions of viewers. <a href={p("contact")}>Get in touch</a> to discuss your vision—we'll develop a video strategy tailored to your sales funnel and audience.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036759173?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Related reading</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Read more →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">See our work</h2>
+    <VideoGallery lang={lang} limit={3} seed="product-video-guide" />
+  </div></section>
+</Base>
