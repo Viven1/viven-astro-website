@@ -160,6 +160,29 @@ Respondé SOLO JSON válido sin fences:
           .upsert(rowsToSave, { onConflict: "keyword,lang", ignoreDuplicates: false });
         if (upErr) console.error("KWOPP_UPSERT_ERROR", upErr.message);
       }
+
+      /* Mandar las de type=new_content a la cola del blog SOLA, sin esperar el click
+         manual del botón "⚡ a la cola" — que existía pero nadie lo estaba usando: la
+         cola tenía puros temas genéricos tipeados a mano, sin keyword real detrás.
+         (Sebastián, 4 sep 2026: "las sugerencias para el blog vengan de datos reales
+         de GSC... no cualquier cosa random".) Mismo shape que el botón manual, para
+         que content-engine calcule el veredicto igual. Solo las 'new' (nunca tocadas
+         a mano) y solo si esa keyword todavía no está en la cola, así una corrida
+         semanal no la duplica ni pisa lo que Sebastián ya descartó o marcó accionada. */
+      try {
+        const { data: pend } = await service.from("keyword_opportunities")
+          .select("id,keyword,lang,priority,why,action").eq("type", "new_content").eq("status", "new");
+        for (const o of pend ?? []) {
+          const { data: yaEsta } = await service.from("content_queue").select("id").eq("target_keyword", o.keyword).maybeSingle();
+          if (yaEsta) continue;
+          const row = { topic: o.action || o.keyword, priority: Math.min(10, o.priority || 5), target_keyword: o.keyword, keyword_why: o.why || null, keyword_priority: o.priority || null };
+          const { error: qErr } = await service.from("content_queue").insert(row);
+          if (qErr) { console.error("KWOPP_AUTOQUEUE_ERROR", o.keyword, qErr.message); continue; }
+          await service.from("keyword_opportunities").update({ status: "actioned", updated_at: new Date().toISOString() }).eq("id", o.id);
+        }
+      } catch (e) {
+        console.error("KWOPP_AUTOQUEUE_FAIL", String(e));
+      }
     } catch (e) {
       // nunca tumba la respuesta al botón manual por un problema de la tabla nueva
       console.error("KWOPP_SAVE_ERROR", String(e));
