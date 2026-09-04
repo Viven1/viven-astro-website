@@ -28142,14 +28142,15 @@ const newsCases = [
         } });
         if (error || !data || !data.body_html) throw new Error(data?.error || error?.message || 'sin respuesta');
         const sib = blogsList.find((x) => x.group_id === bgCur.group_id && x.lang === l);
-        /* La foto y el video de cada idioma NO se pisan.
-           Propagar reescribe el TEXTO desde el master, que es para lo que sirve. Pero
-           antes también mandaba hero_image y video_id del master, así que si él había
-           elegido una foto distinta para el alemán, propagar desde el inglés se la
-           borraba — y las tres versiones terminaban con la misma imagen. Pasó de
-           verdad el 25 ago con los tres posts de "Video SEO".
-           Ahora: si el hermano ya tiene lo suyo, se respeta; solo se le pasa la del
-           master cuando está vacío. */
+        /* La foto y el video SIEMPRE viajan del master a los hermanos al propagar.
+           Hasta el 25 ago hacía lo contrario —solo si el hermano estaba vacío— para no
+           pisar una foto distinta elegida a mano; pero el efecto real, semanas después,
+           era que cambiar la imagen del master ya no propagaba a nada, porque los tres
+           idiomas casi siempre tienen algo desde que se generaron una vez. Missing/
+           distinta imagen entre idiomas es justamente el error que había que evitar.
+           (Sebastián, 4 sep 2026: "no manda ni las imágenes ni los videos... eso tiene
+           que funcionar para evitar errores".) Si en el futuro hace falta una foto
+           distinta por idioma otra vez, que sea un campo explícito, no un default. */
         /* status SOLO para los que nacen acá. Antes iba 'draft' siempre, así que
            propagar sobre un idioma YA PUBLICADO lo devolvía a borrador en la base
            aunque siguiera al aire en la web. Efecto: la lista mostraba "falta el
@@ -28164,8 +28165,8 @@ const newsCases = [
         /* Y el slug de un idioma publicado NO se toca: cambiarlo deja el artículo
            viejo colgado en la web y rompe el link que ya está en Google. */
         else delete row.slug;
-        if (!sib || !sib.hero_image) row.hero_image = bgCur.hero_image || null;
-        if (!sib || !sib.video_id) row.video_id = bgCur.video_id || null;
+        row.hero_image = bgCur.hero_image || null;
+        row.video_id = bgCur.video_id || null;
         if (sib) { const { error: e2 } = await supabase.from('blogs').update(row).eq('id', sib.id); if (e2 && /column/.test(e2.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').update(row).eq('id', sib.id); } }
         else { const { error: e3 } = await supabase.from('blogs').insert(row); if (e3 && /column/.test(e3.message)) { delete row.hero_image; delete row.video_id; await supabase.from('blogs').insert(row); } }
         toast('✓ ' + (LANGNAME[l] || l) + ' actualizado desde el master');
