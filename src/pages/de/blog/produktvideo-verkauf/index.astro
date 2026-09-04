@@ -1,0 +1,90 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { localePath } from '../../../../i18n.js';
+import VideoGallery from '../../../../components/VideoGallery.astro';
+import CalcBanner from '../../../../components/CalcBanner.astro';
+const lang = "de";
+const p = (s) => localePath(lang, s);
+const title = {"de":"Produktvideo: So verkaufen Sie besser | Viven"};
+const description = {"de":"Produktvideos steigern Conversions um bis zu 80%. Erfahren Sie, wie Sie ein effektives Produktvideo drehen und worauf es ankommt."};
+
+// Related reading: 3 posts hermanos con mayor overlap de palabras del slug — se recalcula en cada build
+const OWN_SLUG = "produktvideo-verkauf";
+const REL_STOP = new Set(['the','and','with','for','your','how','what','why','video','videos','videoproduktion','videoproduccion','production','produktion','produccion','company','agentur','agency','marken','brands','marcas','schweiz','switzerland','suiza','zurich','zuerich','que','como','con','para','der','die','das','und','fuer','von','wie','ein','eine']);
+const relWords = (x) => new Set(String(x).split('-').filter((w) => w.length > 2 && !REL_STOP.has(w)));
+const relOwn = relWords(OWN_SLUG);
+const related = Object.entries(import.meta.glob('../*/index.astro', { query: '?raw', import: 'default', eager: true }))
+  .map(([rp, rraw]) => {
+    const rslug = rp.split('/')[1];
+    if (rslug === OWN_SLUG) return null;
+    const rm = String(rraw).match(/const title = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    const dm = String(rraw).match(/const description = [{]"[a-z]{2}":("(?:[^"\\]|\\.)*")[}]/);
+    let rtitle = rslug, rdesc = '';
+    try { if (rm) rtitle = JSON.parse(rm[1]).replace(/ \| Viven$/, ''); if (dm) rdesc = JSON.parse(dm[1]); } catch (e) { /* archivo irregular */ }
+    let score = 0; relWords(rslug).forEach((w) => { if (relOwn.has(w)) score++; });
+    return { slug: rslug, title: rtitle, desc: rdesc, score };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 3);
+---
+<Base lang={lang} slug="blog/produktvideo-verkauf" active="blog" singleLang={true} langUrls={{"en":"/en/blog/product-video-guide/","de":"/de/blog/produktvideo-verkauf/","es":"/es/blog/video-producto-venta/"}} title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={"{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"BlogPosting\",\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":\"https://www.viven.ch/de/blog/produktvideo-verkauf/\"},\"headline\":\"Produktvideo: So verkaufen Sie besser\",\"description\":\"Produktvideos steigern Conversions um bis zu 80%. Erfahren Sie, wie Sie ein effektives Produktvideo drehen und worauf es ankommt.\",\"inLanguage\":\"de\",\"author\":{\"@type\":\"Person\",\"name\":\"Sofia Treviño\"},\"publisher\":{\"@id\":\"https://www.viven.ch/#organization\"},\"url\":\"https://www.viven.ch/de/blog/produktvideo-verkauf/\",\"datePublished\":\"2026-09-04T15:22:03.049Z\",\"image\":\"https://www.viven.ch/projects/en/tomfit-train-smarter-not-harder/05-TomFit_8.jpg\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Home\",\"item\":\"https://www.viven.ch/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Blog\",\"item\":\"https://www.viven.ch/de/blog/\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Produktvideo: So verkaufen Sie besser\",\"item\":\"https://www.viven.ch/de/blog/produktvideo-verkauf/\"}]},{\"@type\":\"FAQPage\",\"mainEntity\":[{\"@type\":\"Question\",\"name\":\"Wie lang sollte ein Produktvideo sein?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Für Websites und E-Commerce 60–90 Sekunden, für Social Media 15–30 Sekunden. Der Fokus liegt auf Relevanz: Zeigen Sie nur die wichtigsten Punkte, nicht alles auf einmal.\"}},{\"@type\":\"Question\",\"name\":\"Brauche ich ein Produktvideo, wenn ich bereits gute Fotos habe?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Ja. Videos erhöhen die Conversion Rate messbar und reduzieren Retouren, weil Kunden vor dem Kauf verstehen, was sie erhalten. Fotos und Video ergänzen sich.\"}},{\"@type\":\"Question\",\"name\":\"Wie viel kostet ein professionelles Produktvideo?\",\"acceptedAnswer\":{\"@type\":\"Answer\",\"text\":\"Das hängt von Komplexität, Länge und Aufwand ab. Einfache Produktvideos starten ab einigen Tausend Franken, aufwendige Produktionen mit Location und Schauspielern können 15'000 Franken überschreiten.\"}}]}]}"}></script>
+<section class="page-hero post-hero"><div class="wrap"><div class="post-wrap">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href={p("")}>Home</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <a href={p("blog")}>Blog</a> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg> <span>Produktvideo: So verkaufen Sie besser</span></nav>
+  <span class="eyebrow">Videoproduktion für Schweizer Unternehmen</span>
+  <h1>Produktvideo: So verkaufen Sie besser</h1>
+  <p class="lead">Ein Produktvideo ist mehr als eine einfache Demonstration: Es ist ein Verkaufsinstrument, das Ihre Zielgruppe in Sekundenschnelle überzeugt. Studien zeigen, dass Produktvideos die Kaufwahrscheinlichkeit um bis zu 80 Prozent erhöhen und die Rückgabequoten senken. Egal ob Sie im E-Commerce tätig sind oder B2B-Lösungen verkaufen – ein gut gemachtes Produktvideo hilft Ihnen, schneller zu verkaufen und Vertrauen aufzubauen.</p>
+  <p class="post-meta"><span>Sofia Treviño</span> <span>·</span> <span>4. September 2026</span></p>
+</div></div></section>
+<section class="sec" style="padding-top:40px"><div class="wrap"><div class="post-wrap post-body reveal">
+<img src="/projects/en/tomfit-train-smarter-not-harder/05-TomFit_8.jpg" alt="Produktvideo: So verkaufen Sie besser" loading="eager" style="width:100%;border-radius:16px;margin:8px 0 26px;aspect-ratio:16/9;object-fit:cover" />
+<h2>Was macht ein Produktvideo aus?</h2><p>Ein Produktvideo zeigt Ihre Lösung in Aktion. Im Gegensatz zu statischen Produktfotos oder langen Texten können Sie hier innerhalb von 30 bis 90 Sekunden zeigen, wie Ihr Produkt funktioniert, welche Probleme es löst und warum es besser ist als Alternativen. Das ist besonders wertvoll für komplexe oder innovative Produkte, die sich nicht einfach mit Worten erklären lassen.</p><p>Gerade im Schweizer Markt, wo Qualität und Zuverlässigkeit erwartet werden, baut ein authentisches Produktvideo sofort Glaubwürdigkeit auf. Ihre Kundinnen und Kunden sehen nicht nur eine Aussage, sondern ein Beweis.</p><h2>Warum Produktvideos die Conversion Rate erhöhen</h2><p>Menschen verstehen visuell präsentierte Inhalte 60'000-mal schneller als Text. Ein Produktvideo zeigt:</p><ul><li>Die tatsächliche Grösse und Haptik des Produkts</li><li>Wie einfach die Bedienung ist</li><li>Welche konkreten Vorteile der Nutzer erhält</li><li>Authentische Anwendungsszenarien aus dem realen Leben</li></ul><p>Dadurch sinkt die Hemmschwelle zum Kauf. Besucher Ihrer Website oder des Online-Shops verstehen sofort, ob das Produkt für sie passt – und entscheiden sich schneller.</p><h2>Die Struktur eines effektiven Produktvideos</h2><p>Ein gutes Produktvideo folgt einer einfachen Logik:</p><ul><li><strong>Hook (erste 3 Sekunden):</strong> Fesseln Sie Aufmerksamkeit mit einer visuellen oder verbalen Aussage, die Ihr Versprechen zeigt</li><li><strong>Problem:</strong> Benennen Sie das Problem, das Ihre Zielgruppe täglich hat</li><li><strong>Lösung:</strong> Zeigen Sie Ihr Produkt in Aktion – live, nicht grafisch</li><li><strong>Vorteile:</strong> Heben Sie die wichtigsten Merkmale hervor</li><li><strong>Call-to-Action:</strong> Leiten Sie direkt zum Shop, zur Demo oder zum Kontaktformular</li></ul><p>Besonders bei <a href={p("services/product-video")}>Produktvideos für B2B</a> sind klare Schnitte und professionelle Erzählung entscheidend – Ihre Entscheider sollen in wenigen Sekunden verstehen, warum sich eine Investition lohnt.</p><h2>Wo Sie Ihr Produktvideo einsetzen</h2><p>Ein einzelnes Video reicht nicht. Die beste Strategie ist, verschiedene Versionen für unterschiedliche Kanäle zu erstellen:</p><ul><li><strong>Website &amp; E-Commerce:</strong> 60–90 Sekunden, autoplay ohne Sound, mit Untertiteln</li><li><strong>YouTube &amp; Google Ads:</strong> 30 Sekunden Hook am Anfang, dann detaillierte Erklärung</li><li><strong>Instagram &amp; TikTok:</strong> Kurze 15–30 Sekunden Clips mit Musik und schnellen Schnitten</li><li><strong>LinkedIn &amp; E-Mail:</strong> 45 Sekunden, professioneller Ton, fokussiert auf ROI</li></ul><p>Wenn Sie mehrere Produkte haben, lohnt sich ein <a href={p("services/how-to-video")}>How-to-Video</a> parallel – das zeigt nicht nur was, sondern auch wie Ihre Kundinnen und Kunden das Beste aus Ihrer Lösung herausholen.</p><h2>Häufige Fehler bei Produktvideos</h2><p>Viele Unternehmen drehen zu lange Videos, die am Ende niemandem schauen. Andere zeigen das Produkt in unrealistischen Szenen oder mit schlechter Audioqualität – das schadet der Glaubwürdigkeit. Ein weiterer Fehler: Zu viel Text auf dem Bildschirm, wenn der Voice-Over spricht.</p><p>Professionelle Produktion bedeutet auch: Gute Beleuchtung, saubere Kamera (mindestens 4K), natürliche Sprecherinnen oder Sprecher und durchdachter Schnitt. <a href={p("services/corporate-video")}>Hochwertige Videoproduktion</a> wird von Ihrer Zielgruppe sofort erkannt – und wirkt sich auf Ihr Image aus.</p><h2>Produktvideo vs. Erklärvideo: Der Unterschied</h2><p>Ein Erklärvideo zeigt ein Konzept, ein Problem oder einen abstrakten Prozess (oft mit Grafiken oder Animation). Ein Produktvideo zeigt Ihr konkretes Produkt in realen Anwendungsszenarien. Beide haben ihren Platz – aber für die meisten Unternehmen sollte das Produktvideo an erster Stelle stehen, weil es direkt zu Verkäufen führt.</p><p>Wenn Sie komplexe Technologie dahinter haben, kombinieren Sie beide: Ein Produktvideo für den ersten Eindruck, ein Erklärvideo für die Details.</p><p>Ein professionelles Produktvideo ist eine Investition, die sich messbar auszahlt. Ob Sie eine App, ein physisches Produkt oder eine B2B-Lösung verkaufen – ein gut gemachtes Video beschleunigt Ihre Sales Pipeline und reduziert Support-Anfragen, weil Kundinnen und Kunden vorab wissen, was sie bekommen. Viven AG hat über Jahre hinweg Produktvideos für namhafte Unternehmen gedreht. <a href={p("contact")}>Kontaktieren Sie uns</a>, und wir zeigen Ihnen, wie Ihr Produkt ins beste Licht rückt.</p>
+<div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin:26px 0"><iframe src="https://player.vimeo.com/video/1036759173?dnt=1" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+</div></div></section>
+
+<!-- ============ RELATED ============ -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="related reveal">
+      <h2>Das könnte dich auch interessieren</h2>
+      <div class="related-grid">
+      {related.map((r) => (
+        <a href={p('blog/' + r.slug)} class="related-card reveal">
+          <h3>{r.title}</h3>
+          <p>{r.desc}</p>
+          <span class="more">Weiterlesen →</span>
+        </a>
+      ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<CalcBanner lang={lang} />
+
+<!-- ============ CTA / FORM ============ -->
+<section class="cta" id="start" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-card reveal">
+      <div>
+        <span class="eyebrow" data-en="Let's talk" data-de="Sprechen wir" data-es="Hablemos">Let's talk</span>
+        <h2 data-en="Tell us what you're working on." data-de="Erzählen Sie uns von Ihrem Projekt." data-es="Contanos en qué estás trabajando.">Tell us what you're working on.</h2>
+        <p class="lead" data-en="Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation." data-de="Nennen Sie uns Ihr Ziel — wir melden uns innert 48 Stunden mit Timing und einem klaren Angebot. Kostenlos und unverbindlich." data-es="Contanos tu objetivo — volvemos en 48 horas con tiempos y un presupuesto claro. Gratis y sin compromiso.">Tell us your goal — we'll come back with timing and a clear quote within 48 hours. Free, no obligation.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="First draft within two weeks" data-de="Erster Entwurf in zwei Wochen" data-es="Primer borrador en dos semanas">First draft within two weeks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="One partner, brief to delivery" data-de="Ein Partner, vom Brief bis zur Auslieferung" data-es="Un partner, de principio a fin">One partner, brief to delivery</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg><span data-en="Multilingual delivery" data-de="Mehrsprachige Auslieferung" data-es="Entrega multilingüe">Multilingual delivery</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="lead-form-mount"></div>
+        <p class="form-note" data-en="We'll reply within one business day. No spam, ever." data-de="Wir antworten innerhalb eines Werktags. Kein Spam." data-es="Respondemos en un día hábil. Nunca spam.">We'll reply within one business day. No spam, ever.</p>
+        <p class="book-call-note"><span data-en="Prefer to talk it through?" data-de="Lieber direkt sprechen?" data-es="¿Preferís hablarlo directamente?">Prefer to talk it through?</span> <a class="book-call" href="/book/" target="_blank" rel="noopener" data-en="Book a free 15-min call →" data-de="Gratis 15-Min-Call buchen →" data-es="Reservá una llamada gratis de 15 min →">Book a free 15-min call →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  <section class="sec blog-videos" style="padding-top:0"><div class="wrap">
+    <h2 style="font-size:22px;margin-bottom:20px">Sehen Sie unsere Arbeiten</h2>
+    <VideoGallery lang={lang} limit={3} seed="produktvideo-verkauf" />
+  </div></section>
+</Base>
