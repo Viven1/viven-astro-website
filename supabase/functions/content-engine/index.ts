@@ -418,6 +418,35 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
   }
+  /* DIAGNÓSTICO (4 sep 2026): el aviso por email nunca llegaba y nadie se enteraba —
+     el fetch a Resend tenía `.catch(() => {})`, silencioso incluso si Resend devolvía
+     4xx/5xx. Este modo prueba el envío solo, sin gastar un artículo ni una corrida real.
+     (Sebastián: "el blog sigue autogenerando... no recibo notificaciones".) */
+  {
+    const body0 = await req.clone().json().catch(() => ({}));
+    if (body0?.test_email) {
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      if (!RESEND_API_KEY) return json({ ok: false, error: "RESEND_API_KEY no está seteada" });
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: "Viven Content Engine <leads@viven.ch>", to: ["sebastian@viven.ch"], subject: "🧪 Prueba — content-engine", html: "<p>Si esto llegó, Resend acepta leads@viven.ch como remitente.</p>" }),
+      });
+      const out = await r.json().catch(() => ({}));
+      let estado = null;
+      if (r.ok && out?.id) {
+        await new Promise((res) => setTimeout(res, 3000));
+        const r2 = await fetch("https://api.resend.com/emails/" + out.id, { headers: { Authorization: `Bearer ${RESEND_API_KEY}` } });
+        estado = await r2.json().catch(() => null);
+      }
+      return json({ ok: r.ok, status: r.status, resend: out, estado_de_entrega: estado });
+    }
+    if (body0?.check_email) {
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      const r2 = await fetch("https://api.resend.com/emails/" + body0.check_email, { headers: { Authorization: `Bearer ${RESEND_API_KEY}` } });
+      return json(await r2.json().catch(() => ({})));
+    }
+  }
   try {
     // modo WRITE NOW: body {queue_id} escribe ESE tema ya (botón ⚡ del dashboard);
     // sin body: el cron toma el próximo pendiente por prioridad
@@ -454,7 +483,19 @@ Deno.serve(async (req) => {
     const made: { lang: string; id: number; title: string; lead: string; token: string | null; body: string; faq: { q: string; a: string }[]; linkedin: string; slug: string }[] = [];
     try {
       for (const [lg, loc] of [["en", false], ["de", true], ["es", true]] as [string, boolean][]) {
-        const a = await writeArticle(topic, lg, loc);
+        let a;
+        try {
+          a = await writeArticle(topic, lg, loc);
+        } catch (e2) {
+          // Antes esto se perdía en silencio si YA había al menos un idioma hecho — el
+          // aviso decía "EN + DE" y nadie notaba que faltaba ES. Ahora queda en el log,
+          // con el tema y el idioma, para poder buscarlo. (Sebastián, 4 sep 2026: "el
+          // blog sigue autogenerando... no recibo notificaciones" — la causa real: 2
+          // semanas sin un solo artículo nuevo porque el que estaba primero en la cola
+          // fallaba en TODOS los idiomas cada vez, en silencio total.)
+          console.error("CONTENT_ENGINE_LANG_FALLO", item.id, topic, lg, String(e2));
+          continue;
+        }
         const token = crypto.randomUUID();
         // insert RESILIENTE: si faltan columnas nuevas (SQL 0034 sin correr), las saca y reintenta
         let row: Record<string, unknown> = {
@@ -475,11 +516,23 @@ Deno.serve(async (req) => {
         made.push({ lang: lg.toUpperCase(), id: ins.data?.id, title: a.title || "", lead: a.lead || "", token: ("approve_token" in row) ? token : null, body: a.body_html || "", faq: (a.faq || []) as { q: string; a: string }[], linkedin: String(a.linkedin || ""), slug: a.slug || "" });
       }
     } catch (e) {
-      if (!made.length) { await service.from("content_queue").update({ status: "pending" }).eq("id", item.id); throw e; }
+      console.error("CONTENT_ENGINE_FALLO_TOTAL", item.id, topic, String(e));
+    }
+    if (!made.length) {
+      /* Antes: se revertía a "pending" y se tiraba un error que nadie veía — pg_cron
+         no espera la respuesta (net.http_post es fire-and-forget), así que "succeeded"
+         en cron.job_run_details no significaba que escribió nada. Este item quedaba
+         reintentando lo MISMO cada corrida, en silencio, mientras temas más nuevos con
+         más prioridad lo saltaban. 2 semanas sin un solo artículo nuevo así.
+         Ahora, si falla TODO, avisa como lo que es: un fallo, no un silencio. */
+      await service.from("content_queue").update({ status: "pending" }).eq("id", item.id);
+      await pushAll("⚠️ El blog no se pudo escribir", "\"" + topic + "\" falló en los tres idiomas — revisá los logs de content-engine.", "/dashboard/");
+      return json({ ok: false, error: "falló en los tres idiomas", topic });
     }
     await service.from("content_queue").update({ status: "done", done_at: new Date().toISOString() }).eq("id", item.id);
     const kwPushLine = targetKeyword ? ` · 🎯 ${targetKeyword} · pos ${kwGsc.position != null ? kwGsc.position.toFixed(1) : "sin ranking"} · ${KW_VERDICT_LABEL[kw.verdict]}` : "";
-    await pushAll("📝 Borradores listos: " + item.topic, made.map((m) => m.lang).join(" + ") + " esperan tu aprobación (email o tab Blog)." + kwPushLine, "/dashboard/");
+    const faltan = ["EN", "DE", "ES"].filter((l) => !made.some((m) => m.lang === l));
+    await pushAll("📝 Borradores listos: " + item.topic, made.map((m) => m.lang).join(" + ") + " esperan tu aprobación (email o tab Blog)." + (faltan.length ? " · ⚠️ faltó " + faltan.join(", ") : "") + kwPushLine, "/dashboard/");
 
     // email a Sebastián con preview + botones Publicar / Editar
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -509,7 +562,7 @@ Deno.serve(async (req) => {
           ${media.video ? `<p style="font-size:12.5px;color:#8a94a8;margin-top:12px">🎬 Al publicar se embebe también el video Vimeo ${media.video} al final del artículo.</p>` : ""}
           ${m.linkedin ? `<div style="margin-top:16px;padding:14px 16px;border:1px dashed #b9c2d0;border-radius:12px;background:#fafbfd"><b style="font-size:12.5px;color:#1a2230">📣 Post de LinkedIn (copiar y pegar al publicar)</b><div style="font-size:13px;color:#333c4a;line-height:1.65;white-space:pre-wrap;margin-top:8px">${m.linkedin.replace("{{URL}}", "https://www.viven.ch/" + m.lang.toLowerCase() + "/blog/" + m.slug + "/")}</div></div>` : ""}
         </div>`).join("");
-      await fetch("https://api.resend.com/emails", {
+      const rEmail = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -517,7 +570,10 @@ Deno.serve(async (req) => {
           subject: "📝 Para aprobar: " + item.topic,
           html: `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto"><h2 style="font-size:18px">Nuevos borradores del motor de contenido</h2><p style="color:#5b6472;font-size:13.5px">Tema: <b>${item.topic}</b> · hero image ✓${media.video ? " · video ✓" : ""}. Un click en Publicar y sale a la web (deploy ~2 min); Editar abre el dashboard.</p>${kwEmailBlock}${cards}</div>`,
         }),
-      }).catch(() => {});
+      }).catch((e) => { console.error("CONTENT_ENGINE_EMAIL_FETCH_ERROR", String(e)); return null; });
+      // el .catch(() => {}) de antes tapaba cualquier 4xx/5xx de Resend sin dejar rastro —
+      // exactamente la clase de "no llegó y nadie se enteró" que reportó Sebastián.
+      if (rEmail && !rEmail.ok) console.error("CONTENT_ENGINE_EMAIL_FALLO", rEmail.status, await rEmail.text().catch(() => ""));
     }
     return json({ ok: true, topic: item.topic, made: made.map((m) => m.lang) });
   } catch (e) {
