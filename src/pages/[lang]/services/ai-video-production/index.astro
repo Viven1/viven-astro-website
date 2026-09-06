@@ -1,0 +1,97 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import { langPaths, localePath, SITE, T } from '../../../../i18n.js';
+import { aiServices } from '../../../../content/ai-services.js';
+export const getStaticPaths = langPaths;
+const { lang } = Astro.params;
+const d = aiServices[lang];
+const p = (slug) => localePath(lang, slug);
+const slug = 'services/ai-video-production';
+const title = Object.fromEntries(Object.entries(aiServices).map(([l, c]) => [l, c.title]));
+const description = Object.fromEntries(Object.entries(aiServices).map(([l, c]) => [l, c.description]));
+const schema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'Service', '@id': SITE + p(slug) + '#service', name: d.label, description: d.description,
+      url: SITE + p(slug), serviceType: d.label, provider: { '@id': SITE + '/#organization' },
+      areaServed: { '@type': 'Country', name: 'Switzerland' },
+      hasOfferCatalog: { '@type': 'OfferCatalog', name: d.servicesTitle, itemListElement: d.cards.map(([name, description]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name, description } })) } },
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: T.home[lang], item: SITE + p('') },
+      { '@type': 'ListItem', position: 2, name: T.services[lang], item: SITE + p('services') },
+      { '@type': 'ListItem', position: 3, name: d.label, item: SITE + p(slug) },
+    ] },
+  ],
+};
+---
+<Base lang={lang} slug={slug} active="services" activeSub="ai" title={title} description={description}>
+  <script type="application/ld+json" slot="jsonld" set:html={JSON.stringify(schema)} />
+  <section class="ai-hero">
+    <div class="wrap">
+      <nav class="crumbs" aria-label={lang === 'de' ? 'Brotkrümelnavigation' : lang === 'es' ? 'Ruta de navegación' : 'Breadcrumb'}>
+        <a href={p('')}>{T.home[lang]}</a><span aria-hidden="true">/</span>
+        <a href={p('services')}>{T.services[lang]}</a><span aria-hidden="true">/</span><span>{d.label}</span>
+      </nav>
+      <div class="ai-hero-grid">
+        <div>
+          <span class="eyebrow">{d.eyebrow}</span>
+          <h1>{d.h1}<br /><span>{d.accent}</span></h1>
+          <p class="lead">{d.intro}</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#start">{d.primary} <span aria-hidden="true">↗</span></a>
+            <a class="ai-text-link" href="#ai-services">{d.secondary} <span aria-hidden="true">↓</span></a>
+          </div>
+        </div>
+        <div class="ai-art" aria-hidden="true">
+          <div class="ai-art-top"><span>VIVEN / AI</span><span>01 — 04</span></div>
+          <div class="ai-orbit"></div><div class="ai-orbit ai-orbit-two"></div>
+          <div class="ai-art-lines">{d.visual.map((line, i) => <div class:list={['ai-art-line', { 'ai-art-line-last': i === 3 }]}><small>0{i + 1}</small><span>{line}</span></div>)}</div>
+          <div class="ai-wave">{Array.from({length: 37}, (_, i) => <i style={`height:${12 + Math.round(Math.abs(Math.sin(i * 1.7)) * 37)}px`}></i>)}</div>
+          <div class="ai-art-bottom"><span>IMAGE / MOTION / VOICE</span><span>↗</span></div>
+        </div>
+      </div>
+      <ul class="ai-strip">{d.strip.map(item => <li><span aria-hidden="true">✳</span>{item}</li>)}</ul>
+    </div>
+  </section>
+  <section class="ai-section" id="ai-services">
+    <div class="wrap">
+      <div class="ai-heading"><span class="eyebrow">{d.label}</span><h2>{d.servicesTitle}</h2><p class="lead">{d.servicesIntro}</p></div>
+      <div class="ai-service-grid">{d.cards.map(([name, text, deliverables], i) => (
+        <article class="ai-service-card">
+          <span class="ai-number" aria-hidden="true">0{i + 1} /</span>
+          <h3>{name}</h3><p>{text}</p><p class="ai-deliverables">{deliverables}</p>
+        </article>
+      ))}</div>
+    </div>
+  </section>
+  <section class="ai-section ai-approach">
+    <div class="wrap ai-approach-grid">
+      <div><span class="eyebrow">Viven</span><h2>{d.approachTitle}</h2><p class="lead">{d.approachText}</p>
+        <div class="ai-related"><a href={p('services/product-video')}>{d.approachLinks[0]} <span aria-hidden="true">↗</span></a><a href={p('projects')}>{d.approachLinks[1]} <span aria-hidden="true">↗</span></a></div>
+      </div>
+      <div><span class="ai-small-label">{d.exampleLabel}</span>{d.examples.map(([name, text]) => <div class="ai-example"><h3>{name}</h3><p>{text}</p></div>)}</div>
+    </div>
+  </section>
+  <section class="ai-section">
+    <div class="wrap"><div class="ai-heading"><h2>{d.processTitle}</h2></div>
+      <ol class="ai-steps">{d.steps.map(([name, text], i) => <li><span aria-hidden="true">0{i + 1}</span><h3>{name}</h3><p>{text}</p></li>)}</ol>
+    </div>
+  </section>
+  <section class="ai-section ai-faq">
+    <div class="wrap ai-faq-grid"><h2>{d.faqTitle}</h2><div>{d.faqs.map(([q, a]) => <details><summary>{q}<span aria-hidden="true">+</span></summary><p>{a}</p></details>)}</div></div>
+  </section>
+  <section class="cta ai-contact" id="start">
+    <div class="wrap"><div class="cta-card">
+      <div><span class="eyebrow">{d.ctaEyebrow}</span><h2>{d.ctaTitle}</h2><p class="lead">{d.ctaText}</p>
+        <ul>{d.ctaList.map(item => <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 13 4 4L19 7" /></svg><span>{item}</span></li>)}</ul>
+        <a href="/book/" class="ai-text-link">{d.call} <span aria-hidden="true">↗</span></a>
+      </div>
+      <div><p class="ai-form-hint">{d.formNote}</p><div class="lead-form-mount"></div><noscript><a href={p('contact')}>{T.contact[lang]}</a> · <a href="mailto:info@viven.ch">info@viven.ch</a></noscript></div>
+    </div></div>
+  </section>
+</Base>
+<style>
+  .ai-hero{padding:128px 0 0;overflow:hidden}.ai-hero .crumbs{margin-bottom:42px;flex-wrap:wrap}.ai-hero-grid{display:grid;grid-template-columns:1.12fr 1fr;gap:64px;align-items:center}.ai-hero h1{font-size:clamp(42px,4.8vw,68px);line-height:1.07;letter-spacing:-.055em;margin:22px 0}.ai-hero h1 span{color:var(--acid)}.ai-hero .lead{max-width:580px}.hero-cta{align-items:center;gap:22px}.ai-text-link{display:inline-flex;gap:12px;align-items:center;font-size:14px;font-weight:600;text-decoration:none;padding:12px 0}.ai-text-link:hover{color:var(--acid)}.ai-art{min-height:435px;border:1px solid var(--line-strong);border-radius:20px;background:linear-gradient(145deg,#223754,#142033 62%);position:relative;overflow:hidden;padding:24px;display:flex;flex-direction:column;justify-content:space-between}.ai-art-top,.ai-art-bottom{display:flex;justify-content:space-between;align-items:center;position:relative;font-size:10px;letter-spacing:.15em;color:var(--acid)}.ai-art-bottom{border-top:1px solid var(--line-strong);padding-top:16px}.ai-art-bottom span:last-child{font-size:24px}.ai-orbit{position:absolute;right:-80px;top:-80px;width:310px;height:310px;border:1px solid #ddf98f33;border-radius:50%;box-shadow:0 0 0 35px #ddf98f05,0 0 0 70px #ddf98f04}.ai-orbit-two{right:50px;top:200px;width:240px;height:240px;border-color:#9ab5ff26}.ai-art-lines{position:relative;margin:32px 0}.ai-art-line{display:flex;gap:20px;align-items:baseline;margin:10px 0;font-family:'Space Grotesk',sans-serif;font-size:clamp(22px,2.3vw,32px);letter-spacing:-.04em;line-height:1.15}.ai-art-line small{font-family:Inter,sans-serif;font-size:10px;letter-spacing:0;color:var(--muted)}.ai-art-line-last{color:var(--acid)}.ai-wave{display:flex;gap:5px;height:55px;align-items:center;position:relative;margin-bottom:24px}.ai-wave i{display:block;width:3px;border-radius:3px;background:var(--acid);opacity:.65}.ai-strip{display:flex;gap:24px;justify-content:space-between;list-style:none;padding:25px 0;margin:54px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}.ai-strip li{display:flex;gap:12px;align-items:center}.ai-strip li span{color:var(--acid);font-size:19px}.ai-section{padding:82px 0}.ai-heading{max-width:720px;margin-bottom:36px}.ai-section h2{font-size:clamp(28px,3.3vw,43px);line-height:1.14;letter-spacing:-.035em;margin:12px 0 18px}.ai-heading .lead{margin-bottom:0}.ai-service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.ai-service-card{padding:28px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--navy-800)}.ai-number{color:var(--acid);font-size:12px;letter-spacing:.12em;margin-bottom:34px}.ai-service-card h3{font-size:22px;line-height:1.2;letter-spacing:-.025em;margin:0 0 15px}.ai-service-card p,.ai-example p,.ai-steps p,.ai-faq p{color:var(--muted);font-size:15px;line-height:1.7;margin:0}.ai-service-card .ai-deliverables{margin-top:auto;padding-top:24px;font-size:12px;line-height:1.8;color:var(--acid)}.ai-approach{background:var(--navy-800);border-block:1px solid var(--line)}.ai-approach-grid{display:grid;grid-template-columns:1fr 1fr;gap:90px}.ai-small-label{font-size:12px;color:var(--acid);text-transform:uppercase;letter-spacing:.12em}.ai-example{padding:24px 0;border-bottom:1px solid var(--line)}.ai-example:last-child{border-bottom:0;padding-bottom:0}.ai-example h3{font-size:20px;margin:0 0 8px}.ai-related{display:flex;flex-direction:column;gap:16px;margin-top:30px}.ai-related a{font-size:14px;color:var(--acid);text-decoration:none}.ai-related a:hover{text-decoration:underline}.ai-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;list-style:none;padding:0;margin:0}.ai-steps li{border-top:1px solid var(--line-strong);padding-top:22px}.ai-steps li>span{color:var(--acid);font-family:'Space Grotesk',sans-serif;font-size:36px}.ai-steps h3{font-size:19px;margin:18px 0 10px;line-height:1.3}.ai-faq{padding-top:20px}.ai-faq-grid{display:grid;grid-template-columns:.75fr 1.25fr;gap:70px}.ai-faq details{border-bottom:1px solid var(--line)}.ai-faq summary{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:21px 0;font-size:16px;font-weight:600;cursor:pointer;list-style:none}.ai-faq summary::-webkit-details-marker{display:none}.ai-faq summary>span{color:var(--acid);font-size:24px}.ai-faq details[open] summary>span{transform:rotate(45deg)}.ai-faq details p{padding-bottom:23px}.ai-contact{padding-top:0}.ai-form-hint{font-size:13px;color:var(--muted);margin:0 0 16px;line-height:1.6}.ai-hero a:focus-visible,.ai-section a:focus-visible,.ai-contact a:focus-visible,.ai-faq summary:focus-visible{outline:2px solid var(--acid);outline-offset:5px;border-radius:3px}
+  @media(max-width:1000px){.ai-hero-grid{gap:30px}.ai-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-approach-grid{gap:45px}.ai-art-line{font-size:25px}.ai-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:680px){.ai-hero{padding-top:104px}.ai-hero .crumbs{margin-bottom:28px;font-size:11px}.ai-hero-grid,.ai-approach-grid,.ai-faq-grid{grid-template-columns:1fr;gap:32px}.ai-hero h1{font-size:43px}.ai-art{min-height:340px;padding:22px}.ai-art-line{font-size:25px}.ai-art-lines{margin:20px 0}.ai-strip{flex-direction:column;gap:12px;margin-top:32px;padding:22px 0}.ai-section{padding:54px 0}.ai-service-grid{grid-template-columns:1fr}.ai-service-card{padding:24px}.ai-number{margin-bottom:23px}.ai-heading{margin-bottom:28px}.ai-steps{gap:28px 20px}.ai-steps h3{font-size:17px}.ai-steps p{font-size:14px}.ai-faq{padding-top:0}.ai-faq-grid{gap:0}.ai-faq summary{font-size:15px}.ai-contact .cta-card{padding:26px}.ai-contact .ai-text-link{font-size:13px}}
+</style>
