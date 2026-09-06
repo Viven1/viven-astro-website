@@ -5,6 +5,7 @@ import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import Tracking from '../components/Tracking.astro';
 import siteCss from '../../public/assets/site.css?raw';
+import { blogLanguageUrls } from '../blog-locales.js';
 
 const {
   lang = DEFAULT_LANG,
@@ -17,7 +18,7 @@ const {
   preloadHero = false,
   singleLang = false,   /* páginas de un solo idioma (blog posts) → sin hreflang alternates */
   switchSlug = null,    /* a dónde apunta el selector de idioma (posts → índice del blog) */
-  langUrls = null,      /* {en,de,es} URLs exactas para el selector (post → mismo artículo traducido) */
+  langUrls: suppliedLangUrls = null,      /* {en,de,es} URLs exactas para el selector (post → mismo artículo traducido) */
   canonicalPath = null, /* path exacto para canonical/og:url (case studies en su URL vieja) */
 } = Astro.props;
 
@@ -26,6 +27,10 @@ const pageTitle = pick(title, lang);
 const pageDesc = pick(description, lang);
 const canonical = canonicalPath ? SITE + canonicalPath : SITE + localePath(lang, slug);
 const alts = hreflangs(slug);
+// Blog indexes are navigation fallbacks, never translations of an article.
+const langUrls = slug.startsWith('blog/')
+  ? blogLanguageUrls('/' + lang + '/' + slug.replace(/\/$/, '') + '/')
+  : suppliedLangUrls;
 const OG_IMG = SITE + '/assets/og.jpg';
 const HERO = '/assets/heroes/home-hero-828.webp';
 const HERO_LG = '/assets/heroes/home-hero-1600.webp';
@@ -113,7 +118,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <SiteHeader lang={lang} slug={slug} active={active} activeSub={activeSub} switchSlug={switchSlug} langUrls={langUrls} />
 
-<slot />
+<main id="main-content">
+  <slot />
+</main>
 
 <SiteFooter lang={lang} />
 
