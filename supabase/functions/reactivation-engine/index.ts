@@ -195,6 +195,13 @@ function baseExclusion(lead: Lead): string | null {
   if (!lead.email) return "sin email";
   if (TEST.test(String(lead.email))) return "email interno/test";
   if (BILLING.test(String(lead.email))) return "casilla de facturación — buscar contacto humano a mano";
+  /* La cartera importada de bexio no entra acá. (Sebastián, 2 sep 2026: "no hagas más
+     tasks con la gente de bexio, esos ya no sirven. dejémoslos dentro pero apagados
+     para no molestar con notificaciones" — aplicado en stale-remind ese mismo día,
+     pero este motor quedó afuera.) Medido el 10 sep 2026: de 15 drafts de
+     reactivación que salieron alguna vez, los 15 eran bexio-import — y descartaste
+     13 (87%). No era mala suerte del modelo, era el candidato equivocado siempre. */
+  if (lead.channel === "bexio-import") return "cartera importada de bexio — no se reactiva";
   if (lead.unsubscribed) return "dado de baja";
   if (lead.reactivation_drafted_at) return "ya tuvo reactivación (flag)";
   if (lead.last_reply_at && Date.now() - new Date(String(lead.last_reply_at)).getTime() < ACTIVE_REPLY_DAYS * DAY) return "conversación activa reciente";
