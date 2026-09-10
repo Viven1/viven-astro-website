@@ -14108,7 +14108,18 @@ const newsCases = [
     const diasMed = Math.max(1, Math.ceil((rangeEnd() - Math.max(rangeStart(), HUMAN_DESDE)) / 864e5));
     const diasMedTxt = diasMed === 1 ? 'último día' : 'últimos ' + diasMed + ' días';
     anaAvisoModo(soloPersonas, parcial, hayMedicion, sinTest.length, real.length);
-    const entries = real.filter((r) => r.is_entry);
+    /* "Entrada" se recalcula acá, no se confía en el flag is_entry que manda el
+       navegador. Ese flag se escribe en sessionStorage y se manda en el MISMO insert
+       — si esa primera llamada se pierde (bloqueador de rastreo, pestaña cerrada
+       rápido, lo que sea) la sesión queda sin ninguna fila is_entry=true, aunque
+       tenga otras páginas vistas después. Medido el 10 sep 2026: 5 sesiones así en
+       10 días — por eso "Personas" (458, cuenta TODA sesión con algo) y la suma de
+       la tabla de canales (456, solo contaba `is_entry`) no cerraban.
+       Acá se toma la primera página vista de cada sesión por fecha — existe siempre
+       que la sesión exista — así las dos cuentas son la misma cuenta. */
+    const porSesion = new Map();
+    real.forEach((r) => { const p = porSesion.get(r.session_id); if (!p || r.created_at < p.created_at) porSesion.set(r.session_id, r); });
+    const entries = [...porSesion.values()];
     const sessions = new Set(real.map((r) => r.session_id));
     /* la cartera de bexio queda afuera de los KPIs de performance (ver esCartera):
        si no, el import del 25 jul mete 168 "conversiones" en cualquier período que
