@@ -10016,7 +10016,16 @@ const newsCases = [
     const name = (clientName || '').trim(); if (!name) return null;
     if (!confirm('Esta ' + (email !== undefined ? 'propuesta' : 'oferta') + ' no está ligada a ninguna persona → NO aparece en el pipeline.\n\n¿Crear la persona «' + name + '» y ligarla ahora?')) return null;
     const stage = { won: 'ganado', sent: 'propuesta' }[status] || 'contactado';
-    const row = { name, first_name: name.split(/\s+/)[0], email: email || null, status: stage, channel: 'manual', last_stage_at: new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+    const row = { name, first_name: name.split(/\s+/)[0], email: email || null, status: stage, channel: 'manual', last_stage_at: nowIso };
+    /* La persona nace YA en la etapa "ganado" cuando la oferta era won y no tenía a
+       quién ligarse — pero nacer en la etapa no sella la fecha de esa etapa, así que
+       leads.won_at quedaba null. El status decía "ganado" y todo lo que lee won_at
+       (el embudo de Analytics, entre otros) contaba cero. Septiembre 2026: "Conversión
+       real" decía 3 clientes, el embudo decía 0 Ganados — mismos leads, mismo mes.
+       Mismo mapeo que newDealForLead / setDealStage (STAGE_TS), para que nacer en una
+       etapa y llegar a ella por drag queden contados igual. */
+    const ts = STAGE_TS[stage]; if (ts) row[ts] = nowIso;
     try {
       const res = await sbWriteRowsResilient('leads', [row], null);
       const created = res.rows[0];
