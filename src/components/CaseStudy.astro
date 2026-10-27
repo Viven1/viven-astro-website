@@ -12,6 +12,7 @@ const L = {
   watch: { en: 'Watch the film', de: 'Film ansehen', es: 'Ver el film' },
   back: { en: 'All projects', de: 'Alle Projekte', es: 'Todos los proyectos' },
   gallery: { en: 'From the production', de: 'Aus der Produktion', es: 'De la producción' },
+  closed: { en: 'We are no longer accepting new projects or inquiries.', de: 'Wir nehmen keine neuen Projekte und Anfragen mehr entgegen.', es: 'Ya no aceptamos nuevos proyectos ni consultas.' },
   ctaH: { en: 'Start your success story.', de: 'Starten Sie Ihre Erfolgsgeschichte.', es: 'Empezá tu historia de éxito.' },
   ctaP: { en: 'Tell us what you’re working on — we’ll come back with ideas, timing and a clear quote.', de: 'Erzählen Sie uns von Ihrem Projekt — wir melden uns mit Ideen, Timing und einem klaren Angebot.', es: 'Contá tu proyecto — volvemos con ideas, tiempos y un presupuesto claro.' },
   formNote: { en: "We'll reply within one business day. No spam, ever.", de: 'Wir antworten innerhalb eines Werktags. Kein Spam.', es: 'Respondemos en un día hábil. Nunca spam.' },
@@ -87,35 +88,16 @@ const llevaGuia = ES_HOWTO.test(String(project.service || ''));
   {llevaGuia && <LeadMagnet lang={lang} magnet="explainer-guide" />}
   <CalcBanner lang={lang} />
 
-  <section class="cta" style="padding-top:0">
+  <section class="cta closed-notice" style="padding-top:0">
     <div class="wrap">
-      <div class="cta-card reveal">
-        <div>
-          <span class="eyebrow">{t(L.eyebrow)}</span>
-          <h2>{t(L.ctaH)}</h2>
-          <p class="lead">{t(L.ctaP)}</p>
-          <div class="hero-cta" style="margin-top:28px">
-            <a href={p('projects')} class="btn btn-ghost">← {t(L.back)}</a>
-          </div>
-        </div>
-        <div>
-          <div class="lead-form-mount"></div>
-          <p class="form-note">{t(L.formNote)}</p>
-          <p class="book-call-note"><span>{t(L.bookQ)}</span> <a class="book-call" href="/book/" target="_blank" rel="noopener">{t(L.bookCta)}</a></p>
+      <div class="cta-card reveal" style="display:block;text-align:center">
+        <p class="lead" style="margin:0">{t(L.closed)}</p>
+        <div class="hero-cta" style="margin-top:24px;justify-content:center">
+          <a href={p('projects')} class="btn btn-ghost">← {t(L.back)}</a>
         </div>
       </div>
     </div>
   </section>
-
-  {/* Barra fija en el teléfono. El caso de éxito ya terminaba con formulario,
-      pero está al final de una página larga: el que mira el portfolio y se va
-      nunca llega. Aparece pasado el 35% del scroll y desaparece cuando el
-      formulario de abajo entra en pantalla, para no competir con él.
-      (Idea de CRO aprobada: CTA en el portfolio.) */}
-  <div class="cs-sticky" id="cs-sticky" hidden>
-    <span>{t(L.ctaH)}</span>
-    <a class="btn btn-primary small" href="/book/" target="_blank" rel="noopener">{t(L.bookCta)}</a>
-  </div>
 </article>
 
 <style is:global>
